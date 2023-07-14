@@ -20,7 +20,8 @@ service Msg {
   rpc InstantiateContract(MsgInstantiateContract)
       returns (MsgInstantiateContractResponse);
     
-  rpc AddInstantiateAllowlist(MsgAddInstiatiateAllowlist) returns (MsgAddInstiatiateAllowlistResponse);
+  rpc AddWasmInstantiateAllowlist(MsgAddWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
+  rpc DeleteWasmInstantiateAllowlist(MsgDeleteWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
 
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
@@ -100,18 +101,28 @@ message MsgInstantiateContractResponse {
   bytes data = 2;
 }
 
-message MsgAddInstiatiateAllowlist {
+message MsgAddWasmInstantiateAllowlist {
   // Signer is the actor that signed the messages
   string signer = 1;
   // Address is the bech32 address of the contract that can call wasm instantiate without a VAA
   string address = 2;
   // CodeID is the reference to the stored WASM code that can be instantiated
   uint64 code_id = 3;
-  // vaa is the WormchainAllowlistInstantiateContract governance message
+  // vaa is the WormchainAddWasmInstantiateAllowlist governance message
   bytes vaa = 4;
 }
 
-message MsgAddInstiatiateAllowlistResponse {}
+message MsgDeleteWasmInstantiateAllowlist {
+    // signer should be a guardian validator in a current set or future set.
+    string signer = 1;
+    // the <contract, code_id> pair to remove
+    string address = 2;
+    uint64 code_id = 3;
+    // vaa is the WormchainDeleteWasmInstantiateAllowlist governance message
+    bytes vaa = 4;
+}
+
+message MsgWasmInstantiateAllowlistResponse {}
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {

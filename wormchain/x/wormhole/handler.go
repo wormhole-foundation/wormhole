@@ -29,8 +29,11 @@ func NewHandler(k keeper.Keeper) sdk.Handler {
 		case *types.MsgInstantiateContract:
 			res, err := msgServer.InstantiateContract(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
-		case *types.MsgAddInstiatiateAllowlist:
-			res, err := msgServer.AddInstantiateAllowlist(sdk.WrapSDKContext(ctx), msg)
+		case *types.MsgAddWasmInstantiateAllowlist:
+			res, err := msgServer.AddWasmInstantiateAllowlist(sdk.WrapSDKContext(ctx), msg)
+			return sdk.WrapServiceResult(ctx, res, err)
+		case *types.MsgDeleteWasmInstantiateAllowlist:
+			res, err := msgServer.DeleteWasmInstantiateAllowlist(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
 		case *types.MsgMigrateContract:
 			res, err := msgServer.MigrateContract(sdk.WrapSDKContext(ctx), msg)

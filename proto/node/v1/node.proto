@@ -92,7 +92,8 @@ message GovernanceMessage {
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
-    WormchainAllowlistInstantiateContract wormchain_allowlist_instantiate_contract = 23;
+    WormchainAddWasmInstantiateAllowlist wormchain_add_wasm_instantiate_allowlist = 23;
+    WormchainDeleteWasmInstantiateAllowlist wormchain_delete_wasm_instantiate_allowlist = 24;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -214,7 +215,15 @@ message WormchainInstantiateContract {
   string instantiation_msg = 3;
 }
 
-message WormchainAllowlistInstantiateContract {
+message WormchainAddWasmInstantiateAllowlist {
+  // CodeID is the reference to the stored WASM code.
+  uint64 code_id = 1;
+
+  // The address of the contract that is allowlisted to call wasm instantiate without a VAA.
+  string contract = 2;
+}
+
+message WormchainDeleteWasmInstantiateAllowlist {
   // CodeID is the reference to the stored WASM code.
   uint64 code_id = 1;
 

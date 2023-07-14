@@ -45,8 +45,11 @@ var wormchainMigrateContractCodeId *string
 var wormchainMigrateContractContractAddress *string
 var wormchainMigrateContractInstantiationMsg *string
 
-var wormchainAllowlistInstantiateContractCodeId *string
-var wormchainAllowlistInstantiateContractContractAddress *string
+var wormchainAddWasmInstantiateAllowlistCodeId *string
+var wormchainAddWasmInstantiateAllowlistContractAddress *string
+
+var wormchainDeleteWasmInstantiateAllowlistCodeId *string
+var wormchainDeleteWasmInstantiateAllowlistContractAddress *string
 
 var ibcReceiverUpdateChannelChainTargetChainId *string
 var ibcReceiverUpdateChannelChainChannelId *string
@@ -121,11 +124,17 @@ func init() {
 	AdminClientWormchainMigrateContractCmd.Flags().AddFlagSet(wormchainMigrateContractFlagSet)
 	TemplateCmd.AddCommand(AdminClientWormchainMigrateContractCmd)
 
-	wormchainAllowlistInstantiateContractFlagSet := pflag.NewFlagSet("wormchain-instantiate-allowlist", pflag.ExitOnError)
-	wormchainAllowlistInstantiateContractCodeId = wormchainAllowlistInstantiateContractFlagSet.String("code-id", "", "code ID of the stored code to allowlist wasm instantiate for")
-	wormchainAllowlistInstantiateContractContractAddress = wormchainAllowlistInstantiateContractFlagSet.String("contract-address", "", "contract address to allowlist wasm instantiate for")
-	AdminClientWormchainAllowlistInstantiateContractCmd.Flags().AddFlagSet(wormchainAllowlistInstantiateContractFlagSet)
-	TemplateCmd.AddCommand(AdminClientWormchainAllowlistInstantiateContractCmd)
+	wormchainAddWasmInstantiateAllowlistFlagSet := pflag.NewFlagSet("wormchain-add-wasm-instantiate-allowlist", pflag.ExitOnError)
+	wormchainAddWasmInstantiateAllowlistCodeId = wormchainAddWasmInstantiateAllowlistFlagSet.String("code-id", "", "code ID of the stored code to allowlist wasm instantiate for")
+	wormchainAddWasmInstantiateAllowlistContractAddress = wormchainAddWasmInstantiateAllowlistFlagSet.String("contract-address", "", "contract address to allowlist wasm instantiate for")
+	AdminClientWormchainAddWasmInstantiateAllowlistCmd.Flags().AddFlagSet(wormchainAddWasmInstantiateAllowlistFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainAddWasmInstantiateAllowlistCmd)
+
+	wormchainDeleteWasmInstantiateAllowlistFlagSet := pflag.NewFlagSet("wormchain-delete-wasm-instantiate-allowlist", pflag.ExitOnError)
+	wormchainDeleteWasmInstantiateAllowlistCodeId = wormchainDeleteWasmInstantiateAllowlistFlagSet.String("code-id", "", "code ID of the stored code to delete allowlist wasm instantiate for")
+	wormchainDeleteWasmInstantiateAllowlistContractAddress = wormchainDeleteWasmInstantiateAllowlistFlagSet.String("contract-address", "", "contract address to delete allowlist wasm instantiate for")
+	AdminClientWormchainDeleteWasmInstantiateAllowlistCmd.Flags().AddFlagSet(wormchainDeleteWasmInstantiateAllowlistFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainDeleteWasmInstantiateAllowlistCmd)
 
 	// flags for the ibc-receiver-update-channel-chain command
 	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
@@ -201,10 +210,16 @@ var AdminClientWormchainMigrateContractCmd = &cobra.Command{
 	Run:   runWormchainMigrateContractTemplate,
 }
 
-var AdminClientWormchainAllowlistInstantiateContractCmd = &cobra.Command{
-	Use:   "wormchain-allowlist-instantiate-contract",
-	Short: "Generate an empty wormchain allowlist instantiate contract template at specified path",
-	Run:   runWormchainAllowlistInstantiateContractTemplate,
+var AdminClientWormchainAddWasmInstantiateAllowlistCmd = &cobra.Command{
+	Use:   "wormchain-add-wasm-instantiate-allowlist",
+	Short: "Generate an empty wormchain add wasm instantiate allowlist template at specified path",
+	Run:   runWormchainAddWasmInstantiateAllowlistTemplate,
+}
+
+var AdminClientWormchainDeleteWasmInstantiateAllowlistCmd = &cobra.Command{
+	Use:   "wormchain-delete-wasm-instantiate-allowlist",
+	Short: "Generate an empty wormchain delete wasm instantiate allowlist template at specified path",
+	Run:   runWormchainDeleteWasmInstantiateAllowlistTemplate,
 }
 
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
@@ -599,17 +614,23 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 	fmt.Print(string(b))
 }
 
-func runWormchainAllowlistInstantiateContractTemplate(cmd *cobra.Command, args []string) {
-	if *wormchainAllowlistInstantiateContractCodeId == "" {
+func wormchainWasmInstantiateAllowlistValidation(rawCodeId *string, rawContractAddress *string) (uint64, string) {
+	if *rawCodeId == "" {
 		log.Fatal("--code-id must be specified")
 	}
-	codeId, err := strconv.ParseUint(*wormchainAllowlistInstantiateContractCodeId, 10, 64)
+	codeId, err := strconv.ParseUint(*rawCodeId, 10, 64)
 	if err != nil {
 		log.Fatal("failed to parse code-id as utin64: ", err)
 	}
-	if *wormchainAllowlistInstantiateContractContractAddress == "" {
+	if *rawContractAddress == "" {
 		log.Fatal("--contract-address must be specified")
 	}
+
+	return codeId, *rawContractAddress
+}
+
+func runWormchainAddWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
+	codeId, contractAddr := wormchainWasmInstantiateAllowlistValidation(wormchainAddWasmInstantiateAllowlistCodeId, wormchainAddWasmInstantiateAllowlistContractAddress)
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
@@ -617,10 +638,36 @@ func runWormchainAllowlistInstantiateContractTemplate(cmd *cobra.Command, args [
 			{
 				Sequence: rand.Uint64(),
 				Nonce:    rand.Uint32(),
-				Payload: &nodev1.GovernanceMessage_WormchainAllowlistInstantiateContract{
-					WormchainAllowlistInstantiateContract: &nodev1.WormchainAllowlistInstantiateContract{
+				Payload: &nodev1.GovernanceMessage_WormchainAddWasmInstantiateAllowlist{
+					WormchainAddWasmInstantiateAllowlist: &nodev1.WormchainAddWasmInstantiateAllowlist{
 						CodeId:   codeId,
-						Contract: *wormchainAllowlistInstantiateContractContractAddress,
+						Contract: contractAddr,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainDeleteWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
+	codeId, contractAddr := wormchainWasmInstantiateAllowlistValidation(wormchainDeleteWasmInstantiateAllowlistCodeId, wormchainDeleteWasmInstantiateAllowlistContractAddress)
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainDeleteWasmInstantiateAllowlist{
+					WormchainDeleteWasmInstantiateAllowlist: &nodev1.WormchainDeleteWasmInstantiateAllowlist{
+						CodeId:   codeId,
+						Contract: contractAddr,
 					},
 				},
 			},

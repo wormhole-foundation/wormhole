@@ -52,10 +52,11 @@ var (
 	ActionCoreRecoverChainId GovernanceAction = 5
 
 	// Wormchain cosmwasm governance actions
-	ActionStoreCode                    GovernanceAction = 1
-	ActionInstantiateContract          GovernanceAction = 2
-	ActionMigrateContract              GovernanceAction = 3
-	ActionAllowlistInstantiateContract GovernanceAction = 4
+	ActionStoreCode                      GovernanceAction = 1
+	ActionInstantiateContract            GovernanceAction = 2
+	ActionMigrateContract                GovernanceAction = 3
+	ActionAddWasmInstantiateAllowlist    GovernanceAction = 4
+	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -133,7 +134,7 @@ type (
 	}
 
 	// BodyWormchainAllowlistInstantiateContract is a governance message to allowlist a specific contract address to instantiate a specific wasm code id.
-	BodyWormchainAllowlistInstantiateContract struct {
+	BodyWormchainWasmAllowlistInstantiate struct {
 		ContractAddr [32]byte
 		CodeId       uint64
 	}
@@ -257,14 +258,14 @@ func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
-func (r BodyWormchainAllowlistInstantiateContract) Serialize() []byte {
+func (r BodyWormchainWasmAllowlistInstantiate) Serialize(action GovernanceAction) []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
 	MustWrite(payload, binary.BigEndian, r.CodeId)
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionAllowlistInstantiateContract, ChainIDWormchain, payload.Bytes())
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, action, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyWormchainAllowlistInstantiateContract) Deserialize(bz []byte) {
+func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 	if len(bz) != 40 {
 		panic("incorrect payload length")
 	}
