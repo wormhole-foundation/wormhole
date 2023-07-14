@@ -52,7 +52,7 @@ func (p *Processor) broadcastSignature(
 	if p.state.signatures[hash] == nil {
 		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
-			nextRetry:     initRetryTime(),
+			nextRetry:     time.Now().Add(nextRetryDuration(0)),
 			signatures:    map[ethcommon.Address][]byte{},
 			source:        "loopback",
 		}

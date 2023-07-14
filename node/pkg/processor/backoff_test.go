@@ -8,12 +8,20 @@ import (
 )
 
 func TestBackoff(t *testing.T) {
-	assert.Equal(t, firstRetryMinWait, nextRetryDuration(0))
-	assert.Equal(t, firstRetryMinWait*2, nextRetryDuration(1))
-	assert.Equal(t, firstRetryMinWait*4, nextRetryDuration(2))
-
 	for i := 0; i < 10; i++ {
-		assert.Greater(t, time.Now().Add(firstRetryMinWait*2+time.Second), initRetryTime())
-		assert.Less(t, time.Now().Add(firstRetryMinWait-time.Second), initRetryTime())
+		assert.Greater(t, firstRetryMinWait*1*2+time.Second, nextRetryDuration(0))
+		assert.Less(t, firstRetryMinWait*1-time.Second, nextRetryDuration(0))
+
+		assert.Greater(t, firstRetryMinWait*2*2+time.Second, nextRetryDuration(1))
+		assert.Less(t, firstRetryMinWait*2-time.Second, nextRetryDuration(1))
+
+		assert.Greater(t, firstRetryMinWait*4*2+time.Second, nextRetryDuration(2))
+		assert.Less(t, firstRetryMinWait*4-time.Second, nextRetryDuration(2))
+
+		assert.Greater(t, firstRetryMinWait*8*2+time.Second, nextRetryDuration(3))
+		assert.Less(t, firstRetryMinWait*8-time.Second, nextRetryDuration(3))
+
+		assert.Greater(t, firstRetryMinWait*1024*2+time.Second, nextRetryDuration(10))
+		assert.Less(t, firstRetryMinWait*1024-time.Second, nextRetryDuration(10))
 	}
 }

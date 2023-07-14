@@ -161,10 +161,9 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
-			// add some jitter between 0 and 5 minutes for the first retry because there are likely other guardians who will also send a retry.
-			nextRetry:  initRetryTime(),
-			signatures: map[common.Address][]byte{},
-			source:     "unknown",
+			nextRetry:     time.Now().Add(nextRetryDuration(0)),
+			signatures:    map[common.Address][]byte{},
+			source:        "unknown",
 		}
 	}
 
