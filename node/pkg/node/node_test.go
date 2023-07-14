@@ -88,7 +88,8 @@ type guardianConfig struct {
 	p2pPort      uint
 }
 
-func createGuardianConfig(testId uint, mockGuardianIndex uint) *guardianConfig {
+func createGuardianConfig(t testing.TB, testId uint, mockGuardianIndex uint) *guardianConfig {
+	t.Helper()
 	return &guardianConfig{
 		publicSocket: fmt.Sprintf("/tmp/test_guardian_%d_public.socket", mockGuardianIndex+testId*20),
 		adminSocket:  fmt.Sprintf("/tmp/test_guardian_%d_admin.socket", mockGuardianIndex+testId*20), // TODO consider using os.CreateTemp("/tmp", "test_guardian_adminXXXXX.socket"),
@@ -99,7 +100,8 @@ func createGuardianConfig(testId uint, mockGuardianIndex uint) *guardianConfig {
 	}
 }
 
-func newMockGuardianSet(testId uint, n int) []*mockGuardian {
+func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
+	t.Helper()
 	gs := make([]*mockGuardian, n)
 
 	for i := 0; i < n; i++ {
@@ -115,14 +117,15 @@ func newMockGuardianSet(testId uint, n int) []*mockGuardian {
 			MockSetC:         make(chan *common.GuardianSet),
 			gk:               gk,
 			guardianAddr:     ethcrypto.PubkeyToAddress(gk.PublicKey),
-			config:           createGuardianConfig(testId, uint(i)),
+			config:           createGuardianConfig(t, testId, uint(i)),
 		}
 	}
 
 	return gs
 }
 
-func mockGuardianSetToGuardianAddrList(gs []*mockGuardian) []eth_common.Address {
+func mockGuardianSetToGuardianAddrList(t testing.TB, gs []*mockGuardian) []eth_common.Address {
+	t.Helper()
 	result := make([]eth_common.Address, len(gs))
 	for i, g := range gs {
 		result[i] = g.guardianAddr
@@ -131,7 +134,8 @@ func mockGuardianSetToGuardianAddrList(gs []*mockGuardian) []eth_common.Address 
 }
 
 // mockGuardianRunnable returns a runnable that first sets up a mock guardian an then runs it.
-func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock.ObservationDb) supervisor.Runnable {
+func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex uint, obsDb mock.ObservationDb) supervisor.Runnable {
+	t.Helper()
 	return func(ctx context.Context) error {
 		// Create a sub-context with cancel function that we can pass to G.run.
 		ctx, ctxCancel := context.WithCancel(ctx)
@@ -207,6 +211,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
 func setupLogsCapture(t testing.TB, options ...zap.Option) (*zap.Logger, *observer.ObservedLogs, *LogSizeCounter) {
+	t.Helper()
 	observedCore, observedLogs := observer.New(zap.InfoLevel)
 	consoleLogger := zaptest.NewLogger(t, zaptest.Level(CONSOLE_LOG_LEVEL))
 	lc := NewLogSizeCounter(zap.InfoLevel)
@@ -215,6 +220,7 @@ func setupLogsCapture(t testing.TB, options ...zap.Option) (*zap.Logger, *observ
 }
 
 func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
+	t.Helper()
 	// example log entry that we're looking for:
 	// 		INFO	root.g-2.g.p2p	p2p/p2p.go:465	valid signed heartbeat received	{"value": "node_name:\"g-0\"  timestamp:1685677055425243683  version:\"development\"  guardian_addr:\"0xeF2a03eAec928DD0EEAf35aD31e34d2b53152c07\"  boot_timestamp:1685677040424855922  p2p_node_id:\"\\x00$\\x08\\x01\\x12 \\x97\\xf3\\xbd\\x87\\x13\\x15(\\x1e\\x8b\\x83\\xedǩ\\xfd\\x05A\\x06aTD\\x90p\\xcc\\xdb<\\xddB\\xcfi\\xccވ\"", "from": "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"}
 	re := regexp.MustCompile("g-[0-9]+")
@@ -248,6 +254,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 //
 //	As long as this is the case, you probably don't want to use this function.
 func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+	t.Helper()
 	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
 	readyFlags := make([]bool, len(gs))
@@ -303,7 +310,8 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 }
 
 // waitForVaa polls the publicRpc service every 5ms until there is a response.
-func waitForVaa(ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
+func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
+	t.Helper()
 	var r *publicrpcv1.GetSignedVAAResponse
 	var err error
 
@@ -443,8 +451,9 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 	return db
 }
 
+// waitForStatusServer queries the /readyz and /metrics endpoints at `statusAddr` every 100ms until they are online.
 // #nosec G107 -- it's OK to make http requests with `statusAddr` because `statusAddr` is trusted.
-func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string) error {
+func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string) error {
 	var httpClient = &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -555,11 +564,11 @@ func TestConsensus(t *testing.T) {
 		// TODO add a testcase to test the automatic re-observation requests.
 		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
 	}
-	testConsensus(t, testCases, numGuardians)
+	runConsensusTests(t, testCases, numGuardians)
 }
 
-// testConsensus spins up `numGuardians` guardians and runs & verifies the testCases
-func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
+// runConsensusTests spins up `numGuardians` guardians and runs & verifies the testCases
+func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 	const testTimeout = time.Second * 30
 	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
 	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
@@ -576,13 +585,13 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 		logger := supervisor.Logger(ctx)
 
 		// create the Guardian Set
-		gs := newMockGuardianSet(testId, numGuardians)
+		gs := newMockGuardianSet(t, testId, numGuardians)
 
 		obsDb := makeObsDb(testCases)
 
 		// run the guardians
 		for i := 0; i < numGuardians; i++ {
-			gRun := mockGuardianRunnable(gs, uint(i), obsDb)
+			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 			if i == 0 && numGuardians > 1 {
 				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -594,7 +603,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 
 		// Inform them of the Guardian Set
 		commonGuardianSet := common.GuardianSet{
-			Keys:  mockGuardianSetToGuardianAddrList(gs),
+			Keys:  mockGuardianSetToGuardianAddrList(t, gs),
 			Index: guardianSetIndex,
 		}
 		for i, g := range gs {
@@ -604,7 +613,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 
 		// wait for the status server to come online and check that it works
 		for _, g := range gs {
-			err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", g.config.statusPort))
+			err := waitForStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", g.config.statusPort))
 			assert.NoError(t, err)
 		}
 
@@ -684,7 +693,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 		defer conn.Close()
 		c := publicrpcv1.NewPublicRPCServiceClient(conn)
 
-		gsAddrList := mockGuardianSetToGuardianAddrList(gs)
+		gsAddrList := mockGuardianSetToGuardianAddrList(t, gs)
 
 		// ensure that all test cases have passed
 		for i, testCase := range testCases {
@@ -698,7 +707,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 				EmitterAddress: msg.EmitterAddress.String(),
 				Sequence:       msg.Sequence,
 			}
-			r, err := waitForVaa(ctx, c, msgId, testCase.mustNotReachQuorum)
+			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
 
 			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
 			if testCase.mustNotReachQuorum {
@@ -797,7 +806,7 @@ func TestWatcherConfigs(t *testing.T) {
 			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
 		},
 	}
-	testGuardianConfigurations(t, tc)
+	runGuardianConfigTests(t, tc)
 }
 
 func TestGuardianConfigs(t *testing.T) {
@@ -818,10 +827,10 @@ func TestGuardianConfigs(t *testing.T) {
 			err: "Component bigtable is already configured and cannot be configured a second time",
 		},
 	}
-	testGuardianConfigurations(t, tc)
+	runGuardianConfigTests(t, tc)
 }
 
-func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig) {
+func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 	for _, tc := range testCases {
 		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
 		const testTimeout = time.Second * 2
@@ -992,12 +1001,12 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	benchmarkConsensus(b, "1", 19, 1000, 10) // ~10s
-	//benchmarkConsensus(b, "1", 19, 1000, 5) // ~10s
-	//benchmarkConsensus(b, "1", 19, 1000, 1) // ~13s
+	runConsensusBenchmark(b, "1", 19, 1000, 10) // ~10s
+	//runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
+	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }
 
-func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
+func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
 	t.Run(name, func(t *testing.B) {
 		require.Equal(t, t.N, 1)
 		testId := getTestId()
@@ -1016,13 +1025,13 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 			logger := supervisor.Logger(ctx)
 
 			// create the Guardian Set
-			gs := newMockGuardianSet(testId, numGuardians)
+			gs := newMockGuardianSet(t, testId, numGuardians)
 
 			var obsDb mock.ObservationDb = nil // TODO
 
 			// run the guardians
 			for i := 0; i < numGuardians; i++ {
-				gRun := mockGuardianRunnable(gs, uint(i), obsDb)
+				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
 				err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 				if i == 0 && numGuardians > 1 {
 					time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -1034,7 +1043,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 
 			// Inform them of the Guardian Set
 			commonGuardianSet := common.GuardianSet{
-				Keys:  mockGuardianSetToGuardianAddrList(gs),
+				Keys:  mockGuardianSetToGuardianAddrList(t, gs),
 				Index: guardianSetIndex,
 			}
 			for i, g := range gs {
@@ -1044,7 +1053,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 
 			// wait for the status server to come online and check that it works
 			for _, g := range gs {
-				err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", g.config.statusPort))
+				err := waitForStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", g.config.statusPort))
 				assert.NoError(t, err)
 			}
 
@@ -1105,7 +1114,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 				}
 				// a VAA should not take longer than 10s to be produced, no matter what.
 				waitCtx, cancelFunc := context.WithTimeout(ctx, time.Second*10)
-				_, err := waitForVaa(waitCtx, c, msgId, false)
+				_, err := waitForVaa(t, waitCtx, c, msgId, false)
 				cancelFunc()
 				assert.NoError(t, err)
 				if err != nil {
