@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -232,17 +233,12 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 
 	// Check if we already store this VAA
-	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
-	if err == nil {
-		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
-			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
-		)
-		return
-	} else if err != db.ErrVAANotFound {
-		p.logger.Error("failed to look up VAA in database",
-			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
-			zap.Error(err),
-		)
+	if p.haveSignedVAA(*db.VaaIDFromVAA(v)) {
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
+				zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+			)
+		}
 		return
 	}
 
