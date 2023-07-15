@@ -300,6 +300,34 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	return p.db.StoreSignedVAA(v)
 }
 
+// haveSignedVAA returns true if we already have a VAA for the given VAAID
+func (p *Processor) haveSignedVAA(id db.VAAID) bool {
+	if id.EmitterChain == vaa.ChainIDPythNet {
+		if p.pythnetVaas == nil {
+			return false
+		}
+		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
+		_, exists := p.pythnetVaas[key]
+		return exists
+	}
+
+	if p.db == nil {
+		return false
+	}
+
+	ok, err := p.db.HasVAA(id)
+
+	if err != nil {
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("vaaID", string(id.Bytes())),
+			zap.Error(err),
+		)
+		return false
+	}
+
+	return ok
+}
+
 func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 
 	if id.EmitterChain == vaa.ChainIDPythNet {
