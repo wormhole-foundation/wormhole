@@ -13,7 +13,6 @@ import (
 	math_rand "math/rand"
 	"net/http"
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -128,9 +127,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		logger := supervisor.Logger(ctx)
 
 		// setup db
-		dataDir := fmt.Sprintf("/tmp/test_guardian_%d", mockGuardianIndex)
-		_ = os.RemoveAll(dataDir) // delete any pre-existing data
-		db := db.OpenDb(logger, &dataDir)
+		db := db.OpenDb(logger, nil)
 		defer db.Close()
 
 		// set environment
@@ -174,7 +171,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
-			GuardianOptionPublicWeb(mockPublicWeb(mockGuardianIndex), publicSocketPath, "", false, path.Join(dataDir, "autocert")),
+			GuardianOptionPublicWeb(mockPublicWeb(mockGuardianIndex), publicSocketPath, "", false, ""),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(mockGuardianIndex))),
 			GuardianOptionProcessor(),
@@ -190,10 +187,6 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		}
 
 		<-ctx.Done()
-
-		// cleanup
-		// _ = os.RemoveAll(dataDir) // we don't do this for now since this could run before BadgerDB's flush(), causing an error; Meh
-
 		return nil
 	}
 }
