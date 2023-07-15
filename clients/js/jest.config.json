@@ -28,5 +28,8 @@
         "filename": "worm-cli-tests-report.html"
       }
     ]
+  ],
+  "setupFiles": [
+    "./jest.setup.cjs"
   ]
 }
