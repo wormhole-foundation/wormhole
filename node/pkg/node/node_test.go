@@ -1001,7 +1001,7 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	runConsensusBenchmark(b, "1", 19, 1000, 50) // ~7.9s
+	runConsensusBenchmark(b, "1", 19, 1000, 50) // ~7.5s
 	//runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
 	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }

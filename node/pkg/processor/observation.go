@@ -179,6 +179,19 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 	s.signatures[their_addr] = m.Signature
 
+	quorum := vaa.CalculateQuorum(len(gs.Keys))
+
+	if len(s.signatures) < quorum {
+		// no quorum yet, we're done here
+		p.logger.Debug("quorum not yet met",
+			zap.String("digest", hash),
+			zap.String("messageId", m.MessageId),
+		)
+		return
+	}
+	// Now we *may* have quorum, depending on the guardian set in use.
+	// Let's construct the VAA and check if we actually have quorum.
+
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	agg := make([]bool, len(gs.Keys))
 	var sigs []*vaa.Signature
