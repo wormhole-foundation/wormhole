@@ -264,6 +264,17 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	return p.db.StoreSignedVAA(v)
 }
 
+// haveSignedVAA returns true if we already have a VAA for the given VAAID
+func (p *Processor) haveSignedVAA(id db.VAAID) bool {
+	if id.EmitterChain == vaa.ChainIDPythNet {
+		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
+		_, exists := p.pythnetVaas[key]
+		return exists
+	}
+
+	return p.db.HasVAA(id)
+}
+
 func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 
 	if id.EmitterChain == vaa.ChainIDPythNet {

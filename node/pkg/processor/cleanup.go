@@ -77,7 +77,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
-				if _, err := p.getSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
+				if p.haveSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)) {
 					// If we have a stored quorum VAA, we can safely expire the state.
 					//
 					// This is a rare case, and we can safely expire the state, since we
@@ -86,11 +86,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					aggregationStateLate.Inc()
 					delete(p.state.signatures, hash)
 					continue
-				} else if err != db.ErrVAANotFound {
-					p.logger.Error("failed to look up VAA in database",
-						zap.String("digest", hash),
-						zap.Error(err),
-					)
 				}
 			}
 		}
