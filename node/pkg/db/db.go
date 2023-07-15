@@ -83,6 +83,7 @@ func (i *VAAID) EmitterPrefixBytes() []byte {
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 
+// TODO: Deprecate in favor of OpenDb
 func Open(path string) (*Database, error) {
 	db, err := badger.Open(badger.DefaultOptions(path))
 	if err != nil {
