@@ -17,16 +17,16 @@ import {
 export const attestToken = (
   tokenBridgeAddress: string,
   tokenChain: ChainId | ChainName,
-  tokenAddress: string,
+  tokenAddress: string
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   const assetType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
     coalesceChainId(tokenChain),
-    tokenAddress,
+    tokenAddress
   );
   if (!assetType) throw new Error("Invalid asset address.");
-  
+
   return {
     function: `${tokenBridgeAddress}::attest_token::attest_token_entry`,
     type_arguments: [assetType],
@@ -40,7 +40,7 @@ export const completeTransfer = async (
   client: AptosClient,
   tokenBridgeAddress: string,
   transferVAA: Uint8Array,
-  feeRecipient: string,
+  feeRecipient: string
 ): Promise<Types.EntryFunctionPayload> => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
@@ -52,7 +52,7 @@ export const completeTransfer = async (
   if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
     throw new Error("Transfer is not destined for Aptos");
   }
-  
+
   assertChain(parsedVAA.FromChain);
   const assetType =
     parsedVAA.FromChain === CHAIN_ID_APTOS
@@ -78,7 +78,7 @@ export const completeTransfer = async (
 export const completeTransferAndRegister = async (
   client: AptosClient,
   tokenBridgeAddress: string,
-  transferVAA: Uint8Array,
+  transferVAA: Uint8Array
 ): Promise<Types.EntryFunctionPayload> => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
@@ -90,7 +90,7 @@ export const completeTransferAndRegister = async (
   if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
     throw new Error("Transfer is not destined for Aptos");
   }
-  
+
   assertChain(parsedVAA.FromChain);
   const assetType =
     parsedVAA.FromChain === CHAIN_ID_APTOS
@@ -117,21 +117,23 @@ export const completeTransferWithPayload = (
   _tokenBridgeAddress: string,
   _tokenChain: ChainId | ChainName,
   _tokenAddress: string,
-  _vaa: Uint8Array,
+  _vaa: Uint8Array
 ): Types.EntryFunctionPayload => {
-  throw new Error("Completing transfers with payload is not yet supported in the sdk");
+  throw new Error(
+    "Completing transfers with payload is not yet supported in the sdk"
+  );
 };
 
 /**
- * Construct a payload for a transaction that registers a coin defined by the given origin chain 
+ * Construct a payload for a transaction that registers a coin defined by the given origin chain
  * ID and address to the sender's account.
- * 
+ *
  * The bytecode was compiled from the following Move code:
  * ```move
  * script {
  *   use aptos_framework::coin;
  *   use aptos_framework::signer;
- *    
+ *
  *   fun main<CoinType>(user: &signer) {
  *     if (!coin::is_account_registered<CoinType>(signer::address_of(user))) {
  *       coin::register<CoinType>(user);
@@ -170,7 +172,9 @@ export const registerCoin = (
 // Deploy coin
 
 // don't need `signer` and `&signer` in argument list because the Move VM will inject them
-export const deployCoin = (tokenBridgeAddress: string): Types.EntryFunctionPayload => {
+export const deployCoin = (
+  tokenBridgeAddress: string
+): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {
     function: `${tokenBridgeAddress}::deploy_coin::deploy_coin`,
@@ -183,7 +187,7 @@ export const deployCoin = (tokenBridgeAddress: string): Types.EntryFunctionPaylo
 
 export const registerChain = (
   tokenBridgeAddress: string,
-  vaa: Uint8Array,
+  vaa: Uint8Array
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {

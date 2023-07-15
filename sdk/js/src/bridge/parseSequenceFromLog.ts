@@ -1,4 +1,7 @@
-import { TransactionResponse, VersionedTransactionResponse } from "@solana/web3.js";
+import {
+  TransactionResponse,
+  VersionedTransactionResponse,
+} from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
 import { TxInfo as XplaTxInfo } from "@xpla/xpla.js";
 import { AptosClient, Types } from "aptos";
@@ -105,7 +108,9 @@ export function parseSequenceFromLogInjective(info: any): string {
 }
 
 const SOLANA_SEQ_LOG = "Program log: Sequence: ";
-export function parseSequenceFromLogSolana(info: TransactionResponse | VersionedTransactionResponse) {
+export function parseSequenceFromLogSolana(
+  info: TransactionResponse | VersionedTransactionResponse
+) {
   // TODO: better parsing, safer
   const sequence = info.meta?.logMessages
     ?.filter((msg) => msg.startsWith(SOLANA_SEQ_LOG))?.[0]

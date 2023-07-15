@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.21
+
+### Changes
+
+Relayer status function improvements
+
+Algorand changes for 3.16.2
+
 ## 0.9.20
 
 ### Added

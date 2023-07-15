@@ -5,12 +5,11 @@ import {
   Network,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { CONTRACT_NOT_DEPLOYED, YARGS_COMMAND_FAILED } from "../utils/errors";
-import { getChains, getNetworks } from "../utils/getters";
+import { getChains, networks } from "../utils/getters";
 
 describe("worm info contract", () => {
   describe("check functionality", () => {
     const chains = getChains();
-    const networks = getNetworks();
 
     networks.forEach((network) => {
       const NETWORK = network.toUpperCase() as Network;

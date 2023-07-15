@@ -19,9 +19,10 @@ export type SendOptionalParams = {
       chainId?: ChainId;
       emitterAddress: string;
       sequenceNumber: ethers.BigNumberish;
-    }
+    },
   ];
   deliveryProviderAddress?: string;
+  wormholeRelayerAddress?: string;
   consistencyLevel?: ethers.BigNumberish;
   refundChainId?: ChainId;
   refundAddress?: string;
@@ -42,10 +43,9 @@ export async function sendToEvm(
   const targetChainId = CHAINS[targetChain];
 
   const environment = sendOptionalParams?.environment || "MAINNET";
-  const wormholeRelayerAddress = getWormholeRelayerAddress(
-    sourceChain,
-    environment
-  );
+  const wormholeRelayerAddress =
+    sendOptionalParams?.wormholeRelayerAddress ||
+    getWormholeRelayerAddress(sourceChain, environment);
   const sourceWormholeRelayer =
     ethers_contracts.IWormholeRelayer__factory.connect(
       wormholeRelayerAddress,

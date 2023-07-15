@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,16 +27,16 @@ func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, l
 	entry := google_cloud_logging.Entry{
 		Timestamp: time,
 		Payload:   message,
-		Severity:  logLevelSeverity[level],
+		Severity:  googleLogLevelSeverity[level],
 	}
 
-	_, err := google_cloud_logging.ToLogEntry(entry, "/")
+	_, err := google_cloud_logging.ToLogEntry(entry, "someProjectId")
 	if err != nil {
-		panic("message could not be converted to google cloud log entry")
+		panic(fmt.Sprintf("message could not be converted to google cloud log entry: %v", err))
 	}
 
 }
-func (logger *externalLoggerMock) flush() error {
+func (logger *externalLoggerMock) close() error {
 	return nil
 }
 

@@ -109,7 +109,7 @@ export const tryUint8ArrayToNative = (
   } else if (chainId === CHAIN_ID_XPLA) {
     return humanAddress("xpla", a.slice(-20));
   } else if (chainId === CHAIN_ID_SEI) {
-    return humanAddress("sei", a.slice(-20));     
+    return humanAddress("sei", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
