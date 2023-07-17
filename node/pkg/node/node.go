@@ -12,6 +12,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -99,7 +100,7 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 
 	// Guardian set state managed by processor
-	g.gst = common.NewGuardianSetState(nil)
+	g.gst = common.NewGuardianSetStateForGuardian(ethcrypto.PubkeyToAddress(g.gk.PublicKey), nil)
 
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecycle events.
 	g.attestationEvents = reporter.EventListener(logger)

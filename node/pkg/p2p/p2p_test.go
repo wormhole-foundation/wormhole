@@ -87,7 +87,7 @@ func TestSignedHeartbeat(t *testing.T) {
 			Index: 1,
 		}
 
-		gst := node_common.NewGuardianSetState(nil)
+		gst := node_common.NewGuardianSetStateForGuardian(addr, nil)
 
 		heartbeatResult, err := processSignedHeartbeat("someone", s, gs, gst, false)
 

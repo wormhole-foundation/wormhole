@@ -6,7 +6,7 @@ import (
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -48,7 +48,7 @@ const MaxStateAge = 1 * time.Minute
 
 type GuardianSet struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
-	Keys []common.Address
+	Keys []ethcommon.Address
 	// On-chain set index
 	Index uint32
 }
@@ -65,7 +65,7 @@ func (g *GuardianSet) KeysAsHexStrings() []string {
 
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
-func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
+func (g *GuardianSet) KeyIndex(addr ethcommon.Address) (int, bool) {
 	for n, k := range g.Keys {
 		if k == addr {
 			return n, true
@@ -78,11 +78,25 @@ func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
 type GuardianSetState struct {
 	mu      sync.Mutex
 	current *GuardianSet
+	gsIdx   int // gsIdx is this node's index in the guardian set
+	ourAddr ethcommon.Address
 
 	// Last heartbeat message received per guardian per p2p node. Maintained
 	// across guardian set updates - these values don't change.
-	lastHeartbeats map[common.Address]map[peer.ID]*gossipv1.Heartbeat
+	lastHeartbeats map[ethcommon.Address]map[peer.ID]*gossipv1.Heartbeat
 	updateC        chan *gossipv1.Heartbeat
+}
+
+// NewGuardianSetStateForGuardian returns a new GuardianSetState.
+//
+// The provided channel will be pushed heartbeat updates as they are set,
+// but be aware that the channel will block guardian set updates if full.
+func NewGuardianSetStateForGuardian(ourAddr ethcommon.Address, guardianSetStateUpdateC chan *gossipv1.Heartbeat) *GuardianSetState {
+	return &GuardianSetState{
+		lastHeartbeats: map[ethcommon.Address]map[peer.ID]*gossipv1.Heartbeat{},
+		updateC:        guardianSetStateUpdateC,
+		ourAddr:        ourAddr,
+	}
 }
 
 // NewGuardianSetState returns a new GuardianSetState.
@@ -91,18 +105,19 @@ type GuardianSetState struct {
 // but be aware that the channel will block guardian set updates if full.
 func NewGuardianSetState(guardianSetStateUpdateC chan *gossipv1.Heartbeat) *GuardianSetState {
 	return &GuardianSetState{
-		lastHeartbeats: map[common.Address]map[peer.ID]*gossipv1.Heartbeat{},
+		lastHeartbeats: map[ethcommon.Address]map[peer.ID]*gossipv1.Heartbeat{},
 		updateC:        guardianSetStateUpdateC,
 	}
 }
 
 func (st *GuardianSetState) Set(set *GuardianSet) {
 	st.mu.Lock()
+	defer st.mu.Unlock()
 	gsIndex.Set(float64(set.Index))
 	gsSigners.Set(float64(len(set.Keys)))
-	defer st.mu.Unlock()
 
 	st.current = set
+	st.gsIdx, _ = set.KeyIndex(st.ourAddr)
 }
 
 func (st *GuardianSetState) Get() *GuardianSet {
@@ -112,9 +127,15 @@ func (st *GuardianSetState) Get() *GuardianSet {
 	return st.current
 }
 
+func (st *GuardianSetState) MyKeyIndex() int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.gsIdx
+}
+
 // LastHeartbeat returns the most recent heartbeat message received for
 // a given guardian node, or nil if none have been received.
-func (st *GuardianSetState) LastHeartbeat(addr common.Address) map[peer.ID]*gossipv1.Heartbeat {
+func (st *GuardianSetState) LastHeartbeat(addr ethcommon.Address) map[peer.ID]*gossipv1.Heartbeat {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	ret := make(map[peer.ID]*gossipv1.Heartbeat)
@@ -125,7 +146,7 @@ func (st *GuardianSetState) LastHeartbeat(addr common.Address) map[peer.ID]*goss
 }
 
 // SetHeartbeat stores a verified heartbeat observed by a given guardian.
-func (st *GuardianSetState) SetHeartbeat(addr common.Address, peerId peer.ID, hb *gossipv1.Heartbeat) error {
+func (st *GuardianSetState) SetHeartbeat(addr ethcommon.Address, peerId peer.ID, hb *gossipv1.Heartbeat) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
@@ -149,11 +170,11 @@ func (st *GuardianSetState) SetHeartbeat(addr common.Address, peerId peer.ID, hb
 }
 
 // GetAll returns all stored heartbeats.
-func (st *GuardianSetState) GetAll() map[common.Address]map[peer.ID]*gossipv1.Heartbeat {
+func (st *GuardianSetState) GetAll() map[ethcommon.Address]map[peer.ID]*gossipv1.Heartbeat {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	ret := make(map[common.Address]map[peer.ID]*gossipv1.Heartbeat)
+	ret := make(map[ethcommon.Address]map[peer.ID]*gossipv1.Heartbeat)
 
 	// Deep copy
 	for addr, v := range st.lastHeartbeats {
