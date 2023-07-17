@@ -293,7 +293,7 @@ func Run(
 
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
-		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
+		sub, err := th.Subscribe(pubsub.WithBufferSize(1024 * 10))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
@@ -498,15 +498,13 @@ func Run(
 			}
 
 			if envelope.GetFrom() == h.ID() {
-				logger.Debug("received message from ourselves, ignoring",
-					zap.Any("payload", msg.Message))
 				p2pMessagesReceived.WithLabelValues("loopback").Inc()
 				continue
 			}
 
 			logger.Debug("received message",
-				zap.Any("payload", msg.Message),
-				zap.Binary("raw", envelope.Data),
+				//zap.Any("payload", msg.Message),
+				//zap.Binary("raw", envelope.Data),
 				zap.String("from", envelope.GetFrom().String()))
 
 			switch m := msg.Message.(type) {
