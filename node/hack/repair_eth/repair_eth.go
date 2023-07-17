@@ -63,7 +63,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDMoonbeam:  strings.ToLower("0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"),
 	vaa.ChainIDArbitrum:  strings.ToLower("0xa5f208e072434bC67592E4C49C1B991BA79BCA46"),
 	vaa.ChainIDOptimism:  strings.ToLower("0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"),
-	// TODO: Add base once contract is deployed.
+	vaa.ChainIDBase:      strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
 }
 
 var (
