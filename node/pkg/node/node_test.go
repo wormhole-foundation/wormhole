@@ -26,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -1012,10 +1013,16 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	PROCESSOR_CPU = 6
 	PROCESSOR_VERSION = 3
+	PROCESSOR_CPU = 10
+
+	// with p2p sigverify
 	//runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v3: ~5.7s
-	runConsensusBenchmark(b, "1", 7, 3000, 50) // v1: ~4.8s, v3: ~3.1s
+	//runConsensusBenchmark(b, "1", 7, 3000, 50) // v1: ~4.8s, v3: ~3.1s
+
+	// without p2p sigverify
+	p2p.NoSigVerify = true
+	runConsensusBenchmark(b, "1", 7, 5000, 50) // v1: ~6.4s, v3: ~3.3s
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {

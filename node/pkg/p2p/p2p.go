@@ -43,6 +43,8 @@ import (
 
 const DefaultPort = 8999
 
+var NoSigVerify = false
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -275,7 +277,17 @@ func Run(
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
-		ps, err := pubsub.NewGossipSub(ctx, h)
+		var opts []pubsub.Option
+
+		if NoSigVerify {
+			opts = []pubsub.Option{
+				pubsub.WithStrictSignatureVerification(false),
+				pubsub.WithMessageSigning(false),
+				pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
+			}
+		}
+
+		ps, err := pubsub.NewGossipSub(ctx, h, opts...)
 		if err != nil {
 			panic(err)
 		}
