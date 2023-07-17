@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -62,6 +63,9 @@ const WAIT_FOR_METRICS = false
 
 // The level at which logs will be written to console; During testing, logs are produced and buffered at Info level, because some tests need to look for certain entries.
 var CONSOLE_LOG_LEVEL = zap.InfoLevel
+
+var PROCESSOR_VERSION uint = 3
+var PROCESSOR_CPU = runtime.NumCPU() / 2
 
 var TEST_ID_CTR atomic.Uint32
 
@@ -189,7 +193,14 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
-			GuardianOptionProcessor(),
+		}
+
+		if PROCESSOR_VERSION == 1 {
+			guardianOptions = append(guardianOptions, GuardianOptionProcessor())
+		} else if PROCESSOR_VERSION == 3 {
+			guardianOptions = append(guardianOptions, GuardianOptionProcessor3(PROCESSOR_CPU))
+		} else {
+			return errors.New("unsupported processor version")
 		}
 
 		guardianNode := NewGuardianNode(
@@ -699,7 +710,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 		for i, testCase := range testCases {
 			msg := testCase.msg
 
-			logger.Info("Checking result of testcase", zap.Int("test_case", i))
+			logger.Info("Checking result of testcase", zap.Int("test_case", i), zap.String("msgId", msg.MessageIDString()))
 
 			// poll the API until we get a response without error
 			msgId := &publicrpcv1.MessageID{
@@ -1001,9 +1012,10 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	runConsensusBenchmark(b, "1", 19, 1000, 50) // ~7.5s
-	//runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
-	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
+	PROCESSOR_CPU = 6
+	PROCESSOR_VERSION = 3
+	//runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v3: ~5.7s
+	runConsensusBenchmark(b, "1", 7, 3000, 50) // v1: ~4.8s, v3: ~3.1s
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {

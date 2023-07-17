@@ -14,6 +14,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
+	"github.com/certusone/wormhole/node/pkg/processor3"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
@@ -454,6 +455,10 @@ func GuardianOptionProcessor() *GuardianOption {
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
+			if _, ok := g.runnables["processor"]; ok {
+				return errors.New("processor already defined")
+			}
+
 			g.runnables["processor"] = processor.NewProcessor(ctx,
 				g.db,
 				g.msgC.readC,
@@ -462,6 +467,55 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.obsvC,
 				g.obsvReqSendC.writeC,
 				g.injectC.readC,
+				g.signedInC.readC,
+				g.gk,
+				g.gst,
+				g.attestationEvents,
+				g.gov,
+				g.acct,
+				g.acctC.readC,
+			).Run
+
+			return nil
+		}}
+}
+
+// GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
+// Dependencies: db, governor, accountant
+func GuardianOptionProcessor3(numCPU int) *GuardianOption {
+	return &GuardianOption{
+		name: "processor",
+		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
+		dependencies: []string{"db", "governor", "accountant"},
+
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+
+			if _, ok := g.runnables["processor"]; ok {
+				return errors.New("processor already defined")
+			}
+
+			// Start routine to update guardian set state
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case gs := <-g.setC.readC:
+						g.gst.Set(gs)
+						logger.Info("guardian set updated",
+							zap.Strings("set", gs.KeysAsHexStrings()),
+							zap.Uint32("index", gs.Index))
+					}
+				}
+			}()
+
+			g.runnables["processor"] = processor3.NewProcessor3(
+				numCPU,
+				g.db,
+				g.msgC.readC,
+				g.gossipSendC,
+				g.obsvC,
+				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.gk,
 				g.gst,
