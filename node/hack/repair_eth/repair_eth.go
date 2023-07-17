@@ -45,7 +45,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDMoonbeam: "https://api-moonbeam.moonscan.io",
 	vaa.ChainIDArbitrum: "https://api.arbiscan.io",
 	vaa.ChainIDOptimism: "https://api-optimistic.etherscan.io",
-	// TODO: Add base once contract is deployed.
+	vaa.ChainIDBase:     "https://api.basescan.org",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
