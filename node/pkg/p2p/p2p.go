@@ -184,7 +184,7 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func Run(
-	obsvC chan<- *gossipv1.SignedObservation,
+	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqC chan<- *gossipv1.ObservationRequest,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	gossipSendC chan []byte,
@@ -572,10 +572,9 @@ func Run(
 					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				select {
-				case obsvC <- m.SignedObservation:
+				if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
 					p2pMessagesReceived.WithLabelValues("observation").Inc()
-				default:
+				} else {
 					if components.WarnChannelOverflow {
 						logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
 					}
