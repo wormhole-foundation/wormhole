@@ -274,32 +274,3 @@ func (p *Processor) haveSignedVAA(id db.VAAID) bool {
 
 	return p.db.HasVAA(id)
 }
-
-func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
-
-	if id.EmitterChain == vaa.ChainIDPythNet {
-		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
-		ret, exists := p.pythnetVaas[key]
-		if exists {
-			return ret.v, nil
-		}
-
-		return nil, db.ErrVAANotFound
-	}
-
-	if p.db == nil {
-		return nil, db.ErrVAANotFound
-	}
-
-	vb, err := p.db.GetSignedVAABytes(id)
-	if err != nil {
-		return nil, err
-	}
-
-	vaa, err := vaa.Unmarshal(vb)
-	if err != nil {
-		panic("failed to unmarshal VAA from db")
-	}
-
-	return vaa, err
-}
