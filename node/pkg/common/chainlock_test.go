@@ -193,30 +193,30 @@ func TestMessageID(t *testing.T) {
 	type test struct {
 		label  string
 		input  MessagePublication
-		output []byte
+		output string
 	}
 
 	tests := []test{
 		{label: "simple",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
 		{label: "missing sequence",
 			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")},
+			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"},
 		{label: "missing chain id",
 			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
-			output: []byte("0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+			output: "0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
 		{label: "missing emitter address",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
-			output: []byte("2/0000000000000000000000000000000000000000000000000000000000000000/1")},
+			output: "2/0000000000000000000000000000000000000000000000000000000000000000/1"},
 		{label: "empty message",
 			input:  MessagePublication{},
-			output: []byte("0/0000000000000000000000000000000000000000000000000000000000000000/0")},
+			output: "0/0000000000000000000000000000000000000000000000000000000000000000/0"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
-			assert.Equal(t, tc.output, tc.input.MessageID())
+			assert.Equal(t, tc.output, tc.input.MessageIDString())
 		})
 	}
 }

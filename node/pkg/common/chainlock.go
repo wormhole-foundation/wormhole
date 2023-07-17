@@ -11,11 +11,11 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 type MessagePublication struct {
-	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
+	TxHash    ethcommon.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
 	Timestamp time.Time
 
 	Nonce            uint32
@@ -28,10 +28,6 @@ type MessagePublication struct {
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
 	Unreliable bool
-}
-
-func (msg *MessagePublication) MessageID() []byte {
-	return []byte(msg.MessageIDString())
 }
 
 func (msg *MessagePublication) MessageIDString() string {
@@ -65,7 +61,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 
 	reader := bytes.NewReader(data[:])
 
-	txHash := common.Hash{}
+	txHash := ethcommon.Hash{}
 	if n, err := reader.Read(txHash[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
 	}
@@ -157,6 +153,10 @@ func (msg *MessagePublication) CreateDigest() string {
 	return hex.EncodeToString(db.Bytes())
 }
 
+func (msg *MessagePublication) CreateHash() ethcommon.Hash {
+	return msg.CreateVAA(0).SigningDigest() // The guardian set index is not part of the digest, so we can pass in zero.
+}
+
 // ZapFields takes some zap fields and appends zap fields related to the message. Example usage:
 // `logger.Info("logging something with a message", msg.ZapFields(zap.Int("some_other_field", 100))...)“
 // TODO refactor the codebase to use this function instead of manually logging the message with inconsistent fields
@@ -166,7 +166,7 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Time("timestamp", msg.Timestamp),
 		zap.Uint32("nonce", msg.Nonce),
 		zap.Uint8("consistency", msg.ConsistencyLevel),
-		zap.String("message_id", string(msg.MessageID())),
+		zap.String("message_id", msg.MessageIDString()),
 		zap.Bool("unreliable", msg.Unreliable),
 	)
 }
