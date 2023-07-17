@@ -4,38 +4,12 @@ import { hideBin } from "yargs/helpers";
 // Side effects are here to trigger before the afflicted libraries' on-import warnings can be emitted.
 // It is also imported so that it can side-effect without being tree-shaken.
 import "./side-effects";
-// https://github.com/yargs/yargs/blob/main/docs/advanced.md#example-command-hierarchy-using-indexmjs
-import * as aptos from "./cmds/aptos";
-import * as editVaa from "./cmds/editVaa";
-import * as evm from "./cmds/evm";
-import * as generate from "./cmds/generate";
-import * as info from "./cmds/info";
-import * as near from "./cmds/near";
-import * as parse from "./cmds/parse";
-import * as recover from "./cmds/recover";
-import * as submit from "./cmds/submit";
-import * as sui from "./cmds/sui";
-import * as transfer from "./cmds/transfer";
-import * as verifyVaa from "./cmds/verifyVaa";
-import * as status from "./cmds/status";
+import { YargsCommandModule } from "./cmds/Yargs";
+import { CLI_COMMAND_MODULES } from "./cmds";
 
-// Note: When adding another subcommand here, please be sure to also include it
-// in the `cmds` array in `docs.ts` so it is properly documented.
 yargs(hideBin(process.argv))
-  // https://github.com/yargs/yargs/blob/main/docs/advanced.md#commanddirdirectory-opts
-  // can't use `.commandDir` because bundling + tree-shaking
-  .command(aptos)
-  .command(editVaa)
-  .command(evm)
-  .command(generate)
-  .command(info)
-  .command(near)
-  .command(parse)
-  .command(recover)
-  .command(submit)
-  .command(sui)
-  .command(transfer)
-  .command(verifyVaa)
-  .command(status)
+  // Build CLI commands dinamically from CLI_COMMAND_MODULES list
+  // Documentation about command hierarchy can be found here: https://github.com/yargs/yargs/blob/main/docs/advanced.md#example-command-hierarchy-using-indexmjs
+  .command(CLI_COMMAND_MODULES as YargsCommandModule[])
   .strict()
   .demandCommand().argv;

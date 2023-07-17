@@ -1,4 +1,4 @@
-import yargs from "yargs";
+import yargs, { CommandModule } from "yargs";
 
 export class Yargs {
   yargs: typeof yargs;
@@ -16,3 +16,5 @@ export class Yargs {
 }
 
 export type YargsAddCommandsFn = (y: typeof yargs) => typeof yargs;
+
+export type YargsCommandModule = CommandModule<any, any>;
