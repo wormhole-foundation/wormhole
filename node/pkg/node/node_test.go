@@ -1,15 +1,21 @@
 package node
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
+	"io"
+	"math/big"
 	math_rand "math/rand"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +34,7 @@ import (
 	libp2p_peer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -42,6 +49,15 @@ import (
 const LOCAL_RPC_PORTRANGE_START = 10000
 const LOCAL_P2P_PORTRANGE_START = 10100
 const LOCAL_STATUS_PORTRANGE_START = 10200
+const LOCAL_PUBLICWEB_PORTRANGE_START = 10300
+
+var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = "wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}"
+
+const WAIT_FOR_LOGS = true
+const WAIT_FOR_METRICS = false
+
+// The level at which logs will be written to console; During testing, logs are produced and buffered at Debug level, because some tests need to look for certain entries.
+const CONSOLE_LOG_LEVEL = zap.InfoLevel
 
 type mockGuardian struct {
 	p2pKey           libp2p_crypto.PrivKey
@@ -94,6 +110,10 @@ func mockPublicRpc(mockGuardianIndex uint) string {
 	return fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_RPC_PORTRANGE_START)
 }
 
+func mockPublicWeb(mockGuardianIndex uint) string {
+	return fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_PUBLICWEB_PORTRANGE_START)
+}
+
 func mockStatusPort(mockGuardianIndex uint) uint {
 	return mockGuardianIndex + LOCAL_STATUS_PORTRANGE_START
 }
@@ -107,9 +127,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		logger := supervisor.Logger(ctx)
 
 		// setup db
-		dataDir := fmt.Sprintf("/tmp/test_guardian_%d", mockGuardianIndex)
-		_ = os.RemoveAll(dataDir) // delete any pre-existing data
-		db := db.OpenDb(logger, &dataDir)
+		db := db.OpenDb(logger, nil)
 		defer db.Close()
 
 		// set environment
@@ -146,21 +164,22 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 
 		// assemble all the options
 		guardianOptions := []*GuardianOption{
+			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
-			GuardianOptionAccountant("", "", false), // effectively disable accountant
-			GuardianOptionGovernor(false),           // disable governor
+			GuardianOptionNoAccountant(), // disable accountant
+			GuardianOptionGovernor(true),
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
+			GuardianOptionPublicWeb(mockPublicWeb(mockGuardianIndex), publicSocketPath, "", false, ""),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(mockGuardianIndex))),
+			GuardianOptionProcessor(),
 		}
 
 		guardianNode := NewGuardianNode(
 			env,
-			db,
 			gs[mockGuardianIndex].gk,
-			nil,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -168,25 +187,21 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		}
 
 		<-ctx.Done()
-
-		// cleanup
-		// _ = os.RemoveAll(dataDir) // we don't do this for now since this could run before BadgerDB's flush(), causing an error; Meh
-
 		return nil
 	}
 }
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
-func setupLogsCapture() (*zap.Logger, *observer.ObservedLogs) {
-	observedCore, logs := observer.New(zap.DebugLevel)
-	logger, _ := zap.NewDevelopment(zap.WrapCore(func(c zapcore.Core) zapcore.Core { return zapcore.NewTee(c, observedCore) }))
-	return logger, logs
+func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs) {
+	observedCore, observedLogs := observer.New(zap.DebugLevel)
+	consoleLogger, _ := zap.NewDevelopment(zap.IncreaseLevel(CONSOLE_LOG_LEVEL))
+	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core()), options...)
+	return parentLogger, observedLogs
 }
 
-func waitForHeartbeats(t *testing.T, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
+func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
 	// example log entry that we're looking for:
 	// 		DEBUG	root.g-2.g.p2p	p2p/p2p.go:465	valid signed heartbeat received	{"value": "node_name:\"g-0\"  timestamp:1685677055425243683  version:\"development\"  guardian_addr:\"0xeF2a03eAec928DD0EEAf35aD31e34d2b53152c07\"  boot_timestamp:1685677040424855922  p2p_node_id:\"\\x00$\\x08\\x01\\x12 \\x97\\xf3\\xbd\\x87\\x13\\x15(\\x1e\\x8b\\x83\\xedǩ\\xfd\\x05A\\x06aTD\\x90p\\xcc\\xdb<\\xddB\\xcfi\\xccވ\"", "from": "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"}
-	// TODO maybe instead of looking at log entries, we could determine this status through prometheus metrics, which might be more stable
 	re := regexp.MustCompile("g-[0-9]+")
 
 	for readyCounter := 0; readyCounter < len(gs); {
@@ -213,6 +228,66 @@ func waitForHeartbeats(t *testing.T, zapObserver *observer.ObservedLogs, gs []*m
 	}
 }
 
+// waitForPromMetricExceed waits until prometheus metric `metric` >= `min` on all guardians in `gs`.
+// WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
+//
+//	As long as this is the case, you probably don't want to use this function.
+func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+	metricBytes := []byte(metric)
+	requests := make([]*http.Request, len(gs))
+	//logger := supervisor.Logger(ctx)
+
+	// create the prom api clients
+	for i := range gs {
+		url := fmt.Sprintf("http://localhost:%d/metrics", mockStatusPort(uint(i)))
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		assert.NoError(t, err)
+		requests[i] = req
+	}
+
+	var httpClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	// query them
+	for readyCounter := 0; readyCounter < len(gs); {
+		for i, g := range gs {
+			if g.ready {
+				continue
+			}
+
+			ready := func() bool { // use anonymous function to have proper scope for the defer
+				resp, err := httpClient.Do(requests[i])
+				if err != nil {
+					return false
+				}
+				defer io.Copy(io.Discard, resp.Body) //nolint:errcheck //we don't care about the error
+				defer resp.Body.Close()
+
+				scanner := bufio.NewScanner(resp.Body)
+				for scanner.Scan() {
+					line := scanner.Bytes()
+					if bytes.HasPrefix(line, metricBytes) {
+						res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
+						assert.NoError(t, err)
+						if res >= min {
+							return true
+						}
+					}
+				}
+				return false
+			}()
+
+			if ready {
+				g.ready = true
+				readyCounter++
+			}
+
+		}
+		time.Sleep(time.Second * 5)
+	}
+}
+
 type testCase struct {
 	msg *common.MessagePublication // a Wormhole message
 	// number of Guardians who will initially observe this message through the mock watcher
@@ -233,19 +308,84 @@ func randomTime() time.Time {
 	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // nolint // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
-var messageSequenceCounter uint64 = 0
+var someMsgSequenceCounter uint64 = 0
 
 func someMessage() *common.MessagePublication {
-	messageSequenceCounter++
+	someMsgSequenceCounter++
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(messageSequenceCounter % 8), byte(messageSequenceCounter / 8), 3},
+		TxHash:           [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3},
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
-		Sequence:         messageSequenceCounter,
+		Sequence:         someMsgSequenceCounter,
 		ConsistencyLevel: 1,
 		EmitterChain:     vaa.ChainIDSolana,
 		EmitterAddress:   [32]byte{1, 2, 3},
 		Payload:          []byte{},
+		Unreliable:       false,
+	}
+}
+
+var tokenBridgeSequenceCounter uint64 = 0
+
+// governedMsg creates a token bridge message that will be in-scope for the governor module.
+// The transfer is of wrapped-SOL from Solana to Ethereum.
+// If shouldBeDelayed == true, then the amount will be set to 1_000_000_000_000 wSOL which should exceed the governor limit.
+func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
+
+	// buildMockTransferPayloadBytes is copied from governor_test.go.
+	buildMockTransferPayloadBytes := func(
+		tokenChainID vaa.ChainID,
+		tokenAddrStr string,
+		toChainID vaa.ChainID,
+		toAddrStr string,
+		amtFloat float64,
+	) []byte {
+		bytes := make([]byte, 101)
+		bytes[0] = 1 // tb payload type
+
+		amtBigFloat := big.NewFloat(amtFloat)
+		amtBigFloat = amtBigFloat.Mul(amtBigFloat, big.NewFloat(100000000))
+		amount, _ := amtBigFloat.Int(nil)
+		amtBytes := amount.Bytes()
+		if len(amtBytes) > 32 {
+			panic("amount will not fit in 32 bytes!")
+		}
+		copy(bytes[33-len(amtBytes):33], amtBytes)
+
+		tokenAddr, _ := vaa.StringToAddress(tokenAddrStr)
+		copy(bytes[33:65], tokenAddr.Bytes())
+		binary.BigEndian.PutUint16(bytes[65:67], uint16(tokenChainID))
+		toAddr, _ := vaa.StringToAddress(toAddrStr)
+		copy(bytes[67:99], toAddr.Bytes())
+		binary.BigEndian.PutUint16(bytes[99:101], uint16(toChainID))
+		return bytes
+	}
+
+	var amount float64 = 0.0001
+	if shouldBeDelayed {
+		amount = 1_000_000_000_000
+	}
+
+	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // nolint:gosec // wrapped-SOL
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"                          // whatever
+	payloadBytes := buildMockTransferPayloadBytes(
+		vaa.ChainIDSolana,
+		tokenAddrStr,
+		vaa.ChainIDEthereum,
+		toAddrStr,
+		amount, // very large number to exceed governor limit
+	)
+
+	tokenBridgeSequenceCounter++
+	return &common.MessagePublication{
+		TxHash:           [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76},
+		Timestamp:        randomTime(),
+		Nonce:            math_rand.Uint32(), //nolint
+		Sequence:         tokenBridgeSequenceCounter,
+		ConsistencyLevel: 1,
+		EmitterChain:     vaa.ChainIDSolana,
+		EmitterAddress:   vaa.Address(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSolana]),
+		Payload:          payloadBytes,
 		Unreliable:       false,
 	}
 }
@@ -263,6 +403,10 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 
 // #nosec G107 -- it's OK to make http requests with `statusAddr` because `statusAddr` is trusted.
 func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string) error {
+	var httpClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+
 	// Check /readyz
 	for {
 		url := statusAddr + "/readyz"
@@ -270,13 +414,16 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			break
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
+			time.Sleep(time.Millisecond * 100)
+			continue // try again
 		}
-		logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-		time.Sleep(time.Millisecond * 100)
+		// success, we're done
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck
+		resp.Body.Close()
+		break
 	}
 
 	// Check /metrics (prometheus)
@@ -286,23 +433,28 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			break
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
+			time.Sleep(time.Millisecond * 100)
+			continue // try again
 		}
-		logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-		time.Sleep(time.Millisecond * 100)
+		// success, we're done
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck
+		resp.Body.Close()
+		break
 	}
 	return nil
 }
 
-func TestNodes(t *testing.T) {
-	const testTimeout = time.Second * 60
-	const numGuardians = 4               // Quorum will be 3 out of 4 guardians.
-	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
-	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
-	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
+func TestMain(m *testing.M) {
+	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
+	os.Exit(m.Run())
+}
+
+// TestBasicConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
+func TestConsensus(t *testing.T) {
+	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
 
 	msgZeroEmitter := someMessage()
 	msgZeroEmitter.EmitterAddress = vaa.Address{}
@@ -314,6 +466,7 @@ func TestNodes(t *testing.T) {
 	msgWrongEmitterChain.EmitterChain = vaa.ChainIDEthereum
 
 	// define the test cases to be executed
+	// The ones with mustNotReachQuorum=true should be defined first to give them more time to execute.
 	testCases := []testCase{
 		{ // one malicious Guardian makes an observation + sends a re-observation request; this should not reach quorum
 			msg:                        someMessage(),
@@ -336,6 +489,11 @@ func TestNodes(t *testing.T) {
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
 		},
+		{ // Message covered by Governor that should be delayed 24h and hence not reach quorum within this test
+			msg:                 governedMsg(true),
+			numGuardiansObserve: numGuardians,
+			mustNotReachQuorum:  true,
+		},
 		{ // vanilla case, where only a quorum of guardians gets the message
 			msg:                 someMessage(),
 			numGuardiansObserve: numGuardians*2/3 + 1,
@@ -347,14 +505,27 @@ func TestNodes(t *testing.T) {
 			mustReachQuorum:                   true,
 			performManualReobservationRequest: true,
 		},
+		{ // Message covered by Governor that should pass immediately
+			msg:                 governedMsg(false),
+			numGuardiansObserve: numGuardians,
+			mustReachQuorum:     true,
+		},
 		// TODO add a testcase to test the automatic re-observation requests.
 		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
 	}
+	testConsensus(t, testCases, numGuardians)
+}
+
+// testConsensus spins up `numGuardians` guardians and runs & verifies the testCases
+func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
+	const testTimeout = time.Second * 30
+	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
+	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
+	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
 
 	// Test's main lifecycle context.
 	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 	defer rootCtxCancel()
-	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
 
 	zapLogger, zapObserver := setupLogsCapture()
 
@@ -370,6 +541,9 @@ func TestNodes(t *testing.T) {
 		for i := 0; i < numGuardians; i++ {
 			gRun := mockGuardianRunnable(gs, uint(i), obsDb)
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
+			if i == 0 && numGuardians > 1 {
+				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
+			}
 			assert.NoError(t, err)
 		}
 		logger.Info("All Guardians initiated.")
@@ -387,13 +561,20 @@ func TestNodes(t *testing.T) {
 
 		// wait for the status server to come online and check that it works
 		for i := range gs {
-			err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d", mockStatusPort(uint(i))))
+			err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", mockStatusPort(uint(i))))
 			assert.NoError(t, err)
 		}
 
 		// Wait for them to connect each other and receive at least one heartbeat.
 		// This is necessary because if they have not joined the p2p network yet, gossip messages may get dropped silently.
-		waitForHeartbeats(t, zapObserver, gs)
+		assert.True(t, WAIT_FOR_LOGS || WAIT_FOR_METRICS)
+		assert.False(t, WAIT_FOR_LOGS && WAIT_FOR_METRICS) // can't do both, because they both write to gs[].ready
+		if WAIT_FOR_METRICS {
+			waitForPromMetricGte(t, ctx, gs, PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED, 1)
+		}
+		if WAIT_FOR_LOGS {
+			waitForHeartbeatsInLogs(t, zapObserver, gs)
+		}
 		logger.Info("All Guardians have received at least one heartbeat.")
 
 		// have them make observations
@@ -474,7 +655,7 @@ func TestNodes(t *testing.T) {
 			for {
 				select {
 				case <-ctx.Done():
-					assert.Fail(t, "timed out")
+					break
 				default:
 					// timeout for grpc query
 					logger.Info("attempting to query for VAA", zap.Int("test_case", i))
@@ -540,4 +721,163 @@ func TestNodes(t *testing.T) {
 	<-rootCtx.Done()
 	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
 	zapLogger.Info("Test root context cancelled, exiting...")
+}
+
+type testCaseGuardianConfig struct {
+	name string
+	opts []*GuardianOption
+	err  string
+}
+
+// TestWatcherConfigs tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+func TestWatcherConfigs(t *testing.T) {
+	tc := []testCaseGuardianConfig{
+		{
+			name: "no error",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID: "mock1",
+						ChainID:   vaa.ChainIDSolana,
+					},
+					&mock.WatcherConfig{
+						NetworkID:           "mock2",
+						ChainID:             vaa.ChainIDEthereum,
+						L1FinalizerRequired: "mock1",
+					},
+				}, nil),
+			},
+			err: "",
+		},
+		{
+			name: "watcher-NetworkID-collision",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID: "mock",
+						ChainID:   vaa.ChainIDSolana,
+					},
+					&mock.WatcherConfig{
+						NetworkID: "mock",
+						ChainID:   vaa.ChainIDSolana,
+					},
+				}, nil),
+			},
+			err: "NetworkID already configured: mock",
+		},
+		{
+			name: "watcher-noL1",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID:           "mock",
+						ChainID:             vaa.ChainIDSolana,
+						L1FinalizerRequired: "something-that-does-not-exist",
+					},
+				}, nil),
+			},
+			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
+		},
+	}
+	testGuardianConfigurations(t, tc)
+}
+
+func TestGuardianConfigs(t *testing.T) {
+	tc := []testCaseGuardianConfig{
+		{
+			name: "unfulfilled-dependency",
+			opts: []*GuardianOption{
+				GuardianOptionAccountant("", "", false, nil),
+			},
+			err: "Check the order of your options.",
+		},
+		{
+			name: "double-configuration",
+			opts: []*GuardianOption{
+				GuardianOptionBigTablePersistence(nil),
+				GuardianOptionBigTablePersistence(nil),
+			},
+			err: "Component bigtable is already configured and cannot be configured a second time",
+		},
+	}
+	testGuardianConfigurations(t, tc)
+}
+
+func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig) {
+	for _, tc := range testCases {
+		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
+		const testTimeout = time.Second * 2
+
+		// Test's main lifecycle context.
+		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
+		defer rootCtxCancel()
+
+		// we need to catch a zap.Logger.Fatal() here.
+		// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
+		// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
+		// The panic will be subsequently caught by the supervisor
+		fatalHook := make(fatalHook)
+		defer close(fatalHook)
+		zapLogger, zapObserver := setupLogsCapture(zap.WithFatalHook(fatalHook))
+
+		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
+			// Create a sub-context with cancel function that we can pass to G.run.
+			ctx, ctxCancel := context.WithCancel(ctx)
+			defer ctxCancel()
+			logger := supervisor.Logger(ctx)
+
+			if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+				panic(err)
+			}
+
+			supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+			// wait for all options to get applied
+			// If we were expecting an error, we should never get past this point.
+			for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+				//logger.Info("Guardian not yet initialized. Waiting 10ms...")
+				time.Sleep(time.Millisecond * 10)
+			}
+
+			// Test done.
+			logger.Info("Test done.")
+			supervisor.Signal(ctx, supervisor.SignalDone)
+			rootCtxCancel()
+
+			return nil
+		})
+
+		select {
+		case r := <-fatalHook:
+			if tc.err == "" {
+				assert.Equal(t, tc.err, r)
+			}
+			assert.Contains(t, r, tc.err)
+			rootCtxCancel()
+		case <-rootCtx.Done():
+			assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+			assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
+		}
+	}
+}
+
+// fatalHook catches zap.Logger.Fatal(), sends them to triggerC, and then panics.
+type fatalHook chan string
+
+func (c fatalHook) OnWrite(ce *zapcore.CheckedEntry, fields []zapcore.Field) {
+	// construct message, which will be the main log message, followed by all errors
+	var sb strings.Builder
+
+	sb.WriteString(ce.Message)
+
+	for _, f := range fields {
+		err, ok := f.Interface.(error)
+		if ok {
+			sb.WriteString(", error:")
+			sb.WriteString(err.Error())
+		}
+	}
+
+	c <- sb.String()
+	panic(ce.Message)
 }

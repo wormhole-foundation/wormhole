@@ -475,7 +475,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				var res SuiTxnQuery
 				err = json.Unmarshal(body, &res)
 				if err != nil {
-					logger.Error("failed to unmarshal event message", zap.Error(err))
+					logger.Error("failed to unmarshal event message", zap.String("body", string(body)), zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 					return fmt.Errorf("sui__fetch_obvs_req failed to unmarshal: %w", err)
 

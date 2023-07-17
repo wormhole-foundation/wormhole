@@ -161,6 +161,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
+			nextRetry:     time.Now().Add(nextRetryDuration(0)),
 			signatures:    map[common.Address][]byte{},
 			source:        "unknown",
 		}
