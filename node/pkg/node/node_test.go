@@ -67,6 +67,7 @@ var CONSOLE_LOG_LEVEL = zap.InfoLevel
 
 var PROCESSOR_VERSION uint = 3
 var PROCESSOR_CPU = runtime.NumCPU() / 2
+var WORKFACTOR float64 = 1
 
 var TEST_ID_CTR atomic.Uint32
 
@@ -197,7 +198,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		}
 
 		if PROCESSOR_VERSION == 1 {
-			guardianOptions = append(guardianOptions, GuardianOptionProcessor())
+			guardianOptions = append(guardianOptions, GuardianOptionProcessor(WORKFACTOR))
 		} else if PROCESSOR_VERSION == 3 {
 			guardianOptions = append(guardianOptions, GuardianOptionProcessor3(PROCESSOR_CPU))
 		} else {
@@ -1013,16 +1014,21 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	PROCESSOR_VERSION = 3
+	PROCESSOR_VERSION = 1
 	PROCESSOR_CPU = 10
+	WORKFACTOR = float64(1) / 19 / 2
 
-	// with p2p sigverify
-	//runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v3: ~5.7s
-	//runConsensusBenchmark(b, "1", 7, 3000, 50) // v1: ~4.8s, v3: ~3.1s
+	// With p2p signature verification
+	runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v1-multiproc: ~7.6s, v3: ~6.3s
+	//runConsensusBenchmark(b, "1", 7, 3000, 50) // v1: ~4.8s, v1-multiproc: 3.3s, v3: ~3.1s
 
-	// without p2p sigverify
+	// Without p2p signature verification
 	p2p.NoSigVerify = true
-	runConsensusBenchmark(b, "1", 7, 5000, 50) // v1: ~6.4s, v3: ~3.3s
+	//runConsensusBenchmark(b, "1", 7, 5000, 50) // v1: ~6.4s, v1-multiproc: 4.8s, v3: ~3.4s
+
+	// old processor v1 without multiproc
+	//runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v3: ~5.7s
+	//runConsensusBenchmark(b, "1", 19, 1000, 50) // v1: ~7.5s, v3: ~5.7s
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {

@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -40,6 +44,9 @@ type (
 
 	// state represents the local view of a given observation
 	state struct {
+		// Mutex protecting this particular state entry.
+		lock sync.Mutex
+
 		// First time this digest was seen (possibly even before we observed it ourselves).
 		firstObserved time.Time
 		// A re-observation request shall not be sent before this time.
@@ -69,9 +76,37 @@ type (
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
-		signatures observationMap
+		// signaturesLock should be held when inserting / deleting / iterating over the map, but not when working with a single entry.
+		signaturesLock sync.Mutex
+		signatures     observationMap
 	}
 )
+
+// getOrCreateState returns the state for a given hash, creating it if it doesn't exist.  It grabs the lock.
+func (s *aggregationState) getOrCreateState(hash string) (*state, bool) {
+	s.signaturesLock.Lock()
+
+	created := false
+	st, ok := s.signatures[hash]
+	if !ok {
+		created = true
+		st = &state{
+			firstObserved: time.Now(),
+			signatures:    make(map[ethcommon.Address][]byte),
+		}
+		s.signatures[hash] = st
+	}
+	s.signaturesLock.Unlock()
+
+	return st, created
+}
+
+// delete removes a state entry from the map. It grabs the lock.
+func (s *aggregationState) delete(hash string) {
+	s.signaturesLock.Lock()
+	delete(s.signatures, hash)
+	s.signaturesLock.Unlock()
+}
 
 type PythNetVaaEntry struct {
 	v          *vaa.VAA
@@ -109,7 +144,7 @@ type Processor struct {
 	// Runtime state
 
 	// gs is the currently valid guardian set
-	gs *common.GuardianSet
+	gs atomic.Pointer[common.GuardianSet]
 	// gst is managed by the processor and allows concurrent access to the
 	// guardian set by other components.
 	gst *common.GuardianSetState
@@ -118,13 +153,14 @@ type Processor struct {
 	state *aggregationState
 	// gk pk as eth address
 	ourAddr ethcommon.Address
-	// cleanup triggers periodic state cleanup
-	cleanup *time.Ticker
 
-	governor    *governor.ChainGovernor
-	acct        *accountant.Accountant
-	acctReadC   <-chan *common.MessagePublication
-	pythnetVaas map[string]PythNetVaaEntry
+	governor  *governor.ChainGovernor
+	acct      *accountant.Accountant
+	acctReadC <-chan *common.MessagePublication
+
+	pythnetVaaLock sync.Mutex
+	pythnetVaas    map[string]PythNetVaaEntry
+	workerFactor   float64
 }
 
 func NewProcessor(
@@ -143,8 +179,8 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
+	workerFactor float64,
 ) *Processor {
-
 	return &Processor{
 		msgC:         msgC,
 		setC:         setC,
@@ -159,21 +195,42 @@ func NewProcessor(
 
 		attestationEvents: attestationEvents,
 
-		logger:      supervisor.Logger(ctx),
-		state:       &aggregationState{observationMap{}},
-		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
-		governor:    g,
-		acct:        acct,
-		acctReadC:   acctReadC,
-		pythnetVaas: make(map[string]PythNetVaaEntry),
+		logger:       supervisor.Logger(ctx).With(zap.String("component", "processor")),
+		state:        &aggregationState{signatures: observationMap{}},
+		ourAddr:      crypto.PubkeyToAddress(gk.PublicKey),
+		governor:     g,
+		acct:         acct,
+		acctReadC:    acctReadC,
+		pythnetVaas:  make(map[string]PythNetVaaEntry),
+		workerFactor: workerFactor,
 	}
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	p.cleanup = time.NewTicker(30 * time.Second)
+	if p.workerFactor < 0.0 {
+		return fmt.Errorf("workerFactor must be positive or zero")
+	}
 
-	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
+	numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
+	p.logger.Warn("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
+
+	go p.RunBasic(ctx) //nolint
+
+	for workerId := 0; workerId < numWorkers; workerId++ {
+		go p.RunConcurrent(ctx) //nolint
+	}
+
+	<-ctx.Done()
+
+	return nil
+}
+
+func (p *Processor) RunBasic(ctx context.Context) error {
+	cleanup := time.NewTimer(30 * time.Second)
+	defer cleanup.Stop()
+
 	govTimer := time.NewTimer(time.Minute)
+	defer govTimer.Stop()
 
 	for {
 		select {
@@ -182,47 +239,14 @@ func (p *Processor) Run(ctx context.Context) error {
 				p.acct.Close()
 			}
 			return ctx.Err()
-		case p.gs = <-p.setC:
-			p.logger.Info("guardian set updated",
-				zap.Strings("set", p.gs.KeysAsHexStrings()),
-				zap.Uint32("index", p.gs.Index))
-			p.gst.Set(p.gs)
-		case k := <-p.msgC:
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					continue
-				}
-			}
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
-					continue
-				}
-			}
-			p.handleMessage(ctx, k)
-
-		case k := <-p.acctReadC:
-			if p.acct == nil {
-				return fmt.Errorf("received an accountant event when accountant is not configured")
-			}
-			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
-			if !p.acct.IsMessageCoveredByAccountant(k) {
-				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
-			}
-			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
-		case m := <-p.obsvC:
-			p.handleObservation(ctx, m)
-		case m := <-p.signedInC:
-			p.handleInboundSignedVAAWithQuorum(ctx, m)
-		case <-p.cleanup.C:
+		case <-cleanup.C:
+			cleanup = time.NewTimer(30 * time.Second)
 			p.handleCleanup(ctx)
 		case <-govTimer.C:
 			if p.governor != nil {
+				p.logger.Info("checking governor")
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
 					return err
@@ -247,10 +271,55 @@ func (p *Processor) Run(ctx context.Context) error {
 						p.handleMessage(ctx, k)
 					}
 				}
-			}
-			if (p.governor != nil) || (p.acct != nil) {
 				govTimer = time.NewTimer(time.Minute)
 			}
+		}
+	}
+}
+
+func (p *Processor) RunConcurrent(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			if p.acct != nil {
+				p.acct.Close()
+			}
+			return ctx.Err()
+		case gs := <-p.setC:
+			p.gs.Store(gs)
+			p.logger.Info("guardian set updated",
+				zap.Strings("set", gs.KeysAsHexStrings()),
+				zap.Uint32("index", gs.Index))
+			p.gst.Set(gs)
+		case k := <-p.msgC:
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
+					continue
+				}
+			}
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
+					continue
+				}
+			}
+			p.handleMessage(ctx, k)
+		case k := <-p.acctReadC:
+			if p.acct == nil {
+				return fmt.Errorf("received an accountant event when accountant is not configured")
+			}
+			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
+			if !p.acct.IsMessageCoveredByAccountant(k) {
+				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+			}
+			p.handleMessage(ctx, k)
+		case m := <-p.obsvC:
+			p.handleObservation(ctx, m)
+		case m := <-p.signedInC:
+			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		}
 	}
 }
@@ -258,6 +327,8 @@ func (p *Processor) Run(ctx context.Context) error {
 func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	if v.EmitterChain == vaa.ChainIDPythNet {
 		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+		p.pythnetVaaLock.Lock()
+		defer p.pythnetVaaLock.Unlock()
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
 		return nil
 	}
@@ -267,6 +338,8 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 // haveSignedVAA returns true if we already have a VAA for the given VAAID
 func (p *Processor) haveSignedVAA(id db.VAAID) bool {
 	if id.EmitterChain == vaa.ChainIDPythNet {
+		p.pythnetVaaLock.Lock()
+		defer p.pythnetVaaLock.Unlock()
 		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		_, exists := p.pythnetVaas[key]
 		return exists
