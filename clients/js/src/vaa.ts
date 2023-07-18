@@ -746,20 +746,12 @@ function tokenBridgeAttestMetaParser(): P<TokenBridgeAttestMeta> {
       .array("symbol", {
         type: "uint8",
         lengthInBytes: 32,
-        formatter: (arr: Uint8Array) =>
-          Buffer.from(arr).toString(
-            "utf8",
-            arr.findIndex((val) => val != 0)
-          ),
+        formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8"),
       })
       .array("name", {
         type: "uint8",
         lengthInBytes: 32,
-        formatter: (arr: Uint8Array) =>
-          Buffer.from(arr).toString(
-            "utf8",
-            arr.findIndex((val) => val != 0)
-          ),
+        formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8"),
       })
       .string("end", {
         greedy: true,
