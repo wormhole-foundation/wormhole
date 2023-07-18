@@ -1099,6 +1099,8 @@ func BenchmarkConsensus(b *testing.B) {
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
+	const vaaCheckGuardianIndex = 1 // we will query this Guardian for VAAs.
+
 	t.Run(name, func(t *testing.B) {
 		require.Equal(t, t.N, 1)
 		testId := getTestId()
@@ -1161,12 +1163,12 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			logger.Info("All Guardians have received at least one heartbeat.")
 
 			// Wait for publicrpc to come online.
-			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[0].config.publicRpc)).Len() == 0 {
+			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[vaaCheckGuardianIndex].config.publicRpc)).Len() == 0 {
 				logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
 				time.Sleep(time.Microsecond * 100)
 			}
 			// now that it's online, connect to publicrpc of guardian-0
-			conn, err := grpc.DialContext(ctx, gs[0].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer conn.Close()
 			c := publicrpcv1.NewPublicRPCServiceClient(conn)
