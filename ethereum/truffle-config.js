@@ -3,7 +3,8 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
 
 module.exports = {
-  contracts_directory: "contracts/{*.sol,bridge/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
+  contracts_directory:
+    "contracts/{*.sol,bridge/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
   networks: {
     development: {
       host: "127.0.0.1",
@@ -346,6 +347,15 @@ module.exports = {
         );
       },
       network_id: 77,
+    },
+    base: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://developer-access-mainnet.base.org"
+        );
+      },
+      network_id: 8453,
     },
     base_testnet: {
       provider: () => {

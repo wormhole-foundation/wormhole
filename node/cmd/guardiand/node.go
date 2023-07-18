@@ -617,18 +617,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
 	}
 
+	if (*baseRPC == "") != (*baseContract == "") {
+		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
+	}
+
 	if *testnetMode {
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
 		}
 		if *neonContract == "" {
 			logger.Fatal("Please specify --neonContract")
-		}
-		if *baseRPC == "" {
-			logger.Fatal("Please specify --baseRPC")
-		}
-		if *baseContract == "" {
-			logger.Fatal("Please specify --baseContract")
 		}
 		if *sepoliaRPC == "" {
 			logger.Fatal("Please specify --sepoliaRPC")
@@ -642,12 +640,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *neonContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonContract")
-		}
-		if *baseRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --baseRPC")
-		}
-		if *baseContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --baseContract")
 		}
 		if *sepoliaRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --sepoliaRPC")
@@ -1184,6 +1176,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(baseRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "base",
+			ChainID:   vaa.ChainIDBase,
+			Rpc:       *baseRPC,
+			Contract:  *baseContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1329,17 +1332,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:                 *neonRPC,
 				Contract:            *neonContract,
 				L1FinalizerRequired: "solana-finalized",
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
-		if shouldStart(baseRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID: "base",
-				ChainID:   vaa.ChainIDBase,
-				Rpc:       *baseRPC,
-				Contract:  *baseContract,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
