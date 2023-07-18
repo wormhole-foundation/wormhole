@@ -50,7 +50,6 @@ type TbSubmitVaaMsg struct {
 	SubmitVaa SubmitVaa `json:"submit_vaa,omitempty"`
 }
 
-
 type SubmitVaa struct {
 	Data []byte `json:"data,omitempty"`
 }

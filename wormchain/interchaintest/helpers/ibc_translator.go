@@ -2,26 +2,59 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type IbcTranslatorInstantiateMsg struct {
-	TokenBridgeContract string `json:"token_bridge_contract"`
-	CoreContract string `json:"wormhole_contract"`
+func SubmitAllowlistInstantiateContract(
+	t *testing.T, 
+	ctx context.Context, 
+	chain *cosmos.CosmosChain, 
+	keyName string, 
+	cfg ibc.ChainConfig, 
+	contractBech32Addr string, 
+	codeIdStr string, 
+	guardians *guardians.ValSet,
+) {
+	node := chain.GetFullNode()
+	codeId, err := strconv.ParseUint(codeIdStr, 10, 64)
+	require.NoError(t, err)
+
+	contractAddr := [32]byte{}
+	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
+	payload := vaa.BodyWormchainAllowlistInstantiateContract{
+		ContractAddr: contractAddr,
+		CodeId: codeId,
+	}
+	payloadBz := payload.Serialize()
+	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+//	create-instantiate-allowed-contract [bech32 contract addr] [codeId] [vaa-hex]
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "create-instantiate-allowed-contract", contractBech32Addr, codeIdStr, vHex, "--gas", "auto")
+	require.NoError(t, err)
 }
 
-func IbcTranslatorContractInstantiateMsg(t *testing.T, tbContract string, coreContract string) string {
+type IbcTranslatorInstantiateMsg struct {
+	TokenBridgeContract string `json:"token_bridge_contract"`
+}
+
+func IbcTranslatorContractInstantiateMsg(t *testing.T, tbContract string) string {
 	msg := IbcTranslatorInstantiateMsg{
 		TokenBridgeContract: tbContract,
-		CoreContract: coreContract,
 	}
 	msgBz, err := json.Marshal(msg)
 	require.NoError(t, err)
@@ -243,4 +276,65 @@ type IbcTranslatorQueryRspMsg struct {
 
 type IbcTranslatorQueryRspObj struct {
 	Channel string `json:"channel,omitempty"`
+}
+
+// Code below is temporary for testing cosmos->external using ibc-hooks, but without our custom middleware
+type IbcTranslatorIbcHooksSimple struct {
+	Payload IbcTranslatorIbcHooksPayloadSimple `json:"wasm"`
+}
+
+type IbcTranslatorIbcHooksPayloadSimple struct {
+	Contract string `json:"contract"`
+	Msg IbcTranslatorExecuteSimple `json:"msg"`
+}
+
+func CreateIbcTranslatorIbcHooksSimpleMsg(t *testing.T, contract string, chainID uint16, recipient string, fee uint64, nonce uint32) string {
+	msg := IbcTranslatorIbcHooksSimple {
+		Payload: IbcTranslatorIbcHooksPayloadSimple{
+			Contract: contract,
+			Msg: IbcTranslatorExecuteSimple {
+				Msg: Simple{
+					Chain: chainID,
+					Recipient: []byte(recipient),
+					Fee: fmt.Sprint(fee),
+					Nonce: nonce,
+				},
+			},
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
+
+type IbcTranslatorIbcHooksContractControlled struct {
+	Payload IbcTranslatorIbcHooksPayloadContractControlled `json:"wasm"`
+}
+
+type IbcTranslatorIbcHooksPayloadContractControlled struct {
+	Contract string `json:"contract"`
+	Msg IbcTranslatorExecuteContractControlled `json:"msg"`
+}
+
+func CreateIbcTranslatorIbcHooksContractControlledMsg(t *testing.T, contract string, chainID uint16, externalContract string, payload []byte, nonce uint32) string {
+	msg := IbcTranslatorIbcHooksContractControlled {
+		Payload: IbcTranslatorIbcHooksPayloadContractControlled{
+			Contract: contract,
+			Msg: IbcTranslatorExecuteContractControlled{
+				Msg: ContractControlled{
+					Chain: chainID,
+					Contract: []byte(externalContract),
+					Payload: payload,
+					Nonce: nonce,
+				},
+			},
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
 }

@@ -35,7 +35,7 @@ func MigrateContract(
 	codeId string, 
 	message string,
 	guardians *guardians.ValSet,
-	) {
+) {
 	
 	node := chain.GetFullNode()
 
