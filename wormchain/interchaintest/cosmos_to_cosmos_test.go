@@ -94,7 +94,7 @@ func TestCosmosToCosmos(t *testing.T) {
 	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
 
 	// Instantiate ibc translator contract
-	ibcTranslatorInstantiateMsg := helpers.IbcTranslatorContractInstantiateMsg(t, tbContractAddr, coreContractAddr)
+	ibcTranslatorInstantiateMsg := helpers.IbcTranslatorContractInstantiateMsg(t, tbContractAddr)
 	ibcTranslatorContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", ibcTranslatorCodeId, "ibc_translator", ibcTranslatorInstantiateMsg, guardians)
 	fmt.Println("Ibc translator contract address: ", ibcTranslatorContractAddr)
 

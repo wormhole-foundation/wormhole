@@ -220,5 +220,5 @@ replace (
 	github.com/tendermint/tendermint => github.com/informalsystems/tendermint v0.34.23
 	github.com/vedhavyas/go-subkey => github.com/strangelove-ventures/go-subkey v1.0.7
 	github.com/wormhole-foundation/wormchain => ../
-	github.com/wormhole-foundation/wormchain/sdk => ../sdk
+	github.com/wormhole-foundation/wormhole/sdk => ../../sdk
 )
