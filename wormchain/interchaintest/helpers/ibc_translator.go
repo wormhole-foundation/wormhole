@@ -2,26 +2,59 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type IbcTranslatorInstantiateMsg struct {
-	TokenBridgeContract string `json:"token_bridge_contract"`
-	CoreContract string `json:"wormhole_contract"`
+func SubmitAllowlistInstantiateContract(
+	t *testing.T, 
+	ctx context.Context, 
+	chain *cosmos.CosmosChain, 
+	keyName string, 
+	cfg ibc.ChainConfig, 
+	contractBech32Addr string, 
+	codeIdStr string, 
+	guardians *guardians.ValSet,
+) {
+	node := chain.GetFullNode()
+	codeId, err := strconv.ParseUint(codeIdStr, 10, 64)
+	require.NoError(t, err)
+
+	contractAddr := [32]byte{}
+	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
+	payload := vaa.BodyWormchainAllowlistInstantiateContract{
+		ContractAddr: contractAddr,
+		CodeId: codeId,
+	}
+	payloadBz := payload.Serialize()
+	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+//	create-instantiate-allowed-contract [bech32 contract addr] [codeId] [vaa-hex]
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "create-instantiate-allowed-contract", contractBech32Addr, codeIdStr, vHex, "--gas", "auto")
+	require.NoError(t, err)
 }
 
-func IbcTranslatorContractInstantiateMsg(t *testing.T, tbContract string, coreContract string) string {
+type IbcTranslatorInstantiateMsg struct {
+	TokenBridgeContract string `json:"token_bridge_contract"`
+}
+
+func IbcTranslatorContractInstantiateMsg(t *testing.T, tbContract string) string {
 	msg := IbcTranslatorInstantiateMsg{
 		TokenBridgeContract: tbContract,
-		CoreContract: coreContract,
 	}
 	msgBz, err := json.Marshal(msg)
 	require.NoError(t, err)
