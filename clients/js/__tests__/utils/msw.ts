@@ -8,8 +8,8 @@ import {
   rest,
 } from "msw";
 
-let requests: any[] = [];
-let responses: any[] = [];
+let requests: MockedRequest<Body>[] = [];
+let responses: ResponseComposition<Body>[] = [];
 
 type Body = Record<string, any>;
 type LogRequestFunction = (
