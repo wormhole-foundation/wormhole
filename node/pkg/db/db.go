@@ -7,8 +7,16 @@ import (
 	"strings"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
+
+var storedVaaTotal = promauto.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wormhole_db_total_vaas",
+		Help: "Total number of VAAs added to database",
+	})
 
 type Database struct {
 	db *badger.DB
@@ -75,6 +83,7 @@ func (i *VAAID) EmitterPrefixBytes() []byte {
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 
+// TODO: Deprecate in favor of OpenDb
 func Open(path string) (*Database, error) {
 	db, err := badger.Open(badger.DefaultOptions(path))
 	if err != nil {
@@ -113,6 +122,8 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	if err != nil {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
+
+	storedVaaTotal.Inc()
 
 	return nil
 }
