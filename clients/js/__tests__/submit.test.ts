@@ -32,12 +32,7 @@ describe("worm submit", () => {
     mswServer.close();
   });
 
-  const contractUpgradeModules = [
-    "Core",
-    "NFTBridge",
-    "TokenBridge",
-    "WormholeRelayer",
-  ];
+  const contractUpgradeModules = ["Core", "NFTBridge", "TokenBridge"];
 
   describe("check 'ContractUpgrade' functionality", () => {
     // Clean server handlers and request for every test
@@ -52,32 +47,32 @@ describe("worm submit", () => {
       const rpc = getRpcEndpoint(chain, "TESTNET");
       const network = "testnet";
 
-      it(
-        `should send transaction when submitting 'ContractUpgrade' VAA for 'TokenBridge' module on ${chain}`,
-        async () => {
-          const module = "TokenBridge";
+      contractUpgradeModules.forEach((module) => {
+        it(
+          `should send transaction when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}`,
+          async () => {
+            //NOTE: use worm generate command to obtain a VAA
+            const vaa = run_worm_command(
+              `generate upgrade -c ${chain} -m ${module} -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g 0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa`
+            );
 
-          //NOTE: use worm generate command to obtain a VAA
-          const vaa = run_worm_command(
-            `generate upgrade -c ${chain} -m ${module} -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g 0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa`
-          );
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            try {
+              await yargs
+                .command(submitCommand as unknown as YargsCommandModule)
+                .parse(
+                  `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+                );
+            } catch (e) {}
 
-          //NOTE: we capture requests sent, then we force this process to fail before sending transactions
-          try {
-            await yargs
-              .command(submitCommand as unknown as YargsCommandModule)
-              .parse(
-                `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
-              );
-          } catch (error) {}
-
-          expect(requests.length).toBe(7);
-          expect(
-            requests.some((req) => req.body.method === "sendTransaction")
-          ).toBeTruthy();
-        },
-        testTimeout
-      );
+            expect(requests.length).toBe(7);
+            expect(
+              requests.some((req) => req.body.method === "sendTransaction")
+            ).toBeTruthy();
+          },
+          testTimeout
+        );
+      });
     });
   });
 });
