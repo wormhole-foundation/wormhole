@@ -116,7 +116,6 @@ import (
 	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
 
 	wormholemw "github.com/wormhole-foundation/wormchain/x/wormhole-mw"
-	wormholemwtypes "github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
 )
 
 const (
@@ -195,7 +194,6 @@ var (
 		tokenfactory.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
-		wormholemw.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -398,7 +396,7 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, app.ScopedIBCKeeper,
 	)
 
-	app.WireICS20PreWasmKeeper()
+	app.WireICS20PreWasmKeeper(&app.WormholeKeeper)
 
 	// register the proposal types
 	govRouter := govtypes.NewRouter()
@@ -513,7 +511,6 @@ func New(
 		tokenfactory.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper),
-		wormholemw.NewAppModule(),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -544,7 +541,6 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -571,7 +567,6 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -606,7 +601,6 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -834,7 +828,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // It can be safely skipped when sending.
 //
 // After this, the wasm keeper is required to be set on app.Ics20WasmHooks
-func (app *App) WireICS20PreWasmKeeper() {
+func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// Configure the hooks keeper
 	ibcHooksKeeper := ibchookskeeper.NewKeeper(
 		app.keys[ibchookstypes.StoreKey],
@@ -894,6 +888,6 @@ func (app *App) WireICS20PreWasmKeeper() {
 	hooksTransferModule := ibchooks.NewIBCMiddleware(packetForwardMiddleware, &app.HooksICS4Wrapper)
 
 	// Wormhole Middleware
-	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, nil, 0, time.Hour, time.Hour)
+	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, nil, wk, 0, time.Hour, time.Hour)
 	app.TransferStack = &wormholeMiddleware
 }

@@ -76,6 +76,9 @@ service Query {
 		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/allowlist/{validator_address}";
 	}
 
+	rpc WormholeMiddlewareContract(QueryWormholeMiddlewareContractRequest) returns (QueryWormholeMiddlewareContractResponse) {
+		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/wormhole_middleware_contract";
+	}
 // this line is used by starport scaffolding # 2
 }
 
@@ -189,4 +192,10 @@ message QueryLatestGuardianSetIndexResponse {
   uint32 latestGuardianSetIndex = 1;
 }
 
+message QueryWormholeMiddlewareContractRequest {
+}
+
+message QueryWormholeMiddlewareContractResponse {
+	string contractAddress = 1;
+}
 // this line is used by starport scaffolding # 3

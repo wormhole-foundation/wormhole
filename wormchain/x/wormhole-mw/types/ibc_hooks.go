@@ -45,14 +45,14 @@ type ContractControlled struct {
 	Nonce uint32 `json:"nonce"`
 }
 
-func FormatIbcHooksMemo(parsedPayload ParsedPayload) (string, error) {
+func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) (string, error) {
 	// If exists, create PFM memo
 	var ibcHooksMemo string
 	if parsedPayload.IsSimple {
 		fmt.Println("Simple payload")
 		simple := IbcTranslatorIbcHooksSimple{
 			Payload: IbcTranslatorIbcHooksPayloadSimple{
-				Contract: "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
+				Contract: middlewareContract,
 				Msg: IbcTranslatorExecuteSimple{
 					Msg: Simple{
 						Chain: parsedPayload.ChainId,
@@ -72,7 +72,7 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload) (string, error) {
 		fmt.Println("Contract controlled payload")
 		cc := IbcTranslatorIbcHooksContractControlled{
 			Payload: IbcTranslatorIbcHooksPayloadContractControlled{
-				Contract: "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
+				Contract: middlewareContract,
 				Msg: IbcTranslatorExecuteContractControlled{
 					Msg: ContractControlled{
 						Chain: parsedPayload.ChainId,

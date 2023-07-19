@@ -15,6 +15,7 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v4/modules/core/exported"
 
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wormholekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 )
 
 var _ porttypes.Middleware = &IBCMiddleware{}
@@ -22,8 +23,9 @@ var _ porttypes.Middleware = &IBCMiddleware{}
 // IBCMiddleware implements the ICS26 callbacks for the wormhole middleware given the
 // forward keeper and the underlying application.
 type IBCMiddleware struct {
-	app    porttypes.IBCModule
-	wasmKeeper *wasmkeeper.Keeper
+	app            porttypes.IBCModule
+	wasmKeeper     *wasmkeeper.Keeper
+	wormholeKeeper *wormholekeeper.Keeper
 
 	retriesOnTimeout uint8
 	forwardTimeout   time.Duration
@@ -38,6 +40,7 @@ func (im *IBCMiddleware) SetWasmKeeper(keeper *wasmkeeper.Keeper) {
 func NewIBCMiddleware(
 	app porttypes.IBCModule,
 	k *wasmkeeper.Keeper,
+	wk *wormholekeeper.Keeper,
 	retriesOnTimeout uint8,
 	forwardTimeout time.Duration,
 	refundTimeout time.Duration,
@@ -45,6 +48,7 @@ func NewIBCMiddleware(
 	return IBCMiddleware{
 		app:              app,
 		wasmKeeper:       k,
+		wormholeKeeper:   wk,
 		retriesOnTimeout: retriesOnTimeout,
 		forwardTimeout:   forwardTimeout,
 		refundTimeout:    refundTimeout,
@@ -132,6 +136,9 @@ func (im IBCMiddleware) OnRecvPacket(
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
 
+	// Get ibc translator contract address
+	wormholeMiddlewareContract := im.wormholeKeeper.GetMiddlewareContract(ctx)
+
 	// Look up chain id's channel
 	req := types.IbcTranslatorQueryMsg{
 		IbcChannel: types.QueryIbcChannel{
@@ -142,7 +149,7 @@ func (im IBCMiddleware) OnRecvPacket(
 	if err != nil {
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
-	ibcTranslatorAddr, err := sdk.AccAddressFromBech32("wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h")
+	ibcTranslatorAddr, err := sdk.AccAddressFromBech32(wormholeMiddlewareContract.ContractAddress)
 	if err != nil {
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
@@ -157,7 +164,7 @@ func (im IBCMiddleware) OnRecvPacket(
 		}
 	} else {
 		// If response doesn't exist, create ibc-hooks memo
-		newMemo, err = types.FormatIbcHooksMemo(parsedPayload)
+		newMemo, err = types.FormatIbcHooksMemo(parsedPayload, wormholeMiddlewareContract.ContractAddress)
 		if err != nil {
 			return channeltypes.NewErrorAcknowledgement(err)
 		}

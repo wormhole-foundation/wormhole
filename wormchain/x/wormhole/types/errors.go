@@ -33,4 +33,5 @@ var (
 	ErrGuardianIndexOutOfBounds       = sdkerrors.Register(ModuleName, 1124, "guardian index out of bounds for the guardian set")
 	ErrInvalidAllowlistContractAddr   = sdkerrors.Register(ModuleName, 1125, "contract addresses in the wasm allowlist msg and vaa do not match")
 	ErrInvalidAllowlistCodeId         = sdkerrors.Register(ModuleName, 1126, "code ids in the wasm allowlist msg and vaa do not match")
+	ErrInvalidMiddlewareContractAddr  = sdkerrors.Register(ModuleName, 1127, "contract addresses in the set middleware contract and vaa do not match")
 )
