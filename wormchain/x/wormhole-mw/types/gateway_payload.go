@@ -10,31 +10,31 @@ type GatewayIbcTokenBridgePayload struct {
 }
 
 type GatewayIbcTokenBridgePayloadObj struct {
-	Simple SimplePayload `json:"simple,omitempty"`
+	Simple             SimplePayload             `json:"simple,omitempty"`
 	ContractControlled ContractControlledPayload `json:"contract_controlled,omitempty"`
 }
 
 type SimplePayload struct {
-	Chain uint16 `json:"chain,omitempty"`
+	Chain     uint16 `json:"chain,omitempty"`
 	Recipient []byte `json:"recipient,omitempty"`
-	Fee string `json:"fee,omitempty"`
-	Nonce uint32 `json:"nonce,omitempty"`
+	Fee       string `json:"fee,omitempty"`
+	Nonce     uint32 `json:"nonce,omitempty"`
 }
 
 type ContractControlledPayload struct {
-	Chain uint16 `json:"chain,omitempty"`
+	Chain    uint16 `json:"chain,omitempty"`
 	Contract []byte `json:"contract,omitempty"`
-	Payload []byte `json:"payload,omitempty"`
-	Nonce uint32 `json:"nonce,omitempty"`
+	Payload  []byte `json:"payload,omitempty"`
+	Nonce    uint32 `json:"nonce,omitempty"`
 }
 
 type ParsedPayload struct {
-	IsSimple bool
-	ChainId uint16
+	IsSimple  bool
+	ChainId   uint16
 	Recipient []byte
-	Fee string
-	Nonce uint32
-	Payload []byte
+	Fee       string
+	Nonce     uint32
+	Payload   []byte
 }
 
 func VerifyAndParseGatewayPayload(memo string) (ParsedPayload, error) {

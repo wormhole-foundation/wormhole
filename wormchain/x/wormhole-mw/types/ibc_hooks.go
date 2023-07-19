@@ -10,8 +10,8 @@ type IbcTranslatorIbcHooksSimple struct {
 }
 
 type IbcTranslatorIbcHooksPayloadSimple struct {
-	Contract string `json:"contract"`
-	Msg IbcTranslatorExecuteSimple `json:"msg"`
+	Contract string                     `json:"contract"`
+	Msg      IbcTranslatorExecuteSimple `json:"msg"`
 }
 
 type IbcTranslatorExecuteSimple struct {
@@ -19,10 +19,10 @@ type IbcTranslatorExecuteSimple struct {
 }
 
 type Simple struct {
-	Chain uint16 `json:"chain"`
+	Chain     uint16 `json:"chain"`
 	Recipient []byte `json:"recipient"`
-	Fee string `json:"fee"`
-	Nonce uint32 `json:"nonce"`
+	Fee       string `json:"fee"`
+	Nonce     uint32 `json:"nonce"`
 }
 
 type IbcTranslatorIbcHooksContractControlled struct {
@@ -30,8 +30,8 @@ type IbcTranslatorIbcHooksContractControlled struct {
 }
 
 type IbcTranslatorIbcHooksPayloadContractControlled struct {
-	Contract string `json:"contract"`
-	Msg IbcTranslatorExecuteContractControlled `json:"msg"`
+	Contract string                                 `json:"contract"`
+	Msg      IbcTranslatorExecuteContractControlled `json:"msg"`
 }
 
 type IbcTranslatorExecuteContractControlled struct {
@@ -39,10 +39,10 @@ type IbcTranslatorExecuteContractControlled struct {
 }
 
 type ContractControlled struct {
-	Chain uint16 `json:"chain"`
+	Chain    uint16 `json:"chain"`
 	Contract []byte `json:"contract"`
-	Payload []byte `json:"payload"`
-	Nonce uint32 `json:"nonce"`
+	Payload  []byte `json:"payload"`
+	Nonce    uint32 `json:"nonce"`
 }
 
 func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) (string, error) {
@@ -55,10 +55,10 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) 
 				Contract: middlewareContract,
 				Msg: IbcTranslatorExecuteSimple{
 					Msg: Simple{
-						Chain: parsedPayload.ChainId,
+						Chain:     parsedPayload.ChainId,
 						Recipient: parsedPayload.Recipient,
-						Fee: parsedPayload.Fee,
-						Nonce: parsedPayload.Nonce,
+						Fee:       parsedPayload.Fee,
+						Nonce:     parsedPayload.Nonce,
 					},
 				},
 			},
@@ -75,10 +75,10 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) 
 				Contract: middlewareContract,
 				Msg: IbcTranslatorExecuteContractControlled{
 					Msg: ContractControlled{
-						Chain: parsedPayload.ChainId,
+						Chain:    parsedPayload.ChainId,
 						Contract: parsedPayload.Recipient,
-						Payload: parsedPayload.Payload,
-						Nonce: parsedPayload.Nonce,
+						Payload:  parsedPayload.Payload,
+						Nonce:    parsedPayload.Nonce,
 					},
 				},
 			},

@@ -57,7 +57,7 @@ func (k msgServer) SetWormholeMiddlewareContract(goCtx context.Context, msg *typ
 	newContract := types.WormholeMiddlewareContract{
 		ContractAddress: msg.Address,
 	}
-	
+
 	k.StoreMiddlewareContract(ctx, newContract)
 
 	return &types.MsgSetWormholeMiddlewareContractResponse{}, nil

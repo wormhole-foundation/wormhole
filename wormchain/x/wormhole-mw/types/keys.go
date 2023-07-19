@@ -5,5 +5,4 @@ const (
 	ModuleName = "wormhole-mw"
 
 	StoreKey = ModuleName
-
 )

@@ -2,12 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	"github.com/spf13/cobra"
-	"strings"
+	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 
 	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 )

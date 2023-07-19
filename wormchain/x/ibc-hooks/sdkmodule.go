@@ -18,8 +18,8 @@ import (
 
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 
-	abci "github.com/tendermint/tendermint/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (

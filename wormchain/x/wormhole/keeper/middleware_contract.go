@@ -12,7 +12,7 @@ func (k Keeper) StoreMiddlewareContract(ctx sdk.Context, entry types.WormholeMid
 	store.Set([]byte{0}, b)
 }
 
-func (k Keeper) GetMiddlewareContract(ctx sdk.Context) (types.WormholeMiddlewareContract) {
+func (k Keeper) GetMiddlewareContract(ctx sdk.Context) types.WormholeMiddlewareContract {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.MiddlewareContractKey))
 	entry := store.Get([]byte{0})
 

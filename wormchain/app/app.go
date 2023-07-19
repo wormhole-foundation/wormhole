@@ -271,10 +271,10 @@ type App struct {
 
 	// IBC modules
 	RawIcs20TransferAppModule transfer.AppModule
-	IBCHooksKeeper *ibchookskeeper.Keeper
-	TransferStack *wormholemw.IBCMiddleware
-	Ics20WasmHooks *ibchooks.WasmHooks
-	HooksICS4Wrapper ibchooks.ICS4Middleware
+	IBCHooksKeeper            *ibchookskeeper.Keeper
+	TransferStack             *wormholemw.IBCMiddleware
+	Ics20WasmHooks            *ibchooks.WasmHooks
+	HooksICS4Wrapper          ibchooks.ICS4Middleware
 	PacketForwardKeeper       *packetforwardkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
@@ -824,7 +824,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // * RecvPacket, message that originates from core IBC and goes down to app, the flow is the other way
 // channel.RecvPacket -> wormholeMW.OnRecvPackate -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 //
-// Note that the forward middleware and wormholeMW is only integrated on the "receive" direction. 
+// Note that the forward middleware and wormholeMW is only integrated on the "receive" direction.
 // It can be safely skipped when sending.
 //
 // After this, the wasm keeper is required to be set on app.Ics20WasmHooks
@@ -873,7 +873,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		// The ICS4Wrapper is replaced by the HooksICS4Wrapper instead of the channel so that sending can be overridden by the middleware
 		app.HooksICS4Wrapper,
 	)
-	
+
 	// Set up transfer stack
 	// channel.RecvPacket -> wormholeMW.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 	packetForwardMiddleware := packetforward.NewIBCMiddleware(

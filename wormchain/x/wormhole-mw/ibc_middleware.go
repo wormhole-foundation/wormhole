@@ -154,7 +154,7 @@ func (im IBCMiddleware) OnRecvPacket(
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
 	resp, err := im.wasmKeeper.QuerySmart(ctx, ibcTranslatorAddr, reqBz)
-	
+
 	var newMemo string
 	if err == nil {
 		// If response exists, create PFM memo
