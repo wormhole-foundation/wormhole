@@ -73,6 +73,24 @@ describe("worm submit", () => {
           testTimeout
         );
       });
+
+      it(
+        `should fail to send transactions when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}, if 'vaa' is malformed`,
+        async () => {
+          const fakeVaa = "this-is-a-fake-vaa";
+          try {
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${fakeVaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (e) {}
+
+          expect(requests.length).toBe(0);
+        },
+        testTimeout
+      );
     });
   });
 });
