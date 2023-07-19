@@ -24,7 +24,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -528,20 +527,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		ccqMaxBlockNumber := big.NewInt(1).SetUint64(math.MaxUint64)
+		ccqMaxBlockNumber := big.NewInt(0).SetUint64(math.MaxUint64)
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
-			case signedQueryRequest := <-w.queryReqC:
-				// TODO: only receive the unmarshalled query request (see note in query.go)
-				var queryRequest gossipv1.QueryRequest
-				err := proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
-				if err != nil {
-					logger.Error("received invalid message from query module")
-					continue
-				}
-
+			case queryRequest := <-w.queryReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
 				if queryRequest.Request.ChainId != w.chainID {

@@ -250,10 +250,3 @@ message SignedQueryResponse {
   bytes signature = 2;
 }
 
-message SignedQueryResponse {
-  // Serialized QueryResponse message.
-  bytes query_response = 1;
-
-  // ECDSA signature using the node's guardian public key.
-  bytes signature = 2;
-}

@@ -84,9 +84,8 @@ func NewGuardianNode(
 	gk *ecdsa.PrivateKey,
 ) *G {
 	g := G{
-		env:           env,
-		gk:            gk,
-		wormchainConn: wormchainConn,
+		env: env,
+		gk:  gk,
 
 		// Cross Chain Query Handler channels
 		chainQueryReqC:            make(map[vaa.ChainID]chan *query.PerChainQueryInternal),
