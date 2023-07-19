@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 type PacketMetadata struct {
 	Forward *ForwardMetadata `json:"forward"`
 }
@@ -28,10 +27,10 @@ func CreatePfmSimpleMsg(t *testing.T, recipient string, channel string) string {
 	msg := &PacketMetadata{
 		Forward: &ForwardMetadata{
 			Receiver: recipient,
-			Port: "transfer",
-			Channel: channel,
-			Timeout: time.Minute*10,
-			Retries: &retries,
+			Port:     "transfer",
+			Channel:  channel,
+			Timeout:  time.Minute * 10,
+			Retries:  &retries,
 		},
 	}
 
@@ -62,11 +61,11 @@ func CreatePfmContractControlledMsg(t *testing.T, contract string, channel strin
 	msg := &PacketMetadata{
 		Forward: &ForwardMetadata{
 			Receiver: contract,
-			Port: "transfer",
-			Channel: channel,
-			Timeout: 1 * time.Minute,
-			Retries: &retries,
-			Next: &next,
+			Port:     "transfer",
+			Channel:  channel,
+			Timeout:  1 * time.Minute,
+			Retries:  &retries,
+			Next:     &next,
 		},
 	}
 

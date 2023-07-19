@@ -27,10 +27,10 @@ import (
 var (
 	pathWormchainGaia   = "wormchain-gaia" // Replace with 2nd cosmos chain supporting wormchain
 	genesisWalletAmount = int64(10_000_000)
-	votingPeriod = "10s"
-	maxDepositPeriod = "10s"
-	coinType = "118"
-	wormchainConfig = ibc.ChainConfig{
+	votingPeriod        = "10s"
+	maxDepositPeriod    = "10s"
+	coinType            = "118"
+	wormchainConfig     = ibc.ChainConfig{
 		Type:    "cosmos",
 		Name:    "wormchain",
 		ChainID: "wormchain-1",
@@ -38,8 +38,8 @@ var (
 			{
 				Repository: "wormchain",
 				//Version:    "gateway-integration",
-				Version:    "local",
-				UidGid:     "1025:1025",
+				Version: "local",
+				UidGid:  "1025:1025",
 			},
 		},
 		Bin:            "wormchaind",
@@ -50,9 +50,9 @@ var (
 		GasAdjustment:  1.8,
 		TrustingPeriod: "112h",
 		NoHostMount:    false,
-		EncodingConfig:         wormchainEncoding(),
+		EncodingConfig: wormchainEncoding(),
 	}
-	numVals = 2
+	numVals      = 2
 	numFullNodes = 1
 )
 
@@ -73,20 +73,20 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
-			ChainName: "wormchain",
-			ChainConfig: wormchainConfig,
+			ChainName:     "wormchain",
+			ChainConfig:   wormchainConfig,
 			NumValidators: &numVals,
-			NumFullNodes: &numFullNodes,
+			NumFullNodes:  &numFullNodes,
 		},
 		{Name: "gaia", Version: "v10.0.1", ChainConfig: ibc.ChainConfig{
 			GasPrices: "0.0uatom",
 		}},
 		{
-			Name:      "osmosis",
-			Version:   "v15.1.2",
+			Name:    "osmosis",
+			Version: "v15.1.2",
 			ChainConfig: ibc.ChainConfig{
-				ChainID:  "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
-				GasPrices: "1.0uosmo",
+				ChainID:        "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
+				GasPrices:      "1.0uosmo",
 				EncodingConfig: wasm.WasmEncoding(),
 			},
 		},
@@ -118,16 +118,16 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 		t, client, network)
 	ic.AddRelayer(r, "relayer")
 	ic.AddLink(interchaintest.InterchainLink{
-		Chain1: chains[0], // Wormchain
-		Chain2: chains[1], // Gaia
+		Chain1:  chains[0], // Wormchain
+		Chain2:  chains[1], // Gaia
 		Relayer: r,
-		Path: wormGaiaPath,
+		Path:    wormGaiaPath,
 	})
 	ic.AddLink(interchaintest.InterchainLink{
-		Chain1: chains[0], // Wormchain
-		Chain2: chains[2], // Osmosis
+		Chain1:  chains[0], // Wormchain
+		Chain2:  chains[2], // Osmosis
 		Relayer: r,
-		Path: wormOsmoPath,
+		Path:    wormOsmoPath,
 	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
@@ -172,7 +172,7 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 		if err := json.Unmarshal(genbz, &g); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
 		}
-		
+
 		// Modify gov
 		if err := dyno.Set(g, votingPeriod, "app_state", "gov", "voting_params", "voting_period"); err != nil {
 			return nil, fmt.Errorf("failed to set voting period in genesis json: %w", err)
@@ -204,13 +204,13 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 		guardianSetList := []GuardianSet{}
 		guardianSet := GuardianSet{
 			Index: 0,
-			Keys: [][]byte{},
+			Keys:  [][]byte{},
 		}
 		guardianValidators := []GuardianValidator{}
 		for i := 0; i < numVals; i++ {
 			guardianSet.Keys = append(guardianSet.Keys, guardians.Vals[i].Addr)
 			guardianValidators = append(guardianValidators, GuardianValidator{
-				GuardianKey: guardians.Vals[i].Addr,
+				GuardianKey:   guardians.Vals[i].Addr,
 				ValidatorAddr: validators[i],
 			})
 		}
@@ -225,13 +225,13 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 		allowedAddresses := []ValidatorAllowedAddress{}
 		allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
 			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
-			AllowedAddress: faucetAddress.(string),
-			Name: "Faucet",
+			AllowedAddress:   faucetAddress.(string),
+			Name:             "Faucet",
 		})
 		allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
 			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
-			AllowedAddress: relayerAddress.(string),
-			Name: "Relayer",
+			AllowedAddress:   relayerAddress.(string),
+			Name:             "Relayer",
 		})
 		if err := dyno.Set(g, allowedAddresses, "app_state", "wormhole", "allowedAddresses"); err != nil {
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
@@ -239,9 +239,9 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 
 		config := wormholetypes.Config{
 			GuardianSetExpiration: 86400,
-			GovernanceEmitter: vaa.GovernanceEmitter[:],
-			GovernanceChain: uint32(vaa.GovernanceChain),
-			ChainId: uint32(vaa.ChainIDWormchain),
+			GovernanceEmitter:     vaa.GovernanceEmitter[:],
+			GovernanceChain:       uint32(vaa.GovernanceChain),
+			ChainId:               uint32(vaa.ChainIDWormchain),
 		}
 		if err := dyno.Set(g, config, "app_state", "wormhole", "config"); err != nil {
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)

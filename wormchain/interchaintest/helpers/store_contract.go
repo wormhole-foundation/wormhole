@@ -2,11 +2,11 @@ package helpers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"compress/gzip"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/crypto/sha3"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func createWasmStoreCodePayload(wasmBytes []byte) []byte {

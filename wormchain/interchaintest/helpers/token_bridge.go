@@ -14,16 +14,16 @@ import (
 )
 
 type TbInstantiateMsg struct {
-	GovChain uint16 `json:"gov_chain"`
+	GovChain   uint16 `json:"gov_chain"`
 	GovAddress []byte `json:"gov_address"`
 
-	WormholeContract string `json:"wormhole_contract"`
+	WormholeContract   string `json:"wormhole_contract"`
 	WrappedAssetCodeId uint64 `json:"wrapped_asset_code_id"`
 
-	ChainId  uint16 `json:"chain_id"`
-	NativeDenom string `json:"native_denom"`
-	NativeSymbol string `json:"native_symbol"`
-	NativeDecimals uint8 `json:"native_decimals"`
+	ChainId        uint16 `json:"chain_id"`
+	NativeDenom    string `json:"native_denom"`
+	NativeSymbol   string `json:"native_symbol"`
+	NativeDecimals uint8  `json:"native_decimals"`
 }
 
 func TbContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, whContract string, wrappedAssetCodeId string) string {
@@ -31,14 +31,14 @@ func TbContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, whContract stri
 	require.NoError(t, err)
 
 	msg := TbInstantiateMsg{
-		GovChain: uint16(vaa.GovernanceChain),
-		GovAddress: vaa.GovernanceEmitter[:],
-		WormholeContract: whContract,
+		GovChain:           uint16(vaa.GovernanceChain),
+		GovAddress:         vaa.GovernanceEmitter[:],
+		WormholeContract:   whContract,
 		WrappedAssetCodeId: codeId,
-		ChainId: uint16(vaa.ChainIDWormchain),
-		NativeDenom: cfg.Denom,
-		NativeSymbol: "WORM",
-		NativeDecimals: 6,
+		ChainId:            uint16(vaa.ChainIDWormchain),
+		NativeDenom:        cfg.Denom,
+		NativeSymbol:       "WORM",
+		NativeDecimals:     6,
 	}
 	msgBz, err := json.Marshal(msg)
 	require.NoError(t, err)
@@ -62,8 +62,8 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 		eIndex--
 	}
 	bodyTbRegisterChain := vaa.BodyTokenBridgeRegisterChain{
-		Module: "TokenBridge",
-		ChainID: vaa.ChainID(chainID),
+		Module:         "TokenBridge",
+		ChainID:        vaa.ChainID(chainID),
 		EmitterAddress: vaa.Address(emitterBz),
 	}
 
@@ -71,7 +71,7 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
-		
+
 	msg := TbSubmitVaaMsg{
 		SubmitVaa: SubmitVaa{
 			Data: vBz,
@@ -97,7 +97,7 @@ func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emit
 	namePad := make([]byte, 32)
 	copy(namePad, []byte(name))
 	payload.Write(namePad)
-	
+
 	emitterBz := [32]byte{}
 	eIndex := 32
 	for i := len(emitterAddr); i > 0; i-- {
@@ -107,7 +107,7 @@ func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emit
 	v := generateVaa(0, guardians, vaa.ChainID(chainID), vaa.Address(emitterBz), payload.Bytes())
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
-		
+
 	msg := TbSubmitVaaMsg{
 		SubmitVaa: SubmitVaa{
 			Data: vBz,
@@ -125,7 +125,7 @@ type TbQueryMsg struct {
 }
 
 type WrappedRegistry struct {
-	Chain uint16 `json:"chain"`
+	Chain   uint16 `json:"chain"`
 	Address []byte `json:"address"`
 }
 
@@ -133,13 +133,12 @@ func CreateCW20Query(t *testing.T, chainID uint16, address string) TbQueryMsg {
 	addressBz := vaa.LeftPadBytes(address, 32)
 	msg := TbQueryMsg{
 		WrappedRegistry: WrappedRegistry{
-			Chain: chainID,
+			Chain:   chainID,
 			Address: addressBz.Bytes(),
 		},
 	}
 	return msg
 }
-
 
 type TbQueryRsp struct {
 	Data *TbQueryRspObj `json:"data,omitempty"`

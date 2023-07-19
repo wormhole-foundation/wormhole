@@ -11,8 +11,8 @@ import (
 
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/stretchr/testify/require"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func createWasmInstantiatePayload(code_id uint64, label string, json_msg string) []byte {
@@ -32,16 +32,16 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 }
 
 func InstantiateContract(
-	t *testing.T, 
-	ctx context.Context, 
-	chain *cosmos.CosmosChain, 
-	keyName string, 
-	codeId string, 
-	label string, 
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+	keyName string,
+	codeId string,
+	label string,
 	message string,
 	guardians *guardians.ValSet,
-	) (contract string) {
-	
+) (contract string) {
+
 	node := chain.GetFullNode()
 
 	code_id, err := strconv.ParseUint(codeId, 10, 64)

@@ -12,8 +12,8 @@ type IbcHooks struct {
 }
 
 type IbcHooksPayload struct {
-	Contract string `json:"contract"`
-	Msg IbcHooksExecute `json:"msg"`
+	Contract string          `json:"contract"`
+	Msg      IbcHooksExecute `json:"msg"`
 }
 
 type IbcHooksExecute struct {
@@ -25,7 +25,7 @@ type IbcHooksForward struct {
 }
 
 func CreateIbcHooksMsg(t *testing.T, contract string, recipient string) []byte {
-	msg := IbcHooks {
+	msg := IbcHooks{
 		Payload: IbcHooksPayload{
 			Contract: contract,
 			Msg: IbcHooksExecute{

@@ -8,16 +8,16 @@ import (
 )
 
 type Cw20InstantiateMsg struct {
-	Name string `json:"name"`
-	Symbol string `json:"symbol"`
-	AssetChain uint16 `json:"asset_chain"`
-	AssetAddr []byte `json:"asset_address"`
-	Decimals uint8 `json:"decimals"`
-	InitHook InitHook `json:"init_hook"`
+	Name       string   `json:"name"`
+	Symbol     string   `json:"symbol"`
+	AssetChain uint16   `json:"asset_chain"`
+	AssetAddr  []byte   `json:"asset_address"`
+	Decimals   uint8    `json:"decimals"`
+	InitHook   InitHook `json:"init_hook"`
 }
 
 type InitHook struct {
-	Msg []byte `json:"msg"`
+	Msg          []byte `json:"msg"`
 	ContractAddr string `json:"contract_addr"`
 }
 
@@ -26,7 +26,7 @@ type TbRegisterAssetHookMsg struct {
 }
 
 type RegisterAssetHook struct {
-	Chain uint16 `json:"chain,omitempty"`
+	Chain     uint16          `json:"chain,omitempty"`
 	TokenAddr ExternalTokenId `json:"token_address,omitempty"`
 }
 
@@ -62,13 +62,13 @@ func Cw20ContractInstantiateMsg(
 	require.NoError(t, err)
 
 	msg := Cw20InstantiateMsg{
-		Name: name,
-		Symbol: symbol,
+		Name:       name,
+		Symbol:     symbol,
 		AssetChain: chainID,
-		AssetAddr: assetAddr32[:],
-		Decimals: decimals,
+		AssetAddr:  assetAddr32[:],
+		Decimals:   decimals,
 		InitHook: InitHook{
-			Msg: tbMsgBz,
+			Msg:          tbMsgBz,
 			ContractAddr: tbContractAddr,
 		},
 	}
@@ -84,7 +84,7 @@ type Cw20WrappedQueryMsg struct {
 	TokenInfo Cw20TokenInfo `json:"token_info"`
 }
 
-type Cw20TokenInfo struct {}
+type Cw20TokenInfo struct{}
 
 type Cw20WrappedBalanceQueryMsg struct {
 	Balance Cw20BalanceQuery `json:"balance"`
@@ -94,15 +94,14 @@ type Cw20BalanceQuery struct {
 	Address string `json:"address"`
 }
 
-
 type Cw20WrappedQueryRsp struct {
 	Data *Cw20WrappedQueryRspObj `json:"data,omitempty"`
 }
 
 type Cw20WrappedQueryRspObj struct {
-	Name string `json:"name"`
-	Symbol string `json:"symbol"`
-	Decimals uint8 `json:"decimals"`
+	Name        string `json:"name"`
+	Symbol      string `json:"symbol"`
+	Decimals    uint8  `json:"decimals"`
 	TotalSupply string `json:"total_supply"`
 }
 

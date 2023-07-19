@@ -9,8 +9,8 @@ import (
 )
 
 type ValSet struct {
-	Vals      []Val
-	Total     int
+	Vals  []Val
+	Total int
 }
 
 type Val struct {

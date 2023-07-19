@@ -10,8 +10,8 @@ import (
 
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/stretchr/testify/require"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func createWasmMigrationPayload(code_id uint64, contractAddr string, json_msg string) []byte {
@@ -27,16 +27,16 @@ func createWasmMigrationPayload(code_id uint64, contractAddr string, json_msg st
 }
 
 func MigrateContract(
-	t *testing.T, 
-	ctx context.Context, 
-	chain *cosmos.CosmosChain, 
-	keyName string, 
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+	keyName string,
 	contractAddr string,
-	codeId string, 
+	codeId string,
 	message string,
 	guardians *guardians.ValSet,
 ) {
-	
+
 	node := chain.GetFullNode()
 
 	code_id, err := strconv.ParseUint(codeId, 10, 64)

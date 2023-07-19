@@ -39,9 +39,9 @@ func TestCosmosToCosmos(t *testing.T) {
 	fmt.Println("Wormchain faucet addr: ", wormchainFaucetAddr)
 
 	osmoToWormChannel, err := ibc.GetTransferChannel(ctx, r, eRep, osmosis.Config().ChainID, wormchain.Config().ChainID)
-	wormToOsmoChannel := osmoToWormChannel.Counterparty 
+	wormToOsmoChannel := osmoToWormChannel.Counterparty
 	gaiaToWormChannel, err := ibc.GetTransferChannel(ctx, r, eRep, gaia.Config().ChainID, wormchain.Config().ChainID)
-	wormToGaiaChannel := gaiaToWormChannel.Counterparty 
+	wormToGaiaChannel := gaiaToWormChannel.Counterparty
 
 	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain, gaia, osmosis, osmosis)
 	_ = users[0] // Wormchain user
@@ -60,14 +60,14 @@ func TestCosmosToCosmos(t *testing.T) {
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
-	
+
 	// Instantiate wormhole core contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 
 	// Store cw20_wrapped_2 contract
-	wrappedAssetCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/cw20_wrapped_2.wasm", guardians)
+	wrappedAssetCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw20_wrapped_2.wasm", guardians)
 	fmt.Println("CW20 wrapped_2 code id: ", wrappedAssetCodeId)
 
 	// Store token bridge contract
@@ -75,7 +75,7 @@ func TestCosmosToCosmos(t *testing.T) {
 	fmt.Println("Token bridge contract code id: ", tbContractCodeId)
 
 	// Instantiate token bridge contract
-	tbInstantiateMsg:= helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
+	tbInstantiateMsg := helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
 	tbContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", tbContractCodeId, "token_bridge", tbInstantiateMsg, guardians)
 	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
@@ -88,9 +88,9 @@ func TestCosmosToCosmos(t *testing.T) {
 	tbRegisterForeignAssetMsg := helpers.TbRegisterForeignAsset(t, Asset1ContractAddr, Asset1ChainID, ExternalChainEmitterAddr, Asset1Decimals, Asset1Symbol, Asset1Name, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterForeignAssetMsg))
 	require.NoError(t, err)
-	
+
 	// Store ibc translator contract
-	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_translator.wasm", guardians)
+	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/ibc_translator.wasm", guardians)
 	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
 
 	// Instantiate ibc translator contract
@@ -115,11 +115,11 @@ func TestCosmosToCosmos(t *testing.T) {
 	queryChannelMsg = helpers.IbcTranslatorQueryMsg{IbcChannel: helpers.QueryIbcChannel{ChainID: GaiaChainID}}
 	wormchain.QueryContract(ctx, ibcTranslatorContractAddr, queryChannelMsg, &queryChannelRsp)
 	fmt.Println("Gaia channel: ", queryChannelRsp.Data.Channel)
-	
+
 	// Create and process a simple ibc payload3: Transfers 1.231245 of asset1 from external chain through wormchain to gaia user
 	// Add relayer fee
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
-	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 ,1, 2, 3, 4, 5, 6, 7, 8}
+	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), 30123, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -136,20 +136,19 @@ func TestCosmosToCosmos(t *testing.T) {
 	tokenFactoryDenom := fmt.Sprint("factory/", ibcTranslatorContractAddr, "/", subdenom)
 	gaiaAsset1Denom := transfertypes.GetPrefixedDenom("transfer", gaiaToWormChannel.ChannelID, tokenFactoryDenom)
 	gaiaIbcAsset1Denom := transfertypes.ParseDenomTrace(gaiaAsset1Denom).IBCDenom()
-	
-	
+
 	// ************** PFM + Simple payload ****************
 	simplePfmMsg := helpers.CreatePfmSimpleMsg(t, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), wormToOsmoChannel.ChannelID)
 	transfer := ibc.WalletAmount{
 		Address: wormchainFaucetAddr,
-		Denom: gaiaIbcAsset1Denom,
-		Amount: 10012,
+		Denom:   gaiaIbcAsset1Denom,
+		Amount:  10012,
 	}
 	gaiaHeight, err := gaia.Height(ctx)
 	require.NoError(t, err)
 	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: simplePfmMsg})
 	require.NoError(t, err)
-	
+
 	// wait for transfer to ack
 	_, err = testutil.PollForAck(ctx, gaia, gaiaHeight, gaiaHeight+30, gaiaIbcTx.Packet)
 	require.NoError(t, err)
@@ -160,14 +159,14 @@ func TestCosmosToCosmos(t *testing.T) {
 	ccPfmMsg := helpers.CreatePfmContractControlledMsg(t, ibcHooksContractAddr, wormToOsmoChannel.ChannelID, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
-		Denom: gaiaIbcAsset1Denom,
-		Amount: 10013,
+		Denom:   gaiaIbcAsset1Denom,
+		Amount:  10013,
 	}
 	gaiaHeight, err = gaia.Height(ctx)
 	require.NoError(t, err)
 	gaiaIbcTx, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: ccPfmMsg})
 	require.NoError(t, err)
-	
+
 	// wait for transfer to ack
 	_, err = testutil.PollForAck(ctx, gaia, gaiaHeight, gaiaHeight+30, gaiaIbcTx.Packet)
 	require.NoError(t, err)
@@ -177,7 +176,7 @@ func TestCosmosToCosmos(t *testing.T) {
 	// wait for transfer
 	err = testutil.WaitForBlocks(ctx, 3, wormchain)
 	require.NoError(t, err)
-	
+
 	coins, err := wormchain.AllBalances(ctx, ibcTranslatorContractAddr)
 	require.NoError(t, err)
 	fmt.Println("Ibc Translator contract coins: ", coins)
@@ -189,7 +188,7 @@ func TestCosmosToCosmos(t *testing.T) {
 	coins, err = gaia.AllBalances(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix))
 	require.NoError(t, err)
 	fmt.Println("Gaia user coins: ", coins)
-	
+
 	coins, err = osmosis.AllBalances(ctx, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix))
 	require.NoError(t, err)
 	fmt.Println("Osmo user1 coins: ", coins)

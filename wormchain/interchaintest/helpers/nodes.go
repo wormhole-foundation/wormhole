@@ -12,5 +12,3 @@ func getFullNode(c *cosmos.CosmosChain) *cosmos.ChainNode {
 	// use first validator
 	return c.Validators[0]
 }
-	
-
