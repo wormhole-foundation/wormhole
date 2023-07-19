@@ -266,7 +266,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 	sendC := make(chan []byte)
 
 	// Inbound observations
-	obsvC := make(chan *gossipv1.SignedObservation, 1024)
+	obsvC := make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], 1024)
 
 	// Inbound observation requests
 	obsvReqC := make(chan *gossipv1.ObservationRequest, 1024)

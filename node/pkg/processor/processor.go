@@ -19,6 +19,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	dto "github.com/prometheus/client_model/go"
 )
 
 type (
@@ -86,7 +90,7 @@ type Processor struct {
 	// gossipSendC is a channel of outbound messages to broadcast on p2p
 	gossipSendC chan<- []byte
 	// obsvC is a channel of inbound decoded observations from p2p
-	obsvC chan *gossipv1.SignedObservation
+	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
@@ -127,13 +131,29 @@ type Processor struct {
 	pythnetVaas map[string]PythNetVaaEntry
 }
 
+var (
+	observationChanDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_signed_observation_channel_delay_us",
+			Help:    "Latency histogram for delay of signed observations in channel",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+		})
+
+	observationTotalDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_signed_observation_total_delay_us",
+			Help:    "Latency histogram for total time to process signed observations",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+		})
+)
+
 func NewProcessor(
 	ctx context.Context,
 	db *db.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
 	gossipSendC chan<- []byte,
-	obsvC chan *gossipv1.SignedObservation,
+	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	injectC <-chan *vaa.VAA,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
@@ -181,6 +201,16 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct != nil {
 				p.acct.Close()
 			}
+
+			// Log these as warnings so they show up in the benchmark logs.
+			metric := &dto.Metric{}
+			_ = observationChanDelay.Write(metric)
+			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
+
+			metric = &dto.Metric{}
+			_ = observationTotalDelay.Write(metric)
+			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
+
 			return ctx.Err()
 		case p.gs = <-p.setC:
 			p.logger.Info("guardian set updated",
@@ -216,6 +246,7 @@ func (p *Processor) Run(ctx context.Context) error {
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:
+			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
