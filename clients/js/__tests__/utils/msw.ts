@@ -63,10 +63,44 @@ const solanaRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   }
 };
 
+const ethereumRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+  logRequest(req);
+
+  let response;
+  const method = req.body.method;
+
+  switch (method) {
+    case "eth_estimateGas":
+      response = {
+        jsonrpc: "2.0",
+        id: 1,
+        result: "0x5208", // hexadecimal representation of gas estimation
+      };
+      break;
+    case "eth_sendRawTransaction":
+      response = {
+        jsonrpc: "2.0",
+        id: 1,
+        result:
+          "0x9fc76417374aa880d4449a1f7f31ec597f00b1f6f3dd2d66f4c9c6c445836d8b",
+      };
+      break;
+    default:
+      break;
+  }
+
+  if (!response) {
+    return await genericRequestHandler(req, res, ctx);
+  }
+
+  return res(ctx.status(200), ctx.json(response));
+};
+
 //NOTE: Capture all network traffic
 export const handlers = [
   // Interceptors
   rest.post("https://api.devnet.solana.com/", solanaRequestHandler),
+  rest.post("https://rpc.ankr.com/eth", ethereumRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),

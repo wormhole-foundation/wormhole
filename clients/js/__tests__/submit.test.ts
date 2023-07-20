@@ -7,7 +7,7 @@ import {
   afterEach,
   jest,
 } from "@jest/globals";
-import { getRpcEndpoint } from "./utils/getters";
+import { WormholeSDKChainName, getRpcEndpoint } from "./utils/getters";
 import { server as mswServer, requests } from "./utils/msw";
 import yargs from "yargs";
 import * as submitCommand from "../src/cmds/submit";
@@ -43,7 +43,7 @@ describe("worm submit", () => {
     const testTimeout = 10000;
 
     describe("solana", () => {
-      const chain = "solana";
+      const chain: WormholeSDKChainName = "solana";
       const rpc = getRpcEndpoint(chain, "TESTNET");
       const network = "testnet";
 
@@ -68,6 +68,59 @@ describe("worm submit", () => {
             expect(requests.length).toBe(7);
             expect(
               requests.some((req) => req.body.method === "sendTransaction")
+            ).toBeTruthy();
+          },
+          testTimeout
+        );
+      });
+
+      it(
+        `should fail to send transactions when submitting 'ContractUpgrade' VAA on ${chain}, if 'vaa' is malformed`,
+        async () => {
+          const fakeVaa = "this-is-a-fake-vaa";
+          try {
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${fakeVaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (e) {}
+
+          expect(requests.length).toBe(0);
+        },
+        testTimeout
+      );
+    });
+
+    describe("ethereum", () => {
+      const chain: WormholeSDKChainName = "ethereum";
+      const rpc = getRpcEndpoint(chain, "MAINNET");
+      const network = "mainnet";
+
+      contractUpgradeModules.forEach((module) => {
+        it(
+          `should send transaction when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}`,
+          async () => {
+            //NOTE: use worm generate command to obtain a VAA
+            const vaa = run_worm_command(
+              `generate upgrade -c ${chain} -m ${module} -a 0xF890982f9310df57d00f659cf4fd87e65adEd8d7 -g 0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa`
+            );
+
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            try {
+              await yargs
+                .command(submitCommand as unknown as YargsCommandModule)
+                .parse(
+                  `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+                );
+            } catch (e) {}
+
+            expect(requests.length).toBe(22);
+            expect(
+              requests.some(
+                (req) => req.body.method === "eth_sendRawTransaction"
+              )
             ).toBeTruthy();
           },
           testTimeout
