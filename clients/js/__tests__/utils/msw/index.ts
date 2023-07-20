@@ -3,25 +3,47 @@ import { setupServer } from "msw/node";
 import { rest } from "msw";
 import { Request, Response } from "./types";
 import {
-  ethereumRequestHandler,
+  evmRequestHandler,
   genericRequestHandler,
   solanaRequestHandler,
 } from "./handlers";
+import { NETWORKS } from "../../../src/consts";
 
 let requests: Request[] = [];
 let responses: Response[] = [];
 
+const evmHandlers = [
+  "ethereum",
+  "acala",
+  "arbitrum",
+  "aurora",
+  "avalanche",
+  "bsc",
+  "celo",
+  "fantom",
+  "gnosis",
+  "karura",
+  "klaytn",
+  "moonbeam",
+  "oasis",
+  "optimism",
+  "polygon",
+].map((chain) => {
+  // @ts-ignore
+  const rpc = NETWORKS["MAINNET"][chain].rpc;
+  return rest.post(rpc, evmRequestHandler);
+});
+
 //NOTE: Capture all network traffic
 const handlers = [
   // Interceptors
-  rest.post("https://api.devnet.solana.com/", solanaRequestHandler),
-  rest.post("https://rpc.ankr.com/eth", ethereumRequestHandler),
+  ...evmHandlers,
+  rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),
   rest.post("*", genericRequestHandler),
   rest.put("*", genericRequestHandler),
-  rest.delete("*", genericRequestHandler),
   rest.patch("*", genericRequestHandler),
 ];
 

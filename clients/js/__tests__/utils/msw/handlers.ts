@@ -54,11 +54,7 @@ export const solanaRequestHandler: LogRequestFunction = async (
   }
 };
 
-export const ethereumRequestHandler: LogRequestFunction = async (
-  req,
-  res,
-  ctx
-) => {
+export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 
   let response;
