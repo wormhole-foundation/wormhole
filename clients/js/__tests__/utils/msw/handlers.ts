@@ -1,24 +1,7 @@
-// This module provides logic to capture network calls by using 'msw' tool
-import { setupServer } from "msw/node";
-import {
-  AsyncResponseResolverReturnType,
-  MockedRequest,
-  ResponseComposition,
-  RestContext,
-  rest,
-} from "msw";
+import { requests, responses } from "./index";
+import { LogRequestFunction, Request } from "./types";
 
-let requests: MockedRequest<Body>[] = [];
-let responses: ResponseComposition<Body>[] = [];
-
-type Body = Record<string, any>;
-type LogRequestFunction = (
-  req: MockedRequest<Body>,
-  res: ResponseComposition<Body>,
-  context: RestContext
-) => AsyncResponseResolverReturnType<any>;
-
-const logRequest = (req: MockedRequest<Body>) => {
+export const logRequest = (req: Request) => {
   console.log(`${req.method} request to ${req.url.toString()}`);
   if (Object.keys(req.headers).length > 0) {
     console.log("Headers:", req.headers.all());
@@ -29,7 +12,11 @@ const logRequest = (req: MockedRequest<Body>) => {
   requests.push(req);
 };
 
-const genericRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+export const genericRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
   logRequest(req);
 
   const response = await ctx.fetch(req);
@@ -41,11 +28,15 @@ const genericRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   return res(ctx.status(200), ctx.json(responseJSON));
 };
 
-const solanaRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+export const solanaRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
   logRequest(req);
 
   // Avoid sending transaction to network, send error instead (to force stop execution)
-  if (req.body && req.body.method === "sendTransaction") {
+  if (req.body.method === "sendTransaction") {
     return res(
       ctx.status(200),
       // mock response with error
@@ -63,7 +54,11 @@ const solanaRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   }
 };
 
-const ethereumRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+export const ethereumRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
   logRequest(req);
 
   let response;
@@ -95,20 +90,3 @@ const ethereumRequestHandler: LogRequestFunction = async (req, res, ctx) => {
 
   return res(ctx.status(200), ctx.json(response));
 };
-
-//NOTE: Capture all network traffic
-export const handlers = [
-  // Interceptors
-  rest.post("https://api.devnet.solana.com/", solanaRequestHandler),
-  rest.post("https://rpc.ankr.com/eth", ethereumRequestHandler),
-
-  // Loggers
-  rest.get("*", genericRequestHandler),
-  rest.post("*", genericRequestHandler),
-  rest.put("*", genericRequestHandler),
-  rest.delete("*", genericRequestHandler),
-  rest.patch("*", genericRequestHandler),
-];
-
-export const server = setupServer(...handlers);
-export { requests };
