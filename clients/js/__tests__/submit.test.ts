@@ -102,6 +102,7 @@ describe("worm submit", () => {
         "bsc",
         "celo",
         "fantom",
+        "gnosis",
         "klaytn",
         "moonbeam",
         "oasis",
@@ -115,6 +116,8 @@ describe("worm submit", () => {
           const network = "mainnet";
 
           contractUpgradeModules.forEach((module) => {
+            if (chain === "gnosis" && module !== "Core") return; // Handle special case for 'gnosis' chain, it only has 'Core' contract
+
             it(
               `should send transaction to ${chain} when submitting 'ContractUpgrade' VAA for '${module}' module`,
               async () => {
