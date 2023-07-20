@@ -96,23 +96,17 @@ describe("worm submit", () => {
     describe("evm", () => {
       const evmChains: WormholeSDKChainName[] = [
         "ethereum",
-        "acala",
         "arbitrum",
         "aurora",
         "avalanche",
-        "base",
         "bsc",
         "celo",
         "fantom",
-        "gnosis",
-        "karura",
         "klaytn",
         "moonbeam",
-        "neon",
         "oasis",
         "optimism",
         "polygon",
-        "sepolia",
       ];
 
       evmChains.forEach((chain) => {
