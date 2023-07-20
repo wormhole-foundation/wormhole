@@ -49,7 +49,7 @@ describe("worm submit", () => {
 
       contractUpgradeModules.forEach((module) => {
         it(
-          `should send transaction when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}`,
+          `should send transaction to ${chain} when submitting 'ContractUpgrade' VAA for '${module}' module`,
           async () => {
             //NOTE: use worm generate command to obtain a VAA
             const vaa = run_worm_command(
@@ -75,7 +75,7 @@ describe("worm submit", () => {
       });
 
       it(
-        `should fail to send transactions when submitting 'ContractUpgrade' VAA on ${chain}, if 'vaa' is malformed`,
+        `should fail to send transactions to ${chain} when submitting 'ContractUpgrade' VAA, if 'vaa' is malformed`,
         async () => {
           const fakeVaa = "this-is-a-fake-vaa";
           try {
@@ -100,7 +100,7 @@ describe("worm submit", () => {
 
       contractUpgradeModules.forEach((module) => {
         it(
-          `should send transaction when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}`,
+          `should send transaction to ${chain} when submitting 'ContractUpgrade' VAA for '${module}' module`,
           async () => {
             //NOTE: use worm generate command to obtain a VAA
             const vaa = run_worm_command(
@@ -128,7 +128,7 @@ describe("worm submit", () => {
       });
 
       it(
-        `should fail to send transactions when submitting 'ContractUpgrade' VAA on ${chain}, if 'vaa' is malformed`,
+        `should fail to send transactions to ${chain} when submitting 'ContractUpgrade' VAA, if 'vaa' is malformed`,
         async () => {
           const fakeVaa = "this-is-a-fake-vaa";
           try {
