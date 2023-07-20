@@ -17,6 +17,43 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+func GetMiddlewareContract(
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+) string {
+	node := chain.GetFullNode()
+	stdout, _, err := node.ExecQuery(ctx, "wormhole", "show-middleware-contract")
+	require.NoError(t, err)
+	return string(stdout)
+}
+
+func SetMiddlewareContract(
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+	keyName string,
+	cfg ibc.ChainConfig,
+	contractBech32Addr string,
+	guardians *guardians.ValSet,
+) {
+	node := chain.GetFullNode()
+
+	contractAddr := [32]byte{}
+	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
+	payload := vaa.BodyWormchainMiddlewareContract{
+		ContractAddr: contractAddr,
+	}
+	payloadBz := payload.Serialize()
+	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "set-middleware-contract", contractBech32Addr, vHex, "--gas", "auto")
+	require.NoError(t, err)
+}
+
 func SubmitAllowlistInstantiateContract(
 	t *testing.T,
 	ctx context.Context,
@@ -43,8 +80,8 @@ func SubmitAllowlistInstantiateContract(
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
 
-	//	create-instantiate-allowed-contract [bech32 contract addr] [codeId] [vaa-hex]
-	_, err = node.ExecTx(ctx, keyName, "wormhole", "create-instantiate-allowed-contract", contractBech32Addr, codeIdStr, vHex, "--gas", "auto")
+	// add-wasm-instantiate-allowlist [bech32 contract addr] [codeId] [vaa-hex]
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "add-wasm-instantiate-allowlist", contractBech32Addr, codeIdStr, vHex, "--gas", "auto")
 	require.NoError(t, err)
 }
 
@@ -277,27 +314,18 @@ type IbcTranslatorQueryRspObj struct {
 	Channel string `json:"channel,omitempty"`
 }
 
-// Code below is temporary for testing cosmos->external using ibc-hooks, but without our custom middleware
-type IbcTranslatorIbcHooksSimple struct {
-	Payload IbcTranslatorIbcHooksPayloadSimple `json:"wasm"`
+type WormholeMwSimpleMemo struct {
+	GatewayIbcTokenBridgePayloadSimple GatewayIbcTokenBridgePayloadSimple `json:"gateway_ibc_token_bridge_payload"`
 }
 
-type IbcTranslatorIbcHooksPayloadSimple struct {
-	Contract string                     `json:"contract"`
-	Msg      IbcTranslatorExecuteSimple `json:"msg"`
-}
-
-func CreateIbcTranslatorIbcHooksSimpleMsg(t *testing.T, contract string, chainID uint16, recipient string, fee uint64, nonce uint32) string {
-	msg := IbcTranslatorIbcHooksSimple{
-		Payload: IbcTranslatorIbcHooksPayloadSimple{
-			Contract: contract,
-			Msg: IbcTranslatorExecuteSimple{
-				Msg: Simple{
-					Chain:     chainID,
-					Recipient: []byte(recipient),
-					Fee:       fmt.Sprint(fee),
-					Nonce:     nonce,
-				},
+func CreateWormholeMwSimpleMemo(t *testing.T, chainID uint16, recipient []byte, fee uint64, nonce uint32) string {
+	msg := WormholeMwSimpleMemo{
+		GatewayIbcTokenBridgePayloadSimple{
+			Simple: Simple{
+				Chain:     chainID,
+				Recipient: recipient,
+				Fee:       fmt.Sprint(fee),
+				Nonce:     nonce,
 			},
 		},
 	}
@@ -308,26 +336,18 @@ func CreateIbcTranslatorIbcHooksSimpleMsg(t *testing.T, contract string, chainID
 	return string(msgBz)
 }
 
-type IbcTranslatorIbcHooksContractControlled struct {
-	Payload IbcTranslatorIbcHooksPayloadContractControlled `json:"wasm"`
+type WormholeMwContractControlledeMemo struct {
+	GatewayIbcTokenBridgePayloadContractControlled GatewayIbcTokenBridgePayloadContractControlled `json:"gateway_ibc_token_bridge_payload"`
 }
 
-type IbcTranslatorIbcHooksPayloadContractControlled struct {
-	Contract string                                 `json:"contract"`
-	Msg      IbcTranslatorExecuteContractControlled `json:"msg"`
-}
-
-func CreateIbcTranslatorIbcHooksContractControlledMsg(t *testing.T, contract string, chainID uint16, externalContract string, payload []byte, nonce uint32) string {
-	msg := IbcTranslatorIbcHooksContractControlled{
-		Payload: IbcTranslatorIbcHooksPayloadContractControlled{
-			Contract: contract,
-			Msg: IbcTranslatorExecuteContractControlled{
-				Msg: ContractControlled{
-					Chain:    chainID,
-					Contract: []byte(externalContract),
-					Payload:  payload,
-					Nonce:    nonce,
-				},
+func CreateWormholeMwContractControlledMemo(t *testing.T, chainID uint16, externalContract []byte, payload []byte, nonce uint32) string {
+	msg := WormholeMwContractControlledeMemo{
+		GatewayIbcTokenBridgePayloadContractControlled{
+			ContractControlled: ContractControlled{
+				Chain:    chainID,
+				Contract: externalContract,
+				Payload:  payload,
+				Nonce:    nonce,
 			},
 		},
 	}
