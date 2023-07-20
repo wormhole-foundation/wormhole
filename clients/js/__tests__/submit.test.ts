@@ -44,7 +44,7 @@ describe("worm submit", () => {
 
     describe("solana", () => {
       const chain: WormholeSDKChainName = "solana";
-      const rpc = getRpcEndpoint(chain, "TESTNET");
+      const rpc = getRpcEndpoint(chain, "TESTNET"); // generated vaa from 'worm generate' command does not work on mainnet, use testnet instead
       const network = "testnet";
 
       contractUpgradeModules.forEach((module) => {
