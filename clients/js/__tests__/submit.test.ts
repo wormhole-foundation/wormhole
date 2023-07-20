@@ -75,7 +75,7 @@ describe("worm submit", () => {
       });
 
       it(
-        `should fail to send transactions when submitting 'ContractUpgrade' VAA for '${module}' module on ${chain}, if 'vaa' is malformed`,
+        `should fail to send transactions when submitting 'ContractUpgrade' VAA on ${chain}, if 'vaa' is malformed`,
         async () => {
           const fakeVaa = "this-is-a-fake-vaa";
           try {
