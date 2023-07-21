@@ -1,7 +1,6 @@
 use crate::{
     constants::EMITTER_SEED_PREFIX,
     legacy::LegacyAttestTokenArgs,
-    message::AssetMetadata,
     processor::{post_token_bridge_message, PostTokenBridgeMessage},
     utils,
 };
@@ -10,8 +9,9 @@ use anchor_spl::{
     metadata::{Metadata, MetadataAccount},
     token::Mint,
 };
-use core_bridge_program::{self, state::BridgeProgramData, types::SolanaChain, CoreBridge};
-use wormhole_common::SeedPrefix;
+use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::FixedBytes;
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -99,12 +99,22 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
         },
         ctx.bumps["core_emitter"],
         nonce,
-        AssetMetadata {
-            token_address: ctx.accounts.mint.key().into(),
-            token_chain: SolanaChain.into(),
+        wormhole_vaas::payloads::token_bridge::Attestation {
+            token_address: ctx.accounts.mint.key().to_bytes().into(),
+            token_chain: SOLANA_CHAIN,
             decimals: ctx.accounts.mint.decimals,
-            symbol: metadata.symbol.clone().into(),
-            name: metadata.name.clone().into(),
+            symbol: string_to_fixed32(&metadata.symbol),
+            name: string_to_fixed32(&metadata.name),
         },
     )
+}
+
+fn string_to_fixed32(s: &String) -> FixedBytes<32> {
+    let mut bytes = [0; 32];
+    if s.len() > 32 {
+        bytes.copy_from_slice(&s.as_bytes()[..32]);
+    } else {
+        bytes[..s.len()].copy_from_slice(s.as_bytes());
+    }
+    bytes.into()
 }

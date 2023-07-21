@@ -9,6 +9,9 @@ pub enum TokenBridgeError {
     #[msg("InvalidGovernanceAction")]
     InvalidGovernanceAction = 0x22,
 
+    #[msg("GovernanceForAnotherChain")]
+    GovernanceForAnotherChain = 0x23,
+
     #[msg("InvalidPostedVaa")]
     InvalidPostedVaa = 0x100,
 
@@ -17,6 +20,9 @@ pub enum TokenBridgeError {
 
     #[msg("RecipientChainNotSolana")]
     RecipientChainNotSolana = 0x200,
+
+    #[msg("RedeemerChainNotSolana")]
+    RedeemerChainNotSolana = 0x201,
 
     #[msg("EmitterZeroAddress")]
     EmitterZeroAddress = 0x300,
@@ -29,4 +35,13 @@ pub enum TokenBridgeError {
 
     #[msg("InvalidRelayerFee")]
     InvalidRelayerFee = 0x420,
+
+    #[msg("NativeAsset")]
+    NativeAsset = 0x555,
+
+    #[msg("WrappedAsset")]
+    WrappedAsset = 0x556,
+
+    #[msg("U64Overflow")]
+    U64Overflow = 0x558,
 }

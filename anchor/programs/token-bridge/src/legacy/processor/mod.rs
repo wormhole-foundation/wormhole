@@ -16,7 +16,7 @@ pub use transfer_tokens_with_payload::*;
 
 use crate::ID;
 use anchor_lang::prelude::*;
-use wormhole_common::process_anchorized_legacy_instruction;
+use wormhole_solana_common::process_anchorized_legacy_instruction;
 
 use super::instruction::LegacyInstruction;
 

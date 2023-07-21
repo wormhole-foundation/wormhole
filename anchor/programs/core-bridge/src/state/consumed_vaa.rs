@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
 
 #[account]
 #[derive(Debug, PartialEq, Eq, InitSpace)]

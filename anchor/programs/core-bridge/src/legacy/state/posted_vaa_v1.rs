@@ -3,20 +3,18 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{
-    message::{WormDecode, WormEncode},
-    types::{ChainId, ExternalAddress, Finality, MessageHash, Timestamp},
-    utils::vaa,
-};
+use crate::{types::Timestamp, utils};
 use anchor_lang::prelude::*;
-use wormhole_common::{legacy_account, NewAccountSize, SeedPrefix};
+use solana_program::keccak::Hash;
+use wormhole_solana_common::{legacy_account, NewAccountSize, SeedPrefix};
+use wormhole_vaas::payloads::TypePrefixedPayload;
 
 const SEED_PREFIX: &[u8] = b"PostedVAA";
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct PostedVaaV1Metadata {
     /// Level of consistency requested by the emitter.
-    pub finality: Finality,
+    pub consistency_level: u8,
 
     /// Time the message was submitted.
     pub timestamp: Timestamp,
@@ -40,10 +38,10 @@ pub struct PostedVaaV1Metadata {
     pub sequence: u64,
 
     /// Emitter of the message.
-    pub emitter_chain: ChainId,
+    pub emitter_chain: u16,
 
     /// Emitter of the message.
-    pub emitter_address: ExternalAddress,
+    pub emitter_address: [u8; 32],
 }
 
 pub trait VaaV1LegacyAccount: SeedPrefix {
@@ -55,30 +53,30 @@ pub trait VaaV1LegacyAccount: SeedPrefix {
     ///
     /// NOTE: For a cheaper derivation, your instruction handler can take a message hash as an
     /// argument. But at the end of the day, re-hashing isn't that expensive.
-    fn try_message_hash(&self) -> Result<MessageHash>;
+    fn try_message_hash(&self) -> Result<Hash>;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MessagePayload<D: WormDecode + WormEncode> {
+pub struct MessagePayload<P: TypePrefixedPayload> {
     pub size: u32,
-    pub data: Box<D>,
+    pub data: Box<P>,
 }
 
-impl<D: WormDecode + WormEncode> Deref for MessagePayload<D> {
-    type Target = D;
+impl<P: TypePrefixedPayload> Deref for MessagePayload<P> {
+    type Target = P;
 
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-impl<D: WormDecode + WormEncode> DerefMut for MessagePayload<D> {
+impl<P: TypePrefixedPayload> DerefMut for MessagePayload<P> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
 }
 
-impl<D: WormDecode + WormEncode> AnchorDeserialize for MessagePayload<D> {
+impl<P: TypePrefixedPayload> AnchorDeserialize for MessagePayload<P> {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let size = u32::deserialize(buf)?;
 
@@ -92,49 +90,49 @@ impl<D: WormDecode + WormEncode> AnchorDeserialize for MessagePayload<D> {
 
         Ok(Self {
             size,
-            data: Box::new(D::decode(buf)?),
+            data: Box::new(P::read(buf)?),
         })
     }
 }
 
-impl<D: WormDecode + WormEncode> AnchorSerialize for MessagePayload<D> {
+impl<P: TypePrefixedPayload> AnchorSerialize for MessagePayload<P> {
     fn serialize<W: io::Write>(&self, _writer: &mut W) -> io::Result<()> {
         // NOTE: We only intend to read these payloads. Serialization only matters when we write
-        // to an account that uses `MessagePayload<D>`.
+        // to an account that uses `MessagePayload<P>`.
         Ok(())
     }
 }
 
 #[legacy_account]
-pub struct PostedVaaV1<D: WormDecode + WormEncode> {
+pub struct PostedVaaV1<P: TypePrefixedPayload> {
     pub meta: PostedVaaV1Metadata,
-    pub payload: MessagePayload<D>,
+    pub payload: MessagePayload<P>,
 }
 
-impl<D: WormDecode + WormEncode> SeedPrefix for PostedVaaV1<D> {
+impl<P: TypePrefixedPayload> SeedPrefix for PostedVaaV1<P> {
     fn seed_prefix() -> &'static [u8] {
         SEED_PREFIX
     }
 }
 
-impl<D: WormDecode + WormEncode> VaaV1LegacyAccount for PostedVaaV1<D> {
-    fn try_message_hash(&self) -> Result<MessageHash> {
+impl<P: TypePrefixedPayload> VaaV1LegacyAccount for PostedVaaV1<P> {
+    fn try_message_hash(&self) -> Result<Hash> {
         let mut payload = Vec::with_capacity(self.payload.size.try_into().unwrap());
-        self.payload.data.encode(&mut payload)?;
+        self.payload.data.write(&mut payload)?;
 
-        Ok(vaa::compute_message_hash(
+        Ok(utils::compute_message_hash(
             self.timestamp,
             self.nonce,
             self.emitter_chain,
             &self.emitter_address,
             self.sequence,
-            self.finality,
+            self.consistency_level,
             &payload,
         ))
     }
 }
 
-impl<D: WormDecode + WormEncode> Deref for PostedVaaV1<D> {
+impl<P: TypePrefixedPayload> Deref for PostedVaaV1<P> {
     type Target = PostedVaaV1Metadata;
 
     fn deref(&self) -> &Self::Target {
@@ -155,14 +153,14 @@ impl SeedPrefix for PostedVaaV1Bytes {
 }
 
 impl VaaV1LegacyAccount for PostedVaaV1Bytes {
-    fn try_message_hash(&self) -> Result<MessageHash> {
-        Ok(vaa::compute_message_hash(
+    fn try_message_hash(&self) -> Result<Hash> {
+        Ok(utils::compute_message_hash(
             self.timestamp,
             self.nonce,
             self.emitter_chain,
             &self.emitter_address,
             self.sequence,
-            self.finality,
+            self.consistency_level,
             &self.payload,
         ))
     }

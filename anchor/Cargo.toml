@@ -4,6 +4,8 @@ members = [
     "programs/*"
 ]
 
+### cargo-build-sbf does not support workspace inheritance yet... Soon.
+
 [profile.release]
 overflow-checks = true
 lto = "fat"

@@ -23,7 +23,6 @@ pub mod state;
 pub mod types;
 pub mod utils;
 
-pub use message::{WormDecode, WormEncode};
 pub(crate) use processor::*;
 
 #[cfg(feature = "cpi")]

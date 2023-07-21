@@ -1,17 +1,18 @@
 use crate::{
     constants::CUSTODY_AUTHORITY_SEED_PREFIX,
+    error::TokenBridgeError,
     legacy::EmptyArgs,
-    message::TokenTransfer,
     processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
+    constants::SOLANA_CHAIN,
     state::{PostedVaaV1, VaaV1LegacyAccount},
-    types::{ChainId, SolanaChain},
 };
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::payloads::token_bridge::Transfer;
 
 use super::validate_token_transfer;
 
@@ -25,12 +26,12 @@ pub struct CompleteTransferNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<TokenTransfer>::seed_prefix(),
+            PostedVaaV1::<Transfer>::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<TokenTransfer>>,
+    posted_vaa: Account<'info, PostedVaaV1<Transfer>>,
 
     #[account(
         init,
@@ -100,7 +101,7 @@ pub struct CompleteTransferNative<'info> {
 
 impl<'info> CompleteTransferNative<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let transfer_msg = validate_token_transfer(
+        let token_chain = validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.mint,
@@ -108,7 +109,7 @@ impl<'info> CompleteTransferNative<'info> {
         )?;
 
         // For native transfers, this mint must have been created on Solana.
-        require_eq!(transfer_msg.token_chain, ChainId::from(SolanaChain));
+        require_eq!(token_chain, SOLANA_CHAIN, TokenBridgeError::WrappedAsset);
 
         // Done.
         Ok(())
@@ -130,12 +131,14 @@ pub fn complete_transfer_native(
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these
     // operations.
     let mut transfer_amount = transfer_msg
-        .normalized_amount
-        .checked_to_raw(decimals)
-        .unwrap();
+        .norm_amount
+        .denorm(decimals)
+        .try_into()
+        .expect("Solana token amounts are u64");
     let relayer_payout = transfer_msg
-        .normalized_relayer_fee
-        .checked_to_raw(decimals)
+        .norm_relayer_fee
+        .denorm(decimals)
+        .try_into()
         .unwrap();
 
     // Save references to these accounts to be used later.

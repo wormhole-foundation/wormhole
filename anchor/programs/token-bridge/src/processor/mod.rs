@@ -17,7 +17,7 @@ use anchor_lang::{
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount};
 use core_bridge_program::{
     state::BridgeProgramData, types::Commitment, CoreBridge, LegacyPostMessage,
-    LegacyPostMessageArgs, WormEncode,
+    LegacyPostMessageArgs,
 };
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
@@ -31,12 +31,15 @@ pub struct PostTokenBridgeMessage<'ctx, 'info> {
     pub core_bridge_program: &'ctx Program<'info, CoreBridge>,
 }
 
-pub fn post_token_bridge_message<T: WormEncode>(
+pub fn post_token_bridge_message<P>(
     accounts: PostTokenBridgeMessage<'_, '_>,
     emitter_bump: u8,
     nonce: u32,
-    message: T,
-) -> Result<()> {
+    message: P,
+) -> Result<()>
+where
+    P: wormhole_vaas::TypePrefixedPayload,
+{
     // Pay fee to the core bridge program if there is one.
     let fee_lamports = accounts.core_bridge.fee_lamports;
     if fee_lamports > 0 {
@@ -53,7 +56,7 @@ pub fn post_token_bridge_message<T: WormEncode>(
     }
 
     let mut payload = vec![];
-    message.encode(&mut payload)?;
+    message.write_payload(&mut payload)?;
 
     core_bridge_program::legacy_post_message(
         CpiContext::new_with_signer(

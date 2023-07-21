@@ -1,17 +1,7 @@
-mod asset_metadata;
-mod governance;
-mod token_transfer;
-mod token_transfer_with_payload;
-
-pub use asset_metadata::*;
-pub(crate) use governance::*;
-pub use token_transfer::*;
-pub use token_transfer_with_payload::*;
-
-use anchor_lang::prelude::*;
-use core_bridge_program::{state::PostedVaaV1, WormDecode, WormEncode};
-
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
+use anchor_lang::prelude::*;
+use core_bridge_program::state::PostedVaaV1;
+use wormhole_vaas::payloads::TypePrefixedPayload;
 
 // Static list of invalid VAA Message accounts.
 const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
@@ -24,12 +14,13 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
     "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
 ];
 
-pub trait TokenBridgeMessage: wormhole_vaas::Payload {}
-
-pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx, T: TokenBridgeMessage>(
-    vaa: &'ctx Account<'_, PostedVaaV1<T>>,
+pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx, P>(
+    vaa: &'ctx Account<'_, PostedVaaV1<P>>,
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
-) -> Result<&'ctx T> {
+) -> Result<&'ctx P>
+where
+    P: TypePrefixedPayload,
+{
     // IYKYK.
     require!(
         !INVALID_POSTED_VAA_KEYS.contains(&vaa.key().to_string().as_str()),

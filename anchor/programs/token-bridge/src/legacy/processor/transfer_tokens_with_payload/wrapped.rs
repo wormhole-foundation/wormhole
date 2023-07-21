@@ -1,14 +1,14 @@
 use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     legacy::LegacyTransferTokensWithPayloadArgs,
-    message::TokenTransferWithPayload,
     processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, state::BridgeProgramData, CoreBridge};
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::payloads::token_bridge::TransferWithMessage;
 
 use super::new_sender_address;
 
@@ -110,7 +110,7 @@ pub fn transfer_tokens_with_payload_wrapped(
     //
     // NOTE: We perform the derivation check here instead of in the access control because we do not
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
-    let sender_address = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
+    let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Burn wrapped assets from the source token account.
     burn_wrapped_tokens(
@@ -125,13 +125,13 @@ pub fn transfer_tokens_with_payload_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = TokenTransferWithPayload {
-        normalized_amount: amount.into(),
-        token_address: wrapped_asset.token_address,
+    let token_transfer = TransferWithMessage {
+        norm_amount: amount.try_into().unwrap(),
+        token_address: wrapped_asset.token_address.into(),
         token_chain: wrapped_asset.token_chain,
-        redeemer,
+        redeemer: redeemer.into(),
         redeemer_chain,
-        sender_address,
+        sender,
         payload,
     };
 

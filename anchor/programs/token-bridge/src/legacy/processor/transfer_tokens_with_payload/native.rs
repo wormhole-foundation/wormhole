@@ -3,15 +3,14 @@ use crate::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
     },
     legacy::LegacyTransferTokensWithPayloadArgs,
-    message::TokenTransferWithPayload,
     processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
-    types::NormalizedAmount,
     utils,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use core_bridge_program::{self, state::BridgeProgramData, types::SolanaChain, CoreBridge};
-use wormhole_common::SeedPrefix;
+use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::{payloads::token_bridge::TransferWithMessage, EncodedAmount, U256};
 
 use super::new_sender_address;
 
@@ -122,7 +121,7 @@ pub fn transfer_tokens_with_payload_native(
     //
     // NOTE: We perform the derivation check here instead of in the access control because we do not
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
-    let sender_address = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
+    let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Deposit native assets from the source token account into the custody account.
     deposit_native_tokens(
@@ -137,13 +136,13 @@ pub fn transfer_tokens_with_payload_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer = TokenTransferWithPayload {
-        normalized_amount: NormalizedAmount::from_raw(amount, mint.decimals),
-        token_address: mint.key().into(),
-        token_chain: SolanaChain.into(),
-        redeemer,
+    let token_transfer: TransferWithMessage = TransferWithMessage {
+        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals),
+        token_address: mint.key().to_bytes().into(),
+        token_chain: SOLANA_CHAIN,
+        redeemer: redeemer.into(),
         redeemer_chain,
-        sender_address,
+        sender,
         payload,
     };
 
