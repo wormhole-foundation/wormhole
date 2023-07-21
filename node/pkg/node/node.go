@@ -11,7 +11,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 
 	"go.uber.org/zap"
@@ -55,13 +54,12 @@ type G struct {
 	gk *ecdsa.PrivateKey
 
 	// components
-	db                *db.Database
-	gst               *common.GuardianSetState
-	acct              *accountant.Accountant
-	gov               *governor.ChainGovernor
-	gatewayRelayer    *gwrelayer.GatewayRelayer
-	attestationEvents *reporter.AttestationEventReporter
-	publicrpcServer   *grpc.Server
+	db              *db.Database
+	gst             *common.GuardianSetState
+	acct            *accountant.Accountant
+	gov             *governor.ChainGovernor
+	gatewayRelayer  *gwrelayer.GatewayRelayer
+	publicrpcServer *grpc.Server
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
@@ -98,7 +96,7 @@ func NewGuardianNode(
 }
 
 // initializeBasic sets up everything that every GuardianNode needs before any options can be applied.
-func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc) {
+func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
@@ -113,9 +111,6 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)
-
-	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecycle events.
-	g.attestationEvents = reporter.EventListener(logger)
 
 	// allocate maps
 	g.runnablesWithScissors = make(map[string]supervisor.Runnable)
@@ -158,7 +153,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 	return func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
 
-		g.initializeBasic(logger, rootCtxCancel)
+		g.initializeBasic(rootCtxCancel)
 		if err := g.applyOptions(ctx, logger, options); err != nil {
 			logger.Fatal("failed to initialize GuardianNode", zap.Error(err))
 		}

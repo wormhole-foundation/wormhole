@@ -44,13 +44,6 @@ spec:
         # mount shared between containers for runtime state
         - name: node-rundir
           emptyDir: {}
-        - name: node-bigtable-key
-          secret:
-            secretName: node-bigtable-key
-            optional: true
-            items:
-              - key: bigtable-key.json
-                path: bigtable-key.json
         - name: node-wormchain-key
           secret:
             secretName: node-wormchain-key
@@ -66,8 +59,6 @@ spec:
           volumeMounts:
             - mountPath: /run/node
               name: node-rundir
-            - mountPath: /tmp/mounted-keys/bigtable
-              name: node-bigtable-key
             - mountPath: /tmp/mounted-keys/wormchain
               name: node-wormchain-key
           command:

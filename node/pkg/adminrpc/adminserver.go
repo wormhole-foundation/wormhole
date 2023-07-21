@@ -720,7 +720,7 @@ func (s *nodePrivilegedService) fetchMissing(
 
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
-			// (verifying signature, publishing to BigTable, storing in local DB...).
+			// (verifying signature, storing in local DB...).
 			s.signedInC <- &gossipv1.SignedVAAWithQuorum{
 				Vaa: vaaBytes,
 			}
