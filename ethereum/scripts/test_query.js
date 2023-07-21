@@ -20,7 +20,7 @@ const sigs = [
   ],
 ];
 const expectedHash =
-  "0x3c4628ca459c0ee5344d91146776f46627bdbf189f4f045d9dedf480861c05f3";
+  "0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e";
 const expectedDigest =
   "0x616674308c1ab1b468665f21fd3808a8fc5807a4ca9859b681d2e3f7ace97cc2";
 
@@ -47,12 +47,20 @@ module.exports = async function(callback) {
     console.log("digest:", digestResult);
 
     const verify = await initialized.methods
-      .verifyQueryResponseSignatures(responseBytes, sigs)
+      .verifyQueryResponseSignatures(
+        "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+        responseBytes,
+        sigs
+      )
       .call();
     console.log("verify result:", verify);
 
     const response = await initialized.methods
-      .parseAndVerifyQueryResponse(responseBytes, sigs)
+      .parseAndVerifyQueryResponse(
+        "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+        responseBytes,
+        sigs
+      )
       .call();
     console.log("response:", response);
 
