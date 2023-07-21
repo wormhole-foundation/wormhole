@@ -39,7 +39,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/node"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -203,13 +202,6 @@ var (
 
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
-
-	bigTablePersistenceEnabled *bool
-	bigTableGCPProject         *string
-	bigTableInstanceName       *string
-	bigTableTableName          *string
-	bigTableTopicName          *string
-	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
 
@@ -375,13 +367,6 @@ func init() {
 		"Google Cloud Project to use for Telemetry logging")
 
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
-
-	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
-	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
-	bigTableInstanceName = NodeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
-	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
-	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
-	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 
@@ -749,24 +734,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
-		}
-	}
-
-	if *bigTablePersistenceEnabled {
-		if *bigTableGCPProject == "" {
-			logger.Fatal("Please specify --bigTableGCPProject")
-		}
-		if *bigTableInstanceName == "" {
-			logger.Fatal("Please specify --bigTableInstanceName")
-		}
-		if *bigTableTableName == "" {
-			logger.Fatal("Please specify --bigTableTableName")
-		}
-		if *bigTableTopicName == "" {
-			logger.Fatal("Please specify --bigTableTopicName")
-		}
-		if *bigTableKeyPath == "" {
-			logger.Fatal("Please specify --bigTableKeyPath")
 		}
 	}
 
@@ -1478,18 +1445,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				node.GuardianOptionPublicWeb(*publicWeb, *publicGRPCSocketPath, *tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert")),
 			)
 		}
-	}
-
-	if *bigTablePersistenceEnabled {
-		bigTableConnectionConfig := &reporter.BigTableConnectionConfig{
-			GcpProjectID:    *bigTableGCPProject,
-			GcpInstanceName: *bigTableInstanceName,
-			TableName:       *bigTableTableName,
-			TopicName:       *bigTableTopicName,
-			GcpKeyFilePath:  *bigTableKeyPath,
-		}
-
-		guardianOptions = append(guardianOptions, node.GuardianOptionBigTablePersistence(bigTableConnectionConfig))
 	}
 
 	// Run supervisor with Guardian Node as root.

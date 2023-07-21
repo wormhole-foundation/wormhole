@@ -913,10 +913,10 @@ func TestGuardianConfigs(t *testing.T) {
 		{
 			name: "double-configuration",
 			opts: []*GuardianOption{
-				GuardianOptionBigTablePersistence(nil),
-				GuardianOptionBigTablePersistence(nil),
+				GuardianOptionDatabase(nil),
+				GuardianOptionDatabase(nil),
 			},
-			err: "Component bigtable is already configured and cannot be configured a second time",
+			err: "Component db is already configured and cannot be configured a second time",
 		},
 	}
 	runGuardianConfigTests(t, tc)

@@ -45,11 +45,6 @@ config.define_string("num", False, "Number of guardian nodes to run")
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
 
-# These arguments will enable writing Guardian events to a cloud BigTable instance.
-# Writing to a cloud BigTable is optional. These arguments are not required to run the devnet.
-config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
-config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
-
 # When running Tilt on a server, this can be used to set the public hostname Tilt runs on
 # for service links in the UI to work.
 config.define_string("webHost", False, "Public hostname for port forwards")
@@ -83,8 +78,6 @@ config.define_bool("generic_relayer", False, "Enable the generic relayer off-cha
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
 namespace = cfg.get("namespace", "wormhole")
-gcpProject = cfg.get("gcpProject", "")
-bigTableKeyPath = cfg.get("bigTableKeyPath", "")
 webHost = cfg.get("webHost", "localhost")
 ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
@@ -141,14 +134,6 @@ docker_build(
 
 # node
 
-if bigTableKeyPath != "":
-    k8s_yaml_with_ns(
-        secret_yaml_generic(
-            "node-bigtable-key",
-            from_file = "bigtable-key.json=" + bigTableKeyPath,
-        ),
-    )
-
 docker_build(
     ref = "guardiand-image",
     context = ".",
@@ -186,21 +171,6 @@ def build_node_yaml():
             if guardiand_debug:
                 container["command"] = command_with_dlv(container["command"])
                 print(container["command"])
-
-            if gcpProject != "":
-                container["command"] += [
-                    "--bigTablePersistenceEnabled",
-                    "--bigTableInstanceName",
-                    "wormhole",
-                    "--bigTableTableName",
-                    "v2Events",
-                    "--bigTableTopicName",
-                    "new-vaa-devnet",
-                    "--bigTableKeyPath",
-                    "/tmp/mounted-keys/bigtable-key.json",
-                    "--bigTableGCPProject",
-                    gcpProject,
-                ]
 
             if aptos:
                 container["command"] += [
