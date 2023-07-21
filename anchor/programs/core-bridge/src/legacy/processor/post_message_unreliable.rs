@@ -3,7 +3,7 @@ use crate::{
     state::{BridgeProgramData, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
 };
 use anchor_lang::prelude::*;
-use wormhole_common::{NewAccountSize, SeedPrefix};
+use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 use super::handle_post_new_message;
 

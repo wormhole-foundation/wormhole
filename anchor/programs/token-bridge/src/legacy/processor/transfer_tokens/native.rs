@@ -4,15 +4,14 @@ use crate::{
     },
     error::TokenBridgeError,
     legacy::LegacyTransferTokensArgs,
-    message::TokenTransfer,
     processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
-    types::NormalizedAmount,
     utils,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use core_bridge_program::{self, state::BridgeProgramData, types::SolanaChain, CoreBridge};
-use wormhole_common::SeedPrefix;
+use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::{payloads::token_bridge::Transfer, EncodedAmount, U256};
 
 #[derive(Accounts)]
 pub struct TransferTokensNative<'info> {
@@ -134,13 +133,13 @@ pub fn transfer_tokens_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer = TokenTransfer {
-        normalized_amount: NormalizedAmount::from_raw(amount, mint.decimals),
-        token_address: mint.key().into(),
-        token_chain: SolanaChain.into(),
-        recipient,
+    let token_transfer: Transfer = Transfer {
+        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals),
+        token_address: mint.key().to_bytes().into(),
+        token_chain: SOLANA_CHAIN,
+        recipient: recipient.into(),
         recipient_chain,
-        normalized_relayer_fee: NormalizedAmount::from_raw(relayer_fee, mint.decimals),
+        norm_relayer_fee: EncodedAmount::norm(U256::from(relayer_fee), mint.decimals),
     };
 
     // Finally publish Wormhole message using the Core Bridge.

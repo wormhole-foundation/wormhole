@@ -2,14 +2,13 @@ use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::LegacyTransferTokensArgs,
-    message::TokenTransfer,
     processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, state::BridgeProgramData, CoreBridge};
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct TransferTokensWrapped<'info> {
@@ -127,13 +126,13 @@ pub fn transfer_tokens_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = TokenTransfer {
-        normalized_amount: amount.into(),
-        token_address: wrapped_asset.token_address,
+    let token_transfer = wormhole_vaas::payloads::token_bridge::Transfer {
+        norm_amount: amount.try_into().unwrap(),
+        token_address: wrapped_asset.token_address.into(),
         token_chain: wrapped_asset.token_chain,
-        recipient,
+        recipient: recipient.into(),
         recipient_chain,
-        normalized_relayer_fee: relayer_fee.into(),
+        norm_relayer_fee: relayer_fee.try_into().unwrap(),
     };
 
     // Finally publish Wormhole message using the Core Bridge.

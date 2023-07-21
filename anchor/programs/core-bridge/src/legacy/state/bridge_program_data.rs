@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::types::Duration;
 use anchor_lang::prelude::*;
-use wormhole_common::{legacy_account, LegacyDiscriminator, SeedPrefix};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator, SeedPrefix};
 
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq, InitSpace)]

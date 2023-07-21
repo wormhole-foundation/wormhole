@@ -3,7 +3,7 @@ use crate::{
     state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
 };
 use anchor_lang::prelude::*;
-use wormhole_common::{utils, LegacyDiscriminator};
+use wormhole_solana_common::{utils, LegacyDiscriminator};
 
 const START: usize = PostedMessageV1::BYTES_START;
 

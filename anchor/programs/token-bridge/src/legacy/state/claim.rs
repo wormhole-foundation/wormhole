@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_common::{legacy_account, LegacyDiscriminator};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
 /// NOTE: This account's PDA seeds are inconsistent with how other Core Bridges save consumed VAAs.
 /// This account uses a tuple of (emitter_chain, emitter_address, sequence) whereas other Core

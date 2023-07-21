@@ -1,16 +1,15 @@
 [package]
-name = "solana-wormhole-core-bridge"
-version = "0.1.0"
+name = "solana-wormhole-core-bridge" # TODO: Change this
 description = "Wormhole Core Bridge Program for Solana"
+version = "0.1.0"
+edition = "2021"
 authors = ["W7"]
-repository = "https://github.com/wormhole-foundation/wormhole"
 license = "Apache-2.0"
 homepage = "https://wormhole.com"
-edition = "2021"
+repository = "https://github.com/wormhole-foundation/wormhole"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-#name = "core_bridge_program"
 
 [features]
 default = ["localnet"]
@@ -28,14 +27,9 @@ testnet = []
 devnet = []
 
 [dependencies]
-anchor-lang = { version = "=0.28.0", features = ["derive", "init-if-needed"] }
+anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 hex = "0.4"
-solana-program = "=1.14.19"
-wormhole-common = { path = "../../common/wormhole-common" }
-
-[dev-dependencies]
-arrayref = "0.3.7"
-itertools = "0.10.5"
-libsecp256k1 = "0.7.1"
-solana-program-test = "*"
-solana-sdk = "*"
+ruint = "1.8.0"
+solana-program = "=1.14.20"
+wormhole-solana-common = { path = "../../common/solana-common" }
+wormhole-vaas = { version = "=0.0.15", features = ["anchor"], default-features = false }

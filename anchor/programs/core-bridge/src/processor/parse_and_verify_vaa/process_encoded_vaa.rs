@@ -1,12 +1,12 @@
 use crate::{
     error::CoreBridgeError,
-    message::{GuardianSignature, WormDecode},
-    state::{EncodedVaa, Guardian, GuardianSet, ProcessingHeader, ProcessingStatus},
+    state::{EncodedVaa, GuardianSet, ProcessingHeader, ProcessingStatus},
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
-use wormhole_common::{utils, SeedPrefix};
+use wormhole_solana_common::{utils, SeedPrefix};
+use wormhole_vaas::{GuardianSetSig, Readable};
 
 const START: usize = EncodedVaa::BYTES_START;
 
@@ -165,19 +165,19 @@ fn verify_signatures_v1(
         acct_data = &acct_data[4..];
 
         require!(
-            VaaVersion::decode(&mut acct_data)? == VaaVersion::V1,
+            VaaVersion::read(&mut acct_data)? == VaaVersion::V1,
             CoreBridgeError::InvalidVaaVersion
         );
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
-        let guardian_set_index = u32::decode(&mut acct_data)?;
+        let guardian_set_index = u32::read(&mut acct_data)?;
         require_eq!(guardian_set_index, guardian_set.index);
 
-        let num_signatures = u8::decode(&mut acct_data)?;
+        let num_signatures = u8::read(&mut acct_data)?;
 
         // Do we have enough signatures for quorum?
         let guardian_keys = &guardian_set.keys;
-        let quorum = crate::utils::vaa::quorum(guardian_keys.len());
+        let quorum = crate::utils::quorum(guardian_keys.len());
         require_gte!(
             usize::from(num_signatures),
             quorum,
@@ -185,7 +185,7 @@ fn verify_signatures_v1(
         );
 
         let sigs: Vec<_> = (0..num_signatures)
-            .filter_map(|_| GuardianSignature::decode(&mut acct_data).ok())
+            .filter_map(|_| GuardianSetSig::read(&mut acct_data).ok())
             .collect();
         require!(
             usize::from(num_signatures) == sigs.len(),
@@ -202,7 +202,7 @@ fn verify_signatures_v1(
         let mut num_verified = 0;
         for sig in sigs.iter() {
             // We do not allow for non-increasing guardian signature indices.
-            let index = usize::from(sig.index);
+            let index = usize::from(sig.guardian_set_index);
             if let Some(last_index) = last_guardian_index {
                 require_gt!(index, last_index, CoreBridgeError::InvalidGuardianIndex);
             }
@@ -238,15 +238,15 @@ fn verify_signatures_v1(
 }
 
 fn verify_guardian_signature(
-    sig: &GuardianSignature,
-    guardian_pubkey: &Guardian,
+    sig: &GuardianSetSig,
+    guardian_pubkey: &[u8; 20],
     digest: &[u8],
 ) -> Result<()> {
     // Recover using `solana_program::secp256k1_recover`. Public key recovery costs 25k compute
     // units. And hashing this public key to recover the Ethereum public key costs about 13k.
     let recovered = {
         // Recover EC public key (64 bytes).
-        let pubkey = secp256k1_recover(digest, sig.recovery_id, &sig.rs)
+        let pubkey = secp256k1_recover(digest, sig.recovery_id(), &sig.raw_sig())
             .map_err(|_| CoreBridgeError::InvalidSignature)?;
 
         // The Ethereum public key is the last 20 bytes of keccak hashed public key above.
@@ -259,7 +259,10 @@ fn verify_guardian_signature(
     };
 
     // The recovered public key should agree with the Guardian's public key at this index.
-    require_eq!(*guardian_pubkey, Guardian::from(recovered));
+    require!(
+        recovered == *guardian_pubkey,
+        CoreBridgeError::InvalidGuardianKeyRecovery
+    );
 
     // Done.
     Ok(())

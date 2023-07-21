@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::{instruction::LegacyVerifySignaturesArgs, utils},
-    state::{Guardian, GuardianSet, SignatureSet},
+    state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
 use anchor_lang::{
@@ -9,7 +9,7 @@ use anchor_lang::{
     prelude::*,
     solana_program::{keccak, sysvar},
 };
-use wormhole_common::{NewAccountSize, SeedPrefix};
+use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct VerifySignatures<'info> {
@@ -176,7 +176,7 @@ pub fn verify_signatures(
     // Attempt to write `true` to represent verified guardian eth pubkey.
     for (i, &signer_index) in guardian_indices.iter().enumerate() {
         require!(
-            Guardian::from(sig_verify_params[i].eth_pubkey) == guardians[signer_index],
+            sig_verify_params[i].eth_pubkey == guardians[signer_index],
             CoreBridgeError::InvalidGuardianKeyRecovery
         );
 

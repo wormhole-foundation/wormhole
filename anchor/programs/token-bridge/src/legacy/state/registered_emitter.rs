@@ -1,12 +1,11 @@
 use anchor_lang::prelude::*;
-use core_bridge_program::types::{ChainId, ExternalAddress};
-use wormhole_common::{legacy_account, LegacyDiscriminator};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq, InitSpace)]
 pub struct RegisteredEmitter {
-    pub chain: ChainId,
-    pub contract: ExternalAddress,
+    pub chain: u16,
+    pub contract: [u8; 32],
 }
 
 impl LegacyDiscriminator<0> for RegisteredEmitter {

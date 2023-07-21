@@ -6,7 +6,7 @@ use crate::{
     state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
 };
 use anchor_lang::prelude::*;
-use wormhole_common::{utils, LegacyDiscriminator};
+use wormhole_solana_common::{utils, LegacyDiscriminator};
 
 use super::new_emitter;
 
@@ -85,7 +85,7 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // payload length.
     writer.write_all(&PostedMessageV1::LEGACY_DISCRIMINATOR)?;
     PostedMessageV1Info {
-        finality: Default::default(),
+        consistency_level: Default::default(),
         emitter_authority: ctx.accounts.emitter_authority.key(),
         status: MessageStatus::Writing,
         _gap_0: Default::default(),

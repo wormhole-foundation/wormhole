@@ -46,6 +46,9 @@ pub enum CoreBridgeError {
     #[msg("LatestGuardianSetRequired")]
     LatestGuardianSetRequired = 0x24,
 
+    #[msg("GovernanceForAnotherChain")]
+    GovernanceForAnotherChain = 0x26,
+
     #[msg("InsufficientFees")]
     InsufficientMessageFee = 0x100,
 
@@ -63,6 +66,9 @@ pub enum CoreBridgeError {
 
     #[msg("NotEnoughLamports")]
     NotEnoughLamports = 0x400,
+
+    #[msg("InvalidFeeRecipient")]
+    InvalidFeeRecipient = 0x402,
 
     #[msg("GuardianSetMismatch")]
     GuardianSetMismatch = 0x700,
