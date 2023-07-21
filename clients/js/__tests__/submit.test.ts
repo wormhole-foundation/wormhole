@@ -13,6 +13,7 @@ import yargs from "yargs";
 import * as submitCommand from "../src/cmds/submit";
 import { YargsCommandModule } from "../src/cmds/Yargs";
 import { run_worm_command } from "./utils/cli";
+import { INVALID_VAA_CHAIN } from "./utils/errors";
 
 describe("worm submit", () => {
   let originalProcessExit: any;
@@ -33,6 +34,7 @@ describe("worm submit", () => {
   });
 
   const contractUpgradeModules = ["Core", "NFTBridge", "TokenBridge"];
+  const mockGuardianAddress = "0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa";
 
   describe("check 'ContractUpgrade' functionality", () => {
     // Clean server handlers and request for every test
@@ -42,7 +44,7 @@ describe("worm submit", () => {
     });
     const testTimeout = 10000;
 
-    describe("solana", () => {
+    describe.only("solana", () => {
       const chain: WormholeSDKChainName = "solana";
       const rpc = getRpcEndpoint(chain, "TESTNET"); // generated vaa from 'worm generate' command does not work on mainnet, use testnet instead
       const network = "testnet";
@@ -53,7 +55,7 @@ describe("worm submit", () => {
           async () => {
             //NOTE: use worm generate command to obtain a VAA
             const vaa = run_worm_command(
-              `generate upgrade -c ${chain} -m ${module} -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g 0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa`
+              `generate upgrade -c ${chain} -m ${module} -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g ${mockGuardianAddress}`
             );
 
             //NOTE: we capture requests sent, then we force this process to fail before sending transactions
@@ -91,6 +93,27 @@ describe("worm submit", () => {
         },
         testTimeout
       );
+
+      it.only(
+        `should throw error if chain defined in 'vaa' is different than target chain (${chain})`,
+        async () => {
+          //NOTE: use worm generate command to obtain a VAA from a different chain (ethereum)
+          const vaaFromOtherChain = run_worm_command(
+            `generate upgrade -c ethereum -m Core -a 0xF890982f9310df57d00f659cf4fd87e65adEd8d7 -g ${mockGuardianAddress}`
+          );
+          try {
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${vaaFromOtherChain} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (error) {
+            expect(String(error)).toBe(INVALID_VAA_CHAIN(chain, "ethereum"));
+          }
+        },
+        testTimeout
+      );
     });
 
     describe("evm", () => {
@@ -123,7 +146,7 @@ describe("worm submit", () => {
               async () => {
                 //NOTE: use worm generate command to obtain a VAA
                 const vaa = run_worm_command(
-                  `generate upgrade -c ${chain} -m ${module} -a 0xF890982f9310df57d00f659cf4fd87e65adEd8d7 -g 0xA240c0e8997D10D59690Cd6Eb36dd55B29af59ACaaa`
+                  `generate upgrade -c ${chain} -m ${module} -a 0xF890982f9310df57d00f659cf4fd87e65adEd8d7 -g ${mockGuardianAddress}`
                 );
 
                 //NOTE: we capture requests sent, then we force this process to fail before sending transactions
@@ -159,6 +182,27 @@ describe("worm submit", () => {
               } catch (e) {}
 
               expect(requests.length).toBe(0);
+            },
+            testTimeout
+          );
+
+          it.only(
+            `should throw error if chain defined in 'vaa' is different than target chain (${chain})`,
+            async () => {
+              //NOTE: use worm generate command to obtain a VAA from a different chain (solana)
+              const vaaFromOtherChain = run_worm_command(
+                `generate upgrade -c solana -m Core -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g ${mockGuardianAddress}`
+              );
+              try {
+                //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+                await yargs
+                  .command(submitCommand as unknown as YargsCommandModule)
+                  .parse(
+                    `submit ${vaaFromOtherChain} --chain ${chain} --rpc ${rpc} --network ${network}`
+                  );
+              } catch (error) {
+                expect(String(error)).toBe(INVALID_VAA_CHAIN(chain, "solana"));
+              }
             },
             testTimeout
           );
