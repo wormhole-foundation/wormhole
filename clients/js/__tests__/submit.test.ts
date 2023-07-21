@@ -94,7 +94,7 @@ describe("worm submit", () => {
         testTimeout
       );
 
-      it.only(
+      it(
         `should throw error if chain defined in 'vaa' is different than target chain (${chain})`,
         async () => {
           //NOTE: use worm generate command to obtain a VAA from a different chain (ethereum)
@@ -186,7 +186,7 @@ describe("worm submit", () => {
             testTimeout
           );
 
-          it.only(
+          it(
             `should throw error if chain defined in 'vaa' is different than target chain (${chain})`,
             async () => {
               //NOTE: use worm generate command to obtain a VAA from a different chain (solana)
