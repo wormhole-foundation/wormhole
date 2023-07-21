@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use anchor_lang::prelude::*;
-use wormhole_common::{NewAccountSize, SeedPrefix};
+use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
 #[instruction(args: LegacyPostMessageArgs)]
@@ -153,7 +153,7 @@ pub(in crate::legacy) fn handle_post_new_message(
     // Finally set the `message` account with posted data.
     *msg = PostedMessageV1Data {
         info: PostedMessageV1Info {
-            finality: commitment.into(),
+            consistency_level: commitment.into(),
             emitter_authority: Default::default(),
             status: MessageStatus::Unset,
             _gap_0: Default::default(),
@@ -205,7 +205,7 @@ fn handle_post_prepared_message(
 
     // Now indicate that this message will be observed by the guardians.
     msg.status = MessageStatus::Unset;
-    msg.finality = commitment.into();
+    msg.consistency_level = commitment.into();
     msg.emitter_authority = Default::default();
     msg.posted_timestamp = Clock::get().map(Into::into)?;
     msg.nonce = nonce;

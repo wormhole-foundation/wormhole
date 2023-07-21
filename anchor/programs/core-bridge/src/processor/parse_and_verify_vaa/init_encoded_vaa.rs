@@ -5,7 +5,7 @@ use crate::{
     state::{EncodedVaa, ProcessingHeader, ProcessingStatus},
 };
 use anchor_lang::prelude::*;
-use wormhole_common::utils;
+use wormhole_solana_common::utils;
 
 #[derive(Accounts)]
 pub struct InitEncodedVaa<'info> {

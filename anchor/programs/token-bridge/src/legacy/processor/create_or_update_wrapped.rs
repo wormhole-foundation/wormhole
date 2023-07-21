@@ -2,7 +2,6 @@ use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::EmptyArgs,
-    message::{require_valid_token_bridge_posted_vaa, AssetMetadata},
     state::{Claim, RegisteredEmitter, WrappedAsset},
 };
 use anchor_lang::prelude::*;
@@ -15,11 +14,12 @@ use anchor_spl::{
 };
 use core_bridge_program::{
     self,
+    constants::SOLANA_CHAIN,
     state::{PostedVaaV1, VaaV1LegacyAccount},
-    types::{ChainId, SolanaChain},
 };
 use mpl_token_metadata::state::DataV2;
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::payloads::token_bridge::Attestation;
 
 #[derive(Accounts)]
 pub struct CreateOrUpdateWrapped<'info> {
@@ -41,12 +41,12 @@ pub struct CreateOrUpdateWrapped<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<AssetMetadata>::seed_prefix(),
+            PostedVaaV1::<Attestation>::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<AssetMetadata>>,
+    posted_vaa: Account<'info, PostedVaaV1<Attestation>>,
 
     #[account(
         init,
@@ -121,19 +121,23 @@ pub struct CreateOrUpdateWrapped<'info> {
 
 impl<'info> CreateOrUpdateWrapped<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let asset_metadata = require_valid_token_bridge_posted_vaa(
+        let attestation = crate::utils::require_valid_token_bridge_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
         )?;
 
         // Mint account must agree with the encoded token address.
         require_eq!(
-            Pubkey::from(asset_metadata.token_address),
+            Pubkey::from(attestation.token_address.0),
             ctx.accounts.wrapped_mint.key()
         );
 
         // For wrapped transfers, this token must have originated from another network.
-        require_neq!(asset_metadata.token_chain, ChainId::from(SolanaChain));
+        require_neq!(
+            attestation.token_chain,
+            SOLANA_CHAIN,
+            TokenBridgeError::NativeAsset
+        );
 
         // Done.
         Ok(())
@@ -158,14 +162,14 @@ pub fn create_or_update_wrapped(
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let asset_metadata = &ctx.accounts.posted_vaa.payload;
-    let (symbol, name) = fix_symbol_and_name(asset_metadata);
+    let attestation = &ctx.accounts.posted_vaa.payload;
+    let (symbol, name) = fix_symbol_and_name(attestation);
 
     let wrapped_asset = &mut ctx.accounts.wrapped_asset;
     wrapped_asset.set_inner(WrappedAsset {
-        token_chain: asset_metadata.token_chain,
-        token_address: asset_metadata.token_address,
-        native_decimals: asset_metadata.decimals,
+        token_chain: attestation.token_chain,
+        token_address: attestation.token_address.0,
+        native_decimals: attestation.decimals,
     });
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
@@ -249,10 +253,10 @@ fn cap_decimals(decimals: u8) -> u8 {
     }
 }
 
-fn fix_symbol_and_name(asset_metadata: &AssetMetadata) -> (String, String) {
+fn fix_symbol_and_name(attestation: &Attestation) -> (String, String) {
     // Truncate symbol to 10 characters (the maximum length for Token Metadata's symbol).
-    let mut symbol = String::from(asset_metadata.symbol.clone());
+    let mut symbol = attestation.symbol_string();
     symbol.truncate(mpl_token_metadata::state::MAX_SYMBOL_LENGTH);
 
-    (symbol, String::from(asset_metadata.name.clone()))
+    (symbol, attestation.name_string())
 }

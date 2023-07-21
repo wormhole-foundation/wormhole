@@ -1,3 +1,5 @@
+use anchor_lang::solana_program;
+
 #[derive(Debug, Clone)]
 pub struct BpfLoaderUpgradeable;
 

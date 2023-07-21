@@ -2,7 +2,7 @@ use crate::{constants::UPGRADE_SEED_PREFIX, state::Config, ID};
 use anchor_lang::prelude::*;
 use core_bridge_program::CoreBridge;
 use solana_program::{bpf_loader_upgradeable, program::invoke};
-use wormhole_common::{BpfLoaderUpgradeable, SeedPrefix};
+use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {

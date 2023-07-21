@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use wormhole_common::legacy_account;
-use wormhole_common::{LegacyDiscriminator, SeedPrefix};
+use wormhole_solana_common::legacy_account;
+use wormhole_solana_common::{LegacyDiscriminator, SeedPrefix};
 
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq, InitSpace)]

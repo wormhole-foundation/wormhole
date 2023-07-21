@@ -1,47 +1,15 @@
-use std::io;
-
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    message::{
-        require_valid_governance_posted_vaa, CoreBridgeGovernance, PostedGovernanceVaaV1,
-        WormDecode, WormEncode,
-    },
     state::{BridgeProgramData, Claim, FeeCollector, VaaV1LegacyAccount},
+    utils::PostedGovernanceVaaV1,
 };
 use anchor_lang::{
     prelude::*,
     system_program::{self, Transfer},
 };
-use wormhole_common::{utils, SeedPrefix};
-
-#[derive(Debug, Clone)]
-struct TransferFeesDecree {
-    zeros: [u8; 24],
-    amount: u64,
-    recipient: Pubkey,
-}
-
-impl WormDecode for TransferFeesDecree {
-    fn decode_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
-        let zeros = <[u8; 24]>::decode_reader(reader)?;
-        let amount = u64::decode_reader(reader)?;
-        let recipient = Pubkey::decode_reader(reader)?;
-        Ok(Self {
-            zeros,
-            amount,
-            recipient,
-        })
-    }
-}
-
-impl WormEncode for TransferFeesDecree {
-    fn encode<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
-        self.zeros.encode(writer)?;
-        self.amount.encode(writer)?;
-        self.recipient.encode(writer)
-    }
-}
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::{payloads::gov::core_bridge::Decree, U256};
 
 #[derive(Accounts)]
 pub struct TransferFees<'info> {
@@ -57,12 +25,12 @@ pub struct TransferFees<'info> {
 
     #[account(
         seeds = [
-            PostedGovernanceVaaV1::<TransferFeesDecree>::seed_prefix(),
+            PostedGovernanceVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedGovernanceVaaV1<TransferFeesDecree>>,
+    posted_vaa: Account<'info, PostedGovernanceVaaV1>,
 
     #[account(
         init,
@@ -96,22 +64,41 @@ pub struct TransferFees<'info> {
 
 impl<'info> TransferFees<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let msg =
-            require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa, &ctx.accounts.bridge)?;
+        let decree = crate::utils::require_valid_governance_posted_vaa(
+            &ctx.accounts.posted_vaa,
+            &ctx.accounts.bridge,
+        )?;
 
-        // We expect a specific governance header.
-        require!(
-            msg.header == CoreBridgeGovernance::TransferFees.try_into()?,
-            CoreBridgeError::InvalidGovernanceAction
-        );
+        if let Decree::TransferFees(inner) = decree {
+            let amount = inner.amount;
+            require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
 
-        require!(
-            !utils::is_nonzero_array(&msg.decree.zeros),
-            CoreBridgeError::U64Overflow
-        );
+            let recipient = &ctx.accounts.recipient;
+            require_keys_eq!(
+                recipient.key(),
+                Pubkey::from(inner.recipient.0),
+                CoreBridgeError::InvalidFeeRecipient
+            );
 
-        // Done.
-        Ok(())
+            let fee_collector: &AccountInfo = ctx.accounts.fee_collector.as_ref();
+
+            // We cannot remove more than what is required to be rent exempt. We prefer to abort
+            // here rather than abort when we attempt the transfer (since the transfer will fail if
+            // the lamports in the fee collector account drops below being rent exempt).
+            let required_rent =
+                Rent::get().map(|rent| rent.minimum_balance(fee_collector.data_len()))?;
+            let lamports = u64::try_from(amount).unwrap();
+            require_gte!(
+                fee_collector.lamports().saturating_sub(lamports),
+                required_rent,
+                CoreBridgeError::NotEnoughLamports
+            );
+
+            // Done.
+            Ok(())
+        } else {
+            err!(CoreBridgeError::InvalidGovernanceAction)
+        }
     }
 }
 
@@ -120,45 +107,32 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let decree = &ctx.accounts.posted_vaa.payload.decree;
+    // We know this is the only variant that can be present given access control.
+    if let Decree::TransferFees(inner) = &ctx.accounts.posted_vaa.payload.decree {
+        let fee_collector: &AccountInfo = ctx.accounts.fee_collector.as_ref();
 
-    // Finally read the encoded fee and set it in the bridge program data.
-    let lamports = decree.amount;
+        // Finally transfer collected fees to recipient.
+        //
+        // NOTE: This transfer will not allow us to remove more than what is
+        // required to be rent exempt.
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                Transfer {
+                    from: fee_collector.to_account_info(),
+                    to: ctx.accounts.recipient.to_account_info(),
+                },
+                &[&[FeeCollector::seed_prefix(), &[ctx.bumps["fee_collector"]]]],
+            ),
+            u64::try_from(inner.amount).unwrap(),
+        )?;
 
-    let fee_collector = &ctx.accounts.fee_collector;
-    let last_lamports = {
-        let acct_info = fee_collector.to_account_info();
+        // Set the bridge program data to reflect removing collected fees.
+        ctx.accounts.bridge.last_lamports = fee_collector.lamports();
+    } else {
+        unreachable!()
+    }
 
-        // We cannot remove more than what is required to be rent exempt. We prefer to abort
-        // here rather than abort when we attempt the transfer (since the transfer will fail if
-        // the lamports in the fee collector account drops below being rent exempt).
-        let required_rent = Rent::get().map(|rent| rent.minimum_balance(acct_info.data_len()))?;
-        let remaining = acct_info.lamports().saturating_sub(lamports);
-        require_gte!(remaining, required_rent, CoreBridgeError::NotEnoughLamports);
-
-        remaining
-    };
-
-    // Set the bridge program data to reflect removing collected fees.
-    ctx.accounts.bridge.last_lamports = last_lamports;
-
-    // The encoded recipient must equal the recipient account passed in.
-    let recipient = &ctx.accounts.recipient;
-    require_keys_eq!(recipient.key(), decree.recipient);
-
-    // Finally transfer collected fees to recipient.
-    //
-    // NOTE: This transfer will not allow us to remove more than what is
-    // required to be rent exempt.
-    system_program::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.system_program.to_account_info(),
-            Transfer {
-                from: fee_collector.to_account_info(),
-                to: recipient.to_account_info(),
-            },
-            &[&[FeeCollector::seed_prefix(), &[ctx.bumps["fee_collector"]]]],
-        ),
-        lamports,
-    )
+    // Done.
+    Ok(())
 }

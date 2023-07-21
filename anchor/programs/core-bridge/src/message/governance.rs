@@ -161,37 +161,6 @@ impl<D: WormDecode + WormEncode> WormEncode for GovernanceMessage<D> {
 }
 
 // Below is governance implementation for Core Bridge.
-
-#[derive(PartialEq, Eq)]
-pub(crate) enum CoreBridgeGovernance {
-    ContractUpgrade = 1,
-    GuardianSetUpdate,
-    SetMessageFee,
-    TransferFees,
-    /// NOTE: Unsupported on Solana.
-    _RecoverChainId,
-}
-
-impl TryFrom<CoreBridgeGovernance> for GovernanceHeader {
-    type Error = io::Error;
-
-    fn try_from(action: CoreBridgeGovernance) -> std::result::Result<Self, Self::Error> {
-        let (action, target) = match action {
-            CoreBridgeGovernance::ContractUpgrade => (1, TargetChain::Solana),
-            CoreBridgeGovernance::GuardianSetUpdate => (2, TargetChain::Global),
-            CoreBridgeGovernance::SetMessageFee => (3, TargetChain::Solana),
-            CoreBridgeGovernance::TransferFees => (4, TargetChain::Solana),
-            _ => return Err(io::ErrorKind::InvalidData.into()),
-        };
-
-        Ok(GovernanceHeader {
-            module: GOVERNANCE_MODULE.into(),
-            action: action.into(),
-            target,
-        })
-    }
-}
-
 pub type PostedGovernanceVaaV1<D> = PostedVaaV1<GovernanceMessage<D>>;
 
 pub(crate) fn require_valid_governance_posted_vaa<'ctx, D>(

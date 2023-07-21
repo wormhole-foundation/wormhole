@@ -1,8 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::types::{ChainId, Finality, SolanaChain, Timestamp};
+use crate::{constants::SOLANA_CHAIN, types::Timestamp};
 use anchor_lang::prelude::*;
-use wormhole_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
@@ -15,13 +15,13 @@ pub enum MessageStatus {
 /// encoded chain ID is always `1`.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct ChainIdSolanaOnly {
-    chain_id: ChainId,
+    chain_id: u16,
 }
 
 impl Default for ChainIdSolanaOnly {
     fn default() -> Self {
         Self {
-            chain_id: SolanaChain.into(),
+            chain_id: SOLANA_CHAIN,
         }
     }
 }
@@ -29,7 +29,7 @@ impl Default for ChainIdSolanaOnly {
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct PostedMessageV1Info {
     /// Level of consistency requested by the emitter.
-    pub finality: Finality,
+    pub consistency_level: u8,
 
     /// TODO: Fix comment.
     pub emitter_authority: Pubkey,

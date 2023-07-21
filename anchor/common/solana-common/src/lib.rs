@@ -1,14 +1,17 @@
 #![allow(clippy::result_large_err)]
 
 mod native_program;
-pub mod utils;
-
-pub use attribute_legacy_account::legacy_account;
 pub use native_program::*;
 
-use anchor_lang::prelude::{AnchorDeserialize, ErrorCode, Owner, Pubkey};
+pub mod utils;
+
+pub use wormhole_attribute_legacy_account::legacy_account;
+
+use anchor_lang::{
+    prelude::{AnchorDeserialize, ErrorCode, Owner, Pubkey},
+    solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE,
+};
 use anyhow::{anyhow, ensure};
-use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 
 pub trait LegacyDiscriminator<const N: usize> {
     const LEGACY_DISCRIMINATOR: [u8; N];

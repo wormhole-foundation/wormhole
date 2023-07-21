@@ -1,6 +1,6 @@
 use crate::types::MessageHash;
 use anchor_lang::prelude::*;
-use wormhole_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
 
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq)]

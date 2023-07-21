@@ -1,17 +1,18 @@
 use crate::{
     constants::CUSTODY_AUTHORITY_SEED_PREFIX,
+    error::TokenBridgeError,
     legacy::EmptyArgs,
-    message::TokenTransferWithPayload,
     processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
+    constants::SOLANA_CHAIN,
     state::{PostedVaaV1, VaaV1LegacyAccount},
-    types::{ChainId, SolanaChain},
 };
-use wormhole_common::SeedPrefix;
+use wormhole_solana_common::SeedPrefix;
+use wormhole_vaas::payloads::token_bridge::TransferWithMessage;
 
 use super::validate_token_transfer_with_payload;
 
@@ -25,12 +26,12 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<TokenTransferWithPayload>::seed_prefix(),
+            PostedVaaV1::<TransferWithMessage>::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<TokenTransferWithPayload>>,
+    posted_vaa: Account<'info, PostedVaaV1<TransferWithMessage>>,
 
     #[account(
         init,
@@ -98,7 +99,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 
 impl<'info> CompleteTransferWithPayloadNative<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let transfer_msg = validate_token_transfer_with_payload(
+        let token_chain = validate_token_transfer_with_payload(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.mint,
@@ -107,7 +108,7 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
         )?;
 
         // For native transfers, this mint must have been created on Solana.
-        require_eq!(transfer_msg.token_chain, ChainId::from(SolanaChain));
+        require_eq!(token_chain, SOLANA_CHAIN, TokenBridgeError::WrappedAsset);
 
         // Done.
         Ok(())
@@ -127,9 +128,10 @@ pub fn complete_transfer_with_payload_native(
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
     let transfer_amount = transfer_msg
-        .normalized_amount
-        .checked_to_raw(ctx.accounts.mint.decimals)
-        .unwrap();
+        .norm_amount
+        .denorm(ctx.accounts.mint.decimals)
+        .try_into()
+        .expect("Solana token amounts are u64");
 
     // Finally transfer encoded amount.
     withdraw_native_tokens(

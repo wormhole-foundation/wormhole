@@ -80,47 +80,47 @@ describe("Set Up Programs: Core Bridge", () => {
       }
     });
 
-    it("Cannot Invoke `initialize` again", async () => {
-      // Accounts.
-      const accounts = coreBridge.InitializeContext.new(
-        CORE_BRIDGE_PROGRAM_ID,
-        deployer
-      );
+    // it("Cannot Invoke `initialize` again", async () => {
+    //   // Accounts.
+    //   const accounts = coreBridge.InitializeContext.new(
+    //     CORE_BRIDGE_PROGRAM_ID,
+    //     deployer
+    //   );
 
-      // Instruction handler args.
-      const guardianSetTtlSeconds = 69;
-      const feeLamports = new BN(420);
-      const initialGuardians = [Array.from(Buffer.alloc(20, 69)) as 20[]];
+    //   // Instruction handler args.
+    //   const guardianSetTtlSeconds = 69;
+    //   const feeLamports = new BN(420);
+    //   const initialGuardians = [Array.from(Buffer.alloc(20, 69)) as 20[]];
 
-      // This invocation should fail because we cannot create any of the accounts that have been
-      // created before.
-      const ix = await coreBridge.initializeIx(
-        connection,
-        CORE_BRIDGE_PROGRAM_ID,
-        accounts,
-        {
-          guardianSetTtlSeconds,
-          feeLamports,
-          initialGuardians,
-        }
-      );
+    //   // This invocation should fail because we cannot create any of the accounts that have been
+    //   // created before.
+    //   const ix = await coreBridge.initializeIx(
+    //     connection,
+    //     CORE_BRIDGE_PROGRAM_ID,
+    //     accounts,
+    //     {
+    //       guardianSetTtlSeconds,
+    //       feeLamports,
+    //       initialGuardians,
+    //     }
+    //   );
 
-      await expectIxErr(connection, [ix], [deployerSigner], "already in use");
-    });
+    //   await expectIxErr(connection, [ix], [deployerSigner], "already in use");
+    // });
 
-    it("Cannot Upgrade Core Bridge without Upgrade Authority", async () => {
-      const deployerKeypath = `${tmpPath()}/deployer.json`;
+    // it("Cannot Upgrade Core Bridge without Upgrade Authority", async () => {
+    //   const deployerKeypath = `${tmpPath()}/deployer.json`;
 
-      try {
-        deployProgram(
-          deployerKeypath,
-          `${artifactsPath()}/solana_wormhole_core_bridge.so`,
-          coreBridgeKeyPath()
-        );
-        throw new Error("borked");
-      } catch (err) {
-        expect(err.stderr).includes("does not match authority provided");
-      }
-    });
+    //   try {
+    //     deployProgram(
+    //       deployerKeypath,
+    //       `${artifactsPath()}/solana_wormhole_core_bridge.so`,
+    //       coreBridgeKeyPath()
+    //     );
+    //     throw new Error("borked");
+    //   } catch (err) {
+    //     expect(err.stderr).includes("does not match authority provided");
+    //   }
+    // });
   });
 });

@@ -48,7 +48,11 @@ fi
 
 TEST=$TEST_ROOT/.test
 
-solana-test-validator --reset \
+VALIDATOR=$(which solana-test-validator)
+echo $VALIDATOR
+echo $($VALIDATOR --version)
+
+$VALIDATOR --reset \
   --bpf-program $MPL_TOKEN_METADATA_PUBKEY $MPL_TOKEN_METADATA_BPF \
   --account-dir $ACCOUNTS \
   --ledger $TEST > validator.log 2>&1 &

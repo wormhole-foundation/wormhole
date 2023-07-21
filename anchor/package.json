@@ -1,10 +1,8 @@
 {
     "scripts": {
-        "build-local": "anchor build --arch sbf -- --verbose",
         "build-js": "npm run build-local && npm i js/",
-        "clippy": "cargo clippy",
-        "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-        "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+        "lint:fix": "prettier --ignore-path .gitignore */**/*.ts -w",
+        "lint": "prettier --ignore-path .gitignore */**/*.ts --check",
         "integration-test": "bash tests/run_mocha_tests.sh"
     },
     "dependencies": {

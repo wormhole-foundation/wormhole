@@ -2,10 +2,11 @@ use crate::{
     error::CoreBridgeError,
     legacy::instruction::LegacyPostVaaArgs,
     state::{GuardianSet, PostedVaaV1Bytes, PostedVaaV1Metadata, SignatureSet},
-    utils::vaa,
+    types::MessageHash,
+    utils,
 };
 use anchor_lang::prelude::*;
-use wormhole_common::{NewAccountSize, SeedPrefix};
+use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 /// Invalidated signature sets.
 ///
@@ -84,21 +85,21 @@ impl<'info> PostVaa<'info> {
 
         require_gte!(
             signature_set.num_verified(),
-            vaa::quorum(ctx.accounts.guardian_set.keys.len()),
+            utils::quorum(ctx.accounts.guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 
-        let recomputed = vaa::compute_message_hash(
-            args.timestamp,
+        let recomputed = utils::compute_message_hash(
+            args.timestamp.into(),
             args.nonce,
             args.emitter_chain,
             &args.emitter_address,
             args.sequence,
-            args.finality,
+            args.consistency_level,
             &args.payload,
         );
         require_eq!(
-            recomputed,
+            MessageHash::from(recomputed),
             signature_set.message_hash,
             CoreBridgeError::InvalidMessageHash
         );
@@ -118,15 +119,15 @@ pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
         emitter_chain,
         emitter_address,
         sequence,
-        finality,
+        consistency_level,
         payload,
     } = args;
 
     // Set the `message` account with this instruction data.
     ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
         meta: PostedVaaV1Metadata {
-            finality,
-            timestamp,
+            consistency_level,
+            timestamp: timestamp.into(),
             signature_set: ctx.accounts.signature_set.key(),
             guardian_set_index: ctx.accounts.guardian_set.index,
             nonce,
