@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 import { rest } from "msw";
 import { Request, Response } from "./types";
 import {
+  aptosRequestHandler,
   evmRequestHandler,
   genericRequestHandler,
   solanaRequestHandler,
@@ -39,6 +40,14 @@ const handlers = [
   // Interceptors
   ...evmHandlers,
   rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
+  rest.post(
+    `${NETWORKS["TESTNET"]["aptos"].rpc}/transactions/simulate`,
+    aptosRequestHandler
+  ),
+  rest.post(
+    `${NETWORKS["TESTNET"]["aptos"].rpc}/transactions`,
+    aptosRequestHandler
+  ),
 
   // Loggers
   rest.get("*", genericRequestHandler),

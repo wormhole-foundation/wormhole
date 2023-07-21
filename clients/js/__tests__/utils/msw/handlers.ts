@@ -54,6 +54,24 @@ export const solanaRequestHandler: LogRequestFunction = async (
   }
 };
 
+export const aptosRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
+  logRequest(req);
+
+  if (req.url.toString().includes("/transactions/simulate")) {
+    return res(
+      ctx.status(200),
+      // mock response with error
+      ctx.json([])
+    );
+  } else {
+    return await genericRequestHandler(req, res, ctx);
+  }
+};
+
 export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 

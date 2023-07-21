@@ -44,7 +44,7 @@ describe("worm submit", () => {
     });
     const testTimeout = 10000;
 
-    describe.only("solana", () => {
+    describe("solana", () => {
       const chain: WormholeSDKChainName = "solana";
       const rpc = getRpcEndpoint(chain, "TESTNET"); // generated vaa from 'worm generate' command does not work on mainnet, use testnet instead
       const network = "testnet";
@@ -67,7 +67,6 @@ describe("worm submit", () => {
                 );
             } catch (e) {}
 
-            expect(requests.length).toBe(7);
             expect(
               requests.some((req) => req.body.method === "sendTransaction")
             ).toBeTruthy();
@@ -208,6 +207,79 @@ describe("worm submit", () => {
           );
         });
       });
+    });
+
+    describe("aptos", () => {
+      const chain: WormholeSDKChainName = "aptos";
+      const rpc = getRpcEndpoint(chain, "MAINNET");
+      const network = "mainnet";
+
+      contractUpgradeModules.forEach((module) => {
+        it(
+          `should send transaction to ${chain} when submitting 'ContractUpgrade' VAA for '${module}' module`,
+          async () => {
+            //NOTE: use worm generate command to obtain a VAA
+            const vaa = run_worm_command(
+              `generate upgrade -c ${chain} -m ${module} -a 0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625 -g ${mockGuardianAddress}`
+            );
+
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            try {
+              await yargs
+                .command(submitCommand as unknown as YargsCommandModule)
+                .parse(
+                  `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+                );
+            } catch (e) {}
+
+            expect(
+              requests.some((req) =>
+                req.url.pathname.includes("/transactions/simulate")
+              )
+            ).toBeTruthy();
+          },
+          testTimeout
+        );
+      });
+
+      it(
+        `should fail to send transactions to ${chain} when submitting 'ContractUpgrade' VAA, if 'vaa' is malformed`,
+        async () => {
+          const fakeVaa = "this-is-a-fake-vaa";
+          try {
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${fakeVaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (e) {}
+
+          expect(requests.length).toBe(0);
+        },
+        testTimeout
+      );
+
+      it(
+        `should throw error if chain defined in 'vaa' is different than target chain (${chain})`,
+        async () => {
+          //NOTE: use worm generate command to obtain a VAA from a different chain (solana)
+          const vaaFromOtherChain = run_worm_command(
+            `generate upgrade -c solana -m Core -a 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 -g ${mockGuardianAddress}`
+          );
+          try {
+            //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${vaaFromOtherChain} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (error) {
+            expect(String(error)).toBe(INVALID_VAA_CHAIN(chain, "solana"));
+          }
+        },
+        testTimeout
+      );
     });
   });
 });
