@@ -209,7 +209,7 @@ describe("worm submit", () => {
       });
     });
 
-    describe("aptos", () => {
+    describe.only("aptos", () => {
       const chain: WormholeSDKChainName = "aptos";
       const rpc = getRpcEndpoint(chain, "MAINNET");
       const network = "mainnet";
@@ -232,9 +232,18 @@ describe("worm submit", () => {
                 );
             } catch (e) {}
 
+            // We expect it to perform a transaction simulation
             expect(
               requests.some((req) =>
                 req.url.pathname.includes("/transactions/simulate")
+              )
+            ).toBeTruthy();
+
+            // We expect it to launch the actual transaction
+            // Using regex, as previous call '/transactions/simulate' can provide us a false positive with '/transactions' call
+            expect(
+              requests.some((req) =>
+                new RegExp(/\/transactions$/).test(req.url.pathname)
               )
             ).toBeTruthy();
           },

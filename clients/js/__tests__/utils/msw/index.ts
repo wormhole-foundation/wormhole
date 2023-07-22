@@ -41,11 +41,11 @@ const handlers = [
   ...evmHandlers,
   rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
   rest.post(
-    `${NETWORKS["TESTNET"]["aptos"].rpc}/transactions/simulate`,
+    `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions/simulate`,
     aptosRequestHandler
   ),
   rest.post(
-    `${NETWORKS["TESTNET"]["aptos"].rpc}/transactions`,
+    `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
   ),
 

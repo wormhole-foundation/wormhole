@@ -35,11 +35,10 @@ export const solanaRequestHandler: LogRequestFunction = async (
 ) => {
   logRequest(req);
 
-  // Avoid sending transaction to network, send error instead (to force stop execution)
   if (req.body.method === "sendTransaction") {
+    // Avoid sending transaction to network, send error instead (to force stop execution)
     return res(
       ctx.status(200),
-      // mock response with error
       ctx.json({
         jsonrpc: "2.0",
         error: {
@@ -62,11 +61,8 @@ export const aptosRequestHandler: LogRequestFunction = async (
   logRequest(req);
 
   if (req.url.toString().includes("/transactions/simulate")) {
-    return res(
-      ctx.status(200),
-      // mock response with error
-      ctx.json([])
-    );
+    // Sending an empty simulated transaction, to avoid a 'Failed to deserialize input into SignedTransaction' runtime error on validation
+    return res(ctx.status(200), ctx.json([]));
   } else {
     return await genericRequestHandler(req, res, ctx);
   }
