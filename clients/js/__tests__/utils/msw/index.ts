@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 import { rest } from "msw";
 import { Request, Response } from "./types";
 import {
+  algorandRequestHandler,
   aptosRequestHandler,
   evmRequestHandler,
   genericRequestHandler,
@@ -42,6 +43,12 @@ const handlers = [
   // Interceptors
   ...evmHandlers,
   rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
+  rest.post(
+    `${NETWORKS["MAINNET"]["algorand"].rpc}/v2/transactions`,
+    algorandRequestHandler
+  ),
   rest.post(
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions/simulate`,
     aptosRequestHandler
@@ -50,8 +57,6 @@ const handlers = [
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
   ),
-  rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
-  rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),

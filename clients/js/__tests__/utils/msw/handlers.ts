@@ -95,6 +95,28 @@ export const nearRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   }
 };
 
+export const algorandRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
+  logRequest(req);
+
+  // Inject error on transaction call to stop execution in algorand
+  if (req.url.href.includes("/v2/transactions")) {
+    return res(
+      ctx.status(500),
+      ctx.json(
+        ctx.json({
+          message: "Something went wrong while processing the transaction",
+        })
+      )
+    );
+  } else {
+    return await genericRequestHandler(req, res, ctx);
+  }
+};
+
 export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 
