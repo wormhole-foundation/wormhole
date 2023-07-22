@@ -209,7 +209,7 @@ describe("worm submit", () => {
       });
     });
 
-    describe.only("aptos", () => {
+    describe("aptos", () => {
       const chain: WormholeSDKChainName = "aptos";
       const rpc = getRpcEndpoint(chain, "MAINNET");
       const network = "mainnet";
@@ -285,6 +285,35 @@ describe("worm submit", () => {
               );
           } catch (error) {
             expect(String(error)).toBe(INVALID_VAA_CHAIN(chain, "solana"));
+          }
+        },
+        testTimeout
+      );
+    });
+
+    describe("sui", () => {
+      const chain: WormholeSDKChainName = "sui";
+      const rpc = getRpcEndpoint(chain, "MAINNET");
+      const network = "mainnet";
+
+      it(
+        `should return error 'ContractUpgrade not supported on Sui'`,
+        async () => {
+          //NOTE: use worm generate command to obtain a VAA
+          const vaa = run_worm_command(
+            `generate upgrade -c ${chain} -m TokenBridge -a 0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c -g ${mockGuardianAddress}`
+          );
+
+          try {
+            await yargs
+              .command(submitCommand as unknown as YargsCommandModule)
+              .parse(
+                `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+              );
+          } catch (error) {
+            expect(String(error)).toBe(
+              "Error: ContractUpgrade not supported on Sui"
+            );
           }
         },
         testTimeout

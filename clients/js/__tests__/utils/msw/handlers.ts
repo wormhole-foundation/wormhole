@@ -68,6 +68,12 @@ export const aptosRequestHandler: LogRequestFunction = async (
   }
 };
 
+export const suiRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+  logRequest(req);
+
+  return await genericRequestHandler(req, res, ctx);
+};
+
 export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 

@@ -7,6 +7,7 @@ import {
   evmRequestHandler,
   genericRequestHandler,
   solanaRequestHandler,
+  suiRequestHandler,
 } from "./handlers";
 import { NETWORKS } from "../../../src/consts";
 
@@ -48,6 +49,7 @@ const handlers = [
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
   ),
+  rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),
