@@ -6,6 +6,7 @@ import {
   aptosRequestHandler,
   evmRequestHandler,
   genericRequestHandler,
+  nearRequestHandler,
   solanaRequestHandler,
   suiRequestHandler,
 } from "./handlers";
@@ -50,6 +51,7 @@ const handlers = [
     aptosRequestHandler
   ),
   rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),

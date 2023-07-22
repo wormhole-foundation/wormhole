@@ -74,6 +74,27 @@ export const suiRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   return await genericRequestHandler(req, res, ctx);
 };
 
+export const nearRequestHandler: LogRequestFunction = async (req, res, ctx) => {
+  logRequest(req);
+
+  // Mock 'view_access_key' response to be able to send transaction to NEAR
+  if (req.body.params.request_type === "view_access_key") {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        jsonrpc: "2.0",
+        id: 124,
+        result: {
+          nonce: 1,
+          permission: "FULL_ACCESS",
+        },
+      })
+    );
+  } else {
+    return await genericRequestHandler(req, res, ctx);
+  }
+};
+
 export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 
