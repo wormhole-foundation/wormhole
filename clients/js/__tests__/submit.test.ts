@@ -347,6 +347,7 @@ describe("worm submit", () => {
         "xpla",
         "sei",
         "injective",
+        "terra2",
       ];
 
       cosmwasmChains.forEach((chain) => {
@@ -396,6 +397,11 @@ describe("worm submit", () => {
                   case "injective":
                     expect(
                       requests.some((req) => req.url.href.includes("Simulate"))
+                    ).toBeTruthy();
+                    break;
+                  case "terra2":
+                    expect(
+                      requests.some((req) => req.url.href.includes("simulate"))
                     ).toBeTruthy();
                     break;
                   default:

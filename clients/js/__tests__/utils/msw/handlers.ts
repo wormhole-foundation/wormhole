@@ -147,7 +147,7 @@ export const cosmwasmRequestHandler: LogRequestFunction = async (
         })
       );
     }
-    // default case (xpla)
+    // default case (xpla, terra2)
     return res(
       ctx.status(200),
       ctx.json({

@@ -39,7 +39,7 @@ const evmHandlers = [
   return rest.post(rpc, evmRequestHandler);
 });
 
-const cosmwasmHandlers = ["xpla", "sei", "injective"]
+const cosmwasmHandlers = ["xpla", "sei", "injective", "terra2"]
   .map((chain) => {
     const network = chain === "sei" ? "TESTNET" : "MAINNET";
     // @ts-ignore
