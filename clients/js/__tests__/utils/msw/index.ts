@@ -39,6 +39,18 @@ const evmHandlers = [
   return rest.post(rpc, evmRequestHandler);
 });
 
+const cosmwasmHandlers = ["xpla"]
+  .map((chain) => {
+    // @ts-ignore
+    const rpc = `${NETWORKS["MAINNET"][chain].rpc}/*`;
+
+    return [
+      rest.get(rpc, cosmwasmRequestHandler),
+      rest.post(rpc, cosmwasmRequestHandler),
+    ];
+  })
+  .flat();
+
 //NOTE: Capture all network traffic
 const handlers = [
   // Interceptors
@@ -58,14 +70,9 @@ const handlers = [
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
   ),
-  rest.get(
-    `${NETWORKS["MAINNET"]["xpla"].rpc}/cosmos/auth/v1beta1/accounts/*`,
-    cosmwasmRequestHandler
-  ),
-  rest.post(
-    `${NETWORKS["MAINNET"]["xpla"].rpc}/cosmos/tx/v1beta1/simulate`,
-    cosmwasmRequestHandler
-  ),
+  ...cosmwasmHandlers,
+  // rest.get(`${NETWORKS["MAINNET"]["xpla"].rpc}/*`, cosmwasmRequestHandler),
+  // rest.post(`${NETWORKS["MAINNET"]["xpla"].rpc}/*`, cosmwasmRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),

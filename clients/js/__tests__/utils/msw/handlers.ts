@@ -124,13 +124,10 @@ export const cosmwasmRequestHandler: LogRequestFunction = async (
 ) => {
   logRequest(req);
 
-  console.log("hola");
-
   if (
     req.url.href.includes("/cosmos/auth/v1beta1/accounts/") &&
     req.method === "GET"
   ) {
-    console.log("en el get");
     return res(
       ctx.status(200),
       ctx.json({
@@ -145,7 +142,6 @@ export const cosmwasmRequestHandler: LogRequestFunction = async (
       })
     );
   } else {
-    console.log("pal generic");
     return await genericRequestHandler(req, res, ctx);
   }
 };
