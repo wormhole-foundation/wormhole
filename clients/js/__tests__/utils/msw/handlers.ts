@@ -124,10 +124,30 @@ export const cosmwasmRequestHandler: LogRequestFunction = async (
 ) => {
   logRequest(req);
 
-  if (
-    req.url.href.includes("/cosmos/auth/v1beta1/accounts/") &&
-    req.method === "GET"
-  ) {
+  if (req.url.href.includes("/cosmos/auth/v1beta1/accounts/")) {
+    // Handle injective chain case
+    if (req.url.href.includes("injective")) {
+      return res(
+        ctx.status(200),
+        ctx.json({
+          account: {
+            base_account: {
+              account_number: "12345",
+              sequence: "67890",
+            },
+          },
+          account_number: "12345",
+          sequence: "67890",
+          coins: [
+            {
+              denom: "inj",
+              amount: "1000",
+            },
+          ],
+        })
+      );
+    }
+    // default case (xpla)
     return res(
       ctx.status(200),
       ctx.json({

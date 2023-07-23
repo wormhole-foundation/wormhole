@@ -343,7 +343,11 @@ describe("worm submit", () => {
     });
 
     describe.only("cosmwasm", () => {
-      const cosmwasmChains: WormholeSDKChainName[] = ["xpla", "sei"];
+      const cosmwasmChains: WormholeSDKChainName[] = [
+        "xpla",
+        "sei",
+        "injective",
+      ];
 
       cosmwasmChains.forEach((chain) => {
         describe(`${chain}`, () => {
@@ -387,6 +391,11 @@ describe("worm submit", () => {
                       requests.some((req) =>
                         req.body.method.includes("abci_query")
                       )
+                    ).toBeTruthy();
+                    break;
+                  case "injective":
+                    expect(
+                      requests.some((req) => req.url.href.includes("Simulate"))
                     ).toBeTruthy();
                     break;
                   default:

@@ -39,7 +39,7 @@ const evmHandlers = [
   return rest.post(rpc, evmRequestHandler);
 });
 
-const cosmwasmHandlers = ["xpla", "sei"]
+const cosmwasmHandlers = ["xpla", "sei", "injective"]
   .map((chain) => {
     const network = chain === "sei" ? "TESTNET" : "MAINNET";
     // @ts-ignore
@@ -57,6 +57,14 @@ const handlers = [
   // Interceptors
   ...evmHandlers,
   ...cosmwasmHandlers,
+  rest.get(
+    "https://k8s.mainnet.lcd.injective.network/*",
+    cosmwasmRequestHandler
+  ),
+  rest.post(
+    "https://k8s.mainnet.lcd.injective.network/*",
+    cosmwasmRequestHandler
+  ),
   rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
   rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
   rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
