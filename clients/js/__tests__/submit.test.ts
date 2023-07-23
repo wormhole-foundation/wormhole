@@ -342,7 +342,7 @@ describe("worm submit", () => {
       runFailureCases(chain, rpc, network, mockGuardianAddress);
     });
 
-    describe.only("cosmwasm", () => {
+    describe("cosmwasm", () => {
       const cosmwasmChains: WormholeSDKChainName[] = [
         "xpla",
         "sei",
