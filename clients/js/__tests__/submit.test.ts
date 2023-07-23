@@ -150,12 +150,23 @@ describe("worm submit", () => {
         "oasis",
         "optimism",
         "polygon",
+        "acala",
+        "karura",
+        "sepolia",
+        "neon",
       ];
 
       evmChains.forEach((chain) => {
         describe(`${chain}`, () => {
-          const rpc = getRpcEndpoint(chain, "MAINNET");
-          const network = "mainnet";
+          let rpc = getRpcEndpoint(chain, "MAINNET");
+          let network = "mainnet";
+
+          // These chains don't have a contract on mainnet
+          const testnetEvmChains = ["sepolia", "neon"];
+          if (testnetEvmChains.includes(chain)) {
+            rpc = getRpcEndpoint(chain, "TESTNET");
+            network = "testnet";
+          }
 
           contractUpgradeModules.forEach((module) => {
             if (chain === "gnosis" && module !== "Core") return; // Handle special case for 'gnosis' chain, it only has 'Core' contract

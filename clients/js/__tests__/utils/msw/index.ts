@@ -19,7 +19,6 @@ let responses: Response[] = [];
 
 const evmHandlers = [
   "ethereum",
-  "acala",
   "arbitrum",
   "aurora",
   "avalanche",
@@ -27,15 +26,20 @@ const evmHandlers = [
   "celo",
   "fantom",
   "gnosis",
-  "karura",
   "klaytn",
   "moonbeam",
   "oasis",
   "optimism",
   "polygon",
+  "karura",
+  "acala",
+  "sepolia",
+  "neon",
 ].map((chain) => {
+  const testnetEvmChains = ["sepolia", "neon"];
+  const network = testnetEvmChains.includes(chain) ? "TESTNET" : "MAINNET";
   // @ts-ignore
-  const rpc = NETWORKS["MAINNET"][chain].rpc;
+  const rpc = NETWORKS[network][chain].rpc;
   return rest.post(rpc, evmRequestHandler);
 });
 
