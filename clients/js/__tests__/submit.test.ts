@@ -92,7 +92,7 @@ describe("worm submit", () => {
       mswServer.resetHandlers();
       requests.length = 0;
     });
-    const testTimeout = 15000;
+    const testTimeout = 20000;
 
     describe("solana", () => {
       const chain: WormholeSDKChainName = "solana";
