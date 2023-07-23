@@ -4,15 +4,15 @@
 
 ### Changed
 
-- Add unit tests for all worm CLI commands (following `worm <command> --help` pattern)
+- Add Github Actions CI pipeline for Worm CLI `build` & `test` processes (`.github/workflows/worm-cli.yml`)
+- Add unit test to verify all worm CLI commands are in sync with documentation (`cmds.test.ts`)
 - Add unit tests to check functionality on the following commands:
+  - `worm submit` (using msw)
   - `worm parse`
   - `worm recover`
   - `worm info chain-id`
   - `worm info rpc`
   - `worm info contract`
-- Generate HTML tests report for every `npm run test` execution (`client/js/html-report/worm-cli-tests-report.html`)
-- Github Actions CI pipeline for Worm CLI `build` & `test` processes (`.github/workflows/worm-cli.yml`)
 
 ## 0.0.3
 
