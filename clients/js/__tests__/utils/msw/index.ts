@@ -39,10 +39,11 @@ const evmHandlers = [
   return rest.post(rpc, evmRequestHandler);
 });
 
-const cosmwasmHandlers = ["xpla"]
+const cosmwasmHandlers = ["xpla", "sei"]
   .map((chain) => {
+    const network = chain === "sei" ? "TESTNET" : "MAINNET";
     // @ts-ignore
-    const rpc = `${NETWORKS["MAINNET"][chain].rpc}/*`;
+    const rpc = `${NETWORKS[network][chain].rpc}/*`;
 
     return [
       rest.get(rpc, cosmwasmRequestHandler),
@@ -55,6 +56,7 @@ const cosmwasmHandlers = ["xpla"]
 const handlers = [
   // Interceptors
   ...evmHandlers,
+  ...cosmwasmHandlers,
   rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
   rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
   rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
@@ -70,9 +72,6 @@ const handlers = [
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
   ),
-  ...cosmwasmHandlers,
-  // rest.get(`${NETWORKS["MAINNET"]["xpla"].rpc}/*`, cosmwasmRequestHandler),
-  // rest.post(`${NETWORKS["MAINNET"]["xpla"].rpc}/*`, cosmwasmRequestHandler),
 
   // Loggers
   rest.get("*", genericRequestHandler),

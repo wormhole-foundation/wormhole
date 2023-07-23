@@ -343,12 +343,17 @@ describe("worm submit", () => {
     });
 
     describe.only("cosmwasm", () => {
-      const cosmwasmChains: WormholeSDKChainName[] = ["xpla"];
+      const cosmwasmChains: WormholeSDKChainName[] = ["xpla", "sei"];
 
       cosmwasmChains.forEach((chain) => {
         describe(`${chain}`, () => {
-          const rpc = getRpcEndpoint(chain, "MAINNET");
-          const network = "mainnet";
+          let rpc = getRpcEndpoint(chain, "MAINNET");
+          let network = "mainnet";
+
+          if (chain === "sei") {
+            rpc = getRpcEndpoint(chain, "TESTNET");
+            network = "testnet";
+          }
 
           contractUpgradeModules.forEach((module) => {
             // cosmwasm chains currently do not have NFTBridge contracts on Mainnet. Source: https://docs.wormhole.com/wormhole/reference/environments/cosmwasm
@@ -371,9 +376,22 @@ describe("worm submit", () => {
                     );
                 } catch (e) {}
 
-                expect(
-                  requests.some((req) => req.url.href.includes("simulate"))
-                ).toBeTruthy();
+                switch (chain) {
+                  case "xpla":
+                    expect(
+                      requests.some((req) => req.url.href.includes("simulate"))
+                    ).toBeTruthy();
+                    break;
+                  case "sei":
+                    expect(
+                      requests.some((req) =>
+                        req.body.method.includes("abci_query")
+                      )
+                    ).toBeTruthy();
+                    break;
+                  default:
+                    break;
+                }
               },
               testTimeout
             );
