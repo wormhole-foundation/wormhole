@@ -56,6 +56,11 @@ const cosmwasmHandlers = ["xpla", "sei", "injective", "terra2", "terra"]
 const handlers = [
   // Interceptors
   ...evmHandlers,
+  rest.post(`${NETWORKS["TESTNET"]["solana"].rpc}`, solanaRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["algorand"].rpc}/*`, algorandRequestHandler),
+  rest.post(`${NETWORKS["MAINNET"]["aptos"].rpc}/*`, aptosRequestHandler),
   ...cosmwasmHandlers,
   rest.get(
     "https://k8s.mainnet.lcd.injective.network/*",
@@ -64,21 +69,6 @@ const handlers = [
   rest.post(
     "https://k8s.mainnet.lcd.injective.network/*",
     cosmwasmRequestHandler
-  ),
-  rest.post(NETWORKS["TESTNET"]["solana"].rpc, solanaRequestHandler),
-  rest.post(`${NETWORKS["MAINNET"]["sui"].rpc}`, suiRequestHandler),
-  rest.post(`${NETWORKS["MAINNET"]["near"].rpc}`, nearRequestHandler),
-  rest.post(
-    `${NETWORKS["MAINNET"]["algorand"].rpc}/v2/transactions`,
-    algorandRequestHandler
-  ),
-  rest.post(
-    `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions/simulate`,
-    aptosRequestHandler
-  ),
-  rest.post(
-    `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
-    aptosRequestHandler
   ),
 
   // Loggers
