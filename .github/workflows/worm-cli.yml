@@ -33,10 +33,3 @@ jobs:
         working-directory: ./clients/js
         run: |
           npm run test-ci
-
-      - name: Save HTML report as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: worm-cli-test-report
-          # Must save entire folder as artifact to preview report as HTML
-          path: ./clients/js/html-report/

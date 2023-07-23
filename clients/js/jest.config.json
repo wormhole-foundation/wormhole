@@ -19,16 +19,6 @@
   "testPathIgnorePatterns": [
     "/__tests__\\/utils/"
   ],
-  "reporters": [
-    "default",
-    [
-      "jest-html-reporters",
-      {
-        "publicPath": "./html-report",
-        "filename": "worm-cli-tests-report.html"
-      }
-    ]
-  ],
   "setupFiles": [
     "./jest.setup.cjs"
   ]
