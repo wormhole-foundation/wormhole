@@ -391,7 +391,7 @@ describe("worm submit", () => {
                   case "sei":
                     expect(
                       requests.some((req) =>
-                        req.body.method.includes("abci_query")
+                        req.body.method.includes("broadcast_tx_sync")
                       )
                     ).toBeTruthy();
                     break;

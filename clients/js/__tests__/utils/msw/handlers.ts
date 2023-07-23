@@ -124,8 +124,28 @@ export const cosmwasmRequestHandler: LogRequestFunction = async (
 ) => {
   logRequest(req);
 
-  if (req.url.href.includes("/cosmos/auth/v1beta1/accounts/")) {
-    // Handle injective chain case
+  // Handle 'sei' chain case, avoid sending 'broadcast_tx_sync' POST call to network
+  if (
+    req.url.href.includes("atlantic-2") &&
+    req.body.method === "broadcast_tx_sync"
+  ) {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        jsonrpc: "2.0",
+        id: 816648134624,
+        result: {
+          code: 0,
+          data: "",
+          log: "",
+          codespace: "",
+          hash: "6E0E67DD038585D63A78C1ABA44C782619660890B688AC518581E6EB8FE15103",
+        },
+      })
+    );
+    // Generic handler for cosmwasm chains, intercept calls needed to simulate transactions
+  } else if (req.url.href.includes("/cosmos/auth/v1beta1/accounts/")) {
+    // Handle 'injective' chain case
     if (req.url.href.includes("injective")) {
       return res(
         ctx.status(200),
