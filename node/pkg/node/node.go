@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	inboundObservationBufferSize         = 50
+	inboundObservationBufferSize         = 5000
 	inboundSignedVaaBufferSize           = 50
 	observationRequestOutboundBufferSize = 50
 	observationRequestInboundBufferSize  = 50
@@ -54,7 +54,7 @@ type G struct {
 	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
 	gossipSendC chan []byte
 	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
-	obsvC chan *gossipv1.SignedObservation
+	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 	// Finalized guardian observations aggregated across all chains
 	msgC channelPair[*common.MessagePublication]
 	// Ethereum incoming guardian set updates
@@ -88,7 +88,7 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 
 	// Setup various channels...
 	g.gossipSendC = make(chan []byte)
-	g.obsvC = make(chan *gossipv1.SignedObservation, inboundObservationBufferSize)
+	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)

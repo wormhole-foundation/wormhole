@@ -30,6 +30,7 @@ func chainList() []chainConfigEntry {
 		chainConfigEntry{emitterChainID: vaa.ChainIDMoonbeam, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDArbitrum, dailyLimit: 200_000, bigTransactionSize: 20_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDOptimism, dailyLimit: 200_000, bigTransactionSize: 20_000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDBase, dailyLimit: 200_000, bigTransactionSize: 20_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDAptos, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDXpla, dailyLimit: 200_000, bigTransactionSize: 20_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDSui, dailyLimit: 5_000_000, bigTransactionSize: 500_000},

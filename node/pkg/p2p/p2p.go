@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,10 +11,10 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
-	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/version"
-	"github.com/ethereum/go-ethereum/common"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -33,6 +34,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/proto"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -71,11 +73,11 @@ var signedObservationRequestPrefix = []byte("signed_observation_request|")
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 
-func heartbeatDigest(b []byte) common.Hash {
+func heartbeatDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func signedObservationRequestDigest(b []byte) common.Hash {
+func signedObservationRequestDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
@@ -88,10 +90,14 @@ type Components struct {
 	// ConnMgr is the ConnectionManager that the Guardian is going to use
 	ConnMgr *connmgr.BasicConnMgr
 	// ProtectedHostByGuardianKey is used to ensure that only one p2p peer can be protected by any given known guardian key
-	ProtectedHostByGuardianKey map[common.Address]peer.ID
+	ProtectedHostByGuardianKey map[eth_common.Address]peer.ID
 	// ProtectedHostByGuardianKeyLock is only useful to prevent a race condition in test as ProtectedHostByGuardianKey
 	// is only accessed by a single routine at any given time in a running Guardian.
 	ProtectedHostByGuardianKeyLock sync.Mutex
+	// WarnChannelOverflow: If true, errors due to overflowing channels will produce logger.Warn
+	WarnChannelOverflow bool
+	// SignedHeartbeatLogLevel is the log level at which SignedHeartbeatReceived events will be logged.
+	SignedHeartbeatLogLevel zapcore.Level
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -118,7 +124,8 @@ func DefaultComponents() *Components {
 		},
 		Port:                       DefaultPort,
 		ConnMgr:                    mgr,
-		ProtectedHostByGuardianKey: make(map[common.Address]peer.ID),
+		ProtectedHostByGuardianKey: make(map[eth_common.Address]peer.ID),
+		SignedHeartbeatLogLevel:    zapcore.DebugLevel,
 	}
 }
 
@@ -145,12 +152,12 @@ func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bo
 		}
 		ma, err := multiaddr.NewMultiaddr(addr)
 		if err != nil {
-			logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+			logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 			continue
 		}
 		pi, err := peer.AddrInfoFromP2pAddr(ma)
 		if err != nil {
-			logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+			logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 			continue
 		}
 		if pi.ID == self {
@@ -168,7 +175,7 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 	successes = 0
 	for _, p := range peers {
 		if err := h.Connect(ctx, p); err != nil {
-			logger.Error("Failed to connect to bootstrap peer", zap.String("peer", p.String()), zap.Error(err))
+			logger.Error("failed to connect to bootstrap peer", zap.String("peer", p.String()), zap.Error(err))
 		} else {
 			successes += 1
 		}
@@ -177,14 +184,14 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func Run(
-	obsvC chan<- *gossipv1.SignedObservation,
+	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqC chan<- *gossipv1.ObservationRequest,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	gossipSendC chan []byte,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
-	gst *node_common.GuardianSetState,
+	gst *common.GuardianSetState,
 	networkID string,
 	bootstrapPeers string,
 	nodeName string,
@@ -256,7 +263,7 @@ func Run(
 
 		defer func() {
 			if err := h.Close(); err != nil {
-				logger.Error("Error closing the host", zap.Error(err))
+				logger.Error("error closing the host", zap.Error(err))
 			}
 		}()
 
@@ -508,14 +515,14 @@ func Run(
 				gs := gst.Get()
 				if gs == nil {
 					// No valid guardian set yet - dropping heartbeat
-					logger.Debug("skipping heartbeat - no guardian set",
+					logger.Log(components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
 						zap.Any("value", s),
 						zap.String("from", envelope.GetFrom().String()))
 					break
 				}
 				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-					logger.Debug("invalid signed heartbeat received",
+					logger.Log(components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
 						zap.Error(err),
 						zap.Any("payload", msg.Message),
 						zap.Any("value", s),
@@ -523,7 +530,7 @@ func Run(
 						zap.String("from", envelope.GetFrom().String()))
 				} else {
 					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-					logger.Debug("valid signed heartbeat received",
+					logger.Log(components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
 
@@ -539,7 +546,7 @@ func Run(
 									zap.Binary("raw", envelope.Data),
 									zap.String("from", envelope.GetFrom().String()))
 							} else {
-								guardianAddr := common.BytesToAddress(s.GuardianAddr)
+								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
 								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
 								if ok {
 									if prevPeerId != peerId {
@@ -565,10 +572,12 @@ func Run(
 					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				select {
-				case obsvC <- m.SignedObservation:
+				if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
 					p2pMessagesReceived.WithLabelValues("observation").Inc()
-				default:
+				} else {
+					if components.WarnChannelOverflow {
+						logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+					}
 					p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
@@ -576,6 +585,14 @@ func Run(
 				case signedInC <- m.SignedVaaWithQuorum:
 					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
 				default:
+					if components.WarnChannelOverflow {
+						// TODO do not log this in production
+						var hexStr string
+						if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+							hexStr = vaa.HexDigest()
+						}
+						logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
+					}
 					p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedObservationRequest:
@@ -649,10 +666,10 @@ func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) 
 	}
 }
 
-func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_common.GuardianSet, gst *node_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
-	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *common.GuardianSet, gst *common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
+	envelopeAddr := eth_common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
-	var pk common.Address
+	var pk eth_common.Address
 	if !ok {
 		if !disableVerify {
 			return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
@@ -673,7 +690,7 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 		return nil, errors.New("failed to recover public key")
 	}
 
-	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
 	if pk != signerAddr && !disableVerify {
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
@@ -702,10 +719,10 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 	return &h, nil
 }
 
-func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *node_common.GuardianSet) (*gossipv1.ObservationRequest, error) {
-	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *common.GuardianSet) (*gossipv1.ObservationRequest, error) {
+	envelopeAddr := eth_common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
-	var pk common.Address
+	var pk eth_common.Address
 	if !ok {
 		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
 	} else {
@@ -724,7 +741,7 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *n
 		return nil, errors.New("failed to recover public key")
 	}
 
-	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
 	if pk != signerAddr {
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
