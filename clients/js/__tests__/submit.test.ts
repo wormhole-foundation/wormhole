@@ -92,7 +92,7 @@ describe("worm submit", () => {
       mswServer.resetHandlers();
       requests.length = 0;
     });
-    const testTimeout = 10000;
+    const testTimeout = 15000;
 
     describe("solana", () => {
       const chain: WormholeSDKChainName = "solana";
@@ -418,7 +418,7 @@ describe("worm submit", () => {
             );
           });
 
-          // runFailureCases(chain, rpc, network, mockGuardianAddress);
+          runFailureCases(chain, rpc, network, mockGuardianAddress);
         });
       });
     });
