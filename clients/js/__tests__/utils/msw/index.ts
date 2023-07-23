@@ -5,6 +5,7 @@ import { Request, Response } from "./types";
 import {
   algorandRequestHandler,
   aptosRequestHandler,
+  cosmwasmRequestHandler,
   evmRequestHandler,
   genericRequestHandler,
   nearRequestHandler,
@@ -56,6 +57,14 @@ const handlers = [
   rest.post(
     `${NETWORKS["MAINNET"]["aptos"].rpc}/transactions`,
     aptosRequestHandler
+  ),
+  rest.get(
+    `${NETWORKS["MAINNET"]["xpla"].rpc}/cosmos/auth/v1beta1/accounts/*`,
+    cosmwasmRequestHandler
+  ),
+  rest.post(
+    `${NETWORKS["MAINNET"]["xpla"].rpc}/cosmos/tx/v1beta1/simulate`,
+    cosmwasmRequestHandler
   ),
 
   // Loggers

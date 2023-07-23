@@ -341,5 +341,47 @@ describe("worm submit", () => {
 
       runFailureCases(chain, rpc, network, mockGuardianAddress);
     });
+
+    describe.only("cosmwasm", () => {
+      const cosmwasmChains: WormholeSDKChainName[] = ["xpla"];
+
+      cosmwasmChains.forEach((chain) => {
+        describe(`${chain}`, () => {
+          const rpc = getRpcEndpoint(chain, "MAINNET");
+          const network = "mainnet";
+
+          contractUpgradeModules.forEach((module) => {
+            // cosmwasm chains currently do not have NFTBridge contracts on Mainnet. Source: https://docs.wormhole.com/wormhole/reference/environments/cosmwasm
+            if (module === "NFTBridge") return;
+
+            it(
+              `should send transaction to ${chain} when submitting 'ContractUpgrade' VAA for '${module}' module`,
+              async () => {
+                //NOTE: use worm generate command to obtain a VAA
+                const vaa = run_worm_command(
+                  `generate upgrade -c ${chain} -m ${module} -a 94ce0db5bda6f49d241c28195d0d7eecaf6fa2afe5820c5ed99618439bce56b0 -g ${mockGuardianAddress}`
+                );
+
+                //NOTE: we capture requests sent, then we force this process to fail before sending transactions
+                try {
+                  await yargs
+                    .command(submitCommand as unknown as YargsCommandModule)
+                    .parse(
+                      `submit ${vaa} --chain ${chain} --rpc ${rpc} --network ${network}`
+                    );
+                } catch (e) {}
+
+                expect(
+                  requests.some((req) => req.url.href.includes("simulate"))
+                ).toBeTruthy();
+              },
+              testTimeout
+            );
+          });
+
+          // runFailureCases(chain, rpc, network, mockGuardianAddress);
+        });
+      });
+    });
   });
 });

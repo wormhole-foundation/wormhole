@@ -117,6 +117,39 @@ export const algorandRequestHandler: LogRequestFunction = async (
   }
 };
 
+export const cosmwasmRequestHandler: LogRequestFunction = async (
+  req,
+  res,
+  ctx
+) => {
+  logRequest(req);
+
+  console.log("hola");
+
+  if (
+    req.url.href.includes("/cosmos/auth/v1beta1/accounts/") &&
+    req.method === "GET"
+  ) {
+    console.log("en el get");
+    return res(
+      ctx.status(200),
+      ctx.json({
+        account: {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          address:
+            "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
+          pub_key: null,
+          account_number: "40",
+          sequence: "0",
+        },
+      })
+    );
+  } else {
+    console.log("pal generic");
+    return await genericRequestHandler(req, res, ctx);
+  }
+};
+
 export const evmRequestHandler: LogRequestFunction = async (req, res, ctx) => {
   logRequest(req);
 
