@@ -189,10 +189,15 @@ var (
 
 	disableHeartbeatVerify *bool
 
-	disableTelemetry            *bool
+	disableTelemetry *bool
+
+	// Google cloud logging parameters
 	telemetryKey                *string
 	telemetryServiceAccountFile *string
 	telemetryProject            *string
+
+	// Loki cloud logging parameters
+	telemetryLokiURL *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -351,6 +356,8 @@ func init() {
 		"Google Cloud credentials json for accessing Cloud Logging")
 	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
 		"Google Cloud Project to use for Telemetry logging")
+
+	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -604,18 +611,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
 	}
 
+	if (*baseRPC == "") != (*baseContract == "") {
+		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
+	}
+
 	if *testnetMode {
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
 		}
 		if *neonContract == "" {
 			logger.Fatal("Please specify --neonContract")
-		}
-		if *baseRPC == "" {
-			logger.Fatal("Please specify --baseRPC")
-		}
-		if *baseContract == "" {
-			logger.Fatal("Please specify --baseContract")
 		}
 		if *sepoliaRPC == "" {
 			logger.Fatal("Please specify --sepoliaRPC")
@@ -629,12 +634,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *neonContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonContract")
-		}
-		if *baseRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --baseRPC")
-		}
-		if *baseContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --baseContract")
 		}
 		if *sepoliaRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --sepoliaRPC")
@@ -826,8 +825,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				logger.Info("Error resolving guardian-0.guardian. Trying again...")
 				time.Sleep(time.Second)
 			}
-			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 5s such that the bootstrap Guardian has enough time to start.
-			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds so the bootstrap guardian to come online.")
+			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
+			// This may no longer be necessary because now the p2p.go ensures that it can connect to at least one bootstrap peer and will
+			// exit the whole guardian if it is unable to. Sleeping here for a bit may reduce overall startup time by preventing unnecessary restarts, though.
+			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds for the bootstrap guardian to come online.")
 			time.Sleep(time.Second * 10)
 		}
 	} else {
@@ -888,27 +889,19 @@ func runNode(cmd *cobra.Command, args []string) {
 		rootCtxCancel()
 	}()
 
-	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != ""
+	usingLoki := *telemetryLokiURL != ""
+	usingGCP := *telemetryKey != "" || *telemetryServiceAccountFile != ""
+
+	var hasTelemetryCredential bool = usingGCP || usingLoki
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
 		if !hasTelemetryCredential {
-			logger.Fatal("Please either specify --telemetryKey or --telemetryServiceAccountFile or set --disableTelemetry=false")
+			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
-		var options []googleapi_option.ClientOption
-
-		if *telemetryKey != "" {
-			creds, err := decryptTelemetryServiceAccount()
-			if err != nil {
-				logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
-			}
-
-			options = append(options, googleapi_option.WithCredentialsJSON(creds))
-		}
-
-		if *telemetryServiceAccountFile != "" {
-			options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
+		if usingLoki && usingGCP {
+			logger.Fatal("May only enable one telemetry logger at a time, either specify --telemetryLokiURL or --telemetryKey/--telemetryServiceAccountFile")
 		}
 
 		// Get libp2p peer ID from private key
@@ -927,18 +920,45 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		skipPrivateLogs := !*publicRpcLogToTelemetry
-		tm, err := telemetry.New(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-		}
-		defer tm.Close()
-		logger = tm.WrapLogger(logger)
 
-		logger.Info("Telemetry enabled",
-			zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
-			zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
-	} else {
-		logger.Info("Telemetry disabled")
+		var tm *telemetry.Telemetry
+		if usingLoki {
+			logger.Info("Using Loki telemetry logger",
+				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
+
+			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", true, labels)
+			if err != nil {
+				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+			}
+		} else {
+			logger.Info("Using Google Cloud telemetry logger",
+				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
+
+			var options []googleapi_option.ClientOption
+
+			if *telemetryKey != "" {
+				creds, err := decryptTelemetryServiceAccount()
+				if err != nil {
+					logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+				}
+
+				options = append(options, googleapi_option.WithCredentialsJSON(creds))
+			}
+
+			if *telemetryServiceAccountFile != "" {
+				options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
+			}
+
+			tm, err = telemetry.NewGoogleCloudLogger(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
+			if err != nil {
+				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+			}
+		}
+
+		defer tm.Close()
+		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
 	}
 
 	// log golang version
@@ -1150,6 +1170,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(baseRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "base",
+			ChainID:   vaa.ChainIDBase,
+			Rpc:       *baseRPC,
+			Contract:  *baseContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1300,17 +1331,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			watcherConfigs = append(watcherConfigs, wc)
 		}
 
-		if shouldStart(baseRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID: "base",
-				ChainID:   vaa.ChainIDBase,
-				Rpc:       *baseRPC,
-				Contract:  *baseContract,
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
 		if shouldStart(sepoliaRPC) {
 			wc := &evm.WatcherConfig{
 				NetworkID: "sepolia",
@@ -1334,18 +1354,18 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	guardianNode := node.NewGuardianNode(
 		env,
-		db,
 		gk,
-		wormchainConn,
 	)
 
 	guardianOptions := []*node.GuardianOption{
+		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
-		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled),
+		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, wormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionProcessor(),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {

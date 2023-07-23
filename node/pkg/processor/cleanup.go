@@ -3,6 +3,8 @@ package processor
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -55,9 +57,12 @@ var (
 
 const (
 	settlementTime    = time.Second * 30
-	retryTime         = time.Minute * 5
 	retryLimitOurs    = time.Hour * 24
 	retryLimitNotOurs = time.Hour
+)
+
+var (
+	FirstRetryMinWait = time.Minute * 5
 )
 
 // handleCleanup handles periodic retransmissions and cleanup of observations
@@ -145,7 +150,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			p.logger.Info("expiring unsubmitted observation after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta), zap.Bool("weObserved", s.ourMsg != nil))
 			delete(p.state.signatures, hash)
 			aggregationStateTimeout.Inc()
-		case !s.submitted && delta.Minutes() >= 5 && time.Since(s.lastRetry) >= retryTime:
+		case !s.submitted && delta >= FirstRetryMinWait && time.Since(s.nextRetry) >= 0:
 			// Poor observation has been unsubmitted for five minutes - clearly, something went wrong.
 			// If we have previously submitted an observation, and it was reliable, we can make another attempt to get
 			// it over the finish line by sending a re-observation request to the network and rebroadcasting our
@@ -160,21 +165,33 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					aggregationStateTimeout.Inc()
 					break
 				}
-				p.logger.Info("resubmitting observation",
-					zap.String("digest", hash),
-					zap.Duration("delta", delta),
-					zap.String("firstObserved", s.firstObserved.String()),
-				)
-				req := &gossipv1.ObservationRequest{
-					ChainId: uint32(s.ourObservation.GetEmitterChain()),
-					TxHash:  s.txHash,
+
+				// If we have already stored this VAA, there is no reason for us to request reobservation.
+				alreadyInDB, err := p.signedVaaAlreadyInDB(hash, s)
+				if err != nil {
+					p.logger.Error("failed to check if observation is already in DB, requesting reobservation", zap.String("hash", hash), zap.Error(err))
 				}
-				if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
-					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
+
+				if alreadyInDB {
+					p.logger.Debug("observation already in DB, not requesting reobservation", zap.String("digest", hash))
+				} else {
+					p.logger.Info("resubmitting observation",
+						zap.String("digest", hash),
+						zap.Duration("delta", delta),
+						zap.String("firstObserved", s.firstObserved.String()),
+					)
+					req := &gossipv1.ObservationRequest{
+						ChainId: uint32(s.ourObservation.GetEmitterChain()),
+						TxHash:  s.txHash,
+					}
+					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
+						p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
+					}
+					p.gossipSendC <- s.ourMsg
+					s.retryCtr++
+					s.nextRetry = time.Now().Add(nextRetryDuration(s.retryCtr))
+					aggregationStateRetries.Inc()
 				}
-				p.gossipSendC <- s.ourMsg
-				s.lastRetry = time.Now()
-				aggregationStateRetries.Inc()
 			} else {
 				// For nil state entries, we log the quorum to determine whether the
 				// network reached consensus without us. We don't know the correct guardian
@@ -182,7 +199,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				hasSigs := len(s.signatures)
 				wantSigs := vaa.CalculateQuorum(len(p.gs.Keys))
 
-				p.logger.Info("expiring unsubmitted nil observation",
+				p.logger.Debug("expiring unsubmitted nil observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 					zap.Int("have_sigs", hasSigs),
@@ -202,4 +219,40 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			delete(p.pythnetVaas, key)
 		}
 	}
+}
+
+// signedVaaAlreadyInDB checks if the VAA is already in the DB. If it is, it makes sure the hash matches.
+func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
+	if s.ourObservation == nil {
+		p.logger.Debug("unable to check if VAA is already in DB, no observation", zap.String("digest", hash))
+		return false, nil
+	}
+
+	vaaID, err := db.VaaIDFromString(s.ourObservation.MessageID())
+	if err != nil {
+		return false, fmt.Errorf(`failed to generate VAA ID from message id "%s": %w`, s.ourObservation.MessageID(), err)
+	}
+
+	vb, err := p.db.GetSignedVAABytes(*vaaID)
+	if err != nil {
+		if err == db.ErrVAANotFound {
+			p.logger.Debug("VAA not in DB", zap.String("digest", hash), zap.String("message_id", s.ourObservation.MessageID()))
+			return false, nil
+		} else {
+			return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
+		}
+	}
+
+	v, err := vaa.Unmarshal(vb)
+	if err != nil {
+		return false, fmt.Errorf("failed to unmarshal VAA: %w", err)
+	}
+
+	oldHash := hex.EncodeToString(v.SigningDigest().Bytes())
+	if hash != oldHash {
+		p.logger.Debug("VAA already in DB but hash is different", zap.String("old_hash", oldHash), zap.String("new_hash", hash))
+		return false, fmt.Errorf("hash mismatch in_db: %s, new: %s", oldHash, hash)
+	}
+
+	return true, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 
+	node_common "github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -52,6 +53,7 @@ func (p *Processor) broadcastSignature(
 	if p.state.signatures[hash] == nil {
 		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
+			nextRetry:     time.Now().Add(nextRetryDuration(0)),
 			signatures:    map[ethcommon.Address][]byte{},
 			source:        "loopback",
 		}
@@ -63,8 +65,8 @@ func (p *Processor) broadcastSignature(
 	p.state.signatures[hash].source = o.GetEmitterChain().String()
 	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 
-	// Fast path for our own signature
-	go func() { p.obsvC <- &obsv }()
+	// Fast path for our own signature. Put this in a go routine so it can block if the channel is full. That's also why we're not using node_common.PostMsgWithTimestamp.
+	go func() { p.obsvC <- node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv) }()
 
 	observationsBroadcastTotal.Inc()
 }

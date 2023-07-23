@@ -253,9 +253,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   base: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6",
+    token_bridge: "0x8d2de8d2f73F1F4cAB472AC9A881C9b123C79627",
+    nft_bridge: "0xDA3adC6621B2677BEf9aD26598e6939CF0D92f88",
   },
   sei: {
     core: "sei1gjrrme22cyha4ht2xapn3f08zzw6z3d4uxx6fyy9zd5dyr3yxgzqqncdqn",

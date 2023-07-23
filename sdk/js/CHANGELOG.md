@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.22
+
+### Added
+
+Base mainnet contract addresses
+
 ## 0.9.21
 
 ### Changes
