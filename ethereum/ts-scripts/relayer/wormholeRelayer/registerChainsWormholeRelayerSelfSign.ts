@@ -18,21 +18,64 @@ async function run() {
 
   for (const operatingChain of operatingChains) {
     await registerChainsWormholeRelayer(operatingChain);
+    await registerOnExistingChainsWormholeRelayer(operatingChain);
   }
 }
 
 async function registerChainsWormholeRelayer(chain: ChainInfo) {
-  console.log("registerChainsWormholeRelayer " + chain.chainId);
+  console.log(
+    "Registering all the wormhole relayers onto Wormhole Relayer " +
+      chain.chainId
+  );
 
   const coreRelayer = await getWormholeRelayer(chain);
   for (const targetChain of chains) {
-    await coreRelayer
-      .registerWormholeRelayerContract(createRegisterChainVAA(targetChain))
-      .then(wait);
+    try {
+      await coreRelayer
+        .registerWormholeRelayerContract(createRegisterChainVAA(targetChain))
+        .then(wait);
+    } catch (e) {
+      console.log(
+        `Error in registering chain ${targetChain.chainId} onto ${chain.chainId}`
+      );
+    }
   }
 
   console.log(
     "Did all contract registrations for the core relayer on " + chain.chainId
+  );
+}
+
+async function registerOnExistingChainsWormholeRelayer(chain: ChainInfo) {
+  console.log(
+    "Registering Wormhole Relayer " +
+      chain.chainId +
+      " onto all the wormhole relayers"
+  );
+  const operatingChainIds = operatingChains.map((c) => c.chainId);
+  for (const targetChain of chains) {
+    if (operatingChainIds.find((x) => x === targetChain.chainId)) {
+      continue;
+    }
+    const coreRelayer = await getWormholeRelayer(targetChain);
+    try {
+      await coreRelayer
+        .registerWormholeRelayerContract(createRegisterChainVAA(chain))
+        .then(wait);
+    } catch (e) {
+      console.log(
+        `Error in registering chain ${chain.chainId} onto ${targetChain.chainId}`
+      );
+      if (targetChain.chainId === 5) {
+        console.log(e);
+      }
+    }
+  }
+
+  console.log(
+    "Did all contract registrations of the core relayer on " +
+      chain.chainId +
+      " onto the existing (non operating) chains"
   );
 }
 
