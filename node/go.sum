@@ -3083,8 +3083,8 @@ github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243/go.mod h1:RjeCKbqT
 github.com/willf/bitset v1.1.11/go.mod h1:83CECat5yLh5zVOf4P1ErAgKA5UDvKtgyUABdr3+MjI=
 github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole h1:oWRuBpqReZoLX3pXeqz/sTgu3xPzqnxaFW2GWG5vgTs=
 github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole/go.mod h1:Z5M4TX7PsHNHlF/1XanI2DIpORQ+Q/st7oaeufEjnvU=
-github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1.0.20230714195933-d3b98b428ff1 h1:q5RUNqzK+tCOoi36xxBcrd9sWOTSy9VwgL8sNa4YqB0=
-github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1.0.20230714195933-d3b98b428ff1/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
+github.com/wormhole-foundation/wasmd v0.30.0-wormchain-2 h1:T5lnEObp6nfp83K1GJSvgaRQ8VQjhokupAsEPWBph4A=
+github.com/wormhole-foundation/wasmd v0.30.0-wormchain-2/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
 github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208/go.mod h1:IotVbo4F+mw0EzQ08zFqg7pK3FebNXpaMsRy2RT+Ees=
 github.com/xanzy/go-gitlab v0.31.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
 github.com/xanzy/go-gitlab v0.32.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
