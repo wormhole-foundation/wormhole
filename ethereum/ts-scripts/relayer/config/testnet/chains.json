@@ -44,6 +44,5 @@
       "rpc": "https://goerli.base.org",
       "wormholeAddress": "0x23908A62110e21C04F3A4e011d24F901F911744A"
     }
-  ],
-  "operatingChains": [30]
+  ]
 }
