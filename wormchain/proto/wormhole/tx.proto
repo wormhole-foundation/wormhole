@@ -23,6 +23,8 @@ service Msg {
   rpc AddWasmInstantiateAllowlist(MsgAddWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
   rpc DeleteWasmInstantiateAllowlist(MsgDeleteWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
 
+  rpc SetWormholeMiddlewareContract(MsgSetWormholeMiddlewareContract) returns (MsgSetWormholeMiddlewareContractResponse);
+
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
@@ -123,6 +125,17 @@ message MsgDeleteWasmInstantiateAllowlist {
 }
 
 message MsgWasmInstantiateAllowlistResponse {}
+
+message MsgSetWormholeMiddlewareContract {
+    // signer should be a guardian validator in a current set or future set.
+    string signer = 1;
+    // the contract address to set
+    string address = 2;
+    // vaa is the SetWormholeMiddlewareContract governance message
+    bytes vaa = 3;
+}
+
+message MsgSetWormholeMiddlewareContractResponse {}
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {

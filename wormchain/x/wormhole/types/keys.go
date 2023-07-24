@@ -37,4 +37,5 @@ const (
 const (
 	ValidatorAllowlistKey       = "VAK"
 	WasmInstantiateAllowlistKey = "WasmInstiantiateAllowlist"
+	MiddlewareContractKey       = "MiddlewareContract"
 )
