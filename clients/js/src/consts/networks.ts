@@ -168,6 +168,11 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
+  rootstock: {
+    rpc: "https://public-node.rsk.co",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 30,
+  },
   sepolia: {
     rpc: undefined,
     key: undefined,
@@ -333,6 +338,11 @@ const TESTNET = {
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 84531,
   },
+  rootstock: {
+    rpc: "https://public-node.testnet.rsk.co",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 31,
+  },
 };
 
 const DEVNET = {
@@ -471,6 +481,10 @@ const DEVNET = {
     key: undefined,
   },
   base: {
+    rpc: undefined,
+    key: undefined,
+  },
+  rootstock: {
     rpc: undefined,
     key: undefined,
   },

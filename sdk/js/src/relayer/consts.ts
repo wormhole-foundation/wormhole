@@ -190,6 +190,7 @@ export const RPCS_BY_CHAIN: {
     arbitrum: "https://goerli-rollup.arbitrum.io/rpc",
     optimism: "https://goerli.optimism.io",
     gnosis: "https://sokol.poa.network/",
+    rootstock: "https://public-node.rsk.co",
   },
   DEVNET: {
     ethereum: "http://localhost:8545",

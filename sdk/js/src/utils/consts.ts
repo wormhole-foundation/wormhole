@@ -30,6 +30,7 @@ export const CHAINS = {
   btc: 29,
   base: 30,
   sei: 32,
+  rootstock: 33,
   wormchain: 3104,
   sepolia: 10002,
 } as const;
@@ -59,6 +60,7 @@ export const EVMChainNames = [
   "optimism",
   "gnosis",
   "base",
+  "rootstock",
   "sepolia",
 ] as const;
 export type EVMChainName = typeof EVMChainNames[number];
@@ -257,6 +259,11 @@ const MAINNET = {
       "sei1smzlm9t79kur392nu9egl8p8je9j92q4gzguewj56a05kyxxra0qy0nuf3",
     nft_bridge: undefined,
   },
+  rootstock: {
+    core: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqaqfk2j",
     token_bridge:
@@ -432,6 +439,11 @@ const TESTNET = {
       "sei1jv5xw094mclanxt5emammy875qelf3v62u4tl4lp5nhte3w3s9ts9w9az2",
     nft_bridge: undefined,
   },
+  rootstock: {
+    core: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: undefined,
     token_bridge: undefined,
@@ -604,6 +616,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  rootstock: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
     token_bridge:
@@ -686,6 +703,7 @@ export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_BTC = CHAINS["btc"];
 export const CHAIN_ID_BASE = CHAINS["base"];
 export const CHAIN_ID_SEI = CHAINS["sei"];
+export const CHAIN_ID_ROOTSTOCK = CHAINS["rootstock"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 

@@ -366,6 +366,24 @@ module.exports = {
       },
       network_id: 84531,
     },
+    rootstock: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://public-node.rsk.co"
+        );
+      },
+      network_id: 30,
+    },
+    rootstock_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://public-node.testnet.rsk.co"
+        );
+      },
+      network_id: 31,
+    },
     sepolia_testnet: {
       provider: () => {
         return new HDWalletProvider(
