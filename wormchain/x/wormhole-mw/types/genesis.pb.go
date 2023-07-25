@@ -27,8 +27,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type GenesisState struct {
 	// key - information about modified packet: src_channel
 	// (parsedReceiver.Channel), src_port (parsedReceiver.Port), sequence value -
-	// information about original packet for refunding if necessary: retries,
-	// srcPacketSender, srcPacket.DestinationChannel, srcPacket.DestinationPort
+	// bytes are the packet data bytes as they came in
 	TransposedDataInFlight map[string][]byte `protobuf:"bytes,1,rep,name=transposed_data_in_flight,json=transposedDataInFlight,proto3" json:"transposed_data_in_flight" yaml:"transposed_data_in_flight" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
