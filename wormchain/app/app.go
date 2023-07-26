@@ -98,7 +98,13 @@ import (
 	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
+
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
+	tokenfactorykeeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 const (
@@ -135,6 +141,14 @@ func GetWasmOpts(app *App, appOpts servertypes.AppOptions) []wasm.Option {
 	// add the custom wormhole query handler
 	wasmOpts = append(wasmOpts, wasmkeeper.WithQueryPlugins(wormholemodulekeeper.NewCustomQueryHandler(app.WormholeKeeper)))
 
+	// Move custom query of token factory to stargate, still use custom msg which is tfOpts[1]
+	bankBaseKeeper, ok := app.BankKeeper.(bankkeeper.BaseKeeper)
+	if !ok {
+		panic("Cannot cast bank keeper to bank basekeeper")
+	}
+	tfOpts := bindings.RegisterCustomPlugins(&bankBaseKeeper, &app.TokenFactoryKeeper)
+	wasmOpts = append(wasmOpts, tfOpts...)
+
 	return wasmOpts
 }
 
@@ -166,6 +180,7 @@ var (
 		wormholemodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 		wasm.AppModuleBasic{},
+		tokenfactory.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -179,8 +194,11 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		wormholemoduletypes.ModuleName: nil,
 		// this line is used by starport scaffolding # stargate/app/maccPerms
-		wasm.ModuleName: {authtypes.Burner},
+		wasm.ModuleName:              {authtypes.Burner},
+		tokenfactorytypes.ModuleName: {authtypes.Minter, authtypes.Burner},
 	}
+
+	tokenFactoryCapabilities = []string{}
 )
 
 var (
@@ -235,7 +253,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	WormholeKeeper wormholemodulekeeper.Keeper
+	WormholeKeeper     wormholemodulekeeper.Keeper
+	TokenFactoryKeeper tokenfactorykeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 	wasmKeeper       wasm.Keeper
@@ -274,7 +293,7 @@ func New(
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
 		wormholemoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
-		wasm.StoreKey,
+		wasm.StoreKey, tokenfactorytypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -386,10 +405,20 @@ func New(
 		&stakingKeeper, govRouter,
 	)
 
+	app.TokenFactoryKeeper = tokenfactorykeeper.NewKeeper(
+		app.keys[tokenfactorytypes.StoreKey],
+		app.GetSubspace(tokenfactorytypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.DistrKeeper,
+		tokenFactoryCapabilities,
+	)
+
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
-	supportedFeatures := "iterator,staking,stargate,wormhole"
+	supportedFeatures := "iterator,staking,stargate,wormhole,token_factory"
 	wasmDir := filepath.Join(homePath, "data")
+
 	// Instantiate wasm keeper with stubs for other modules as we do not need
 	// wasm to be able to write to other modules.
 	app.wasmKeeper = wasm.NewKeeper(
@@ -459,6 +488,7 @@ func New(
 		wormholeModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 		wasm.NewAppModule(appCodec, &app.wasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+		tokenfactory.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -486,6 +516,7 @@ func New(
 		wormholemoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/beginBlockers
 		wasm.ModuleName,
+		tokenfactorytypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -509,6 +540,7 @@ func New(
 		wormholemoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/endBlockers
 		wasm.ModuleName,
+		tokenfactorytypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -540,6 +572,7 @@ func New(
 		feegrant.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 		wasm.ModuleName,
+		tokenfactorytypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -725,6 +758,10 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	tmservice.RegisterTendermintService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
 }
 
+func (app *App) GetWasmKeeper() *wasmkeeper.Keeper {
+	return &app.wasmKeeper
+}
+
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
 	dupMaccPerms := make(map[string][]string)
@@ -751,6 +788,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(wormholemoduletypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(wasm.ModuleName)
+	paramsKeeper.Subspace(tokenfactorytypes.ModuleName)
 
 	return paramsKeeper
 }
