@@ -7,7 +7,7 @@
 /algorand/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /aptos/ @kcsongor @a5-pickle
 /bitcoin/ @conorpp @jumpsiegel @evan-gray @hendrikhofstadt
-/cosmwasm/ @jynnantonix @kcsongor @a5-pickle
+/cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
 /ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth 
@@ -17,7 +17,7 @@
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
 /terra/ @kcsongor @a5-pickle
-/wormchain/ @conorpp @hendrikhofstadt
+/wormchain/ @nik-suri @hendrikhofstadt
 
 # Utilities
 
