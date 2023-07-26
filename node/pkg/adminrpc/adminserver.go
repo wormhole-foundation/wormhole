@@ -316,13 +316,18 @@ func wormchainDeleteWasmInstantiateAllowlist(req *nodev1.WormchainDeleteWasmInst
 func wormchainWasmInstantiateAllowlist(action vaa.GovernanceAction, codeId uint64, contract string, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	// parse contract address into 32 bytes
 	// bech32 decode the string into bytes
-	hrp, decoded, err := bech32.Decode(contract)
+	hrp, fiveBitDecoded, err := bech32.Decode(contract)
 	if err != nil {
 		return nil, fmt.Errorf("invalid bech32 contract address %w", err)
 	}
 
 	if hrp != "wormhole" {
 		return nil, fmt.Errorf("non-wormchain bech32 contract address: %s", contract)
+	}
+
+	decoded, err := bech32.ConvertBits(fiveBitDecoded, 5, 8, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert bits from 5 bit to 8 bit encoding")
 	}
 
 	if len(decoded) != 32 {
