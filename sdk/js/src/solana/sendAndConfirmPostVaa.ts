@@ -59,13 +59,13 @@ export async function postVaaWithRetry(
 
   // While the signature_set is used to create the final instruction, it doesn't need to sign it.
   responses.push(
-    (await signSendAndConfirmTransaction(
+    await signSendAndConfirmTransaction(
       connection,
       payer,
       signTransaction,
       postVaaTransaction,
       options
-    ))
+    )
   );
   return responses;
 }
