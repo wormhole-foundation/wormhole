@@ -230,29 +230,19 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
 }
 
+// TODO: If we ever eliminate single threaded mode, we can get rid of this case.
 func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
-	v, err := vaa.Unmarshal(m.Vaa)
+	v, alreadyInDB, err := p.unmarshalSignedVaaWithQuorum(m)
 	if err != nil {
-		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
-			zap.Error(err), zap.Any("message", m))
+		p.logger.Error("failed to parse incoming signed VAA with quorum", zap.Error(err))
 		return
 	}
-
-	// Check if we already store this VAA
-	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
-	if err == nil {
-		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
-			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
-		)
-		return
-	} else if err != db.ErrVAANotFound {
-		p.logger.Error("failed to look up VAA in database",
-			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
-			zap.Error(err),
-		)
-		return
+	if !alreadyInDB {
+		p.handleParsedInboundSignedVAAWithQuorum(v)
 	}
+}
 
+func (p *Processor) handleParsedInboundSignedVAAWithQuorum(v *vaa.VAA) {
 	// Calculate digest for logging
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
@@ -261,7 +251,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	if gs == nil {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet",
 			zap.String("digest", hash),
-			zap.Any("message", m),
+			zap.Any("vaa", v),
 		)
 		return
 	}
@@ -270,7 +260,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	if len(gs.Keys) == 0 {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we have a guardian set without keys",
 			zap.String("digest", hash),
-			zap.Any("message", m),
+			zap.Any("vaa", v),
 		)
 		return
 	}
@@ -288,8 +278,6 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	// Store signed VAA in database.
 	p.logger.Debug("storing inbound signed VAA with quorum",
 		zap.String("digest", hash),
-		zap.Any("vaa", v),
-		zap.String("bytes", hex.EncodeToString(m.Vaa)),
 		zap.String("message_id", v.MessageID()))
 
 	if err := p.storeSignedVAA(v); err != nil {
@@ -297,4 +285,33 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 	p.attestationEvents.ReportVAAQuorum(v)
+}
+
+// unmarshalSignedVaaWithQuorum unmarshals a SignedVAAWithQuorum message and returns the VAA and a boolean indicating if the VAA is already in the database.
+func (p *Processor) unmarshalSignedVaaWithQuorum(m *gossipv1.SignedVAAWithQuorum) (*vaa.VAA, bool, error) {
+	v, err := vaa.Unmarshal(m.Vaa)
+	if err != nil {
+		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
+			zap.Error(err), zap.Any("message", m))
+		return nil, false, err
+	}
+
+	// Check if we already store this VAA
+	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
+	if err == nil {
+		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
+			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+		)
+		return v, true, nil
+	}
+
+	if err != db.ErrVAANotFound {
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+			zap.Error(err),
+		)
+		return nil, false, err
+	}
+
+	return v, false, nil
 }

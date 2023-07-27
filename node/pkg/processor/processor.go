@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"math"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -163,9 +161,12 @@ type Processor struct {
 	acct      *accountant.Accountant
 	acctReadC <-chan *common.MessagePublication
 
+	workerFactor float64
+	numWorkers   uint64
+	workerChans  []*writerChannels
+
 	pythnetVaaLock sync.Mutex
 	pythnetVaas    map[string]PythNetVaaEntry
-	workerFactor   float64
 }
 
 var (
@@ -234,28 +235,18 @@ func (p *Processor) Run(ctx context.Context) error {
 
 	var ret error
 	if p.workerFactor == 0.0 {
-		ret = p.RunOne(ctx, 1)
-	} else {
-
-		numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
-		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
-
-		var w sync.WaitGroup
-		w.Add(numWorkers)
-
-		for workerId := 1; workerId <= numWorkers; workerId++ {
-			go func(ctx context.Context, workerId int) {
-				p.logger.Info("processor worker started", zap.Int("workerId", workerId))
-				err := p.RunOne(ctx, workerId)
-				if err != nil {
-					p.logger.Error("processor worker failed", zap.Int("workerId", workerId), zap.Error(err))
-				}
-				p.logger.Info("processor worker done", zap.Int("workerId", workerId))
-				w.Done()
-			}(ctx, workerId)
+		chans := &readerChannels{
+			setC:      p.setC,
+			msgC:      p.msgC,
+			acctReadC: p.acctReadC,
+			injectC:   p.injectC,
+			obsvC:     p.obsvC,
+			signedInC: p.signedInC,
 		}
-
-		w.Wait()
+		p.numWorkers = 1
+		ret = p.runWorker(ctx, chans, true)
+	} else {
+		p.runDispatcher(ctx)
 	}
 
 	// Log these as warnings so they show up in the benchmark logs.
@@ -269,7 +260,7 @@ func (p *Processor) Run(ctx context.Context) error {
 	return ret
 }
 
-func (p *Processor) RunOne(ctx context.Context, workerId int) error {
+func (p *Processor) runWorker(ctx context.Context, chans *readerChannels, singleThreaded bool) error {
 	// Always start the timers to avoid nil pointer dereferences below. They will only be rearmed on worker 1.
 	cleanup := time.NewTimer(CleanupInterval)
 	defer cleanup.Stop()
@@ -285,13 +276,15 @@ func (p *Processor) RunOne(ctx context.Context, workerId int) error {
 				p.acct.Close()
 			}
 			return ctx.Err()
-		case gs := <-p.setC:
-			p.gs.Store(gs)
-			p.logger.Info("guardian set updated",
-				zap.Strings("set", gs.KeysAsHexStrings()),
-				zap.Uint32("index", gs.Index))
-			p.gst.Set(gs)
-		case k := <-p.msgC:
+		case gs := <-chans.setC: // TODO: If we ever eliminate single threaded mode, we can get rid of this case.
+			if singleThreaded {
+				p.gs.Store(gs)
+				p.logger.Info("guardian set updated",
+					zap.Strings("set", gs.KeysAsHexStrings()),
+					zap.Uint32("index", gs.Index))
+				p.gst.Set(gs)
+			}
+		case k := <-chans.msgC:
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
 					continue
@@ -308,7 +301,7 @@ func (p *Processor) RunOne(ctx context.Context, workerId int) error {
 			}
 			p.handleMessage(ctx, k)
 
-		case k := <-p.acctReadC:
+		case k := <-chans.acctReadC: // TODO: If we ever eliminate single threaded mode, we can get rid of this case.
 			if p.acct == nil {
 				return fmt.Errorf("received an accountant event when accountant is not configured")
 			}
@@ -317,20 +310,22 @@ func (p *Processor) RunOne(ctx context.Context, workerId int) error {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
 			p.handleMessage(ctx, k)
-		case v := <-p.injectC:
+		case v := <-chans.injectC:
 			p.handleInjection(ctx, v)
-		case m := <-p.obsvC:
+		case m := <-chans.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(ctx, m)
-		case m := <-p.signedInC:
+		case m := <-chans.parsedSignedInC:
+			p.handleParsedInboundSignedVAAWithQuorum(m)
+		case m := <-chans.signedInC: // TODO: If we ever eliminate single threaded mode, we can get rid of this case.
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
-		case <-cleanup.C:
-			if workerId == 1 {
+		case <-cleanup.C: // TODO: If we ever eliminate single threaded mode, we can get rid of this timer because it will be in the dispatcher.
+			if singleThreaded {
 				cleanup.Reset(CleanupInterval)
 				p.handleCleanup(ctx)
 			}
-		case <-govTimer.C:
-			if p.governor != nil && workerId == 1 {
+		case <-govTimer.C: // TODO: If we ever eliminate single threaded mode, we can get rid of this timer because it will be in the dispatcher.
+			if singleThreaded && p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
 					return err
