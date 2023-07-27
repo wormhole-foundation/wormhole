@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcutil/bech32"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
@@ -305,42 +304,50 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	return v, nil
 }
 
-func wormchainAddWasmInstantiateAllowlist(req *nodev1.WormchainAddWasmInstantiateAllowlist, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
-	return wormchainWasmInstantiateAllowlist(vaa.ActionAddWasmInstantiateAllowlist, req.CodeId, req.Contract, timestamp, guardianSetIndex, nonce, sequence)
-}
-
-func wormchainDeleteWasmInstantiateAllowlist(req *nodev1.WormchainDeleteWasmInstantiateAllowlist, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
-	return wormchainWasmInstantiateAllowlist(vaa.ActionDeleteWasmInstantiateAllowlist, req.CodeId, req.Contract, timestamp, guardianSetIndex, nonce, sequence)
-}
-
-func wormchainWasmInstantiateAllowlist(action vaa.GovernanceAction, codeId uint64, contract string, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	// parse contract address into 32 bytes
-	// bech32 decode the string into bytes
-	hrp, fiveBitDecoded, err := bech32.Decode(contract)
+func wormchainWasmInstantiateAllowlist(
+	req *nodev1.WormchainWasmInstantiateAllowlist,
+	timestamp time.Time,
+	guardianSetIndex uint32,
+	nonce uint32,
+	sequence uint64,
+) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+	decodedAddr, err := vaa.Bech32DecodeValidate32Byte(req.Contract, "wormhole")
 	if err != nil {
-		return nil, fmt.Errorf("invalid bech32 contract address %w", err)
+		return nil, err
 	}
 
-	if hrp != "wormhole" {
-		return nil, fmt.Errorf("non-wormchain bech32 contract address: %s", contract)
+	var action vaa.GovernanceAction
+	if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_ADD {
+		action = vaa.ActionAddWasmInstantiateAllowlist
+	} else if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_DELETE {
+		action = vaa.ActionDeleteWasmInstantiateAllowlist
+	} else {
+		return nil, fmt.Errorf("unrecognized wasm instantiate allowlist action")
 	}
-
-	decoded, err := bech32.ConvertBits(fiveBitDecoded, 5, 8, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert bits from 5 bit to 8 bit encoding")
-	}
-
-	if len(decoded) != 32 {
-		return nil, fmt.Errorf("contract address is not 32 bytes: %s", contract)
-	}
-
-	var decodedArr [32]byte
-	copy(decodedArr[:], decoded)
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainWasmAllowlistInstantiate{
-		ContractAddr: decodedArr,
-		CodeId:       codeId,
+		ContractAddr: decodedAddr,
+		CodeId:       req.CodeId,
 	}.Serialize(action))
+
+	return v, nil
+}
+
+func wormchainIbcComposabilityMwSetContract(
+	req *nodev1.WormchainIbcComposabilityMwSetContract,
+	timestamp time.Time,
+	guardianSetIndex uint32,
+	nonce uint32,
+	sequence uint64,
+) (*vaa.VAA, error) {
+	decodedAddr, err := vaa.Bech32DecodeValidate32Byte(req.Contract, "wormhole")
+	if err != nil {
+		return nil, err
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainMiddlewareContract{
+		ContractAddr: decodedAddr,
+	}.Serialize())
 
 	return v, nil
 }
@@ -422,8 +429,8 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	return v, nil
 }
 
-func ibcReceiverUpdateChannelChain(
-	req *nodev1.IbcReceiverUpdateChannelChain,
+func ibcUpdateChannelChain(
+	req *nodev1.IbcUpdateChannelChain,
 	timestamp time.Time,
 	guardianSetIndex uint32,
 	nonce uint32,
@@ -443,13 +450,22 @@ func ibcReceiverUpdateChannelChain(
 	}
 	channelId := vaa.LeftPadIbcChannelId(req.ChannelId)
 
+	var module string
+	if req.Module == nodev1.IbcUpdateChannelChainModule_RECEIVER {
+		module = vaa.IbcReceiverModuleStr
+	} else if req.Module == nodev1.IbcUpdateChannelChainModule_TRANSLATOR {
+		module = vaa.IbcTranslatorModuleStr
+	} else {
+		return nil, fmt.Errorf("unrecognized ibc update channel chain module")
+	}
+
 	// create governance VAA
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyIbcReceiverUpdateChannelChain{
+		vaa.BodyIbcUpdateChannelChain{
 			TargetChainId: vaa.ChainID(req.TargetChainId),
 			ChannelId:     channelId,
 			ChainId:       vaa.ChainID(req.ChainId),
-		}.Serialize())
+		}.Serialize(module))
 
 	return v, nil
 }
@@ -505,18 +521,18 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_WormchainMigrateContract:
 		v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
-	case *nodev1.GovernanceMessage_WormchainAddWasmInstantiateAllowlist:
-		v, err = wormchainAddWasmInstantiateAllowlist(payload.WormchainAddWasmInstantiateAllowlist, timestamp, currentSetIndex, message.Nonce, message.Sequence)
-	case *nodev1.GovernanceMessage_WormchainDeleteWasmInstantiateAllowlist:
-		v, err = wormchainDeleteWasmInstantiateAllowlist(payload.WormchainDeleteWasmInstantiateAllowlist, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_WormchainWasmInstantiateAllowlist:
+		v, err = wormchainWasmInstantiateAllowlist(payload.WormchainWasmInstantiateAllowlist, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_WormchainIbcComposabilityMwSetContract:
+		v, err = wormchainIbcComposabilityMwSetContract(payload.WormchainIbcComposabilityMwSetContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 		v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
 		v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
 		v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, currentSetIndex, message.Nonce, message.Sequence)
-	case *nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain:
-		v, err = ibcReceiverUpdateChannelChain(payload.IbcReceiverUpdateChannelChain, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_IbcUpdateChannelChain:
+		v, err = ibcUpdateChannelChain(payload.IbcUpdateChannelChain, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider:
 		v, err = wormholeRelayerSetDefaultDeliveryProvider(payload.WormholeRelayerSetDefaultDeliveryProvider, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:

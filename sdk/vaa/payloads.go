@@ -24,13 +24,21 @@ var CircleIntegrationModule = [32]byte{
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 
-// WasmdModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
+// IbcReceiverModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
 // It is the hex representation of "IbcReceiver" left padded with zeroes.
 var IbcReceiverModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72,
 }
 var IbcReceiverModuleStr = string(IbcReceiverModule[:])
+
+// IbcTranslatorModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
+// It is the hex representation of "IbcReceiver" left padded with zeroes.
+var IbcTranslatorModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x6c, 0x61, 0x74, 0x6f, 0x72,
+}
+var IbcTranslatorModuleStr = string(IbcTranslatorModule[:])
 
 // WormholeRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
 // It is the hex representation of "WormholeRelayer" left padded with zeroes.
@@ -74,6 +82,9 @@ var (
 
 	// Ibc Receiver governance actions
 	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
+
+	// Ibc Translator governance actions
+	IbcTranslatorActionUpdateChannelChain GovernanceAction = 1
 
 	// Wormhole relayer governance actions
 	WormholeRelayerSetDefaultDeliveryProvider GovernanceAction = 3
@@ -165,8 +176,8 @@ type (
 		NewImplementationAddress [32]byte
 	}
 
-	// BodyIbcReceiverUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in the ibc_receiver contract
-	BodyIbcReceiverUpdateChannelChain struct {
+	// BodyIbcUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in either of the ibc_receiver or ibc_translator contracts
+	BodyIbcUpdateChannelChain struct {
 		// The chain that this governance VAA should be redeemed on
 		TargetChainId ChainID
 
@@ -320,11 +331,15 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
+func (r BodyIbcUpdateChannelChain) Serialize(module string) []byte {
+	if module != IbcReceiverModuleStr && module != IbcTranslatorModuleStr {
+		panic("module for BodyIbcUpdateChannelChain must be either IbcReceiver or IbcTranslator")
+	}
+
 	payload := &bytes.Buffer{}
 	payload.Write(r.ChannelId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
-	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
+	return serializeBridgeGovernanceVaa(module, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
 }
 
 func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {

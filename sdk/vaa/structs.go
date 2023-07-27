@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cosmos/btcutil/bech32"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -1147,4 +1148,33 @@ func BytesToHash(b []byte) (common.Hash, error) {
 
 	hash = common.BytesToHash(b)
 	return hash, nil
+}
+
+// Bech32DecodeValidate32Byte decodes a string address into a 32 byte 8-bit representation.
+// It also validates that the bech32 prefix of the address matches the given prefix string.
+func Bech32DecodeValidate32Byte(address string, prefix string) ([32]byte, error) {
+	// parse contract address into 32 bytes
+	// bech32 decode the string into bytes
+	hrp, fiveBitDecoded, err := bech32.DecodeNoLimit(address)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("invalid bech32 address %w", err)
+	}
+
+	if hrp != prefix {
+		return [32]byte{}, fmt.Errorf("invalid bech32 address prefix: %s", address)
+	}
+
+	decoded, err := bech32.ConvertBits(fiveBitDecoded, 5, 8, false)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to convert bits from 5 bit to 8 bit encoding")
+	}
+
+	if len(decoded) != 32 {
+		return [32]byte{}, fmt.Errorf("address is not 32 bytes: %s", address)
+	}
+
+	var decodedArr [32]byte
+	copy(decodedArr[:], decoded)
+
+	return decodedArr, nil
 }

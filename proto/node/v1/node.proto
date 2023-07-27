@@ -92,8 +92,8 @@ message GovernanceMessage {
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
-    WormchainAddWasmInstantiateAllowlist wormchain_add_wasm_instantiate_allowlist = 23;
-    WormchainDeleteWasmInstantiateAllowlist wormchain_delete_wasm_instantiate_allowlist = 24;
+    WormchainWasmInstantiateAllowlist wormchain_wasm_instantiate_allowlist = 23;
+    WormchainIbcComposabilityMwSetContract wormchain_ibc_composability_mw_set_contract = 24;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -104,7 +104,7 @@ message GovernanceMessage {
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
 
     // IBC Receiver Integration
-    IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
+    IbcUpdateChannelChain ibc_update_channel_chain = 21;
     // Wormhole Relayer module
     WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 22;
   }
@@ -215,22 +215,6 @@ message WormchainInstantiateContract {
   string instantiation_msg = 3;
 }
 
-message WormchainAddWasmInstantiateAllowlist {
-  // CodeID is the reference to the stored WASM code.
-  uint64 code_id = 1;
-
-  // The address of the contract that is allowlisted to call wasm instantiate without a VAA.
-  string contract = 2;
-}
-
-message WormchainDeleteWasmInstantiateAllowlist {
-  // CodeID is the reference to the stored WASM code.
-  uint64 code_id = 1;
-
-  // The address of the contract that is allowlisted to call wasm instantiate without a VAA.
-  string contract = 2;
-}
-
 message WormchainMigrateContract {
   // CodeID is the reference to the stored WASM code that the contract should migrate to.
   uint64 code_id = 1;
@@ -240,6 +224,27 @@ message WormchainMigrateContract {
 
   // Msg json encoded message to be passed to the contract on migration
   string instantiation_msg = 3;
+}
+
+enum WormchainWasmInstantiateAllowlistAction {
+  ADD = 0;
+  DELETE = 1;
+}
+
+message WormchainWasmInstantiateAllowlist {
+  // CodeID is the reference to the stored WASM code.
+  uint64 code_id = 1;
+
+  // The address of the contract that is allowlisted to call wasm instantiate without a VAA.
+  string contract = 2;
+
+  // Specifying whether to add or delete the allowlist entry
+  WormchainWasmInstantiateAllowlistAction action = 3;
+}
+
+message WormchainIbcComposabilityMwSetContract {
+    // The address of the contract that is set in the ibc composability middleware.
+    string contract = 1;
 }
 
 message CircleIntegrationUpdateWormholeFinality {
@@ -259,13 +264,20 @@ message CircleIntegrationUpgradeContractImplementation {
   uint32 target_chain_id = 2;
 }
 
-message IbcReceiverUpdateChannelChain {
+enum IbcUpdateChannelChainModule {
+  RECEIVER = 0;
+  TRANSLATOR = 1;
+}
+
+message IbcUpdateChannelChain {
   // Chain ID that this governance VAA should be redeemed on
   uint32 target_chain_id = 1;
   // IBC channel ID
   string channel_id = 2;
   // ChainID corresponding to the IBC channel
   uint32 chain_id = 3;
+  // Specifying which governance module this message is for
+  IbcUpdateChannelChainModule module = 4;
 }
 
 message WormholeRelayerSetDefaultDeliveryProvider {
