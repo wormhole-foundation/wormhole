@@ -454,7 +454,7 @@ func GuardianOptionProcessor(workerFactor float64) *GuardianOption {
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
-			g.runnables["processor"] = processor.NewProcessor(ctx,
+			p := processor.NewProcessor(ctx,
 				g.db,
 				g.msgC.readC,
 				g.setC.readC,
@@ -470,7 +470,14 @@ func GuardianOptionProcessor(workerFactor float64) *GuardianOption {
 				g.acct,
 				g.acctC.readC,
 				workerFactor,
-			).Run
+			)
+
+			g.runnables["processor"] = p.Run
+
+			// Give P2P a direct link to the processor to avoid a channel hop. TODO: This is ugly!
+			if workerFactor != 0.0 {
+				p2p.Proc = p
+			}
 
 			return nil
 		}}

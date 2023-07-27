@@ -65,7 +65,13 @@ func (p *Processor) broadcastSignature(
 	state.gs = p.gs.Load() // guaranteed to match ourObservation - there's no concurrent access to p.gs: TODO: Is this comment a problem??
 
 	// Fast path for our own signature. Put this in a go routine so it can block if the channel is full. That's also why we're not using node_common.PostMsgWithTimestamp.
-	go func() { p.obsvC <- node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv) }()
+	go func() {
+		if p.numWorkers == 1 {
+			p.obsvC <- node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv)
+		} else {
+			p.DispatchObservation(node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv))
+		}
+	}()
 
 	observationsBroadcastTotal.Inc()
 }

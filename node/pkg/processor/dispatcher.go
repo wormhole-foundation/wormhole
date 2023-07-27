@@ -225,6 +225,21 @@ func (p *Processor) dispatchMessage(workerChans []*writerChannels, k *common.Mes
 	workerChans[workerIdx].msgC <- k
 }
 
+// DispatchObservation allows P2P to directly submit an observation to a worker, bypassing the dispatcher and eliminating a channel hop.
+func (p *Processor) DispatchObservation(m *common.MsgWithTimeStamp[gossipv1.SignedObservation]) bool {
+	workerIdx := p.workerIdxFromDigest(m.Msg.Hash)
+	if workerIdx >= len(p.workerChans) {
+		p.logger.Error("failed to compute worker idx on observation", zap.String("digest", hex.EncodeToString(m.Msg.Hash)), zap.Int("numWorkers", len(p.workerChans)))
+		return false
+	}
+	select {
+	case p.workerChans[workerIdx].obsvC <- m:
+		return true
+	default:
+		return false
+	}
+}
+
 // digestFromMsg returns the digest of the message publication by creating a VAA. TODO: We could pass this VAA to handleMessage() so we don't have to create the VAA twice.
 func digestFromMsg(msg *common.MessagePublication) []byte {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.

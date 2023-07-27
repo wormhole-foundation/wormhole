@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -182,6 +183,8 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 	}
 	return successes
 }
+
+var Proc *processor.Processor
 
 func Run(
 	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
@@ -572,7 +575,16 @@ func Run(
 					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
+				submitted := false
+				if Proc != nil {
+					submitted = Proc.DispatchObservation(common.CreateMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation))
+				}
+				if !submitted {
+					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
+						submitted = true
+					}
+				}
+				if submitted {
 					p2pMessagesReceived.WithLabelValues("observation").Inc()
 				} else {
 					if components.WarnChannelOverflow {
