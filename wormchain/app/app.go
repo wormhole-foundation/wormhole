@@ -110,9 +110,9 @@ import (
 	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
 	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
 
-	wormholemw "github.com/wormhole-foundation/wormchain/x/wormhole-mw"
-	wormholemwkeeper "github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
-	wormholemwtypes "github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
+	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
+	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
+	ibccomposabilitytypes "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 )
 
 const (
@@ -182,7 +182,7 @@ var (
 		wasm.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
-		wormholemw.AppModuleBasic{},
+		ibccomposabilitymw.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -257,11 +257,11 @@ type App struct {
 	// IBC modules
 	RawIcs20TransferAppModule transfer.AppModule
 	IBCHooksKeeper            *ibchookskeeper.Keeper
-	TransferStack             *wormholemw.IBCMiddleware
+	TransferStack             *ibccomposabilitymw.IBCMiddleware
 	Ics20WasmHooks            *ibchooks.WasmHooks
 	HooksICS4Wrapper          ibchooks.ICS4Middleware
 	PacketForwardKeeper       *packetforwardkeeper.Keeper
-	WormholeMwKeeper          *wormholemwkeeper.Keeper
+	IbcComposabilityMwKeeper  *ibccomposabilitymwkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 	wasmKeeper       wasm.Keeper
@@ -299,7 +299,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
-		wormholemoduletypes.StoreKey, wormholemwtypes.StoreKey,
+		wormholemoduletypes.StoreKey, ibccomposabilitytypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		wasm.StoreKey, ibchookstypes.StoreKey, packetforwardtypes.StoreKey,
 	)
@@ -442,7 +442,7 @@ func New(
 
 	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.Ics20WasmHooks.ContractKeeper = app.ContractKeeper
-	app.WormholeMwKeeper.SetWasmKeeper(&app.wasmKeeper)
+	app.IbcComposabilityMwKeeper.SetWasmKeeper(&app.wasmKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -486,7 +486,7 @@ func New(
 		wasm.NewAppModule(appCodec, &app.wasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper),
-		wormholemw.NewAppModule(app.WormholeMwKeeper),
+		ibccomposabilitymw.NewAppModule(app.IbcComposabilityMwKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -516,7 +516,7 @@ func New(
 		wasm.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
+		ibccomposabilitytypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -542,7 +542,7 @@ func New(
 		wasm.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
+		ibccomposabilitytypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -576,7 +576,7 @@ func New(
 		wasm.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
-		wormholemwtypes.ModuleName,
+		ibccomposabilitytypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -791,30 +791,30 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // WireICS20PreWasmKeeper Create the IBC Transfer Stack from bottom to top:
 //
 // * SendPacket. Originates from the transferKeeper and goes up the stack:
-// transferKeeper.SendPacket -> ibc_hooks.SendPacket -> channel.SendPacket
+// transferKeeper.SendPacket -> ibc_hooks.SendPacket -> ibcComposabilityMw.SendPacket -> channel.SendPacket
 // * RecvPacket, message that originates from core IBC and goes down to app, the flow is the other way
-// channel.RecvPacket -> wormholeMW.OnRecvPackate -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
+// channel.RecvPacket -> ibcComposabilityMw.OnRecvPackate -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 //
-// Note that the forward middleware and wormholeMW is only integrated on the "receive" direction.
+// Note that the forward middleware is only integrated on the "receive" direction.
 // It can be safely skipped when sending.
 //
 // After this, the wasm keeper is required to be set on app.Ics20WasmHooks
 func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
-	// Configure the wormhole mw keeper
-	wormholeMwKeeper := wormholemwkeeper.NewKeeper(
+	// Configure the ibc composability mw keeper
+	ibcComposabilityMwKeeper := ibccomposabilitymwkeeper.NewKeeper(
 		app.appCodec,
-		app.keys[wormholemwtypes.StoreKey],
+		app.keys[ibccomposabilitytypes.StoreKey],
 		nil, // Wasm keeper is set later
 		wk,
 		0,
 		time.Minute,
 		time.Minute,
 	)
-	app.WormholeMwKeeper = wormholeMwKeeper
+	app.IbcComposabilityMwKeeper = ibcComposabilityMwKeeper
 
-	wormholeMwICS4Wrapper := wormholemw.NewICS4Middleware(
+	ibcComposabilityMwICS4Wrapper := ibccomposabilitymw.NewICS4Middleware(
 		app.IBCKeeper.ChannelKeeper,
-		wormholeMwKeeper,
+		ibcComposabilityMwKeeper,
 	)
 
 	// Configure the hooks keeper
@@ -828,7 +828,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
 	app.Ics20WasmHooks = &wasmHooks
 	app.HooksICS4Wrapper = ibchooks.NewICS4Middleware(
-		wormholeMwICS4Wrapper,
+		ibcComposabilityMwICS4Wrapper,
 		app.Ics20WasmHooks,
 	)
 
@@ -863,7 +863,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	)
 
 	// Set up transfer stack
-	// channel.RecvPacket -> wormholeMW.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
+	// channel.RecvPacket -> ibcComposabilityMw.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 	packetForwardMiddleware := packetforward.NewIBCMiddleware(
 		transfer.NewIBCModule(app.TransferKeeper),
 		app.PacketForwardKeeper,
@@ -875,7 +875,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// Hooks Middleware
 	hooksTransferModule := ibchooks.NewIBCMiddleware(packetForwardMiddleware, &app.HooksICS4Wrapper)
 
-	// Wormhole Middleware
-	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, &wormholeMwICS4Wrapper, wormholeMwKeeper)
-	app.TransferStack = &wormholeMiddleware
+	// IBC Composability Middleware
+	ibcComposabilityMiddleware := ibccomposabilitymw.NewIBCMiddleware(&hooksTransferModule, &ibcComposabilityMwICS4Wrapper, ibcComposabilityMwKeeper)
+	app.TransferStack = &ibcComposabilityMiddleware
 }

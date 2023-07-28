@@ -13,11 +13,11 @@ import (
 
 var _ = strconv.Itoa(0)
 
-// CmdSetMiddlewareContract will set the contract that wormhole's middleware will use.
-func CmdSetMiddlewareContract() *cobra.Command {
+// CmdSetIbcComposabilityMwContract will set the contract that ibc composability middleware will use.
+func CmdSetIbcComposabilityMwContract() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-middleware-contract [bech32 contract addr] [vaa-hex]",
-		Short: "Sets the contract that wormhole's middleware will use",
+		Use:   "set-ibc-composability-mw-contract [bech32 contract addr] [vaa-hex]",
+		Short: "Sets the contract that ibc composability middleware will use",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -31,7 +31,7 @@ func CmdSetMiddlewareContract() *cobra.Command {
 				return err
 			}
 
-			msg := types.MsgSetWormholeMiddlewareContract{
+			msg := types.MsgSetIbcComposabilityMwContract{
 				Signer:  clientCtx.GetFromAddress().String(),
 				Address: address,
 				Vaa:     vaaBz,

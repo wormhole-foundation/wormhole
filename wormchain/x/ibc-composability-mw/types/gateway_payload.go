@@ -43,7 +43,7 @@ func VerifyAndParseGatewayPayload(memo string) (ParsedPayload, error) {
 	gatewayIbcTokenBridgePayload := GatewayIbcTokenBridgePayload{}
 	err := json.Unmarshal([]byte(memo), &gatewayIbcTokenBridgePayload)
 	if err != nil {
-		return parsedPayload, fmt.Errorf("wormhole-mw: error parsing gateway ibc token bridge payload, %s", err)
+		return parsedPayload, fmt.Errorf("ibc-composability-mw: error parsing gateway ibc token bridge payload, %s", err)
 	}
 
 	if gatewayIbcTokenBridgePayload.GatewayIbcTokenBridgePayloadObj.Simple.Recipient != nil {
@@ -59,7 +59,7 @@ func VerifyAndParseGatewayPayload(memo string) (ParsedPayload, error) {
 		parsedPayload.Nonce = gatewayIbcTokenBridgePayload.GatewayIbcTokenBridgePayloadObj.ContractControlled.Nonce
 		parsedPayload.Payload = gatewayIbcTokenBridgePayload.GatewayIbcTokenBridgePayloadObj.ContractControlled.Payload
 	} else {
-		return parsedPayload, fmt.Errorf("wormhole-mw: error parsing gateway ibc token bridge payload")
+		return parsedPayload, fmt.Errorf("ibc-composability-mw: error parsing gateway ibc token bridge payload")
 	}
 
 	return parsedPayload, nil

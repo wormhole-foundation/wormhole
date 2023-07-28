@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-package wormhole_foundation.wormchain.wormhole_mw.v1;
+package wormhole_foundation.wormchain.ibc_composability_mw.v1;
 
-option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole-mw/types";
+option go_package = "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types";
 
 import "gogoproto/gogo.proto";
 
-// GenesisState defines the wormhole-mw genesis state
+// GenesisState defines the ibc-composability-mw genesis state
 message GenesisState {
   // key - information about modified packet: src_channel
   // (parsedReceiver.Channel), src_port (parsedReceiver.Port), sequence value -

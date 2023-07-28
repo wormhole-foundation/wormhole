@@ -5,17 +5,17 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var _ sdk.Msg = &MsgSetWormholeMiddlewareContract{}
+var _ sdk.Msg = &MsgSetIbcComposabilityMwContract{}
 
-func (msg *MsgSetWormholeMiddlewareContract) Route() string {
+func (msg *MsgSetIbcComposabilityMwContract) Route() string {
 	return RouterKey
 }
 
-func (msg *MsgSetWormholeMiddlewareContract) Type() string {
-	return "MsgSetWormholeMiddlewareContract"
+func (msg *MsgSetIbcComposabilityMwContract) Type() string {
+	return "MsgSetIbcComposabilityMwContract"
 }
 
-func (msg *MsgSetWormholeMiddlewareContract) GetSigners() []sdk.AccAddress {
+func (msg *MsgSetIbcComposabilityMwContract) GetSigners() []sdk.AccAddress {
 	signer, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -23,12 +23,12 @@ func (msg *MsgSetWormholeMiddlewareContract) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{signer}
 }
 
-func (msg *MsgSetWormholeMiddlewareContract) GetSignBytes() []byte {
+func (msg *MsgSetIbcComposabilityMwContract) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
 
-func (msg *MsgSetWormholeMiddlewareContract) ValidateBasic() error {
+func (msg *MsgSetIbcComposabilityMwContract) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address (%s)", err)
@@ -36,7 +36,7 @@ func (msg *MsgSetWormholeMiddlewareContract) ValidateBasic() error {
 
 	_, err = sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid allowlist address (%s)", err)
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", err)
 	}
 
 	return nil

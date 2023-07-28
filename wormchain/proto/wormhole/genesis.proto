@@ -21,6 +21,6 @@ message GenesisState {
   repeated GuardianValidator guardianValidatorList = 6 [(gogoproto.nullable) = false];
   repeated ValidatorAllowedAddress allowedAddresses = 7 [(gogoproto.nullable) = false];
   repeated WasmInstantiateAllowedContractCodeId wasmInstantiateAllowlist = 8 [(gogoproto.nullable) = false];
-  WormholeMiddlewareContract wormholeMiddlewareContract = 9 [(gogoproto.nullable) = false];
+  IbcComposabilityMwContract ibcComposabilityMwContract = 9 [(gogoproto.nullable) = false];
   // this line is used by starport scaffolding # genesis/proto/state
 }

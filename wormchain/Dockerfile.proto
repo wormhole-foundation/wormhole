@@ -10,7 +10,7 @@ RUN ignite generate proto-go
 
 FROM scratch AS go-export
 COPY --from=ignite-go-build /apps/wormchain/x/wormhole/types /x/wormhole/types
-COPY --from=ignite-go-build /apps/wormchain/x/wormhole-mw/types /x/wormhole-mw/types
+COPY --from=ignite-go-build /apps/wormchain/x/ibc-composability-mw/types /x/ibc-composability-mw/types
 
 FROM base AS ignite-vue-build
 RUN NODE_OPTIONS="" ignite generate vuex --proto-all-modules

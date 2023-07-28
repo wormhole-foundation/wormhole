@@ -10,7 +10,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func (k msgServer) SetWormholeMiddlewareContract(goCtx context.Context, msg *types.MsgSetWormholeMiddlewareContract) (*types.MsgSetWormholeMiddlewareContractResponse, error) {
+func (k msgServer) SetIbcComposabilityMwContract(goCtx context.Context, msg *types.MsgSetIbcComposabilityMwContract) (*types.MsgSetIbcComposabilityMwContractResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	// Parse VAA
@@ -26,7 +26,7 @@ func (k msgServer) SetWormholeMiddlewareContract(goCtx context.Context, msg *typ
 	}
 
 	// Ensure the governance action is correct
-	if vaa.GovernanceAction(action) != vaa.ActionSetWormholeMiddlewareContract {
+	if vaa.GovernanceAction(action) != vaa.ActionSetIbcComposabilityMwContract {
 		return nil, types.ErrUnknownGovernanceAction
 	}
 
@@ -44,21 +44,21 @@ func (k msgServer) SetWormholeMiddlewareContract(goCtx context.Context, msg *typ
 	// verify the cosmos address is correct
 	addrBytes, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
-		return nil, sdkerrors.Wrap(err, "middleware contract")
+		return nil, sdkerrors.Wrap(err, "ibc composability mw contract")
 	}
 
 	// validate the contractAddress in the VAA payload match the ones in the message
-	var payloadBody vaa.BodyWormchainMiddlewareContract
+	var payloadBody vaa.BodyWormchainIbcComposabilityMwContract
 	payloadBody.Deserialize(payload)
 	if !bytes.Equal(payloadBody.ContractAddr[:], addrBytes) {
-		return nil, types.ErrInvalidMiddlewareContractAddr
+		return nil, types.ErrInvalidIbcComposabilityMwContractAddr
 	}
 
-	newContract := types.WormholeMiddlewareContract{
+	newContract := types.IbcComposabilityMwContract{
 		ContractAddress: msg.Address,
 	}
 
-	k.StoreMiddlewareContract(ctx, newContract)
+	k.StoreIbcComposabilityMwContract(ctx, newContract)
 
-	return &types.MsgSetWormholeMiddlewareContractResponse{}, nil
+	return &types.MsgSetIbcComposabilityMwContractResponse{}, nil
 }

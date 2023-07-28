@@ -59,13 +59,13 @@ var (
 	ActionCoreTransferFees   GovernanceAction = 4
 	ActionCoreRecoverChainId GovernanceAction = 5
 
-	// Wormchain cosmwasm/middlware governance actions
+	// Wormchain cosmwasm/middleware governance actions
 	ActionStoreCode                      GovernanceAction = 1
 	ActionInstantiateContract            GovernanceAction = 2
 	ActionMigrateContract                GovernanceAction = 3
 	ActionAddWasmInstantiateAllowlist    GovernanceAction = 4
 	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
-	ActionSetWormholeMiddlewareContract  GovernanceAction = 6
+	ActionSetIbcComposabilityMwContract  GovernanceAction = 6
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -151,8 +151,8 @@ type (
 		CodeId       uint64
 	}
 
-	// BodyWormchainMiddlewareContract is a governance message to set a specific contract (i.e. IBC Translator) for the middleware to use
-	BodyWormchainMiddlewareContract struct {
+	// BodyWormchainIbcComposabilityMwContract is a governance message to set a specific contract (i.e. IBC Translator) for the ibc composability middleware to use
+	BodyWormchainIbcComposabilityMwContract struct {
 		ContractAddr [32]byte
 	}
 
@@ -296,13 +296,13 @@ func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 	r.CodeId = codeId
 }
 
-func (r BodyWormchainMiddlewareContract) Serialize() []byte {
+func (r BodyWormchainIbcComposabilityMwContract) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionSetWormholeMiddlewareContract, ChainIDWormchain, payload.Bytes())
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionSetIbcComposabilityMwContract, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyWormchainMiddlewareContract) Deserialize(bz []byte) {
+func (r *BodyWormchainIbcComposabilityMwContract) Deserialize(bz []byte) {
 	if len(bz) != 32 {
 		panic("incorrect payload length")
 	}

@@ -29,7 +29,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdDeleteAllowedAddress())
 	cmd.AddCommand(CmdAddWasmInstantiateAllowlist())
 	cmd.AddCommand(CmdDeleteWasmInstantiateAllowlist())
-	cmd.AddCommand(CmdSetMiddlewareContract())
+	cmd.AddCommand(CmdSetIbcComposabilityMwContract())
 	// this line is used by starport scaffolding # 1
 
 	return cmd

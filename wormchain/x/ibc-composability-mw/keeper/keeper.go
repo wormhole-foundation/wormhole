@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
+	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -54,7 +54,7 @@ func (k *Keeper) SetWasmKeeper(wasmkeeper *wasmkeeper.Keeper) {
 }
 
 // OnRecvPacket checks the memo field on this packet and if the memo indicates this packet
-// should be handled by the wormhole middleware, it updates the memo according to the payload
+// should be handled by the ibc composability middleware, it updates the memo according to the payload
 func (k Keeper) OnRecvPacket(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
@@ -82,7 +82,7 @@ func (k Keeper) OnRecvPacket(
 	}
 
 	// Get ibc translator contract address
-	wormholeMiddlewareContract := k.wormholeKeeper.GetMiddlewareContract(ctx)
+	ibcTranslatorContract := k.wormholeKeeper.GetIbcComposabilityMwContract(ctx)
 
 	// Look up chain id's channel
 	req := types.IbcTranslatorQueryMsg{
@@ -94,7 +94,7 @@ func (k Keeper) OnRecvPacket(
 	if err != nil {
 		return packet, channeltypes.NewErrorAcknowledgement(err)
 	}
-	ibcTranslatorAddr, err := sdk.AccAddressFromBech32(wormholeMiddlewareContract.ContractAddress)
+	ibcTranslatorAddr, err := sdk.AccAddressFromBech32(ibcTranslatorContract.ContractAddress)
 	if err != nil {
 		return packet, channeltypes.NewErrorAcknowledgement(err)
 	}
@@ -111,7 +111,7 @@ func (k Keeper) OnRecvPacket(
 		}
 	} else {
 		// If response doesn't exist, create ibc-hooks memo
-		newMemo, err = types.FormatIbcHooksMemo(parsedPayload, wormholeMiddlewareContract.ContractAddress)
+		newMemo, err = types.FormatIbcHooksMemo(parsedPayload, ibcTranslatorContract.ContractAddress)
 		if err != nil {
 			return packet, channeltypes.NewErrorAcknowledgement(err)
 		}

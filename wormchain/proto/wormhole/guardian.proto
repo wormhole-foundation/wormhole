@@ -37,7 +37,7 @@ message WasmInstantiateAllowedContractCodeId {
   uint64 code_id = 2;
 }
 
-message WormholeMiddlewareContract {
-  // bech32 address of the contract that is used by the wormhole middleware
+message IbcComposabilityMwContract {
+  // bech32 address of the contract that is used by the ibc composability middleware
   string contract_address = 1;
 }

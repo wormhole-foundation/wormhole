@@ -1,11 +1,11 @@
-package wormhole_mw
+package ibc_composability_mw
 
 import (
 	"encoding/json"
 	"math/rand"
 
-	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
-	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
+	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
+	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -20,7 +20,7 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 )
 
-// ConsensusVersion defines the current wormhole-mw module consensus version.
+// ConsensusVersion defines the current ibc-composability-mw module consensus version.
 const ConsensusVersion = 1
 
 var (
@@ -43,13 +43,13 @@ func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 // RegisterInterfaces registers module concrete types into protobuf Any.
 func (AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry) {}
 
-// DefaultGenesis returns default genesis state as raw bytes for the ibc
-// wormhole-mw module.
+// DefaultGenesis returns default genesis state as raw bytes for the
+// ibc-composability-mw module.
 func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return []byte("{}")
 }
 
-// ValidateGenesis performs genesis state validation for the wormhole-mw module.
+// ValidateGenesis performs genesis state validation for the ibc-composability-mw module.
 func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
 	return nil
 }

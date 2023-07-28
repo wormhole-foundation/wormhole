@@ -345,7 +345,7 @@ func wormchainIbcComposabilityMwSetContract(
 		return nil, err
 	}
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainMiddlewareContract{
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainIbcComposabilityMwContract{
 		ContractAddr: decodedAddr,
 	}.Serialize())
 

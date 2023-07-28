@@ -10,18 +10,18 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-func CmdShowMiddlewareContract() *cobra.Command {
+func CmdShowIbcComposabilityMwContract() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show-middleware-contract",
-		Short: "show the contract that is used by the middleware",
+		Use:   "show-ibc-composability-mw-contract",
+		Short: "show the contract that is used by the ibc composability middleware",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
 			queryClient := types.NewQueryClient(clientCtx)
 
-			req := &types.QueryWormholeMiddlewareContractRequest{}
+			req := &types.QueryIbcComposabilityMwContractRequest{}
 
-			res, err := queryClient.WormholeMiddlewareContract(context.Background(), req)
+			res, err := queryClient.IbcComposabilityMwContract(context.Background(), req)
 			if err != nil {
 				return err
 			}

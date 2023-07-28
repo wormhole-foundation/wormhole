@@ -3,9 +3,9 @@ package types
 import "fmt"
 
 const (
-	// ModuleName defines the wormhole middleware name
-	// wormhole prefix is already used, so using wormchain-mw
-	ModuleName = "wormchain-mw"
+	// ModuleName defines the ibc composability middleware name
+	// note, ibc prefix is taken
+	ModuleName = "composability-mw"
 
 	StoreKey = ModuleName
 )

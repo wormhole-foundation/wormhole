@@ -1,7 +1,7 @@
-package wormhole_mw
+package ibc_composability_mw
 
 import (
-	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
+	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
@@ -87,7 +87,7 @@ func (im IBCMiddleware) OnChanCloseConfirm(ctx sdk.Context, portID, channelID st
 }
 
 // OnRecvPacket checks the memo field on this packet and if the memo indicates this packet
-// should be handled by the wormhole middleware, it updates the memo according to the payload
+// should be handled by the ibc composability middleware, it updates the memo according to the payload
 func (im IBCMiddleware) OnRecvPacket(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
