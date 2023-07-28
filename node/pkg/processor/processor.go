@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -126,10 +127,11 @@ type Processor struct {
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
-	governor    *governor.ChainGovernor
-	acct        *accountant.Accountant
-	acctReadC   <-chan *common.MessagePublication
-	pythnetVaas map[string]PythNetVaaEntry
+	governor       *governor.ChainGovernor
+	acct           *accountant.Accountant
+	acctReadC      <-chan *common.MessagePublication
+	pythnetVaas    map[string]PythNetVaaEntry
+	gatewayRelayer *gwrelayer.GatewayRelayer
 }
 
 var (
@@ -164,6 +166,7 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
+	gatewayRelayer *gwrelayer.GatewayRelayer,
 ) *Processor {
 
 	return &Processor{
@@ -180,13 +183,14 @@ func NewProcessor(
 
 		attestationEvents: attestationEvents,
 
-		logger:      supervisor.Logger(ctx),
-		state:       &aggregationState{observationMap{}},
-		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
-		governor:    g,
-		acct:        acct,
-		acctReadC:   acctReadC,
-		pythnetVaas: make(map[string]PythNetVaaEntry),
+		logger:         supervisor.Logger(ctx),
+		state:          &aggregationState{observationMap{}},
+		ourAddr:        crypto.PubkeyToAddress(gk.PublicKey),
+		governor:       g,
+		acct:           acct,
+		acctReadC:      acctReadC,
+		pythnetVaas:    make(map[string]PythNetVaaEntry),
+		gatewayRelayer: gatewayRelayer,
 	}
 }
 
