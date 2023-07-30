@@ -401,4 +401,4 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - run: npx prettier --check ./clients/js/src ./sdk/js/src
+      - run: npx prettier@2.3.2 --check ./clients/js/src ./sdk/js/src

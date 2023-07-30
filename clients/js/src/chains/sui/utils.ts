@@ -311,14 +311,14 @@ export const isSameType = (a: string, b: string) => {
 
 export const isSuiCreateEvent = <
   T extends NonNullable<SuiTransactionBlockResponse["objectChanges"]>[number],
-  K extends Extract<T, { type: "created" }>,
+  K extends Extract<T, { type: "created" }>
 >(
   event: T
 ): event is K => event?.type === "created";
 
 export const isSuiPublishEvent = <
   T extends NonNullable<SuiTransactionBlockResponse["objectChanges"]>[number],
-  K extends Extract<T, { type: "published" }>,
+  K extends Extract<T, { type: "published" }>
 >(
   event: T
 ): event is K => event?.type === "published";

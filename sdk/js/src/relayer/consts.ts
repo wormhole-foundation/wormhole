@@ -37,6 +37,11 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
     mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56",
   },
+  base: {
+    wormholeRelayerAddress: "0xea8029CD7FCAEFFcD1F53686430Db0Fc8ed384E1",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
+    mockIntegrationAddress: "0x9Ee656203B0DC40cc1bA3f4738527779220e3998",
+  },
 };
 
 const DEVNET: { [K in ChainName]?: AddressInfo } = {

@@ -431,7 +431,7 @@ function serialiseCoreContractUpgrade(payload: CoreContractUpgrade): string {
 }
 
 export interface PortalContractUpgrade<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 > {
   module: Module;
   type: "ContractUpgrade";
@@ -441,7 +441,7 @@ export interface PortalContractUpgrade<
 
 // Parse a portal contract upgrade payload
 function portalContractUpgradeParser<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(module: Module): P<PortalContractUpgrade<Module>> {
   return new P(
     new Parser()
@@ -470,7 +470,7 @@ function portalContractUpgradeParser<
 }
 
 function serialisePortalContractUpgrade<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(payload: PortalContractUpgrade<Module>): string {
   const body = [
     encode("bytes32", encodeString(payload.module)),
@@ -485,7 +485,7 @@ function serialisePortalContractUpgrade<
 // Registrations
 
 export interface PortalRegisterChain<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 > {
   module: Module;
   type: "RegisterChain";
@@ -496,7 +496,7 @@ export interface PortalRegisterChain<
 
 // Parse a portal chain registration payload
 function portalRegisterChainParser<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(module: Module): P<PortalRegisterChain<Module>> {
   return new P(
     new Parser()
@@ -526,7 +526,7 @@ function portalRegisterChainParser<
 }
 
 function serialisePortalRegisterChain<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(payload: PortalRegisterChain<Module>): string {
   const body = [
     encode("bytes32", encodeString(payload.module)),
@@ -589,7 +589,7 @@ function serialiseCoreContractRecoverChainId(
 }
 
 export interface PortalContractRecoverChainId<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 > {
   module: Module;
   type: "RecoverChainId";
@@ -599,7 +599,7 @@ export interface PortalContractRecoverChainId<
 
 // Parse a portal contract recoverChainId payload
 function portalContractRecoverChainId<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(module: Module): P<PortalContractRecoverChainId<Module>> {
   return new P(
     new Parser()
@@ -628,7 +628,7 @@ function portalContractRecoverChainId<
 }
 
 function serialisePortalContractRecoverChainId<
-  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer",
+  Module extends "NFTBridge" | "TokenBridge" | "WormholeRelayer"
 >(payload: PortalContractRecoverChainId<Module>): string {
   const body = [
     encode("bytes32", encodeString(payload.module)),
