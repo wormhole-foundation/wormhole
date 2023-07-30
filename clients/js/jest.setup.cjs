@@ -1,8 +1,4 @@
-const fs = require("fs");
+// Inject Worm CLI env variables into Jest environment, using mock data
+require("./__tests__/utils/env/index.cjs");
 
-// Loads env variables for test environment (Jest)
-const envConfig = fs.readFileSync(".env.mock.jest", "utf8");
-envConfig.split("\n").forEach((line) => {
-  const [key, value] = line.split("=");
-  process.env[key] = value;
-});
+// Add more setup jest configurations/plugins below..
