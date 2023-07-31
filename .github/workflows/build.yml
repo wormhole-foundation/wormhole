@@ -11,7 +11,7 @@ jobs:
     # in the future, we may want to run cheap lints, tests, and builds before firing up the expensive tilt test.
     # But for now, we'll kick-off everything at once
     # needs: [go-lint-and-tests, node, algorand, ethereum, terra, rust-lint-and-tests]
-    runs-on: tilt-kube-public
+    runs-on: tilt-kube-public-test
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
     # and capacity is limited, so we want to avoid running multiple builds
@@ -36,7 +36,7 @@ jobs:
 
       # temporarily set --guardiand_loglevel=info to debug https://github.com/wormhole-foundation/wormhole/issues/3052
       - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2 --guardiand_loglevel=info
-        timeout-minutes: 25
+        timeout-minutes: 60
 
       # Clean up k8s resources
       - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod,job --all
