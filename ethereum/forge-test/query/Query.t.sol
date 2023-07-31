@@ -21,12 +21,10 @@ contract TestQueryResponse is Test {
     bytes32 expectedHash = 0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e;
     bytes32 expectedDigetst = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
 
-    QueryResponse qr;
     Wormhole wormhole;
 
     function setUp() public {
-        wormhole = deployWormhole();
-        qr = new QueryResponse();
+        wormhole = deployWormholeForTest();
     }
 
     uint16 constant TEST_CHAIN_ID = 2;
@@ -34,7 +32,7 @@ contract TestQueryResponse is Test {
     uint16 constant GOVERNANCE_CHAIN_ID = 1;
     bytes32 constant GOVERNANCE_CONTRACT = 0x0000000000000000000000000000000000000000000000000000000000000004;
 
-    function deployWormhole() public returns (Wormhole) {
+    function deployWormholeForTest() public returns (Wormhole) {
         // Deploy the Setup contract.
         Setup setup = new Setup();
 
@@ -62,25 +60,25 @@ contract TestQueryResponse is Test {
     }
 
     function test_getResponseHash() public {
-        bytes32 hash = qr.getResponseHash(resp);
+        bytes32 hash = QueryResponse.getResponseHash(resp);
         assertEq(hash, expectedHash);
     }
 
     function test_getResponseDigest() public {
-        bytes32 digest = qr.getResponseDigest(resp);
+        bytes32 digest = QueryResponse.getResponseDigest(resp);
         assertEq(digest, expectedDigetst);
     }
 
     function test_verifyQueryResponseSignatures() public view {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        qr.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+        QueryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
     }
 
     function test_parseAndVerifyQueryResponse() public {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        QueryResponse.ParsedQueryResponse memory r = qr.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        QueryResponse.ParsedQueryResponse memory r = QueryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
         assertEq(r.version, 1);
         assertEq(r.senderChainId, 0);
         assertEq(r.requestId, hex"ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f200");
@@ -93,6 +91,7 @@ contract TestQueryResponse is Test {
     }
 
     function test_parseEthCallQueryResponse() public {
+        // Take the data extracted by the previous test and break it down even further.
         QueryResponse.ParsedPerChainQueryResponse memory r = QueryResponse.ParsedPerChainQueryResponse({
             chainId: 5,
             queryType: 1,
@@ -100,7 +99,7 @@ contract TestQueryResponse is Test {
             response: hex"0000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a"
             });
 
-        QueryResponse.EthCallQueryResponse memory eqr = qr.parseEthCallQueryResponse(r);
+        QueryResponse.EthCallQueryResponse memory eqr = QueryResponse.parseEthCallQueryResponse(r);
         assertEq(eqr.requestBlockId, hex"307832613631616334");
         assertEq(eqr.blockNum, 44440260);
         assertEq(eqr.blockHash, hex"c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d04");
@@ -114,6 +113,5 @@ contract TestQueryResponse is Test {
         assertEq(eqr.result[1].contractAddress, address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270));
         assertEq(eqr.result[1].callData, hex"18160ddd");
         assertEq(eqr.result[1].result, hex"0000000000000000000000000000000000000000007ae5649beabeddf889364a");
-        
     }
 }
