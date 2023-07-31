@@ -31,5 +31,7 @@ anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 hex = "0.4"
 ruint = "1.8.0"
 solana-program = "=1.14.20"
+wormhole-io = { version = "=0.0.16", features = ["ruint"] }
 wormhole-solana-common = { path = "../../common/solana-common" }
+wormhole-raw-vaas = { version = "=0.0.18", features = ["anchor"], default-features = false }
 wormhole-vaas = { version = "=0.0.15", features = ["anchor"], default-features = false }

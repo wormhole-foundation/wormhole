@@ -5,13 +5,12 @@ use crate::{
     error::TokenBridgeError,
     legacy::LegacyTransferTokensArgs,
     processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
-    utils,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_raw_vaas::support::EncodedAmount;
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::{payloads::token_bridge::Transfer, EncodedAmount, U256};
 
 #[derive(Accounts)]
 pub struct TransferTokensNative<'info> {
@@ -93,7 +92,7 @@ impl<'info> TransferTokensNative<'info> {
     fn accounts_and_args(ctx: &Context<Self>, args: &LegacyTransferTokensArgs) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        utils::require_native_mint(&ctx.accounts.mint)?;
+        crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
         // Cannot configure a fee greater than the total transfer amount.
         require_gte!(
@@ -133,13 +132,13 @@ pub fn transfer_tokens_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer: Transfer = Transfer {
-        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals),
+    let token_transfer = super::Transfer {
+        norm_amount: EncodedAmount::norm(amount.into(), mint.decimals),
         token_address: mint.key().to_bytes().into(),
         token_chain: SOLANA_CHAIN,
         recipient: recipient.into(),
         recipient_chain,
-        norm_relayer_fee: EncodedAmount::norm(U256::from(relayer_fee), mint.decimals),
+        norm_relayer_fee: EncodedAmount::norm(relayer_fee.into(), mint.decimals),
     };
 
     // Finally publish Wormhole message using the Core Bridge.

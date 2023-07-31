@@ -9,10 +9,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1, VaaV1LegacyAccount},
+    state::{PostedVaaV1Bytes, VaaV1LegacyAccount},
 };
+use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::payloads::token_bridge::Transfer;
 
 use super::validate_token_transfer;
 
@@ -26,12 +26,12 @@ pub struct CompleteTransferNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<Transfer>::seed_prefix(),
+            PostedVaaV1Bytes::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<Transfer>>,
+    posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
     #[account(
         init,
@@ -101,15 +101,25 @@ pub struct CompleteTransferNative<'info> {
 
 impl<'info> CompleteTransferNative<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let token_chain = validate_token_transfer(
+        // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
+        // originated from a foreign network.
+        crate::utils::require_native_mint(&ctx.accounts.mint)?;
+
+        let (token_chain, token_address) = validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
-            &ctx.accounts.mint,
             &ctx.accounts.dst_token,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
         require_eq!(token_chain, SOLANA_CHAIN, TokenBridgeError::WrappedAsset);
+
+        // Mint account must agree with the encoded token address.
+        require_eq!(
+            Pubkey::from(token_address),
+            ctx.accounts.mint.key(),
+            TokenBridgeError::InvalidMint
+        );
 
         // Done.
         Ok(())
@@ -124,19 +134,20 @@ pub fn complete_transfer_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let transfer_msg = &ctx.accounts.posted_vaa.payload;
+    let transfer = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+        .unwrap()
+        .transfer()
+        .unwrap();
     let decimals = ctx.accounts.mint.decimals;
 
-    // Denormalize transfer amount and relayer payouts based on this mint's decimals. When these
+    // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these
     // operations.
-    let mut transfer_amount = transfer_msg
-        .norm_amount
+    let mut transfer_amount = EncodedAmount::from(transfer.amount())
         .denorm(decimals)
         .try_into()
         .expect("Solana token amounts are u64");
-    let relayer_payout = transfer_msg
-        .norm_relayer_fee
+    let relayer_payout = EncodedAmount::from(transfer.relayer_fee())
         .denorm(decimals)
         .try_into()
         .unwrap();
@@ -155,7 +166,7 @@ pub fn complete_transfer_native(
     // recipient's, we have to make an extra transfer.
     if relayer_payout > 0 && dst_token.key() != payer_token.key() {
         // NOTE: This math operation is safe because the relayer payout is always <= to the
-        // total outbound transfer amount.
+        // total outbound transfer transfer_amount.
         transfer_amount -= relayer_payout;
 
         withdraw_native_tokens(
@@ -168,7 +179,7 @@ pub fn complete_transfer_native(
         )?;
     }
 
-    // Finally transfer remaining amount to recipient.
+    // Finally transfer remaining transfer_amount to recipient.
     withdraw_native_tokens(
         token_program,
         custody_token,

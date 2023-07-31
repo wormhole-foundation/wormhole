@@ -9,10 +9,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1, VaaV1LegacyAccount},
+    state::{PostedVaaV1Bytes, VaaV1LegacyAccount},
 };
+use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::payloads::token_bridge::TransferWithMessage;
 
 use super::validate_token_transfer_with_payload;
 
@@ -26,12 +26,12 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<TransferWithMessage>::seed_prefix(),
+            PostedVaaV1Bytes::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<TransferWithMessage>>,
+    posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
     #[account(
         init,
@@ -103,16 +103,22 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let token_chain = validate_token_transfer_with_payload(
+        let (token_chain, token_address) = validate_token_transfer_with_payload(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
-            &ctx.accounts.wrapped_mint,
             &ctx.accounts.redeemer_authority,
             &ctx.accounts.redeemer_token,
         )?;
 
         // For wrapped transfers, this token must have originated from another network.
         require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+
+        // Wrapped asset account must agree with the encoded token address.
+        require_eq!(
+            token_address,
+            ctx.accounts.wrapped_asset.token_address,
+            TokenBridgeError::InvalidMint
+        );
 
         // Done.
         Ok(())
@@ -127,12 +133,14 @@ pub fn complete_transfer_with_payload_wrapped(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
+    let norm_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+        .unwrap()
+        .transfer_with_message()
+        .unwrap()
+        .norm_amount();
+
     // Take transfer amount as-is.
-    let transfer_amount = ctx
-        .accounts
-        .posted_vaa
-        .payload
-        .norm_amount
+    let mint_amount = EncodedAmount::from(norm_amount)
         .0
         .try_into()
         .map_err(|_| TokenBridgeError::U64Overflow)?;
@@ -144,6 +152,6 @@ pub fn complete_transfer_with_payload_wrapped(
         &ctx.accounts.redeemer_token,
         &ctx.accounts.mint_authority,
         ctx.bumps["mint_authority"],
-        transfer_amount,
+        mint_amount,
     )
 }

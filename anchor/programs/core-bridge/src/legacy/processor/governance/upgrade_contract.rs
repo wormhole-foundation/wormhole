@@ -2,13 +2,15 @@ use crate::{
     constants::UPGRADE_SEED_PREFIX,
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, VaaV1LegacyAccount},
-    utils::PostedGovernanceVaaV1,
+    state::{BridgeProgramData, Claim, PartialPostedVaaV1},
+    utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
+use wormhole_io::Readable;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
-use wormhole_vaas::payloads::gov::core_bridge::Decree;
+
+const ACTION_CONTRACT_UPGRADE: u8 = 1;
 
 #[derive(Accounts)]
 pub struct UpgradeContract<'info> {
@@ -24,12 +26,12 @@ pub struct UpgradeContract<'info> {
 
     #[account(
         seeds = [
-            PostedGovernanceVaaV1::seed_prefix(),
-            posted_vaa.try_message_hash()?.as_ref()
+            PartialPostedVaaV1::seed_prefix(),
+            PartialPostedVaaV1::try_message_hash(&posted_vaa)?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedGovernanceVaaV1>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -79,23 +81,28 @@ pub struct UpgradeContract<'info> {
 
 impl<'info> UpgradeContract<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let decree = crate::utils::require_valid_governance_posted_vaa(
+        let action = crate::utils::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.bridge,
         )?;
 
-        if let Decree::ContractUpgrade(inner) = decree {
-            // Read the implementation pubkey and check against the buffer in our account context.
-            require_keys_eq!(
-                Pubkey::from(inner.implementation.0),
-                ctx.accounts.buffer.key()
-            );
+        require_eq!(
+            action,
+            ACTION_CONTRACT_UPGRADE,
+            CoreBridgeError::InvalidGovernanceAction
+        );
 
-            // Done.
-            Ok(())
-        } else {
-            err!(CoreBridgeError::InvalidGovernanceAction)
-        }
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+
+        // Read the implementation pubkey and check against the buffer in our account context.
+        require_keys_eq!(
+            Pubkey::new_from_array(Readable::read(&mut data).unwrap()),
+            ctx.accounts.buffer.key()
+        );
+
+        // Done.
+        Ok(())
     }
 }
 

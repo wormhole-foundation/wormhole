@@ -2,7 +2,7 @@ use std::fmt;
 
 use anchor_lang::prelude::*;
 use solana_program::keccak;
-use wormhole_vaas::{Readable, Writeable};
+use wormhole_io::{Readable, Writeable};
 
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
@@ -16,6 +16,15 @@ pub enum VaaVersion {
 impl VaaVersion {
     const UNSET: u8 = 0;
     const V_1: u8 = 1;
+}
+
+impl From<VaaVersion> for u8 {
+    fn from(value: VaaVersion) -> Self {
+        match value {
+            VaaVersion::Unset => VaaVersion::UNSET,
+            VaaVersion::V1 => VaaVersion::V_1,
+        }
+    }
 }
 
 impl Readable for VaaVersion {

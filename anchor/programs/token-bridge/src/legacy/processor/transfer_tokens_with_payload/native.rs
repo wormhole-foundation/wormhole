@@ -9,8 +9,8 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_raw_vaas::support::EncodedAmount;
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::{payloads::token_bridge::TransferWithMessage, EncodedAmount, U256};
 
 use super::new_sender_address;
 
@@ -136,8 +136,8 @@ pub fn transfer_tokens_with_payload_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer: TransferWithMessage = TransferWithMessage {
-        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals),
+    let token_transfer = super::TransferWithMessage {
+        norm_amount: EncodedAmount::norm(amount.into(), mint.decimals),
         token_address: mint.key().to_bytes().into(),
         token_chain: SOLANA_CHAIN,
         redeemer: redeemer.into(),

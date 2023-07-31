@@ -1806,6 +1806,8 @@ dependencies = [
  "hex",
  "ruint",
  "solana-program",
+ "wormhole-io",
+ "wormhole-raw-vaas",
  "wormhole-solana-common",
  "wormhole-vaas",
 ]
@@ -1824,8 +1826,9 @@ dependencies = [
  "solana-wormhole-core-bridge",
  "toml_datetime",
  "winnow",
+ "wormhole-io",
+ "wormhole-raw-vaas",
  "wormhole-solana-common",
- "wormhole-vaas",
 ]
 
 [[package]]
@@ -2267,6 +2270,27 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "wormhole-io"
+version = "0.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a067eccb57217d76a05b7a5edb5adc25c97c6f559e08695b12b5b7a033c5a58c"
+dependencies = [
+ "ruint",
+ "ruint-macro",
+]
+
+[[package]]
+name = "wormhole-raw-vaas"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a82858c2e8f9729f2ccd8ad039d4287b5e63602699b5a638c13e1dd170d281e"
+dependencies = [
+ "anchor-lang",
+ "ruint",
+ "ruint-macro",
 ]
 
 [[package]]
