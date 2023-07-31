@@ -1,7 +1,7 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
-use core_bridge_program::state::PostedVaaV1;
-use wormhole_vaas::payloads::TypePrefixedPayload;
+use core_bridge_program::state::PostedVaaV1Bytes;
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
 const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
@@ -14,13 +14,10 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
     "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
 ];
 
-pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx, P>(
-    vaa: &'ctx Account<'_, PostedVaaV1<P>>,
-    registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
-) -> Result<&'ctx P>
-where
-    P: TypePrefixedPayload,
-{
+pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx>(
+    vaa: &'ctx Account<'_, PostedVaaV1Bytes>,
+    registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
+) -> Result<TokenBridgeMessage<'ctx>> {
     // IYKYK.
     require!(
         !INVALID_POSTED_VAA_KEYS.contains(&vaa.key().to_string().as_str()),
@@ -51,6 +48,8 @@ where
         require_keys_eq!(emitter_key, legacy_address);
     }
 
+    let span: &[u8] = vaa.payload.as_ref();
+
     // Done.
-    Ok(&vaa.payload)
+    TokenBridgeMessage::parse(span).map_err(|_| TokenBridgeError::CannotParseMessage.into())
 }

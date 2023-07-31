@@ -1,9 +1,7 @@
 {
     "scripts": {
-        "build-js": "npm run build-local && npm i js/",
         "lint:fix": "prettier --ignore-path .gitignore */**/*.ts -w",
-        "lint": "prettier --ignore-path .gitignore */**/*.ts --check",
-        "integration-test": "bash tests/run_mocha_tests.sh"
+        "lint": "prettier --ignore-path .gitignore */**/*.ts --check"
     },
     "dependencies": {
         "@certusone/wormhole-sdk": "^0.9.21",

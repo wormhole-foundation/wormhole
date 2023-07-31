@@ -3,7 +3,7 @@ use crate::{
     state::Claim, utils::PostedGovernanceVaaV1,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::VaaV1LegacyAccount;
+use core_bridge_program::state::VaaV1MessageHash;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
 use wormhole_vaas::payloads::gov::token_bridge::Decree;

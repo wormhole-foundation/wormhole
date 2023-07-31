@@ -5,8 +5,9 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
+use wormhole_raw_vaas::{GuardianSetSig, Vaa};
 use wormhole_solana_common::{utils, SeedPrefix};
-use wormhole_vaas::{GuardianSetSig, Readable};
+//use wormhole_vaas::GuardianSetSig;
 
 const START: usize = EncodedVaa::BYTES_START;
 
@@ -56,8 +57,8 @@ impl<'info> ProcessEncodedVaa<'info> {
         }
 
         // Check header.
-        let mut acct_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize(&mut acct_data)?;
+        let mut data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
+        let header = ProcessingHeader::try_account_deserialize(&mut data)?;
         require_keys_eq!(header.write_authority, ctx.accounts.write_authority.key());
 
         // Done.
@@ -90,19 +91,19 @@ pub fn process_encoded_vaa(
     ctx: Context<ProcessEncodedVaa>,
     directive: ProcessEncodedVaaDirective,
 ) -> Result<()> {
-    let vaa_acct_info = &ctx.accounts.encoded_vaa;
+    let vaa_acc_info = &ctx.accounts.encoded_vaa;
     match directive {
         ProcessEncodedVaaDirective::CloseVaaAccount => {
             msg!("Directive: CloseVaaAccount");
             utils::close_account(
-                vaa_acct_info.to_account_info(),
+                vaa_acc_info.to_account_info(),
                 ctx.accounts.write_authority.to_account_info(),
             )
         }
         ProcessEncodedVaaDirective::Write { index, data } => {
             msg!("Directive: Write");
             write_vaa(
-                vaa_acct_info,
+                vaa_acc_info,
                 index
                     .try_into()
                     .map_err(|_| CoreBridgeError::InvalidInstructionArgument)?,
@@ -112,97 +113,99 @@ pub fn process_encoded_vaa(
         ProcessEncodedVaaDirective::VerifySignaturesV1 => match &ctx.accounts.guardian_set {
             Some(guardian_set) => {
                 msg!("Directive: VerifySignaturesV1");
-                verify_signatures_v1(vaa_acct_info, guardian_set)
+                verify_signatures_v1(vaa_acc_info, guardian_set)
             }
             _ => err!(ErrorCode::AccountNotEnoughKeys),
         },
     }
 }
 
-fn write_vaa(vaa_acct_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
+fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, new_data: Vec<u8>) -> Result<()> {
     require!(
-        !data.is_empty(),
+        !new_data.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
     );
 
     let vaa_len = {
-        let mut acct_data: &[u8] = &vaa_acct_info.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acct_data)?;
+        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
+        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
-        let vaa_len = u32::deserialize(&mut acct_data)?;
+        let vaa_len = u32::deserialize(&mut data)?;
         usize::try_from(vaa_len).unwrap()
     };
 
-    let end = index.saturating_add(data.len());
+    let end = index.saturating_add(new_data.len());
     require_gte!(vaa_len, end, CoreBridgeError::DataOverflow);
 
-    let acct_data: &mut [u8] = &mut vaa_acct_info.try_borrow_mut_data()?;
-    acct_data[(START + index)..(START + end)].copy_from_slice(&data);
+    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
+    data[(START + index)..(START + end)].copy_from_slice(&new_data);
 
     // Done.
     Ok(())
 }
 
 fn verify_signatures_v1(
-    vaa_acct_info: &AccountInfo<'_>,
+    vaa_acc_info: &AccountInfo<'_>,
     guardian_set: &Account<'_, GuardianSet>,
 ) -> Result<()> {
     let write_authority = {
-        let mut acct_data: &[u8] = &vaa_acct_info.try_borrow_data()?;
-        acct_data = &acct_data[8..];
+        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
+        data = &data[8..];
 
-        let header = ProcessingHeader::deserialize(&mut acct_data)?;
+        let header = ProcessingHeader::deserialize(&mut data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
         // Skip vaa length.
-        acct_data = &acct_data[4..];
+        data = &data[4..];
 
-        require!(
-            VaaVersion::read(&mut acct_data)? == VaaVersion::V1,
+        // Parse and verify.
+        let vaa = Vaa::parse(&mut data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
+
+        // Must be V1.
+        require_eq!(
+            vaa.version(),
+            u8::from(VaaVersion::V1),
             CoreBridgeError::InvalidVaaVersion
         );
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
-        let guardian_set_index = u32::read(&mut acct_data)?;
-        require_eq!(guardian_set_index, guardian_set.index);
-
-        let num_signatures = u8::read(&mut acct_data)?;
+        require_eq!(vaa.guardian_set_index(), guardian_set.index);
 
         // Do we have enough signatures for quorum?
         let guardian_keys = &guardian_set.keys;
         let quorum = crate::utils::quorum(guardian_keys.len());
         require_gte!(
-            usize::from(num_signatures),
+            usize::from(vaa.signature_count()),
             quorum,
             CoreBridgeError::NoQuorum
         );
 
-        let sigs: Vec<_> = (0..num_signatures)
-            .filter_map(|_| GuardianSetSig::read(&mut acct_data).ok())
-            .collect();
-        require!(
-            usize::from(num_signatures) == sigs.len(),
-            ErrorCode::AccountDidNotDeserialize
-        );
+        // let sigs: Vec<_> = (0..num_signatures)
+        //     .filter_map(|_| GuardianSetSig::read(&mut data).ok())
+        //     .collect();
+        // require!(
+        //     usize::from(num_signatures) == sigs.len(),
+        //     ErrorCode::AccountDidNotDeserialize
+        // );
 
         // Generate the same message hash (using keccak) that the Guardians used to generate their
         // signatures. This message hash will be hashed again to produce the digest for
         // `secp256k1_recover`.
-        let digest = keccak::hash(keccak::hash(acct_data).as_ref());
+        let digest = vaa.body().double_digest();
 
         // Only verify as many as we need (up to quorum).
         let mut last_guardian_index = None;
         let mut num_verified = 0;
-        for sig in sigs.iter() {
+        for sig in vaa.signatures() {
             // We do not allow for non-increasing guardian signature indices.
-            let index = usize::from(sig.guardian_set_index);
+            let index = usize::from(sig.guardian_index());
             if let Some(last_index) = last_guardian_index {
                 require_gt!(index, last_index, CoreBridgeError::InvalidGuardianIndex);
             }
@@ -213,7 +216,7 @@ fn verify_signatures_v1(
                 .ok_or_else(|| error!(CoreBridgeError::InvalidGuardianIndex))?;
 
             // Now verify that the signature agrees with the expected Guardian's pubkey.
-            verify_guardian_signature(sig, guardian_pubkey, digest.as_ref())?;
+            verify_guardian_signature(&sig, guardian_pubkey, digest.as_ref())?;
             num_verified += 1;
 
             // If we have reached quorum, no need to spend compute units to verify other signatures.
@@ -227,8 +230,8 @@ fn verify_signatures_v1(
         header.write_authority
     };
 
-    let acct_data: &mut [u8] = &mut vaa_acct_info.try_borrow_mut_data()?;
-    let mut writer = std::io::Cursor::new(acct_data);
+    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
+    let mut writer = std::io::Cursor::new(data);
     ProcessingHeader {
         status: ProcessingStatus::Verified,
         write_authority,
@@ -246,7 +249,7 @@ fn verify_guardian_signature(
     // units. And hashing this public key to recover the Ethereum public key costs about 13k.
     let recovered = {
         // Recover EC public key (64 bytes).
-        let pubkey = secp256k1_recover(digest, sig.recovery_id(), &sig.raw_sig())
+        let pubkey = secp256k1_recover(digest, sig.recovery_id(), &sig.rs())
             .map_err(|_| CoreBridgeError::InvalidSignature)?;
 
         // The Ethereum public key is the last 20 bytes of keccak hashed public key above.

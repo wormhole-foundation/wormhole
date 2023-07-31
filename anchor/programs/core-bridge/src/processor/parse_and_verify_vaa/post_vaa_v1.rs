@@ -4,8 +4,8 @@ use crate::{
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
+use wormhole_raw_vaas::Vaa;
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
-use wormhole_vaas::{PayloadKind, Readable, VaaBody};
 
 #[derive(Accounts)]
 pub struct PostVaaV1<'info> {
@@ -23,7 +23,8 @@ pub struct PostVaaV1<'info> {
         init,
         payer = write_authority,
         space = PostedVaaV1Bytes::compute_size(vaa.payload_size()?),
-        seeds = [PostedVaaV1Bytes::seed_prefix(), vaa.compute_message_hash()?.as_ref()],
+        //seeds = [PostedVaaV1Bytes::seed_prefix(), vaa.compute_message_hash()?.as_ref()],
+        seeds = [PostedVaaV1Bytes::seed_prefix(), &Vaa::parse(&mut &vaa.bytes).unwrap().body().digest()],
         bump,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
@@ -58,51 +59,31 @@ pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Re
             let encoded_vaa = &ctx.accounts.vaa;
             let mut vaa_buf: &[u8] = &encoded_vaa.bytes;
 
+            // This is safe because the VAA integrity has already been verified.
+            let vaa = Vaa::parse(&mut vaa_buf).unwrap();
+
             // Verify version.
-            let version = encoded_vaa.version;
-            require!(
-                version == VaaVersion::V1,
+            require_eq!(
+                vaa.version(),
+                u8::from(VaaVersion::V1),
                 CoreBridgeError::InvalidVaaVersion
             );
 
-            // First byte is the version, which is already verified.
-            vaa_buf = &vaa_buf[1..];
+            let body = vaa.body();
 
-            // Deserialize guardian set index and number of signatures (so we can skip to the
-            // message body).
-            let guardian_set_index = u32::read(&mut vaa_buf)?;
-            let num_signatures = u8::read(&mut vaa_buf).map(usize::from)?;
-
-            vaa_buf = &vaa_buf[(66 * num_signatures)..];
-
-            let VaaBody {
-                timestamp,
-                nonce,
-                emitter_chain,
-                emitter_address,
-                sequence,
-                consistency_level,
-                payload,
-            } = VaaBody::read(&mut vaa_buf)?;
-
-            // When VaaBody is deserialized, there is only one variant: Binary.
-            if let PayloadKind::Binary(payload) = payload {
-                ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
-                    meta: PostedVaaV1Metadata {
-                        consistency_level,
-                        timestamp: timestamp.into(),
-                        signature_set: Default::default(),
-                        guardian_set_index,
-                        nonce,
-                        sequence: u64::try_from(sequence).unwrap(),
-                        emitter_chain,
-                        emitter_address: emitter_address.0,
-                    },
-                    payload,
-                });
-            } else {
-                unreachable!()
-            }
+            ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
+                meta: PostedVaaV1Metadata {
+                    consistency_level: body.consistency_level(),
+                    timestamp: body.timestamp().into(),
+                    signature_set: Default::default(),
+                    guardian_set_index: vaa.guardian_set_index(),
+                    nonce: body.nonce(),
+                    sequence: body.sequence(),
+                    emitter_chain: body.emitter_chain(),
+                    emitter_address: body.emitter_address(),
+                },
+                payload: body.payload().as_ref().to_vec(),
+            });
 
             // Done.
             Ok(())

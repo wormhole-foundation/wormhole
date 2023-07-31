@@ -15,7 +15,7 @@ use anchor_spl::{
 use core_bridge_program::{
     self,
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1, VaaV1LegacyAccount},
+    state::{PostedVaaV1, VaaV1MessageHash},
 };
 use mpl_token_metadata::state::DataV2;
 use wormhole_solana_common::SeedPrefix;

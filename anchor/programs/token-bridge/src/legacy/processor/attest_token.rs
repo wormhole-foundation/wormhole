@@ -10,8 +10,39 @@ use anchor_spl::{
     token::Mint,
 };
 use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use wormhole_io::Writeable;
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::FixedBytes;
+
+use std::io;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attestation {
+    pub token_address: [u8; 32],
+    pub token_chain: u16,
+    pub decimals: u8,
+
+    pub symbol: [u8; 32],
+    pub name: [u8; 32],
+}
+
+impl Writeable for Attestation {
+    fn written_size(&self) -> usize {
+        1 + 32 + 2 + 1 + 32 + 32
+    }
+
+    fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    where
+        Self: Sized,
+        W: io::Write,
+    {
+        self.token_address.write(writer)?;
+        self.token_chain.write(writer)?;
+        self.decimals.write(writer)?;
+        self.symbol.write(writer)?;
+        self.name.write(writer)?;
+        Ok(())
+    }
+}
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -99,7 +130,7 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
         },
         ctx.bumps["core_emitter"],
         nonce,
-        wormhole_vaas::payloads::token_bridge::Attestation {
+        Attestation {
             token_address: ctx.accounts.mint.key().to_bytes().into(),
             token_chain: SOLANA_CHAIN,
             decimals: ctx.accounts.mint.decimals,
@@ -109,12 +140,12 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
     )
 }
 
-fn string_to_fixed32(s: &String) -> FixedBytes<32> {
+fn string_to_fixed32(s: &String) -> [u8; 32] {
     let mut bytes = [0; 32];
     if s.len() > 32 {
         bytes.copy_from_slice(&s.as_bytes()[..32]);
     } else {
         bytes[..s.len()].copy_from_slice(s.as_bytes());
     }
-    bytes.into()
+    bytes
 }

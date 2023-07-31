@@ -141,4 +141,7 @@ pub enum CoreBridgeError {
 
     #[msg("ExceedsMaxPayloadSize (30KB)")]
     ExceedsMaxPayloadSize = 0x10b2,
+
+    #[msg("CannotParseVaa")]
+    CannotParseVaa = 0x10b4,
 }

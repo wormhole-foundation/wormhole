@@ -3,6 +3,15 @@ use anchor_lang::prelude::error_code;
 #[error_code]
 /// Errors relevant to Core Bridge's malfunction.
 pub enum TokenBridgeError {
+    #[msg("CannotParseMessage")]
+    CannotParseMessage = 0x02,
+
+    #[msg("InvalidTokenBridgeVaa")]
+    InvalidTokenBridgeVaa = 0x04,
+
+    #[msg("InvalidMint")]
+    InvalidMint = 0x06,
+
     #[msg("InvalidGovernanceEmitter")]
     InvalidGovernanceEmitter = 0x20,
 
@@ -44,4 +53,7 @@ pub enum TokenBridgeError {
 
     #[msg("U64Overflow")]
     U64Overflow = 0x558,
+
+    #[msg("InvalidProgramRedeemer")]
+    InvalidProgramRedeemer = 0x560,
 }
