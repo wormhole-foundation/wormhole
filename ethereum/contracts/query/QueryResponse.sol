@@ -6,8 +6,8 @@ pragma solidity ^0.8.0;
 import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
 
-// TODO: move functions to library
-contract QueryResponse {
+/// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
+library QueryResponse {
     using BytesLib for bytes;
        
     /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
@@ -27,7 +27,7 @@ contract QueryResponse {
         bytes response;
     }
 
-    /// @dev ParsedPerChainQueryResponse describes an ETH call per-chain query.
+    /// @dev EthCallQueryResponse describes an ETH call per-chain query.
     struct EthCallQueryResponse {
         bytes requestBlockId;
         uint64 blockNum;
@@ -36,7 +36,7 @@ contract QueryResponse {
         EthCallData [] result;
     }
 
-    /// @dev ParsedPerChainQueryResponse describes a single ETH call query / response pair.
+    /// @dev EthCallData describes a single ETH call query / response pair.
     struct EthCallData {
         address contractAddress;
         bytes callData;
@@ -45,10 +45,12 @@ contract QueryResponse {
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
 
+    /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
         return keccak256(response);
     }
 
+    /// @dev getResponseDigest computes the digest of the specified query response.
     function getResponseDigest(bytes memory response) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(responsePrefix,getResponseHash(response)));
     }
@@ -215,3 +217,4 @@ contract QueryResponse {
         /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
     }
 }
+
