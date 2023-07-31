@@ -38,6 +38,7 @@ export const executeTransactionBlock = async (
   const consoleWarnTemp = console.warn;
   console.warn = () => {};
 
+  transactionBlock.setGasBudget(100_000_000);
   // Let caller handle parsing and logging info
   const res = await signer.signAndExecuteTransactionBlock({
     transactionBlock,
