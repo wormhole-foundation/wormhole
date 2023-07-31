@@ -92,8 +92,7 @@ const MAINNET = {
     rpc: "https://rpc.mainnet.near.org",
     key: getEnvVar("NEAR_KEY"),
     networkId: "mainnet",
-    deployerAccount:
-      "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
+    deployerAccount: getEnvVar("NEAR_IMPLICIT_ACCOUNT_ID"),
   },
   injective: {
     rpc: "http://sentry0.injective.network:26657",
