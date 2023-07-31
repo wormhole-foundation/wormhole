@@ -1,5 +1,5 @@
 use crate::{
-    constants::{MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
+    constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::EmptyArgs,
     processor::mint_wrapped_tokens,
@@ -9,10 +9,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1, VaaV1LegacyAccount},
+    state::{PostedVaaV1Bytes, VaaV1MessageHash},
 };
+use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::payloads::token_bridge::Transfer;
 
 use super::validate_token_transfer;
 
@@ -26,12 +26,12 @@ pub struct CompleteTransferWrapped<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<Transfer>::seed_prefix(),
+            PostedVaaV1Bytes::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<Transfer>>,
+    posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
     #[account(
         init,
@@ -69,14 +69,8 @@ pub struct CompleteTransferWrapped<'info> {
     )]
     payer_token: Box<Account<'info, TokenAccount>>,
 
-    #[account(
-        seeds = [
-            WRAPPED_MINT_SEED_PREFIX,
-            &posted_vaa.payload.token_chain.to_be_bytes(),
-            posted_vaa.payload.token_address.as_ref()
-        ],
-        bump
-    )]
+    /// NOTE: We do not need to check this PDA because access control checks the wrapped asset's
+    /// token address.
     wrapped_mint: Box<Account<'info, Mint>>,
 
     #[account(
@@ -105,10 +99,9 @@ pub struct CompleteTransferWrapped<'info> {
 
 impl<'info> CompleteTransferWrapped<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let token_chain = validate_token_transfer(
+        let (token_chain, token_address) = validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
-            &ctx.accounts.wrapped_mint,
             &ctx.accounts.dst_token,
         )?;
 
@@ -118,6 +111,17 @@ impl<'info> CompleteTransferWrapped<'info> {
         // chain ID != 1. But there may be accounts that exist where the chain ID == 1, so we do perform this check as a
         // precaution).
         require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+
+        // Wrapped asset account must agree with the encoded token info.
+        let asset = &ctx.accounts.wrapped_asset;
+        require!(
+            token_chain == asset.token_chain,
+            TokenBridgeError::InvalidMint
+        );
+        require!(
+            token_address == asset.token_address,
+            TokenBridgeError::InvalidMint,
+        );
 
         // Done.
         Ok(())
@@ -132,16 +136,21 @@ pub fn complete_transfer_wrapped(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let transfer_msg = &ctx.accounts.posted_vaa.payload;
+    let transfer = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+        .unwrap()
+        .transfer()
+        .unwrap();
 
     // We do not have to denormalize wrapped mint amounts because by definition wrapped mints can
     // only have a max of 8 decimals, which is the same as the cap for normalized amounts.
-    let mut mint_amount = transfer_msg
-        .norm_amount
+    let mut mint_amount = EncodedAmount::from(transfer.amount())
         .0
         .try_into()
         .map_err(|_| TokenBridgeError::U64Overflow)?;
-    let relayer_payout = transfer_msg.norm_relayer_fee.0.try_into().unwrap();
+    let relayer_payout = EncodedAmount::from(transfer.relayer_fee())
+        .0
+        .try_into()
+        .unwrap();
 
     // Save references to the token accounts to be used later.
     let token_program = &ctx.accounts.token_program;

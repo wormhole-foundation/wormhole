@@ -8,7 +8,6 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, state::BridgeProgramData, CoreBridge};
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::payloads::token_bridge::TransferWithMessage;
 
 use super::new_sender_address;
 
@@ -125,7 +124,7 @@ pub fn transfer_tokens_with_payload_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = TransferWithMessage {
+    let token_transfer = super::TransferWithMessage {
         norm_amount: amount.try_into().unwrap(),
         token_address: wrapped_asset.token_address.into(),
         token_chain: wrapped_asset.token_chain,

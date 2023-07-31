@@ -28,16 +28,21 @@ testnet = ["core-bridge-program/testnet"]
 devnet = ["core-bridge-program/devnet"]
 
 [dependencies]
+wormhole-io = { version = "=0.0.16", features = ["ruint"] }
+wormhole-raw-vaas = { version = "=0.0.18", features = ["anchor"], default-features = false }
+wormhole-solana-common = { path = "../../common/solana-common" }
+
+core-bridge-program = { path = "../core-bridge", package = "solana-wormhole-core-bridge", features = ["cpi"], default-features = false }
+solana-program = "=1.14.20"
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 anchor-spl = { version = "0.28.0", features = ["metadata"] }
-core-bridge-program = { path = "../core-bridge", package = "solana-wormhole-core-bridge", features = ["cpi"], default-features = false }
-hex = "0.4"
 mpl-token-metadata = "1.12.0"
+
+hex = "0.4"
+
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-solana-program = "=1.14.20"
-wormhole-solana-common = { path = "../../common/solana-common" }
-wormhole-vaas = { version = "=0.0.15", features = ["anchor"], default-features = false }
+
 ### There is currently an issue using anchor-spl if this dependency is not explicitly defined. These
 ### dependencies are used by spl-token-2022.
 toml_datetime = "=0.6.1"
