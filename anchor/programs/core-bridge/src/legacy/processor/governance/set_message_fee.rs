@@ -1,12 +1,14 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, VaaV1LegacyAccount},
-    utils::PostedGovernanceVaaV1,
+    state::{BridgeProgramData, Claim, PartialPostedVaaV1, VaaV1MessageHash},
+    utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
+use wormhole_io::Readable;
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::{payloads::gov::core_bridge::Decree, U256};
+
+const ACTION_SET_MESSAGE_FEE: u8 = 3;
 
 #[derive(Accounts)]
 pub struct SetMessageFee<'info> {
@@ -22,12 +24,12 @@ pub struct SetMessageFee<'info> {
 
     #[account(
         seeds = [
-            PostedGovernanceVaaV1::seed_prefix(),
+            PartialPostedVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedGovernanceVaaV1>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -47,23 +49,27 @@ pub struct SetMessageFee<'info> {
 
 impl<'info> SetMessageFee<'info> {
     fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let decree = crate::utils::require_valid_governance_posted_vaa(
+        let action = crate::utils::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.bridge,
         )?;
 
-        if let Decree::SetMessageFee(inner) = decree {
-            require_gte!(
-                U256::from(u64::MAX),
-                inner.fee,
-                CoreBridgeError::U64Overflow
-            );
+        require_eq!(
+            action,
+            ACTION_SET_MESSAGE_FEE,
+            CoreBridgeError::InvalidGovernanceAction
+        );
 
-            // Done.
-            Ok(())
-        } else {
-            err!(CoreBridgeError::InvalidGovernanceAction)
-        }
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+
+        require!(
+            <[u8; 24]>::read(&mut data)? == [0; 24],
+            CoreBridgeError::U64Overflow
+        );
+
+        // Done.
+        Ok(())
     }
 }
 
@@ -72,12 +78,10 @@ pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    // We know this is the only variant that can be present given access control.
-    if let Decree::SetMessageFee(inner) = &ctx.accounts.posted_vaa.payload.decree {
-        ctx.accounts.bridge.fee_lamports = inner.fee.try_into().unwrap();
-    } else {
-        unreachable!()
-    }
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let mut data = &acc_info.data.borrow()[(GOVERNANCE_DECREE_START + 24)..];
+
+    ctx.accounts.bridge.fee_lamports = u64::read(&mut data)?;
 
     // Done.
     Ok(())

@@ -126,7 +126,7 @@ pub fn transfer_tokens_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = wormhole_vaas::payloads::token_bridge::Transfer {
+    let token_transfer = super::Transfer {
         norm_amount: amount.try_into().unwrap(),
         token_address: wrapped_asset.token_address.into(),
         token_chain: wrapped_asset.token_chain,

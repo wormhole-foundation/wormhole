@@ -17,10 +17,8 @@ declare_id!("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE");
 pub mod constants;
 pub mod error;
 pub mod legacy;
-//pub mod message;
 mod processor;
 pub mod state;
-//pub mod types;
 pub mod utils;
 
 pub(crate) use processor::*;

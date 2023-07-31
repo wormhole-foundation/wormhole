@@ -5,7 +5,7 @@ use crate::{
     utils::PostedGovernanceVaaV1,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::VaaV1LegacyAccount;
+use core_bridge_program::state::VaaV1MessageHash;
 use wormhole_solana_common::{utils, SeedPrefix};
 use wormhole_vaas::payloads::gov::token_bridge::Decree;
 

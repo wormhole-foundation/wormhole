@@ -1,9 +1,10 @@
 mod initialize;
-mod transfer_tokens;
-mod transfer_tokens_with_payload;
-
 pub use initialize::*;
+
+mod transfer_tokens;
 pub use transfer_tokens::*;
+
+mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
 use crate::constants::{
@@ -19,6 +20,7 @@ use core_bridge_program::{
     state::BridgeProgramData, types::Commitment, CoreBridge, LegacyPostMessage,
     LegacyPostMessageArgs,
 };
+use wormhole_io::Writeable;
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
     pub core_bridge: &'ctx Account<'info, BridgeProgramData>,
@@ -31,15 +33,12 @@ pub struct PostTokenBridgeMessage<'ctx, 'info> {
     pub core_bridge_program: &'ctx Program<'info, CoreBridge>,
 }
 
-pub fn post_token_bridge_message<P>(
+pub fn post_token_bridge_message<W: Writeable>(
     accounts: PostTokenBridgeMessage<'_, '_>,
     emitter_bump: u8,
     nonce: u32,
-    message: P,
-) -> Result<()>
-where
-    P: wormhole_vaas::TypePrefixedPayload,
-{
+    message: W,
+) -> Result<()> {
     // Pay fee to the core bridge program if there is one.
     let fee_lamports = accounts.core_bridge.fee_lamports;
     if fee_lamports > 0 {
@@ -55,8 +54,8 @@ where
         )?;
     }
 
-    let mut payload = vec![];
-    message.write_payload(&mut payload)?;
+    let mut payload = Vec::with_capacity(message.written_size());
+    message.write(&mut payload)?;
 
     core_bridge_program::legacy_post_message(
         CpiContext::new_with_signer(
@@ -74,7 +73,7 @@ where
         ),
         LegacyPostMessageArgs {
             nonce,
-            payload,
+            payload: message.to_vec(),
             commitment: Commitment::Finalized,
         },
     )
