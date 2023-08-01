@@ -5,10 +5,13 @@ use crate::{
 use anybuf::Anybuf;
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    from_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, Reply, Response, SubMsg,
+    from_binary, to_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, QueryRequest, Reply,
+    Response, SubMsg, WasmQuery,
 };
+use cw20::TokenInfoResponse;
+use cw20_base::msg::QueryMsg as TokenQuery;
 use cw_token_bridge::msg::CompleteTransferResponse;
-use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
+use wormhole_bindings::tokenfactory::{DenomUnit, Metadata, TokenFactoryMsg, TokenMsg};
 
 pub fn handle_complete_transfer_reply(
     deps: DepsMut,
@@ -107,12 +110,43 @@ pub fn convert_cw20_to_bank_and_send(
 
     // check contract storage see if we've created a denom for this cw20 token yet
     // if we haven't created the denom, then create the denom
-    // info.sender contains the cw20 contract address
     if !CW_DENOMS.has(deps.storage, cw20_contract_addr.clone()) {
+        // call into the cw20 contract to get the token's metadata
+        let request = QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: cw20_contract_addr.clone(),
+            msg: to_binary(&TokenQuery::TokenInfo {})?,
+        });
+        let token_info: TokenInfoResponse = deps.querier.query(&request)?;
+
+        // Populate token factory token's metadata from cw20 token's metadata
+        let tf_description = token_info.name.clone()
+            + ", "
+            + token_info.symbol.as_str()
+            + ", "
+            + tokenfactory_denom.as_str();
+        let tf_denom_unit_base = DenomUnit {
+            denom: tokenfactory_denom.clone(),
+            exponent: 0,
+            aliases: vec![],
+        };
+        let tf_denom_unit_scaled = DenomUnit {
+            denom: token_info.symbol.clone(),
+            exponent: u32::from(token_info.decimals),
+            aliases: vec![],
+        };
+        let tf_metadata = Metadata {
+            description: Some(tf_description),
+            base: Some(tokenfactory_denom.clone()),
+            denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
+            display: Some(token_info.symbol.clone()),
+            name: Some(token_info.name),
+            symbol: Some(token_info.symbol),
+        };
+
         // call into token factory to create the denom
         let create_denom = SubMsg::new(TokenMsg::CreateDenom {
             subdenom,
-            metadata: None,
+            metadata: Some(tf_metadata),
         });
         response = response.add_submessage(create_denom);
 
@@ -141,6 +175,7 @@ pub fn convert_cw20_to_bank_and_send(
 
     // Create MsgTransfer protobuf message for Stargate
     // https://github.com/cosmos/ibc-go/blob/main/proto/ibc/applications/transfer/v1/tx.proto#L27
+    // TimeoutTimestamp is 14 days from now which is the trusting period of the counterparty light client
     let ibc_msg_transfer = Anybuf::new()
         .append_string(1, "transfer") // source port
         .append_string(2, channel) // source channel
@@ -153,7 +188,7 @@ pub fn convert_cw20_to_bank_and_send(
         .append_string(4, env.contract.address) // sender
         .append_string(5, recipient) // receiver
         .append_message(6, &Anybuf::new().append_uint64(1, 0).append_uint64(2, 0)) // TimeoutHeight
-        .append_uint64(7, env.block.time.plus_days(365).nanos()) // TimeoutTimestamp
+        .append_uint64(7, env.block.time.plus_days(14).nanos()) // TimeoutTimestamp
         .append_string(8, payload_decoded); // Memo
 
     response = response.add_message(Stargate {

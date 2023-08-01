@@ -1027,6 +1027,8 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.13.4",
  "cw-utils 1.0.1",
+ "cw20",
+ "cw20-base",
  "cw20-wrapped-2",
  "serde-json-wasm 0.5.1",
  "serde_wormhole",

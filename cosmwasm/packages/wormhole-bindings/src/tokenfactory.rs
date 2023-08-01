@@ -128,7 +128,7 @@ pub struct DenomUnit {
     /// 1 denom = 1^exponent base_denom
     /// (e.g. with a base_denom of uatom, one can create a DenomUnit of 'atom' with
     /// exponent = 6, thus: 1 atom = 10^6 uatom).
-    exponent: u32,
+    pub exponent: u32,
     /// aliases is a list of string aliases for the given denom
-    aliases: Vec<String>,
+    pub aliases: Vec<String>,
 }
