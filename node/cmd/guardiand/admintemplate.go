@@ -631,7 +631,7 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runWormchainAddWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
-	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD_UNSPECIFIED)
+	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD)
 }
 
 func runWormchainDeleteWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
@@ -702,7 +702,7 @@ func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args 
 }
 
 func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
-	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER_UNSPECIFIED)
+	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER)
 }
 
 func runIbcTranslatorUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {

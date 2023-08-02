@@ -317,7 +317,7 @@ func wormchainWasmInstantiateAllowlist(
 	}
 
 	var action vaa.GovernanceAction
-	if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD_UNSPECIFIED {
+	if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD {
 		action = vaa.ActionAddWasmInstantiateAllowlist
 	} else if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_DELETE {
 		action = vaa.ActionDeleteWasmInstantiateAllowlist
@@ -451,7 +451,7 @@ func ibcUpdateChannelChain(
 	channelId := vaa.LeftPadIbcChannelId(req.ChannelId)
 
 	var module string
-	if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER_UNSPECIFIED {
+	if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER {
 		module = vaa.IbcReceiverModuleStr
 	} else if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_TRANSLATOR {
 		module = vaa.IbcTranslatorModuleStr
