@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcutil/bech32"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
@@ -32,6 +31,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
 type nodePrivilegedService struct {
@@ -316,18 +317,9 @@ func wormchainDeleteWasmInstantiateAllowlist(req *nodev1.WormchainDeleteWasmInst
 func wormchainWasmInstantiateAllowlist(action vaa.GovernanceAction, codeId uint64, contract string, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	// parse contract address into 32 bytes
 	// bech32 decode the string into bytes
-	hrp, fiveBitDecoded, err := bech32.Decode(contract)
+	decoded, err := sdktypes.GetFromBech32(contract, "wormhole")
 	if err != nil {
 		return nil, fmt.Errorf("invalid bech32 contract address %w", err)
-	}
-
-	if hrp != "wormhole" {
-		return nil, fmt.Errorf("non-wormchain bech32 contract address: %s", contract)
-	}
-
-	decoded, err := bech32.ConvertBits(fiveBitDecoded, 5, 8, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert bits from 5 bit to 8 bit encoding")
 	}
 
 	if len(decoded) != 32 {
