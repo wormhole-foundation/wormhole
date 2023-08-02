@@ -807,8 +807,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		nil, // Wasm keeper is set later
 		wk,
 		0,
-		time.Minute,
-		time.Minute,
+		time.Hour,
 	)
 	app.IbcComposabilityMwKeeper = ibcComposabilityMwKeeper
 

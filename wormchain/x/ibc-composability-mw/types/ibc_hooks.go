@@ -4,55 +4,42 @@ import (
 	"encoding/json"
 )
 
-type IbcTranslatorIbcHooksSimple struct {
-	Payload IbcTranslatorIbcHooksPayloadSimple `json:"wasm"`
+// IBC hooks formatted payload for IBC translator's GatewayTransfer
+type IbcTranslatorGatewayTransfer struct {
+	Payload IbcTranslatorGatewayTransferObj `json:"wasm"`
 }
 
-type IbcTranslatorIbcHooksPayloadSimple struct {
-	Contract string                     `json:"contract"`
-	Msg      IbcTranslatorExecuteSimple `json:"msg"`
+type IbcTranslatorGatewayTransferObj struct {
+	Contract string                          `json:"contract"`
+	Msg      IbcTranslatorGatewayTransferMsg `json:"msg"`
 }
 
-type IbcTranslatorExecuteSimple struct {
-	Msg Simple `json:"simple_convert_and_transfer"`
+type IbcTranslatorGatewayTransferMsg struct {
+	Msg GatewayTransfer `json:"gateway_convert_and_transfer"`
 }
 
-type Simple struct {
-	Chain     uint16 `json:"chain"`
-	Recipient []byte `json:"recipient"`
-	Fee       string `json:"fee"`
-	Nonce     uint32 `json:"nonce"`
+// IBC hooks formatted payload for IBC translator's GatewayTransferWithPayload
+type IbcTranslatorGatewayTransferWithPayload struct {
+	Payload IbcTranslatorGatewayTransferWithPayloadObj `json:"wasm"`
 }
 
-type IbcTranslatorIbcHooksContractControlled struct {
-	Payload IbcTranslatorIbcHooksPayloadContractControlled `json:"wasm"`
+type IbcTranslatorGatewayTransferWithPayloadObj struct {
+	Contract string                                     `json:"contract"`
+	Msg      IbcTranslatorGatewayTransferWithPayloadMsg `json:"msg"`
 }
 
-type IbcTranslatorIbcHooksPayloadContractControlled struct {
-	Contract string                                 `json:"contract"`
-	Msg      IbcTranslatorExecuteContractControlled `json:"msg"`
-}
-
-type IbcTranslatorExecuteContractControlled struct {
-	Msg ContractControlled `json:"contract_controlled_convert_and_transfer"`
-}
-
-type ContractControlled struct {
-	Chain    uint16 `json:"chain"`
-	Contract []byte `json:"contract"`
-	Payload  []byte `json:"payload"`
-	Nonce    uint32 `json:"nonce"`
+type IbcTranslatorGatewayTransferWithPayloadMsg struct {
+	Msg GatewayTransferWithPayload `json:"gateway_convert_and_transfer_with_payload"`
 }
 
 func FormatIbcHooksMemo(parsedPayload ParsedPayload, ibcTranslatorContract string) (string, error) {
-	// If exists, create PFM memo
 	var ibcHooksMemo string
-	if parsedPayload.IsSimple {
-		simple := IbcTranslatorIbcHooksSimple{
-			Payload: IbcTranslatorIbcHooksPayloadSimple{
+	if parsedPayload.NoPayload {
+		transfer := IbcTranslatorGatewayTransfer{
+			Payload: IbcTranslatorGatewayTransferObj{
 				Contract: ibcTranslatorContract,
-				Msg: IbcTranslatorExecuteSimple{
-					Msg: Simple{
+				Msg: IbcTranslatorGatewayTransferMsg{
+					Msg: GatewayTransfer{
 						Chain:     parsedPayload.ChainId,
 						Recipient: parsedPayload.Recipient,
 						Fee:       parsedPayload.Fee,
@@ -61,17 +48,17 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, ibcTranslatorContract strin
 				},
 			},
 		}
-		simpleBz, err := json.Marshal(&simple)
+		simpleBz, err := json.Marshal(&transfer)
 		if err != nil {
 			return "", err
 		}
 		ibcHooksMemo = string(simpleBz)
 	} else {
-		cc := IbcTranslatorIbcHooksContractControlled{
-			Payload: IbcTranslatorIbcHooksPayloadContractControlled{
+		transferWithPayload := IbcTranslatorGatewayTransferWithPayload{
+			Payload: IbcTranslatorGatewayTransferWithPayloadObj{
 				Contract: ibcTranslatorContract,
-				Msg: IbcTranslatorExecuteContractControlled{
-					Msg: ContractControlled{
+				Msg: IbcTranslatorGatewayTransferWithPayloadMsg{
+					Msg: GatewayTransferWithPayload{
 						Chain:    parsedPayload.ChainId,
 						Contract: parsedPayload.Recipient,
 						Payload:  parsedPayload.Payload,
@@ -80,7 +67,7 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, ibcTranslatorContract strin
 				},
 			},
 		}
-		ccBz, err := json.Marshal(&cc)
+		ccBz, err := json.Marshal(&transferWithPayload)
 		if err != nil {
 			return "", err
 		}

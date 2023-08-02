@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-var (
-	retries = uint8(0)
-)
-
 type PacketMetadata struct {
 	Forward *ForwardMetadata `json:"forward"`
 }
@@ -22,7 +18,7 @@ type ForwardMetadata struct {
 	Next     *string       `json:"next,omitempty"`
 }
 
-func FormatPfmMemo(parsedPayload ParsedPayload, resp []byte) (string, error) {
+func FormatPfmMemo(parsedPayload ParsedPayload, resp []byte, timeout time.Duration, retries uint8) (string, error) {
 	var queryRsp IbcTranslatorQueryRsp
 	err := json.Unmarshal(resp, &queryRsp)
 	if err != nil {
@@ -33,10 +29,10 @@ func FormatPfmMemo(parsedPayload ParsedPayload, resp []byte) (string, error) {
 		Receiver: string(parsedPayload.Recipient),
 		Port:     "transfer",
 		Channel:  queryRsp.Channel,
-		Timeout:  time.Minute * 1,
+		Timeout:  timeout,
 		Retries:  &retries,
 	}
-	if !parsedPayload.IsSimple {
+	if !parsedPayload.NoPayload {
 		next := string(parsedPayload.Payload)
 		forwardMetadata.Next = &next
 	}

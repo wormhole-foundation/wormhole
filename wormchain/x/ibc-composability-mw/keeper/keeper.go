@@ -27,7 +27,6 @@ type Keeper struct {
 
 	retriesOnTimeout uint8
 	forwardTimeout   time.Duration
-	refundTimeout    time.Duration
 }
 
 func NewKeeper(
@@ -37,7 +36,6 @@ func NewKeeper(
 	wormholeKeeper *wormholekeeper.Keeper,
 	retriesOnTimeout uint8,
 	forwardTimeout time.Duration,
-	refundTimeout time.Duration,
 ) *Keeper {
 	return &Keeper{
 		cdc:              cdc,
@@ -46,7 +44,6 @@ func NewKeeper(
 		wormholeKeeper:   wormholeKeeper,
 		retriesOnTimeout: retriesOnTimeout,
 		forwardTimeout:   forwardTimeout,
-		refundTimeout:    refundTimeout,
 	}
 }
 
@@ -106,7 +103,7 @@ func (k Keeper) OnRecvPacket(
 	if err == nil {
 		isNewMemoPfm = true
 		// If response exists, create PFM memo
-		newMemo, err = types.FormatPfmMemo(parsedPayload, resp)
+		newMemo, err = types.FormatPfmMemo(parsedPayload, resp, k.forwardTimeout, k.retriesOnTimeout)
 		if err != nil {
 			return packet, channeltypes.NewErrorAcknowledgement(err)
 		}
