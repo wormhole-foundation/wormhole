@@ -3,7 +3,12 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_SUI,
+  CONTRACTS,
+  getOriginalAssetSui,
 } from "@certusone/wormhole-sdk";
+
+import { Connection, JsonRpcProvider } from "@mysten/sui.js";
 
 const MinNotional = 0;
 
@@ -88,34 +93,55 @@ axios
             try {
               wormholeAddr = tryNativeToHexString(data.Address, chainId);
             } catch (e) {
-              if (chainId != CHAIN_ID_APTOS) {
-                if (chainId == CHAIN_ID_ALGORAND) {
-                  wormholeAddr = "";
-                  if (
-                    data.Symbol.toLowerCase() === "algo" ||
-                    data.Address === "0"
-                  ) {
-                    wormholeAddr =
-                      "0000000000000000000000000000000000000000000000000000000000000000";
-                  } else if (data.Address === "31566704") {
-                    wormholeAddr =
-                      "0000000000000000000000000000000000000000000000000000000001e1ab70";
-                  } else if (data.Address === "312769") {
-                    wormholeAddr =
-                      "000000000000000000000000000000000000000000000000000000000004c5c1";
-                  }
+              if (chainId == CHAIN_ID_ALGORAND) {
+                wormholeAddr = "";
+                if (
+                  data.Symbol.toLowerCase() === "algo" ||
+                  data.Address === "0"
+                ) {
+                  wormholeAddr =
+                    "0000000000000000000000000000000000000000000000000000000000000000";
+                } else if (data.Address === "31566704") {
+                  wormholeAddr =
+                    "0000000000000000000000000000000000000000000000000000000001e1ab70";
+                } else if (data.Address === "312769") {
+                  wormholeAddr =
+                    "000000000000000000000000000000000000000000000000000000000004c5c1";
                 }
+              } else if (chainId == CHAIN_ID_SUI) {
+                // For Sui we look up the symbol from the RPC.
+                await (async () => {
+                  const provider = new JsonRpcProvider(
+                    new Connection({
+                      // fullnode: "https://fullnode.mainnet.sui.io",
+                      fullnode: "https://sui-mainnet-rpc.allthatnode.com",
+                    })
+                  );
+                  const result = await getOriginalAssetSui(
+                    provider,
+                    CONTRACTS.MAINNET.sui.token_bridge,
+                    data.Address
+                  );
+                  wormholeAddr = Buffer.from(result.assetAddress).toString(
+                    "hex"
+                  );
+                })();
               }
-              if (wormholeAddr === "") {
+              if (wormholeAddr === undefined) {
                 console.log(
-                  `Ignoring symbol '${data.Symbol}' because the address '${data.Address}' is invalid`
+                  `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is undefined`
+                );
+                continue;
+              } else if (wormholeAddr === "") {
+                console.log(
+                  `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is invalid`
                 );
                 continue;
               }
             }
 
             content +=
-              "\t\ttokenConfigEntry { chain: " +
+              "\t{ chain: " +
               chain +
               ', addr: "' +
               wormholeAddr +
