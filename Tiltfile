@@ -429,7 +429,7 @@ if solana or pythnet:
     docker_build(
         ref = "bridge-client",
         context = ".",
-        only = ["./proto", "./solana", "./clients"],
+        only = ["./proto", "./solana/legacy", "./clients"],
         dockerfile = "solana/Dockerfile.client",
         # Ignore target folders from local (non-container) development.
         ignore = ["./solana/*/target"],
@@ -440,7 +440,7 @@ if solana or pythnet:
     docker_build(
         ref = "solana-contract",
         context = "solana",
-        dockerfile = "solana/Dockerfile",
+        dockerfile = "solana/legacy/Dockerfile",
         target = "builder",
         build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
