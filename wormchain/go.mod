@@ -1,6 +1,6 @@
 module github.com/wormhole-foundation/wormchain
 
-go 1.19
+go 1.20
 
 require (
 	github.com/CosmWasm/wasmd v0.30.0
