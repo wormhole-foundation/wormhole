@@ -28,8 +28,8 @@ pub enum ExecuteMsg {
     /// 1. Validate that the bank tokens originated from cw20 tokens that are locked in this contract.
     /// 2. Burn the bank tokens using the token factory.
     /// 3. Unlock the equivalent cw20 tokens.
-    /// 4. Cross-call into the wormhole token bridge to initiate a cross-chain transfer with a simple payload.
-    SimpleConvertAndTransfer {
+    /// 4. Cross-call into the wormhole token bridge to initiate a cross-chain transfer with a gateway transfer payload.
+    GatewayConvertAndTransfer {
         recipient: Binary,
         chain: u16,
         fee: Uint128,
@@ -41,8 +41,8 @@ pub enum ExecuteMsg {
     /// 1. Validate that the bank tokens originated from cw20 tokens that are locked in this contract.
     /// 2. Burn the bank tokens using the token factory.
     /// 3. Unlock the equivalent cw20 tokens.
-    /// 4. Cross-call into the wormhole token bridge to initiate a cross-chain transfer with a contract controlled payload.
-    ContractControlledConvertAndTransfer {
+    /// 4. Cross-call into the wormhole token bridge to initiate a cross-chain transfer with a gateway transfer-with-payload payload.
+    GatewayConvertAndTransferWithPayload {
         contract: Binary,
         chain: u16,
         payload: Binary,
@@ -71,13 +71,13 @@ pub struct ChannelResponse {
 
 #[cw_serde]
 pub enum GatewayIbcTokenBridgePayload {
-    Simple {
+    GatewayTransfer {
         chain: u16,
         recipient: Binary,
         fee: u128,
         nonce: u32,
     },
-    ContractControlled {
+    GatewayTransferWithPayload {
         chain: u16,
         contract: Binary,
         payload: Binary,

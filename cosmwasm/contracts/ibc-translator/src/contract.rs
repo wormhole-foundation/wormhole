@@ -50,7 +50,7 @@ pub fn execute(
         ExecuteMsg::CompleteTransferAndConvert { vaa } => {
             complete_transfer_and_convert(deps, env, info, vaa)
         }
-        ExecuteMsg::SimpleConvertAndTransfer {
+        ExecuteMsg::GatewayConvertAndTransfer {
             recipient,
             chain,
             fee,
@@ -64,7 +64,7 @@ pub fn execute(
             TransferType::Simple { fee },
             nonce,
         ),
-        ExecuteMsg::ContractControlledConvertAndTransfer {
+        ExecuteMsg::GatewayConvertAndTransferWithPayload {
             contract,
             chain,
             payload,

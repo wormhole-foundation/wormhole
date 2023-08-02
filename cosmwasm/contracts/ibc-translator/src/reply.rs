@@ -47,7 +47,7 @@ pub fn handle_complete_transfer_reply(
         .context("failed to deserialize transfer payload")?;
 
     match payload {
-        GatewayIbcTokenBridgePayload::Simple {
+        GatewayIbcTokenBridgePayload::GatewayTransfer {
             chain,
             recipient,
             fee: _,
@@ -65,7 +65,7 @@ pub fn handle_complete_transfer_reply(
                 None,
             )
         }
-        GatewayIbcTokenBridgePayload::ContractControlled {
+        GatewayIbcTokenBridgePayload::GatewayTransferWithPayload {
             chain,
             contract,
             payload,
