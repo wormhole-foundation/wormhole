@@ -317,9 +317,9 @@ func wormchainWasmInstantiateAllowlist(
 	}
 
 	var action vaa.GovernanceAction
-	if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_ADD {
+	if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD_UNSPECIFIED {
 		action = vaa.ActionAddWasmInstantiateAllowlist
-	} else if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_DELETE {
+	} else if req.Action == nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_DELETE {
 		action = vaa.ActionDeleteWasmInstantiateAllowlist
 	} else {
 		return nil, fmt.Errorf("unrecognized wasm instantiate allowlist action")
@@ -451,9 +451,9 @@ func ibcUpdateChannelChain(
 	channelId := vaa.LeftPadIbcChannelId(req.ChannelId)
 
 	var module string
-	if req.Module == nodev1.IbcUpdateChannelChainModule_RECEIVER {
+	if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER_UNSPECIFIED {
 		module = vaa.IbcReceiverModuleStr
-	} else if req.Module == nodev1.IbcUpdateChannelChainModule_TRANSLATOR {
+	} else if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_TRANSLATOR {
 		module = vaa.IbcTranslatorModuleStr
 	} else {
 		return nil, fmt.Errorf("unrecognized ibc update channel chain module")

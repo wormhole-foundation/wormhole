@@ -631,11 +631,11 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runWormchainAddWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
-	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_ADD)
+	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_ADD_UNSPECIFIED)
 }
 
 func runWormchainDeleteWasmInstantiateAllowlistTemplate(cmd *cobra.Command, args []string) {
-	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_DELETE)
+	runWormchainWasmInstantiateAllowlistTemplate(nodev1.WormchainWasmInstantiateAllowlistAction_WORMCHAIN_WASM_INSTANTIATE_ALLOWLIST_ACTION_DELETE)
 }
 
 func runWormchainWasmInstantiateAllowlistTemplate(action nodev1.WormchainWasmInstantiateAllowlistAction) {
@@ -702,11 +702,11 @@ func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args 
 }
 
 func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
-	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_RECEIVER)
+	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER_UNSPECIFIED)
 }
 
 func runIbcTranslatorUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
-	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_TRANSLATOR)
+	runIbcUpdateChannelChainTemplate(nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_TRANSLATOR)
 }
 
 func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule) {
