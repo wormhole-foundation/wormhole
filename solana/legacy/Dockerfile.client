@@ -11,7 +11,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install
 RUN --mount=type=cache,target=/root/.cache \
     cargo install --version =2.0.12 --locked spl-token-cli
 
-COPY solana /usr/src/solana
+COPY solana/legacy /usr/src/solana
 COPY proto /usr/src/proto
 
 WORKDIR /usr/src/solana
