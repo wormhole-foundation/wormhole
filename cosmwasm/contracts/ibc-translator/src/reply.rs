@@ -129,8 +129,12 @@ pub fn convert_cw20_to_bank_and_send(
             exponent: 0,
             aliases: vec![],
         };
+        let tf_scaled_denom = "wormhole/".to_string()
+            + subdenom.as_str()
+            + "/"
+            + token_info.decimals.to_string().as_str();
         let tf_denom_unit_scaled = DenomUnit {
-            denom: token_info.symbol.clone(),
+            denom: tf_scaled_denom,
             exponent: u32::from(token_info.decimals),
             aliases: vec![],
         };
@@ -138,7 +142,7 @@ pub fn convert_cw20_to_bank_and_send(
             description: Some(tf_description),
             base: Some(tokenfactory_denom.clone()),
             denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-            display: Some(token_info.symbol.clone()),
+            display: Some(tokenfactory_denom.clone()),
             name: Some(token_info.name),
             symbol: Some(token_info.symbol),
         };
