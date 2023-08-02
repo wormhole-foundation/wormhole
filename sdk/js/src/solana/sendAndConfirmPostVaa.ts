@@ -20,6 +20,10 @@ import {
 } from "./wormhole";
 import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../vaa/wormhole";
 
+/**
+ * @deprecated Please use {@link postVaa} instead, which allows
+ * retries and commitment to be configured in {@link ConfirmOptions}.
+ */
 export async function postVaaWithRetry(
   connection: Connection,
   signTransaction: SignTransaction,
