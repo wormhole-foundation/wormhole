@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
@@ -72,8 +73,8 @@ func (k Keeper) OnRecvPacket(
 	memo := make(map[string]interface{})
 	err := json.Unmarshal([]byte(data.Memo), &memo)
 	if err != nil || memo["gateway_ibc_token_bridge_payload"] == nil {
-		// not a packet that should be parsed
-		return packet, nil
+		// not a packet that can be parsed
+		return packet, channeltypes.NewErrorAcknowledgement(fmt.Errorf("ibc-composability-mw: must be a valid memo for gateway"))
 	}
 
 	parsedPayload, err := types.VerifyAndParseGatewayPayload(data.Memo)
