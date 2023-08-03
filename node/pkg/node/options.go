@@ -100,7 +100,6 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 				g.chainQueryReqC,
 				g.queryResponseC.readC,
 				g.queryResponsePublicationC.writeC,
-				(g.gatewayRelayer != nil),
 			)
 
 			return nil
