@@ -9,10 +9,10 @@
 /bitcoin/ @evan-gray
 /cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @gator-boi @kcsongor
-/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
-/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth 
-/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth 
-/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth
+/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth
+/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth
+/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi
@@ -24,7 +24,7 @@
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
 /relayer/spy_relayer @evan-gray @kev1n-peters
-/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth 
+/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth
 /scripts/ @evan-gray @kcsongor
 /sdk/ @bruce-riley @evan-gray
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
@@ -42,31 +42,45 @@
 # Guardiand node
 
 ## Fallback
+
 /node/ @bruce-riley @evan-gray
 
 ## Entrypoint / RPC
+
 /node/cmd/ @bruce-riley @panoel @kev1n-peters @evan-gray
 
 ## DB
+
 /node/pkg/db/ @bruce-riley @kev1n-peters
 
 ## Accountant
+
 /node/pkg/accountant/ @bruce-riley @evan-gray
 
 ## Governor
+
 /node/pkg/governor/ @bruce-riley @claudijd @tbjump
 
+## Gateway Relayer
+
+/node/pkg/gwrelayer/ @bruce-riley @evan-gray @kev1n-peters @panoel
+
 ## P2P
+
 /node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters
 
 ## Consensus / Processor
+
 /node/pkg/processor/ @bruce-riley @evan-gray
 
 ## Public RPC
+
 /node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
+
 /node/pkg/supervisor/ @bruce-riley @evan-gray
 
 ## Watchers
+
 /node/pkg/watchers @evan-gray @bruce-riley @panoel @kev1n-peters
