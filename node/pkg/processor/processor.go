@@ -76,8 +76,6 @@ type (
 		ourMsg []byte
 		// The hash of the transaction in which the observation was made.  Used for re-observation requests.
 		txHash []byte
-		// Copy of the guardian set valid at observation/injection time.
-		gs *common.GuardianSet
 	}
 
 	observationMap map[string]*state
@@ -110,8 +108,8 @@ func (s *aggregationState) getOrCreateState(hash string) (*state, bool) {
 // delete removes a state entry from the map. It grabs the lock.
 func (s *aggregationState) delete(hash string) {
 	s.signaturesLock.Lock()
-	defer s.signaturesLock.Unlock()
 	delete(s.signatures, hash)
+	s.signaturesLock.Unlock()
 }
 
 type PythNetVaaEntry struct {
@@ -240,7 +238,6 @@ func (p *Processor) Run(ctx context.Context) error {
 	if p.workerFactor == 0.0 {
 		ret = p.RunOne(ctx, 1)
 	} else {
-
 		numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
 		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
 

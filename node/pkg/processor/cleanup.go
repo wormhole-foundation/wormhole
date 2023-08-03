@@ -124,36 +124,32 @@ func (p *Processor) cleanUpStateEntry(hash string, s *state) bool {
 		s.settled = true
 
 		// Use either the most recent (in case of a observation we haven't seen) or stored gs, if available.
-		var gs *common.GuardianSet
-		if s.gs != nil {
-			gs = s.gs
-		} else {
-			gs = p.gs.Load()
-		}
+		gs := p.gs.Load()
+		if gs != nil {
+			hasSigs := len(s.signatures)
+			wantSigs := vaa.CalculateQuorum(len(gs.Keys))
+			quorum := hasSigs >= wantSigs
 
-		hasSigs := len(s.signatures)
-		wantSigs := vaa.CalculateQuorum(len(gs.Keys))
-		quorum := hasSigs >= wantSigs
+			var chain vaa.ChainID
+			if s.ourObservation != nil {
+				chain = s.ourObservation.GetEmitterChain()
+			}
 
-		var chain vaa.ChainID
-		if s.ourObservation != nil {
-			chain = s.ourObservation.GetEmitterChain()
-		}
+			p.logger.Debug("observation considered settled",
+				zap.String("digest", hash),
+				zap.Duration("delta", delta),
+				zap.Int("have_sigs", hasSigs),
+				zap.Int("required_sigs", wantSigs),
+				zap.Bool("quorum", quorum),
+				zap.Stringer("emitter_chain", chain),
+			)
 
-		p.logger.Debug("observation considered settled",
-			zap.String("digest", hash),
-			zap.Duration("delta", delta),
-			zap.Int("have_sigs", hasSigs),
-			zap.Int("required_sigs", wantSigs),
-			zap.Bool("quorum", quorum),
-			zap.Stringer("emitter_chain", chain),
-		)
-
-		for _, k := range gs.Keys {
-			if _, ok := s.signatures[k]; ok {
-				aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "present").Inc()
-			} else {
-				aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "missing").Inc()
+			for _, k := range gs.Keys {
+				if _, ok := s.signatures[k]; ok {
+					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "present").Inc()
+				} else {
+					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "missing").Inc()
+				}
 			}
 		}
 	case s.submitted && delta.Hours() >= 1:

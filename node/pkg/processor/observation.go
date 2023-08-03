@@ -93,12 +93,12 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		return
 	}
 
-	state, created := p.state.getOrCreateState(hash)
-	state.lock.Lock()
-	defer state.lock.Unlock()
+	obsState, created := p.state.getOrCreateState(hash)
+	obsState.lock.Lock()
+	defer obsState.lock.Unlock()
 	if created {
-		state.source = "unknown"
-		state.nextRetry = time.Now().Add(nextRetryDuration(0))
+		obsState.source = "unknown"
+		obsState.nextRetry = time.Now().Add(nextRetryDuration(0))
 	}
 
 	// Determine which guardian set to use. The following cases are possible:
@@ -117,12 +117,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	//
 	// During an update, vaaState.signatures can contain signatures from *both* guardian sets.
 	//
-	var gs *node_common.GuardianSet
-	if state.gs != nil {
-		gs = state.gs
-	} else {
-		gs = p.gs.Load()
-	}
+	gs := p.gs.Load()
 
 	// We haven't yet observed the trusted guardian set on Ethereum, and therefore, it's impossible to verify it.
 	// May as well not have received it/been offline - drop it and wait for the guardian set.
@@ -174,13 +169,13 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		observationsUnknownTotal.Inc()
 	}
 
-	state.signatures[their_addr] = m.Signature
+	obsState.signatures[their_addr] = m.Signature
 
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	agg := make([]bool, len(gs.Keys))
 	var sigs []*vaa.Signature
 	for i, a := range gs.Keys {
-		s, ok := state.signatures[a]
+		s, ok := obsState.signatures[a]
 
 		if ok {
 			var bs [65]byte
@@ -197,7 +192,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		agg[i] = ok
 	}
 
-	if state.ourObservation != nil {
+	if obsState.ourObservation != nil {
 		// We have made this observation on chain!
 
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
@@ -213,9 +208,9 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.Bool("quorum", len(sigs) >= quorum),
 		)
 
-		if len(sigs) >= quorum && !state.submitted {
-			state.ourObservation.HandleQuorum(sigs, hash, p)
-			state.submitted = true
+		if len(sigs) >= quorum && !obsState.submitted {
+			obsState.ourObservation.HandleQuorum(sigs, hash, p)
+			obsState.submitted = true
 		} else {
 			p.logger.Debug("quorum not met or already submitted, doing nothing", // 1.2M out of 3M info messages / hour / guardian
 				zap.String("digest", hash))

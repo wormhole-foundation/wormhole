@@ -49,20 +49,19 @@ func (p *Processor) broadcastSignature(
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
 
-	state, created := p.state.getOrCreateState(hash)
-	state.lock.Lock()
-	defer state.lock.Unlock()
+	obsState, created := p.state.getOrCreateState(hash)
+	obsState.lock.Lock()
+	defer obsState.lock.Unlock()
 
 	if created {
-		state.source = "loopback"
-		state.nextRetry = time.Now().Add(nextRetryDuration(0))
+		obsState.source = "loopback"
+		obsState.nextRetry = time.Now().Add(nextRetryDuration(0))
 	}
 
-	state.ourObservation = o
-	state.ourMsg = msg
-	state.txHash = txhash
-	state.source = o.GetEmitterChain().String()
-	state.gs = p.gs.Load() // guaranteed to match ourObservation - there's no concurrent access to p.gs: TODO: Is this comment a problem??
+	obsState.ourObservation = o
+	obsState.ourMsg = msg
+	obsState.txHash = txhash
+	obsState.source = o.GetEmitterChain().String()
 
 	// Fast path for our own signature. Put this in a go routine so it can block if the channel is full. That's also why we're not using node_common.PostMsgWithTimestamp.
 	go func() { p.obsvC <- node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv) }()
