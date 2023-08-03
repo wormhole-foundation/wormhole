@@ -78,9 +78,7 @@ spec:
             # - --bscRPC
             # - ws://eth-devnet2:8545
             - --polygonRPC
-            - wss://ws-matic-mainnet.chainstacklabs.com
-            - --polygonContract
-            - "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
+            - ws://eth-devnet:8545
             - --avalancheRPC
             - ws://eth-devnet:8545
             - --auroraRPC
