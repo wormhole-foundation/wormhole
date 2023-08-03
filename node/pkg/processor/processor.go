@@ -234,20 +234,29 @@ func (p *Processor) Run(ctx context.Context) error {
 		return fmt.Errorf("workerFactor must be positive or zero")
 	}
 
+	var w sync.WaitGroup
+
+	w.Add(1)
+	go func(ctx context.Context) {
+		err := p.runHousekeeper(ctx)
+		if err != nil {
+			p.logger.Error("housekeeper failed", zap.Error(err))
+		}
+	}(ctx)
+
 	var ret error
 	if p.workerFactor == 0.0 {
-		ret = p.RunOne(ctx, 1)
+		w.Add(1)
+		ret = p.runWorker(ctx)
 	} else {
 		numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
 		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
-
-		var w sync.WaitGroup
 		w.Add(numWorkers)
 
 		for workerId := 1; workerId <= numWorkers; workerId++ {
 			go func(ctx context.Context, workerId int) {
 				p.logger.Info("processor worker started", zap.Int("workerId", workerId))
-				err := p.RunOne(ctx, workerId)
+				err := p.runWorker(ctx)
 				if err != nil {
 					p.logger.Error("processor worker failed", zap.Int("workerId", workerId), zap.Error(err))
 				}
@@ -255,9 +264,9 @@ func (p *Processor) Run(ctx context.Context) error {
 				w.Done()
 			}(ctx, workerId)
 		}
-
-		w.Wait()
 	}
+
+	w.Wait()
 
 	// Leaving this here for easy debugging.
 	// // Log these as warnings so they show up in the benchmark logs.
@@ -271,7 +280,8 @@ func (p *Processor) Run(ctx context.Context) error {
 	return ret
 }
 
-func (p *Processor) RunOne(ctx context.Context, workerId int) error {
+// runHousekeeper performs general tasks that do not need to be distributed to the workers. There will always be exactly one instance of this.
+func (p *Processor) runHousekeeper(ctx context.Context) error {
 	// Always start the timers to avoid nil pointer dereferences below. They will only be rearmed on worker 1.
 	cleanup := time.NewTimer(CleanupInterval)
 	defer cleanup.Stop()
@@ -293,46 +303,11 @@ func (p *Processor) RunOne(ctx context.Context, workerId int) error {
 				zap.Strings("set", gs.KeysAsHexStrings()),
 				zap.Uint32("index", gs.Index))
 			p.gst.Set(gs)
-		case k := <-p.msgC:
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					continue
-				}
-			}
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
-					continue
-				}
-			}
-			p.handleMessage(ctx, k)
-
-		case k := <-p.acctReadC:
-			if p.acct == nil {
-				return fmt.Errorf("received an accountant event when accountant is not configured")
-			}
-			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
-			if !p.acct.IsMessageCoveredByAccountant(k) {
-				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
-			}
-			p.handleMessage(ctx, k)
-		case v := <-p.injectC:
-			p.handleInjection(ctx, v)
-		case m := <-p.obsvC:
-			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleObservation(ctx, m)
-		case m := <-p.signedInC:
-			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-cleanup.C:
-			if workerId == 1 {
-				cleanup.Reset(CleanupInterval)
-				p.handleCleanup(ctx)
-			}
+			cleanup.Reset(CleanupInterval)
+			p.handleCleanup(ctx)
 		case <-govTimer.C:
-			if p.governor != nil && workerId == 1 {
+			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
 					return err
@@ -359,6 +334,51 @@ func (p *Processor) RunOne(ctx context.Context, workerId int) error {
 				}
 				govTimer.Reset(GovInterval)
 			}
+		}
+	}
+}
+
+// runWorker performs the per-observation tasks that can be distributed to the workers. There will be at least one of these.
+func (p *Processor) runWorker(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			if p.acct != nil {
+				p.acct.Close()
+			}
+			return ctx.Err()
+		case k := <-p.msgC:
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
+					continue
+				}
+			}
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
+					continue
+				}
+			}
+			p.handleMessage(ctx, k)
+		case k := <-p.acctReadC:
+			if p.acct == nil {
+				return fmt.Errorf("received an accountant event when accountant is not configured")
+			}
+			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
+			if !p.acct.IsMessageCoveredByAccountant(k) {
+				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+			}
+			p.handleMessage(ctx, k)
+		case v := <-p.injectC:
+			p.handleInjection(ctx, v)
+		case m := <-p.obsvC:
+			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+			p.handleObservation(ctx, m)
+		case m := <-p.signedInC:
+			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		}
 	}
 }
