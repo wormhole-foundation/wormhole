@@ -12,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -41,7 +42,7 @@ type GuardianOption struct {
 func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, port uint, ibcFeaturesFunc func() string) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "governor"},
+		dependencies: []string{"accountant", "governor", "gateway-relayer"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -71,6 +72,7 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 				nil,
 				components,
 				ibcFeaturesFunc,
+				(g.gatewayRelayer != nil),
 			)
 
 			return nil
@@ -148,6 +150,25 @@ func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
 			} else {
 				logger.Info("chain governor is disabled")
 			}
+			return nil
+		}}
+}
+
+// GuardianOptionGatewayRelayer configures the Gateway Relayer module. If the gateway relayer smart contract is configured, we will instantiate
+// the GatewayRelayer and signed VAAs will be passed to it for processing when they are published. It will forward payload three transfers destined
+// for the specified contract on wormchain to that contract.
+func GuardianOptionGatewayRelayer(gatewayRelayerContract string, wormchainConn *wormconn.ClientConn) *GuardianOption {
+	return &GuardianOption{
+		name: "gateway-relayer",
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			g.gatewayRelayer = gwrelayer.NewGatewayRelayer(
+				ctx,
+				logger,
+				gatewayRelayerContract,
+				wormchainConn,
+				g.env,
+			)
+
 			return nil
 		}}
 }
@@ -450,7 +471,7 @@ func GuardianOptionProcessor() *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant"},
+		dependencies: []string{"db", "governor", "accountant", "gateway-relayer"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -469,6 +490,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.gov,
 				g.acct,
 				g.acctC.readC,
+				g.gatewayRelayer,
 			).Run
 
 			return nil

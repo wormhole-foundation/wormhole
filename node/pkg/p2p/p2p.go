@@ -203,6 +203,7 @@ func Run(
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
 	components *Components,
 	ibcFeaturesFunc func() string,
+	gatewayRelayerEnabled bool,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -378,6 +379,9 @@ func Run(
 							if ibcFlags != "" {
 								features = append(features, ibcFlags)
 							}
+						}
+						if gatewayRelayerEnabled {
+							features = append(features, "gwrelayer")
 						}
 
 						heartbeat := &gossipv1.Heartbeat{
