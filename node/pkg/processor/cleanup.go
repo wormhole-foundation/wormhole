@@ -123,33 +123,34 @@ func (p *Processor) cleanUpStateEntry(hash string, s *state) bool {
 		// because we submit right when we quorum rather than waiting for all observations to arrive.
 		s.settled = true
 
-		// Use either the most recent (in case of a observation we haven't seen) or stored gs, if available.
-		gs := p.gs.Load()
-		if gs != nil {
-			hasSigs := len(s.signatures)
-			wantSigs := vaa.CalculateQuorum(len(gs.Keys))
-			quorum := hasSigs >= wantSigs
+		// Peg the appropriate settlement metric using the current guardian set. If we don't have a guardian set (extremely unlikely), we just won't peg the metric.
+		gs := p.gst.Get()
+		if gs == nil {
+			return false
+		}
+		hasSigs := len(s.signatures)
+		wantSigs := vaa.CalculateQuorum(len(gs.Keys))
+		quorum := hasSigs >= wantSigs
 
-			var chain vaa.ChainID
-			if s.ourObservation != nil {
-				chain = s.ourObservation.GetEmitterChain()
-			}
+		var chain vaa.ChainID
+		if s.ourObservation != nil {
+			chain = s.ourObservation.GetEmitterChain()
+		}
 
-			p.logger.Debug("observation considered settled",
-				zap.String("digest", hash),
-				zap.Duration("delta", delta),
-				zap.Int("have_sigs", hasSigs),
-				zap.Int("required_sigs", wantSigs),
-				zap.Bool("quorum", quorum),
-				zap.Stringer("emitter_chain", chain),
-			)
+		p.logger.Debug("observation considered settled",
+			zap.String("digest", hash),
+			zap.Duration("delta", delta),
+			zap.Int("have_sigs", hasSigs),
+			zap.Int("required_sigs", wantSigs),
+			zap.Bool("quorum", quorum),
+			zap.Stringer("emitter_chain", chain),
+		)
 
-			for _, k := range gs.Keys {
-				if _, ok := s.signatures[k]; ok {
-					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "present").Inc()
-				} else {
-					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "missing").Inc()
-				}
+		for _, k := range gs.Keys {
+			if _, ok := s.signatures[k]; ok {
+				aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "present").Inc()
+			} else {
+				aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "missing").Inc()
 			}
 		}
 	case s.submitted && delta.Hours() >= 1:
@@ -210,8 +211,9 @@ func (p *Processor) cleanUpStateEntry(hash string, s *state) bool {
 			// For nil state entries, we log the quorum to determine whether the
 			// network reached consensus without us. We don't know the correct guardian
 			// set, so we simply use the most recent one.
+			gs := p.gst.Get()
 			hasSigs := len(s.signatures)
-			wantSigs := vaa.CalculateQuorum(len(p.gs.Load().Keys))
+			wantSigs := vaa.CalculateQuorum(len(gs.Keys))
 
 			p.logger.Debug("expiring unsubmitted nil observation",
 				zap.String("digest", hash),

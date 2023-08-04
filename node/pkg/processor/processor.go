@@ -7,7 +7,6 @@ import (
 	"math"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -147,8 +146,6 @@ type Processor struct {
 
 	// Runtime state
 
-	// gs is the currently valid guardian set
-	gs atomic.Pointer[common.GuardianSet]
 	// gst is managed by the processor and allows concurrent access to the
 	// guardian set by other components.
 	gst *common.GuardianSetState
@@ -234,8 +231,17 @@ func (p *Processor) Run(ctx context.Context) error {
 		return fmt.Errorf("workerFactor must be positive or zero")
 	}
 
-	var w sync.WaitGroup
+	var numWorkers int
+	if p.workerFactor == 0.0 {
+		numWorkers = 1
+		p.logger.Info("processor running in single worker mode", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
+	} else {
+		numWorkers = int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
+		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
+	}
 
+	// Start the routine to do housekeeping tasks that don't need to be distributed to the workers.
+	var w sync.WaitGroup
 	w.Add(1)
 	go func(ctx context.Context) {
 		err := p.runHousekeeper(ctx)
@@ -244,29 +250,25 @@ func (p *Processor) Run(ctx context.Context) error {
 		}
 	}(ctx)
 
-	var ret error
-	if p.workerFactor == 0.0 {
-		w.Add(1)
-		ret = p.runWorker(ctx)
-	} else {
-		numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
-		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
-		w.Add(numWorkers)
-
-		for workerId := 1; workerId <= numWorkers; workerId++ {
-			go func(ctx context.Context, workerId int) {
-				p.logger.Info("processor worker started", zap.Int("workerId", workerId))
-				err := p.runWorker(ctx)
-				if err != nil {
-					p.logger.Error("processor worker failed", zap.Int("workerId", workerId), zap.Error(err))
-				}
-				p.logger.Info("processor worker done", zap.Int("workerId", workerId))
-				w.Done()
-			}(ctx, workerId)
-		}
+	// Start the workers.
+	w.Add(numWorkers)
+	for workerId := 1; workerId <= numWorkers; workerId++ {
+		go func(ctx context.Context, workerId int) {
+			p.logger.Info("processor worker started", zap.Int("workerId", workerId))
+			err := p.runWorker(ctx)
+			if err != nil {
+				p.logger.Error("processor worker failed", zap.Int("workerId", workerId), zap.Error(err))
+			}
+			p.logger.Info("processor worker done", zap.Int("workerId", workerId))
+			w.Done()
+		}(ctx, workerId)
 	}
 
 	w.Wait()
+
+	if p.acct != nil {
+		p.acct.Close()
+	}
 
 	// Leaving this here for easy debugging.
 	// // Log these as warnings so they show up in the benchmark logs.
@@ -277,7 +279,7 @@ func (p *Processor) Run(ctx context.Context) error {
 	// metric = &dto.Metric{}
 	// _ = observationTotalDelay.Write(metric)
 	// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
-	return ret
+	return nil
 }
 
 // runHousekeeper performs general tasks that do not need to be distributed to the workers. There will always be exactly one instance of this.
@@ -293,12 +295,8 @@ func (p *Processor) runHousekeeper(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			if p.acct != nil {
-				p.acct.Close()
-			}
 			return ctx.Err()
 		case gs := <-p.setC:
-			p.gs.Store(gs)
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", gs.KeysAsHexStrings()),
 				zap.Uint32("index", gs.Index))
@@ -343,9 +341,6 @@ func (p *Processor) runWorker(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			if p.acct != nil {
-				p.acct.Close()
-			}
 			return ctx.Err()
 		case k := <-p.msgC:
 			if p.governor != nil {

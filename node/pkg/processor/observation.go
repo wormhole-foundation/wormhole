@@ -117,7 +117,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	//
 	// During an update, vaaState.signatures can contain signatures from *both* guardian sets.
 	//
-	gs := p.gs.Load()
+	gs := p.gst.Get()
 
 	// We haven't yet observed the trusted guardian set on Ethereum, and therefore, it's impossible to verify it.
 	// May as well not have received it/been offline - drop it and wait for the guardian set.
@@ -252,7 +252,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
 
-	gs := p.gs.Load()
+	gs := p.gst.Get()
 	if gs == nil {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet",
 			zap.String("digest", hash),
