@@ -68,12 +68,13 @@ const runFailureCases = (
 describe("worm submit", () => {
   let originalEnv: any;
   let originalProcessExit: any;
+  const wormSubmitCliEnvValues = (global as any).wormSubmitCliEnv;
 
   beforeAll(() => {
     // Save original environment variables, avoiding conflicts with CI
     originalEnv = { ...process.env };
-    // Override environment variables for 'Worm submit' cases by using 'global.wormSubmitCliEnv'
-    for (const [key, value] of Object.entries(global.wormSubmitCliEnv)) {
+    // Override environment variables for 'Worm submit' cases by using 'wormSubmitCliEnvValues'
+    for (const [key, value] of Object.entries(wormSubmitCliEnvValues)) {
       process.env[key] = value as string;
     }
 
