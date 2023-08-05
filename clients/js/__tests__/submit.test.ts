@@ -66,19 +66,31 @@ const runFailureCases = (
 };
 
 describe("worm submit", () => {
+  let originalEnv: any;
   let originalProcessExit: any;
 
   beforeAll(() => {
+    // Save original environment variables, avoiding conflicts with CI
+    originalEnv = { ...process.env };
+    // Override environment variables for 'Worm submit' cases by using 'global.wormSubmitCliEnv'
+    for (const [key, value] of Object.entries(global.wormSubmitCliEnv)) {
+      process.env[key] = value as string;
+    }
+
     // Save original process.exit, needed to recover exited processes
     originalProcessExit = process.exit;
     // Override process.exit
     process.exit = jest.fn(() => {
       throw new Error("process.exit was called");
     });
+
     // Listen to msw local server, network calls are captured there
     mswServer.listen();
   });
+
+  // Reset everything after 'Worm Submit' test cases
   afterAll(() => {
+    process.env = originalEnv;
     process.exit = originalProcessExit;
     mswServer.close();
   });
