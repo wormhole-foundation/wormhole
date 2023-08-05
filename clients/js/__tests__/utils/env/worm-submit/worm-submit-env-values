@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # List of env values consumed by Jest
 # Here we can set what value these env variables should have while running jest testing environment
-INFURA_KEY=test-value
 ETH_KEY=0xdaea9603039234fa8a0c63d60b8b2b6ac5cdcfa4a2707904a31f3e70f38e10e1
 ETH_KEY_TESTNET=0xdaea9603039234fa8a0c63d60b8b2b6ac5cdcfa4a2707904a31f3e70f38e10e1
 TERRA_MNEMONIC=squirrel future level fan world organ daring thing color orange sausage cross fault interest blast wink audit unfair satoshi solution track indoor sun edit
