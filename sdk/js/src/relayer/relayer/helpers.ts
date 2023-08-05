@@ -49,7 +49,7 @@ export function parseWormholeLog(log: ethers.providers.Log): {
   parsed: DeliveryInstruction | string;
 } {
   const abi = [
-    "event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);",
+    "event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)",
   ];
   const iface = new ethers.utils.Interface(abi);
   const parsed = iface.parseLog(log);

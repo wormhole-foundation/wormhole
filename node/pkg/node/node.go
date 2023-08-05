@@ -9,6 +9,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -43,6 +44,7 @@ type G struct {
 	gst               *common.GuardianSetState
 	acct              *accountant.Accountant
 	gov               *governor.ChainGovernor
+	gatewayRelayer    *gwrelayer.GatewayRelayer
 	attestationEvents *reporter.AttestationEventReporter
 	publicrpcServer   *grpc.Server
 
@@ -172,6 +174,13 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			logger.Info("Starting governor")
 			if err := g.gov.Run(ctx); err != nil {
 				logger.Fatal("failed to create chain governor", zap.Error(err))
+			}
+		}
+
+		if g.gatewayRelayer != nil {
+			logger.Info("Starting gateway relayer")
+			if err := g.gatewayRelayer.Start(ctx); err != nil {
+				logger.Fatal("failed to start gateway relayer", zap.Error(err), zap.String("component", "gwrelayer"))
 			}
 		}
 

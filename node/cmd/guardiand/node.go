@@ -207,6 +207,10 @@ var (
 	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
+
+	gatewayRelayerContract      *string
+	gatewayRelayerKeyPath       *string
+	gatewayRelayerKeyPassPhrase *string
 )
 
 func init() {
@@ -367,6 +371,10 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+
+	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
+	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
+	gatewayRelayerKeyPassPhrase = NodeCmd.Flags().String("gatewayRelayerKeyPassPhrase", "", "Pass phrase used to unarmor the gateway relayer key file")
 }
 
 var (
@@ -1003,6 +1011,40 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	var gatewayRelayerWormchainConn *wormconn.ClientConn
+	if *gatewayRelayerContract != "" {
+		if *wormchainURL == "" {
+			logger.Fatal("if gatewayRelayerContract is specified, wormchainURL is required", zap.String("component", "gwrelayer"))
+		}
+		if *gatewayRelayerKeyPath == "" {
+			logger.Fatal("if gatewayRelayerContract is specified, gatewayRelayerKeyPath is required", zap.String("component", "gwrelayer"))
+		}
+
+		if *gatewayRelayerKeyPassPhrase == "" {
+			logger.Fatal("if gatewayRelayerContract is specified, gatewayRelayerKeyPassPhrase is required", zap.String("component", "gwrelayer"))
+		}
+
+		wormchainKeyPathName := *gatewayRelayerKeyPath
+		if *unsafeDevMode {
+			idx, err := devnet.GetDevnetIndex()
+			if err != nil {
+				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gwrelayer"))
+			}
+			wormchainKeyPathName = fmt.Sprint(*gatewayRelayerKeyPath, idx)
+		}
+
+		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *gatewayRelayerKeyPassPhrase)
+		if err != nil {
+			logger.Fatal("failed to load private key", zap.Error(err), zap.String("component", "gwrelayer"))
+		}
+
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("gatewayRelayerKeyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
+		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
+		if err != nil {
+			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
+		}
+	}
+
 	var watcherConfigs = []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
@@ -1362,6 +1404,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, wormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
+		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
