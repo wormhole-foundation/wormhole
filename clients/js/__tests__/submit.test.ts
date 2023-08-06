@@ -364,7 +364,8 @@ describe("worm submit", () => {
     describe("cosmwasm", () => {
       const cosmwasmChains: WormholeSDKChainName[] = [
         "xpla",
-        "sei",
+        // Sei testnet servers are failing with 'EPIPE' connection errors, ignoring this chain until it gets more stable
+        // "sei",
         "injective",
         "terra2",
         "terra",
@@ -378,8 +379,6 @@ describe("worm submit", () => {
           if (chain === "sei") {
             rpc = getRpcEndpoint(chain, "TESTNET");
             network = "testnet";
-            //NOTE: Sei testnet servers are failing with 'EPIPE' connection errors, ignoring this chain until it gets more stable
-            return;
           }
 
           contractUpgradeModules.forEach((module) => {
