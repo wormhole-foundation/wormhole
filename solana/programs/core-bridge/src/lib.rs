@@ -3,7 +3,7 @@
 use anchor_lang::prelude::*;
 
 #[cfg(feature = "localnet")]
-declare_id!("agnnozV7x6ffAhi8xVhBd5dShfLnuUKKPEMX1tJ1nDC");
+declare_id!("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
 
 #[cfg(feature = "mainnet")]
 declare_id!("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth");
@@ -38,12 +38,8 @@ impl Id for CoreBridge {
 }
 
 #[program]
-pub mod solana_wormhole_core_bridge {
+pub mod wormhole_core_bridge_solana {
     use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
-        processor::initialize(ctx, args)
-    }
 
     pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> Result<()> {
         processor::init_message_v1(ctx, args)

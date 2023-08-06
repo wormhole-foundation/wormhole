@@ -23,8 +23,7 @@ pub struct PostVaaV1<'info> {
         init,
         payer = write_authority,
         space = PostedVaaV1Bytes::compute_size(vaa.payload_size()?),
-        //seeds = [PostedVaaV1Bytes::seed_prefix(), vaa.compute_message_hash()?.as_ref()],
-        seeds = [PostedVaaV1Bytes::seed_prefix(), &Vaa::parse(&mut &vaa.bytes).unwrap().body().digest()],
+        seeds = [PostedVaaV1Bytes::seed_prefix(), &Vaa::parse(&vaa.buf).unwrap().body().digest()],
         bump,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
@@ -57,10 +56,9 @@ pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Re
         PostVaaV1Directive::TryOnce => {
             msg!("Directive: TryOnce");
             let encoded_vaa = &ctx.accounts.vaa;
-            let mut vaa_buf: &[u8] = &encoded_vaa.bytes;
 
             // This is safe because the VAA integrity has already been verified.
-            let vaa = Vaa::parse(&mut vaa_buf).unwrap();
+            let vaa = Vaa::parse(&encoded_vaa.buf).unwrap();
 
             // Verify version.
             require_eq!(

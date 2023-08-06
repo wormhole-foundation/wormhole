@@ -55,6 +55,7 @@ pub struct UpgradeContract<'info> {
     upgrade_authority: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the BPF Loader Upgradeable program.
+    #[account(mut)]
     spill: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the BPF Loader Upgradeable program.

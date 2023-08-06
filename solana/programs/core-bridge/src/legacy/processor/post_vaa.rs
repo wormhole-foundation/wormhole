@@ -48,6 +48,7 @@ pub struct PostVaa<'info> {
     ///
     /// NOTE: We prefer to make this account mutable so we have the ability to close this account
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
+    #[account(owner = crate::ID)]
     signature_set: Account<'info, SignatureSet>,
 
     /// Posted verified message. This account is created if it hasn't been created already.
