@@ -1,0 +1,57 @@
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ARG SOLANA_CLI
+RUN if [ -z "$SOLANA_CLI" ]; then echo 'Environment variable SOLANA_CLI must be specified. Exiting.'; exit 1; fi
+
+ARG ANCHOR_CLI
+RUN if [ -z "$ANCHOR_CLI" ]; then echo 'Environment variable ANCHOR_CLI must be specified. Exiting.'; exit 1; fi
+
+ARG NODE_VERSION="v18.16.0"
+
+ENV HOME="/root"
+ENV PATH="${HOME}/.cargo/bin:${PATH}"
+ENV PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
+ENV PATH="${HOME}/.nvm/versions/node/${NODE_VERSION}/bin:${PATH}"
+
+# Install base utilities.
+RUN mkdir -p /workdir && \
+    apt-get update -qq && apt-get upgrade -qq && apt-get install -qq \
+    build-essential git curl wget jq pkg-config python3-pip \
+    libssl-dev libudev-dev
+
+RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+
+# Install rust.
+RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
+    sh rustup.sh -y && \
+    rustup component add rustfmt clippy
+
+# Install node / npm / yarn.
+RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+ENV NVM_DIR="${HOME}/.nvm"
+RUN . $NVM_DIR/nvm.sh && \
+    nvm install ${NODE_VERSION} && \
+    nvm use ${NODE_VERSION} && \
+    nvm alias default node
+
+# Install Solana tools.
+RUN sh -c "$(curl -sSfL https://release.solana.com/${SOLANA_CLI}/install)"
+
+# Install anchor.
+RUN cargo install --git https://github.com/coral-xyz/anchor --tag ${ANCHOR_CLI} anchor-cli --locked
+
+COPY . /workdir
+
+WORKDIR /workdir
+
+### Check all targets.
+RUN make check
+
+### Run fmt and clippy.
+RUN make lint
+
+### Run ts-mocha integration tests using solana-test-validator.
+RUN make test

@@ -1,0 +1,27 @@
+[package]
+name = "wormhole-mock-cpi-solana"
+description = "Wormhole Mock CPI Program for Solana"
+version = "0.1.0"
+edition = "2021"
+authors = ["W7"]
+license = "Apache-2.0"
+homepage = "https://wormhole.com"
+repository = "https://github.com/wormhole-foundation/wormhole"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["localnet"]
+localnet = ["core-bridge-program/localnet", "token-bridge-program/localnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+core-bridge-program = { path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
+token-bridge-program = { path = "../token-bridge", package = "wormhole-token-bridge-solana", features = ["cpi"], default-features = false }
+
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"

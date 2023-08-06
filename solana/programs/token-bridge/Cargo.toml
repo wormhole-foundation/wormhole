@@ -1,7 +1,7 @@
 [package]
-name = "solana-wormhole-token-bridge"
+name = "wormhole-token-bridge-solana"
 description = "Wormhole Token Bridge Program for Solana"
-version = "0.1.0"
+version = "0.0.0-alpha.1"
 edition = "2021"
 authors = ["W7"]
 license = "Apache-2.0"
@@ -13,32 +13,32 @@ crate-type = ["cdylib", "lib"]
 #name = "core_bridge_program"
 
 [features]
-default = ["localnet"]
+default = ["mainnet", "cpi"]
+### A.K.A. Local Validator (via JS Integration Test) and Tilt
+localnet = ["core-bridge-program/localnet"]
+### A.K.A. Solana Mainnet-Beta
+mainnet = ["core-bridge-program/mainnet"]
+### A.K.A. Solana Devnet
+testnet = ["core-bridge-program/testnet"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-### A.K.A. Local Validator (via JS Integration Test)
-localnet = ["core-bridge-program/localnet"]
-### A.K.A. Solana Mainnet
-mainnet = ["core-bridge-program/mainnet"]
-### A.K.A. Solana Devnet
-testnet = ["core-bridge-program/testnet"]
-### A.K.A. Tilt
-devnet = ["core-bridge-program/devnet"]
 
 [dependencies]
-wormhole-io = { version = "=0.0.16", features = ["ruint"] }
-wormhole-raw-vaas = { version = "=0.0.18", features = ["anchor"], default-features = false }
-wormhole-solana-common = { path = "../../common/solana-common" }
+wormhole-io = "0.1.0"
+wormhole-raw-vaas = { version = "=0.0.0-alpha.7", features = ["on-chain", "ruint"], default-features = false }
 
-core-bridge-program = { path = "../core-bridge", package = "solana-wormhole-core-bridge", features = ["cpi"], default-features = false }
-solana-program = "=1.14.20"
+core-bridge-program = { version = "0.0.0-alpha.1", path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 anchor-spl = { version = "0.28.0", features = ["metadata"] }
-mpl-token-metadata = "1.12.0"
+mpl-token-metadata = "1.13"
+solana-program = "1.14"
 
 hex = "0.4"
+ruint = "1.8.0"
+
+cfg-if = "1.0"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -47,3 +47,6 @@ serde_json = "1.0"
 ### dependencies are used by spl-token-2022.
 toml_datetime = "=0.6.1"
 winnow = "=0.4.1"
+
+[dev-dependencies]
+hex-literal = "0.4.1"

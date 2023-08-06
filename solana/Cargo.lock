@@ -517,6 +517,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "core-bridge-hello-world"
+version = "0.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "wormhole-core-bridge-solana",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1049,13 +1058,13 @@ dependencies = [
 
 [[package]]
 name = "mpl-token-auth-rules"
-version = "1.4.1"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c376f2cc7dae80e2949cd6ca8a2420b3c61c1ecb7a275c6433d9a4d2d24f994d"
+checksum = "66b1ec5ee0570f688cc84ff4624c5c50732f1a2bfc789f6b34af5b563428d971"
 dependencies = [
  "borsh",
  "bytemuck",
- "mpl-token-metadata-context-derive",
+ "mpl-token-metadata-context-derive 0.2.1",
  "num-derive",
  "num-traits",
  "rmp-serde",
@@ -1068,14 +1077,14 @@ dependencies = [
 
 [[package]]
 name = "mpl-token-metadata"
-version = "1.13.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "803d414222c1b648d14559d6d1aaa5fa6f7dfdde3a26c76c331a87d6124aeb5e"
+checksum = "84e73b5df66f4e6f98606e3fb327cbc6a0dba8df11085246f2e766949acb96bb"
 dependencies = [
  "arrayref",
  "borsh",
  "mpl-token-auth-rules",
- "mpl-token-metadata-context-derive",
+ "mpl-token-metadata-context-derive 0.3.0",
  "mpl-utils",
  "num-derive",
  "num-traits",
@@ -1091,6 +1100,16 @@ name = "mpl-token-metadata-context-derive"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12989bc45715b0ee91944855130131479f9c772e198a910c3eb0ea327d5bffc3"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "mpl-token-metadata-context-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5a739019e11d93661a64ef5fe108ab17c79b35961e944442ff6efdd460ad01a"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -1799,39 +1818,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-wormhole-core-bridge"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "hex",
- "ruint",
- "solana-program",
- "wormhole-io",
- "wormhole-raw-vaas",
- "wormhole-solana-common",
- "wormhole-vaas",
-]
-
-[[package]]
-name = "solana-wormhole-token-bridge"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "hex",
- "mpl-token-metadata",
- "serde",
- "serde_json",
- "solana-program",
- "solana-wormhole-core-bridge",
- "toml_datetime",
- "winnow",
- "wormhole-io",
- "wormhole-raw-vaas",
- "wormhole-solana-common",
-]
-
-[[package]]
 name = "solana-zk-token-sdk"
 version = "1.14.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2264,54 +2250,63 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-attribute-legacy-account"
-version = "0.1.0"
+name = "wormhole-core-bridge-solana"
+version = "0.0.0-alpha.4"
 dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
+ "anchor-lang",
+ "cfg-if",
+ "hex",
+ "ruint",
+ "solana-program",
+ "wormhole-io",
+ "wormhole-raw-vaas",
 ]
 
 [[package]]
 name = "wormhole-io"
-version = "0.0.16"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a067eccb57217d76a05b7a5edb5adc25c97c6f559e08695b12b5b7a033c5a58c"
+checksum = "6926b6a0b383df50bbb0d0b11378b6d0cf4f606e8386fb624472b7f9a90e830f"
+
+[[package]]
+name = "wormhole-mock-cpi-solana"
+version = "0.1.0"
 dependencies = [
- "ruint",
- "ruint-macro",
+ "anchor-lang",
+ "anchor-spl",
+ "wormhole-core-bridge-solana",
+ "wormhole-token-bridge-solana",
 ]
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.18"
+version = "0.0.0-alpha.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a82858c2e8f9729f2ccd8ad039d4287b5e63602699b5a638c13e1dd170d281e"
+checksum = "d1a069e2dd4b3db0899b5e2284d866ada874952c9c64cede1011d11dc839231d"
 dependencies = [
- "anchor-lang",
  "ruint",
  "ruint-macro",
 ]
 
 [[package]]
-name = "wormhole-solana-common"
-version = "0.1.0"
+name = "wormhole-token-bridge-solana"
+version = "0.0.0-alpha.1"
 dependencies = [
  "anchor-lang",
- "anyhow",
- "wormhole-attribute-legacy-account",
-]
-
-[[package]]
-name = "wormhole-vaas"
-version = "0.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "344cda7cb79f6e2a423266959a6f81acce790e8971d720ec9bcbbde7ba0b1354"
-dependencies = [
- "anchor-lang",
- "derive_more",
+ "anchor-spl",
+ "cfg-if",
+ "hex",
  "hex-literal",
+ "mpl-token-metadata",
  "ruint",
+ "serde",
+ "serde_json",
+ "solana-program",
+ "toml_datetime",
+ "winnow",
+ "wormhole-core-bridge-solana",
+ "wormhole-io",
+ "wormhole-raw-vaas",
 ]
 
 [[package]]

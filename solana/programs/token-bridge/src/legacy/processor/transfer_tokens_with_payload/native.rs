@@ -2,17 +2,15 @@ use crate::{
     constants::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
     },
-    legacy::LegacyTransferTokensWithPayloadArgs,
-    processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
-    utils,
+    legacy::TransferTokensWithPayloadArgs,
+    processor::{deposit_native_tokens, post_token_bridge_message},
+    zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use anchor_spl::token;
+use core_bridge_program::sdk as core_bridge_sdk;
+use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
-use wormhole_solana_common::SeedPrefix;
-
-use super::new_sender_address;
 
 #[derive(Accounts)]
 pub struct TransferTokensWithPayloadNative<'info> {
@@ -22,13 +20,15 @@ pub struct TransferTokensWithPayloadNative<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    #[account(
-        mut,
-        token::mint = mint
-    )]
-    src_token: Box<Account<'info, TokenAccount>>,
+    /// CHECK: Source token account. Because we check the mint of the custody token account, we can
+    /// be sure that this token account is the same mint since the Token Program transfer
+    /// instruction handler checks that the mints of these two accounts must be the same.
+    #[account(mut)]
+    src_token: AccountInfo<'info>,
 
-    mint: Box<Account<'info, Mint>>,
+    /// CHECK: Native mint. We ensure this mint is not one that has originated from a foreign
+    /// network in access control.
+    mint: AccountInfo<'info>,
 
     #[account(
         init_if_needed,
@@ -38,7 +38,7 @@ pub struct TransferTokensWithPayloadNative<'info> {
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, TokenAccount>>,
+    custody_token: Box<Account<'info, token::TokenAccount>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -55,16 +55,13 @@ pub struct TransferTokensWithPayloadNative<'info> {
     )]
     custody_authority: AccountInfo<'info>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee.
-    #[account(
-        seeds = [BridgeProgramData::seed_prefix()],
-        bump,
-        seeds::program = core_bridge_program
-    )]
-    core_bridge: Account<'info, BridgeProgramData>,
+    /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
+    core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    core_message: UncheckedAccount<'info>,
+    #[account(mut)]
+    core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
     #[account(
@@ -74,10 +71,12 @@ pub struct TransferTokensWithPayloadNative<'info> {
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
     core_emitter_sequence: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    core_fee_collector: UncheckedAccount<'info>,
+    #[account(mut)]
+    core_fee_collector: Option<UncheckedAccount<'info>>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
@@ -91,24 +90,78 @@ pub struct TransferTokensWithPayloadNative<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
+    token_program: Program<'info, token::Token>,
 }
 
-impl<'info> TransferTokensWithPayloadNative<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
-        // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
-        // originated from a foreign network.
-        utils::require_native_mint(&ctx.accounts.mint)
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<
+        'info,
+        TransferTokensWithPayloadArgs,
+    > for TransferTokensWithPayloadNative<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWithPayloadNative";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
+        transfer_tokens_with_payload_native;
+}
+
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
+    for TransferTokensWithPayloadNative<'info>
+{
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
     }
 }
 
-#[access_control(TransferTokensWithPayloadNative::accounts(&ctx))]
-pub fn transfer_tokens_with_payload_native(
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWithPayloadNative<'info> {
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWithPayloadNative<'info> {
+    fn core_bridge_config(&self) -> AccountInfo<'info> {
+        self.core_bridge_config.to_account_info()
+    }
+
+    fn core_message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
+    }
+
+    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
+        Some(self.core_emitter.to_account_info())
+    }
+
+    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
+        self.core_emitter_sequence.to_account_info()
+    }
+
+    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
+        self.core_fee_collector
+            .as_ref()
+            .map(|acc| acc.to_account_info())
+    }
+}
+
+impl<'info> TransferTokensWithPayloadNative<'info> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
+        // originated from a foreign network.
+        crate::utils::require_native_mint(&ctx.accounts.mint)
+    }
+}
+
+#[access_control(TransferTokensWithPayloadNative::constraints(&ctx))]
+fn transfer_tokens_with_payload_native(
     ctx: Context<TransferTokensWithPayloadNative>,
-    args: LegacyTransferTokensWithPayloadArgs,
+    args: TransferTokensWithPayloadArgs,
 ) -> Result<()> {
-    let LegacyTransferTokensWithPayloadArgs {
+    let TransferTokensWithPayloadArgs {
         nonce,
         amount,
         redeemer,
@@ -121,11 +174,12 @@ pub fn transfer_tokens_with_payload_native(
     //
     // NOTE: We perform the derivation check here instead of in the access control because we do not
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
-    let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
+    let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Deposit native assets from the source token account into the custody account.
-    deposit_native_tokens(
+    let amount = deposit_native_tokens(
         &ctx.accounts.token_program,
+        &ctx.accounts.mint,
         &ctx.accounts.src_token,
         &ctx.accounts.custody_token,
         &ctx.accounts.transfer_authority,
@@ -136,11 +190,14 @@ pub fn transfer_tokens_with_payload_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer = super::TransferWithMessage {
-        norm_amount: EncodedAmount::norm(amount.into(), mint.decimals),
-        token_address: mint.key().to_bytes().into(),
-        token_chain: SOLANA_CHAIN,
-        redeemer: redeemer.into(),
+    let token_address = mint.key().to_bytes();
+
+    let decimals = Mint::parse(&mint.data.borrow()).unwrap().decimals();
+    let token_transfer = crate::messages::TransferWithMessage {
+        norm_amount: EncodedAmount::norm(U256::from(amount), decimals).0,
+        token_address,
+        token_chain: core_bridge_sdk::SOLANA_CHAIN,
+        redeemer,
         redeemer_chain,
         sender,
         payload,
@@ -148,16 +205,7 @@ pub fn transfer_tokens_with_payload_native(
 
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
-        PostTokenBridgeMessage {
-            core_bridge: &ctx.accounts.core_bridge,
-            core_message: &ctx.accounts.core_message,
-            core_emitter: &ctx.accounts.core_emitter,
-            core_emitter_sequence: &ctx.accounts.core_emitter_sequence,
-            payer: &ctx.accounts.payer,
-            core_fee_collector: &ctx.accounts.core_fee_collector,
-            system_program: &ctx.accounts.system_program,
-            core_bridge_program: &ctx.accounts.core_bridge_program,
-        },
+        ctx.accounts,
         ctx.bumps["core_emitter"],
         nonce,
         token_transfer,

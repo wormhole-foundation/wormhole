@@ -1,11 +1,14 @@
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
+/// Account used to reflect a consumed VAA. This account is intended to be created once per VAA so
+/// it can provide a protection against replay attacks for instructions that redeem VAAs that are
+/// meant to only be consumed once.
+///
 /// NOTE: This account's PDA seeds are inconsistent with how other Core Bridges save consumed VAAs.
 /// This account uses a tuple of (emitter_chain, emitter_address, sequence) whereas other Core
-/// Bridge implementations use the message hash.
-#[legacy_account]
-#[derive(Debug, PartialEq, Eq, InitSpace)]
+/// Bridge implementations use the message digest (double keccak).
+
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct Claim {
     /// This member is not necessary, but we must preserve it since the legacy bridge assumes this
     /// serialization for consumed VAAs (it is set to true when a VAA has been claimed). The fact
@@ -13,6 +16,10 @@ pub struct Claim {
     pub is_complete: bool,
 }
 
-impl LegacyDiscriminator<0> for Claim {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
+impl crate::legacy::utils::LegacyAccount<0> for Claim {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
+        crate::ID
+    }
 }

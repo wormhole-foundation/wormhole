@@ -1,17 +1,12 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::LegacyPostVaaArgs,
-    state::{GuardianSet, PostedVaaV1Bytes, PostedVaaV1Metadata, SignatureSet},
+    legacy::{instruction::PostVaaArgs, utils::LegacyAnchorized},
+    state::{GuardianSet, PostedVaaV1, PostedVaaV1Info, SignatureSet},
     types::MessageHash,
     utils,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
-/// Invalidated signature sets.
-///
-/// NOTE: When `post_vaa` is deprecated, we can remove these because `SignatureSet` will not be used
-/// any longer.
 const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
     "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ",
     "2g6NCUUPaD6AxdHPQMVLpjpAvBfKMek6dDiGUe2A6T33",
@@ -32,36 +27,37 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 ];
 
 #[derive(Accounts)]
-#[instruction(args: LegacyPostVaaArgs)]
+#[instruction(args: PostVaaArgs)]
 pub struct PostVaa<'info> {
-    /// Guardian set used for signature verification.
+    /// Guardian set used for signature verification. This PDA address is derived using the guardian
+    /// set index found in the signature set account.
     #[account(
-        seeds = [GuardianSet::seed_prefix(), &signature_set.guardian_set_index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, GuardianSet>,
+    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     /// CHECK: Core Bridge never needed this account for this instruction.
-    _bridge: UncheckedAccount<'info>,
+    _config: UncheckedAccount<'info>,
 
-    /// Signature set, which stores signature validation from libsecp256k1 program.
+    /// Signature set, which stores signature validation from Sig Verify native program.
     ///
     /// NOTE: We prefer to make this account mutable so we have the ability to close this account
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
-    signature_set: Account<'info, SignatureSet>,
+    signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
 
-    /// Posted verified message. This account is created if it hasn't been created already.
+    /// Posted VAA created by this instruction handler.
     ///
     /// NOTE: This instruction handler previously handled the case where this account was created
     /// already, where the handler would bail out with success.
     #[account(
         init,
         payer = payer,
-        space = PostedVaaV1Bytes::compute_size(args.payload.len()),
-        seeds = [PostedVaaV1Bytes::seed_prefix(), signature_set.message_hash.as_ref()],
+        space = PostedVaaV1::compute_size(args.payload.len()),
+        seeds = [PostedVaaV1::SEED_PREFIX, signature_set.message_hash.as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -75,29 +71,38 @@ pub struct PostVaa<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostVaaArgs> for PostVaa<'info> {
+    const LOG_IX_NAME: &'static str = "LegacyPostVaa";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, PostVaaArgs) -> Result<()> = post_vaa;
+}
+
 impl<'info> PostVaa<'info> {
-    pub fn accounts(ctx: &Context<Self>, args: &LegacyPostVaaArgs) -> Result<()> {
+    pub fn constraints(ctx: &Context<Self>, args: &PostVaaArgs) -> Result<()> {
         let signature_set = &ctx.accounts.signature_set;
         require!(
             !INVALID_SIGNATURE_SET_KEYS.contains(&signature_set.key().to_string().as_str()),
             CoreBridgeError::InvalidSignatureSet
         );
 
+        // Number of verified signatures in the signature set account must be at least quorum with
+        // the guardian set.
         require_gte!(
             signature_set.num_verified(),
             utils::quorum(ctx.accounts.guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 
-        let recomputed = utils::compute_message_hash(
-            args.timestamp.into(),
-            args.nonce,
-            args.emitter_chain,
+        // Recompute the message hash and compare it to the one in the signature set account.
+        let recomputed = solana_program::keccak::hashv(&[
+            &args.timestamp.to_be_bytes(),
+            &args.nonce.to_be_bytes(),
+            &args.emitter_chain.to_be_bytes(),
             &args.emitter_address,
-            args.sequence,
-            args.consistency_level,
+            &args.sequence.to_be_bytes(),
+            &[args.consistency_level],
             &args.payload,
-        );
+        ]);
         require_eq!(
             MessageHash::from(recomputed),
             signature_set.message_hash,
@@ -109,11 +114,18 @@ impl<'info> PostVaa<'info> {
     }
 }
 
-#[access_control(PostVaa::accounts(&ctx, &args))]
-pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
-    let LegacyPostVaaArgs {
-        _version,
-        _guardian_set_index,
+/// Processor to write a validated VAA to a [PostedVaaV1] account. This instruction handler requires
+/// that the number of verified signers in the [SignatureSet] account is at least the quorum using
+/// the guardian set, whose index is encoded in this account. And the message hash in this account
+/// must agree with the recomputed one using this instruction handler's arguments.
+///
+/// NOTE: It is recommended that VAAs be verified using the new Anchor instructions
+/// `init_encoded_vaa` and `process_encoded_vaa`, which does not rely on the Sig Verify native
+/// program to verify elliptic curve signatures.
+#[access_control(PostVaa::constraints(&ctx, &args))]
+fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
+    let PostVaaArgs {
+        _gap_0,
         timestamp,
         nonce,
         emitter_chain,
@@ -123,20 +135,23 @@ pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
         payload,
     } = args;
 
-    // Set the `message` account with this instruction data.
-    ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
-        meta: PostedVaaV1Metadata {
-            consistency_level,
-            timestamp: timestamp.into(),
-            signature_set: ctx.accounts.signature_set.key(),
-            guardian_set_index: ctx.accounts.guardian_set.index,
-            nonce,
-            sequence,
-            emitter_chain,
-            emitter_address,
-        },
-        payload,
-    });
+    // Set the posted VAA account with this instruction data.
+    ctx.accounts.posted_vaa.set_inner(
+        PostedVaaV1 {
+            info: PostedVaaV1Info {
+                consistency_level,
+                timestamp: timestamp.into(),
+                signature_set: ctx.accounts.signature_set.key(),
+                guardian_set_index: ctx.accounts.guardian_set.index,
+                nonce,
+                sequence,
+                emitter_chain,
+                emitter_address,
+            },
+            payload,
+        }
+        .into(),
+    );
 
     // Done.
     Ok(())

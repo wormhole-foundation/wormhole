@@ -1,0 +1,13 @@
+{
+  "pubkey": "DujfLgMKW71CT2W8pxknf42FT86VbcK5PjQ6LsutjWKC",
+  "account": {
+    "lamports": 1127520,
+    "data": [
+      "AgAAAAAAAAAAAAAAAAA+4YsiFK/5cADZdM9kfnw0fo+lhQ==",
+      "base64"
+    ],
+    "owner": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",
+    "executable": false,
+    "rentEpoch": 0
+  }
+}

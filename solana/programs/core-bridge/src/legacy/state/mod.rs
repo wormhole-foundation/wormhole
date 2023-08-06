@@ -1,14 +1,13 @@
-mod bridge_program_data;
-pub use bridge_program_data::*;
+//! Account schemas for the Core Bridge Program.
 
 mod claim;
 pub use claim::*;
 
+mod config;
+pub use config::*;
+
 mod emitter_sequence;
 pub use emitter_sequence::*;
-
-mod fee_collector;
-pub use fee_collector::*;
 
 mod guardian_set;
 pub use guardian_set::*;
@@ -18,9 +17,6 @@ pub use posted_message_v1::*;
 
 mod posted_message_v1_unreliable;
 pub use posted_message_v1_unreliable::*;
-
-// mod posted_vaa_loader;
-// pub use posted_vaa_loader::*;
 
 mod posted_vaa_v1;
 pub use posted_vaa_v1::*;

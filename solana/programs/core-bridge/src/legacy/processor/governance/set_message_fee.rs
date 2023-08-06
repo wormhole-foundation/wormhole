@@ -1,87 +1,106 @@
 use crate::{
+    constants::SOLANA_CHAIN,
     error::CoreBridgeError,
-    legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, PartialPostedVaaV1, VaaV1MessageHash},
-    utils::GOVERNANCE_DECREE_START,
+    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
+    state::{Claim, Config},
+    zero_copy::PostedVaaV1,
 };
 use anchor_lang::prelude::*;
-use wormhole_io::Readable;
-use wormhole_solana_common::SeedPrefix;
-
-const ACTION_SET_MESSAGE_FEE: u8 = 3;
+use ruint::aliases::U256;
+use wormhole_raw_vaas::core::CoreBridgeGovPayload;
 
 #[derive(Accounts)]
 pub struct SetMessageFee<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
+    /// For governance VAAs, we need to make sure that the current guardian set was used to attest
+    /// for this governance decree.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::seed_prefix(),
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
+    /// Account representing that a VAA has been consumed.
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     system_program: Program<'info, System>,
 }
 
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for SetMessageFee<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacySetMessageFee";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = set_message_fee;
+}
+
 impl<'info> SetMessageFee<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(
-            &ctx.accounts.posted_vaa,
-            &ctx.accounts.bridge,
-        )?;
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
+        let gov_payload =
+            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
 
+        let decree = gov_payload
+            .set_message_fee()
+            .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
+
+        // Make sure that setting the message fee is intended for this network.
         require_eq!(
-            action,
-            ACTION_SET_MESSAGE_FEE,
-            CoreBridgeError::InvalidGovernanceAction
+            decree.chain(),
+            SOLANA_CHAIN,
+            CoreBridgeError::GovernanceForAnotherChain
         );
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
-
-        require!(
-            <[u8; 24]>::read(&mut data)? == [0; 24],
-            CoreBridgeError::U64Overflow
-        );
+        // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
+        // lamports are u64).
+        let fee = U256::from_be_bytes(decree.fee());
+        require_gte!(U256::from(u64::MAX), fee, CoreBridgeError::U64Overflow);
 
         // Done.
         Ok(())
     }
 }
 
-#[access_control(SetMessageFee::accounts(&ctx))]
-pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+/// Processor for setting Wormhole message fee governance decrees. This instruction handler changes
+/// the message fee in the [Config] account.
+#[access_control(SetMessageFee::constraints(&ctx))]
+fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let mut data = &acc_info.data.borrow()[(GOVERNANCE_DECREE_START + 24)..];
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
 
-    ctx.accounts.bridge.fee_lamports = u64::read(&mut data)?;
+    // Uint encodes limbs in little endian, so we will take the first u64 value.
+    let fee = U256::from_be_bytes(gov_payload.set_message_fee().unwrap().fee());
+    ctx.accounts.config.fee_lamports = fee.as_limbs()[0];
 
     // Done.
     Ok(())

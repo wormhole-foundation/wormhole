@@ -1,6 +1,6 @@
-mod consumed_vaa;
-mod encoded_vaa;
+//! Account schemas for the Core Bridge Program.
 
 pub use crate::legacy::state::*;
-pub use consumed_vaa::*;
+
+mod encoded_vaa;
 pub use encoded_vaa::*;

@@ -1,0 +1,13 @@
+{
+  "pubkey": "QhjQmkJsJNJPuk2dBdRuLsiAyUy2sVDoqRfgHheSPtd",
+  "account": {
+    "lamports": 1301520,
+    "data": [
+      "EwAAAAEBAQEBAQABAQEBAQEAAQAAAADHU4cw3XjWUg03xzUYINHOp6NGwiGE3zSCsXZLLoNkSAMAAAA=",
+      "base64"
+    ],
+    "owner": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
+    "executable": false,
+    "rentEpoch": 0
+  }
+}

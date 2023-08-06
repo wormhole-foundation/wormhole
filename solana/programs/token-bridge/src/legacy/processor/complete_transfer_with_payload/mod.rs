@@ -6,59 +6,63 @@ pub use wrapped::*;
 
 use crate::{error::TokenBridgeError, legacy::state::RegisteredEmitter};
 use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
-use core_bridge_program::{constants::SOLANA_CHAIN, state::PostedVaaV1Bytes};
-use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
+use core_bridge_program::{
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
+};
+use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, TransferWithMessage};
 
-pub fn validate_token_transfer_with_payload<'ctx, 'info>(
-    posted_token_transfer: &'ctx Account<'info, PostedVaaV1Bytes>,
-    registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
-    redeemer_authority: &'ctx Signer<'info>,
-    redeemer_token: &'ctx Account<'info, TokenAccount>,
-) -> Result<(u16, [u8; 32])> {
-    let payload = crate::utils::require_valid_token_bridge_posted_vaa(
-        posted_token_transfer,
-        registered_emitter,
-    )?;
-    let msg = TokenBridgeMessage::parse(&payload)?;
-    match msg.transfer_with_message() {
-        Some(transfer) => {
-            // This token bridge transfer must be intended to be redeemed on Solana.
-            require_eq!(
-                transfer.redeemer_chain(),
-                SOLANA_CHAIN,
-                TokenBridgeError::RedeemerChainNotSolana
-            );
+pub fn validate_posted_token_transfer_with_payload<'ctx>(
+    vaa_acc_key: &'ctx Pubkey,
+    vaa_acc_data: &'ctx [u8],
+    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
+    redeemer_authority: &'ctx Signer<'_>,
+    dst_token: &'ctx AccountInfo<'_>,
+) -> Result<TransferWithMessage<'ctx>> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let msg =
+        crate::utils::require_valid_posted_token_bridge_vaa(vaa_acc_key, &vaa, registered_emitter)?;
 
-            // The encoded transfer recipient can either be the signer of this instruction or a program
-            // whose signer is a PDA using the seeds [b"redeemer"] (and the encoded redeemer is the program
-            // ID). If the latter, the transfer redeemer can be any PDA that signs for this instruction.
-            //
-            // NOTE: Requiring that the transfer redeemer be a signer is a patch.
-            let redeemer = Pubkey::from(transfer.redeemer());
-            let redeemer_authority = redeemer_authority.key();
-            if redeemer != redeemer_authority {
-                let (pda, _) = Pubkey::find_program_address(&[b"redeemer"], &redeemer);
-                require_keys_eq!(
-                    redeemer_authority,
-                    pda,
-                    TokenBridgeError::InvalidProgramRedeemer
-                )
-            }
+    let transfer = match msg {
+        TokenBridgeMessage::TransferWithMessage(inner) => inner,
+        _ => return err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    };
 
-            // Token account owner must be either the VAA-specified recipient, or the redeemer account (for
-            // regular wallets, these two are equal, for programs the latter is a PDA).
-            let token_owner = redeemer_token.owner;
-            require!(
-                redeemer == token_owner || redeemer_authority == token_owner,
-                ErrorCode::ConstraintTokenOwner
-            );
+    // This token bridge transfer must be intended to be redeemed on Solana.
+    require_eq!(
+        transfer.redeemer_chain(),
+        SOLANA_CHAIN,
+        TokenBridgeError::RedeemerChainNotSolana
+    );
 
-            // Done.
-            Ok((transfer.token_chain(), transfer.token_address()))
-        }
-        None => {
-            err!(TokenBridgeError::InvalidTokenBridgeVaa)
-        }
+    // The encoded transfer recipient can either be the signer of this instruction or a
+    // program whose signer is a PDA using the seeds [b"redeemer"] (and the encoded redeemer
+    // is the program ID). If the latter, the transfer redeemer can be any PDA that signs
+    // for this instruction.
+    //
+    // NOTE: Requiring that the transfer redeemer be a signer is a patch.
+    let redeemer = Pubkey::from(transfer.redeemer());
+    let redeemer_authority = redeemer_authority.key();
+    if redeemer != redeemer_authority {
+        let (expected_authority, _) = Pubkey::find_program_address(
+            &[crate::constants::PROGRAM_REDEEMER_SEED_PREFIX],
+            &redeemer,
+        );
+        require_keys_eq!(
+            redeemer_authority,
+            expected_authority,
+            TokenBridgeError::InvalidProgramRedeemer
+        )
+    } else {
+        // The redeemer must be the token account owner if the redeemer authority is the
+        // same as the redeemer (i.e. the signer of this transaction, which does not
+        // represent a program's PDA.
+        require_keys_eq!(
+            redeemer,
+            crate::zero_copy::TokenAccount::parse(&dst_token.try_borrow_data()?)?.owner(),
+            ErrorCode::ConstraintTokenOwner
+        );
     }
+
+    // Done.
+    Ok(transfer)
 }

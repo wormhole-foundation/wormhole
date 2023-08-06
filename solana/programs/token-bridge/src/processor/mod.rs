@@ -1,88 +1,51 @@
-mod initialize;
-pub use initialize::*;
+mod governance;
+pub use governance::*;
 
-mod transfer_tokens;
-pub use transfer_tokens::*;
+// mod transfer_tokens;
+// pub use transfer_tokens::*;
 
-mod transfer_tokens_with_payload;
-pub use transfer_tokens_with_payload::*;
+// mod transfer_tokens_with_payload;
+// pub use transfer_tokens_with_payload::*;
 
-use crate::constants::{
-    CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, MINT_AUTHORITY_SEED_PREFIX,
-    TRANSFER_AUTHORITY_SEED_PREFIX,
+use crate::{
+    constants::{
+        CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, MINT_AUTHORITY_SEED_PREFIX,
+        TRANSFER_AUTHORITY_SEED_PREFIX,
+    },
+    utils::TruncateAmount,
+    zero_copy::Mint,
 };
-use anchor_lang::{
-    prelude::*,
-    system_program::{self, Transfer},
-};
-use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount};
-use core_bridge_program::{
-    state::BridgeProgramData, types::Commitment, CoreBridge, LegacyPostMessage,
-    LegacyPostMessageArgs,
-};
+use anchor_lang::prelude::*;
+use anchor_spl::token;
+use core_bridge_program::{sdk as core_bridge_sdk, types::Commitment};
 use wormhole_io::Writeable;
 
-pub struct PostTokenBridgeMessage<'ctx, 'info> {
-    pub core_bridge: &'ctx Account<'info, BridgeProgramData>,
-    pub core_message: &'ctx AccountInfo<'info>,
-    pub core_emitter: &'ctx AccountInfo<'info>,
-    pub core_emitter_sequence: &'ctx AccountInfo<'info>,
-    pub payer: &'ctx Signer<'info>,
-    pub core_fee_collector: &'ctx AccountInfo<'info>,
-    pub system_program: &'ctx Program<'info, System>,
-    pub core_bridge_program: &'ctx Program<'info, CoreBridge>,
-}
-
-pub fn post_token_bridge_message<W: Writeable>(
-    accounts: PostTokenBridgeMessage<'_, '_>,
+pub fn post_token_bridge_message<
+    'info,
+    I: core_bridge_sdk::cpi::PublishMessage<'info>,
+    W: Writeable,
+>(
+    accounts: &I,
     emitter_bump: u8,
     nonce: u32,
     message: W,
 ) -> Result<()> {
-    // Pay fee to the core bridge program if there is one.
-    let fee_lamports = accounts.core_bridge.fee_lamports;
-    if fee_lamports > 0 {
-        system_program::transfer(
-            CpiContext::new(
-                accounts.system_program.to_account_info(),
-                Transfer {
-                    from: accounts.payer.to_account_info(),
-                    to: accounts.core_fee_collector.to_account_info(),
-                },
-            ),
-            fee_lamports,
-        )?;
-    }
-
-    let mut payload = Vec::with_capacity(message.written_size());
-    message.write(&mut payload)?;
-
-    core_bridge_program::legacy_post_message(
-        CpiContext::new_with_signer(
-            accounts.core_bridge_program.to_account_info(),
-            LegacyPostMessage {
-                bridge: accounts.core_bridge.to_account_info(),
-                message: accounts.core_message.to_account_info(),
-                emitter: accounts.core_emitter.to_account_info(),
-                emitter_sequence: accounts.core_emitter_sequence.to_account_info(),
-                payer: accounts.payer.to_account_info(),
-                fee_collector: accounts.core_fee_collector.to_account_info(),
-                system_program: accounts.system_program.to_account_info(),
-            },
-            &[&[EMITTER_SEED_PREFIX, &[emitter_bump]]],
-        ),
-        LegacyPostMessageArgs {
+    core_bridge_sdk::cpi::publish_message(
+        accounts,
+        core_bridge_sdk::cpi::PublishMessageDirective::Message {
             nonce,
             payload: message.to_vec(),
             commitment: Commitment::Finalized,
         },
+        &[EMITTER_SEED_PREFIX, &[emitter_bump]],
+        None,
     )
 }
 
 pub fn mint_wrapped_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    wrapped_mint: &Account<'info, Mint>,
-    dst_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    wrapped_mint: &AccountInfo<'info>,
+    dst_token: &AccountInfo<'info>,
     mint_authority: &AccountInfo<'info>,
     mint_authority_bump: u8,
     mint_amount: u64,
@@ -90,7 +53,7 @@ pub fn mint_wrapped_tokens<'info>(
     token::mint_to(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
-            MintTo {
+            token::MintTo {
                 mint: wrapped_mint.to_account_info(),
                 to: dst_token.to_account_info(),
                 authority: mint_authority.to_account_info(),
@@ -102,9 +65,9 @@ pub fn mint_wrapped_tokens<'info>(
 }
 
 pub fn burn_wrapped_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    wrapped_mint: &Account<'info, Mint>,
-    src_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    wrapped_mint: &AccountInfo<'info>,
+    src_token: &AccountInfo<'info>,
     transfer_authority: &AccountInfo<'info>,
     transfer_authority_bump: u8,
     burn_amount: u64,
@@ -112,7 +75,7 @@ pub fn burn_wrapped_tokens<'info>(
     token::burn(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
-            Burn {
+            token::Burn {
                 mint: wrapped_mint.to_account_info(),
                 from: src_token.to_account_info(),
                 authority: transfer_authority.to_account_info(),
@@ -124,9 +87,9 @@ pub fn burn_wrapped_tokens<'info>(
 }
 
 pub fn withdraw_native_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    custody_token: &Account<'info, TokenAccount>,
-    dst_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    custody_token: &AccountInfo<'info>,
+    dst_token: &AccountInfo<'info>,
     custody_authority: &AccountInfo<'info>,
     custody_authority_bump: u8,
     transfer_amount: u64,
@@ -146,13 +109,18 @@ pub fn withdraw_native_tokens<'info>(
 }
 
 pub fn deposit_native_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    src_token: &Account<'info, TokenAccount>,
-    custody_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    mint: &AccountInfo<'info>,
+    src_token: &AccountInfo<'info>,
+    custody_token: &Account<'info, token::TokenAccount>,
     transfer_authority: &AccountInfo<'info>,
     transfer_authority_bump: u8,
-    transfer_amount: u64,
-) -> Result<()> {
+    raw_amount: u64,
+) -> Result<u64> {
+    let transfer_amount = Mint::parse(&mint.data.borrow())
+        .unwrap()
+        .truncate_amount(raw_amount);
+
     token::transfer(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
@@ -164,5 +132,7 @@ pub fn deposit_native_tokens<'info>(
             &[&[TRANSFER_AUTHORITY_SEED_PREFIX, &[transfer_authority_bump]]],
         ),
         transfer_amount,
-    )
+    )?;
+
+    Ok(transfer_amount)
 }

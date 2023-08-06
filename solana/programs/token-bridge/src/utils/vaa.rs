@@ -1,6 +1,6 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
-use core_bridge_program::state::PostedVaaV1Bytes;
+use core_bridge_program::legacy::utils::LegacyAnchorized;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
@@ -14,18 +14,31 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
     "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
 ];
 
-pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx>(
-    vaa: &'ctx Account<'_, PostedVaaV1Bytes>,
-    registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
-) -> Result<TokenBridgeMessage<'ctx>> {
+/// We disallow certain posted VAA accounts from being used to redeem Token Bridge transfers.
+pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
     // IYKYK.
     require!(
-        !INVALID_POSTED_VAA_KEYS.contains(&vaa.key().to_string().as_str()),
-        TokenBridgeError::InvalidPostedVaa
+        !INVALID_POSTED_VAA_KEYS.contains(&acc_key.to_string().as_str()),
+        TokenBridgeError::InvalidTokenBridgeVaa
     );
 
-    let emitter_chain = vaa.emitter_chain;
-    let emitter_address = vaa.emitter_address;
+    Ok(())
+}
+
+/// In order for a VAA to be a valid Token Bridge VAA, it must have been sent by another registered
+/// Token Bridge and must be serialized as one of the following messages:
+/// - Transfer (Payload ID == 1)
+/// - Attestation (Payload ID == 2)
+/// - Transfer with Message (Payload ID == 3)
+pub fn require_valid_posted_token_bridge_vaa<'ctx>(
+    vaa_acc_key: &Pubkey,
+    vaa: &core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
+    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
+) -> Result<TokenBridgeMessage<'ctx>> {
+    require_valid_posted_vaa_key(vaa_acc_key)?;
+
+    let emitter_chain = vaa.emitter_chain();
+    let emitter_address = vaa.emitter_address();
     let emitter_key = registered_emitter.key();
 
     // Validate registered emitter PDA address.
@@ -41,15 +54,18 @@ pub(crate) fn require_valid_token_bridge_posted_vaa<'ctx>(
         )
     } else {
         // If the legacy definition, the seeds define the contents of this account.
-        let (legacy_address, _) = Pubkey::find_program_address(
+        let (expected_legacy_address, _) = Pubkey::find_program_address(
             &[&emitter_chain.to_be_bytes(), emitter_address.as_ref()],
             &ID,
         );
-        require_keys_eq!(emitter_key, legacy_address);
+        require_keys_eq!(
+            emitter_key,
+            expected_legacy_address,
+            TokenBridgeError::InvalidLegacyTokenBridgeEmitter
+        );
     }
 
-    let span: &[u8] = vaa.payload.as_ref();
-
-    // Done.
-    TokenBridgeMessage::parse(span).map_err(|_| TokenBridgeError::CannotParseMessage.into())
+    // Make sure we are working with a valid Token Bridge message.
+    TokenBridgeMessage::parse(vaa.payload())
+        .map_err(|_| error!(TokenBridgeError::CannotParseMessage))
 }

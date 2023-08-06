@@ -1,7 +1,8 @@
-bin
 **/target
 **/bundler
 **/nodejs
-artifacts-*
-**/Makefile
 *.md
+artifacts-*
+bin
+legacy
+node_modules

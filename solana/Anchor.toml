@@ -2,17 +2,80 @@
 seeds = false
 skip-lint = false
 
+[workspace]
+members = [
+    "programs/core-bridge",
+    "programs/token-bridge",
+    "programs/mock-cpi",
+    "examples/core-bridge-hello-world",
+]
+
 [programs.localnet]
-core_bridge_program = "agnnozV7x6ffAhi8xVhBd5dShfLnuUKKPEMX1tJ1nDC"
-token_bridge_program = "bPPNmBhmHfkEFJmNKKCvwc1tPqBjzPDRwCw3yQYYXQa"
+wormhole_core_bridge_solana = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+wormhole_token_bridge_solana = "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"
+wormhole_mock_cpi_solana = "MockCpi696969696969696969696969696969696969"
+core_bridge_hello_world = "CoreBridgeHe11oWor1d11111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-#wallet = "/home/kkempe/.config/solana/id.json"
 wallet = "tests/keys/pFCBP4bhqdSsrWUVTgqhPsLrfEdChBK17vgFM7TxjxQ.json"
 
 [scripts]
-test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/0**/*.ts"
+###test = "bash tests/run_specific_tests.sh" ### <-- use this for debugging tests
+
+[test]
+startup_wait = 10000
+
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+### MPL Token Metadata
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
+### Wormhole Core Bridge
+[[test.validator.clone]]
+address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+
+### Wormhole Token Bridge
+[[test.validator.clone]]
+address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
+
+### WSOL Token Metadata
+[[test.validator.account]]
+address = "6dM4TqWyWJsbx7obrdLcviBkTafD5E8av61zfU6jq57X"
+filename = "tests/accounts/wrapped_sol_metadata.json"
+
+### Mint -- 6 Decimals
+[[test.validator.account]]
+address = "Bn5QYioESabUwL5AngQ6fCQTyripKvNaiF7YjMBQEg3f"
+filename = "tests/accounts/mint_6.json"
+
+### Mint -- 8 Decimals
+[[test.validator.account]]
+address = "DyU8E8KfMHPXELQLJxv4qQT9ZKoijWiKrUQ5fskWFB5b"
+filename = "tests/accounts/mint_8.json"
+
+### Mint -- 9 Decimals
+[[test.validator.account]]
+address = "6SmtrBpfPt67cjU4MbmHFMLctAZMNZee1xArVha4MC9N"
+filename = "tests/accounts/mint_9.json"
+
+### Invalid Signature Set #1
+[[test.validator.account]]
+address = "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ"
+filename = "tests/accounts/invalid_signature_set_01.json"
+
+### Registered Token Bridge (Ethereum)
+[[test.validator.account]]
+address = "ACsDVoA6BG1YCaZEPa9goQsAJijxq6QKUVGUBVgntxdJ"
+filename = "tests/accounts/registered_emitter_2.json"
+
+### Registered Token Bridge (Ethereum) for Fork
+[[test.validator.account]]
+address = "DujfLgMKW71CT2W8pxknf42FT86VbcK5PjQ6LsutjWKC"
+filename = "tests/accounts/fork.registered_emitter_2.json"

@@ -1,11 +1,19 @@
 mod attest_token;
-mod initialize;
-mod transfer_tokens;
-mod transfer_tokens_with_payload;
-
 pub use attest_token::*;
+
+mod complete_transfer;
+pub use complete_transfer::*;
+
+mod complete_transfer_with_payload;
+pub use complete_transfer_with_payload::*;
+
+mod initialize;
 pub use initialize::*;
+
+mod transfer_tokens;
 pub use transfer_tokens::*;
+
+mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
@@ -14,20 +22,19 @@ use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 /// handlers, which will inevitably live in lib.rs.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum LegacyInstruction {
-    /// Deprecated.
-    Initialize(LegacyInitializeArgs),
-    AttestToken(LegacyAttestTokenArgs),
-    CompleteTransferNative(EmptyArgs),
-    CompleteTransferWrapped(EmptyArgs),
-    TransferTokensWrapped(LegacyTransferTokensArgs),
-    TransferTokensNative(LegacyTransferTokensArgs),
-    RegisterChain(EmptyArgs),
-    CreateOrUpdateWrapped(EmptyArgs),
-    UpgradeContract(EmptyArgs),
-    CompleteTransferWithPayloadNative(EmptyArgs),
-    CompleteTransferWithPayloadWrapped(EmptyArgs),
-    TransferTokensWithPayloadWrapped(LegacyTransferTokensWithPayloadArgs),
-    TransferTokensWithPayloadNative(LegacyTransferTokensWithPayloadArgs),
+    Initialize,
+    AttestToken,
+    CompleteTransferNative,
+    CompleteTransferWrapped,
+    TransferTokensWrapped,
+    TransferTokensNative,
+    RegisterChain,
+    CreateOrUpdateWrapped,
+    UpgradeContract,
+    CompleteTransferWithPayloadNative,
+    CompleteTransferWithPayloadWrapped,
+    TransferTokensWithPayloadWrapped,
+    TransferTokensWithPayloadNative,
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]

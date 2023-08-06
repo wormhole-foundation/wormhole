@@ -1,15 +1,13 @@
 use crate::{
     error::CoreBridgeError,
-    state::{EncodedVaa, GuardianSet, ProcessingHeader, ProcessingStatus},
+    legacy::utils::LegacyAnchorized,
+    state::{GuardianSet, Header, ProcessingStatus},
     types::VaaVersion,
+    zero_copy::EncodedVaa,
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
-use wormhole_raw_vaas::{GuardianSetSig, Vaa};
-use wormhole_solana_common::{utils, SeedPrefix};
-//use wormhole_vaas::GuardianSetSig;
-
-const START: usize = EncodedVaa::BYTES_START;
+use wormhole_raw_vaas::GuardianSetSig;
 
 #[derive(Accounts)]
 pub struct ProcessEncodedVaa<'info> {
@@ -32,21 +30,21 @@ pub struct ProcessEncodedVaa<'info> {
     )]
     encoded_vaa: AccountInfo<'info>,
 
-    /// The guardian set account is optional because it is only needed for the signature verifcation
+    /// The guardian set account is optional because it is only needed for the signature verification
     /// instruction handler directive.
     ///
     /// NOTE: Because the vaa account is not deserialized as an Anchor Account, we cannot use the
     /// guardian_set_index in `VaaV1` here easily. Instead we check that the guardian set index
     /// matches once the VAA is verified via the `VerifySignaturesV1` directive.
     #[account(
-        seeds = [GuardianSet::seed_prefix(), &guardian_set.index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Option<Account<'info, GuardianSet>>,
+    guardian_set: Option<Account<'info, LegacyAnchorized<0, GuardianSet>>>,
 }
 
 impl<'info> ProcessEncodedVaa<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         if let Some(guardian_set) = &ctx.accounts.guardian_set {
             // Guardian set must be active.
             let timestamp = Clock::get().map(Into::into)?;
@@ -56,10 +54,14 @@ impl<'info> ProcessEncodedVaa<'info> {
             );
         }
 
-        // Check header.
-        let mut data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize(&mut data)?;
-        require_keys_eq!(header.write_authority, ctx.accounts.write_authority.key());
+        // Check write authority.
+        let acc_data = ctx.accounts.encoded_vaa.try_borrow_data()?;
+        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
+        require_keys_eq!(
+            ctx.accounts.write_authority.key(),
+            vaa.write_authority(),
+            CoreBridgeError::WriteAuthorityMismatch
+        );
 
         // Done.
         Ok(())
@@ -86,87 +88,76 @@ pub enum ProcessEncodedVaaDirective {
     VerifySignaturesV1,
 }
 
-#[access_control(ProcessEncodedVaa::accounts(&ctx))]
+#[access_control(ProcessEncodedVaa::constraints(&ctx))]
 pub fn process_encoded_vaa(
     ctx: Context<ProcessEncodedVaa>,
     directive: ProcessEncodedVaaDirective,
 ) -> Result<()> {
-    let vaa_acc_info = &ctx.accounts.encoded_vaa;
     match directive {
-        ProcessEncodedVaaDirective::CloseVaaAccount => {
-            msg!("Directive: CloseVaaAccount");
-            utils::close_account(
-                vaa_acc_info.to_account_info(),
-                ctx.accounts.write_authority.to_account_info(),
-            )
-        }
-        ProcessEncodedVaaDirective::Write { index, data } => {
-            msg!("Directive: Write");
-            write_vaa(
-                vaa_acc_info,
-                index
-                    .try_into()
-                    .map_err(|_| CoreBridgeError::InvalidInstructionArgument)?,
-                data,
-            )
-        }
-        ProcessEncodedVaaDirective::VerifySignaturesV1 => match &ctx.accounts.guardian_set {
-            Some(guardian_set) => {
-                msg!("Directive: VerifySignaturesV1");
-                verify_signatures_v1(vaa_acc_info, guardian_set)
-            }
-            _ => err!(ErrorCode::AccountNotEnoughKeys),
-        },
+        ProcessEncodedVaaDirective::CloseVaaAccount => close_vaa_account(ctx),
+        ProcessEncodedVaaDirective::Write { index, data } => write(ctx, index, data),
+        ProcessEncodedVaaDirective::VerifySignaturesV1 => verify_signatures_v1(ctx),
     }
 }
 
-fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, new_data: Vec<u8>) -> Result<()> {
+fn close_vaa_account(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
+    msg!("Directive: CloseVaaAccount");
+
+    crate::utils::close_account(
+        ctx.accounts.encoded_vaa.to_account_info(),
+        ctx.accounts.write_authority.to_account_info(),
+    )
+}
+
+fn write(ctx: Context<ProcessEncodedVaa>, index: u32, data: Vec<u8>) -> Result<()> {
     require!(
-        !new_data.is_empty(),
+        !data.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let vaa_len = {
-        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut data)?;
+    let vaa_size: usize = {
+        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
+        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
         require!(
-            header.status == ProcessingStatus::Writing,
+            vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
-        let vaa_len = u32::deserialize(&mut data)?;
-        usize::try_from(vaa_len).unwrap()
+        vaa.vaa_size()
     };
 
-    let end = index.saturating_add(new_data.len());
-    require_gte!(vaa_len, end, CoreBridgeError::DataOverflow);
+    let index = usize::try_from(index).unwrap();
+    let end = index.saturating_add(data.len());
+    require_gte!(vaa_size, end, CoreBridgeError::DataOverflow);
 
-    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
-    data[(START + index)..(START + end)].copy_from_slice(&new_data);
+    const START: usize = 8 + EncodedVaa::VAA_START;
+    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
+    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())
 }
 
-fn verify_signatures_v1(
-    vaa_acc_info: &AccountInfo<'_>,
-    guardian_set: &Account<'_, GuardianSet>,
-) -> Result<()> {
-    let write_authority = {
-        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
-        data = &data[8..];
+fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
+    msg!("Directive: VerifySignaturesV1");
 
-        let header = ProcessingHeader::deserialize(&mut data)?;
+    require!(
+        ctx.accounts.guardian_set.is_some(),
+        ErrorCode::AccountNotEnoughKeys
+    );
+
+    let guardian_set = ctx.accounts.guardian_set.as_ref().unwrap();
+
+    let write_authority = {
+        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
+        let encoded_vaa = EncodedVaa::parse_unverified(&acc_data)?;
         require!(
-            header.status == ProcessingStatus::Writing,
-            CoreBridgeError::NotInWritingStatus
+            encoded_vaa.status() == ProcessingStatus::Writing,
+            CoreBridgeError::VaaAlreadyVerified
         );
 
-        // Skip vaa length.
-        data = &data[4..];
-
         // Parse and verify.
-        let vaa = Vaa::parse(&mut data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
+        let vaa = encoded_vaa.v1_unverified()?;
 
         // Must be V1.
         require_eq!(
@@ -176,7 +167,11 @@ fn verify_signatures_v1(
         );
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
-        require_eq!(vaa.guardian_set_index(), guardian_set.index);
+        require_eq!(
+            vaa.guardian_set_index(),
+            guardian_set.index,
+            CoreBridgeError::GuardianSetMismatch
+        );
 
         // Do we have enough signatures for quorum?
         let guardian_keys = &guardian_set.keys;
@@ -187,18 +182,10 @@ fn verify_signatures_v1(
             CoreBridgeError::NoQuorum
         );
 
-        // let sigs: Vec<_> = (0..num_signatures)
-        //     .filter_map(|_| GuardianSetSig::read(&mut data).ok())
-        //     .collect();
-        // require!(
-        //     usize::from(num_signatures) == sigs.len(),
-        //     ErrorCode::AccountDidNotDeserialize
-        // );
-
         // Generate the same message hash (using keccak) that the Guardians used to generate their
         // signatures. This message hash will be hashed again to produce the digest for
         // `secp256k1_recover`.
-        let digest = vaa.body().double_digest();
+        let digest = keccak::hash(keccak::hash(vaa.body().as_ref()).as_ref());
 
         // Only verify as many as we need (up to quorum).
         let mut last_guardian_index = None;
@@ -227,17 +214,19 @@ fn verify_signatures_v1(
             last_guardian_index = Some(index);
         }
 
-        header.write_authority
+        encoded_vaa.write_authority()
     };
 
-    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
-    let mut writer = std::io::Cursor::new(data);
-    ProcessingHeader {
+    // Skip discriminator.
+    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut()[8..];
+    let mut writer = std::io::Cursor::new(acc_data);
+    Header {
         status: ProcessingStatus::Verified,
         write_authority,
         version: VaaVersion::V1,
     }
-    .try_account_serialize(&mut writer)
+    .serialize(&mut writer)
+    .map_err(Into::into)
 }
 
 fn verify_guardian_signature(

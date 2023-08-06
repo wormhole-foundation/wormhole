@@ -1,11 +1,11 @@
+use std::io::Write;
+
 use crate::{
     error::CoreBridgeError,
-    state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
+    state::{MessageStatus, PostedMessageV1Info},
+    zero_copy::PostedMessageV1,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{utils, LegacyDiscriminator};
-
-const START: usize = PostedMessageV1::BYTES_START;
 
 #[derive(Accounts)]
 pub struct ProcessMessageV1<'info> {
@@ -26,16 +26,19 @@ pub struct ProcessMessageV1<'info> {
 }
 
 impl<'info> ProcessMessageV1<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let mut acct_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
-        PostedMessageV1::require_discriminator(&mut acct_data)?;
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        let acc_data = ctx.accounts.draft_message.try_borrow_data()?;
+        let message = PostedMessageV1::parse(&acc_data)?;
 
-        let info = PostedMessageV1Info::deserialize(&mut acct_data)?;
-        require!(
-            info.status == MessageStatus::Writing,
-            CoreBridgeError::MessageAlreadyPublished
+        // require!(
+        //     info.status == MessageStatus::Writing,
+        //     CoreBridgeError::MessageAlreadyPublished
+        // );
+        require_keys_eq!(
+            ctx.accounts.emitter_authority.key(),
+            message.emitter_authority(),
+            CoreBridgeError::EmitterAuthorityMismatch
         );
-        require_keys_eq!(info.emitter_authority, ctx.accounts.emitter_authority.key());
 
         // Done.
         Ok(())
@@ -46,55 +49,113 @@ impl<'info> ProcessMessageV1<'info> {
 pub enum ProcessMessageV1Directive {
     CloseMessageAccount,
     Write { index: u32, data: Vec<u8> },
+    Finalize,
 }
 
-#[access_control(ProcessMessageV1::accounts(&ctx))]
+#[access_control(ProcessMessageV1::constraints(&ctx))]
 pub fn process_message_v1(
     ctx: Context<ProcessMessageV1>,
     directive: ProcessMessageV1Directive,
 ) -> Result<()> {
-    let msg_acct_info = &ctx.accounts.draft_message;
     match directive {
-        ProcessMessageV1Directive::CloseMessageAccount => {
-            match &ctx.accounts.close_account_destination {
-                Some(sol_destination) => {
-                    msg!("Directive: CloseMessageAccount");
-                    utils::close_account(
-                        msg_acct_info.to_account_info(),
-                        sol_destination.to_account_info(),
-                    )
-                }
-                None => err!(ErrorCode::AccountNotEnoughKeys),
-            }
-        }
-        ProcessMessageV1Directive::Write { index, data } => {
-            msg!("Directive: Write");
-            write_message(
-                msg_acct_info,
-                index
-                    .try_into()
-                    .map_err(|_| CoreBridgeError::InvalidInstructionArgument)?,
-                data,
-            )
-        }
+        ProcessMessageV1Directive::CloseMessageAccount => close_message_account(ctx),
+        ProcessMessageV1Directive::Write { index, data } => write(ctx, index, data),
+        ProcessMessageV1Directive::Finalize => finalize(ctx),
     }
 }
 
-fn write_message(msg_acct_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
-    let msg_length = {
-        let mut acct_data: &[u8] = &msg_acct_info.try_borrow_data()?;
-        acct_data = &acct_data[(START - 4)..];
+fn close_message_account(ctx: Context<ProcessMessageV1>) -> Result<()> {
+    msg!("Directive: CloseMessageAccount");
 
-        let payload_len = u32::deserialize(&mut acct_data)?;
-        usize::try_from(payload_len).unwrap()
+    match &ctx.accounts.close_account_destination {
+        Some(sol_destination) => {
+            {
+                let acc_data = ctx.accounts.draft_message.data.borrow();
+                let message = PostedMessageV1::parse(&acc_data)?;
+
+                require!(
+                    message.status() != MessageStatus::Unset,
+                    CoreBridgeError::MessageAlreadyPublished
+                );
+            }
+
+            crate::utils::close_account(
+                ctx.accounts.draft_message.to_account_info(),
+                sol_destination.to_account_info(),
+            )
+        }
+        None => err!(ErrorCode::AccountNotEnoughKeys),
+    }
+}
+
+fn write(ctx: Context<ProcessMessageV1>, index: u32, data: Vec<u8>) -> Result<()> {
+    msg!("Directive: Write");
+
+    require!(
+        !data.is_empty(),
+        CoreBridgeError::InvalidInstructionArgument
+    );
+
+    let msg_length = {
+        let acc_data = ctx.accounts.draft_message.data.borrow();
+        let message = PostedMessageV1::parse(&acc_data)?;
+
+        require!(
+            message.status() == MessageStatus::Writing,
+            CoreBridgeError::NotInWritingStatus
+        );
+
+        message.payload_size()
     };
 
+    let index = usize::try_from(index).unwrap();
     let end = index.saturating_add(data.len());
     require_gte!(msg_length, end, CoreBridgeError::DataOverflow);
 
-    let acct_data = &mut msg_acct_info.try_borrow_mut_data()?;
-    acct_data[(START + index)..(START + end)].copy_from_slice(&data);
+    const START: usize = 4 + PostedMessageV1::PAYLOAD_START;
+    let acc_data = &mut ctx.accounts.draft_message.data.borrow_mut();
+    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())
+}
+
+fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
+    msg!("Directive: Finalize");
+
+    let (nonce, consistency_level, emitter) = {
+        let acc_data = ctx.accounts.draft_message.data.borrow();
+        let message = PostedMessageV1::parse(&acc_data)?;
+
+        require!(
+            message.status() == MessageStatus::Writing,
+            CoreBridgeError::NotInWritingStatus
+        );
+
+        (
+            message.nonce(),
+            message.consistency_level(),
+            message.emitter(),
+        )
+    };
+
+    // Skip the discriminator.
+    let acc_data: &mut [u8] = &mut ctx.accounts.draft_message.data.borrow_mut();
+    let mut writer = std::io::Cursor::new(acc_data);
+
+    // Serialize all info for simplicity.
+    writer.write_all(&PostedMessageV1::DISCRIMINATOR)?;
+    PostedMessageV1Info {
+        consistency_level,
+        emitter_authority: ctx.accounts.emitter_authority.key(),
+        status: MessageStatus::Finalized,
+        _gap_0: Default::default(),
+        posted_timestamp: Default::default(),
+        nonce,
+        sequence: Default::default(),
+        solana_chain_id: Default::default(),
+        emitter,
+    }
+    .serialize(&mut writer)
+    .map_err(Into::into)
 }

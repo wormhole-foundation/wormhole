@@ -1,93 +1,69 @@
 use std::ops::Deref;
 
-use crate::{
-    error::CoreBridgeError,
-    types::{MessageHash, VaaVersion},
-};
-use anchor_lang::{prelude::*, Discriminator};
+use crate::{error::CoreBridgeError, types::VaaVersion};
+use anchor_lang::prelude::*;
+use wormhole_raw_vaas::Vaa;
 
+/// Encoded VAA's processing status.
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
 )]
 pub enum ProcessingStatus {
+    /// `EncodedVaa` account is uninitialized.
     #[default]
     Unset,
+    /// VAA is still being written to the `EncodedVaa` account.
     Writing,
-    HashComputed,
+    /// VAA is verified (i.e. validating message attestation is complete).
     Verified,
 }
 
+/// `EncodedVaa` account header.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
-pub struct ProcessingHeader {
+pub struct Header {
+    /// Processing status. **This encoded VAA is only considered usable when this status is set
+    /// to [Verified](ProcessingStatus::Verified).**
     pub status: ProcessingStatus,
+    /// The authority that has write privilege to this account.
     pub write_authority: Pubkey,
+    /// VAA version. Only when the VAA is verified is this version set to something that is not
+    /// [Unset](VaaVersion::Unset).
     pub version: VaaVersion,
 }
 
-impl ProcessingHeader {
-    pub(crate) fn try_account_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
-        EncodedVaa::DISCRIMINATOR.serialize(writer)?;
-        self.serialize(writer).map_err(Into::into)
-    }
-
-    pub fn try_account_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        if buf.len() < 8 {
-            return err!(ErrorCode::AccountDiscriminatorNotFound);
-        }
-        require!(
-            EncodedVaa::DISCRIMINATOR == buf[..8],
-            ErrorCode::AccountDiscriminatorMismatch
-        );
-        Self::try_account_deserialize_unchecked(buf)
-    }
-
-    pub fn try_account_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        let mut data: &[u8] = &buf[8..];
-        AnchorDeserialize::deserialize(&mut data)
-            .map_err(|_| error!(ErrorCode::AccountDidNotDeserialize))
-    }
-}
-
+/// Account used to warehouse VAA buffer.
+///
+/// NOTE: This account should not be used by an external application unless the header's status is
+/// `Verified`. It is encouraged to use the `EncodedVaa` zero-copy account struct instead. See
+/// [zero_copy](mod@crate::zero_copy) for more info.
 #[account]
 #[derive(Debug, PartialEq, Eq)]
 pub struct EncodedVaa {
-    pub header: ProcessingHeader,
-    pub bytes: Vec<u8>,
+    /// Status, write authority and VAA version.
+    pub header: Header,
+    /// VAA buffer.
+    pub buf: Vec<u8>,
 }
 
 impl EncodedVaa {
-    pub const BYTES_START: usize = 8 // DISCRIMINATOR
-        + crate::state::ProcessingHeader::INIT_SPACE
+    /// Index of the first byte of the VAA buffer.
+    pub(crate) const BYTES_START: usize = 8 // DISCRIMINATOR
+        + crate::state::Header::INIT_SPACE
         + 4 // bytes.len()
-        ;
+    ;
 
-    pub fn payload_size(&self) -> Result<usize> {
-        match self.version {
-            VaaVersion::V1 => Ok(self.bytes.len() - self.body_index() - 51),
-            _ => err!(CoreBridgeError::InvalidVaaVersion),
-        }
-    }
-
-    pub fn compute_message_hash(&self) -> Result<MessageHash> {
-        match self.version {
-            VaaVersion::V1 => {
-                let body = &self.bytes[self.body_index()..];
-                Ok(solana_program::keccak::hash(body).into())
-            }
-            _ => err!(CoreBridgeError::InvalidVaaVersion),
-        }
-    }
-
-    fn body_index(&self) -> usize {
-        match self.version {
-            VaaVersion::Unset => 0,
-            VaaVersion::V1 => 6 + 66 * usize::from(self.bytes[5]),
-        }
+    /// Return VAA as zero-copy reader.
+    pub fn v1(&self) -> Result<Vaa> {
+        require!(
+            self.header.version == VaaVersion::V1,
+            CoreBridgeError::InvalidVaaVersion
+        );
+        Ok(Vaa::parse(&self.buf).unwrap())
     }
 }
 
 impl Deref for EncodedVaa {
-    type Target = ProcessingHeader;
+    type Target = Header;
 
     fn deref(&self) -> &Self::Target {
         &self.header

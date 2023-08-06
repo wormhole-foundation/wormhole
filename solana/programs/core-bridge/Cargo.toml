@@ -1,7 +1,7 @@
 [package]
-name = "solana-wormhole-core-bridge" # TODO: Change this
+name = "wormhole-core-bridge-solana"
 description = "Wormhole Core Bridge Program for Solana"
-version = "0.1.0"
+version = "0.0.0-alpha.4"
 edition = "2021"
 authors = ["W7"]
 license = "Apache-2.0"
@@ -12,26 +12,26 @@ repository = "https://github.com/wormhole-foundation/wormhole"
 crate-type = ["cdylib", "lib"]
 
 [features]
-default = ["localnet"]
+default = ["mainnet", "cpi"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-### A.K.A. Local Validator (via JS Integration Test)
+### A.K.A. Local Validator (via JS Integration Test) and Tilt
 localnet = []
-### A.K.A. Solana Mainnet
+### A.K.A. Solana Mainnet-Beta
 mainnet = []
 ### A.K.A. Solana Devnet
 testnet = []
-### A.K.A. Tilt
-devnet = []
 
 [dependencies]
+wormhole-io = "0.1.0"
+wormhole-raw-vaas = { version = "=0.0.0-alpha.7", features = ["ruint", "on-chain"], default-features = false }
+
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
+solana-program = "1.14"
+
 hex = "0.4"
 ruint = "1.8.0"
-solana-program = "=1.14.20"
-wormhole-io = { version = "=0.0.16", features = ["ruint"] }
-wormhole-solana-common = { path = "../../common/solana-common" }
-wormhole-raw-vaas = { version = "=0.0.18", features = ["anchor"], default-features = false }
-wormhole-vaas = { version = "=0.0.15", features = ["anchor"], default-features = false }
+
+cfg-if = "1.0"

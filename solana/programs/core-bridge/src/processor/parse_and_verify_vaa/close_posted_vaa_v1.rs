@@ -1,12 +1,11 @@
 use crate::{
-    state::{PostedVaaV1Bytes, SignatureSet},
-    types::MessageHash,
+    error::CoreBridgeError,
+    legacy::utils::LegacyAnchorized,
+    state::{PostedVaaV1, SignatureSet},
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
-#[instruction(message_hash: MessageHash)]
 pub struct ClosePostedVaaV1<'info> {
     #[account(mut)]
     sol_destination: Signer<'info>,
@@ -14,16 +13,16 @@ pub struct ClosePostedVaaV1<'info> {
     #[account(
         mut,
         close = sol_destination,
-        seeds = [PostedVaaV1Bytes::seed_prefix(), message_hash.as_ref()],
+        seeds = [PostedVaaV1::SEED_PREFIX, posted_vaa.message_hash().as_ref()],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     #[account(
         mut,
         close = sol_destination
     )]
-    signature_set: Option<Account<'info, SignatureSet>>,
+    signature_set: Option<Account<'info, LegacyAnchorized<0, SignatureSet>>>,
 }
 
 /// This directive acts as a placeholder in case we want to expand how posted VAAs are closed.
@@ -37,16 +36,29 @@ pub fn close_posted_vaa_v1(
     directive: ClosePostedVaaV1Directive,
 ) -> Result<()> {
     match directive {
-        ClosePostedVaaV1Directive::TryOnce => {
-            msg!("Directive: TryOnce");
-            let signature_set_key = ctx.accounts.posted_vaa.signature_set;
-            match &ctx.accounts.signature_set {
-                Some(signature_set) => require_keys_eq!(signature_set_key, signature_set.key()),
-                None => require_keys_eq!(signature_set_key, Default::default()),
-            };
-
-            // Done.
-            Ok(())
-        }
+        ClosePostedVaaV1Directive::TryOnce => try_once(ctx),
     }
+}
+
+fn try_once(ctx: Context<ClosePostedVaaV1>) -> Result<()> {
+    msg!("Directive: TryOnce");
+
+    let verified_signature_set = ctx.accounts.posted_vaa.signature_set;
+    match &ctx.accounts.signature_set {
+        Some(signature_set) => {
+            require_keys_eq!(
+                signature_set.key(),
+                verified_signature_set,
+                CoreBridgeError::InvalidSignatureSet
+            )
+        }
+        None => require_keys_eq!(
+            verified_signature_set,
+            Pubkey::default(),
+            ErrorCode::AccountNotEnoughKeys
+        ),
+    };
+
+    // Done.
+    Ok(())
 }

@@ -1,11 +1,11 @@
 use crate::{
     error::CoreBridgeError,
-    state::{EncodedVaa, PostedVaaV1Bytes, PostedVaaV1Metadata, ProcessingStatus},
+    legacy::utils::LegacyAnchorized,
+    state::{EncodedVaa, PostedVaaV1, PostedVaaV1Info, ProcessingStatus},
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::Vaa;
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct PostVaaV1<'info> {
@@ -22,19 +22,25 @@ pub struct PostVaaV1<'info> {
     #[account(
         init,
         payer = write_authority,
-        space = PostedVaaV1Bytes::compute_size(vaa.payload_size()?),
-        //seeds = [PostedVaaV1Bytes::seed_prefix(), vaa.compute_message_hash()?.as_ref()],
-        seeds = [PostedVaaV1Bytes::seed_prefix(), &Vaa::parse(&mut &vaa.bytes).unwrap().body().digest()],
+        space = PostedVaaV1::compute_size(vaa.v1()?.body().payload().as_ref().len()),
+        seeds = [
+            PostedVaaV1::SEED_PREFIX,
+            solana_program::keccak::hash(vaa.v1()?.body().as_ref()).as_ref(),
+        ],
         bump,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     system_program: Program<'info, System>,
 }
 
 impl<'info> PostVaaV1<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // We can only create a legacy VAA account if the VAA account was verified.
+        //
+        // NOTE: We are keeping this here as a fail safe. We should never reach this point because
+        // if the VAA is unverified, its version will not be set (so the account context zero-copy
+        // getters before this access control will fail).
         require!(
             ctx.accounts.vaa.status == ProcessingStatus::Verified,
             CoreBridgeError::UnverifiedVaa
@@ -51,42 +57,47 @@ pub enum PostVaaV1Directive {
     TryOnce,
 }
 
-#[access_control(PostVaaV1::accounts(&ctx))]
+#[access_control(PostVaaV1::constraints(&ctx))]
 pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Result<()> {
     match directive {
-        PostVaaV1Directive::TryOnce => {
-            msg!("Directive: TryOnce");
-            let encoded_vaa = &ctx.accounts.vaa;
-            let mut vaa_buf: &[u8] = &encoded_vaa.bytes;
-
-            // This is safe because the VAA integrity has already been verified.
-            let vaa = Vaa::parse(&mut vaa_buf).unwrap();
-
-            // Verify version.
-            require_eq!(
-                vaa.version(),
-                u8::from(VaaVersion::V1),
-                CoreBridgeError::InvalidVaaVersion
-            );
-
-            let body = vaa.body();
-
-            ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
-                meta: PostedVaaV1Metadata {
-                    consistency_level: body.consistency_level(),
-                    timestamp: body.timestamp().into(),
-                    signature_set: Default::default(),
-                    guardian_set_index: vaa.guardian_set_index(),
-                    nonce: body.nonce(),
-                    sequence: body.sequence(),
-                    emitter_chain: body.emitter_chain(),
-                    emitter_address: body.emitter_address(),
-                },
-                payload: body.payload().as_ref().to_vec(),
-            });
-
-            // Done.
-            Ok(())
-        }
+        PostVaaV1Directive::TryOnce => try_once(ctx),
     }
+}
+
+fn try_once(ctx: Context<PostVaaV1>) -> Result<()> {
+    msg!("Directive: TryOnce");
+
+    let encoded_vaa = &ctx.accounts.vaa;
+
+    // This is safe because the VAA integrity has already been verified.
+    let vaa = Vaa::parse(&encoded_vaa.buf).unwrap();
+
+    // Verify version.
+    require_eq!(
+        vaa.version(),
+        u8::from(VaaVersion::V1),
+        CoreBridgeError::InvalidVaaVersion
+    );
+
+    let body = vaa.body();
+
+    ctx.accounts.posted_vaa.set_inner(
+        PostedVaaV1 {
+            info: PostedVaaV1Info {
+                consistency_level: body.consistency_level(),
+                timestamp: body.timestamp().into(),
+                signature_set: Default::default(),
+                guardian_set_index: vaa.guardian_set_index(),
+                nonce: body.nonce(),
+                sequence: body.sequence(),
+                emitter_chain: body.emitter_chain(),
+                emitter_address: body.emitter_address(),
+            },
+            payload: body.payload().as_ref().to_vec(),
+        }
+        .into(),
+    );
+
+    // Done.
+    Ok(())
 }

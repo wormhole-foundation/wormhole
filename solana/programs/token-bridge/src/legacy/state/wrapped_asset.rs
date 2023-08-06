@@ -1,40 +1,45 @@
 use anchor_lang::prelude::*;
 use serde::{Deserialize, Serialize};
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MetadataUri {
-    chain: u16,
-    address: String,
+    wormhole_chain_id: u16,
+    canonical_address: String,
     native_decimals: u8,
 }
 
-#[legacy_account]
-#[derive(Debug, PartialEq, Eq, InitSpace)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct WrappedAsset {
     pub token_chain: u16,
     pub token_address: [u8; 32],
     pub native_decimals: u8,
 }
 
+impl core_bridge_program::legacy::utils::LegacyAccount<0> for WrappedAsset {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
+        crate::ID
+    }
+}
+
 impl WrappedAsset {
-    pub fn to_uri(&self) -> serde_json::Result<String> {
+    pub const SEED_PREFIX: &'static [u8] = b"meta";
+
+    pub fn to_uri(&self) -> String {
         let mut uri = serde_json::to_string_pretty(&MetadataUri {
-            chain: self.token_chain,
-            address: hex::encode(self.token_address),
+            wormhole_chain_id: self.token_chain,
+            canonical_address: format!("0x{}", hex::encode(self.token_address)),
             native_decimals: self.native_decimals,
-        })?;
+        })
+        .expect("serialization should not fail");
 
         // Unlikely to happen, but truncate the URI if it's too long.
         uri.truncate(mpl_token_metadata::state::MAX_URI_LENGTH);
 
-        Ok(uri)
+        uri
     }
-}
-
-impl LegacyDiscriminator<0> for WrappedAsset {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }
 
 #[cfg(test)]
@@ -53,11 +58,11 @@ mod test {
         };
 
         let expected = r#"{
-  "chain": 420,
-  "address": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "wormholeChainId": 420,
+  "canonicalAddress": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
   "nativeDecimals": 18
 }"#;
 
-        assert_eq!(asset.to_uri().unwrap(), expected);
+        assert_eq!(asset.to_uri(), expected);
     }
 }
