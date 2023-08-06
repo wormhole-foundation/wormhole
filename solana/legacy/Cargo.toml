@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "bridge/client",
+    "bridge/cpi_poster",
+    "bridge/program",
+    "bridge/program_stub",
+    "migration",
+    "modules/nft_bridge/program",
+    "modules/token_bridge/client",
+    "modules/token_bridge/program",
+    "solitaire/program",
+    "solitaire/rocksalt",
+]
+
+[patch.crates-io]
+memmap2 = { path = "bridge/memmap2-rs" }

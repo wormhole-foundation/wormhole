@@ -1,5 +1,5 @@
 {
-  "name": "wormhole-solana-sdk",
+  "name": "@wormhole-foundation/wormhole-solana-sdk",
   "version": "0.1.0",
   "description": "Wormhole SDK for Solana Programs",
   "main": "./lib/cjs/index.js",

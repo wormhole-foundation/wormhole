@@ -84,8 +84,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd clients/js && make install
       - run: cd ethereum && make test-upgrade
-
-  solana:
+  solana-legacy:
     runs-on: ubuntu-20.04
     env:
       RUSTFLAGS: -Dwarnings
@@ -97,13 +96,13 @@ jobs:
       - name: Get rust toolchain version
         id: toolchain
         run: |
-          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain)"
+          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/legacy/rust-toolchain)"
           echo "::set-output name=version::${RUST_VERSION}"
 
       - name: Get solana version
         id: solana
         run: |
-          SOLANA_VERSION="$(awk '/solana-program =/ { print substr($3, 3, length($3)-3) }' solana/bridge/program/Cargo.toml)"
+          SOLANA_VERSION="$(awk '/solana-program =/ { print substr($3, 3, length($3)-3) }' solana/legacy/bridge/program/Cargo.toml)"
           echo "::set-output name=version::${SOLANA_VERSION}"
 
       - name: Cache rust toolchain
@@ -135,22 +134,22 @@ jobs:
             ~/.cargo/bin
             ~/.cargo/registry
             ~/.cargo/git/db
-            solana/target
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/Cargo.lock') }}
+            solana/legacy/target
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/legacy/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
       - name: Run `cargo fmt`
-        run: cargo fmt --check --all --manifest-path solana/Cargo.toml
+        run: cargo fmt --check --all --manifest-path solana/legacy/Cargo.toml
 
       - name: Run `cargo check`
-        run: cargo check --workspace --tests --manifest-path solana/Cargo.toml
+        run: cargo check --workspace --tests --manifest-path solana/legacy/Cargo.toml
           --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
       - name: Run `cargo clippy`
-        run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
+        run: cargo clippy --workspace --tests --manifest-path solana/legacy/Cargo.toml
           --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
       - name: Cache solana tools
@@ -176,7 +175,7 @@ jobs:
         env:
           RUST_BACKTRACE: "1"
         run: |
-          cd solana
+          cd solana/legacy
           export BPF_OUT_DIR="$(pwd)/target/deploy"
           export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
 
