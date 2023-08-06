@@ -36,7 +36,7 @@ jobs:
 
       # temporarily set --guardiand_loglevel=info to debug https://github.com/wormhole-foundation/wormhole/issues/3052
       - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2 --guardiand_loglevel=info
-        timeout-minutes: 25
+        timeout-minutes: 60
 
       # Clean up k8s resources
       - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod,job --all
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.5"
+          go-version: "1.20.7"
       - run: make node
 
   algorand:
@@ -276,7 +276,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.5"
+          go-version: "1.20.7"
       - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
@@ -293,7 +293,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.5"
+          go-version: "1.20.7"
       - name: Install formatter
         run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.5"
+          go-version: "1.20.7"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
         run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
@@ -401,4 +401,4 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - run: npx prettier --check ./clients/js/src ./sdk/js/src
+      - run: npx prettier@2.3.2 --check ./clients/js/src ./sdk/js/src

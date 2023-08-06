@@ -66,7 +66,9 @@ export async function createRegisterChainVAA(
   chain: ChainInfo
 ): Promise<string> {
   const coreRelayerAddress = await getWormholeRelayerAddress(chain);
-  console.log(`Registering ${coreRelayerAddress} on chain ${chain.chainId}`);
+  console.log(
+    `Creating registration VAA for Wormhole Relayer ${coreRelayerAddress} (chain ${chain.chainId})`
+  );
 
   // bytes32 module;
   // uint8 action;

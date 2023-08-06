@@ -123,8 +123,9 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       // Get token bridge state object ID
       const tokenBridgeStateObjectId = getCreatedObjects(
         tokenBridgeInitRes
-      ).find((e) => isSameType(e.type, `${tokenBridgePackageId}::state::State`))
-        ?.objectId;
+      ).find((e) =>
+        isSameType(e.type, `${tokenBridgePackageId}::state::State`)
+      )?.objectId;
       if (!tokenBridgeStateObjectId) {
         throw new Error("Couldn't find token bridge state object ID.");
       }

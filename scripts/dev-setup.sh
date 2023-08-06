@@ -63,7 +63,7 @@ esac
 
 # Install Go
 ARCH=amd64
-GO=1.20.5
+GO=1.20.7
 
 (
   if [[ -d /usr/local/go ]]; then
