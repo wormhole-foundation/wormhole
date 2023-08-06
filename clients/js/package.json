@@ -21,7 +21,7 @@
     "prepublishOnly": "npm run check",
     "make": "make install",
     "test": "npm run make && jest --config jest.config.json --watchAll",
-    "test-ci": "jest --config jest.config.json --verbose --forceExit"
+    "test-ci": "jest --config jest.config.json --maxWorkers=1 --verbose --forceExit"
   },
   "author": "Wormhole Contributors",
   "license": "Apache-2.0",
