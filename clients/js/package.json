@@ -20,7 +20,7 @@
     "docs": "npx tsx src/doc.ts",
     "prepublishOnly": "npm run check",
     "make": "make install",
-    "test": "npm run make && jest --config jest.config.json",
+    "test": "npm run make && jest --config jest.config.json --watchAll",
     "test-ci": "jest --config jest.config.json --verbose --forceExit"
   },
   "author": "Wormhole Contributors",
