@@ -1,16 +1,17 @@
 [workspace]
 members = [
-    "bridge/client",
-    "bridge/cpi_poster",
-    "bridge/program",
-    "bridge/program_stub",
-    "migration",
-    "modules/nft_bridge/program",
-    "modules/token_bridge/client",
-    "modules/token_bridge/program",
-    "solitaire/program",
-    "solitaire/rocksalt",
+    "common/*",
+    "programs/*"
 ]
 
-[patch.crates-io]
-memmap2 = { path = "bridge/memmap2-rs" }
+### cargo-build-sbf does not support workspace inheritance yet... Soon.
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1
