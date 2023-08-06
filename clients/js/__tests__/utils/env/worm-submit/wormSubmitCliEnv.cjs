@@ -5,14 +5,16 @@ try {
   const envValuesFilePath = path.resolve(__dirname, "./worm-submit-env-values");
   const envConfig = fs.readFileSync(envValuesFilePath, "utf8");
 
-  // We store these env variables into a specific object to isolate them from global 'process.env' values
-  // This is needed to simulate `worm submit` API calls
-  global.wormSubmitCliEnv = {};
-
   // Loads env variables for worm CLI test environment (Jest)
+  // This is needed to simulate `worm submit` API calls
   envConfig.split("\n").forEach((line) => {
+    if (line.includes("#")) return; // Ignore lines with comments
+
     const [key, value] = line.split("=");
-    global.wormSubmitCliEnv[key] = value;
+    //Inject env variable only if missing
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
   });
 } catch (err) {
   console.error(

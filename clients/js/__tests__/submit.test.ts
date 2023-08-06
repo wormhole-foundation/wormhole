@@ -66,18 +66,9 @@ const runFailureCases = (
 };
 
 describe("worm submit", () => {
-  let originalEnv: any;
   let originalProcessExit: any;
-  const wormSubmitCliEnvValues = (global as any).wormSubmitCliEnv;
 
   beforeAll(() => {
-    // Save original environment variables, avoiding conflicts with CI
-    originalEnv = { ...process.env };
-    // Override environment variables for 'Worm submit' cases by using 'wormSubmitCliEnvValues'
-    for (const [key, value] of Object.entries(wormSubmitCliEnvValues)) {
-      process.env[key] = value as string;
-    }
-
     // Save original process.exit, needed to recover exited processes
     originalProcessExit = process.exit;
     // Override process.exit
@@ -91,7 +82,6 @@ describe("worm submit", () => {
 
   // Reset everything after 'Worm Submit' test cases
   afterAll(() => {
-    process.env = originalEnv;
     process.exit = originalProcessExit;
     mswServer.close();
   });
@@ -105,7 +95,7 @@ describe("worm submit", () => {
       mswServer.resetHandlers();
       requests.length = 0;
     });
-    const testTimeout = 20000;
+    const testTimeout = 25000;
 
     describe("solana", () => {
       const chain: WormholeSDKChainName = "solana";
