@@ -8,7 +8,7 @@ import {
   jest,
 } from "@jest/globals";
 import { WormholeSDKChainName, getRpcEndpoint } from "./utils/getters";
-import { server as mswServer, requests } from "./utils/msw";
+import { server as mswServer, requests, responses } from "./utils/msw";
 import yargs from "yargs";
 import * as submitCommand from "../src/cmds/submit";
 import { YargsCommandModule } from "../src/cmds/Yargs";
@@ -94,6 +94,7 @@ describe("worm submit", () => {
     afterEach(() => {
       mswServer.resetHandlers();
       requests.length = 0;
+      responses.length = 0;
     });
     const testTimeout = 30000;
 
