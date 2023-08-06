@@ -1,11 +1,9 @@
 use std::{
-    cell::RefCell,
     io::{self, ErrorKind},
-    ops::{Deref, DerefMut},
-    rc::Rc,
+    ops::Deref,
 };
 
-use crate::{types::Timestamp, utils};
+use crate::types::Timestamp;
 use anchor_lang::prelude::*;
 use solana_program::keccak;
 use wormhole_io::{Readable, Writeable};
@@ -55,98 +53,102 @@ pub trait VaaV1MessageHash {
     fn try_message_hash(&self) -> Result<keccak::Hash>;
 }
 
-// #[derive(Debug, Clone, Eq, PartialEq)]
-// pub struct MessagePayload<P: Readable + Writeable> {
-//     pub size: u32,
-//     pub data: Box<P>,
-// }
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct MessagePayload<P: Readable + Writeable> {
+    pub size: u32,
+    pub data: P,
+}
 
-// impl<P: Readable + Writeable> Deref for MessagePayload<P> {
-//     type Target = P;
+impl<P: Readable + Writeable> Deref for MessagePayload<P> {
+    type Target = P;
 
-//     fn deref(&self) -> &Self::Target {
-//         &self.data
-//     }
-// }
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
 
-// impl<P: Readable + Writeable> DerefMut for MessagePayload<P> {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.data
-//     }
-// }
+impl<P: Readable + Writeable> AnchorDeserialize for MessagePayload<P> {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        let size = u32::deserialize(buf)?;
 
-// impl<P: Readable + Writeable> AnchorDeserialize for MessagePayload<P> {
-//     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-//         let size = u32::deserialize(buf)?;
+        // We check that the encoded size matches the actual size of the buffer.
+        if usize::try_from(size).unwrap() != buf.len() {
+            return Err(io::Error::new(
+                ErrorKind::InvalidData,
+                "invalid payload size",
+            ));
+        }
 
-//         // We check that the encoded size matches the actual size of the buffer.
-//         if usize::try_from(size).unwrap() != buf.len() {
-//             return Err(io::Error::new(
-//                 ErrorKind::InvalidData,
-//                 "invalid payload size",
-//             ));
-//         }
+        Ok(Self {
+            size,
+            data: P::read(buf)?,
+        })
+    }
+}
 
-//         Ok(Self {
-//             size,
-//             data: Box::new(P::read(buf)?),
-//         })
-//     }
-// }
+impl<P: Readable + Writeable> AnchorSerialize for MessagePayload<P> {
+    fn serialize<W: io::Write>(&self, _writer: &mut W) -> io::Result<()> {
+        // NOTE: We only intend to read these payloads. Serialization only matters when we write
+        // to an account that uses `MessagePayload<P>`.
+        Ok(())
+    }
+}
 
-// impl<P: Readable + Writeable> AnchorSerialize for MessagePayload<P> {
-//     fn serialize<W: io::Write>(&self, _writer: &mut W) -> io::Result<()> {
-//         // NOTE: We only intend to read these payloads. Serialization only matters when we write
-//         // to an account that uses `MessagePayload<P>`.
-//         Ok(())
-//     }
-// }
+#[legacy_account]
+pub struct PostedVaaV1<P>
+where
+    P: Clone + Readable + Writeable,
+{
+    pub meta: PostedVaaV1Metadata,
+    pub payload: MessagePayload<P>,
+}
 
-// #[legacy_account]
-// pub struct PostedVaaV1<P: Readable + Writeable> {
-//     pub meta: PostedVaaV1Metadata,
-//     pub payload: MessagePayload<P>,
-// }
+impl<P> SeedPrefix for PostedVaaV1<P>
+where
+    P: Clone + Readable + Writeable,
+{
+    fn seed_prefix() -> &'static [u8] {
+        SEED_PREFIX
+    }
+}
 
-// impl<P: Readable + Writeable> SeedPrefix for PostedVaaV1<P> {
-//     fn seed_prefix() -> &'static [u8] {
-//         SEED_PREFIX
-//     }
-// }
+impl<P> LegacyDiscriminator<4> for PostedVaaV1<P>
+where
+    P: Clone + Readable + Writeable,
+{
+    const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
+}
 
-// impl<P: Readable + Writeable> VaaV1MessageHash for PostedVaaV1<P> {
-//     fn try_message_hash(&self) -> Result<keccak::Hash> {
-//         let mut payload = Vec::with_capacity(self.payload.size.try_into().unwrap());
-//         self.payload.data.write(&mut payload)?;
+impl<'info, P> VaaV1MessageHash for Account<'info, PostedVaaV1<P>>
+where
+    P: Clone + Readable + Writeable,
+{
+    fn try_message_hash(&self) -> Result<keccak::Hash> {
+        let mut payload = Vec::with_capacity(self.payload.size.try_into().unwrap());
+        self.payload.data.write(&mut payload)?;
 
-//         // Ok(utils::compute_message_hash(
-//         //     self.timestamp,
-//         //     self.nonce,
-//         //     self.emitter_chain,
-//         //     &self.emitter_address,
-//         //     self.sequence,
-//         //     self.consistency_level,
-//         //     &payload,
-//         // ))
-//         Ok(keccak::hashv(&[
-//             &self.timestamp.to_be_bytes(),     // timestamp
-//             &self.nonce.to_be_bytes(),         // nonce
-//             &self.emitter_chain.to_be_bytes(), // emitter_chain
-//             &self.emitter_address,             // emitter_address
-//             &self.sequence.to_be_bytes(),      // sequence
-//             &[self.consistency_level],         // consistency_level
-//             &payload,                          // payload
-//         ]))
-//     }
-// }
+        Ok(keccak::hashv(&[
+            &self.timestamp.to_be_bytes(),     // timestamp
+            &self.nonce.to_be_bytes(),         // nonce
+            &self.emitter_chain.to_be_bytes(), // emitter_chain
+            &self.emitter_address,             // emitter_address
+            &self.sequence.to_be_bytes(),      // sequence
+            &[self.consistency_level],         // consistency_level
+            &payload,                          // payload
+        ]))
+    }
+}
 
-// impl<P: Readable + Writeable> Deref for PostedVaaV1<P> {
-//     type Target = PostedVaaV1Metadata;
+impl<P> Deref for PostedVaaV1<P>
+where
+    P: Clone + Readable + Writeable,
+{
+    type Target = PostedVaaV1Metadata;
 
-//     fn deref(&self) -> &Self::Target {
-//         &self.meta
-//     }
-// }
+    fn deref(&self) -> &Self::Target {
+        &self.meta
+    }
+}
 
 #[legacy_account]
 pub struct PostedVaaV1Bytes {
@@ -203,36 +205,7 @@ pub(crate) struct PartialPostedVaaV1 {
 }
 
 impl PartialPostedVaaV1 {
-    pub fn wtf<'info>(
-        acc: &Account<'info, PartialPostedVaaV1>,
-    ) -> std::cell::Ref<'info, &'info mut [u8]> {
-        let acc_info: &AccountInfo = acc.as_ref();
-        acc_info.data.borrow()
-    }
-}
-
-impl<'info> VaaV1MessageHash for Account<'info, PartialPostedVaaV1> {
-    fn try_message_hash(&self) -> Result<keccak::Hash> {
-        let acc_info: &AccountInfo = self.as_ref();
-        let data: &[u8] = &acc_info.try_borrow_data()?;
-
-        let timestamp = u32::from_le_bytes(data[5..9].try_into().unwrap()).to_be_bytes();
-        let nonce = u32::from_le_bytes(data[45..49].try_into().unwrap()).to_be_bytes();
-        let emitter_chain = u16::from_le_bytes(data[57..59].try_into().unwrap()).to_be_bytes();
-        let emitter_address = &data[59..91];
-        let sequence = u64::from_le_bytes(data[49..57].try_into().unwrap()).to_be_bytes();
-        let consistency_level = [data[4]];
-
-        Ok(keccak::hashv(&[
-            &timestamp,         // timestamp
-            &nonce,             // nonce
-            &emitter_chain,     // emitter_chain
-            emitter_address,    // emitter_address
-            &sequence,          // sequence
-            &consistency_level, // consistency_level
-            &data[95..],        // payload
-        ]))
-    }
+    pub const PAYLOAD_START: usize = 4 + PostedVaaV1Metadata::INIT_SPACE + 4;
 }
 
 impl SeedPrefix for PartialPostedVaaV1 {
@@ -250,5 +223,29 @@ impl Deref for PartialPostedVaaV1 {
 
     fn deref(&self) -> &Self::Target {
         &self.meta
+    }
+}
+
+impl<'info> VaaV1MessageHash for Account<'info, PartialPostedVaaV1> {
+    fn try_message_hash(&self) -> Result<keccak::Hash> {
+        let acc_info: &AccountInfo = self.as_ref();
+        let data: &[u8] = &acc_info.try_borrow_data()?;
+
+        let timestamp = u32::from_le_bytes(data[5..9].try_into().unwrap()).to_be_bytes();
+        let nonce = u32::from_le_bytes(data[45..49].try_into().unwrap()).to_be_bytes();
+        let emitter_chain = u16::from_le_bytes(data[57..59].try_into().unwrap()).to_be_bytes();
+        let emitter_address = &data[59..91];
+        let sequence = u64::from_le_bytes(data[49..57].try_into().unwrap()).to_be_bytes();
+        let consistency_level = [data[4]];
+
+        Ok(keccak::hashv(&[
+            &timestamp,                                 // timestamp
+            &nonce,                                     // nonce
+            &emitter_chain,                             // emitter_chain
+            emitter_address,                            // emitter_address
+            &sequence,                                  // sequence
+            &consistency_level,                         // consistency_level
+            &data[PartialPostedVaaV1::PAYLOAD_START..], // payload
+        ]))
     }
 }

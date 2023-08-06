@@ -52,7 +52,7 @@ impl ProcessingHeader {
 #[derive(Debug, PartialEq, Eq)]
 pub struct EncodedVaa {
     pub header: ProcessingHeader,
-    pub bytes: Vec<u8>,
+    pub buf: Vec<u8>,
 }
 
 impl EncodedVaa {
@@ -63,7 +63,7 @@ impl EncodedVaa {
 
     pub fn payload_size(&self) -> Result<usize> {
         match self.version {
-            VaaVersion::V1 => Ok(self.bytes.len() - self.body_index() - 51),
+            VaaVersion::V1 => Ok(self.buf.len() - self.body_index() - 51),
             _ => err!(CoreBridgeError::InvalidVaaVersion),
         }
     }
@@ -71,7 +71,7 @@ impl EncodedVaa {
     pub fn compute_message_hash(&self) -> Result<MessageHash> {
         match self.version {
             VaaVersion::V1 => {
-                let body = &self.bytes[self.body_index()..];
+                let body = &self.buf[self.body_index()..];
                 Ok(solana_program::keccak::hash(body).into())
             }
             _ => err!(CoreBridgeError::InvalidVaaVersion),
@@ -81,7 +81,7 @@ impl EncodedVaa {
     fn body_index(&self) -> usize {
         match self.version {
             VaaVersion::Unset => 0,
-            VaaVersion::V1 => 6 + 66 * usize::from(self.bytes[5]),
+            VaaVersion::V1 => 6 + 66 * usize::from(self.buf[5]),
         }
     }
 }

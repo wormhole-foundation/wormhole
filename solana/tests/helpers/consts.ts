@@ -1,9 +1,3 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
-
-export const TEST_ROOT = `${__dirname}/..`;
-
-export const LOCALHOST = "http://localhost:8899";
-
 export const GUARDIAN_KEYS = [
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
   "c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e",
@@ -25,40 +19,3 @@ export const GUARDIAN_KEYS = [
   "1db31a6ba3bcd54d2e8a64f8a2415064265d291593450c6eb7e9a6a986bd9400",
   "70d8f1c9534a0ab61a020366b831a494057a289441c07be67e4288c44bc6cd5d",
 ];
-
-export const GOVERNANCE_CHAIN = 1;
-export const GOVERNANCE_EMITTER_ADDRESS = new PublicKey(
-  "11111111111111111111111111111115"
-);
-
-export const CORE_BRIDGE_PROGRAM_ID =
-  "agnnozV7x6ffAhi8xVhBd5dShfLnuUKKPEMX1tJ1nDC";
-export const TOKEN_BRIDGE_PROGRAM_ID =
-  "bPPNmBhmHfkEFJmNKKCvwc1tPqBjzPDRwCw3yQYYXQa";
-
-export const COMMON_EMITTER = Keypair.fromSecretKey(
-  Uint8Array.from([
-    145, 34, 16, 171, 216, 143, 215, 220, 100, 17, 136, 205, 96, 178, 199, 89,
-    241, 146, 194, 163, 246, 102, 245, 74, 126, 30, 25, 67, 114, 12, 115, 145,
-    180, 118, 0, 230, 97, 203, 112, 115, 55, 184, 243, 155, 159, 3, 113, 180,
-    145, 13, 221, 136, 65, 145, 102, 90, 48, 180, 24, 126, 243, 231, 80, 249,
-  ])
-);
-
-export const COMMON_UNRELIABLE_MESSAGE_SIGNER = Keypair.fromSecretKey(
-  Uint8Array.from([
-    115, 98, 163, 202, 20, 161, 74, 124, 209, 179, 18, 229, 62, 184, 182, 119,
-    187, 128, 136, 8, 85, 204, 189, 101, 113, 70, 148, 207, 195, 143, 246, 216,
-    112, 162, 59, 195, 10, 241, 58, 141, 135, 255, 7, 230, 238, 191, 212, 140,
-    172, 76, 12, 44, 96, 229, 221, 4, 177, 185, 86, 100, 238, 143, 129, 93,
-  ])
-);
-
-export const COMMON_WRITE_AUTHORITY = Keypair.fromSecretKey(
-  Uint8Array.from([
-    135, 88, 63, 102, 162, 201, 52, 165, 64, 176, 48, 43, 112, 46, 187, 2, 145,
-    232, 133, 217, 197, 253, 168, 75, 41, 155, 80, 222, 141, 90, 22, 84, 229,
-    232, 252, 74, 184, 190, 214, 95, 72, 14, 154, 158, 134, 181, 12, 254, 11,
-    247, 120, 71, 73, 102, 180, 57, 97, 147, 38, 161, 139, 254, 207, 250,
-  ])
-);

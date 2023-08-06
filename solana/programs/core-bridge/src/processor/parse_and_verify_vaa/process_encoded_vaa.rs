@@ -166,7 +166,7 @@ fn verify_signatures_v1(
         data = &data[4..];
 
         // Parse and verify.
-        let vaa = Vaa::parse(&mut data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
+        let vaa = Vaa::parse(data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
 
         // Must be V1.
         require_eq!(

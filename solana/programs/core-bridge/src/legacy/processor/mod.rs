@@ -1,13 +1,19 @@
 mod governance;
-mod post_message;
-mod post_message_unreliable;
-mod post_vaa;
-mod verify_signatures;
-
 pub use governance::*;
+
+mod initialize;
+pub use initialize::*;
+
+mod post_message;
 pub use post_message::*;
+
+mod post_message_unreliable;
 pub use post_message_unreliable::*;
+
+mod post_vaa;
 pub use post_vaa::*;
+
+mod verify_signatures;
 pub use verify_signatures::*;
 
 use crate::ID;
@@ -27,7 +33,15 @@ pub fn process_legacy_instruction(
     // Deserialize instruction data. The data should match the instruction
     // enum. Otherwise, we bail out.
     match LegacyInstruction::try_from_slice(ix_data)? {
-        LegacyInstruction::Initialize(_) => err!(ErrorCode::Deprecated),
+        LegacyInstruction::Initialize(args) => process_anchorized_legacy_instruction!(
+            ID,
+            "LegacyInitialize",
+            Initialize,
+            account_infos,
+            ix_data,
+            initialize,
+            args
+        ),
         LegacyInstruction::PostMessage(args) => process_anchorized_legacy_instruction!(
             ID,
             "LegacyPostMessage",
