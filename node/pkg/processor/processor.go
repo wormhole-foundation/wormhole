@@ -243,26 +243,12 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 
 	// Start the routine to do housekeeping tasks that don't need to be distributed to the workers.
-	common.RunWithScissors(ctx, errC, "processor_housekeeper",
-		func(ctx context.Context) error {
-			err := p.runHousekeeper(ctx)
-			if err != nil {
-				errC <- fmt.Errorf("processor housekeeper failed: %v", err)
-			}
-			return err
-		})
+	common.RunWithScissors(ctx, errC, "processor_housekeeper", p.runHousekeeper)
 
 	// Start the workers.
 	for workerId := 1; workerId <= numWorkers; workerId++ {
 		workerId := workerId
-		common.RunWithScissors(ctx, errC, fmt.Sprintf("processor_worker_%d", workerId),
-			func(ctx context.Context) error {
-				err := p.runWorker(ctx)
-				if err != nil {
-					errC <- fmt.Errorf("processor worker %d failed: %v", workerId, err)
-				}
-				return err
-			})
+		common.RunWithScissors(ctx, errC, fmt.Sprintf("processor_worker_%d", workerId), p.runWorker)
 	}
 
 	var err error
