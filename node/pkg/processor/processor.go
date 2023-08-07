@@ -227,7 +227,7 @@ func NewProcessor(
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	errC := make(chan error)
+	errC := make(chan error) // errC receives errors from workers, which are then handled in this function
 
 	if p.workerFactor < 0.0 {
 		return fmt.Errorf("workerFactor must be positive or zero")
@@ -243,40 +243,36 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 
 	// Start the routine to do housekeeping tasks that don't need to be distributed to the workers.
-	common.RunWithScissors(ctx, errC, "processor_housekeeper", p.runHousekeeper)
+	go p.runHousekeeper(ctx, errC)
 
 	// Start the workers.
 	for workerId := 1; workerId <= numWorkers; workerId++ {
-		workerId := workerId
-		common.RunWithScissors(ctx, errC, fmt.Sprintf("processor_worker_%d", workerId), p.runWorker)
+		go p.runWorker(ctx, errC)
 	}
 
-	var err error
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	case e := <-errC:
-		err = e
+	for {
+		select {
+		case <-ctx.Done():
+
+			// Leaving this here for easy debugging.
+			// // Log these as warnings so they show up in the benchmark logs.
+			// metric := &dto.Metric{}
+			// _ = observationChanDelay.Write(metric)
+			// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
+
+			// metric = &dto.Metric{}
+			// _ = observationTotalDelay.Write(metric)
+			// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
+
+			return nil
+		case e := <-errC:
+			p.logger.Error("error in processor", zap.Error(e))
+		}
 	}
-
-	// Leaving this here for easy debugging.
-	// // Log these as warnings so they show up in the benchmark logs.
-	// metric := &dto.Metric{}
-	// _ = observationChanDelay.Write(metric)
-	// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
-
-	// metric = &dto.Metric{}
-	// _ = observationTotalDelay.Write(metric)
-	// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
-
-	if p.acct != nil {
-		p.acct.Close()
-	}
-	return err
 }
 
 // runHousekeeper performs general tasks that do not need to be distributed to the workers. There will always be exactly one instance of this.
-func (p *Processor) runHousekeeper(ctx context.Context) error {
+func (p *Processor) runHousekeeper(ctx context.Context, errC chan<- error) {
 	// Always start the timers to avoid nil pointer dereferences below. They will only be rearmed on worker 1.
 	cleanup := time.NewTimer(CleanupInterval)
 	defer cleanup.Stop()
@@ -288,7 +284,7 @@ func (p *Processor) runHousekeeper(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		case gs := <-p.setC:
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", gs.KeysAsHexStrings()),
@@ -301,20 +297,24 @@ func (p *Processor) runHousekeeper(ctx context.Context) error {
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
-					return err
+					common.SendOnChannel(ctx, errC, err)
+					continue
 				}
 				if len(toBePublished) != 0 {
 					for _, k := range toBePublished {
 						// SECURITY defense-in-depth: Make sure the governor did not generate an unexpected message.
 						if msgIsGoverned, err := p.governor.IsGovernedMsg(k); err != nil {
-							return fmt.Errorf("governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err)
+							common.SendOnChannel(ctx, errC, fmt.Errorf("governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err))
+							continue
 						} else if !msgIsGoverned {
-							return fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString())
+							common.SendOnChannel(ctx, errC, fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString()))
+							continue
 						}
 						if p.acct != nil {
 							shouldPub, err := p.acct.SubmitObservation(k)
 							if err != nil {
-								return fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
+								common.SendOnChannel(ctx, errC, fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err))
+								continue
 							}
 							if !shouldPub {
 								continue
@@ -330,11 +330,11 @@ func (p *Processor) runHousekeeper(ctx context.Context) error {
 }
 
 // runWorker performs the per-observation tasks that can be distributed to the workers. There will be at least one of these.
-func (p *Processor) runWorker(ctx context.Context) error {
+func (p *Processor) runWorker(ctx context.Context, errC chan<- error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		case k := <-p.msgC:
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
@@ -344,7 +344,8 @@ func (p *Processor) runWorker(ctx context.Context) error {
 			if p.acct != nil {
 				shouldPub, err := p.acct.SubmitObservation(k)
 				if err != nil {
-					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
+					common.SendOnChannel(ctx, errC, fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err))
+					continue
 				}
 				if !shouldPub {
 					continue
@@ -353,11 +354,13 @@ func (p *Processor) runWorker(ctx context.Context) error {
 			p.handleMessage(ctx, k)
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				return fmt.Errorf("received an accountant event when accountant is not configured")
+				common.SendOnChannel(ctx, errC, fmt.Errorf("received an accountant event when accountant is not configured"))
+				continue
 			}
 			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
 			if !p.acct.IsMessageCoveredByAccountant(k) {
-				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+				common.SendOnChannel(ctx, errC, fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString()))
+				continue
 			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
