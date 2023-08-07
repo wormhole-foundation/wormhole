@@ -421,7 +421,7 @@ func IsJsonAckError(acknowledgement []byte) bool {
 // If the data cannot be unmarshalled this function will panic
 func MustExtractDenomFromPacketOnRecv(packet ibcexported.PacketI) string {
 	var data transfertypes.FungibleTokenPacketData
-	if err := json.Unmarshal(packet.GetData(), &data); err != nil {
+	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
 		panic("unable to unmarshal ICS20 packet data")
 	}
 
