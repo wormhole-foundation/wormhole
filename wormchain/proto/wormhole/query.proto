@@ -76,6 +76,10 @@ service Query {
 		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/allowlist/{validator_address}";
 	}
 
+	rpc WasmInstantiateAllowlistAll(QueryAllWasmInstantiateAllowlist) returns (QueryAllWasmInstantiateAllowlistResponse) {
+		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/wasm_instantiate_allowlist";
+	}
+
 // this line is used by starport scaffolding # 2
 }
 
@@ -187,6 +191,16 @@ message QueryLatestGuardianSetIndexRequest {
 
 message QueryLatestGuardianSetIndexResponse {
   uint32 latestGuardianSetIndex = 1;
+}
+
+message QueryAllWasmInstantiateAllowlist {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// all allowlisted entries by all validators
+message QueryAllWasmInstantiateAllowlistResponse {
+	repeated WasmInstantiateAllowedContractCodeId allowlist = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
 // this line is used by starport scaffolding # 3
