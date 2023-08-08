@@ -1590,6 +1590,7 @@ contract WormholeRelayerTests is Test {
         stack.relayerRefundAddress = payable(setup.target.relayer);
         stack.parsed = relayerWormhole.parseVM(stack.encodedDeliveryVAA);
         stack.instruction = WormholeRelayerSerde.decodeDeliveryInstruction(stack.parsed.payload);
+        stack.deliveryVaaHash = stack.parsed.hash;
         EvmExecutionInfoV1 memory executionInfo =
             decodeEvmExecutionInfoV1(stack.instruction.encodedExecutionInfo);
         stack.budget = Wei.unwrap(
@@ -1714,6 +1715,66 @@ contract WormholeRelayerTests is Test {
         vm.prank(setup.target.relayer);
         vm.expectRevert(abi.encodeWithSignature("TargetChainIsNotThisChain(uint16)", 2));
         map[setup.differentChainId].coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+    }
+
+    // aka: replay protection doesn't fire when it shouldn't
+    function testNoRevertForDifferentDeliveries(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+
+        vm.recordLogs();
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+    }
+
+    // aka replay protection
+    function testRevertDeliveryAlreadyExecuted(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+        vm.expectRevert(abi.encodeWithSelector(DeliveryAlreadyExecuted.selector, stack.deliveryVaaHash));
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
     }

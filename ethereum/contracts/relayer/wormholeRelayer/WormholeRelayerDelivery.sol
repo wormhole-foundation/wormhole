@@ -16,6 +16,7 @@ import {
     InvalidOverrideRefundPerGasUnused,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
+    DeliveryAlreadyExecuted,
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend,
@@ -32,7 +33,7 @@ import {
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
-import {ForwardInstruction} from "./WormholeRelayerStorage.sol";
+import {ForwardInstruction, ReplayProtectionState, getReplayProtectionState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
@@ -89,6 +90,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             encodedOverrides: deliveryOverrides,
             redeliveryHash: bytes32(0)
         });
+
+        // Revert if the delivery has already been executed successfully
+        if (getReplayProtectionState().replayProtection[deliveryVaaInfo.deliveryVaaHash]) {
+            revert DeliveryAlreadyExecuted(deliveryVaaInfo.deliveryVaaHash);
+        }
 
         // Decode information from the execution parameters
         // (overriding them if there was an override requested)
@@ -318,6 +324,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 DeliveryStatus.FORWARD_REQUEST_FAILURE,
                 revertData
             );
+        }
+
+        // Set replay protection if delivery successful
+        if (results.status == DeliveryStatus.SUCCESS) {
+            getReplayProtectionState().replayProtection[vaaInfo.deliveryVaaHash] = true;
         }
 
         emit Delivery(

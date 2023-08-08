@@ -62,6 +62,20 @@ function getRegisteredWormholeRelayersState()
     }
 }
 
+struct ReplayProtectionState {
+    mapping(bytes32 => bool) replayProtection;
+}
+
+//keccak256("ReplayProtectionState") - 1
+bytes32 constant REPLAY_PROTECTION_STORAGE_SLOT =
+    0x94e5a45aaf79214fc38cf332daa28960cad3758ea9293a2cc78ceb2abfc76d00;
+
+function getReplayProtectionState() pure returns (ReplayProtectionState storage state) {
+    assembly ("memory-safe") {
+        state.slot := REPLAY_PROTECTION_STORAGE_SLOT
+    }
+}
+
 // ---------------------------------- Temporary/Volatile Storage -----------------------------------
 
 //Unlike proper persistent storage, everything below is only used for the lifetime of the current

@@ -691,6 +691,9 @@ error VaaKeysDoNotMatchVaas(uint8 index);
 //When someone tries to call an external function of the WormholeRelayer that is only intended to be
 //  called by the WormholeRelayer itself (to allow retroactive reverts for atomicity)
 error RequesterNotWormholeRelayer();
+//When a delivery has already been performed for the specified delivery VAA
+// (i.e. replay protection enforced)
+error DeliveryAlreadyExecuted(bytes32 deliveryVaaHash);
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);
