@@ -36,3 +36,8 @@ message WasmInstantiateAllowedContractCodeId {
   // reference to the stored WASM code that can be instantiated
   uint64 code_id = 2;
 }
+
+message IbcComposabilityMwContract {
+  // bech32 address of the contract that is used by the ibc composability middleware
+  string contract_address = 1;
+}

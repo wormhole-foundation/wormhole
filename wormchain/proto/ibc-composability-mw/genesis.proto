@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package wormhole_foundation.wormchain.ibc_composability_mw.v1;
+
+option go_package = "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types";
+
+import "gogoproto/gogo.proto";
+
+// GenesisState defines the ibc-composability-mw genesis state
+message GenesisState {
+  // key - information about modified packet: src_channel
+  // (parsedReceiver.Channel), src_port (parsedReceiver.Port), sequence value -
+  // bytes are the packet data bytes as they came in
+  map<string, bytes> transposed_data_in_flight = 1 [
+    (gogoproto.moretags) = "yaml:\"transposed_data_in_flight\"",
+    (gogoproto.nullable) = false
+  ];
+}

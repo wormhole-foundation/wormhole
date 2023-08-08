@@ -156,12 +156,12 @@ func TestBodyIbcReceiverUpdateChannelChain(t *testing.T) {
 
 	channelId := LeftPadIbcChannelId("channel-0")
 
-	bodyIbcReceiverUpdateChannelChain := BodyIbcReceiverUpdateChannelChain{
+	bodyIbcReceiverUpdateChannelChain := BodyIbcUpdateChannelChain{
 		TargetChainId: ChainIDWormchain,
 		ChannelId:     channelId,
 		ChainId:       ChainIDInjective,
 	}
-	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize()))
+	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize(IbcReceiverModuleStr)))
 }
 
 func TestLeftPadBytes(t *testing.T) {
