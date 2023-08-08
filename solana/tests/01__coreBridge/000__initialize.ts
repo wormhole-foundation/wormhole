@@ -56,7 +56,11 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
         const accounts = { payer: payer.publicKey };
         accounts[cfg.contextName] = cfg.address;
-        const ix = coreBridge.legacyInitializeIx(program, accounts, defaultArgs());
+        const ix = coreBridge.legacyInitializeIx(
+          program,
+          accounts,
+          defaultArgs()
+        );
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
     }
@@ -86,7 +90,8 @@ describe("Core Bridge -- Instruction: Initialize", () => {
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {
-      const { guardianSetTtlSeconds, feeLamports, initialGuardians } = defaultArgs();
+      const { guardianSetTtlSeconds, feeLamports, initialGuardians } =
+        defaultArgs();
 
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         program,

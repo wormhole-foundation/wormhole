@@ -25,8 +25,14 @@ export async function expectEqualMessageAccounts(
   const connection = program.provider.connection;
 
   const [messageData, forkedMessageData] = await Promise.all([
-    coreBridge.PostedMessageV1.fromAccountAddress(connection, messageSigner.publicKey),
-    coreBridge.PostedMessageV1.fromAccountAddress(connection, forkedMessageSigner.publicKey),
+    coreBridge.PostedMessageV1.fromAccountAddress(
+      connection,
+      messageSigner.publicKey
+    ),
+    coreBridge.PostedMessageV1.fromAccountAddress(
+      connection,
+      forkedMessageSigner.publicKey
+    ),
   ]);
   expectDeepEqual(messageData, forkedMessageData);
 }
@@ -57,7 +63,10 @@ export async function expectLegacyPostMessageAfterEffects(
     emitter: emitterAddress,
     payload: messagePayload,
   } = await (unreliable
-    ? coreBridge.PostedMessageV1Unreliable.fromAccountAddress(connection, message)
+    ? coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+        connection,
+        message
+      )
     : coreBridge.PostedMessageV1.fromAccountAddress(connection, message));
 
   expect(msgFinality).equals(finality === 0 ? 1 : 32);

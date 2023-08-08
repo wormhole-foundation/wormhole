@@ -62,8 +62,17 @@ describe("Core Bridge -- Instruction: Post Message", () => {
           payer: payer.publicKey,
         };
         accounts[cfg.contextName] = cfg.address;
-        const ix = coreBridge.legacyPostMessageIx(program, accounts, defaultArgs());
-        await expectIxErr(connection, [ix], [payer, emitter, messageSigner], cfg.errorMsg);
+        const ix = coreBridge.legacyPostMessageIx(
+          program,
+          accounts,
+          defaultArgs()
+        );
+        await expectIxErr(
+          connection,
+          [ix],
+          [payer, emitter, messageSigner],
+          cfg.errorMsg
+        );
       });
     }
 
@@ -76,8 +85,17 @@ describe("Core Bridge -- Instruction: Post Message", () => {
         emitter: emitter.publicKey,
         payer: payer.publicKey,
       };
-      const ix = coreBridge.legacyPostMessageIx(program, accounts, defaultArgs());
-      await expectIxErr(connection, [ix], [payer, emitter, messageSigner], "InsufficientFees");
+      const ix = coreBridge.legacyPostMessageIx(
+        program,
+        accounts,
+        defaultArgs()
+      );
+      await expectIxErr(
+        connection,
+        [ix],
+        [payer, emitter, messageSigner],
+        "InsufficientFees"
+      );
     });
 
     it("Instruction: Cannot Invoke `postMessage` With Invalid Payload", async () => {
@@ -92,7 +110,11 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       let { nonce, payload, finality } = defaultArgs();
       payload = Buffer.alloc(0);
 
-      const ix = coreBridge.legacyPostMessageIx(program, accounts, { nonce, payload, finality });
+      const ix = coreBridge.legacyPostMessageIx(program, accounts, {
+        nonce,
+        payload,
+        finality,
+      });
       await expectIxErr(
         connection,
         [ix],
@@ -127,7 +149,11 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner
+      );
 
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
@@ -204,7 +230,11 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner
+      );
 
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
@@ -281,7 +311,11 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner
+      );
 
       // We're testing a new emitter, set the sequence to zero.
       const startingSequence = new anchor.BN(0);
@@ -362,11 +396,19 @@ async function parallelTxDetails(
 
   // Create the post message instruction for the forked program.
   accounts.message = forkedMessageSigner.publicKey;
-  const forkedIx = coreBridge.legacyPostMessageIx(forkedProgram, accounts, args);
+  const forkedIx = coreBridge.legacyPostMessageIx(
+    forkedProgram,
+    accounts,
+    args
+  );
 
   // Pay the fee collector prior to publishing each message.
   await Promise.all([
-    expectIxOkDetails(connection, [await transferMessageFeeIx(program, payer.publicKey)], [payer]),
+    expectIxOkDetails(
+      connection,
+      [await transferMessageFeeIx(program, payer.publicKey)],
+      [payer]
+    ),
     expectIxOkDetails(
       connection,
       [await transferMessageFeeIx(forkedProgram, payer.publicKey)],
@@ -376,7 +418,11 @@ async function parallelTxDetails(
 
   return Promise.all([
     expectIxOkDetails(connection, [ix], [payer, emitterSigner, messageSigner]),
-    expectIxOkDetails(connection, [forkedIx], [payer, emitterSigner, forkedMessageSigner]),
+    expectIxOkDetails(
+      connection,
+      [forkedIx],
+      [payer, emitterSigner, forkedMessageSigner]
+    ),
     messageSigner,
     forkedMessageSigner,
   ]);
