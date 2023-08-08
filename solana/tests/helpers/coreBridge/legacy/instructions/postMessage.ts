@@ -6,7 +6,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import { BridgeProgramData, FeeCollector } from "../state";
+import { BridgeProgramData, FeeCollector, EmitterSequence } from "../state";
 
 export enum Finality {
   Confirmed,
@@ -39,7 +39,7 @@ export function legacyPostMessageIx(
 }
 
 /* private */
-export function handleLegacyPostMessageIx(
+function handleLegacyPostMessageIx(
   program: CoreBridgeProgram,
   accounts: LegacyPostMessageContext,
   args: LegacyPostMessageArgs,
@@ -47,19 +47,14 @@ export function handleLegacyPostMessageIx(
 ) {
   const programId = program.programId;
 
-  let {
-    bridge,
-    message,
-    emitter,
-    emitterSequence,
-    payer,
-    feeCollector,
-    clock,
-    rent,
-  } = accounts;
+  let { bridge, message, emitter, emitterSequence, payer, feeCollector, clock, rent } = accounts;
 
   if (bridge === undefined) {
     bridge = BridgeProgramData.address(program.programId);
+  }
+
+  if (emitterSequence === undefined) {
+    emitterSequence = EmitterSequence.address(program.programId, emitter);
   }
 
   if (feeCollector === undefined) {
