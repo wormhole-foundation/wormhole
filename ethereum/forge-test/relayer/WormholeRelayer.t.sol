@@ -1720,7 +1720,7 @@ contract WormholeRelayerTests is Test {
     }
 
     // aka: replay protection doesn't fire when it shouldn't
-    function testNoRevertForDifferentDeliveries(
+    function testReplayProtectionDoesNotFireWhenItShouldNot(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1740,6 +1740,8 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
 
         vm.recordLogs();
         sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
@@ -1750,10 +1752,11 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
     }
 
-    // aka replay protection
-    function testRevertDeliveryAlreadyExecuted(
+    function testReplayProtection(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1773,10 +1776,12 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
-        vm.expectRevert(abi.encodeWithSelector(DeliveryAlreadyExecuted.selector, stack.deliveryVaaHash));
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), block.number);
     }
 
     function testRevertDeliveryVaaKeysLengthDoesNotMatchVaasLength(

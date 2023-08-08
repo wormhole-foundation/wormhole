@@ -62,17 +62,33 @@ function getRegisteredWormholeRelayersState()
     }
 }
 
-struct ReplayProtectionState {
-    mapping(bytes32 => bool) replayProtection;
+// Replay Protection and Indexing
+
+struct DeliverySuccessState {
+    mapping(bytes32 => uint256) deliverySuccessBlock;
 }
 
-//keccak256("ReplayProtectionState") - 1
-bytes32 constant REPLAY_PROTECTION_STORAGE_SLOT =
-    0x94e5a45aaf79214fc38cf332daa28960cad3758ea9293a2cc78ceb2abfc76d00;
+struct DeliveryFailureState {
+    mapping(bytes32 => uint256) deliveryFailureBlock;
+}
 
-function getReplayProtectionState() pure returns (ReplayProtectionState storage state) {
+//keccak256("DeliverySuccessState") - 1
+bytes32 constant DELIVERY_SUCCESS_STATE_STORAGE_SLOT =
+    0x1b988580e74603c035f5a7f71f2ae4647578af97cd0657db620836b9955fd8f5;
+
+//keccak256("DeliveryFailureState") - 1
+bytes32 constant DELIVERY_FAILURE_STATE_STORAGE_SLOT =
+    0x6c615753402911c4de18a758def0565f37c41834d6eff72b16cb37cfb697f2a5;
+
+function getDeliverySuccessState() pure returns (DeliverySuccessState storage state) {
     assembly ("memory-safe") {
-        state.slot := REPLAY_PROTECTION_STORAGE_SLOT
+        state.slot := DELIVERY_SUCCESS_STATE_STORAGE_SLOT
+    }
+}
+
+function getDeliveryFailureState() pure returns (DeliveryFailureState storage state) {
+    assembly ("memory-safe") {
+        state.slot := DELIVERY_FAILURE_STATE_STORAGE_SLOT
     }
 }
 

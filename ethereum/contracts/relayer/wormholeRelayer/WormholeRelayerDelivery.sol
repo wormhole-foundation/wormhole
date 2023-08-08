@@ -16,7 +16,6 @@ import {
     InvalidOverrideRefundPerGasUnused,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
-    DeliveryAlreadyExecuted,
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend,
@@ -33,7 +32,13 @@ import {
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
-import {ForwardInstruction, ReplayProtectionState, getReplayProtectionState} from "./WormholeRelayerStorage.sol";
+import {
+    ForwardInstruction,
+    DeliverySuccessState,
+    DeliveryFailureState,
+    getDeliveryFailureState,
+    getDeliverySuccessState
+} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
@@ -90,11 +95,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             encodedOverrides: deliveryOverrides,
             redeliveryHash: bytes32(0)
         });
-
-        // Revert if the delivery has already been executed successfully
-        if (getReplayProtectionState().replayProtection[deliveryVaaInfo.deliveryVaaHash]) {
-            revert DeliveryAlreadyExecuted(deliveryVaaInfo.deliveryVaaHash);
-        }
 
         // Decode information from the execution parameters
         // (overriding them if there was an override requested)
@@ -281,6 +281,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         DeliveryResults memory results;
 
+        // Enforce replay protection
+        if (getDeliverySuccessState().deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
+            results.status = DeliveryStatus.RECEIVER_FAILURE;
+            results.additionalStatusInfo = "Delivery already executed";
+            setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
+            emitDeliveryEvent(vaaInfo, results);
+            return;
+        }
+
         // Forces external call
         // In order to catch reverts
         // (If the user's contract requests a forward
@@ -326,11 +335,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             );
         }
 
-        // Set replay protection if delivery successful
-        if (results.status == DeliveryStatus.SUCCESS) {
-            getReplayProtectionState().replayProtection[vaaInfo.deliveryVaaHash] = true;
-        }
+        setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
 
+        emitDeliveryEvent(vaaInfo, results);
+    }
+
+    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results) private {
         emit Delivery(
             fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
             vaaInfo.sourceChain,
@@ -694,6 +704,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    // Sets current block number to implement replay protection and for indexing purposes
+    function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
+        if (status == DeliveryStatus.SUCCESS || status == DeliveryStatus.FORWARD_REQUEST_SUCCESS) {
+            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
+        } else {
+            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
         }
     }
 }
