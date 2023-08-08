@@ -7,9 +7,12 @@ import {
   expectDeepEqual,
   expectIxErr,
   expectIxOkDetails,
+  sleep,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
+
+// TODO: Need to add negative tests for GuardianZeroAddress, DuplicateGuardians, etc.
 
 describe("Core Bridge -- Instruction: Initialize", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -27,7 +30,6 @@ describe("Core Bridge -- Instruction: Initialize", () => {
     coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
   );
 
-  //const program = anchor.workspace.Tbtc as Program<Tbtc>;
   describe("Invalid Interaction", () => {
     const accountConfigs: InvalidAccountConfig[] = [
       {
@@ -54,11 +56,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
         const accounts = { payer: payer.publicKey };
         accounts[cfg.contextName] = cfg.address;
-        const ix = coreBridge.legacyInitializeIx(
-          program,
-          accounts,
-          defaultArgs()
-        );
+        const ix = coreBridge.legacyInitializeIx(program, accounts, defaultArgs());
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
     }
@@ -88,8 +86,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {
-      const { guardianSetTtlSeconds, feeLamports, initialGuardians } =
-        defaultArgs();
+      const { guardianSetTtlSeconds, feeLamports, initialGuardians } = defaultArgs();
 
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         program,
@@ -151,8 +148,19 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
 
-    it.skip("Cannot Invoke `initialize` again", async () => {
-      // TODO
+    it("Cannot Invoke `initialize` again", async () => {
+      // Create the initialize instruction using the default args.
+      const ix = coreBridge.legacyInitializeIx(
+        program,
+        { payer: payer.publicKey },
+        defaultArgs()
+      );
+
+      // Sleep to avoid anchor validator error.
+      await sleep(10000);
+
+      // Confirm that we cannot invoke initialize again.
+      await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });
 });
