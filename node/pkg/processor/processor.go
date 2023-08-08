@@ -163,6 +163,8 @@ type Processor struct {
 	pythnetVaas    map[string]PythNetVaaEntry
 	workerFactor   float64
 	gatewayRelayer *gwrelayer.GatewayRelayer
+
+	errC chan error
 }
 
 var (
@@ -223,12 +225,12 @@ func NewProcessor(
 		pythnetVaas:    make(map[string]PythNetVaaEntry),
 		workerFactor:   workerFactor,
 		gatewayRelayer: gatewayRelayer,
+
+		errC: make(chan error),
 	}
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	errC := make(chan error) // errC receives errors from workers, which are then handled in this function
-
 	if p.workerFactor < 0.0 {
 		return fmt.Errorf("workerFactor must be positive or zero")
 	}
@@ -243,36 +245,41 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 
 	// Start the routine to do housekeeping tasks that don't need to be distributed to the workers.
-	go p.runHousekeeper(ctx, errC)
+	if err := supervisor.Run(ctx, "housekeeper", p.runHousekeeper); err != nil {
+		panic(err)
+	}
 
 	// Start the workers.
 	for workerId := 1; workerId <= numWorkers; workerId++ {
-		go p.runWorker(ctx, errC)
+		if err := supervisor.Run(ctx, fmt.Sprintf("worker%d", workerId), p.runWorker); err != nil {
+			panic(err)
+		}
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-			// Leaving this here for easy debugging.
-			// // Log these as warnings so they show up in the benchmark logs.
-			// metric := &dto.Metric{}
-			// _ = observationChanDelay.Write(metric)
-			// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
+	select {
+	case <-ctx.Done():
 
-			// metric = &dto.Metric{}
-			// _ = observationTotalDelay.Write(metric)
-			// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
+		// Leaving this here for easy debugging.
+		// // Log these as warnings so they show up in the benchmark logs.
+		// metric := &dto.Metric{}
+		// _ = observationChanDelay.Write(metric)
+		// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
 
-			return nil
-		case e := <-errC:
-			p.logger.Error("error in processor", zap.Error(e))
-		}
+		// metric = &dto.Metric{}
+		// _ = observationTotalDelay.Write(metric)
+		// p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
+
+		return nil
+	case err := <-p.errC:
+		p.logger.Error("error in processor", zap.Error(err))
+		return err // Note: returning an error will cause all children to be canceled and processor to be re-scheduled
 	}
 }
 
 // runHousekeeper performs general tasks that do not need to be distributed to the workers. There will always be exactly one instance of this.
-func (p *Processor) runHousekeeper(ctx context.Context, errC chan<- error) {
+func (p *Processor) runHousekeeper(ctx context.Context) error {
 	// Always start the timers to avoid nil pointer dereferences below. They will only be rearmed on worker 1.
 	cleanup := time.NewTimer(CleanupInterval)
 	defer cleanup.Stop()
@@ -284,7 +291,7 @@ func (p *Processor) runHousekeeper(ctx context.Context, errC chan<- error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case gs := <-p.setC:
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", gs.KeysAsHexStrings()),
@@ -297,24 +304,24 @@ func (p *Processor) runHousekeeper(ctx context.Context, errC chan<- error) {
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
-					common.SendOnChannel(ctx, errC, err)
-					continue
+					common.SendOnChannel(ctx, p.errC, err)
+					return err
 				}
 				if len(toBePublished) != 0 {
 					for _, k := range toBePublished {
 						// SECURITY defense-in-depth: Make sure the governor did not generate an unexpected message.
 						if msgIsGoverned, err := p.governor.IsGovernedMsg(k); err != nil {
-							common.SendOnChannel(ctx, errC, fmt.Errorf("governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err))
-							continue
+							common.SendOnChannel(ctx, p.errC, fmt.Errorf("governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err))
+							return err
 						} else if !msgIsGoverned {
-							common.SendOnChannel(ctx, errC, fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString()))
-							continue
+							common.SendOnChannel(ctx, p.errC, fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString()))
+							return err
 						}
 						if p.acct != nil {
 							shouldPub, err := p.acct.SubmitObservation(k)
 							if err != nil {
-								common.SendOnChannel(ctx, errC, fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err))
-								continue
+								common.SendOnChannel(ctx, p.errC, fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err))
+								return err
 							}
 							if !shouldPub {
 								continue
@@ -330,11 +337,11 @@ func (p *Processor) runHousekeeper(ctx context.Context, errC chan<- error) {
 }
 
 // runWorker performs the per-observation tasks that can be distributed to the workers. There will be at least one of these.
-func (p *Processor) runWorker(ctx context.Context, errC chan<- error) {
+func (p *Processor) runWorker(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case k := <-p.msgC:
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
@@ -344,8 +351,8 @@ func (p *Processor) runWorker(ctx context.Context, errC chan<- error) {
 			if p.acct != nil {
 				shouldPub, err := p.acct.SubmitObservation(k)
 				if err != nil {
-					common.SendOnChannel(ctx, errC, fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err))
-					continue
+					common.SendOnChannel(ctx, p.errC, fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err))
+					return err
 				}
 				if !shouldPub {
 					continue
@@ -354,13 +361,15 @@ func (p *Processor) runWorker(ctx context.Context, errC chan<- error) {
 			p.handleMessage(ctx, k)
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				common.SendOnChannel(ctx, errC, fmt.Errorf("received an accountant event when accountant is not configured"))
-				continue
+				err := fmt.Errorf("received an accountant event when accountant is not configured")
+				common.SendOnChannel(ctx, p.errC, err)
+				return err
 			}
 			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
 			if !p.acct.IsMessageCoveredByAccountant(k) {
-				common.SendOnChannel(ctx, errC, fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString()))
-				continue
+				err := fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+				common.SendOnChannel(ctx, p.errC, err)
+				return err
 			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
