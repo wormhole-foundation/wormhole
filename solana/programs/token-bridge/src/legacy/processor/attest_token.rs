@@ -2,6 +2,7 @@ use crate::{
     constants::EMITTER_SEED_PREFIX,
     legacy::LegacyAttestTokenArgs,
     processor::{post_token_bridge_message, PostTokenBridgeMessage},
+    state::Config,
     utils,
 };
 use anchor_lang::prelude::*;
@@ -54,10 +55,14 @@ pub struct AttestToken<'info> {
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     ///
-    /// ... However, because the legacy implementation took this as a mutable account for some
-    /// reason, we will check that the seeds for this account are correct (because we do not want to
+    /// NOTE: Because the legacy implementation took this as a mutable account for some reason, we
+    /// will check that the seeds for this account are correct (because we do not want to
     /// accidentally pass in an account that isn't actually supposed to be mutable).
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [Config::seed_prefix()],
+        bump,
+    )]
     _config: AccountInfo<'info>,
 
     mint: Box<Account<'info, Mint>>,

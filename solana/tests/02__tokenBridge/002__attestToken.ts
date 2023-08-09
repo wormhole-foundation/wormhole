@@ -5,7 +5,7 @@ import { expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 
-describe("Token Bridge -- Instruction: AttestToken", () => {
+describe("Token Bridge -- Instruction: Attest Token", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -55,7 +55,6 @@ function defaultArgs() {
 async function parallelTxOk(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
-  //accounts: tokenBridge.LegacyAttestTokenContext,
   accounts: { payer: PublicKey; mint: PublicKey },
   args: tokenBridge.LegacyAttestTokenArgs,
   payer: anchor.web3.Keypair

@@ -27,6 +27,13 @@ pub struct TransferTokensNative<'info> {
     )]
     src_token: Box<Account<'info, TokenAccount>>,
 
+    /// Native mint. We ensure this mint is not one that has originated from a foreign network in
+    /// access control.
+    ///
+    /// NOTE: ecause the legacy implementation took this as a mutable account for some reason, we
+    /// must preserve this mutability. But there are no SPL Token instructions in this instruction
+    /// handler that require this account to be mutable.
+    #[account(mut)]
     mint: Box<Account<'info, Mint>>,
 
     #[account(
