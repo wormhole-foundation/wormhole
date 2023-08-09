@@ -56,14 +56,16 @@ pub struct TransferTokensNative<'info> {
 
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
+        mut,
         seeds = [BridgeProgramData::seed_prefix()],
         bump,
         seeds::program = core_bridge_program
     )]
-    core_bridge: Account<'info, BridgeProgramData>,
+    core_bridge_data: Account<'info, BridgeProgramData>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    core_message: UncheckedAccount<'info>,
+    #[account(mut)]
+    core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
     #[account(
@@ -73,9 +75,11 @@ pub struct TransferTokensNative<'info> {
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
     core_emitter_sequence: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
     core_fee_collector: UncheckedAccount<'info>,
 
     /// CHECK: Previously needed sysvar.
@@ -145,7 +149,7 @@ pub fn transfer_tokens_native(
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
         PostTokenBridgeMessage {
-            core_bridge: &ctx.accounts.core_bridge,
+            core_bridge_data: &ctx.accounts.core_bridge_data,
             core_message: &ctx.accounts.core_message,
             core_emitter: &ctx.accounts.core_emitter,
             core_emitter_sequence: &ctx.accounts.core_emitter_sequence,

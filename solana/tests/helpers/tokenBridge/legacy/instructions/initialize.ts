@@ -14,7 +14,7 @@ export type LegacyInitializeContext = {
 };
 
 export type LegacyInitializeArgs = {
-  coreBridge: PublicKey;
+  coreBridgeProgram: PublicKey;
 };
 
 export function legacyInitializeIx(
@@ -53,10 +53,10 @@ export function legacyInitializeIx(
     },
   ];
 
-  const { coreBridge } = args;
+  const { coreBridgeProgram } = args;
   const data = Buffer.alloc(1 + 32);
   data.writeUInt8(0, 0);
-  data.set(coreBridge.toBuffer(), 1);
+  data.set(coreBridgeProgram.toBuffer(), 1);
 
   return new TransactionInstruction({
     keys,

@@ -20,8 +20,8 @@ use core_bridge_program::{
 use wormhole_io::Writeable;
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
-    pub core_bridge: &'ctx Account<'info, BridgeProgramData>,
-    pub core_message: &'ctx AccountInfo<'info>,
+    pub core_bridge_data: &'ctx Account<'info, BridgeProgramData>,
+    pub core_message: &'ctx Signer<'info>,
     pub core_emitter: &'ctx AccountInfo<'info>,
     pub core_emitter_sequence: &'ctx AccountInfo<'info>,
     pub payer: &'ctx Signer<'info>,
@@ -37,7 +37,7 @@ pub fn post_token_bridge_message<W: Writeable>(
     message: W,
 ) -> Result<()> {
     // Pay fee to the core bridge program if there is one.
-    let fee_lamports = accounts.core_bridge.fee_lamports;
+    let fee_lamports = accounts.core_bridge_data.fee_lamports;
     if fee_lamports > 0 {
         system_program::transfer(
             CpiContext::new(
@@ -58,7 +58,7 @@ pub fn post_token_bridge_message<W: Writeable>(
         CpiContext::new_with_signer(
             accounts.core_bridge_program.to_account_info(),
             LegacyPostMessage {
-                bridge: accounts.core_bridge.to_account_info(),
+                bridge: accounts.core_bridge_data.to_account_info(),
                 message: accounts.core_message.to_account_info(),
                 emitter: accounts.core_emitter.to_account_info(),
                 emitter_sequence: accounts.core_emitter_sequence.to_account_info(),

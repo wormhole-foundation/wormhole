@@ -4,7 +4,7 @@ use wormhole_solana_common::{legacy_account, LegacyDiscriminator, SeedPrefix};
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq, InitSpace)]
 pub struct Config {
-    pub core_bridge: Pubkey,
+    pub core_bridge_program: Pubkey,
 }
 
 impl LegacyDiscriminator<0> for Config {
