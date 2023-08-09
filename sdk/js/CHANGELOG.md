@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.23
+
+### Changes
+
+Bumped algosdk to 2.4.0
+
 ## 0.9.22
 
 ### Added
