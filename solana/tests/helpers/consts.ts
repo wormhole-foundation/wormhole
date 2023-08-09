@@ -1,3 +1,6 @@
+import { PublicKey } from "@solana/web3.js";
+import { MintInfo } from "./utils";
+
 export const GUARDIAN_KEYS = [
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
   "c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e",
@@ -19,3 +22,12 @@ export const GUARDIAN_KEYS = [
   "1db31a6ba3bcd54d2e8a64f8a2415064265d291593450c6eb7e9a6a986bd9400",
   "70d8f1c9534a0ab61a020366b831a494057a289441c07be67e4288c44bc6cd5d",
 ];
+
+export const MINT_INFO_8: MintInfo = {
+  mint: new PublicKey("DyU8E8KfMHPXELQLJxv4qQT9ZKoijWiKrUQ5fskWFB5b"),
+  decimals: 8,
+};
+export const MINT_INFO_9: MintInfo = {
+  mint: new PublicKey("6SmtrBpfPt67cjU4MbmHFMLctAZMNZee1xArVha4MC9N"),
+  decimals: 9,
+};

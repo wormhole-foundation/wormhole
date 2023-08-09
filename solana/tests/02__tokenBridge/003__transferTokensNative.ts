@@ -1,25 +1,18 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ethers } from "ethers";
 import {
-  GUARDIAN_KEYS,
-  InvalidAccountConfig,
-  InvalidArgConfig,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-} from "../helpers";
-import * as coreBridge from "../helpers/coreBridge";
-import * as tokenBridge from "../helpers/tokenBridge";
-import { expect } from "chai";
-import {
-  NATIVE_MINT,
   createAssociatedTokenAccount,
-  createMint,
   getAssociatedTokenAddressSync,
   mintTo,
 } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
+import {
+  MINT_INFO_8,
+  MINT_INFO_9,
+  MintInfo,
+  expectIxOkDetails,
+} from "../helpers";
+import * as coreBridge from "../helpers/coreBridge";
+import * as tokenBridge from "../helpers/tokenBridge";
 
 describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -37,54 +30,50 @@ describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
     tokenBridge.getProgramId("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb")
   );
 
-  const mint = anchor.web3.Keypair.generate();
-  const srcToken = getAssociatedTokenAddressSync(
-    mint.publicKey,
-    payer.publicKey
-  );
+  const mints: MintInfo[] = [MINT_INFO_8, MINT_INFO_9];
 
-  before("Set Up Mint and Token Accounts", async () => {
-    await createMint(
-      connection,
-      payer,
-      payer.publicKey,
-      payer.publicKey,
-      9,
-      mint
-    );
+  before("Set Up Mints and Token Accounts", async () => {
+    for (const { mint } of mints) {
+      const token = await createAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
 
-    await createAssociatedTokenAccount(
-      connection,
-      payer,
-      mint.publicKey,
-      payer.publicKey
-    );
-
-    await mintTo(
-      connection,
-      payer,
-      mint.publicKey,
-      srcToken,
-      payer,
-      BigInt("1000000000000000")
-    );
+      await mintTo(
+        connection,
+        payer,
+        mint,
+        token,
+        payer,
+        BigInt("1000000000000000000")
+      );
+    }
   });
 
   describe("Ok", () => {
-    it("Invoke `transfer_tokens_native`", async () => {
-      const amount = new anchor.BN("88888888");
-      const relayerFee = new anchor.BN("11111111");
-      const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] =
-        await parallelTxDetails(
-          program,
-          forkedProgram,
-          { payer: payer.publicKey, mint: mint.publicKey, srcToken },
-          defaultArgs(amount, relayerFee),
-          payer
-        );
+    for (const { mint, decimals } of mints) {
+      const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
-      // TODO: Check message accounts.
-    });
+      it(`Invoke \`transfer_tokens_native\` for Mint (${decimals} Decimals)`, async () => {
+        const amount = new anchor.BN("88888888");
+        const relayerFee = new anchor.BN("11111111");
+
+        // TODO: add balance checks
+
+        const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] =
+          await parallelTxDetails(
+            program,
+            forkedProgram,
+            { payer: payer.publicKey, mint: mint, srcToken },
+            defaultArgs(amount, relayerFee),
+            payer
+          );
+
+        // TODO: Check message accounts.
+      });
+    }
   });
 });
 
