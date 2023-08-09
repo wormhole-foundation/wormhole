@@ -125,8 +125,8 @@ func DefaultComponents() *Components {
 		ListeningAddressesPatterns: []string{
 			// Listen on QUIC only.
 			// https://github.com/libp2p/go-libp2p/issues/688
-			"/ip4/0.0.0.0/udp/%d/quic",
-			"/ip6/::/udp/%d/quic",
+			"/ip4/0.0.0.0/udp/%d/quic-v1",
+			"/ip6/::/udp/%d/quic-v1",
 		},
 		Port:                       DefaultPort,
 		ConnMgr:                    mgr,

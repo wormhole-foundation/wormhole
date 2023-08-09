@@ -173,7 +173,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		if err != nil {
 			return err
 		}
-		bootstrapPeers := fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", gs[0].config.p2pPort, zeroPeerId.String())
+		bootstrapPeers := fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic-v1/p2p/%s", gs[0].config.p2pPort, zeroPeerId.String())
 
 		// configure adminservice
 		rpcMap := make(map[string]string)
