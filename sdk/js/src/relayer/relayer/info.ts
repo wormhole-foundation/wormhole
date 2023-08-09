@@ -16,6 +16,7 @@ import {
   DeliveryInstruction,
   RefundStatus,
   parseEVMExecutionInfoV1,
+  DeliveryOverrideArgs,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -182,22 +183,32 @@ export function printWormholeRelayerInfo(info: DeliveryInfo) {
   console.log(stringifyWormholeRelayerInfo(info));
 }
 
-export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
+export function stringifyWormholeRelayerInfo(
+  info: DeliveryInfo,
+  excludeSourceInformation?: boolean,
+  overrides?: DeliveryOverrideArgs
+): string {
   let stringifiedInfo = "";
   if (
     info.type == RelayerPayloadId.Delivery &&
     info.deliveryInstruction.targetAddress.toString("hex") !==
       "0000000000000000000000000000000000000000000000000000000000000000"
   ) {
-    stringifiedInfo += `Found delivery request in transaction ${
-      info.sourceTransactionHash
-    } on ${
-      info.sourceChain
-    }\nfrom sender ${info.deliveryInstruction.senderAddress.toString(
-      "hex"
-    )} from ${info.sourceChain} with delivery sequence number ${
-      info.sourceDeliverySequenceNumber
-    }\n`;
+    if (!excludeSourceInformation) {
+      stringifiedInfo += `Found delivery request in transaction ${
+        info.sourceTransactionHash
+      } on ${
+        info.sourceChain
+      }\nfrom sender ${info.deliveryInstruction.senderAddress.toString(
+        "hex"
+      )} from ${info.sourceChain} with delivery sequence number ${
+        info.sourceDeliverySequenceNumber
+      }\n`;
+    } else {
+      stringifiedInfo += `Found delivery request from sender ${info.deliveryInstruction.senderAddress.toString(
+        "hex"
+      )}\n`;
+    }
     const numMsgs = info.deliveryInstruction.vaaKeys.length;
 
     const payload = info.deliveryInstruction.payload.toString("hex");
@@ -227,6 +238,11 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     }
 
     const instruction = info.deliveryInstruction;
+    if (overrides) {
+      instruction.requestedReceiverValue = overrides.newReceiverValue;
+      instruction.encodedExecutionInfo = overrides.newExecutionInfo;
+    }
+
     const targetChainName =
       CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
     stringifiedInfo += `${
