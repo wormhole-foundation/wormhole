@@ -56,7 +56,7 @@ require (
 	github.com/go-kit/kit v0.12.0
 	github.com/google/uuid v1.3.0
 	github.com/grafana/dskit v0.0.0-20230201083518-528d8a7d52f2
-	github.com/grafana/loki v1.6.2-0.20230503110102-9f809eda70ba
+	github.com/grafana/loki v1.6.2-0.20230721141808-0d81144cfee8
 	github.com/hashicorp/golang-lru v0.6.0
 	github.com/holiman/uint256 v1.2.1
 	github.com/prometheus/client_model v0.4.0
