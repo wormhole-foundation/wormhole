@@ -50,6 +50,11 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         return getRegisteredWormholeRelayersState().registeredWormholeRelayers[chainId];
     }
 
+    function deliveryAttempted(bytes32 deliveryHash) public view returns (bool attempted) {
+        return getDeliverySuccessState().deliverySuccessBlock[deliveryHash] != 0 ||
+            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] != 0;
+    }
+
     function deliverySuccessBlock(bytes32 deliveryHash) public view returns (uint256 blockNumber) {
         return getDeliverySuccessState().deliverySuccessBlock[deliveryHash];
     }

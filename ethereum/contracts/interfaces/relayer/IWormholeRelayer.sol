@@ -31,6 +31,22 @@ interface IWormholeRelayerBase {
     );
 
     function getRegisteredWormholeRelayerContract(uint16 chainId) external view returns (bytes32);
+
+    /**
+     * @notice Returns true if a delivery has been attempted for the given deliveryHash
+     * Note: invalid deliveries where the tx reverts are not considered attempted
+     */
+    function deliveryAttempted(bytes32 deliveryHash) external view returns (bool attempted);
+
+    /**
+     * @notice block number at which a delivery was successfully executed
+     */
+    function deliverySuccessBlock(bytes32 deliveryHash) external view returns (uint256 blockNumber);
+
+    /**
+     * @notice block number of the latest attempt to execute a delivery that failed
+     */
+    function deliveryFailureBlock(bytes32 deliveryHash) external view returns (uint256 blockNumber);
 }
 
 /**
@@ -689,9 +705,6 @@ error VaaKeysDoNotMatchVaas(uint8 index);
 //When someone tries to call an external function of the WormholeRelayer that is only intended to be
 //  called by the WormholeRelayer itself (to allow retroactive reverts for atomicity)
 error RequesterNotWormholeRelayer();
-//When a delivery has already been performed for the specified delivery VAA
-// (i.e. replay protection enforced)
-error DeliveryAlreadyExecuted(bytes32 deliveryVaaHash);
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);

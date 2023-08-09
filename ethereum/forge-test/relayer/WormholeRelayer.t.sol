@@ -1773,14 +1773,17 @@ contract WormholeRelayerTests is Test {
         prepareDeliveryStack(stack, setup, 0);
 
         vm.prank(setup.target.relayer);
+        assertFalse(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+        assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
         assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
         assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+        assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
         assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), block.number);
     }
 

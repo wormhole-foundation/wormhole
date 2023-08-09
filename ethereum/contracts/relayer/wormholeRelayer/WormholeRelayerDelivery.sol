@@ -711,6 +711,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
         if (status == DeliveryStatus.SUCCESS || status == DeliveryStatus.FORWARD_REQUEST_SUCCESS) {
             getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
+
+            // Clear out failure block if it exists
+            delete getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
         } else {
             getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
         }
