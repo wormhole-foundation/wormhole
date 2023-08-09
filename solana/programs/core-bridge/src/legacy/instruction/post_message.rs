@@ -31,8 +31,8 @@ mod __no_entrypoint {
     pub fn post_message(accounts: PostMessage, args: LegacyPostMessageArgs) -> Instruction {
         let accounts = vec![
             AccountMeta::new(accounts.bridge, false),
-            AccountMeta::new(accounts.message, false),
-            AccountMeta::new(accounts.emitter, true),
+            AccountMeta::new(accounts.message, true),
+            AccountMeta::new_readonly(accounts.emitter, true),
             AccountMeta::new(accounts.emitter_sequence, false),
             AccountMeta::new(accounts.payer, true),
             AccountMeta::new(accounts.fee_collector, false),

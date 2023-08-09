@@ -25,7 +25,7 @@ pub struct Initialize<'info> {
 pub fn initialize(ctx: Context<Initialize>, _args: LegacyInitializeArgs) -> Result<()> {
     // NOTE: This config account is pointless and is never used in any of the instruction handlers.
     ctx.accounts.config.set_inner(Config {
-        core_bridge: core_bridge_program::ID,
+        core_bridge_program: core_bridge_program::ID,
     });
 
     // Done.

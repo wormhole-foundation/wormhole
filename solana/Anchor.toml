@@ -40,6 +40,11 @@ address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 [[test.validator.clone]]
 address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 
+### WSOL Token Metadata
+[[test.validator.account]]
+address = "6dM4TqWyWJsbx7obrdLcviBkTafD5E8av61zfU6jq57X"
+filename = "tests/accounts/wrapped_sol_metadata.json"
+
 ### Invalid Signature Set #1
 [[test.validator.account]]
 address = "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ"

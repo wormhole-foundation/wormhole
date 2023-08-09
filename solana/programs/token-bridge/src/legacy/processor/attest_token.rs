@@ -53,7 +53,12 @@ pub struct AttestToken<'info> {
     payer: Signer<'info>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
-    _config: UncheckedAccount<'info>,
+    ///
+    /// ... However, because the legacy implementation took this as a mutable account for some
+    /// reason, we will check that the seeds for this account are correct (because we do not want to
+    /// accidentally pass in an account that isn't actually supposed to be mutable).
+    #[account(mut)]
+    _config: AccountInfo<'info>,
 
     mint: Box<Account<'info, Mint>>,
 
@@ -73,14 +78,16 @@ pub struct AttestToken<'info> {
 
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
+        mut,
         seeds = [BridgeProgramData::seed_prefix()],
         bump,
         seeds::program = core_bridge_program
     )]
-    core_bridge: Box<Account<'info, BridgeProgramData>>,
+    core_bridge_data: Box<Account<'info, BridgeProgramData>>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    core_message: UncheckedAccount<'info>,
+    #[account(mut)]
+    core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
     #[account(
@@ -90,9 +97,11 @@ pub struct AttestToken<'info> {
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
     core_emitter_sequence: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
+    #[account(mut)]
     core_fee_collector: UncheckedAccount<'info>,
 
     /// CHECK: Previously needed sysvar.
@@ -119,10 +128,12 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
 
     let metadata = &ctx.accounts.token_metadata.data;
 
+    msg!("hurrdurr? {:?}", ctx.accounts.core_emitter.key());
+
     // Finally post Wormhole message via Core Bridge.
     post_token_bridge_message(
         PostTokenBridgeMessage {
-            core_bridge: &ctx.accounts.core_bridge,
+            core_bridge_data: &ctx.accounts.core_bridge_data,
             core_message: &ctx.accounts.core_message,
             core_emitter: &ctx.accounts.core_emitter,
             core_emitter_sequence: &ctx.accounts.core_emitter_sequence,

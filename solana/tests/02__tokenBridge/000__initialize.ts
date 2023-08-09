@@ -1,17 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ethers } from "ethers";
-import {
-  GUARDIAN_KEYS,
-  InvalidAccountConfig,
-  InvalidArgConfig,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-} from "../helpers";
+import { expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
-import { expect } from "chai";
 
 describe("Token Bridge -- Instruction: Initialize", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -48,7 +38,7 @@ describe("Token Bridge -- Instruction: Initialize", () => {
 
 function defaultArgs() {
   return {
-    coreBridge: coreBridge.getProgramId(),
+    coreBridgeProgram: coreBridge.getProgramId(),
   };
 }
 
