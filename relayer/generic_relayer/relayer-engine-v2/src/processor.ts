@@ -13,8 +13,11 @@ import {
   packOverrides,
   DeliveryOverrideArgs,
   parseEVMExecutionInfoV1,
+  transformDeliveryLog,
+  DeliveryInfo,
+  stringifyWormholeRelayerInfo,
 } from "@certusone/wormhole-sdk/lib/cjs/relayer";
-import { EVMChainId } from "@certusone/wormhole-sdk";
+import { EVMChainId, CHAIN_ID_TO_NAME } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
 import { WormholeRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
@@ -382,7 +385,7 @@ async function processDeliveryInstruction(
         receipt.transactionHash,
       ];
 
-      logResults(ctx, receipt, chainId, executionRecord);
+      logResults(ctx, receipt, chainId, executionRecord, delivery, overrides);
     });
   } catch (e: any) {
     ctx.logger.error(`Fatal error in processGenericRelayerVaa: ${e}`);
@@ -396,9 +399,11 @@ function logResults(
   ctx: GRContext,
   receipt: ethers.ContractReceipt,
   chainId: EVMChainId,
-  executionRecord: DeliveryExecutionRecord
+  executionRecord: DeliveryExecutionRecord,
+  instruction: DeliveryInstruction,
+  overrides: DeliveryOverrideArgs | undefined
 ) {
-  const relayerContractLog = receipt.logs?.find((x: any) => {
+  const relayerContractLog = receipt.logs.reverse().find((x: any) => {
     return x.address === ctx.wormholeRelayers[chainId];
   });
   if (relayerContractLog) {
@@ -414,20 +419,35 @@ function logResults(
     };
     ctx.logger.info("Parsed Delivery event", logArgs);
     executionRecord.deliveryRecord!.resultLogDidParse = true;
-    switch (logArgs.status) {
-      case 0:
-        ctx.logger.info("Delivery Success");
-        executionRecord.deliveryRecord!.resultLog = "Delivery Success";
-        break;
-      case 1:
-        ctx.logger.info("Receiver Failure");
-        executionRecord.deliveryRecord!.resultLog = "Receiver Failure";
-        break;
-      case 2:
-        ctx.logger.info("Forwarding Failure");
-        executionRecord.deliveryRecord!.resultLog = "Forwarding Failure";
-        break;
-    }
+
+    const transformedLog = transformDeliveryLog({
+      transactionHash: "",
+      args: parsedLog.args as [
+        string,
+        number,
+        BigNumber,
+        string,
+        number,
+        BigNumber,
+        number,
+        string,
+        string
+      ],
+    });
+    const info: DeliveryInfo = {
+      type: RelayerPayloadId.Delivery,
+      sourceChain: CHAIN_ID_TO_NAME[logArgs.sourceChain as wh.ChainId],
+      sourceTransactionHash: "",
+      sourceDeliverySequenceNumber: 0,
+      deliveryInstruction: instruction,
+      targetChainStatus: {
+        chain: CHAIN_ID_TO_NAME[chainId],
+        events: [transformedLog],
+      },
+    };
+    const resultString = stringifyWormholeRelayerInfo(info, true, overrides);
+    ctx.logger.info(resultString);
+    executionRecord.deliveryRecord!.resultLog = resultString;
   }
   ctx.logger.info(
     `Relayed instruction to chain ${chainId}, tx hash: ${receipt.transactionHash}`
