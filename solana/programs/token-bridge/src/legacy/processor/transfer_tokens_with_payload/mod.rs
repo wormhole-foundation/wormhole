@@ -2,11 +2,11 @@ mod native;
 pub use native::*;
 
 mod wrapped;
+use ruint::aliases::U256;
 pub use wrapped::*;
 
 use anchor_lang::prelude::*;
 use wormhole_io::Writeable;
-use wormhole_raw_vaas::support::EncodedAmount;
 
 use std::io;
 
@@ -26,7 +26,7 @@ pub fn new_sender_address(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransferWithMessage {
-    pub norm_amount: EncodedAmount,
+    pub norm_amount: U256,
     pub token_address: [u8; 32],
     pub token_chain: u16,
     pub redeemer: [u8; 32],
@@ -45,7 +45,7 @@ impl Writeable for TransferWithMessage {
         Self: Sized,
         W: io::Write,
     {
-        self.norm_amount.0.write(writer)?;
+        self.norm_amount.write(writer)?;
         self.token_address.write(writer)?;
         self.token_chain.write(writer)?;
         self.redeemer.write(writer)?;

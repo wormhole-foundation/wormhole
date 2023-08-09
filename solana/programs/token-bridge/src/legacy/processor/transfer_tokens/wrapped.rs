@@ -8,6 +8,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, state::BridgeProgramData, CoreBridge};
+use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
@@ -127,12 +128,12 @@ pub fn transfer_tokens_wrapped(
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
     let token_transfer = super::Transfer {
-        norm_amount: amount.try_into().unwrap(),
-        token_address: wrapped_asset.token_address.into(),
+        norm_amount: U256::from(amount),
+        token_address: wrapped_asset.token_address,
         token_chain: wrapped_asset.token_chain,
-        recipient: recipient.into(),
+        recipient,
         recipient_chain,
-        norm_relayer_fee: relayer_fee.try_into().unwrap(),
+        norm_relayer_fee: U256::from(relayer_fee),
     };
 
     // Finally publish Wormhole message using the Core Bridge.

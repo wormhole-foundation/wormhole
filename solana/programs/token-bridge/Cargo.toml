@@ -1,5 +1,5 @@
 [package]
-name = "solana-wormhole-token-bridge"
+name = "wormhole-token-bridge-solana"
 description = "Wormhole Token Bridge Program for Solana"
 version = "0.1.0"
 edition = "2021"
@@ -14,31 +14,30 @@ crate-type = ["cdylib", "lib"]
 
 [features]
 default = ["localnet"]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-cpi = ["no-entrypoint"]
-### A.K.A. Local Validator (via JS Integration Test)
+### A.K.A. Local Validator (via JS Integration Test) and Tilt
 localnet = ["core-bridge-program/localnet"]
 ### A.K.A. Solana Mainnet
 mainnet = ["core-bridge-program/mainnet"]
 ### A.K.A. Solana Devnet
 testnet = ["core-bridge-program/testnet"]
-### A.K.A. Tilt
-devnet = ["core-bridge-program/devnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
 
 [dependencies]
 wormhole-io = { version = "=0.0.16", features = ["ruint"] }
-wormhole-raw-vaas = { version = "=0.0.18", features = ["anchor"], default-features = false }
+wormhole-raw-vaas = { version = "=0.0.0-alpha.1", features = ["anchor"], default-features = false }
 wormhole-solana-common = { path = "../../common/solana-common" }
 
-core-bridge-program = { path = "../core-bridge", package = "solana-wormhole-core-bridge", features = ["cpi"], default-features = false }
+core-bridge-program = { path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
 solana-program = "=1.14.20"
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 anchor-spl = { version = "0.28.0", features = ["metadata"] }
 mpl-token-metadata = "1.12.0"
 
 hex = "0.4"
+ruint = "1.8.0"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

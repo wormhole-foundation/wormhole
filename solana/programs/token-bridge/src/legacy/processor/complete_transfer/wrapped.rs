@@ -11,7 +11,7 @@ use core_bridge_program::{
     constants::SOLANA_CHAIN,
     state::{PostedVaaV1Bytes, VaaV1MessageHash},
 };
-use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 use super::validate_token_transfer;
@@ -29,7 +29,8 @@ pub struct CompleteTransferWrapped<'info> {
             PostedVaaV1Bytes::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program::ID,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
@@ -60,22 +61,24 @@ pub struct CompleteTransferWrapped<'info> {
         mut,
         token::mint = wrapped_mint,
     )]
-    dst_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         token::mint = wrapped_mint,
-        token::authority = payer
+        token::authority = payer,
     )]
     payer_token: Box<Account<'info, TokenAccount>>,
 
-    /// NOTE: We do not need to check this PDA because access control checks the wrapped asset's
-    /// token address.
+    #[account(
+        mut,
+        mint::authority = mint_authority,
+    )]
     wrapped_mint: Box<Account<'info, Mint>>,
 
     #[account(
         seeds = [wrapped_mint.key().as_ref()],
-        bump
+        bump,
     )]
     wrapped_asset: Account<'info, WrappedAsset>,
 
@@ -98,11 +101,11 @@ pub struct CompleteTransferWrapped<'info> {
 }
 
 impl<'info> CompleteTransferWrapped<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let (token_chain, token_address) = validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
-            &ctx.accounts.dst_token,
+            &ctx.accounts.recipient_token,
         )?;
 
         // For wrapped transfers, this token must have originated from another network.
@@ -115,12 +118,8 @@ impl<'info> CompleteTransferWrapped<'info> {
         // Wrapped asset account must agree with the encoded token info.
         let asset = &ctx.accounts.wrapped_asset;
         require!(
-            token_chain == asset.token_chain,
+            token_chain == asset.token_chain && token_address == asset.token_address,
             TokenBridgeError::InvalidMint
-        );
-        require!(
-            token_address == asset.token_address,
-            TokenBridgeError::InvalidMint,
         );
 
         // Done.
@@ -128,7 +127,7 @@ impl<'info> CompleteTransferWrapped<'info> {
     }
 }
 
-#[access_control(CompleteTransferWrapped::accounts(&ctx))]
+#[access_control(CompleteTransferWrapped::constraints(&ctx))]
 pub fn complete_transfer_wrapped(
     ctx: Context<CompleteTransferWrapped>,
     _args: EmptyArgs,
@@ -136,27 +135,23 @@ pub fn complete_transfer_wrapped(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let transfer = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
-        .unwrap()
-        .transfer()
-        .unwrap();
+    let msg = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload).unwrap();
+    let transfer = msg.transfer().unwrap();
 
     // We do not have to denormalize wrapped mint amounts because by definition wrapped mints can
     // only have a max of 8 decimals, which is the same as the cap for normalized amounts.
-    let mut mint_amount = EncodedAmount::from(transfer.amount())
+    let mut mint_amount = transfer
+        .encoded_amount()
         .0
         .try_into()
         .map_err(|_| TokenBridgeError::U64Overflow)?;
-    let relayer_payout = EncodedAmount::from(transfer.relayer_fee())
-        .0
-        .try_into()
-        .unwrap();
+    let relayer_payout = transfer.encoded_relayer_fee().0.try_into().unwrap();
 
     // Save references to the token accounts to be used later.
     let token_program = &ctx.accounts.token_program;
     let wrapped_mint = &ctx.accounts.wrapped_mint;
     let mint_authority = &ctx.accounts.mint_authority;
-    let dst_token = &ctx.accounts.dst_token;
+    let recipient_token = &ctx.accounts.recipient_token;
     let payer_token = &ctx.accounts.payer_token;
 
     // Mint authority is who has the authority to mint.
@@ -164,7 +159,7 @@ pub fn complete_transfer_wrapped(
 
     // If there is a payout to the relayer and the relayer's token account differs from the transfer
     // recipient's, we have to make an extra mint.
-    if relayer_payout > 0 && dst_token.key() != payer_token.key() {
+    if relayer_payout > 0 && recipient_token.key() != payer_token.key() {
         // NOTE: This math operation is safe because the relayer payout is always <= to the
         // total outbound transfer amount.
         mint_amount -= relayer_payout;
@@ -183,7 +178,7 @@ pub fn complete_transfer_wrapped(
     mint_wrapped_tokens(
         token_program,
         wrapped_mint,
-        dst_token,
+        recipient_token,
         mint_authority,
         mint_authority_bump,
         mint_amount,

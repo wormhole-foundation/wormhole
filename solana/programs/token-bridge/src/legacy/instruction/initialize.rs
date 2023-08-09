@@ -3,5 +3,5 @@ use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct LegacyInitializeArgs {
-    core_bridge: Pubkey,
+    _core_bridge: Pubkey,
 }

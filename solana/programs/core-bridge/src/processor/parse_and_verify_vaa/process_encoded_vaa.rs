@@ -46,7 +46,7 @@ pub struct ProcessEncodedVaa<'info> {
 }
 
 impl<'info> ProcessEncodedVaa<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         if let Some(guardian_set) = &ctx.accounts.guardian_set {
             // Guardian set must be active.
             let timestamp = Clock::get().map(Into::into)?;
@@ -86,7 +86,7 @@ pub enum ProcessEncodedVaaDirective {
     VerifySignaturesV1,
 }
 
-#[access_control(ProcessEncodedVaa::accounts(&ctx))]
+#[access_control(ProcessEncodedVaa::constraints(&ctx))]
 pub fn process_encoded_vaa(
     ctx: Context<ProcessEncodedVaa>,
     directive: ProcessEncodedVaaDirective,

@@ -15,19 +15,19 @@ use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum LegacyInstruction {
     /// Deprecated.
-    Initialize(LegacyInitializeArgs),
-    AttestToken(LegacyAttestTokenArgs),
-    CompleteTransferNative(EmptyArgs),
-    CompleteTransferWrapped(EmptyArgs),
-    TransferTokensWrapped(LegacyTransferTokensArgs),
-    TransferTokensNative(LegacyTransferTokensArgs),
-    RegisterChain(EmptyArgs),
-    CreateOrUpdateWrapped(EmptyArgs),
-    UpgradeContract(EmptyArgs),
-    CompleteTransferWithPayloadNative(EmptyArgs),
-    CompleteTransferWithPayloadWrapped(EmptyArgs),
-    TransferTokensWithPayloadWrapped(LegacyTransferTokensWithPayloadArgs),
-    TransferTokensWithPayloadNative(LegacyTransferTokensWithPayloadArgs),
+    Initialize,
+    AttestToken,
+    CompleteTransferNative,
+    CompleteTransferWrapped,
+    TransferTokensWrapped,
+    TransferTokensNative,
+    RegisterChain,
+    CreateOrUpdateWrapped,
+    UpgradeContract,
+    CompleteTransferWithPayloadNative,
+    CompleteTransferWithPayloadWrapped,
+    TransferTokensWithPayloadWrapped,
+    TransferTokensWithPayloadNative,
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]

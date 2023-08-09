@@ -69,7 +69,7 @@ pub struct PostMessageUnreliable<'info> {
 }
 
 impl<'info> PostMessageUnreliable<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let msg = &ctx.accounts.message;
 
         // We are checking if the message has an existing payload. We disallow publishing with zero
@@ -89,7 +89,7 @@ impl<'info> PostMessageUnreliable<'info> {
 /// The constraints for posting a message using this instruction handler are:
 /// * Emitter must be the same as the message account's emitter.
 /// * The new message must be the same size as the existing message's payload.
-#[access_control(PostMessageUnreliable::accounts(&ctx))]
+#[access_control(PostMessageUnreliable::constraints(&ctx))]
 pub fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,
     args: LegacyPostMessageUnreliableArgs,

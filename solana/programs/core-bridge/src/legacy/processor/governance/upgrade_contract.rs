@@ -81,7 +81,7 @@ pub struct UpgradeContract<'info> {
 }
 
 impl<'info> UpgradeContract<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let action = crate::utils::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.bridge,
@@ -107,7 +107,7 @@ impl<'info> UpgradeContract<'info> {
     }
 }
 
-#[access_control(UpgradeContract::accounts(&ctx))]
+#[access_control(UpgradeContract::constraints(&ctx))]
 pub fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;

@@ -26,7 +26,7 @@ pub struct ProcessMessageV1<'info> {
 }
 
 impl<'info> ProcessMessageV1<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let mut acct_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
         PostedMessageV1::require_discriminator(&mut acct_data)?;
 
@@ -48,7 +48,7 @@ pub enum ProcessMessageV1Directive {
     Write { index: u32, data: Vec<u8> },
 }
 
-#[access_control(ProcessMessageV1::accounts(&ctx))]
+#[access_control(ProcessMessageV1::constraints(&ctx))]
 pub fn process_message_v1(
     ctx: Context<ProcessMessageV1>,
     directive: ProcessMessageV1Directive,

@@ -83,7 +83,7 @@ fn try_compute_size(posted_vaa: &Account<PartialPostedVaaV1>) -> Result<usize> {
 }
 
 impl<'info> GuardianSetUpdate<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let bridge = &ctx.accounts.bridge;
         let action =
             crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa, bridge)?;
@@ -106,7 +106,7 @@ impl<'info> GuardianSetUpdate<'info> {
     }
 }
 
-#[access_control(GuardianSetUpdate::accounts(&ctx))]
+#[access_control(GuardianSetUpdate::constraints(&ctx))]
 pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;

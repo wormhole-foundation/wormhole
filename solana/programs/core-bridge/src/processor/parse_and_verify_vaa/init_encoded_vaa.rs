@@ -22,7 +22,7 @@ pub struct InitEncodedVaa<'info> {
 }
 
 impl<'info> InitEncodedVaa<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Checking that the message account is completely zeroed out. By doing this, we make the
         // assumption that no other Core Bridge account that is currently used will have all zeros.
         // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
@@ -43,7 +43,7 @@ impl<'info> InitEncodedVaa<'info> {
     }
 }
 
-#[access_control(InitEncodedVaa::accounts(&ctx))]
+#[access_control(InitEncodedVaa::constraints(&ctx))]
 pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
     // The size of the created account must be more than the size of discriminator and header
     // (some VAA buffer > 0 bytes).

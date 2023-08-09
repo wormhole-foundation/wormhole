@@ -3,6 +3,7 @@ import {
   AccountMeta,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
+  SYSVAR_RENT_PUBKEY,
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
@@ -18,7 +19,7 @@ export type LegacyInitializeContext = {
   bridge?: PublicKey;
   guardianSet?: PublicKey;
   feeCollector?: PublicKey;
-  deployer: PublicKey;
+  payer: PublicKey;
 };
 
 export type LegacyInitializeArgs = {
@@ -34,7 +35,7 @@ export function legacyInitializeIx(
 ) {
   const programId = program.programId;
 
-  let { bridge, guardianSet, feeCollector, deployer } = accounts;
+  let { bridge, guardianSet, feeCollector, payer } = accounts;
 
   if (bridge === undefined) {
     bridge = BridgeProgramData.address(programId);
@@ -65,12 +66,17 @@ export function legacyInitializeIx(
       isSigner: false,
     },
     {
-      pubkey: deployer,
+      pubkey: payer,
       isWritable: false,
       isSigner: true,
     },
     {
       pubkey: SYSVAR_CLOCK_PUBKEY,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: SYSVAR_RENT_PUBKEY,
       isWritable: false,
       isSigner: false,
     },
@@ -91,11 +97,7 @@ export function legacyInitializeIx(
   data.writeUInt32LE(numGuardians, 13);
   for (let i = 0; i < numGuardians; ++i) {
     const guardian = initialGuardians[i];
-    data.write(
-      Buffer.from(guardian).toString("hex"),
-      1 + 4 + 8 + 4 + i * 20,
-      "hex"
-    );
+    data.set(guardian, 1 + 4 + 8 + 4 + i * 20);
   }
 
   return new TransactionInstruction({

@@ -32,7 +32,7 @@ pub struct PostVaaV1<'info> {
 }
 
 impl<'info> PostVaaV1<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // We can only create a legacy VAA account if the VAA account was verified.
         require!(
             ctx.accounts.vaa.status == ProcessingStatus::Verified,
@@ -50,7 +50,7 @@ pub enum PostVaaV1Directive {
     TryOnce,
 }
 
-#[access_control(PostVaaV1::accounts(&ctx))]
+#[access_control(PostVaaV1::constraints(&ctx))]
 pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Result<()> {
     match directive {
         PostVaaV1Directive::TryOnce => {

@@ -48,7 +48,6 @@ pub struct PostVaa<'info> {
     ///
     /// NOTE: We prefer to make this account mutable so we have the ability to close this account
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
-    #[account(owner = crate::ID)]
     signature_set: Account<'info, SignatureSet>,
 
     /// Posted verified message. This account is created if it hasn't been created already.
@@ -77,7 +76,7 @@ pub struct PostVaa<'info> {
 }
 
 impl<'info> PostVaa<'info> {
-    pub fn accounts(ctx: &Context<Self>, args: &LegacyPostVaaArgs) -> Result<()> {
+    pub fn constraints(ctx: &Context<Self>, args: &LegacyPostVaaArgs) -> Result<()> {
         let signature_set = &ctx.accounts.signature_set;
         require!(
             !INVALID_SIGNATURE_SET_KEYS.contains(&signature_set.key().to_string().as_str()),
@@ -110,7 +109,7 @@ impl<'info> PostVaa<'info> {
     }
 }
 
-#[access_control(PostVaa::accounts(&ctx, &args))]
+#[access_control(PostVaa::constraints(&ctx, &args))]
 pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
     let LegacyPostVaaArgs {
         _version,

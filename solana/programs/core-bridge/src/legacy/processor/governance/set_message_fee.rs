@@ -48,7 +48,7 @@ pub struct SetMessageFee<'info> {
 }
 
 impl<'info> SetMessageFee<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let action = crate::utils::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.bridge,
@@ -73,7 +73,7 @@ impl<'info> SetMessageFee<'info> {
     }
 }
 
-#[access_control(SetMessageFee::accounts(&ctx))]
+#[access_control(SetMessageFee::constraints(&ctx))]
 pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;

@@ -9,6 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 use wormhole_solana_common::SeedPrefix;
 
@@ -133,12 +134,12 @@ pub fn transfer_tokens_native(
     // native assets.
     let mint = &ctx.accounts.mint;
     let token_transfer = super::Transfer {
-        norm_amount: EncodedAmount::norm(amount.into(), mint.decimals),
-        token_address: mint.key().to_bytes().into(),
+        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals).0,
+        token_address: mint.key().to_bytes(),
         token_chain: SOLANA_CHAIN,
-        recipient: recipient.into(),
+        recipient,
         recipient_chain,
-        norm_relayer_fee: EncodedAmount::norm(relayer_fee.into(), mint.decimals),
+        norm_relayer_fee: EncodedAmount::norm(U256::from(relayer_fee), mint.decimals).0,
     };
 
     // Finally publish Wormhole message using the Core Bridge.

@@ -13,16 +13,18 @@ use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramDat
 use wormhole_io::Writeable;
 use wormhole_solana_common::SeedPrefix;
 
-use std::io;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Attestation {
-    pub token_address: [u8; 32],
-    pub token_chain: u16,
-    pub decimals: u8,
+struct Attestation {
+    token_address: [u8; 32],
+    token_chain: u16,
+    decimals: u8,
 
-    pub symbol: [u8; 32],
-    pub name: [u8; 32],
+    symbol: [u8; 32],
+    name: [u8; 32],
+}
+
+impl Attestation {
+    const TYPE_ID: u8 = 2;
 }
 
 impl Writeable for Attestation {
@@ -30,11 +32,12 @@ impl Writeable for Attestation {
         1 + 32 + 2 + 1 + 32 + 32
     }
 
-    fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    fn write<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         Self: Sized,
-        W: io::Write,
+        W: std::io::Write,
     {
+        Attestation::TYPE_ID.write(writer)?;
         self.token_address.write(writer)?;
         self.token_chain.write(writer)?;
         self.decimals.write(writer)?;
@@ -52,7 +55,7 @@ pub struct AttestToken<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    mint: Account<'info, Mint>,
+    mint: Box<Account<'info, Mint>>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _native_asset: UncheckedAccount<'info>,
@@ -66,7 +69,7 @@ pub struct AttestToken<'info> {
         bump,
         seeds::program = Metadata::id()
     )]
-    token_metadata: Account<'info, MetadataAccount>,
+    token_metadata: Box<Account<'info, MetadataAccount>>,
 
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
@@ -74,7 +77,7 @@ pub struct AttestToken<'info> {
         bump,
         seeds::program = core_bridge_program
     )]
-    core_bridge: Account<'info, BridgeProgramData>,
+    core_bridge: Box<Account<'info, BridgeProgramData>>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     core_message: UncheckedAccount<'info>,
@@ -103,14 +106,14 @@ pub struct AttestToken<'info> {
 }
 
 impl<'info> AttestToken<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         utils::require_native_mint(&ctx.accounts.mint)
     }
 }
 
-#[access_control(AttestToken::accounts(&ctx))]
+#[access_control(AttestToken::constraints(&ctx))]
 pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Result<()> {
     let LegacyAttestTokenArgs { nonce } = args;
 
@@ -131,7 +134,7 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
         ctx.bumps["core_emitter"],
         nonce,
         Attestation {
-            token_address: ctx.accounts.mint.key().to_bytes().into(),
+            token_address: ctx.accounts.mint.key().to_bytes(),
             token_chain: SOLANA_CHAIN,
             decimals: ctx.accounts.mint.decimals,
             symbol: string_to_fixed32(&metadata.symbol),

@@ -3,7 +3,7 @@
 use anchor_lang::prelude::*;
 
 #[cfg(feature = "localnet")]
-declare_id!("bPPNmBhmHfkEFJmNKKCvwc1tPqBjzPDRwCw3yQYYXQa");
+declare_id!("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE");
 
 #[cfg(feature = "mainnet")]
 declare_id!("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb");
@@ -11,25 +11,34 @@ declare_id!("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb");
 #[cfg(feature = "testnet")]
 declare_id!("DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe");
 
-#[cfg(feature = "devnet")]
-declare_id!("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE");
-
 pub mod constants;
+
 pub mod error;
+
 pub mod legacy;
+
 mod processor;
+//pub(crate) use processor::*;
+
 pub mod state;
+
 pub mod utils;
 
-pub(crate) use processor::*;
+// #[cfg(feature = "cpi")]
+// pub use legacy::cpi::*;
+
+#[derive(Clone)]
+pub struct TokenBridge;
+
+impl Id for TokenBridge {
+    fn id() -> Pubkey {
+        ID
+    }
+}
 
 #[program]
-pub mod solana_wormhole_token_bridge {
+pub mod wormhole_token_bridge_solana {
     use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        processor::initialize(ctx)
-    }
 
     // Fallback to legacy instructions below.
 

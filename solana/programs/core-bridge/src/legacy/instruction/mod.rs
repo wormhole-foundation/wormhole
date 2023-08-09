@@ -17,15 +17,15 @@ use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum LegacyInstruction {
     /// Deprecated.
-    Initialize(LegacyInitializeArgs),
-    PostMessage(LegacyPostMessageArgs),
-    PostVaa(LegacyPostVaaArgs),
-    SetMessageFee(EmptyArgs),
-    TransferFees(EmptyArgs),
-    UpgradeContract(EmptyArgs),
-    GuardianSetUpdate(EmptyArgs),
-    VerifySignatures(LegacyVerifySignaturesArgs),
-    PostMessageUnreliable(LegacyPostMessageUnreliableArgs),
+    Initialize,
+    PostMessage,
+    PostVaa,
+    SetMessageFee,
+    TransferFees,
+    UpgradeContract,
+    GuardianSetUpdate,
+    VerifySignatures,
+    PostMessageUnreliable,
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]

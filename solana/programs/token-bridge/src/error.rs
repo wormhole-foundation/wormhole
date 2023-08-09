@@ -9,6 +9,9 @@ pub enum TokenBridgeError {
     #[msg("InvalidTokenBridgeVaa")]
     InvalidTokenBridgeVaa = 0x04,
 
+    #[msg("InvalidTokenBridgePayload")]
+    InvalidTokenBridgePayload = 0x05,
+
     #[msg("InvalidMint")]
     InvalidMint = 0x06,
 

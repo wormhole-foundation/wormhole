@@ -11,19 +11,22 @@ declare_id!("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth");
 #[cfg(feature = "testnet")]
 declare_id!("3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5");
 
-#[cfg(feature = "devnet")]
-declare_id!("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
-
 pub mod constants;
-pub mod error;
-pub mod legacy;
-pub mod message;
-mod processor;
-pub mod state;
-pub mod types;
-pub mod utils;
 
+pub mod error;
+
+pub mod legacy;
+
+pub mod message;
+
+mod processor;
 pub(crate) use processor::*;
+
+pub mod state;
+
+pub mod types;
+
+pub mod utils;
 
 #[cfg(feature = "cpi")]
 pub use legacy::cpi::*;
