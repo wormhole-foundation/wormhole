@@ -19,6 +19,8 @@ import {
     ForwardInstruction,
     DeliveryTmpState,
     getDeliveryTmpState,
+    getDeliverySuccessState,
+    getDeliveryFailureState,
     getRegisteredWormholeRelayersState
 } from "./WormholeRelayerStorage.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
@@ -46,6 +48,19 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
 
     function getRegisteredWormholeRelayerContract(uint16 chainId) public view returns (bytes32) {
         return getRegisteredWormholeRelayersState().registeredWormholeRelayers[chainId];
+    }
+
+    function deliveryAttempted(bytes32 deliveryHash) public view returns (bool attempted) {
+        return getDeliverySuccessState().deliverySuccessBlock[deliveryHash] != 0 ||
+            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] != 0;
+    }
+
+    function deliverySuccessBlock(bytes32 deliveryHash) public view returns (uint256 blockNumber) {
+        return getDeliverySuccessState().deliverySuccessBlock[deliveryHash];
+    }
+
+    function deliveryFailureBlock(bytes32 deliveryHash) public view returns (uint256 blockNumber) {
+        return getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
     }
 
     //Our get functions require view instead of pure (despite not actually reading storage) because
