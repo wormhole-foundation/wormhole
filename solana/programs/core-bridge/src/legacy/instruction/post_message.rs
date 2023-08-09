@@ -36,12 +36,12 @@ mod __no_entrypoint {
             AccountMeta::new(accounts.emitter_sequence, false),
             AccountMeta::new(accounts.payer, true),
             AccountMeta::new(accounts.fee_collector, false),
-            AccountMeta::new_readonly(Default::default(), false), // _clock
-            AccountMeta::new_readonly(Default::default(), false), // _rent
+            AccountMeta::new_readonly(crate::ID, false), // _clock
+            AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(accounts.system_program, false),
         ];
 
-        Instruction::new_with_borsh(crate::ID, &LegacyInstruction::PostMessage(args), accounts)
+        Instruction::new_with_borsh(crate::ID, &(LegacyInstruction::PostMessage, args), accounts)
     }
 }
 

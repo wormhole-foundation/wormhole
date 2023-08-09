@@ -1,5 +1,5 @@
 use crate::{
-    constants::{MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
+    constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::EmptyArgs,
     processor::mint_wrapped_tokens,
@@ -11,7 +11,7 @@ use core_bridge_program::{
     constants::SOLANA_CHAIN,
     state::{PostedVaaV1Bytes, VaaV1MessageHash},
 };
-use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 use super::validate_token_transfer_with_payload;
@@ -29,7 +29,8 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
             PostedVaaV1Bytes::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program::ID,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
@@ -60,7 +61,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         mut,
         token::mint = wrapped_mint,
     )]
-    redeemer_token: Box<Account<'info, TokenAccount>>,
+    dst_token: Box<Account<'info, TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -68,18 +69,14 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     _relayer_fee_token: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [
-            WRAPPED_MINT_SEED_PREFIX,
-            &posted_vaa.payload.token_chain.to_be_bytes(),
-            posted_vaa.payload.token_address.as_ref()
-        ],
-        bump
+        mut,
+        mint::authority = mint_authority,
     )]
     wrapped_mint: Box<Account<'info, Mint>>,
 
     #[account(
         seeds = [wrapped_mint.key().as_ref()],
-        bump
+        bump,
     )]
     wrapped_asset: Account<'info, WrappedAsset>,
 
@@ -102,21 +99,21 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
 }
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let (token_chain, token_address) = validate_token_transfer_with_payload(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
-            &ctx.accounts.redeemer_token,
+            &ctx.accounts.dst_token,
         )?;
 
         // For wrapped transfers, this token must have originated from another network.
         require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
 
-        // Wrapped asset account must agree with the encoded token address.
-        require_eq!(
-            token_address,
-            ctx.accounts.wrapped_asset.token_address,
+        // Wrapped asset account must agree with the encoded token info.
+        let asset = &ctx.accounts.wrapped_asset;
+        require!(
+            token_chain == asset.token_chain && token_address == asset.token_address,
             TokenBridgeError::InvalidMint
         );
 
@@ -125,7 +122,7 @@ impl<'info> CompleteTransferWithPayloadWrapped<'info> {
     }
 }
 
-#[access_control(CompleteTransferWithPayloadWrapped::accounts(&ctx))]
+#[access_control(CompleteTransferWithPayloadWrapped::constraints(&ctx))]
 pub fn complete_transfer_with_payload_wrapped(
     ctx: Context<CompleteTransferWithPayloadWrapped>,
     _args: EmptyArgs,
@@ -133,14 +130,12 @@ pub fn complete_transfer_with_payload_wrapped(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let norm_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+    // Take transfer amount as-is.
+    let mint_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
         .unwrap()
         .transfer_with_message()
         .unwrap()
-        .norm_amount();
-
-    // Take transfer amount as-is.
-    let mint_amount = EncodedAmount::from(norm_amount)
+        .encoded_amount()
         .0
         .try_into()
         .map_err(|_| TokenBridgeError::U64Overflow)?;
@@ -149,7 +144,7 @@ pub fn complete_transfer_with_payload_wrapped(
     mint_wrapped_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.wrapped_mint,
-        &ctx.accounts.redeemer_token,
+        &ctx.accounts.dst_token,
         &ctx.accounts.mint_authority,
         ctx.bumps["mint_authority"],
         mint_amount,

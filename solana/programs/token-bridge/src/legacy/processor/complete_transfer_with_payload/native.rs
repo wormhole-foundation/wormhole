@@ -11,7 +11,7 @@ use core_bridge_program::{
     constants::SOLANA_CHAIN,
     state::{PostedVaaV1Bytes, VaaV1MessageHash},
 };
-use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 use super::validate_token_transfer_with_payload;
@@ -98,7 +98,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 }
 
 impl<'info> CompleteTransferWithPayloadNative<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
@@ -125,7 +125,7 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
     }
 }
 
-#[access_control(CompleteTransferWithPayloadNative::accounts(&ctx))]
+#[access_control(CompleteTransferWithPayloadNative::constraints(&ctx))]
 pub fn complete_transfer_with_payload_native(
     ctx: Context<CompleteTransferWithPayloadNative>,
     _args: EmptyArgs,
@@ -133,15 +133,13 @@ pub fn complete_transfer_with_payload_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let norm_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+    // Denormalize transfer amount based on this mint's decimals. When these transfers were made
+    // outbound, the amounts were normalized, so it is safe to unwrap these operations.
+    let transfer_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
         .unwrap()
         .transfer_with_message()
         .unwrap()
-        .amount();
-
-    // Denormalize transfer amount based on this mint's decimals. When these transfers were made
-    // outbound, the amounts were normalized, so it is safe to unwrap these operations.
-    let transfer_amount = EncodedAmount::from(norm_amount)
+        .encoded_amount()
         .denorm(ctx.accounts.mint.decimals)
         .try_into()
         .expect("Solana token amounts are u64");

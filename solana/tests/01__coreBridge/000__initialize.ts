@@ -52,7 +52,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
-        const accounts = { deployer: payer.publicKey };
+        const accounts = { payer: payer.publicKey };
         accounts[cfg.contextName] = cfg.address;
         const ix = coreBridge.legacyInitializeIx(
           program,
@@ -78,7 +78,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
         args[cfg.argName] = cfg.value;
         const ix = coreBridge.legacyInitializeIx(
           program,
-          { deployer: payer.publicKey },
+          { payer: payer.publicKey },
           args
         );
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
@@ -94,7 +94,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         program,
         forkedProgram,
-        { deployer: payer.publicKey },
+        { payer: payer.publicKey },
         { guardianSetTtlSeconds, feeLamports, initialGuardians },
         payer
       );

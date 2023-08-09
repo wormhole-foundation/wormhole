@@ -9,6 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{self, constants::SOLANA_CHAIN, state::BridgeProgramData, CoreBridge};
+use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 use wormhole_solana_common::SeedPrefix;
 
@@ -96,14 +97,14 @@ pub struct TransferTokensWithPayloadNative<'info> {
 }
 
 impl<'info> TransferTokensWithPayloadNative<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         utils::require_native_mint(&ctx.accounts.mint)
     }
 }
 
-#[access_control(TransferTokensWithPayloadNative::accounts(&ctx))]
+#[access_control(TransferTokensWithPayloadNative::constraints(&ctx))]
 pub fn transfer_tokens_with_payload_native(
     ctx: Context<TransferTokensWithPayloadNative>,
     args: LegacyTransferTokensWithPayloadArgs,
@@ -137,10 +138,10 @@ pub fn transfer_tokens_with_payload_native(
     // native assets.
     let mint = &ctx.accounts.mint;
     let token_transfer = super::TransferWithMessage {
-        norm_amount: EncodedAmount::norm(amount.into(), mint.decimals),
-        token_address: mint.key().to_bytes().into(),
+        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals).0,
+        token_address: mint.key().to_bytes(),
         token_chain: SOLANA_CHAIN,
-        redeemer: redeemer.into(),
+        redeemer,
         redeemer_chain,
         sender,
         payload,

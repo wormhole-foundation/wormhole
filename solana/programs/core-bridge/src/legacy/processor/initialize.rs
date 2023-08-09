@@ -15,7 +15,7 @@ pub struct Initialize<'info> {
     /// redeem governance VAAs.
     #[account(
         init,
-        payer = deployer,
+        payer = payer,
         space = BridgeProgramData::INIT_SPACE,
         seeds = [BridgeProgramData::seed_prefix()],
         bump,
@@ -30,7 +30,7 @@ pub struct Initialize<'info> {
     /// initial guardian set is index 0.
     #[account(
         init,
-        payer = deployer,
+        payer = payer,
         space = GuardianSet::compute_size(args.initial_guardians.len()),
         seeds = [GuardianSet::seed_prefix(), &INDEX_ZERO.to_be_bytes()],
         bump,
@@ -40,7 +40,7 @@ pub struct Initialize<'info> {
     /// System account that collects lamports for `post_message`.
     #[account(
         init,
-        payer = deployer,
+        payer = payer,
         space = FeeCollector::INIT_SPACE,
         seeds = [FeeCollector::seed_prefix()],
         bump,
@@ -48,18 +48,19 @@ pub struct Initialize<'info> {
     )]
     fee_collector: Account<'info, FeeCollector>,
 
-    /// This account should be the same payer that deployed the Core Bridge BPF. But there is no
-    /// enforcement of this in this instruction handler.
     #[account(mut)]
-    deployer: Signer<'info>,
+    payer: Signer<'info>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
+    /// CHECK: Previously needed sysvar.
+    _rent: UncheckedAccount<'info>,
+
     system_program: Program<'info, System>,
 }
 
-pub(crate) fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Result<()> {
+pub fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Result<()> {
     let LegacyInitializeArgs {
         guardian_set_ttl_seconds,
         fee_lamports,

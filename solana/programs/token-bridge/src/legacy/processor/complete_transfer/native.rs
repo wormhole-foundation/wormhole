@@ -11,7 +11,7 @@ use core_bridge_program::{
     constants::SOLANA_CHAIN,
     state::{PostedVaaV1Bytes, VaaV1MessageHash},
 };
-use wormhole_raw_vaas::{support::EncodedAmount, token_bridge::TokenBridgeMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 use super::validate_token_transfer;
@@ -27,11 +27,12 @@ pub struct CompleteTransferNative<'info> {
     #[account(
         seeds = [
             PostedVaaV1Bytes::seed_prefix(),
-            posted_vaa.try_message_hash()?.as_ref()
+            posted_vaa.try_message_hash()?.as_ref(),
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program::ID,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Box<Account<'info, PostedVaaV1Bytes>>,
 
     #[account(
         init,
@@ -40,7 +41,7 @@ pub struct CompleteTransferNative<'info> {
         seeds = [
             posted_vaa.emitter_address.as_ref(),
             &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            &posted_vaa.sequence.to_be_bytes(),
         ],
         bump,
     )]
@@ -65,7 +66,7 @@ pub struct CompleteTransferNative<'info> {
     #[account(
         mut,
         token::mint = mint,
-        token::authority = payer
+        token::authority = payer,
     )]
     payer_token: Box<Account<'info, TokenAccount>>,
 
@@ -79,7 +80,7 @@ pub struct CompleteTransferNative<'info> {
     )]
     custody_token: Box<Account<'info, TokenAccount>>,
 
-    mint: Account<'info, Mint>,
+    mint: Box<Account<'info, Mint>>,
 
     /// CHECK: This account is the authority that can move tokens from the custody account.
     #[account(
@@ -100,7 +101,7 @@ pub struct CompleteTransferNative<'info> {
 }
 
 impl<'info> CompleteTransferNative<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
@@ -126,7 +127,7 @@ impl<'info> CompleteTransferNative<'info> {
     }
 }
 
-#[access_control(CompleteTransferNative::accounts(&ctx))]
+#[access_control(CompleteTransferNative::constraints(&ctx))]
 pub fn complete_transfer_native(
     ctx: Context<CompleteTransferNative>,
     _args: EmptyArgs,
@@ -134,20 +135,20 @@ pub fn complete_transfer_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let transfer = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
-        .unwrap()
-        .transfer()
-        .unwrap();
+    let msg = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload).unwrap();
+    let transfer = msg.transfer().unwrap();
     let decimals = ctx.accounts.mint.decimals;
 
     // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these
     // operations.
-    let mut transfer_amount = EncodedAmount::from(transfer.amount())
+    let mut transfer_amount = transfer
+        .encoded_amount()
         .denorm(decimals)
         .try_into()
         .expect("Solana token amounts are u64");
-    let relayer_payout = EncodedAmount::from(transfer.relayer_fee())
+    let relayer_payout = transfer
+        .encoded_relayer_fee()
         .denorm(decimals)
         .try_into()
         .unwrap();

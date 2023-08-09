@@ -1,12 +1,14 @@
 use crate::{
     constants::UPGRADE_SEED_PREFIX, error::TokenBridgeError, legacy::instruction::EmptyArgs,
-    state::Claim, utils::PostedGovernanceVaaV1,
+    state::Claim, utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::VaaV1MessageHash;
+use core_bridge_program::state::{PartialPostedVaaV1, VaaV1MessageHash};
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
+use wormhole_raw_vaas::token_bridge::gov;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
-use wormhole_vaas::payloads::gov::token_bridge::Decree;
+
+const ACTION_CONTRACT_UPGRADE: u8 = 2;
 
 #[derive(Accounts)]
 pub struct UpgradeContract<'info> {
@@ -15,12 +17,12 @@ pub struct UpgradeContract<'info> {
 
     #[account(
         seeds = [
-            PostedGovernanceVaaV1::seed_prefix(),
+            PartialPostedVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedGovernanceVaaV1>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -44,6 +46,7 @@ pub struct UpgradeContract<'info> {
     upgrade_authority: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the BPF Loader Upgradeable program.
+    #[account(mut)]
     spill: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the BPF Loader Upgradeable program.
@@ -69,25 +72,31 @@ pub struct UpgradeContract<'info> {
 }
 
 impl<'info> UpgradeContract<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let decree = crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        let action = crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
 
-        if let Decree::ContractUpgrade(inner) = decree {
-            // Read the implementation pubkey and check against the buffer in our account context.
-            require_keys_eq!(
-                Pubkey::from(inner.implementation.0),
-                ctx.accounts.buffer.key()
-            );
+        require_eq!(
+            action,
+            ACTION_CONTRACT_UPGRADE,
+            TokenBridgeError::InvalidGovernanceAction
+        );
 
-            // Done.
-            Ok(())
-        } else {
-            err!(TokenBridgeError::InvalidGovernanceAction)
-        }
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+        let decree = gov::ContractUpgrade::parse(data).unwrap();
+
+        // Read the implementation pubkey and check against the buffer in our account context.
+        require_keys_eq!(
+            Pubkey::new_from_array(decree.implementation()),
+            ctx.accounts.buffer.key()
+        );
+
+        // Done.
+        Ok(())
     }
 }
 
-#[access_control(UpgradeContract::accounts(&ctx))]
+#[access_control(UpgradeContract::constraints(&ctx))]
 pub fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;

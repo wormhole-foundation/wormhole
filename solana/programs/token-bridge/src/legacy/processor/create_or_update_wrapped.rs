@@ -4,22 +4,16 @@ use crate::{
     legacy::EmptyArgs,
     state::{Claim, RegisteredEmitter, WrappedAsset},
 };
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    metadata::{
-        self as token_metadata, CreateMetadataAccountsV3, Metadata as MplTokenMetadata,
-        MetadataAccount, UpdateMetadataAccountsV2,
-    },
-    token::{Mint, Token},
-};
+use anchor_lang::{prelude::*, system_program};
+use anchor_spl::{metadata, token};
 use core_bridge_program::{
     self,
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1, VaaV1MessageHash},
+    state::{PartialPostedVaaV1, VaaV1MessageHash},
 };
 use mpl_token_metadata::state::DataV2;
+use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
 use wormhole_solana_common::SeedPrefix;
-use wormhole_vaas::payloads::token_bridge::Attestation;
 
 #[derive(Accounts)]
 pub struct CreateOrUpdateWrapped<'info> {
@@ -41,12 +35,12 @@ pub struct CreateOrUpdateWrapped<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1::<Attestation>::seed_prefix(),
+            PartialPostedVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1<Attestation>>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -61,19 +55,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     )]
     claim: Account<'info, Claim>,
 
-    #[account(
-        init_if_needed,
-        payer = payer,
-        mint::decimals = cap_decimals(posted_vaa.payload.decimals),
-        mint::authority = mint_authority,
-        seeds = [
-            WRAPPED_MINT_SEED_PREFIX,
-            &posted_vaa.payload.token_chain.to_be_bytes(),
-            posted_vaa.payload.token_address.as_ref()
-        ],
-        bump
-    )]
-    wrapped_mint: Box<Account<'info, Mint>>,
+    /// CHECK: To avoid multiple borrows to the posted vaa account to generate seeds and other mint
+    /// parameters, we perform these checks outside of this accounts context. The pubkey for this
+    /// wrapped mint is checked in access control and the account is created in the instruction
+    /// handler.
+    #[account(mut)]
+    wrapped_mint: AccountInfo<'info>, //Box<Account<'info, Mint>>,
 
     #[account(
         init_if_needed,
@@ -115,36 +102,57 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _core_bridge_program: UncheckedAccount<'info>,
 
-    token_program: Program<'info, Token>,
-    mpl_token_metadata_program: Program<'info, MplTokenMetadata>,
+    token_program: Program<'info, token::Token>,
+    mpl_token_metadata_program: Program<'info, metadata::Metadata>,
 }
 
 impl<'info> CreateOrUpdateWrapped<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
-        let attestation = crate::utils::require_valid_token_bridge_posted_vaa(
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        crate::utils::require_valid_token_bridge_partial_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
         )?;
 
-        // Mint account must agree with the encoded token address.
-        require_eq!(
-            Pubkey::from(attestation.token_address.0),
-            ctx.accounts.wrapped_mint.key()
-        );
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let data = &acc_info.data.borrow()[PartialPostedVaaV1::PAYLOAD_START..];
+        let msg = TokenBridgeMessage::parse(data)
+            .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
 
-        // For wrapped transfers, this token must have originated from another network.
-        require_neq!(
-            attestation.token_chain,
-            SOLANA_CHAIN,
-            TokenBridgeError::NativeAsset
-        );
+        match msg.attestation() {
+            Some(attestation) => {
+                // This token must have originated from another network.
+                require_neq!(
+                    attestation.token_chain(),
+                    SOLANA_CHAIN,
+                    TokenBridgeError::NativeAsset
+                );
 
-        // Done.
-        Ok(())
+                // Determine whether wrapped mint key agrees with what we expect.
+                let (mint_key, _) = Pubkey::find_program_address(
+                    &[
+                        WRAPPED_MINT_SEED_PREFIX,
+                        &attestation.token_chain().to_be_bytes(),
+                        attestation.token_address().as_ref(),
+                    ],
+                    &crate::ID,
+                );
+                require_keys_eq!(
+                    ctx.accounts.wrapped_mint.key(),
+                    mint_key,
+                    ErrorCode::ConstraintSeeds
+                );
+
+                // Done.
+                Ok(())
+            }
+            None => {
+                err!(TokenBridgeError::InvalidTokenBridgeVaa)
+            }
+        }
     }
 }
 
-#[access_control(CreateOrUpdateWrapped::accounts(&ctx))]
+#[access_control(CreateOrUpdateWrapped::constraints(&ctx))]
 pub fn create_or_update_wrapped(
     ctx: Context<CreateOrUpdateWrapped>,
     _args: EmptyArgs,
@@ -162,25 +170,59 @@ pub fn create_or_update_wrapped(
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let attestation = &ctx.accounts.posted_vaa.payload;
-    let (symbol, name) = fix_symbol_and_name(attestation);
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let data = &acc_info.data.borrow()[PartialPostedVaaV1::PAYLOAD_START..];
+    let msg = TokenBridgeMessage::parse(data).unwrap();
+    let attestation = msg.attestation().unwrap();
 
+    let (symbol, name) = fix_symbol_and_name(attestation);
+    let token_chain = attestation.token_chain();
+    let token_address = attestation.token_address();
+    let native_decimals = attestation.decimals();
+
+    // Set wrapped asset data.
     let wrapped_asset = &mut ctx.accounts.wrapped_asset;
     wrapped_asset.set_inner(WrappedAsset {
-        token_chain: attestation.token_chain,
-        token_address: attestation.token_address.0,
-        native_decimals: attestation.decimals,
+        token_chain,
+        token_address,
+        native_decimals,
     });
+
+    // Now create account and initialize mint.
+    system_program::create_account(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::CreateAccount {
+                from: ctx.accounts.payer.to_account_info(),
+                to: ctx.accounts.wrapped_mint.to_account_info(),
+            },
+        ),
+        Rent::get().map(|rent| rent.minimum_balance(token::Mint::LEN))?,
+        token::Mint::LEN.try_into().unwrap(),
+        &ctx.accounts.token_program.key(),
+    )?;
+
+    token::initialize_mint2(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::InitializeMint2 {
+                mint: ctx.accounts.wrapped_mint.to_account_info(),
+            },
+        ),
+        cap_decimals(native_decimals),
+        &ctx.accounts.mint_authority.key(),
+        None,
+    )?;
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
     let uri = wrapped_asset
         .to_uri()
         .map_err(|_| TokenBridgeError::CannotSerializeJson)?;
 
-    token_metadata::create_metadata_accounts_v3(
+    metadata::create_metadata_accounts_v3(
         CpiContext::new_with_signer(
             ctx.accounts.mpl_token_metadata_program.to_account_info(),
-            CreateMetadataAccountsV3 {
+            metadata::CreateMetadataAccountsV3 {
                 metadata: ctx.accounts.token_metadata.to_account_info(),
                 mint: ctx.accounts.wrapped_mint.to_account_info(),
                 mint_authority: ctx.accounts.mint_authority.to_account_info(),
@@ -207,21 +249,25 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let (symbol, name) = fix_symbol_and_name(&ctx.accounts.posted_vaa.payload);
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let data = &acc_info.data.borrow()[PartialPostedVaaV1::PAYLOAD_START..];
+    let msg = TokenBridgeMessage::parse(data).unwrap();
+    let attestation = msg.attestation().unwrap();
+    let (symbol, name) = fix_symbol_and_name(attestation);
 
     // Deserialize token metadata so we can check whether the name or symbol have changed in
     // this asset metadata VAA.
     let data = {
         let mut acct_data: &[u8] = &ctx.accounts.token_metadata.try_borrow_data()?;
-        MetadataAccount::try_deserialize(&mut acct_data).map(|acct| acct.data.clone())?
+        metadata::MetadataAccount::try_deserialize(&mut acct_data).map(|acct| acct.data.clone())?
     };
 
     if name != data.name || symbol != data.symbol {
         // Finally update token metadata.
-        token_metadata::update_metadata_accounts_v2(
+        metadata::update_metadata_accounts_v2(
             CpiContext::new_with_signer(
                 ctx.accounts.mpl_token_metadata_program.to_account_info(),
-                UpdateMetadataAccountsV2 {
+                metadata::UpdateMetadataAccountsV2 {
                     metadata: ctx.accounts.token_metadata.to_account_info(),
                     update_authority: ctx.accounts.mint_authority.to_account_info(),
                 },
@@ -255,8 +301,8 @@ fn cap_decimals(decimals: u8) -> u8 {
 
 fn fix_symbol_and_name(attestation: &Attestation) -> (String, String) {
     // Truncate symbol to 10 characters (the maximum length for Token Metadata's symbol).
-    let mut symbol = attestation.symbol_string();
+    let mut symbol = attestation.symbol().to_string();
     symbol.truncate(mpl_token_metadata::state::MAX_SYMBOL_LENGTH);
 
-    (symbol, attestation.name_string())
+    (symbol, attestation.name().to_string())
 }

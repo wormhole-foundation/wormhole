@@ -55,7 +55,7 @@ impl<'info> VerifySignatures<'info> {
     /// accounts context in order to perform this check. By performing this check here, we can fail
     /// earlier (as opposed to failing at the `post_vaa` step after verifying all the signatures
     /// with a potentially expired guardian set).
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let timestamp = Clock::get().map(Into::into)?;
         let guardian_set = &ctx.accounts.guardian_set;
         require!(
@@ -67,7 +67,7 @@ impl<'info> VerifySignatures<'info> {
     }
 }
 
-#[access_control(VerifySignatures::accounts(&ctx))]
+#[access_control(VerifySignatures::constraints(&ctx))]
 pub fn verify_signatures(
     ctx: Context<VerifySignatures>,
     args: LegacyVerifySignaturesArgs,

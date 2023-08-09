@@ -65,7 +65,7 @@ pub struct TransferFees<'info> {
 }
 
 impl<'info> TransferFees<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         let action = crate::utils::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.bridge,
@@ -111,7 +111,7 @@ impl<'info> TransferFees<'info> {
     }
 }
 
-#[access_control(TransferFees::accounts(&ctx))]
+#[access_control(TransferFees::constraints(&ctx))]
 pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;

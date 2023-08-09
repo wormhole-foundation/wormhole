@@ -1,10 +1,12 @@
 mod instruction;
+
 mod processor;
+pub(crate) use processor::*;
+
 pub mod state;
 pub mod utils;
 
 pub use crate::ID;
-pub(crate) use processor::*;
 
 #[cfg(feature = "cpi")]
 pub mod cpi {

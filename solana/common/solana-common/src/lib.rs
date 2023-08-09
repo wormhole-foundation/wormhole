@@ -127,7 +127,7 @@ macro_rules! process_anchorized_legacy_instruction {
         $account_infos: expr,
         $ix_data: expr,
         $execute: expr,
-        $args: expr
+        $args_type: ty
     ) => {{
         {
             #[cfg(not(feature = "no-log-ix-name"))]
@@ -139,7 +139,7 @@ macro_rules! process_anchorized_legacy_instruction {
             let mut accounts = <$account_type>::try_accounts(
                 &$program_id,
                 &mut $account_infos,
-                &$ix_data[1..],
+                $ix_data,
                 &mut bumps,
                 &mut std::collections::BTreeSet::new(),
             )?;
@@ -148,7 +148,7 @@ macro_rules! process_anchorized_legacy_instruction {
             let ctx = Context::new(&$program_id, &mut accounts, &[], bumps);
 
             // Execute method that takes this context with specified instruction arguments.
-            $execute(ctx, $args)?;
+            $execute(ctx, <$args_type>::deserialize(&mut $ix_data)?)?;
 
             // Finally clean up (this sets data from account struct members into account data).
             accounts.exit(&$program_id)

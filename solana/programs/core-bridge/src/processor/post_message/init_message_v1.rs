@@ -24,7 +24,7 @@ pub struct InitMessageV1<'info> {
 }
 
 impl<'info> InitMessageV1<'info> {
-    fn accounts(ctx: &Context<Self>) -> Result<()> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Checking that the message account is completely zeroed out. By doing this, we make the
         // assumption that no other Core Bridge account that is currently used will have all zeros.
         // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
@@ -50,7 +50,7 @@ pub struct InitMessageV1Args {
     pub cpi_program_id: Option<Pubkey>,
 }
 
-#[access_control(InitMessageV1::accounts(&ctx))]
+#[access_control(InitMessageV1::constraints(&ctx))]
 pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> Result<()> {
     // Infer the expected message length given the size of the created account.
     let expected_msg_length = ctx

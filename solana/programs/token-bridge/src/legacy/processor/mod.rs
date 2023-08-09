@@ -1,20 +1,34 @@
 mod attest_token;
-mod complete_transfer;
-mod complete_transfer_with_payload;
-mod create_or_update_wrapped;
-mod governance;
-mod transfer_tokens;
-mod transfer_tokens_with_payload;
-
 pub use attest_token::*;
+
+mod complete_transfer;
 pub use complete_transfer::*;
+
+mod complete_transfer_with_payload;
 pub use complete_transfer_with_payload::*;
+
+mod create_or_update_wrapped;
 pub use create_or_update_wrapped::*;
+
+mod governance;
 pub use governance::*;
+
+mod initialize;
+pub use initialize::*;
+
+mod transfer_tokens;
 pub use transfer_tokens::*;
+
+mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
-use crate::ID;
+use crate::{
+    legacy::instruction::{
+        EmptyArgs, LegacyAttestTokenArgs, LegacyInitializeArgs, LegacyTransferTokensArgs,
+        LegacyTransferTokensWithPayloadArgs,
+    },
+    ID,
+};
 use anchor_lang::prelude::*;
 use wormhole_solana_common::process_anchorized_legacy_instruction;
 
@@ -23,16 +37,26 @@ use super::instruction::LegacyInstruction;
 pub fn process_legacy_instruction(
     program_id: &Pubkey,
     mut account_infos: &[AccountInfo],
-    ix_data: &[u8],
+    mut ix_data: &[u8],
 ) -> Result<()> {
     // TODO: This may not be necessary. Double-check in integration test.
     require!(*program_id == ID, ErrorCode::DeclaredProgramIdMismatch);
 
     // Deserialize instruction data. The data should match the instruction
     // enum. Otherwise, we bail out.
-    match LegacyInstruction::try_from_slice(ix_data)? {
-        LegacyInstruction::Initialize(_) => err!(ErrorCode::Deprecated),
-        LegacyInstruction::AttestToken(args) => {
+    match LegacyInstruction::deserialize(&mut ix_data)? {
+        LegacyInstruction::Initialize => {
+            process_anchorized_legacy_instruction!(
+                ID,
+                "LegacyInitialize",
+                Initialize,
+                account_infos,
+                ix_data,
+                initialize,
+                LegacyInitializeArgs
+            )
+        }
+        LegacyInstruction::AttestToken => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyAttestToken",
@@ -40,10 +64,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 attest_token,
-                args
+                LegacyAttestTokenArgs
             )
         }
-        LegacyInstruction::CompleteTransferNative(args) => {
+        LegacyInstruction::CompleteTransferNative => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyCompleteTransferNative",
@@ -51,10 +75,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 complete_transfer_native,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::CompleteTransferWrapped(args) => {
+        LegacyInstruction::CompleteTransferWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyCompleteTransferWrapped",
@@ -62,10 +86,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 complete_transfer_wrapped,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::TransferTokensWrapped(args) => {
+        LegacyInstruction::TransferTokensWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyTransferTokensWrapped",
@@ -73,10 +97,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 transfer_tokens_wrapped,
-                args
+                LegacyTransferTokensArgs
             )
         }
-        LegacyInstruction::TransferTokensNative(args) => {
+        LegacyInstruction::TransferTokensNative => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyTransferTokensNative",
@@ -84,10 +108,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 transfer_tokens_native,
-                args
+                LegacyTransferTokensArgs
             )
         }
-        LegacyInstruction::RegisterChain(args) => {
+        LegacyInstruction::RegisterChain => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyRegisterChain",
@@ -95,10 +119,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 register_chain,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::CreateOrUpdateWrapped(args) => {
+        LegacyInstruction::CreateOrUpdateWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyCreateOrUpdateWrapped",
@@ -106,10 +130,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 create_or_update_wrapped,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::UpgradeContract(args) => {
+        LegacyInstruction::UpgradeContract => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyUpgradeContract",
@@ -117,10 +141,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 upgrade_contract,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::CompleteTransferWithPayloadNative(args) => {
+        LegacyInstruction::CompleteTransferWithPayloadNative => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyCompleteTransferWithPayloadNative",
@@ -128,10 +152,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 complete_transfer_with_payload_native,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::CompleteTransferWithPayloadWrapped(args) => {
+        LegacyInstruction::CompleteTransferWithPayloadWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyCompleteTransferWithPayloadWrapped",
@@ -139,10 +163,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 complete_transfer_with_payload_wrapped,
-                args
+                EmptyArgs
             )
         }
-        LegacyInstruction::TransferTokensWithPayloadWrapped(args) => {
+        LegacyInstruction::TransferTokensWithPayloadWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyTransferTokensWithPayloadWrapped",
@@ -150,10 +174,10 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 transfer_tokens_with_payload_wrapped,
-                args
+                LegacyTransferTokensWithPayloadArgs
             )
         }
-        LegacyInstruction::TransferTokensWithPayloadNative(args) => {
+        LegacyInstruction::TransferTokensWithPayloadNative => {
             process_anchorized_legacy_instruction!(
                 ID,
                 "LegacyTransferTokensWithPayloadNative",
@@ -161,7 +185,7 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 transfer_tokens_with_payload_native,
-                args
+                LegacyTransferTokensWithPayloadArgs
             )
         }
     }
