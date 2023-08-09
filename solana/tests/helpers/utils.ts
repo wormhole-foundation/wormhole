@@ -28,6 +28,11 @@ export type InvalidArgConfig = {
   errorMsg: string;
 };
 
+export type MintInfo = {
+  mint: PublicKey;
+  decimals: number;
+};
+
 export function expectDeepEqual<T>(a: T, b: T) {
   expect(JSON.stringify(a)).to.equal(JSON.stringify(b));
 }

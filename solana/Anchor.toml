@@ -45,6 +45,17 @@ address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 address = "6dM4TqWyWJsbx7obrdLcviBkTafD5E8av61zfU6jq57X"
 filename = "tests/accounts/wrapped_sol_metadata.json"
 
+
+### Mint -- 8 Decimals
+[[test.validator.account]]
+address = "DyU8E8KfMHPXELQLJxv4qQT9ZKoijWiKrUQ5fskWFB5b"
+filename = "tests/accounts/mint_8.json"
+
+### Mint -- 9 Decimals
+[[test.validator.account]]
+address = "6SmtrBpfPt67cjU4MbmHFMLctAZMNZee1xArVha4MC9N"
+filename = "tests/accounts/mint_9.json"
+
 ### Invalid Signature Set #1
 [[test.validator.account]]
 address = "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ"
