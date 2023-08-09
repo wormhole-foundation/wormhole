@@ -10,6 +10,9 @@ import {
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { Err, Ok } from "ts-results";
+import { postVaaSolana } from "@certusone/wormhole-sdk";
+import { NodeWallet } from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { CoreBridgeProgram } from "./coreBridge";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -30,16 +33,18 @@ export function expectDeepEqual<T>(a: T, b: T) {
 }
 
 async function confirmLatest(connection: Connection, signature: string) {
-  return connection.getLatestBlockhash().then(({ blockhash, lastValidBlockHeight }) =>
-    connection.confirmTransaction(
-      {
-        blockhash,
-        lastValidBlockHeight,
-        signature,
-      },
-      "confirmed"
-    )
-  );
+  return connection
+    .getLatestBlockhash()
+    .then(({ blockhash, lastValidBlockHeight }) =>
+      connection.confirmTransaction(
+        {
+          blockhash,
+          lastValidBlockHeight,
+          signature,
+        },
+        "confirmed"
+      )
+    );
 }
 
 export async function expectIxOk(
@@ -48,10 +53,15 @@ export async function expectIxOk(
   signers: Signer[],
   confirmOptions?: ConfirmOptions
 ) {
-  return debugSendAndConfirmTransaction(connection, new Transaction().add(...ixs), signers, {
-    logError: true,
-    confirmOptions,
-  }).then((result) => result.unwrap());
+  return debugSendAndConfirmTransaction(
+    connection,
+    new Transaction().add(...ixs),
+    signers,
+    {
+      logError: true,
+      confirmOptions,
+    }
+  ).then((result) => result.unwrap());
 }
 
 export async function expectIxErr(
@@ -135,7 +145,8 @@ async function debugSendAndConfirmTransaction(
   }
 ) {
   const logError = options === undefined ? true : options.logError;
-  const confirmOptions = options === undefined ? undefined : options.confirmOptions;
+  const confirmOptions =
+    options === undefined ? undefined : options.confirmOptions;
 
   return sendAndConfirmTransaction(connection, tx, signers, confirmOptions)
     .then((sig) => new Ok(sig))
@@ -153,3 +164,19 @@ async function debugSendAndConfirmTransaction(
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function verifySignaturesAndPostVaa(
+  program: CoreBridgeProgram,
+  payer: Keypair,
+  signedVaa: Buffer
+) {
+  const connection = program.provider.connection;
+  const wallet = new NodeWallet(payer);
+  return postVaaSolana(
+    connection,
+    wallet.signTransaction,
+    program.programId,
+    wallet.key(),
+    signedVaa
+  );
+}
