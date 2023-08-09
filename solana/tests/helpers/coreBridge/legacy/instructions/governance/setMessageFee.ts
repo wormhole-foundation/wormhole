@@ -1,11 +1,6 @@
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
-import {
-  AccountMeta,
-  PublicKey,
-  SystemProgram,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { AccountMeta, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
 import { BridgeProgramData, Claim, PostedVaaV1 } from "../../state";
 
@@ -37,8 +32,8 @@ export function legacySetMessageFeeIx(
   if (claim === undefined) {
     claim = Claim.address(
       programId,
-      emitterChain,
       Array.from(emitterAddress),
+      emitterChain,
       new BN(sequence.toString())
     );
   }

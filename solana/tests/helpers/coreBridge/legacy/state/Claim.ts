@@ -13,8 +13,8 @@ import {
 export class Claim {
   static address(
     programId: PublicKeyInitData,
-    chain: number,
     address: number[],
+    chain: number,
     sequence: BN
   ): PublicKey {
     const chainBuf = Buffer.alloc(2);
@@ -27,7 +27,7 @@ export class Claim {
     sequenceBuf.writeBigUInt64BE(BigInt(sequence.toString()));
 
     return PublicKey.findProgramAddressSync(
-      [chainBuf, addressBuf, sequenceBuf],
+      [addressBuf, chainBuf, sequenceBuf],
       new PublicKey(programId)
     )[0];
   }
