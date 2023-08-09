@@ -53,7 +53,7 @@ describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", (
     for (const { mint, decimals } of mints) {
       const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
-      it(`Invoke \`transfer_tokens_with_payload_native\` for Mint (${decimals} Decimals)`, async () => {
+      it(`Invoke \`transfer_tokens_with_payload_native\` (${decimals} Decimals)`, async () => {
         const amount = new anchor.BN("88888888");
 
         // TODO: add balance checks

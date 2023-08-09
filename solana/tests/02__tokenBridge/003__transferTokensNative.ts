@@ -56,7 +56,7 @@ describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
     for (const { mint, decimals } of mints) {
       const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
-      it(`Invoke \`transfer_tokens_native\` for Mint (${decimals} Decimals)`, async () => {
+      it(`Invoke \`transfer_tokens_native\` (${decimals} Decimals)`, async () => {
         const amount = new anchor.BN("88888888");
         const relayerFee = new anchor.BN("11111111");
 
