@@ -7,6 +7,7 @@ import { transferAuthorityPda } from "../state";
 export * from "./attestToken";
 export * from "./initialize";
 export * from "./transferTokens";
+export * from "./transferTokensWithPayload";
 
 export function approveTransferAuthorityIx(
   program: TokenBridgeProgram,
