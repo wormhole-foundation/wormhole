@@ -12,6 +12,34 @@ export function coreEmitterPda(programId: PublicKey): PublicKey {
   )[0];
 }
 
+export function custodyAuthorityPda(
+  programId: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("custody_signer")],
+    programId
+  )[0];
+}
+
+export function custodyTokenPda(
+  programId: PublicKey,
+  mint: PublicKey
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [mint.toBuffer()],
+    programId
+  )[0];
+}
+
+export function transferAuthorityPda(
+  programId: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("authority_signer")],
+    programId
+  )[0];
+}
+
 export function wrappedAssetPda(
   programId: PublicKey,
   mint: PublicKey

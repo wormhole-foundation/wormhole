@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AccountMeta,
   PublicKey,
@@ -6,21 +7,25 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { TokenBridgeProgram } from "../..";
+import { LegacyTransferTokensArgs, } from "../";
+import { TokenBridgeProgram } from "../../..";
+import * as coreBridge from "../../../../coreBridge";
 import {
   Config,
   coreEmitterPda,
-  tokenMetadataPda,
-  wrappedAssetPda,
-} from "../state";
-import * as coreBridge from "../../../coreBridge";
+  custodyAuthorityPda,
+  custodyTokenPda,
+  transferAuthorityPda
+} from "../../state";
 
-export type LegacyAttestTokenContext = {
+export type LegacyTransferTokensNativeContext = {
   payer: PublicKey;
-  config?: PublicKey;
+  config?: PublicKey; // TODO: demonstrate this isn't needed in tests
+  srcToken: PublicKey;
   mint: PublicKey;
-  nativeAsset?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  tokenMetadata?: PublicKey;
+  custodyToken?: PublicKey;
+  transferAuthority?: PublicKey;
+  custodyAuthority?: PublicKey;
   coreBridgeData?: PublicKey;
   coreMessage: PublicKey;
   coreEmitter?: PublicKey;
@@ -31,23 +36,21 @@ export type LegacyAttestTokenContext = {
   coreBridgeProgram: PublicKey;
 };
 
-export type LegacyAttestTokenArgs = {
-  nonce: number;
-};
-
-export function legacyAttestTokenIx(
+export function legacyTransferTokensNativeIx(
   program: TokenBridgeProgram,
-  accounts: LegacyAttestTokenContext,
-  args: LegacyAttestTokenArgs
+  accounts: LegacyTransferTokensNativeContext,
+  args: LegacyTransferTokensArgs
 ) {
   const programId = program.programId;
 
   let {
     payer,
     config,
+    srcToken,
     mint,
-    nativeAsset,
-    tokenMetadata,
+    custodyToken,
+    transferAuthority,
+    custodyAuthority,
     coreBridgeData,
     coreMessage,
     coreEmitter,
@@ -62,12 +65,16 @@ export function legacyAttestTokenIx(
     config = Config.address(programId);
   }
 
-  if (nativeAsset === undefined) {
-    nativeAsset = wrappedAssetPda(programId, mint);
+  if (custodyToken === undefined) {
+    custodyToken = custodyTokenPda(programId, mint);
   }
 
-  if (tokenMetadata === undefined) {
-    tokenMetadata = tokenMetadataPda(mint);
+  if (transferAuthority === undefined) {
+    transferAuthority = transferAuthorityPda(programId);
+  }
+
+  if (custodyAuthority === undefined) {
+    custodyAuthority = custodyAuthorityPda(programId);
   }
 
   if (coreBridgeData === undefined) {
@@ -105,21 +112,31 @@ export function legacyAttestTokenIx(
     },
     {
       pubkey: config,
-      isWritable: true, // bug in the program
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: srcToken,
+      isWritable: true,
       isSigner: false,
     },
     {
       pubkey: mint,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: custodyToken,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: transferAuthority,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: nativeAsset,
-      isWritable: false,
-      isSigner: false,
-    },
-    {
-      pubkey: tokenMetadata,
+      pubkey: custodyAuthority,
       isWritable: false,
       isSigner: false,
     },
@@ -168,12 +185,21 @@ export function legacyAttestTokenIx(
       isWritable: false,
       isSigner: false,
     },
+    {
+      pubkey: TOKEN_PROGRAM_ID,
+      isWritable: false,
+      isSigner: false,
+    },
   ];
 
-  const { nonce } = args;
-  const data = Buffer.alloc(1 + 4);
-  data.writeUInt8(1, 0);
+  const { nonce, amount, relayerFee, recipient, recipientChain } = args;
+  const data = Buffer.alloc(1 + 4 + 8 + 8 + 32 + 2);
+  data.writeUInt8(5, 0);
   data.writeUInt32LE(nonce, 1);
+  data.writeBigUInt64LE(BigInt(amount.toString()), 5);
+  data.writeBigUInt64LE(BigInt(relayerFee.toString()), 13);
+  data.set(recipient, 21);
+  data.writeUInt16LE(recipientChain, 53);
 
   return new TransactionInstruction({
     keys,
