@@ -1,7 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { ethers } from "ethers";
 import {
-  GUARDIAN_KEYS,
   InvalidAccountConfig,
   InvalidArgConfig,
   expectDeepEqual,
@@ -61,53 +60,325 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       );
 
       // Validate bridge data account.
-      // await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      //await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner,
+        true
+      );
 
       // Validate data in the message accounts.
-      // await coreBridge.expectLegacyPostMessageAfterEffects(
-      //   program,
-      //   txDetails,
-      //   accounts,
-      //   { nonce, payload, finality },
-      //   commonEmitterSequence,
-      //   false,
-      //   payload
-      // );
-      // await coreBridge.expectLegacyPostMessageAfterEffects(
-      //   forkedProgram,
-      //   forkTxDetails,
-      //   accounts,
-      //   { nonce, payload, finality },
-      //   commonEmitterSequence,
-      //   false,
-      //   payload
-      // );
-      // // Validate emitter sequences.
-      // commonEmitterSequence.iaddn(1);
-      // const sequence = await coreBridge.EmitterSequence.fromPda(
-      //   connection,
-      //   program.programId,
-      //   payer.publicKey
-      // );
-      // const forkSequence = await coreBridge.EmitterSequence.fromPda(
-      //   connection,
-      //   forkedProgram.programId,
-      //   payer.publicKey
-      // );
-      // expectDeepEqual(sequence, forkSequence);
-      // expectDeepEqual(sequence.sequence, commonEmitterSequence);
-      // // Validate fee collector.
-      // const feeCollectorData = await connection.getAccountInfo(
-      //   coreBridge.FeeCollector.address(program.programId)
-      // );
-      // expect(feeCollectorData).is.not.null;
-      // const forkFeeCollectorData = await connection.getAccountInfo(
-      //   coreBridge.FeeCollector.address(program.programId)
-      // );
-      // expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        program,
+        txDetails,
+        {
+          payer: payer.publicKey,
+          message: messageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        forkedProgram,
+        forkTxDetails,
+        {
+          payer: payer.publicKey,
+          message: forkedMessageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      // Up tick emitter sequences.
+      commonEmitterSequence.iaddn(1);
+
+      // Validate fee collector.
+      const feeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData).is.not.null;
+      const forkFeeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+    });
+
+    it("Invoke `post_message_unreliable` Using Same Message Signer", async () => {
+      // Fetch existing message from the program. Since we are using the same
+      // signer, the message data account should be the same.
+      const [existingFinality, existingNonce, existingPayload] =
+        await coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+          connection,
+          messageSigner.publicKey
+        ).then((msg): [number, number, Buffer] => [msg.finality, msg.nonce, msg.payload]);
+
+      // Create parallel transaction args.
+      const args: parallelTxArgs = {
+        new: {
+          program,
+          messageSigner,
+          emitterSigner: commonEmitter,
+        },
+        fork: {
+          program: forkedProgram,
+          messageSigner: forkedMessageSigner,
+          emitterSigner: commonEmitter,
+        },
+      };
+
+      // Construct a different message with the same size as the original.
+      const nonce = 69;
+      expect(nonce).not.equals(existingNonce);
+
+      const finality = 0;
+      expect(finality).not.equals(existingFinality);
+
+      const payload = Buffer.alloc(existingPayload.length);
+      payload.fill(0);
+      payload.write("So fresh and so clean clean.");
+      expect(payload.equals(existingPayload)).is.false;
+
+      // Invoke `postMessage`.
+      const [txDetails, forkTxDetails] = await parallelTxDetails(
+        args,
+        { nonce, payload, finality },
+        payer
+      );
+
+      // Validate bridge data account.
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+
+      // Confirm that the message data accounts are the same.
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner,
+        true
+      );
+
+      // Validate data in the message accounts.
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        program,
+        txDetails,
+        {
+          payer: payer.publicKey,
+          message: messageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        forkedProgram,
+        forkTxDetails,
+        {
+          payer: payer.publicKey,
+          message: forkedMessageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      // Up tick emitter sequences.
+      commonEmitterSequence.iaddn(1);
+
+      // Validate fee collector.
+      const feeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData).is.not.null;
+      const forkFeeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+    });
+
+    it("Invoke `post_message_unreliable` with New Message Signer", async () => {
+      // Fetch default args.
+      let { nonce, payload, finality } = defaultArgs();
+      payload = Buffer.from("Would you just look at that?");
+
+      // Create two new message signers.
+      const newMessageSigner = anchor.web3.Keypair.generate();
+      const newForkedMessageSigner = anchor.web3.Keypair.generate();
+
+      // Create parallel transaction args.
+      const args: parallelTxArgs = {
+        new: {
+          program,
+          messageSigner: newMessageSigner,
+          emitterSigner: commonEmitter,
+        },
+        fork: {
+          program: forkedProgram,
+          messageSigner: newForkedMessageSigner,
+          emitterSigner: commonEmitter,
+        },
+      };
+
+      // Invoke `postMessage`.
+      const [txDetails, forkTxDetails] = await parallelTxDetails(
+        args,
+        { nonce, payload, finality },
+        payer
+      );
+
+      // Validate bridge data account.
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+
+      // Confirm that the message data accounts are the same.
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        newMessageSigner,
+        newForkedMessageSigner,
+        true
+      );
+
+      // Validate data in the message accounts.
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        program,
+        txDetails,
+        {
+          payer: payer.publicKey,
+          message: newMessageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        forkedProgram,
+        forkTxDetails,
+        {
+          payer: payer.publicKey,
+          message: newForkedMessageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+        },
+        { nonce, payload, finality },
+        commonEmitterSequence,
+        true,
+        payload
+      );
+
+      // Up tick emitter sequences.
+      commonEmitterSequence.iaddn(1);
+
+      // Validate fee collector.
+      const feeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData).is.not.null;
+      const forkFeeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+    });
+
+    it("Invoke `post_message_unreliable` with Payer as Emitter", async () => {
+      // Fetch default args.
+      let { nonce, payload, finality } = defaultArgs();
+      payload = Buffer.from("Would you just look at that?");
+
+      // Create two new message signers.
+      const newMessageSigner = anchor.web3.Keypair.generate();
+      const newForkedMessageSigner = anchor.web3.Keypair.generate();
+
+      // Create parallel transaction args.
+      const args: parallelTxArgs = {
+        new: {
+          program,
+          messageSigner: newMessageSigner,
+          emitterSigner: payer,
+        },
+        fork: {
+          program: forkedProgram,
+          messageSigner: newForkedMessageSigner,
+          emitterSigner: payer,
+        },
+      };
+
+      // Fetch the sequence before invoking the instruction.
+      const sequenceBefore = await coreBridge.EmitterSequence.fromPda(
+        connection,
+        program.programId,
+        payer.publicKey
+      );
+
+      // Invoke `postMessage`.
+      const [txDetails, forkTxDetails] = await parallelTxDetails(
+        args,
+        { nonce, payload, finality },
+        payer
+      );
+
+      // Validate bridge data account.
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+
+      // Confirm that the message data accounts are the same.
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        newMessageSigner,
+        newForkedMessageSigner,
+        true
+      );
+
+      // Validate data in the message accounts.
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        program,
+        txDetails,
+        {
+          payer: payer.publicKey,
+          message: newMessageSigner.publicKey,
+          emitter: payer.publicKey,
+        },
+        { nonce, payload, finality },
+        sequenceBefore.sequence,
+        true,
+        payload
+      );
+
+      await coreBridge.expectLegacyPostMessageAfterEffects(
+        forkedProgram,
+        forkTxDetails,
+        {
+          payer: payer.publicKey,
+          message: newForkedMessageSigner.publicKey,
+          emitter: payer.publicKey,
+        },
+        { nonce, payload, finality },
+        sequenceBefore.sequence,
+        true,
+        payload
+      );
+
+      // Validate fee collector.
+      const feeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData).is.not.null;
+      const forkFeeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
   });
 });

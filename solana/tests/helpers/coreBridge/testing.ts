@@ -20,15 +20,27 @@ export async function expectEqualBridgeAccounts(
 export async function expectEqualMessageAccounts(
   program: CoreBridgeProgram,
   messageSigner: anchor.web3.Keypair,
-  forkedMessageSigner: anchor.web3.Keypair
+  forkedMessageSigner: anchor.web3.Keypair,
+  unreliable: boolean
 ) {
   const connection = program.provider.connection;
 
-  const [messageData, forkedMessageData] = await Promise.all([
-    coreBridge.PostedMessageV1.fromAccountAddress(connection, messageSigner.publicKey),
-    coreBridge.PostedMessageV1.fromAccountAddress(connection, forkedMessageSigner.publicKey),
-  ]);
-  expectDeepEqual(messageData, forkedMessageData);
+  if (unreliable) {
+    const [messageData, forkedMessageData] = await Promise.all([
+      coreBridge.PostedMessageV1Unreliable.fromAccountAddress(connection, messageSigner.publicKey),
+      coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+        connection,
+        forkedMessageSigner.publicKey
+      ),
+    ]);
+    expectDeepEqual(messageData, forkedMessageData);
+  } else {
+    const [messageData, forkedMessageData] = await Promise.all([
+      coreBridge.PostedMessageV1.fromAccountAddress(connection, messageSigner.publicKey),
+      coreBridge.PostedMessageV1.fromAccountAddress(connection, forkedMessageSigner.publicKey),
+    ]);
+    expectDeepEqual(messageData, forkedMessageData);
+  }
 }
 
 export async function expectEqualGuardianSet(

@@ -1,7 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { ethers } from "ethers";
 import {
-  GUARDIAN_KEYS,
   InvalidAccountConfig,
   InvalidArgConfig,
   expectDeepEqual,
@@ -125,7 +124,12 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner,
+        false
+      );
 
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
@@ -202,7 +206,12 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner,
+        false
+      );
 
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
@@ -279,7 +288,12 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Confirm that the message data accounts are the same.
-      await coreBridge.expectEqualMessageAccounts(program, messageSigner, forkedMessageSigner);
+      await coreBridge.expectEqualMessageAccounts(
+        program,
+        messageSigner,
+        forkedMessageSigner,
+        false
+      );
 
       // We're testing a new emitter, set the sequence to zero.
       const startingSequence = new anchor.BN(0);
