@@ -14,7 +14,7 @@ import {
 import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
 import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 
 const GUARDIAN_SET_INDEX = 0;
 
@@ -43,7 +43,56 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
 
   describe("Ok", () => {
     it("Invoke `post_vaa`", async () => {
-      const [signatureSets, args] = await defaultArgs(connection, payer);
+      const { signatureSet, forkSignatureSet, args, parsed, messageHash } = await defaultArgs(
+        connection,
+        payer
+      );
+      expectDeepEqual(parsed.hash, Buffer.from(messageHash));
+
+      await parallelIxOk(program, forkedProgram, { payer: payer.publicKey }, args, payer, {
+        signatureSet,
+        forkSignatureSet,
+      });
+
+      const postedVaaData = await coreBridge.PostedVaaV1.fromPda(
+        connection,
+        program.programId,
+        messageHash
+      );
+      const forkPostedVaaData = await coreBridge.PostedVaaV1.fromPda(
+        connection,
+        forkedProgram.programId,
+        messageHash
+      );
+
+      // Signature set accounts are different, so we cannot do a deep equal compare. But we'll be
+      // close enough by checking each field.
+      const fields = ["consistencyLevel", "timestamp", "nonce", "emitterChain"];
+      for (const field of fields) {
+        expect(postedVaaData[field]).to.equal(forkPostedVaaData[field]);
+      }
+      const deepFields = ["sequence", "emitterAddress", "payload"];
+      for (const field of deepFields) {
+        expectDeepEqual(postedVaaData[field], forkPostedVaaData[field]);
+      }
+      expectDeepEqual(postedVaaData.signatureSet, signatureSet.publicKey);
+      expectDeepEqual(forkPostedVaaData.signatureSet, forkSignatureSet.publicKey);
+
+      // Patched the Posted VAA account to save guardian set index now. Legacy program does not
+      // save this field.
+      expect(postedVaaData.guardianSetIndex).to.equal(GUARDIAN_SET_INDEX);
+      expect(forkPostedVaaData.guardianSetIndex).to.equal(0);
+
+      // Now compare parsed VAA fields.
+      expect(postedVaaData.consistencyLevel).to.equal(parsed.consistencyLevel);
+      expect(postedVaaData.timestamp).to.equal(parsed.timestamp);
+      expect(postedVaaData.nonce).to.equal(parsed.nonce);
+      expect(postedVaaData.emitterChain).to.equal(parsed.emitterChain);
+      expect(postedVaaData.sequence.toString()).to.equal(parsed.sequence.toString());
+      expectDeepEqual(postedVaaData.emitterAddress, Array.from(parsed.emitterAddress));
+      expectDeepEqual(postedVaaData.payload, parsed.payload);
+
+      // TODO: save vaa for next test to show we cannot post again on new implementation.
     });
   });
 });
@@ -53,10 +102,33 @@ type SignatureSets = {
   forkSignatureSet: anchor.web3.Keypair;
 };
 
+type DefaultArgsOutput = {
+  signatureSet: anchor.web3.Keypair;
+  forkSignatureSet: anchor.web3.Keypair;
+  args: coreBridge.LegacyPostVaaArgs;
+  parsed: ParsedVaa;
+  messageHash: number[];
+};
+
+function computeMessageHash(args: coreBridge.LegacyPostVaaArgs): number[] {
+  const { timestamp, nonce, emitterChain, emitterAddress, sequence, consistencyLevel, payload } =
+    args;
+  const message = Buffer.alloc(51 + payload.length);
+  message.writeUInt32BE(timestamp, 0);
+  message.writeUInt32BE(nonce, 4);
+  message.writeUInt16BE(emitterChain, 8);
+  message.set(emitterAddress, 10);
+  message.writeBigUInt64BE(BigInt(sequence.toString()), 42);
+  message.writeUInt8(consistencyLevel, 50);
+  message.set(payload, 51);
+
+  return Array.from(ethers.utils.arrayify(ethers.utils.keccak256(message)));
+}
+
 async function defaultArgs(
   connection: anchor.web3.Connection,
   payer: anchor.web3.Keypair
-): Promise<[SignatureSets, coreBridge.LegacyPostVaaArgs]> {
+): Promise<DefaultArgsOutput> {
   const signedVaa = defaultVaa();
 
   const [signatureSet, forkSignatureSet] = await parallelVerifySignatures(
@@ -66,24 +138,25 @@ async function defaultArgs(
   );
 
   const parsed = parseVaa(signedVaa);
+  const args = {
+    version: parsed.version,
+    guardianSetIndex: parsed.guardianSetIndex,
+    timestamp: parsed.timestamp,
+    nonce: parsed.nonce,
+    emitterChain: parsed.emitterChain,
+    emitterAddress: Array.from(parsed.emitterAddress),
+    sequence: new anchor.BN(parsed.sequence.toString()),
+    consistencyLevel: parsed.consistencyLevel,
+    payload: parsed.payload,
+  };
 
-  return [
-    {
-      signatureSet,
-      forkSignatureSet,
-    },
-    {
-      version: parsed.version,
-      guardianSetIndex: parsed.guardianSetIndex,
-      timestamp: parsed.timestamp,
-      nonce: parsed.nonce,
-      emitterChain: parsed.emitterChain,
-      emitterAddress: Array.from(parsed.emitterAddress),
-      sequence: new anchor.BN(parsed.sequence.toString()),
-      consistencyLevel: parsed.consistencyLevel,
-      payload: parsed.payload,
-    },
-  ];
+  return {
+    signatureSet,
+    forkSignatureSet,
+    args,
+    parsed,
+    messageHash: computeMessageHash(args),
+  };
 }
 
 function defaultVaa(
@@ -117,19 +190,28 @@ function defaultVaa(
   return guardians.addSignatures(published, guardianIndices);
 }
 
-async function parallelIxDetails(
+async function parallelIxOk(
   program: coreBridge.CoreBridgeProgram,
   forkedProgram: coreBridge.CoreBridgeProgram,
-  accounts: coreBridge.LegacyInitializeContext,
-  args: coreBridge.LegacyInitializeArgs,
-  payer: anchor.web3.Keypair
+  accounts: { payer: anchor.web3.PublicKey },
+  args: coreBridge.LegacyPostVaaArgs,
+  payer: anchor.web3.Keypair,
+  signatureSets: SignatureSets
 ) {
   const connection = program.provider.connection;
-  // const ix = coreBridge.legacyInitializeIx(program, accounts, args);
-
-  // const forkedIx = coreBridge.legacyInitializeIx(forkedProgram, accounts, args);
-  // return Promise.all([
-  //   expectIxOkDetails(connection, [ix], [payer]),
-  //   expectIxOkDetails(connection, [forkedIx], [payer]),
-  // ]);
+  const { signatureSet, forkSignatureSet } = signatureSets;
+  const ix = coreBridge.legacyPostVaaIx(
+    program,
+    { signatureSet: signatureSet.publicKey, ...accounts },
+    args
+  );
+  const forkedIx = coreBridge.legacyPostVaaIx(
+    forkedProgram,
+    { signatureSet: forkSignatureSet.publicKey, ...accounts },
+    args
+  );
+  return Promise.all([
+    expectIxOkDetails(connection, [ix], [payer]),
+    expectIxOkDetails(connection, [forkedIx], [payer]),
+  ]);
 }
