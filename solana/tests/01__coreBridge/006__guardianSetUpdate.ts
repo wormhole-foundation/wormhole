@@ -75,11 +75,11 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
         expect(Buffer.from(guardianSetData.keys[i])).deep.equals(newGuardianKeys[i]);
       }
       expect(guardianSetData.index).equals(newGuardianSetIndex);
+      expect(guardianSetData.creationTime).equals(parseVaa(signedVaa).timestamp);
+      expect(guardianSetData.expirationTime).equals(0);
 
       // Validate guardian set accounts.
       await coreBridge.expectEqualGuardianSet(program, forkedProgram, newGuardianSetIndex);
-
-      // TODO: Why is the creationTime different for the new contracts.
 
       // Save Vaa to local variables.
       localVariables.set("signedVaa", signedVaa);
