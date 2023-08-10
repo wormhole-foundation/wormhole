@@ -4,9 +4,12 @@ pub use transfer_tokens::*;
 mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
-use crate::constants::{
-    CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, MINT_AUTHORITY_SEED_PREFIX,
-    TRANSFER_AUTHORITY_SEED_PREFIX,
+use crate::{
+    constants::{
+        CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, MINT_AUTHORITY_SEED_PREFIX,
+        TRANSFER_AUTHORITY_SEED_PREFIX,
+    },
+    utils::TruncateAmount,
 };
 use anchor_lang::{
     prelude::*,
@@ -144,12 +147,15 @@ pub fn withdraw_native_tokens<'info>(
 
 pub fn deposit_native_tokens<'info>(
     token_program: &Program<'info, Token>,
+    mint: &Account<'info, Mint>,
     src_token: &Account<'info, TokenAccount>,
     custody_token: &Account<'info, TokenAccount>,
     transfer_authority: &AccountInfo<'info>,
     transfer_authority_bump: u8,
-    transfer_amount: u64,
-) -> Result<()> {
+    raw_amount: u64,
+) -> Result<u64> {
+    let transfer_amount = mint.truncate_amount(raw_amount);
+
     token::transfer(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
@@ -161,5 +167,7 @@ pub fn deposit_native_tokens<'info>(
             &[&[TRANSFER_AUTHORITY_SEED_PREFIX, &[transfer_authority_bump]]],
         ),
         transfer_amount,
-    )
+    )?;
+
+    Ok(transfer_amount)
 }

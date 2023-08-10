@@ -19,15 +19,20 @@ pub struct RegisterChain<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// This account is created using only the emitter chain ID as its seed. There are registered
-    /// emitter accounts in existence that use the chain ID and address as seeds. But having both of
-    /// these as seeds potentially allows for multiple emitters to be registered for a given chain
-    /// ID (when there should only be one).
+    /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
+    /// both emitter chain and address to derive this PDA address. Having both of these as seeds
+    /// potentially allows for multiple emitters to be registered for a given chain ID (when there
+    /// should only be one).
+    ///
+    /// See the new `register_chain` instruction handler for the correct way to create this account.
     #[account(
         init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
-        seeds = [&try_registered_emitter_seed(posted_vaa.as_ref())?],
+        seeds = [
+            try_new_foreign_chain(posted_vaa.as_ref())?.as_ref(),
+            try_new_foreign_emitter(posted_vaa.as_ref())?.as_ref(),
+        ],
         bump
     )]
     registered_emitter: Account<'info, RegisteredEmitter>,
@@ -95,10 +100,18 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
     Ok(())
 }
 
-fn try_registered_emitter_seed(acc_info: &AccountInfo) -> Result<[u8; 2]> {
+fn try_new_foreign_chain(acc_info: &AccountInfo) -> Result<[u8; 2]> {
     let data = &acc_info.try_borrow_data()?[GOVERNANCE_DECREE_START..];
     match gov::RegisterChain::parse(data) {
         Ok(decree) => Ok(decree.foreign_chain().to_be_bytes()),
+        Err(_) => err!(TokenBridgeError::InvalidGovernanceAction),
+    }
+}
+
+fn try_new_foreign_emitter(acc_info: &AccountInfo) -> Result<[u8; 32]> {
+    let data = &acc_info.try_borrow_data()?[GOVERNANCE_DECREE_START..];
+    match gov::RegisterChain::parse(data) {
+        Ok(decree) => Ok(decree.foreign_emitter()),
         Err(_) => err!(TokenBridgeError::InvalidGovernanceAction),
     }
 }
