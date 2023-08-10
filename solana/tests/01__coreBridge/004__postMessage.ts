@@ -67,7 +67,7 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       });
     }
 
-    it("Instruction: Cannot Invoke `postMessage` Without Paying Fee", async () => {
+    it("Instruction: Cannot Invoke `post_message` Without Paying Fee", async () => {
       // Create the post message instruction.
       const messageSigner = anchor.web3.Keypair.generate();
       const emitter = anchor.web3.Keypair.generate();
@@ -80,7 +80,7 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       await expectIxErr(connection, [ix], [payer, emitter, messageSigner], "InsufficientFees");
     });
 
-    it("Instruction: Cannot Invoke `postMessage` With Invalid Payload", async () => {
+    it("Instruction: Cannot Invoke `post_message` With Invalid Payload", async () => {
       // Create the post message instruction.
       const messageSigner = anchor.web3.Keypair.generate();
       const emitter = anchor.web3.Keypair.generate();
@@ -107,7 +107,7 @@ describe("Core Bridge -- Instruction: Post Message", () => {
   });
 
   describe("Ok", () => {
-    it("Invoke `postMessage`", async () => {
+    it("Invoke `post_message`", async () => {
       // Fetch default args.
       const { nonce, payload, finality } = defaultArgs();
       const accounts = {
@@ -181,7 +181,7 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
 
-    it("Invoke `postMessage` Again With Same Emitter", async () => {
+    it("Invoke `post_message` Again With Same Emitter", async () => {
       // Fetch default args.
       let { nonce, payload, finality } = defaultArgs();
       const accounts = {
@@ -258,7 +258,7 @@ describe("Core Bridge -- Instruction: Post Message", () => {
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
 
-    it("Invoke `postMessage` (Emitter != Payer)", async () => {
+    it("Invoke `post_message` (Emitter != Payer)", async () => {
       // Create new emitter.
       const emitterSigner = anchor.web3.Keypair.generate();
 

@@ -84,7 +84,7 @@ describe("Core Bridge -- Instruction: Set Message Fee", () => {
   });
 
   describe("Ok", () => {
-    it("Invoke `setMessageFee`", async () => {
+    it("Invoke `set_message_fee`", async () => {
       // New fee amount.
       const amount = new anchor.BN(6969);
 
@@ -117,7 +117,7 @@ describe("Core Bridge -- Instruction: Set Message Fee", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it("Cannot Invoke `setMessageFee` with Same VAA", async () => {
+    it("Cannot Invoke `set_message_fee` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       await expectIxErr(

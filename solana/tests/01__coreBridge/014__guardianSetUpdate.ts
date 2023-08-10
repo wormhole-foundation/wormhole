@@ -43,7 +43,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
   describe("Invalid Interaction", () => {});
 
   describe("Ok", () => {
-    it("Invoke `guardianSetUpdate`", async () => {
+    it("Invoke `guardian_set_update`", async () => {
       const newGuardianSetIndex = guardians.setIndex + 1;
       const newGuardianKeys = guardians.getPublicKeys().slice(0, 2);
 
@@ -87,7 +87,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it("Cannot Invoke `guardianSetUpdate` with Same VAA", async () => {
+    it("Cannot Invoke `guardian_set_update` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       // Invoke the instruction.
@@ -105,7 +105,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
       );
     });
 
-    it("Invoke `guardianSetUpdate` Again to Set Original Guardian Keys", async () => {
+    it("Invoke `guardian_set_update` Again to Set Original Guardian Keys", async () => {
       const newGuardianSetIndex = guardians.setIndex + 1;
       const newGuardianKeys = guardians.getPublicKeys();
 

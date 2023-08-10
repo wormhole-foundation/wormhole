@@ -43,7 +43,7 @@ describe("Core Bridge -- Instruction: Transfer Fees", () => {
   describe("Invalid Interaction", () => {});
 
   describe("Ok", () => {
-    it("Invoke `transferFees`", async () => {
+    it("Invoke `transfer_fees`", async () => {
       // Amount of fees to be transferred and the recipient.
       const amount = 42069420;
       const recipient = anchor.web3.Keypair.generate().publicKey;
@@ -91,7 +91,7 @@ describe("Core Bridge -- Instruction: Transfer Fees", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it("Cannot Invoke `transferFees` with Same VAA", async () => {
+    it("Cannot Invoke `transfer_fees` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       await expectIxErr(
