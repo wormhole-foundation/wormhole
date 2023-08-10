@@ -15,7 +15,7 @@ import * as tokenBridge from "../helpers/tokenBridge";
 import * as coreBridge from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
-const GUARDIAN_SET_INDEX = 0;
+const GUARDIAN_SET_INDEX = 2;
 const GOVERNANCE_SEQUENCE = 2_010_000;
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
