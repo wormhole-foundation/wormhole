@@ -6,6 +6,7 @@ import {
   InvalidAccountConfig,
   verifySignaturesAndPostVaa,
   expectDeepEqual,
+  range,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
@@ -45,11 +46,10 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
   describe("Ok", () => {
     it("Invoke `guardianSetUpdate`", async () => {
       const newGuardianSetIndex = guardians.setIndex + 1;
-      const newGuardianCount = 2;
-      const newGuardianKeys = guardians.getPublicKeys().slice(0, newGuardianCount);
+      const newGuardianKeys = guardians.getPublicKeys().slice(0, 2);
 
       // Create the signed VAA.
-      const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys);
+      const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys, range(0, 13));
 
       // Invoke the instruction.
       const [txDetails, txForkDetails] = await parallelTxDetails(
@@ -66,20 +66,23 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
       // Validate guardian data.
-      const guardianSetData = await coreBridge.GuardianSet.fromPda(
+      const newGuardianSetData = await coreBridge.GuardianSet.fromPda(
         connection,
         program.programId,
         newGuardianSetIndex
       );
-      for (let i = 0; i < newGuardianCount; i++) {
-        expect(Buffer.from(guardianSetData.keys[i])).deep.equals(newGuardianKeys[i]);
+      for (let i = 0; i < newGuardianKeys.length; i++) {
+        expect(Buffer.from(newGuardianSetData.keys[i])).deep.equals(newGuardianKeys[i]);
       }
-      expect(guardianSetData.index).equals(newGuardianSetIndex);
-      expect(guardianSetData.creationTime).equals(parseVaa(signedVaa).timestamp);
-      expect(guardianSetData.expirationTime).equals(0);
+      expect(newGuardianSetData.index).equals(newGuardianSetIndex);
+      expect(newGuardianSetData.creationTime).equals(parseVaa(signedVaa).timestamp);
+      expect(newGuardianSetData.expirationTime).equals(0);
 
       // Validate guardian set accounts.
       await coreBridge.expectEqualGuardianSet(program, forkedProgram, newGuardianSetIndex);
+
+      // Update mock guardians.
+      guardians.updateGuardianSetIndex(newGuardianSetIndex);
 
       // Save Vaa to local variables.
       localVariables.set("signedVaa", signedVaa);
@@ -102,13 +105,54 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
         "already in use"
       );
     });
+
+    it("Invoke `guardianSetUpdate` Again to Set Original Guardian Keys", async () => {
+      const newGuardianSetIndex = guardians.setIndex + 1;
+      const newGuardianKeys = guardians.getPublicKeys();
+
+      // Create the signed VAA.
+      const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys, range(0, 2));
+
+      // Invoke the instruction.
+      const [txDetails, txForkDetails] = await parallelTxDetails(
+        program,
+        forkedProgram,
+        {
+          payer: payer.publicKey,
+        },
+        payer,
+        signedVaa
+      );
+
+      // Validate bridge data account.
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+
+      // Validate guardian data.
+      const newGuardianSetData = await coreBridge.GuardianSet.fromPda(
+        connection,
+        program.programId,
+        newGuardianSetIndex
+      );
+      for (let i = 0; i < newGuardianKeys.length; i++) {
+        expect(Buffer.from(newGuardianSetData.keys[i])).deep.equals(newGuardianKeys[i]);
+      }
+      expect(newGuardianSetData.index).equals(newGuardianSetIndex);
+      expect(newGuardianSetData.creationTime).equals(parseVaa(signedVaa).timestamp);
+      expect(newGuardianSetData.expirationTime).equals(0);
+
+      // Validate guardian set accounts.
+      await coreBridge.expectEqualGuardianSet(program, forkedProgram, newGuardianSetIndex);
+
+      // Update mock guardians.
+      guardians.updateGuardianSetIndex(newGuardianSetIndex);
+    });
   });
 });
 
-function defaultVaa(newIndex: number, newKeys: Buffer[]): Buffer {
+function defaultVaa(newIndex: number, newKeys: Buffer[], keyRange: number[]): Buffer {
   const timestamp = 4294967295;
   const published = governance.publishWormholeGuardianSetUpgrade(timestamp, newIndex, newKeys);
-  return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  return guardians.addSignatures(published, keyRange);
 }
 
 async function parallelTxDetails(
