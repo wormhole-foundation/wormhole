@@ -3,7 +3,10 @@ use crate::{
     state::Claim, utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::{PartialPostedVaaV1, VaaV1MessageHash};
+use core_bridge_program::{
+    state::{PartialPostedVaaV1, VaaV1MessageHash},
+    CoreBridge,
+};
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 use wormhole_raw_vaas::token_bridge::gov;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
@@ -20,7 +23,8 @@ pub struct UpgradeContract<'info> {
             PartialPostedVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program,
     )]
     posted_vaa: Account<'info, PartialPostedVaaV1>,
 
@@ -69,6 +73,7 @@ pub struct UpgradeContract<'info> {
 
     bpf_loader_upgradeable_program: Program<'info, BpfLoaderUpgradeable>,
     system_program: Program<'info, System>,
+    core_bridge_program: Program<'info, CoreBridge>,
 }
 
 impl<'info> UpgradeContract<'info> {

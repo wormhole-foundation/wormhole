@@ -18,6 +18,7 @@ export type LegacyRegisterChainContext = {
   postedVaa?: PublicKey;
   claim?: PublicKey;
   rent?: PublicKey; // TODO: demonstrate this isn't needed in tests
+  coreBridgeProgram: PublicKey;
 };
 
 export function legacyRegisterChainIx(
@@ -31,7 +32,7 @@ export function legacyRegisterChainIx(
   const foreignChain = payload.readUInt16BE(35);
   const foreignEmitter = Array.from(payload.subarray(37));
 
-  let { payer, config, registeredEmitter, postedVaa, claim, rent } = accounts;
+  let { payer, config, registeredEmitter, postedVaa, claim, rent, coreBridgeProgram } = accounts;
 
   if (config === undefined) {
     config = Config.address(programId);
@@ -42,7 +43,7 @@ export function legacyRegisterChainIx(
   }
 
   if (postedVaa === undefined) {
-    postedVaa = coreBridge.PostedVaaV1.address(programId, Array.from(hash));
+    postedVaa = coreBridge.PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -91,6 +92,11 @@ export function legacyRegisterChainIx(
     },
     {
       pubkey: SystemProgram.programId,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: coreBridgeProgram,
       isWritable: false,
       isSigner: false,
     },
