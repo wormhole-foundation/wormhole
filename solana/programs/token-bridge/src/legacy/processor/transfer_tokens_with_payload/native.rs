@@ -129,8 +129,9 @@ pub fn transfer_tokens_with_payload_native(
     let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Deposit native assets from the source token account into the custody account.
-    deposit_native_tokens(
+    let amount = deposit_native_tokens(
         &ctx.accounts.token_program,
+        &ctx.accounts.mint,
         &ctx.accounts.src_token,
         &ctx.accounts.custody_token,
         &ctx.accounts.transfer_authority,

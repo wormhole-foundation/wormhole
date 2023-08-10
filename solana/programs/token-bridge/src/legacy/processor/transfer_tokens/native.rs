@@ -33,7 +33,7 @@ pub struct TransferTokensNative<'info> {
     /// NOTE: ecause the legacy implementation took this as a mutable account for some reason, we
     /// must preserve this mutability. But there are no SPL Token instructions in this instruction
     /// handler that require this account to be mutable.
-    #[account(mut)]
+    //#[account(mut)]
     mint: Box<Account<'info, Mint>>,
 
     #[account(
@@ -132,8 +132,9 @@ pub fn transfer_tokens_native(
     } = args;
 
     // Deposit native assets from the sender's account into the custody account.
-    deposit_native_tokens(
+    let amount = deposit_native_tokens(
         &ctx.accounts.token_program,
+        &ctx.accounts.mint,
         &ctx.accounts.src_token,
         &ctx.accounts.custody_token,
         &ctx.accounts.transfer_authority,
