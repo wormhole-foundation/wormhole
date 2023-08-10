@@ -14,12 +14,15 @@ import { expect } from "chai";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
-const GOVERNANCE_SEQUENCE = 2_003_000;
+const GOVERNANCE_SEQUENCE = 2_004_000;
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
   GOVERNANCE_SEQUENCE - 1
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+// Test variables.
+const localVariables = new Map<string, any>();
 
 describe("Core Bridge -- Instruction: Transfer Fees", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -51,7 +54,7 @@ describe("Core Bridge -- Instruction: Transfer Fees", () => {
       }
 
       // Invoke the instruction.
-      await parallelTxDetails(
+      const [txDetails, txForkDetails, signedVaa] = await parallelTxDetails(
         program,
         forkedProgram,
         {
@@ -69,6 +72,39 @@ describe("Core Bridge -- Instruction: Transfer Fees", () => {
         const balance = await connection.getBalance(recipient);
         expect(balance).equals(amount * 2);
       }
+
+      // Compare the bridge data.
+      await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
+
+      // Validate fee collector.
+      const feeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData).is.not.null;
+      const forkFeeCollectorData = await connection.getAccountInfo(
+        coreBridge.FeeCollector.address(program.programId)
+      );
+      expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
+
+      // Save the signed VAA for later.
+      localVariables.set("signedVaa", signedVaa);
+    });
+
+    it("Cannot Invoke `transferFees` with Same VAA", async () => {
+      const signedVaa: Buffer = localVariables.get("signedVaa");
+
+      await expectIxErr(
+        connection,
+        [
+          coreBridge.legacyTransferFeesIx(
+            program,
+            { payer: payer.publicKey, recipient: anchor.web3.Keypair.generate().publicKey },
+            parseVaa(signedVaa)
+          ),
+        ],
+        [payer],
+        "already in use"
+      );
     });
   });
 });
@@ -122,5 +158,6 @@ async function parallelTxDetails(
   return Promise.all([
     expectIxOkDetails(connection, [ix], [payer]),
     expectIxOkDetails(connection, [forkedIx], [payer]),
+    signedVaa,
   ]);
 }

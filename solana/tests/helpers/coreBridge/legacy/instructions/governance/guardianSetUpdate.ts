@@ -5,12 +5,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import {
-  BridgeProgramData,
-  Claim,
-  GuardianSet,
-  PostedVaaV1,
-} from "../../state";
+import { BridgeProgramData, Claim, GuardianSet, PostedVaaV1 } from "../../state";
 import { CoreBridgeProgram } from "../../..";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
@@ -30,11 +25,9 @@ export function legacyGuardianSetUpdateIx(
   parsed: ParsedVaa
 ) {
   const programId = program.programId;
-  const { emitterChain, emitterAddress, sequence, guardianSetIndex, hash } =
-    parsed;
+  const { emitterChain, emitterAddress, sequence, guardianSetIndex, hash } = parsed;
 
-  let { payer, bridge, postedVaa, claim, currGuardianSet, newGuardianSet } =
-    accounts;
+  let { payer, bridge, postedVaa, claim, currGuardianSet, newGuardianSet } = accounts;
 
   if (bridge === undefined) {
     bridge = BridgeProgramData.address(programId);
@@ -47,8 +40,8 @@ export function legacyGuardianSetUpdateIx(
   if (claim === undefined) {
     claim = Claim.address(
       programId,
-      emitterChain,
       Array.from(emitterAddress),
+      emitterChain,
       new BN(sequence.toString())
     );
   }
