@@ -16,21 +16,15 @@ import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 import { MockTokenBridge, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
-describe("Token Bridge -- Instruction: Complete Transfer (Native)", () => {
+describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
-  );
+  const program = tokenBridge.getAnchorProgram(connection, tokenBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
 
-  const forkedProgram = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb")
-  );
+  const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   const mints: MintInfo[] = [MINT_INFO_8, MINT_INFO_9];
 
@@ -100,7 +94,6 @@ async function parallelTxDetails(
     program,
     {
       coreMessage: coreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
       ...accounts,
     },
     args
@@ -117,7 +110,6 @@ async function parallelTxDetails(
     forkedProgram,
     {
       coreMessage: forkCoreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
       ...accounts,
     },
     args

@@ -3,6 +3,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import TokenBridgeIdl from "../../../target/idl/wormhole_token_bridge_solana.json";
 import { WormholeTokenBridgeSolana } from "../../../target/types/wormhole_token_bridge_solana";
 import { ProgramId } from "./consts";
+import * as coreBridge from "../coreBridge";
 
 export * from "./consts";
 // export * from "./instructions";
@@ -22,4 +23,26 @@ export function getProgramId(programId?: ProgramId): PublicKey {
 
 export function getAnchorProgram(connection: Connection, programId: PublicKey): TokenBridgeProgram {
   return new Program<WormholeTokenBridgeSolana>(TokenBridgeIdl as any, programId, { connection });
+}
+
+export function mainnet(): PublicKey {
+  return getProgramId();
+}
+
+export function localnet(): PublicKey {
+  return getProgramId("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE");
+}
+
+export function coreBridgeProgramId(program: TokenBridgeProgram): PublicKey {
+  switch (program.programId.toString() as ProgramId) {
+    case "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb": {
+      return coreBridge.mainnet();
+    }
+    case "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE": {
+      return coreBridge.localnet();
+    }
+    default: {
+      throw new Error("unsupported");
+    }
+  }
 }

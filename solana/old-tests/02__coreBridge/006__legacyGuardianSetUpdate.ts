@@ -1,7 +1,4 @@
-import {
-  GovernanceEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as coreBridgeSDK from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { web3 } from "@coral-xyz/anchor";
 import { expect } from "chai";
@@ -14,7 +11,7 @@ import {
   airdrop,
   expectIxErr,
   expectIxOk,
-  verifySignaturesAndPostVaa,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 
 const GUARDIAN_SET_INDEX = 0;
@@ -59,7 +56,7 @@ describe("Core Bridge: Legacy Guardian Set Update (Governance)", () => {
         );
 
         // Verify and Post
-        await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+        await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
         return signedVaa;
       })();
@@ -81,7 +78,7 @@ describe("Core Bridge: Legacy Guardian Set Update (Governance)", () => {
         );
 
         // Verify and Post
-        await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+        await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
         await expectIxOk(
           connection,
@@ -149,7 +146,7 @@ describe("Core Bridge: Legacy Guardian Set Update (Governance)", () => {
       const signedVaa = guardians.addSignatures(published, [0]);
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       await expectIxOk(
         connection,
@@ -202,7 +199,7 @@ describe("Core Bridge: Legacy Guardian Set Update (Governance)", () => {
       const signedVaa = guardians.addSignatures(published, [0, 1]);
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       await expectIxOk(
         connection,

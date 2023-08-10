@@ -8,7 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { LegacyTransferTokensWithPayloadArgs } from "..";
-import { TokenBridgeProgram } from "../../..";
+import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
 import * as coreBridge from "../../../../coreBridge";
 import {
   Config,
@@ -34,7 +34,7 @@ export type LegacyTransferTokensWithPayloadNativeContext = {
   clock?: PublicKey; // TODO: demonstrate this isn't needed in tests
   senderAuthority: PublicKey;
   rent?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  coreBridgeProgram: PublicKey;
+  coreBridgeProgram?: PublicKey;
 };
 
 export function legacyTransferTokensWithPayloadNativeIx(
@@ -62,6 +62,10 @@ export function legacyTransferTokensWithPayloadNativeIx(
     rent,
     coreBridgeProgram,
   } = accounts;
+
+  if (coreBridgeProgram === undefined) {
+    coreBridgeProgram = coreBridgeProgramId(program);
+  }
 
   if (config === undefined) {
     config = Config.address(programId);

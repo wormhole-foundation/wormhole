@@ -7,12 +7,9 @@ import {
   airdrop,
   expectIxErr,
   expectIxOk,
-  verifySignaturesAndPostVaa,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
-import {
-  GovernanceEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as coreBridgeSDK from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
 const GUARDIAN_SET_INDEX = 0;
@@ -53,18 +50,12 @@ describe("Core Bridge: Legacy Set Message Fee (Governance)", () => {
       );
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       // Set message fee.
       await expectIxOk(
         connection,
-        [
-          coreBridgeSDK.createSetFeesInstruction(
-            CORE_BRIDGE_PROGRAM_ID,
-            payer,
-            signedVaa
-          ),
-        ],
+        [coreBridgeSDK.createSetFeesInstruction(CORE_BRIDGE_PROGRAM_ID, payer, signedVaa)],
         [payerSigner]
       );
 
@@ -78,13 +69,7 @@ describe("Core Bridge: Legacy Set Message Fee (Governance)", () => {
 
       await expectIxErr(
         connection,
-        [
-          coreBridgeSDK.createSetFeesInstruction(
-            CORE_BRIDGE_PROGRAM_ID,
-            payer,
-            signedVaa
-          ),
-        ],
+        [coreBridgeSDK.createSetFeesInstruction(CORE_BRIDGE_PROGRAM_ID, payer, signedVaa)],
         [payerSigner],
         "AlreadyInitialized"
       );

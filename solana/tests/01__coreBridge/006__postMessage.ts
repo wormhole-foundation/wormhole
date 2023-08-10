@@ -12,20 +12,14 @@ import { transferMessageFeeIx } from "../helpers/coreBridge/utils";
 import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
 
-describe("Core Bridge -- Instruction: Post Message", () => {
+describe("Core Bridge -- Legacy Instruction: Post Message", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-  );
+  const program = coreBridge.getAnchorProgram(connection, coreBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
-  const forkedProgram = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
-  );
+  const forkedProgram = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   const commonEmitterSequence = new anchor.BN(0);
 
@@ -369,14 +363,13 @@ async function parallelTxDetails(
   const forkedIx = coreBridge.legacyPostMessageIx(forkedProgram, accounts, args);
 
   // Pay the fee collector prior to publishing each message.
-  await Promise.all([
-    expectIxOkDetails(connection, [await transferMessageFeeIx(program, payer.publicKey)], [payer]),
-    expectIxOkDetails(
-      connection,
-      [await transferMessageFeeIx(forkedProgram, payer.publicKey)],
-      [payer]
+  await expectIxOkDetails(
+    connection,
+    await Promise.all(
+      [program, forkedProgram].map((prog) => transferMessageFeeIx(prog, payer.publicKey))
     ),
-  ]);
+    [payer]
+  );
 
   return Promise.all([
     expectIxOkDetails(connection, [ix], [payer, emitterSigner, messageSigner]),

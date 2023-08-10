@@ -7,7 +7,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { TokenBridgeProgram } from "../../..";
+import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
 import * as coreBridge from "../../../../coreBridge";
 import { Claim, Config, RegisteredEmitter } from "../../state";
 
@@ -18,7 +18,7 @@ export type LegacyRegisterChainContext = {
   postedVaa?: PublicKey;
   claim?: PublicKey;
   rent?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  coreBridgeProgram: PublicKey;
+  coreBridgeProgram?: PublicKey;
 };
 
 export function legacyRegisterChainIx(
@@ -33,6 +33,10 @@ export function legacyRegisterChainIx(
   const foreignEmitter = Array.from(payload.subarray(37));
 
   let { payer, config, registeredEmitter, postedVaa, claim, rent, coreBridgeProgram } = accounts;
+
+  if (coreBridgeProgram === undefined) {
+    coreBridgeProgram = coreBridgeProgramId(program);
+  }
 
   if (config === undefined) {
     config = Config.address(programId);

@@ -17,6 +17,7 @@ import { TokenBridgeProgram, custodyTokenPda } from "./tokenBridge";
 import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import * as tokenBridge from "./tokenBridge";
 import * as coreBridge from "./coreBridge";
+import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -166,7 +167,7 @@ async function debugSendAndConfirmTransaction(
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function verifySignaturesAndPostVaa(
+export async function invokeVerifySignaturesAndPostVaa(
   program: CoreBridgeProgram,
   payer: Keypair,
   signedVaa: Buffer
@@ -184,19 +185,13 @@ export async function verifySignaturesAndPostVaa(
 
 export async function parallelPostVaa(connection: Connection, payer: Keypair, signedVaa: Buffer) {
   return Promise.all([
-    verifySignaturesAndPostVaa(
-      coreBridge.getAnchorProgram(
-        connection,
-        coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-      ),
+    invokeVerifySignaturesAndPostVaa(
+      coreBridge.getAnchorProgram(connection, coreBridge.localnet()),
       payer,
       signedVaa
     ),
-    verifySignaturesAndPostVaa(
-      coreBridge.getAnchorProgram(
-        connection,
-        coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
-      ),
+    invokeVerifySignaturesAndPostVaa(
+      coreBridge.getAnchorProgram(connection, coreBridge.mainnet()),
       payer,
       signedVaa
     ),
@@ -237,4 +232,56 @@ export async function getTokenBalances(
 
 export function range(start: number, end: number): number[] {
   return Array.from({ length: end - start }, (_, i) => start + i);
+}
+
+export async function invokeVerifySignatures(
+  program: CoreBridgeProgram,
+  payer: Keypair,
+  signatureSet: Keypair,
+  signedVaa: Buffer
+) {
+  const connection = program.provider.connection;
+  const ixs = await createVerifySignaturesInstructions(
+    connection,
+    program.programId,
+    payer.publicKey,
+    signedVaa,
+    signatureSet.publicKey
+  );
+  if (ixs.length % 2 !== 0) {
+    throw new Error("impossible");
+  }
+
+  const txs: Transaction[] = [];
+  for (let i = 0; i < ixs.length; i += 2) {
+    txs.push(new Transaction().add(...ixs.slice(i, i + 2)));
+  }
+
+  return Promise.all(
+    txs.map((tx) => sendAndConfirmTransaction(connection, tx, [payer, signatureSet]))
+  );
+}
+
+export async function parallelVerifySignatures(
+  connection: Connection,
+  payer: Keypair,
+  signedVaa: Buffer
+) {
+  const signatureSets = [Keypair.generate(), Keypair.generate()];
+  await Promise.all([
+    invokeVerifySignatures(
+      coreBridge.getAnchorProgram(connection, coreBridge.localnet()),
+      payer,
+      signatureSets[0],
+      signedVaa
+    ),
+    invokeVerifySignatures(
+      coreBridge.getAnchorProgram(connection, coreBridge.mainnet()),
+      payer,
+      signatureSets[1],
+      signedVaa
+    ),
+  ]);
+
+  return signatureSets;
 }

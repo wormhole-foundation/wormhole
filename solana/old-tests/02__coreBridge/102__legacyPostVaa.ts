@@ -1,7 +1,4 @@
-import {
-  MockEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { BN, web3 } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { coreBridge } from "wormhole-solana-sdk";
@@ -12,7 +9,7 @@ import {
   airdrop,
   expectIxErr,
   expectIxOk,
-  verifySignaturesAndPostVaa,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 import { ethers } from "ethers";
 
@@ -93,19 +90,14 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
       const nonce = 420;
       const payload = Buffer.from("Someone set us up the bomb.");
       const consistencyLevel = 1;
-      const published = foreignEmitter.publishMessage(
-        nonce,
-        payload,
-        consistencyLevel,
-        timestamp
-      );
+      const published = foreignEmitter.publishMessage(nonce, payload, consistencyLevel, timestamp);
       const signedVaa = guardians.addSignatures(
         published,
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
       );
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       // TODO: Check Posted VAA account.
     });
@@ -115,10 +107,7 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
       const signatureSet = new web3.PublicKey(signatureSetKey);
 
       const { sigVerifySuccesses, messageHash, guardianSetIndex } =
-        await coreBridge.SignatureSet.fromAccountAddress(
-          connection,
-          signatureSet
-        );
+        await coreBridge.SignatureSet.fromAccountAddress(connection, signatureSet);
 
       // Verify that this signature set reached quorum.
       const guardianSetData = await coreBridge.GuardianSet.fromPda(
@@ -129,9 +118,7 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
       const numVerified = sigVerifySuccesses
         .map((v) => Number(v))
         .reduce((prev, curr) => prev + curr);
-      expect(numVerified).is.greaterThanOrEqual(
-        (2 * guardianSetData.keys.length) / 3
-      );
+      expect(numVerified).is.greaterThanOrEqual((2 * guardianSetData.keys.length) / 3);
 
       const accounts = coreBridge.LegacyPostVaaContext.new(
         CORE_BRIDGE_PROGRAM_ID,
@@ -158,11 +145,7 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
         payload: EXPECTED_PAYLOAD,
       };
 
-      const ix = coreBridge.legacyPostVaaIx(
-        CORE_BRIDGE_PROGRAM_ID,
-        accounts,
-        args
-      );
+      const ix = coreBridge.legacyPostVaaIx(CORE_BRIDGE_PROGRAM_ID, accounts, args);
 
       await expectIxOk(connection, [ix], [payerSigner]);
 
@@ -231,10 +214,7 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
       const signatureSet = new web3.PublicKey(signatureSetKey);
 
       const { sigVerifySuccesses, messageHash, guardianSetIndex } =
-        await coreBridge.SignatureSet.fromAccountAddress(
-          connection,
-          signatureSet
-        );
+        await coreBridge.SignatureSet.fromAccountAddress(connection, signatureSet);
 
       // Verify that this signature set reached quorum.
       const guardianSetData = await coreBridge.GuardianSet.fromPda(
@@ -273,11 +253,10 @@ describe("Core Bridge: Legacy Verify Signatures and Post VAA", () => {
       const [signatureSetKey, expectedSequence] = VALID_SIGNATURE_SETS[1];
       const signatureSet = new web3.PublicKey(signatureSetKey);
 
-      const { messageHash, guardianSetIndex } =
-        await coreBridge.SignatureSet.fromAccountAddress(
-          connection,
-          signatureSet
-        );
+      const { messageHash, guardianSetIndex } = await coreBridge.SignatureSet.fromAccountAddress(
+        connection,
+        signatureSet
+      );
 
       const incorrectSequence = expectedSequence + 1;
       const args = {

@@ -23,3 +23,11 @@ export function getProgramId(programId?: ProgramId): PublicKey {
 export function getAnchorProgram(connection: Connection, programId: PublicKey): CoreBridgeProgram {
   return new Program<WormholeCoreBridgeSolana>(CoreBridgeIdl as any, programId, { connection });
 }
+
+export function mainnet(): PublicKey {
+  return getProgramId();
+}
+
+export function localnet(): PublicKey {
+  return getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
+}
