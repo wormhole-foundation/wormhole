@@ -4,9 +4,8 @@ import {
   expectIxErr,
   expectIxOkDetails,
   InvalidAccountConfig,
-  verifySignaturesAndPostVaa,
-  expectDeepEqual,
   range,
+  parallelPostVaa,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
@@ -127,7 +126,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
       // Validate bridge data account.
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
 
-      // Validate guardian data.
+      // Validate guardian set data.
       const newGuardianSetData = await coreBridge.GuardianSet.fromPda(
         connection,
         program.programId,
@@ -140,7 +139,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
       expect(newGuardianSetData.creationTime).equals(parseVaa(signedVaa).timestamp);
       expect(newGuardianSetData.expirationTime).equals(0);
 
-      // Validate guardian set accounts.
+      // Validate the new guardian set accounts.
       await coreBridge.expectEqualGuardianSet(program, forkedProgram, newGuardianSetIndex);
 
       // Update mock guardians.
@@ -150,7 +149,7 @@ describe("Core Bridge -- Instruction: Guardian Set Update", () => {
 });
 
 function defaultVaa(newIndex: number, newKeys: Buffer[], keyRange: number[]): Buffer {
-  const timestamp = 4294967295;
+  const timestamp = 294967295;
   const published = governance.publishWormholeGuardianSetUpgrade(timestamp, newIndex, newKeys);
   return guardians.addSignatures(published, keyRange);
 }
@@ -168,10 +167,7 @@ async function parallelTxDetails(
   const parsedVaa = parseVaa(signedVaa);
 
   // Verify and Post
-  await Promise.all([
-    verifySignaturesAndPostVaa(program, payer, signedVaa),
-    verifySignaturesAndPostVaa(forkedProgram, payer, signedVaa),
-  ]);
+  await parallelPostVaa(connection, payer, signedVaa);
 
   // Create the transferFees instruction.
   const ix = await coreBridge.legacyGuardianSetUpdateIx(program, accounts, parsedVaa);
