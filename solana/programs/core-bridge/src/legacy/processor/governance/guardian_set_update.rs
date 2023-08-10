@@ -134,14 +134,12 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
         for other in keys.iter().skip(i + 1) {
             require!(guardian != other, CoreBridgeError::DuplicateGuardianAddress);
         }
-    }
-
-    let now = Clock::get().map(Timestamp::from)?;
+    } 
 
     // Set new guardian set account fields.
     ctx.accounts.new_guardian_set.set_inner(GuardianSet {
         index: new_index,
-        creation_time: now,
+        creation_time: ctx.accounts.posted_vaa.timestamp,
         keys,
         expiration_time: Default::default(),
     });
@@ -151,6 +149,7 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
     bridge.guardian_set_index = new_index;
 
     // Now set the expiration time for the current guardian.
+    let now = Clock::get().map(Timestamp::from)?;
     ctx.accounts.curr_guardian_set.expiration_time = now.saturating_add(&bridge.guardian_set_ttl);
 
     // Done.

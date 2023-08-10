@@ -42,9 +42,7 @@ export async function expectEqualGuardianSet(
     coreBridge.GuardianSet.fromPda(connection, program.programId, guardianSetIndex),
     coreBridge.GuardianSet.fromPda(connection, forkedProgram.programId, guardianSetIndex),
   ]);
-
-  expectDeepEqual(guardianSet.index, forkedGuardianSet.index);
-  expectDeepEqual(guardianSet.keys, forkedGuardianSet.keys);
+  expectDeepEqual(guardianSet, forkedGuardianSet);
 }
 
 export async function expectLegacyPostMessageAfterEffects(
