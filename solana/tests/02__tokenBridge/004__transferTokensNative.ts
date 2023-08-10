@@ -9,8 +9,6 @@ import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
-  TransferDirection,
-  expectCorrectTokenBalanceChanges,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
@@ -61,11 +59,11 @@ describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
           payer
         );
 
-        await expectCorrectTokenBalanceChanges(
+        await tokenBridge.expectCorrectTokenBalanceChanges(
           connection,
           srcToken,
           balancesBefore,
-          TransferDirection.Out
+          tokenBridge.TransferDirection.Out
         );
 
         // TODO: Check that the core messages are correct.

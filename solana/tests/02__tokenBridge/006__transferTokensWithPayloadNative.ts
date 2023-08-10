@@ -1,23 +1,15 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  createAssociatedTokenAccount,
-  getAssociatedTokenAddressSync,
-  mintTo,
-} from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, mintTo } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
-  TokenBalances,
-  TransferDirection,
-  expectCorrectTokenBalanceChanges,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
-import { expect } from "chai";
 
 describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -65,11 +57,11 @@ describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", (
           senderAuthority
         );
 
-        await expectCorrectTokenBalanceChanges(
+        await tokenBridge.expectCorrectTokenBalanceChanges(
           connection,
           srcToken,
           balancesBefore,
-          TransferDirection.Out
+          tokenBridge.TransferDirection.Out
         );
 
         // TODO: Check that the core messages are correct.

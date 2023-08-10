@@ -8,7 +8,7 @@ export * from "./consts";
 // export * from "./instructions";
 export * from "./legacy";
 // export * from "./state";
-// export * from "./testing";
+export * from "./testing";
 
 export type TokenBridgeProgram = Program<WormholeTokenBridgeSolana>;
 
