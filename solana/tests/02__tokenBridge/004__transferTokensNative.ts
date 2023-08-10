@@ -9,7 +9,10 @@ import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
+  TransferDirection,
+  expectCorrectTokenBalanceChanges,
   expectIxOkDetails,
+  getTokenBalances,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
@@ -34,21 +37,9 @@ describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
 
   before("Set Up Mints and Token Accounts", async () => {
     for (const { mint } of mints) {
-      const token = await createAssociatedTokenAccount(
-        connection,
-        payer,
-        mint,
-        payer.publicKey
-      );
+      const token = await createAssociatedTokenAccount(connection, payer, mint, payer.publicKey);
 
-      await mintTo(
-        connection,
-        payer,
-        mint,
-        token,
-        payer,
-        BigInt("1000000000000000000")
-      );
+      await mintTo(connection, payer, mint, token, payer, BigInt("1000000000000000000"));
     }
   });
 
@@ -60,18 +51,24 @@ describe("Token Bridge -- Instruction: Transfer Tokens (Native)", () => {
         const amount = new anchor.BN("88888888");
         const relayerFee = new anchor.BN("11111111");
 
-        // TODO: add balance checks
+        const balancesBefore = await getTokenBalances(program, forkedProgram, srcToken);
 
-        const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] =
-          await parallelTxDetails(
-            program,
-            forkedProgram,
-            { payer: payer.publicKey, mint: mint, srcToken },
-            defaultArgs(amount, relayerFee),
-            payer
-          );
+        const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] = await parallelTxDetails(
+          program,
+          forkedProgram,
+          { payer: payer.publicKey, mint: mint, srcToken },
+          defaultArgs(amount, relayerFee),
+          payer
+        );
 
-        // TODO: Check message accounts.
+        await expectCorrectTokenBalanceChanges(
+          connection,
+          srcToken,
+          balancesBefore,
+          TransferDirection.Out
+        );
+
+        // TODO: Check that the core messages are correct.
       });
     }
   });
@@ -98,19 +95,12 @@ async function parallelTxDetails(
   const { payer: owner, srcToken: token } = accounts;
   const { amount } = args;
   const coreMessage = anchor.web3.Keypair.generate();
-  const approveIx = tokenBridge.approveTransferAuthorityIx(
-    program,
-    token,
-    owner,
-    amount
-  );
+  const approveIx = tokenBridge.approveTransferAuthorityIx(program, token, owner, amount);
   const ix = tokenBridge.legacyTransferTokensNativeIx(
     program,
     {
       coreMessage: coreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
-      ),
+      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
       ...accounts,
     },
     args
@@ -127,9 +117,7 @@ async function parallelTxDetails(
     forkedProgram,
     {
       coreMessage: forkCoreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-      ),
+      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
       ...accounts,
     },
     args
@@ -137,11 +125,7 @@ async function parallelTxDetails(
 
   const [txDetails, forkTxDetails] = await Promise.all([
     expectIxOkDetails(connection, [approveIx, ix], [payer, coreMessage]),
-    expectIxOkDetails(
-      connection,
-      [forkedApproveIx, forkedIx],
-      [payer, forkCoreMessage]
-    ),
+    expectIxOkDetails(connection, [forkedApproveIx, forkedIx], [payer, forkCoreMessage]),
   ]);
 
   return [coreMessage, txDetails, forkCoreMessage, forkTxDetails];

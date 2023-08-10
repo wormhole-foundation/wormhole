@@ -1,9 +1,4 @@
-import {
-  Commitment,
-  GetAccountInfoConfig,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { Commitment, GetAccountInfoConfig, PublicKey, SystemProgram } from "@solana/web3.js";
 import { BridgeProgramData, FeeCollector } from "../legacy/state";
 import { CoreBridgeProgram } from "..";
 

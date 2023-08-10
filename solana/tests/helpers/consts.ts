@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { MintInfo } from "./utils";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk";
 
 export const GUARDIAN_KEYS = [
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
@@ -31,3 +32,5 @@ export const MINT_INFO_9: MintInfo = {
   mint: new PublicKey("6SmtrBpfPt67cjU4MbmHFMLctAZMNZee1xArVha4MC9N"),
   decimals: 9,
 };
+
+export const ETHEREUM_TOKEN_BRIDGE = "0x3ee18B2214AFF97000D974cf647E7C347E8fa585";

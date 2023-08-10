@@ -14,9 +14,7 @@ export class PostedMessageV1Unreliable extends PostedMessageV1 {
     if (!discriminator.equals(Buffer.from([109, 115, 117, 0]))) {
       throw new Error(`Invalid discriminator: ${discriminator}`);
     }
-    return PostedMessageV1.deserialize(
-      data.subarray(4)
-    ) as PostedMessageV1Unreliable;
+    return PostedMessageV1.deserialize(data.subarray(4)) as PostedMessageV1Unreliable;
   }
 
   static async fromAccountAddress(
@@ -24,14 +22,9 @@ export class PostedMessageV1Unreliable extends PostedMessageV1 {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<PostedMessageV1Unreliable> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
-      throw new Error(
-        `Unable to find PostedMessageV1Unreliable account at ${address}`
-      );
+      throw new Error(`Unable to find PostedMessageV1Unreliable account at ${address}`);
     }
     return PostedMessageV1Unreliable.fromAccountInfo(accountInfo);
   }

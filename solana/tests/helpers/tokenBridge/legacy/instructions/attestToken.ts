@@ -7,12 +7,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram } from "../..";
-import {
-  Config,
-  coreEmitterPda,
-  tokenMetadataPda,
-  wrappedAssetPda,
-} from "../state";
+import { Config, coreEmitterPda, tokenMetadataPda, wrappedAssetPda } from "../state";
 import * as coreBridge from "../../../coreBridge";
 
 export type LegacyAttestTokenContext = {
@@ -79,10 +74,7 @@ export function legacyAttestTokenIx(
   }
 
   if (coreEmitterSequence === undefined) {
-    coreEmitterSequence = coreBridge.EmitterSequence.address(
-      coreBridgeProgram,
-      coreEmitter
-    );
+    coreEmitterSequence = coreBridge.EmitterSequence.address(coreBridgeProgram, coreEmitter);
   }
 
   if (coreFeeCollector === undefined) {

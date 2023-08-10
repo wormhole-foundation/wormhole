@@ -20,13 +20,6 @@ export function getProgramId(programId?: ProgramId): PublicKey {
   );
 }
 
-export function getAnchorProgram(
-  connection: Connection,
-  programId: PublicKey
-): TokenBridgeProgram {
-  return new Program<WormholeTokenBridgeSolana>(
-    TokenBridgeIdl as any,
-    programId,
-    { connection }
-  );
+export function getAnchorProgram(connection: Connection, programId: PublicKey): TokenBridgeProgram {
+  return new Program<WormholeTokenBridgeSolana>(TokenBridgeIdl as any, programId, { connection });
 }

@@ -10,11 +10,13 @@ import {
   MINT_INFO_9,
   MintInfo,
   expectIxOkDetails,
+  getTokenBalances,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
+import { MockTokenBridge, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
-describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", () => {
+describe("Token Bridge -- Instruction: Complete Transfer (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -32,41 +34,23 @@ describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", (
 
   const mints: MintInfo[] = [MINT_INFO_8, MINT_INFO_9];
 
-  const senderAuthority = anchor.web3.Keypair.generate();
-
-  before("Set Up Mints and Token Accounts", async () => {
-    for (const { mint } of mints) {
-      const token = getAssociatedTokenAddressSync(mint, payer.publicKey);
-
-      await mintTo(
-        connection,
-        payer,
-        mint,
-        token,
-        payer,
-        BigInt("1000000000000000000")
-      );
-    }
-  });
-
   describe("Ok", () => {
     for (const { mint, decimals } of mints) {
       const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
-      it(`Invoke \`transfer_tokens_with_payload_native\` (${decimals} Decimals)`, async () => {
+      it.skip(`Invoke \`complete_transfer_native\` (${decimals} Decimals)`, async () => {
         const amount = new anchor.BN("88888888");
+        const relayerFee = new anchor.BN("11111111");
 
-        // TODO: add balance checks
+        const balancesBefore = await getTokenBalances(program, forkedProgram, srcToken);
 
-        const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] =
-          await parallelTxDetails(
-            program,
-            forkedProgram,
-            { payer: payer.publicKey, mint: mint, srcToken },
-            defaultArgs(amount),
-            payer,
-            senderAuthority
-          );
+        const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] = await parallelTxDetails(
+          program,
+          forkedProgram,
+          { payer: payer.publicKey, mint: mint, srcToken },
+          defaultArgs(amount, relayerFee),
+          payer
+        );
 
         // TODO: Check message accounts.
       });
@@ -74,14 +58,29 @@ describe("Token Bridge -- Instruction: Transfer Tokens with Payload (Native)", (
   });
 });
 
-function defaultArgs(amount: anchor.BN) {
+function defaultVaa(amount: anchor.BN, recipient: anchor.web3.PublicKey): Buffer {
+  return Buffer.alloc(0);
+  // const timestamp = 12345678;
+  // const chain = 1;
+  // const published = governance.publishWormholeTransferFees(
+  //   timestamp,
+  //   chain,
+  //   BigInt(amount.toString()),
+  //   recipient.toBuffer()
+  // );
+  // return guardians.addSignatures(
+  //   published,
+  //   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  // );
+}
+
+function defaultArgs(amount: anchor.BN, relayerFee: anchor.BN) {
   return {
     nonce: 420,
     amount,
-    redeemer: Array.from(Buffer.alloc(32, "deadbeef", "hex")),
-    redeemerChain: 2,
-    payload: Buffer.from("All your base are belong to us."),
-    cpiProgramId: null,
+    relayerFee,
+    recipient: Array.from(Buffer.alloc(32, "deadbeef", "hex")),
+    recipientChain: 2,
   };
 }
 
@@ -89,28 +88,19 @@ async function parallelTxDetails(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
   accounts: { payer: PublicKey; mint: PublicKey; srcToken: PublicKey },
-  args: tokenBridge.LegacyTransferTokensWithPayloadArgs,
-  payer: anchor.web3.Keypair,
-  senderAuthority: anchor.web3.Keypair
+  args: tokenBridge.LegacyTransferTokensArgs,
+  payer: anchor.web3.Keypair
 ) {
   const connection = program.provider.connection;
   const { payer: owner, srcToken: token } = accounts;
   const { amount } = args;
   const coreMessage = anchor.web3.Keypair.generate();
-  const approveIx = tokenBridge.approveTransferAuthorityIx(
-    program,
-    token,
-    owner,
-    amount
-  );
-  const ix = tokenBridge.legacyTransferTokensWithPayloadNativeIx(
+  const approveIx = tokenBridge.approveTransferAuthorityIx(program, token, owner, amount);
+  const ix = tokenBridge.legacyTransferTokensNativeIx(
     program,
     {
       coreMessage: coreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
-      ),
-      senderAuthority: senderAuthority.publicKey,
+      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
       ...accounts,
     },
     args
@@ -123,30 +113,20 @@ async function parallelTxDetails(
     owner,
     amount
   );
-  const forkedIx = tokenBridge.legacyTransferTokensWithPayloadNativeIx(
+  const forkedIx = tokenBridge.legacyTransferTokensNativeIx(
     forkedProgram,
     {
       coreMessage: forkCoreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-      ),
-      senderAuthority: senderAuthority.publicKey,
+      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
       ...accounts,
     },
     args
   );
 
   const [txDetails, forkTxDetails] = await Promise.all([
-    expectIxOkDetails(
-      connection,
-      [approveIx, ix],
-      [payer, coreMessage, senderAuthority]
-    ),
-    expectIxOkDetails(
-      connection,
-      [forkedApproveIx, forkedIx],
-      [payer, forkCoreMessage, senderAuthority]
-    ),
+    expectIxOkDetails(connection, [approveIx, ix], [payer, coreMessage]),
+    expectIxOkDetails(connection, [forkedApproveIx, forkedIx], [payer, forkCoreMessage]),
   ]);
+
   return [coreMessage, txDetails, forkCoreMessage, forkTxDetails];
 }

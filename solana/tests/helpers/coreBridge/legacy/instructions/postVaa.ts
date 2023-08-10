@@ -57,8 +57,7 @@ export function legacyPostVaaIx(
     payload,
   } = args;
 
-  let { guardianSet, bridge, signatureSet, postedVaa, payer, clock, rent } =
-    accounts;
+  let { guardianSet, bridge, signatureSet, postedVaa, payer, clock, rent } = accounts;
 
   if (guardianSet === undefined) {
     guardianSet = GuardianSet.address(programId, args.guardianSetIndex);
@@ -136,9 +135,7 @@ export function legacyPostVaaIx(
     },
   ];
 
-  const data = Buffer.alloc(
-    1 + 1 + 4 + 4 + 4 + 2 + 32 + 8 + 1 + 4 + payload.length
-  );
+  const data = Buffer.alloc(1 + 1 + 4 + 4 + 4 + 2 + 32 + 8 + 1 + 4 + payload.length);
   data.writeUInt8(2, 0);
   data.writeUInt8(version === undefined ? 0 : version, 1);
   data.writeUInt32LE(guardianSetIndex, 2);

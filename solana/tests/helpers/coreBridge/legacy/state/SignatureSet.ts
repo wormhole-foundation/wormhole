@@ -30,10 +30,7 @@ export class SignatureSet {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<SignatureSet> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find SignatureSet account at ${address}`);
     }
@@ -45,12 +42,10 @@ export class SignatureSet {
     if (data.length != 40 + numVerified) {
       throw new Error("Invalid SignatureSet length");
     }
-    const sigVerifySuccesses = Array.from(
-      data.subarray(4, 4 + numVerified)
-    ).map((value) => value != 0);
-    const messageHash = Array.from(
-      data.subarray(4 + numVerified, 36 + numVerified)
+    const sigVerifySuccesses = Array.from(data.subarray(4, 4 + numVerified)).map(
+      (value) => value != 0
     );
+    const messageHash = Array.from(data.subarray(4 + numVerified, 36 + numVerified));
     const guardianSetIndex = data.readUInt32LE(36 + numVerified);
     return new SignatureSet(sigVerifySuccesses, messageHash, guardianSetIndex);
   }

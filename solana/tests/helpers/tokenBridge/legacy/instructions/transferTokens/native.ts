@@ -7,7 +7,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { LegacyTransferTokensArgs, } from "../";
+import { LegacyTransferTokensArgs } from "../";
 import { TokenBridgeProgram } from "../../..";
 import * as coreBridge from "../../../../coreBridge";
 import {
@@ -15,7 +15,7 @@ import {
   coreEmitterPda,
   custodyAuthorityPda,
   custodyTokenPda,
-  transferAuthorityPda
+  transferAuthorityPda,
 } from "../../state";
 
 export type LegacyTransferTokensNativeContext = {
@@ -86,10 +86,7 @@ export function legacyTransferTokensNativeIx(
   }
 
   if (coreEmitterSequence === undefined) {
-    coreEmitterSequence = coreBridge.EmitterSequence.address(
-      coreBridgeProgram,
-      coreEmitter
-    );
+    coreEmitterSequence = coreBridge.EmitterSequence.address(coreBridgeProgram, coreEmitter);
   }
 
   if (coreFeeCollector === undefined) {

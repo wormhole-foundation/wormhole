@@ -5,6 +5,7 @@ import {
   expectIxOkDetails,
   InvalidAccountConfig,
   verifySignaturesAndPostVaa,
+  parallelPostVaa,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
@@ -144,15 +145,12 @@ async function parallelTxDetails(
   const signedVaa = defaultVaa(amount, accounts.recipient);
   const parsedVaa = parseVaa(signedVaa);
 
-  // Verify and Post
-  await Promise.all([
-    verifySignaturesAndPostVaa(program, payer, signedVaa),
-    verifySignaturesAndPostVaa(forkedProgram, payer, signedVaa),
-  ]);
+  // Post the VAAs.
+  await parallelPostVaa(connection, payer, signedVaa);
 
   // Create the transferFees instruction.
-  const ix = await coreBridge.legacyTransferFeesIx(program, accounts, parsedVaa);
-  const forkedIx = await coreBridge.legacyTransferFeesIx(forkedProgram, accounts, parsedVaa);
+  const ix = coreBridge.legacyTransferFeesIx(program, accounts, parsedVaa);
+  const forkedIx = coreBridge.legacyTransferFeesIx(forkedProgram, accounts, parsedVaa);
 
   // Invoke the instruction.
   return Promise.all([

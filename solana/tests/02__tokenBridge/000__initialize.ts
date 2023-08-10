@@ -21,13 +21,7 @@ describe("Token Bridge -- Instruction: Initialize", () => {
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {
-      await parallelTxOk(
-        program,
-        forkedProgram,
-        { payer: payer.publicKey },
-        defaultArgs(),
-        payer
-      );
+      await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, defaultArgs(), payer);
     });
 
     it.skip("Cannot Invoke `initialize` again", async () => {
@@ -52,10 +46,6 @@ async function parallelTxOk(
   const connection = program.provider.connection;
   const ix = tokenBridge.legacyInitializeIx(program, accounts, args);
 
-  const forkedIx = tokenBridge.legacyInitializeIx(
-    forkedProgram,
-    accounts,
-    args
-  );
+  const forkedIx = tokenBridge.legacyInitializeIx(forkedProgram, accounts, args);
   return expectIxOk(connection, [ix, forkedIx], [payer]);
 }

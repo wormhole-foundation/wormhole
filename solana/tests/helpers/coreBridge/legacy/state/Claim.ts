@@ -20,14 +20,11 @@ export class Claim {
     const chainBuf = Buffer.alloc(2);
     chainBuf.writeUInt16BE(chain);
 
-    const addressBuf = Buffer.alloc(32);
-    addressBuf.set(address);
-
     const sequenceBuf = Buffer.alloc(8);
     sequenceBuf.writeBigUInt64BE(BigInt(sequence.toString()));
 
     return PublicKey.findProgramAddressSync(
-      [addressBuf, chainBuf, sequenceBuf],
+      [Buffer.from(address), chainBuf, sequenceBuf],
       new PublicKey(programId)
     )[0];
   }

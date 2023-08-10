@@ -9,16 +9,8 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
-import {
-  BridgeProgramData,
-  Claim,
-  PostedVaaV1,
-  upgradeAuthorityPda,
-} from "../../state";
-import {
-  ProgramData,
-  BPF_LOADER_UPGRADEABLE_PROGRAM_ID,
-} from "../../../../native";
+import { BPF_LOADER_UPGRADEABLE_PROGRAM_ID, ProgramData } from "../../../../native";
+import { BridgeProgramData, Claim, PostedVaaV1, upgradeAuthorityPda } from "../../state";
 
 export type LegacyUpgradeContractContext = {
   payer: PublicKey;
@@ -69,8 +61,8 @@ export function legacyUpgradeContractIx(
   if (claim === undefined) {
     claim = Claim.address(
       programId,
-      emitterChain,
       Array.from(emitterAddress),
+      emitterChain,
       new BN(sequence.toString())
     );
   }

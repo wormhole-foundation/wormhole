@@ -39,7 +39,7 @@ export function legacyPostMessageIx(
 }
 
 /* private */
-function handleLegacyPostMessageIx(
+export function handleLegacyPostMessageIx(
   program: CoreBridgeProgram,
   accounts: LegacyPostMessageContext,
   args: LegacyPostMessageArgs,
