@@ -5,6 +5,4 @@ export type ProgramId =
   | "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5" // testnet
   | "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"; // localnet
 
-export const GOVERNANCE_EMITTER_ADDRESS = new PublicKey(
-  "11111111111111111111111111111115"
-);
+export const GOVERNANCE_EMITTER_ADDRESS = new PublicKey("11111111111111111111111111111115");

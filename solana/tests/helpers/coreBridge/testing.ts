@@ -1,8 +1,8 @@
-import { BridgeProgramData, CoreBridgeProgram } from ".";
-import { expectDeepEqual } from "../utils";
 import * as anchor from "@coral-xyz/anchor";
-import * as coreBridge from "../coreBridge";
 import { expect } from "chai";
+import { BridgeProgramData, CoreBridgeProgram } from ".";
+import * as coreBridge from "../coreBridge";
+import { expectDeepEqual } from "../utils";
 
 export async function expectEqualBridgeAccounts(
   program: CoreBridgeProgram,

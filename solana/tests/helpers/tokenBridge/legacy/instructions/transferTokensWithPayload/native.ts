@@ -88,10 +88,7 @@ export function legacyTransferTokensWithPayloadNativeIx(
   }
 
   if (coreEmitterSequence === undefined) {
-    coreEmitterSequence = coreBridge.EmitterSequence.address(
-      coreBridgeProgram,
-      coreEmitter
-    );
+    coreEmitterSequence = coreBridge.EmitterSequence.address(coreBridgeProgram, coreEmitter);
   }
 
   if (coreFeeCollector === undefined) {
@@ -199,12 +196,9 @@ export function legacyTransferTokensWithPayloadNativeIx(
     },
   ];
 
-  const { nonce, amount, redeemer, redeemerChain, payload, cpiProgramId } =
-    args;
+  const { nonce, amount, redeemer, redeemerChain, payload, cpiProgramId } = args;
   const cpiRequired = cpiProgramId !== null;
-  const data = Buffer.alloc(
-    1 + 4 + 8 + 32 + 2 + 4 + payload.length + 1 + (cpiRequired ? 32 : 0)
-  );
+  const data = Buffer.alloc(1 + 4 + 8 + 32 + 2 + 4 + payload.length + 1 + (cpiRequired ? 32 : 0));
   data.writeUInt8(12, 0);
   data.writeUInt32LE(nonce, 1);
   data.writeBigUInt64LE(BigInt(amount.toString()), 5);

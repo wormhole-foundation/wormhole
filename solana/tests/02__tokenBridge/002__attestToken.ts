@@ -65,9 +65,7 @@ async function parallelTxOk(
     program,
     {
       coreMessage: coreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
-      ),
+      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
       ...accounts,
     },
     args
@@ -78,19 +76,13 @@ async function parallelTxOk(
     forkedProgram,
     {
       coreMessage: forkedCoreMessage.publicKey,
-      coreBridgeProgram: coreBridge.getProgramId(
-        "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-      ),
+      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
       ...accounts,
     },
     args
   );
 
-  await expectIxOk(
-    connection,
-    [ix, forkedIx],
-    [payer, coreMessage, forkedCoreMessage]
-  );
+  await expectIxOk(connection, [ix, forkedIx], [payer, coreMessage, forkedCoreMessage]);
 
   return [coreMessage, forkedCoreMessage];
 }

@@ -46,10 +46,7 @@ export class GuardianSet {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<GuardianSet> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find GuardianSet account at ${address}`);
     }

@@ -5,6 +5,7 @@ import {
   expectIxOkDetails,
   InvalidAccountConfig,
   verifySignaturesAndPostVaa,
+  parallelPostVaa,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
@@ -157,10 +158,7 @@ async function parallelTxDetails(
   const connection = program.provider.connection;
 
   // Post the VAAs.
-  await Promise.all([
-    verifySignaturesAndPostVaa(program, payer, signedVaa),
-    verifySignaturesAndPostVaa(forkedProgram, payer, signedVaa),
-  ]);
+  await parallelPostVaa(connection, payer, signedVaa);
 
   // Parse the VAA.
   const parsedVaa = parseVaa(signedVaa);

@@ -11,8 +11,5 @@ export * from "./PostedVaaV1";
 export * from "./SignatureSet";
 
 export function upgradeAuthorityPda(programId: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("upgrade")],
-    programId
-  )[0];
+  return PublicKey.findProgramAddressSync([Buffer.from("upgrade")], programId)[0];
 }

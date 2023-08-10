@@ -62,10 +62,7 @@ export class PostedMessageV1 {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<PostedMessageV1> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find PostedMessageV1 account at ${address}`);
     }

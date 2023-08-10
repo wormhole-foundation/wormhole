@@ -8,12 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import {
-  BridgeProgramData,
-  FeeCollector,
-  GuardianPubkey,
-  GuardianSet,
-} from "../state";
+import { BridgeProgramData, FeeCollector, GuardianPubkey, GuardianSet } from "../state";
 
 export type LegacyInitializeContext = {
   bridge?: PublicKey;

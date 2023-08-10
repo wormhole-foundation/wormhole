@@ -14,10 +14,7 @@ export class Config {
   }
 
   static address(programId: PublicKey): PublicKey {
-    return PublicKey.findProgramAddressSync(
-      [Buffer.from("config")],
-      programId
-    )[0];
+    return PublicKey.findProgramAddressSync([Buffer.from("config")], programId)[0];
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): Config {
@@ -29,20 +26,14 @@ export class Config {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<Config> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find BridgeProgramData account at ${address}`);
     }
     return Config.fromAccountInfo(accountInfo);
   }
 
-  static async fromPda(
-    connection: Connection,
-    programId: PublicKey
-  ): Promise<Config> {
+  static async fromPda(connection: Connection, programId: PublicKey): Promise<Config> {
     return Config.fromAccountAddress(connection, Config.address(programId));
   }
 

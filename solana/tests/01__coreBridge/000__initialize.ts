@@ -56,11 +56,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
         const accounts = { payer: payer.publicKey };
         accounts[cfg.contextName] = cfg.address;
-        const ix = coreBridge.legacyInitializeIx(
-          program,
-          accounts,
-          defaultArgs()
-        );
+        const ix = coreBridge.legacyInitializeIx(program, accounts, defaultArgs());
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
     }
@@ -78,11 +74,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
       it(`Instruction Data: ${cfg.label} (${cfg.errorMsg})`, async () => {
         const args = defaultArgs();
         args[cfg.argName] = cfg.value;
-        const ix = coreBridge.legacyInitializeIx(
-          program,
-          { payer: payer.publicKey },
-          args
-        );
+        const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, args);
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
     }
@@ -90,8 +82,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {
-      const { guardianSetTtlSeconds, feeLamports, initialGuardians } =
-        defaultArgs();
+      const { guardianSetTtlSeconds, feeLamports, initialGuardians } = defaultArgs();
 
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         program,
@@ -155,11 +146,7 @@ describe("Core Bridge -- Instruction: Initialize", () => {
 
     it("Cannot Invoke `initialize` again", async () => {
       // Create the initialize instruction using the default args.
-      const ix = coreBridge.legacyInitializeIx(
-        program,
-        { payer: payer.publicKey },
-        defaultArgs()
-      );
+      const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, defaultArgs());
 
       // Sleep to avoid anchor validator error.
       await sleep(10000);

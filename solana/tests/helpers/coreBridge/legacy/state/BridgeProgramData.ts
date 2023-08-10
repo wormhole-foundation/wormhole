@@ -12,21 +12,14 @@ export class BridgeProgramData {
   lastLamports: BN;
   config: BridgeConfig;
 
-  private constructor(
-    guardianSetIndex: number,
-    lastLamports: BN,
-    config: BridgeConfig
-  ) {
+  private constructor(guardianSetIndex: number, lastLamports: BN, config: BridgeConfig) {
     this.guardianSetIndex = guardianSetIndex;
     this.lastLamports = lastLamports;
     this.config = config;
   }
 
   static address(programId: PublicKey): PublicKey {
-    return PublicKey.findProgramAddressSync(
-      [Buffer.from("Bridge")],
-      programId
-    )[0];
+    return PublicKey.findProgramAddressSync([Buffer.from("Bridge")], programId)[0];
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): BridgeProgramData {
@@ -38,24 +31,15 @@ export class BridgeProgramData {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<BridgeProgramData> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find BridgeProgramData account at ${address}`);
     }
     return BridgeProgramData.fromAccountInfo(accountInfo);
   }
 
-  static async fromPda(
-    connection: Connection,
-    programId: PublicKey
-  ): Promise<BridgeProgramData> {
-    return BridgeProgramData.fromAccountAddress(
-      connection,
-      BridgeProgramData.address(programId)
-    );
+  static async fromPda(connection: Connection, programId: PublicKey): Promise<BridgeProgramData> {
+    return BridgeProgramData.fromAccountAddress(connection, BridgeProgramData.address(programId));
   }
 
   static deserialize(data: Buffer): BridgeProgramData {

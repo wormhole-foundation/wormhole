@@ -16,18 +16,18 @@ export class EncodedVaa {
   status: ProcessingStatus;
   writeAuthority: PublicKey;
   version: VaaVersion;
-  bytes: Buffer;
+  buf: Buffer;
 
   private constructor(
     status: ProcessingStatus,
     writeAuthority: PublicKey,
     version: VaaVersion,
-    bytes: Buffer
+    buf: Buffer
   ) {
     this.status = status;
     this.writeAuthority = writeAuthority;
     this.version = version;
-    this.bytes = bytes;
+    this.buf = buf;
   }
 
   discriminator() {
@@ -43,7 +43,7 @@ export class EncodedVaa {
     const program = getAnchorProgram(connection, programId);
     const {
       header: { status: processingStatus, writeAuthority, version: vaaVersion },
-      bytes,
+      buf,
     } = await program.account.encodedVaa.fetch(address, commitment);
 
     const status = (() => {
@@ -68,6 +68,6 @@ export class EncodedVaa {
       }
     })();
 
-    return new EncodedVaa(status, writeAuthority, version, bytes);
+    return new EncodedVaa(status, writeAuthority, version, buf);
   }
 }

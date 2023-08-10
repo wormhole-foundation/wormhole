@@ -29,10 +29,7 @@ export class PostedVaaV1 {
     address: PublicKey,
     commitmentOrConfig?: Commitment | GetAccountInfoConfig
   ): Promise<PostedVaaV1> {
-    const accountInfo = await connection.getAccountInfo(
-      address,
-      commitmentOrConfig
-    );
+    const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
       throw new Error(`Unable to find PostedVaaV1 account at ${address}`);
     }
@@ -44,10 +41,7 @@ export class PostedVaaV1 {
     programId: PublicKey,
     hash: number[]
   ): Promise<PostedVaaV1> {
-    return PostedVaaV1.fromAccountAddress(
-      connection,
-      PostedVaaV1.address(programId, hash)
-    );
+    return PostedVaaV1.fromAccountAddress(connection, PostedVaaV1.address(programId, hash));
   }
 
   static deserialize(data: Buffer): PostedVaaV1 {
