@@ -1,19 +1,15 @@
+import { parseVaa } from "@certusone/wormhole-sdk";
+import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import {
+  ETHEREUM_TOKEN_BRIDGE,
   GUARDIAN_KEYS,
   expectIxErr,
-  expectIxOkDetails,
-  InvalidAccountConfig,
-  verifySignaturesAndPostVaa,
-  ETHEREUM_TOKEN_BRIDGE,
-  parallelPostVaa,
   expectIxOk,
+  parallelPostVaa,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
-import { parseVaa, tryNativeToHexString } from "@certusone/wormhole-sdk";
-import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as tokenBridge from "../helpers/tokenBridge";
-import * as coreBridge from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 2;
@@ -24,21 +20,15 @@ const governance = new GovernanceEmitter(
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
-describe("Token Bridge -- Instruction: Register Chain", () => {
+describe("Token Bridge -- Legacy Instruction: Register Chain", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
-  );
+  const program = tokenBridge.getAnchorProgram(connection, tokenBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
 
-  const forkedProgram = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb")
-  );
+  const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
   // Test variables.
   const localVariables = new Map<string, any>();
 
@@ -69,9 +59,6 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
           tokenBridge.legacyRegisterChainIx(
             program,
             {
-              coreBridgeProgram: coreBridge.getProgramId(
-                "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
-              ),
               payer: payer.publicKey,
             },
             parseVaa(signedVaa)
@@ -99,7 +86,7 @@ function defaultVaa(): Buffer {
 async function parallelTxOk(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
-  accounts: { payer: anchor.web3.PublicKey },
+  accounts: tokenBridge.LegacyRegisterChainContext,
   signedVaa: Buffer,
   payer: anchor.web3.Keypair
 ) {
@@ -112,22 +99,8 @@ async function parallelTxOk(
   const parsedVaa = parseVaa(signedVaa);
 
   // Create the set fee instructions.
-  const ix = tokenBridge.legacyRegisterChainIx(
-    program,
-    {
-      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
-      ...accounts,
-    },
-    parsedVaa
-  );
-  const forkedIx = tokenBridge.legacyRegisterChainIx(
-    forkedProgram,
-    {
-      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
-      ...accounts,
-    },
-    parsedVaa
-  );
+  const ix = tokenBridge.legacyRegisterChainIx(program, accounts, parsedVaa);
+  const forkedIx = tokenBridge.legacyRegisterChainIx(forkedProgram, accounts, parsedVaa);
 
   return expectIxOk(connection, [ix, forkedIx], [payer]);
 }

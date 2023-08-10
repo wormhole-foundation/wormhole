@@ -8,16 +8,10 @@ describe("Token Bridge -- Instruction: Initialize", () => {
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
-  );
+  const program = tokenBridge.getAnchorProgram(connection, tokenBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
 
-  const forkedProgram = tokenBridge.getAnchorProgram(
-    connection,
-    tokenBridge.getProgramId("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb")
-  );
+  const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {

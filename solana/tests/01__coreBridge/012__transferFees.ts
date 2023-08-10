@@ -1,17 +1,10 @@
-import * as anchor from "@coral-xyz/anchor";
-import {
-  GUARDIAN_KEYS,
-  expectIxErr,
-  expectIxOkDetails,
-  InvalidAccountConfig,
-  verifySignaturesAndPostVaa,
-  parallelPostVaa,
-} from "../helpers";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import * as coreBridge from "../helpers/coreBridge";
+import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
+import { GUARDIAN_KEYS, expectIxErr, expectIxOkDetails, parallelPostVaa } from "../helpers";
+import * as coreBridge from "../helpers/coreBridge";
+import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
@@ -25,22 +18,18 @@ const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 // Test variables.
 const localVariables = new Map<string, any>();
 
-describe("Core Bridge -- Instruction: Transfer Fees", () => {
+describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-  );
+  const program = coreBridge.getAnchorProgram(connection, coreBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
-  const forkedProgram = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
-  );
+  const forkedProgram = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
-  describe("Invalid Interaction", () => {});
+  describe("Invalid Interaction", () => {
+    // TODO
+  });
 
   describe("Ok", () => {
     it("Invoke `transfer_fees`", async () => {

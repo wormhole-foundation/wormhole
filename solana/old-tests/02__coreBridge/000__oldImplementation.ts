@@ -1,7 +1,4 @@
-import {
-  GovernanceEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { createPostSignedVaaTransactions } from "@certusone/wormhole-sdk/lib/cjs/solana/sendAndConfirmPostVaa";
 import * as coreBridgeSDK from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { web3 } from "@coral-xyz/anchor";
@@ -15,7 +12,7 @@ import {
   artifactsPath,
   expectIxOk,
   loadProgramBpf,
-  verifySignaturesAndPostVaa,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 
 const GUARDIAN_SET_INDEX = 0;
@@ -41,14 +38,8 @@ describe("Core Bridge: Old Implementation", () => {
   describe("Ok", async () => {
     it("Load Old Implementation", async () => {
       const artifactPath = `${__dirname}/../existing_core_bridge.so`;
-      const bufferAuthority = coreBridge.upgradeAuthority(
-        CORE_BRIDGE_PROGRAM_ID
-      );
-      const implementation = loadProgramBpf(
-        payerSigner,
-        artifactPath,
-        bufferAuthority
-      );
+      const bufferAuthority = coreBridge.upgradeAuthority(CORE_BRIDGE_PROGRAM_ID);
+      const implementation = loadProgramBpf(payerSigner, artifactPath, bufferAuthority);
 
       localVariables.set("implementation", implementation);
     });
@@ -69,18 +60,12 @@ describe("Core Bridge: Old Implementation", () => {
       );
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       // Upgrade.
       await expectIxOk(
         connection,
-        [
-          coreBridgeSDK.createUpgradeContractInstruction(
-            CORE_BRIDGE_PROGRAM_ID,
-            payer,
-            signedVaa
-          ),
-        ],
+        [coreBridgeSDK.createUpgradeContractInstruction(CORE_BRIDGE_PROGRAM_ID, payer, signedVaa)],
         [payerSigner]
       );
     });

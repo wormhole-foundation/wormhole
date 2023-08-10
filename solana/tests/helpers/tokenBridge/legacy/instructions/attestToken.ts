@@ -6,7 +6,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { TokenBridgeProgram } from "../..";
+import { TokenBridgeProgram, coreBridgeProgramId } from "../..";
 import { Config, coreEmitterPda, tokenMetadataPda, wrappedAssetPda } from "../state";
 import * as coreBridge from "../../../coreBridge";
 
@@ -23,7 +23,7 @@ export type LegacyAttestTokenContext = {
   coreFeeCollector?: PublicKey;
   clock?: PublicKey; // TODO: demonstrate this isn't needed in tests
   rent?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  coreBridgeProgram: PublicKey;
+  coreBridgeProgram?: PublicKey;
 };
 
 export type LegacyAttestTokenArgs = {
@@ -52,6 +52,10 @@ export function legacyAttestTokenIx(
     rent,
     coreBridgeProgram,
   } = accounts;
+
+  if (coreBridgeProgram === undefined) {
+    coreBridgeProgram = coreBridgeProgramId(program);
+  }
 
   if (config === undefined) {
     config = Config.address(programId);

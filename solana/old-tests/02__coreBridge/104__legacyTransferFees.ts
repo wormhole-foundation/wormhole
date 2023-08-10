@@ -1,7 +1,4 @@
-import {
-  GovernanceEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as coreBridgeSDK from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { web3 } from "@coral-xyz/anchor";
 import { expect } from "chai";
@@ -14,7 +11,7 @@ import {
   airdrop,
   expectIxErr,
   expectIxOk,
-  verifySignaturesAndPostVaa,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 
 const GUARDIAN_SET_INDEX = 3;
@@ -69,7 +66,7 @@ describe("Core Bridge: Legacy Transfer Fees (Governance)", () => {
       );
 
       // Verify and Post
-      await verifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
+      await invokeVerifySignaturesAndPostVaa(connection, payerSigner, signedVaa);
 
       await expectIxOk(
         connection,

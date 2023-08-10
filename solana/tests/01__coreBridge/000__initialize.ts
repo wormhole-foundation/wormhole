@@ -14,7 +14,7 @@ import { expect } from "chai";
 
 // TODO: Need to add negative tests for GuardianZeroAddress, DuplicateGuardians, etc.
 
-describe("Core Bridge -- Instruction: Initialize", () => {
+describe("Core Bridge -- Legacy Instruction: Initialize", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
