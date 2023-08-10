@@ -7,6 +7,7 @@ import {
   verifySignaturesAndPostVaa,
   ETHEREUM_TOKEN_BRIDGE,
   parallelPostVaa,
+  expectIxOk,
 } from "../helpers";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa, tryNativeToHexString } from "@certusone/wormhole-sdk";
@@ -51,7 +52,7 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       const signedVaa = defaultVaa();
 
       // Set the message fee for both programs.
-      await parallelTxDetails(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
+      await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
 
       // TODO: check registered emitter
 
@@ -59,7 +60,7 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it.skip("Cannot Invoke `register_chain` with Same VAA", async () => {
+    it("Cannot Invoke `register_chain` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       await expectIxErr(
@@ -67,7 +68,12 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
         [
           tokenBridge.legacyRegisterChainIx(
             program,
-            { payer: payer.publicKey },
+            {
+              coreBridgeProgram: coreBridge.getProgramId(
+                "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+              ),
+              payer: payer.publicKey,
+            },
             parseVaa(signedVaa)
           ),
         ],
@@ -90,10 +96,10 @@ function defaultVaa(): Buffer {
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }
 
-async function parallelTxDetails(
+async function parallelTxOk(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
-  accounts: tokenBridge.LegacyRegisterChainContext,
+  accounts: { payer: anchor.web3.PublicKey },
   signedVaa: Buffer,
   payer: anchor.web3.Keypair
 ) {
@@ -105,16 +111,23 @@ async function parallelTxDetails(
   // Parse the VAA.
   const parsedVaa = parseVaa(signedVaa);
 
-  // // Create the set fee instructions.
-  // const ix = coreBridge.legacySetMessageFeeIx(program, accounts, parsedVaa);
-  // const forkedIx = coreBridge.legacySetMessageFeeIx(
-  //   forkedProgram,
-  //   accounts,
-  //   parsedVaa
-  // );
+  // Create the set fee instructions.
+  const ix = tokenBridge.legacyRegisterChainIx(
+    program,
+    {
+      coreBridgeProgram: coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"),
+      ...accounts,
+    },
+    parsedVaa
+  );
+  const forkedIx = tokenBridge.legacyRegisterChainIx(
+    forkedProgram,
+    {
+      coreBridgeProgram: coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
+      ...accounts,
+    },
+    parsedVaa
+  );
 
-  // return Promise.all([
-  //   expectIxOkDetails(connection, [ix], [payer]),
-  //   expectIxOkDetails(connection, [forkedIx], [payer]),
-  // ]);
+  return expectIxOk(connection, [ix, forkedIx], [payer]);
 }

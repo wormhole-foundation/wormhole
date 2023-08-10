@@ -5,7 +5,10 @@ use crate::{
     utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::{PartialPostedVaaV1, VaaV1MessageHash};
+use core_bridge_program::{
+    state::{PartialPostedVaaV1, VaaV1MessageHash},
+    CoreBridge,
+};
 use wormhole_raw_vaas::token_bridge::gov;
 use wormhole_solana_common::SeedPrefix;
 
@@ -33,7 +36,7 @@ pub struct RegisterChain<'info> {
             try_new_foreign_chain(posted_vaa.as_ref())?.as_ref(),
             try_new_foreign_emitter(posted_vaa.as_ref())?.as_ref(),
         ],
-        bump
+        bump,
     )]
     registered_emitter: Account<'info, RegisteredEmitter>,
 
@@ -42,7 +45,8 @@ pub struct RegisterChain<'info> {
             PartialPostedVaaV1::seed_prefix(),
             posted_vaa.try_message_hash()?.as_ref()
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program,
     )]
     posted_vaa: Account<'info, PartialPostedVaaV1>,
 
@@ -53,7 +57,7 @@ pub struct RegisterChain<'info> {
         seeds = [
             posted_vaa.emitter_address.as_ref(),
             &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            &posted_vaa.sequence.to_be_bytes(),
         ],
         bump,
     )]
@@ -63,6 +67,7 @@ pub struct RegisterChain<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+    core_bridge_program: Program<'info, CoreBridge>,
 }
 
 impl<'info> RegisterChain<'info> {
@@ -102,6 +107,7 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
 
 fn try_new_foreign_chain(acc_info: &AccountInfo) -> Result<[u8; 2]> {
     let data = &acc_info.try_borrow_data()?[GOVERNANCE_DECREE_START..];
+    msg!("data... {:?}", data);
     match gov::RegisterChain::parse(data) {
         Ok(decree) => Ok(decree.foreign_chain().to_be_bytes()),
         Err(_) => err!(TokenBridgeError::InvalidGovernanceAction),

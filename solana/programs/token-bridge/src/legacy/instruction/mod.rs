@@ -14,7 +14,6 @@ use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 /// handlers, which will inevitably live in lib.rs.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum LegacyInstruction {
-    /// Deprecated.
     Initialize,
     AttestToken,
     CompleteTransferNative,
