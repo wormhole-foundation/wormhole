@@ -160,7 +160,7 @@ const MAINNET = {
     chain_id: 100,
   },
   base: {
-    rpc: undefined,
+    rpc: "https://mainnet.base.org",
     key: getEnvVar("ETH_KEY"),
     chain_id: 8453,
   },
