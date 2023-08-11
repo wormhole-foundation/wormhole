@@ -19,14 +19,13 @@ async function run() {
 
   for (const chain of chains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
-    const deliveryProviderImplementation = await deployDeliveryProviderImplementation(
-      chain
-    );
+    const deliveryProviderImplementation =
+      await deployDeliveryProviderImplementation(chain);
     const deliveryProviderSetup = await deployDeliveryProviderSetup(chain);
     const deliveryProviderProxy = await deployDeliveryProviderProxy(
       chain,
       deliveryProviderSetup.address,
-      deliveryProviderImplementation.address
+      deliveryProviderImplementation.address,
     );
     output.deliveryProviderImplementations.push(deliveryProviderImplementation);
     output.deliveryProviderSetups.push(deliveryProviderSetup);
