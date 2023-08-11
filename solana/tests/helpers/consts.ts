@@ -24,6 +24,10 @@ export const GUARDIAN_KEYS = [
   "70d8f1c9534a0ab61a020366b831a494057a289441c07be67e4288c44bc6cd5d",
 ];
 
+export const MINT_INFO_6: MintInfo = {
+  mint: new PublicKey("Bn5QYioESabUwL5AngQ6fCQTyripKvNaiF7YjMBQEg3f"),
+  decimals: 6,
+};
 export const MINT_INFO_8: MintInfo = {
   mint: new PublicKey("DyU8E8KfMHPXELQLJxv4qQT9ZKoijWiKrUQ5fskWFB5b"),
   decimals: 8,
