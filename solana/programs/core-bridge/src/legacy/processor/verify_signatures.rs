@@ -22,7 +22,7 @@ pub struct VerifySignatures<'info> {
     /// Currently signatures from a past guardian set can be verified, which is a waste of compute
     /// units since the post_vaa instruction will fail if the guardian set is not active.
     #[account(
-        seeds = [GuardianSet::seed_prefix(), &guardian_set.index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
     guardian_set: Account<'info, GuardianSet>,

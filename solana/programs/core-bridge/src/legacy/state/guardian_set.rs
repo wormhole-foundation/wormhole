@@ -35,10 +35,7 @@ impl LegacyDiscriminator<0> for GuardianSet {
 }
 
 impl SeedPrefix for GuardianSet {
-    #[inline]
-    fn seed_prefix() -> &'static [u8] {
-        b"GuardianSet"
-    }
+    const SEED_PREFIX: &'static [u8] = b"GuardianSet";
 }
 
 impl NewAccountSize for GuardianSet {

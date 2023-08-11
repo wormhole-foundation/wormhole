@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use serde::{Deserialize, Serialize};
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
+use wormhole_solana_common::{legacy_account, LegacyDiscriminator, SeedPrefix};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MetadataUri {
-    chain: u16,
-    address: String,
+    wormhole_chain_id: u16,
+    canonical_address: String,
     native_decimals: u8,
 }
 
@@ -21,8 +21,8 @@ pub struct WrappedAsset {
 impl WrappedAsset {
     pub fn to_uri(&self) -> serde_json::Result<String> {
         let mut uri = serde_json::to_string_pretty(&MetadataUri {
-            chain: self.token_chain,
-            address: hex::encode(self.token_address),
+            wormhole_chain_id: self.token_chain,
+            canonical_address: format!("0x{}", hex::encode(self.token_address)),
             native_decimals: self.native_decimals,
         })?;
 
@@ -35,6 +35,10 @@ impl WrappedAsset {
 
 impl LegacyDiscriminator<0> for WrappedAsset {
     const LEGACY_DISCRIMINATOR: [u8; 0] = [];
+}
+
+impl SeedPrefix for WrappedAsset {
+    const SEED_PREFIX: &'static [u8] = b"meta";
 }
 
 #[cfg(test)]
@@ -53,8 +57,8 @@ mod test {
         };
 
         let expected = r#"{
-  "chain": 420,
-  "address": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "wormholeChainId": 420,
+  "canonicalAddress": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
   "nativeDecimals": 18
 }"#;
 

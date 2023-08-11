@@ -57,7 +57,7 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
         seeds::program = core_bridge_program
     )]

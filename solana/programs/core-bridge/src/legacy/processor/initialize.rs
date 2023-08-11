@@ -17,7 +17,7 @@ pub struct Initialize<'info> {
         init,
         payer = payer,
         space = BridgeProgramData::INIT_SPACE,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
     )]
     bridge: Account<'info, BridgeProgramData>,
@@ -32,7 +32,7 @@ pub struct Initialize<'info> {
         init,
         payer = payer,
         space = GuardianSet::compute_size(args.initial_guardians.len()),
-        seeds = [GuardianSet::seed_prefix(), &INDEX_ZERO.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &INDEX_ZERO.to_be_bytes()],
         bump,
     )]
     guardian_set: Account<'info, GuardianSet>,
@@ -42,7 +42,7 @@ pub struct Initialize<'info> {
         init,
         payer = payer,
         space = FeeCollector::INIT_SPACE,
-        seeds = [FeeCollector::seed_prefix()],
+        seeds = [FeeCollector::SEED_PREFIX],
         bump,
         owner = system_program.key(),
     )]

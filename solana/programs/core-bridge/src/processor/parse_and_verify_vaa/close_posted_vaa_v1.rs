@@ -14,7 +14,7 @@ pub struct ClosePostedVaaV1<'info> {
     #[account(
         mut,
         close = sol_destination,
-        seeds = [PostedVaaV1Bytes::seed_prefix(), posted_vaa.try_message_hash()?.as_ref()],
+        seeds = [PostedVaaV1Bytes::SEED_PREFIX, posted_vaa.try_message_hash()?.as_ref()],
         bump
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,

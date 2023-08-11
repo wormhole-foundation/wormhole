@@ -36,7 +36,7 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 pub struct PostVaa<'info> {
     /// Guardian set used for signature verification.
     #[account(
-        seeds = [GuardianSet::seed_prefix(), &signature_set.guardian_set_index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
         bump,
     )]
     guardian_set: Account<'info, GuardianSet>,
@@ -58,7 +58,7 @@ pub struct PostVaa<'info> {
         init,
         payer = payer,
         space = PostedVaaV1Bytes::compute_size(args.payload.len()),
-        seeds = [PostedVaaV1Bytes::seed_prefix(), signature_set.message_hash.as_ref()],
+        seeds = [PostedVaaV1Bytes::SEED_PREFIX, signature_set.message_hash.as_ref()],
         bump,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,

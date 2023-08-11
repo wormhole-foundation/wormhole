@@ -60,7 +60,7 @@ pub struct AttestToken<'info> {
     /// accidentally pass in an account that isn't actually supposed to be mutable).
     #[account(
         mut,
-        seeds = [Config::seed_prefix()],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
     _config: AccountInfo<'info>,
@@ -84,7 +84,7 @@ pub struct AttestToken<'info> {
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
         seeds::program = core_bridge_program
     )]

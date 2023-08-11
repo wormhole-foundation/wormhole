@@ -11,7 +11,7 @@ pub struct Initialize<'info> {
         init,
         payer = payer,
         space = Config::INIT_SPACE,
-        seeds = [Config::seed_prefix()],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
     config: Account<'info, Config>,

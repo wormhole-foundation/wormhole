@@ -36,10 +36,7 @@ impl LegacyDiscriminator<0> for BridgeProgramData {
 }
 
 impl SeedPrefix for BridgeProgramData {
-    #[inline]
-    fn seed_prefix() -> &'static [u8] {
-        b"Bridge"
-    }
+    const SEED_PREFIX: &'static [u8] = b"Bridge";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]

@@ -29,11 +29,6 @@ pub struct TransferTokensNative<'info> {
 
     /// Native mint. We ensure this mint is not one that has originated from a foreign network in
     /// access control.
-    ///
-    /// NOTE: ecause the legacy implementation took this as a mutable account for some reason, we
-    /// must preserve this mutability. But there are no SPL Token instructions in this instruction
-    /// handler that require this account to be mutable.
-    //#[account(mut)]
     mint: Box<Account<'info, Mint>>,
 
     #[account(
@@ -64,7 +59,7 @@ pub struct TransferTokensNative<'info> {
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
         seeds::program = core_bridge_program
     )]

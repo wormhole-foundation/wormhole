@@ -20,7 +20,7 @@ pub struct UpgradeContract<'info> {
 
     #[account(
         seeds = [
-            PartialPostedVaaV1::seed_prefix(),
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump,

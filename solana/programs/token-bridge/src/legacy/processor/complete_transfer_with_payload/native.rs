@@ -26,7 +26,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1Bytes::seed_prefix(),
+            PostedVaaV1Bytes::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump

@@ -13,8 +13,5 @@ impl LegacyDiscriminator<0> for EmitterSequence {
 }
 
 impl SeedPrefix for EmitterSequence {
-    #[inline]
-    fn seed_prefix() -> &'static [u8] {
-        b"Sequence"
-    }
+    const SEED_PREFIX: &'static [u8] = b"Sequence";
 }
