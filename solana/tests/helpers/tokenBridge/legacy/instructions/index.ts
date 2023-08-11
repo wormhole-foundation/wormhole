@@ -11,6 +11,7 @@ export * from "./initialize";
 export * from "./transferTokens";
 export * from "./transferTokensWithPayload";
 export * from "./completeTransfer";
+export * from "./completeTransferWithPayload";
 
 export function approveTransferAuthorityIx(
   program: TokenBridgeProgram,

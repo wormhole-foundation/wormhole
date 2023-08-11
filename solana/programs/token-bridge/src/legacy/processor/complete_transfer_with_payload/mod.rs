@@ -13,7 +13,7 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
     posted_vaa: &'ctx Account<'info, PostedVaaV1Bytes>,
     registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
     redeemer_authority: &'ctx Signer<'info>,
-    redeemer_token: &'ctx Account<'info, TokenAccount>,
+    dst_token: &'ctx Account<'info, TokenAccount>,
 ) -> Result<(u16, [u8; 32])> {
     let msg = crate::utils::require_valid_token_bridge_posted_vaa(posted_vaa, registered_emitter)?;
     match msg.transfer_with_message() {
@@ -40,18 +40,12 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
                     pda,
                     TokenBridgeError::InvalidProgramRedeemer
                 )
+            } else {
+                // The redeemer must be the token account owner if the redeemer authority is the
+                // same as the redeemer (i.e. the signer of this transaction, which does not
+                // represent a program's PDA.
+                require!(redeemer == dst_token.owner, ErrorCode::ConstraintTokenOwner);
             }
-
-            // Token account owner must be either the VAA-specified recipient, or the redeemer account (for
-            // regular wallets, these two are equal, for programs the latter is a PDA).
-            //
-            // TODO: Is this necessary? If the redeemer signs for this instruction, the integrator
-            // should be free to use any token account they want.
-            let token_owner = redeemer_token.owner;
-            require!(
-                redeemer == token_owner || redeemer_authority == token_owner,
-                ErrorCode::ConstraintTokenOwner
-            );
 
             // Done.
             Ok((transfer.token_chain(), transfer.token_address()))

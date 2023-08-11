@@ -12,14 +12,14 @@ import { PostedVaaV1, Claim } from "../../../../coreBridge";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-export type LegacyCompleteTransferNativeContext = {
+export type LegacyCompleteTransferWithPayloadNativeContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
   postedVaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
-  recipientToken: PublicKey;
-  payerToken?: PublicKey;
+  dstToken: PublicKey;
+  redeemerAuthority?: PublicKey;
   custodyToken?: PublicKey;
   mint: PublicKey;
   custodyAuthority?: PublicKey;
@@ -27,9 +27,9 @@ export type LegacyCompleteTransferNativeContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferNativeIx(
+export function legacyCompleteTransferWithPayloadNativeIx(
   program: TokenBridgeProgram,
-  accounts: LegacyCompleteTransferNativeContext,
+  accounts: LegacyCompleteTransferWithPayloadNativeContext,
   parsedVaa: ParsedVaa
 ) {
   const programId = program.programId;
@@ -41,8 +41,8 @@ export function legacyCompleteTransferNativeIx(
     postedVaa,
     claim,
     registeredEmitter,
-    recipientToken,
-    payerToken,
+    dstToken,
+    redeemerAuthority,
     custodyToken,
     mint,
     custodyAuthority,
@@ -79,8 +79,8 @@ export function legacyCompleteTransferNativeIx(
     );
   }
 
-  if (payerToken === undefined) {
-    payerToken = getAssociatedTokenAddressSync(mint, payer);
+  if (redeemerAuthority === undefined) {
+    redeemerAuthority = payer;
   }
 
   if (custodyToken === undefined) {
@@ -122,13 +122,18 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: recipientToken,
+      pubkey: dstToken,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: payerToken,
-      isWritable: true,
+      pubkey: redeemerAuthority,
+      isWritable: false,
+      isSigner: true,
+    },
+    {
+      pubkey: dstToken, // NOTE: This exists because of a bug in the legacy program.
+      isWritable: false, // TODO: check this
       isSigner: false,
     },
     {
@@ -168,7 +173,7 @@ export function legacyCompleteTransferNativeIx(
     },
   ];
 
-  const data = Buffer.alloc(1, 2);
+  const data = Buffer.alloc(1, 9);
 
   return new TransactionInstruction({
     keys,
