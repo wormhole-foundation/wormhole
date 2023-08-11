@@ -45,6 +45,10 @@ address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 address = "6dM4TqWyWJsbx7obrdLcviBkTafD5E8av61zfU6jq57X"
 filename = "tests/accounts/wrapped_sol_metadata.json"
 
+### Mint -- 6 Decimals
+[[test.validator.account]]
+address = "Bn5QYioESabUwL5AngQ6fCQTyripKvNaiF7YjMBQEg3f"
+filename = "tests/accounts/mint_6.json"
 
 ### Mint -- 8 Decimals
 [[test.validator.account]]

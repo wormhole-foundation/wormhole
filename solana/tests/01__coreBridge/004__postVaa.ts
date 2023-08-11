@@ -43,9 +43,12 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
 
   describe("Ok", () => {
     it("Invoke `post_vaa`", async () => {
-      const { signatureSet, forkSignatureSet, args, parsed, messageHash } = await defaultArgs(
+      const signedVaa = defaultVaa();
+
+      const { signatureSet, forkSignatureSet, args, parsed, messageHash } = await createArgs(
         connection,
-        payer
+        payer,
+        signedVaa
       );
       expectDeepEqual(parsed.hash, Buffer.from(messageHash));
 
@@ -125,12 +128,11 @@ function computeMessageHash(args: coreBridge.LegacyPostVaaArgs): number[] {
   return Array.from(ethers.utils.arrayify(ethers.utils.keccak256(message)));
 }
 
-async function defaultArgs(
+async function createArgs(
   connection: anchor.web3.Connection,
-  payer: anchor.web3.Keypair
+  payer: anchor.web3.Keypair,
+  signedVaa: Buffer
 ): Promise<DefaultArgsOutput> {
-  const signedVaa = defaultVaa();
-
   const [signatureSet, forkSignatureSet] = await parallelVerifySignatures(
     connection,
     payer,
