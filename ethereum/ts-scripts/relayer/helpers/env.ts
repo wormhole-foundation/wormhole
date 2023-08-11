@@ -36,7 +36,7 @@ export function init(overrides: { lastRunOverride?: boolean } = {}): string {
   env = get_env_var("ENV");
   if (!env) {
     console.log(
-      "No environment was specified, using default environment files"
+      "No environment was specified, using default environment files",
     );
     env = DEFAULT_ENV;
   }
@@ -64,7 +64,7 @@ function getContainer(): string | null {
 
 export function loadScriptConfig(processName: string): any {
   const configFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/scriptConfigs/${processName}.json`
+    `./ts-scripts/relayer/config/${env}/scriptConfigs/${processName}.json`,
   );
   const config = JSON.parse(configFile.toString());
   if (!config) {
@@ -124,7 +124,7 @@ export function getChain(chain: ChainId): ChainInfo {
   const chains = loadChains();
   const output = chains.find((x) => x.chainId == chain);
   if (!output) {
-    throw Error("bad chain ID");
+    throw Error("Bad chain ID");
   }
 
   return output;
@@ -159,11 +159,11 @@ export function loadDeliveryProviders(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`,
     );
     if (!lastRunFile) {
       throw Error(
-        "Failed to find last run file for the deployDeliveryProvider process!"
+        "Failed to find last run file for the deployDeliveryProvider process!",
       );
     }
     const lastRun = JSON.parse(lastRunFile.toString());
@@ -185,7 +185,7 @@ export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`,
     );
     if (!lastRunFile) {
       throw Error("Failed to find last run file for the Core Relayer process!");
@@ -198,20 +198,14 @@ export function loadWormholeRelayers(dev: boolean): Deployment[] {
 }
 
 export function loadMockIntegrations(): Deployment[] {
-  const contractsFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/contracts.json`
-  );
-  if (!contractsFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const contracts = JSON.parse(contractsFile.toString());
+  const contracts = readContracts();
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployMockIntegration/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployMockIntegration/lastrun.json`,
     );
     if (!lastRunFile) {
       throw Error(
-        "Failed to find last run file for the deploy mock integration process!"
+        "Failed to find last run file for the deploy mock integration process!",
       );
     }
     const lastRun = JSON.parse(lastRunFile.toString());
@@ -231,11 +225,11 @@ export function loadCreate2Factories(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`,
     );
     if (!lastRunFile) {
       throw Error(
-        "Failed to find last run file for the deployCreate2Factory process!"
+        "Failed to find last run file for the deployCreate2Factory process!",
       );
     }
     const lastRun = JSON.parse(lastRunFile.toString());
@@ -286,12 +280,12 @@ export function writeOutputFiles(output: unknown, processName: string) {
   fs.writeFileSync(
     `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
     JSON.stringify(output),
-    { flag: "w" }
+    { flag: "w" },
   );
   fs.writeFileSync(
     `./ts-scripts/relayer/output/${env}/${processName}/${Date.now()}.json`,
     JSON.stringify(output),
-    { flag: "w" }
+    { flag: "w" },
   );
 }
 
@@ -313,7 +307,7 @@ With ledger devices the path needs to be specified in env var 'LEDGER_BIP32_PATH
 }
 
 export function getProvider(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): ethers.providers.StaticJsonRpcProvider {
   const provider = new ethers.providers.StaticJsonRpcProvider(
     loadChains().find((x: any) => x.chainId == chain.chainId)?.rpc || ""
@@ -324,12 +318,12 @@ export function getProvider(
 
 export function getDeliveryProviderAddress(chain: ChainInfo): string {
   const thisChainsProvider = loadDeliveryProviders().find(
-    (x: any) => x.chainId == chain.chainId
+    (x) => x.chainId == chain.chainId,
   )?.address;
   if (!thisChainsProvider) {
     throw new Error(
       "Failed to find a DeliveryProvider contract address on chain " +
-        chain.chainId
+        chain.chainId,
     );
   }
   return thisChainsProvider;
@@ -348,12 +342,12 @@ export function loadGuardianRpc(): string {
 
 export async function getDeliveryProvider(
   chain: ChainInfo,
-  provider?: ethers.providers.StaticJsonRpcProvider
+  provider?: ethers.providers.StaticJsonRpcProvider,
 ): Promise<DeliveryProvider> {
   const thisChainsProvider = getDeliveryProviderAddress(chain);
   const contract = DeliveryProvider__factory.connect(
     thisChainsProvider,
-    provider || await getSigner(chain)
+    provider || (await getSigner(chain)),
   );
   return contract;
 }
@@ -361,7 +355,7 @@ export async function getDeliveryProvider(
 const wormholeRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getWormholeRelayerAddress(
   chain: ChainInfo,
-  forceCalculate?: boolean
+  forceCalculate?: boolean,
 ): Promise<string> {
   // See if we are in dev mode (i.e. forge contracts compiled without via-ir)
   const dev = get_env_var("DEV") == "True" ? true : false;
@@ -376,14 +370,14 @@ export async function getWormholeRelayerAddress(
   //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
   if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
     const thisChainsRelayer = loadWormholeRelayers(dev).find(
-      (x: any) => x.chainId == chain.chainId
+      (x) => x.chainId == chain.chainId,
     )?.address;
     if (thisChainsRelayer) {
       return thisChainsRelayer;
     } else {
       throw Error(
         "Failed to find a WormholeRelayer contract address on chain " +
-          chain.chainId
+          chain.chainId,
       );
     }
   }
@@ -403,30 +397,30 @@ export async function getWormholeRelayerAddress(
 
 export async function getWormholeRelayer(
   chain: ChainInfo,
-  provider?: ethers.providers.StaticJsonRpcProvider
+  provider?: ethers.providers.StaticJsonRpcProvider,
 ): Promise<WormholeRelayer> {
   const thisChainsRelayer = await getWormholeRelayerAddress(chain);
   return WormholeRelayer__factory.connect(
     thisChainsRelayer,
-    provider || await getSigner(chain)
+    provider || (await getSigner(chain)),
   );
 }
 
 export function getMockIntegrationAddress(chain: ChainInfo): string {
   const thisMock = loadMockIntegrations().find(
-    (x: any) => x.chainId == chain.chainId
+    (x) => x.chainId == chain.chainId,
   )?.address;
   if (!thisMock) {
     throw new Error(
       "Failed to find a mock integration contract address on chain " +
-        chain.chainId
+        chain.chainId,
     );
   }
   return thisMock;
 }
 
 export async function getMockIntegration(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<MockRelayerIntegration> {
   const thisIntegration = getMockIntegrationAddress(chain);
   const contract = MockRelayerIntegration__factory.connect(
@@ -438,21 +432,21 @@ export async function getMockIntegration(
 
 export function getCreate2FactoryAddress(chain: ChainInfo): string {
   const address = loadCreate2Factories().find(
-    (x: any) => x.chainId == chain.chainId
+    (x) => x.chainId == chain.chainId,
   )?.address;
   if (!address) {
     throw new Error(
       "Failed to find a create2Factory contract address on chain " +
-        chain.chainId
+        chain.chainId,
     );
   }
   return address;
 }
 
 export const getCreate2Factory = async (
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<Create2Factory> =>
   Create2Factory__factory.connect(
     getCreate2FactoryAddress(chain),
-    await getSigner(chain)
+    await getSigner(chain),
   );
