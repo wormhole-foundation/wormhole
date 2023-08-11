@@ -28,7 +28,7 @@ pub fn validate_token_transfer<'ctx, 'info>(
             // token account passed into this account context.
             //
             // NOTE: Allowing the encoded transfer recipient to be the token account's owner is a
-            // patch.
+            // patch. 
             let recipient = Pubkey::from(transfer.recipient());
             if recipient != recipient_token.key() {
                 require_keys_eq!(

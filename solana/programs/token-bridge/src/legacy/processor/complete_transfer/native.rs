@@ -61,7 +61,7 @@ pub struct CompleteTransferNative<'info> {
         mut,
         token::mint = mint,
     )]
-    dst_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -109,7 +109,7 @@ impl<'info> CompleteTransferNative<'info> {
         let (token_chain, token_address) = validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
-            &ctx.accounts.dst_token,
+            &ctx.accounts.recipient_token,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
@@ -157,7 +157,7 @@ pub fn complete_transfer_native(
     let token_program = &ctx.accounts.token_program;
     let custody_token = &ctx.accounts.custody_token;
     let custody_authority = &ctx.accounts.custody_authority;
-    let dst_token = &ctx.accounts.dst_token;
+    let recipient_token = &ctx.accounts.recipient_token;
     let payer_token = &ctx.accounts.payer_token;
 
     // Custody authority is who has the authority to transfer tokens from the custody account.
@@ -165,7 +165,7 @@ pub fn complete_transfer_native(
 
     // If there is a payout to the relayer and the relayer's token account differs from the transfer
     // recipient's, we have to make an extra transfer.
-    if relayer_payout > 0 && dst_token.key() != payer_token.key() {
+    if relayer_payout > 0 && recipient_token.key() != payer_token.key() {
         // NOTE: This math operation is safe because the relayer payout is always <= to the
         // total outbound transfer transfer_amount.
         transfer_amount -= relayer_payout;
@@ -184,7 +184,7 @@ pub fn complete_transfer_native(
     withdraw_native_tokens(
         token_program,
         custody_token,
-        dst_token,
+        recipient_token,
         custody_authority,
         custody_authority_bump,
         transfer_amount,
