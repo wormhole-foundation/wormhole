@@ -3,6 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 export { Claim } from "../../../coreBridge/legacy/state/Claim";
 export * from "./Config";
 export * from "./RegisteredEmitter";
+export * from "./WrappedAsset";
 
 export const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
@@ -20,12 +21,12 @@ export function custodyTokenPda(programId: PublicKey, mint: PublicKey): PublicKe
   return PublicKey.findProgramAddressSync([mint.toBuffer()], programId)[0];
 }
 
-export function transferAuthorityPda(programId: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from("authority_signer")], programId)[0];
+export function mintAuthorityPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("mint_signer")], programId)[0];
 }
 
-export function wrappedAssetPda(programId: PublicKey, mint: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from("meta"), mint.toBuffer()], programId)[0];
+export function transferAuthorityPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("authority_signer")], programId)[0];
 }
 
 export function wrappedMintPda(
@@ -36,7 +37,7 @@ export function wrappedMintPda(
   const encodedChain = Buffer.alloc(2);
   encodedChain.writeUInt16BE(tokenChain, 0);
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("meta"), encodedChain, Buffer.from(tokenAddress)],
+    [Buffer.from("wrapped"), encodedChain, Buffer.from(tokenAddress)],
     programId
   )[0];
 }

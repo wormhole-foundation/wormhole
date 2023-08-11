@@ -2,7 +2,7 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import {
-  ETHEREUM_TOKEN_BRIDGE,
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   GUARDIAN_KEYS,
   expectIxErr,
   expectIxOk,
@@ -78,7 +78,7 @@ function defaultVaa(): Buffer {
   const published = governance.publishTokenBridgeRegisterChain(
     timestamp,
     chain,
-    ETHEREUM_TOKEN_BRIDGE
+    ETHEREUM_TOKEN_BRIDGE_ADDRESS
   );
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }

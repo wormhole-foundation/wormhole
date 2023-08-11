@@ -27,6 +27,7 @@ ifdef out_$(NETWORK)
 endif
 
 test: node_modules
+	cargo test
 	anchor test --arch sbf
 
 lint:

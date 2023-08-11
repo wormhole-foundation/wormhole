@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TokenBalances, getTokenBalances } from "../utils";
 import { expect } from "chai";
-import { getAnchorProgram, getProgramId } from ".";
+import { getAnchorProgram, getProgramId, localnet, mainnet } from ".";
 
 export enum TransferDirection {
   Out,
@@ -14,14 +14,8 @@ export async function expectCorrectTokenBalanceChanges(
   balancesBefore: TokenBalances,
   direction: TransferDirection
 ) {
-  const program = getAnchorProgram(
-    connection,
-    getProgramId("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
-  );
-  const forkedProgram = getAnchorProgram(
-    connection,
-    getProgramId("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb")
-  );
+  const program = getAnchorProgram(connection, localnet());
+  const forkedProgram = getAnchorProgram(connection, mainnet());
   const balancesAfter = await getTokenBalances(program, forkedProgram, token);
 
   switch (direction) {
