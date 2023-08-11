@@ -20,14 +20,14 @@ pub struct TransferFees<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
     )]
     bridge: Account<'info, BridgeProgramData>,
 
     #[account(
         seeds = [
-            PartialPostedVaaV1::seed_prefix(),
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
@@ -49,7 +49,7 @@ pub struct TransferFees<'info> {
 
     #[account(
         mut,
-        seeds = [FeeCollector::seed_prefix()],
+        seeds = [FeeCollector::SEED_PREFIX],
         bump,
     )]
     fee_collector: Account<'info, FeeCollector>,
@@ -133,7 +133,7 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
                 from: fee_collector.to_account_info(),
                 to: ctx.accounts.recipient.to_account_info(),
             },
-            &[&[FeeCollector::seed_prefix(), &[ctx.bumps["fee_collector"]]]],
+            &[&[FeeCollector::SEED_PREFIX, &[ctx.bumps["fee_collector"]]]],
         ),
         amount,
     )?;

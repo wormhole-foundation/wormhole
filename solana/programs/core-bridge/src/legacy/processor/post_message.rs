@@ -16,7 +16,7 @@ pub struct PostMessage<'info> {
     /// been paid.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
     )]
     bridge: Account<'info, BridgeProgramData>,
@@ -55,7 +55,7 @@ pub struct PostMessage<'info> {
         payer = payer,
         space = EmitterSequence::INIT_SPACE,
         seeds = [
-            EmitterSequence::seed_prefix(),
+            EmitterSequence::SEED_PREFIX,
             find_emitter_for_sequence(&emitter_authority, &message).as_ref()
         ],
         bump
@@ -71,7 +71,7 @@ pub struct PostMessage<'info> {
     /// fee is zero.
     #[account(
         mut,
-        seeds = [FeeCollector::seed_prefix()],
+        seeds = [FeeCollector::SEED_PREFIX],
         bump,
     )]
     fee_collector: Option<Account<'info, FeeCollector>>,

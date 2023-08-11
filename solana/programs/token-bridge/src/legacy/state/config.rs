@@ -12,8 +12,5 @@ impl LegacyDiscriminator<0> for Config {
 }
 
 impl SeedPrefix for Config {
-    #[inline]
-    fn seed_prefix() -> &'static [u8] {
-        b"config"
-    }
+    const SEED_PREFIX: &'static [u8] = b"config";
 }

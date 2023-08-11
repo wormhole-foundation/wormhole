@@ -23,7 +23,7 @@ pub struct PostVaaV1<'info> {
         init,
         payer = write_authority,
         space = PostedVaaV1Bytes::compute_size(vaa.payload_size()?),
-        seeds = [PostedVaaV1Bytes::seed_prefix(), &Vaa::parse(&vaa.buf).unwrap().body().digest()],
+        seeds = [PostedVaaV1Bytes::SEED_PREFIX, &Vaa::parse(&vaa.buf).unwrap().body().digest()],
         bump,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,

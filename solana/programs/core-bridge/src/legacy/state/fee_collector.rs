@@ -5,10 +5,7 @@ use wormhole_solana_common::SeedPrefix;
 pub struct FeeCollector {}
 
 impl SeedPrefix for FeeCollector {
-    #[inline]
-    fn seed_prefix() -> &'static [u8] {
-        b"fee_collector"
-    }
+    const SEED_PREFIX: &'static [u8] = b"fee_collector";
 }
 
 impl AccountDeserialize for FeeCollector {

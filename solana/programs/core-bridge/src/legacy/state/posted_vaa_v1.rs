@@ -107,9 +107,7 @@ impl<P> SeedPrefix for PostedVaaV1<P>
 where
     P: Clone + Readable + Writeable,
 {
-    fn seed_prefix() -> &'static [u8] {
-        SEED_PREFIX
-    }
+    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
 }
 
 impl<P> LegacyDiscriminator<4> for PostedVaaV1<P>
@@ -157,9 +155,7 @@ pub struct PostedVaaV1Bytes {
 }
 
 impl SeedPrefix for PostedVaaV1Bytes {
-    fn seed_prefix() -> &'static [u8] {
-        SEED_PREFIX
-    }
+    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
 }
 
 impl LegacyDiscriminator<4> for PostedVaaV1Bytes {
@@ -209,9 +205,7 @@ impl PartialPostedVaaV1 {
 }
 
 impl SeedPrefix for PartialPostedVaaV1 {
-    fn seed_prefix() -> &'static [u8] {
-        SEED_PREFIX
-    }
+    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
 }
 
 impl LegacyDiscriminator<4> for PartialPostedVaaV1 {

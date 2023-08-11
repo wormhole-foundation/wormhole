@@ -14,7 +14,7 @@ pub struct PostMessageUnreliable<'info> {
     /// been paid.
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
     )]
     bridge: Account<'info, BridgeProgramData>,
@@ -40,7 +40,7 @@ pub struct PostMessageUnreliable<'info> {
         init_if_needed,
         payer = payer,
         space = EmitterSequence::INIT_SPACE,
-        seeds = [EmitterSequence::seed_prefix(), emitter.key().as_ref()],
+        seeds = [EmitterSequence::SEED_PREFIX, emitter.key().as_ref()],
         bump,
     )]
     pub emitter_sequence: Account<'info, EmitterSequence>,
@@ -54,7 +54,7 @@ pub struct PostMessageUnreliable<'info> {
     /// fee is zero.
     #[account(
         mut,
-        seeds = [FeeCollector::seed_prefix()],
+        seeds = [FeeCollector::SEED_PREFIX],
         bump,
     )]
     fee_collector: Option<Account<'info, FeeCollector>>,

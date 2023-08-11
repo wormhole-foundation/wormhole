@@ -26,7 +26,7 @@ pub trait LegacyDiscriminator<const N: usize> {
 
 pub trait SeedPrefix {
     /// Get the arbitrary prefix of this account's PDA address seeds.
-    fn seed_prefix() -> &'static [u8];
+    const SEED_PREFIX: &'static [u8];
 }
 
 pub trait NewAccountSize {

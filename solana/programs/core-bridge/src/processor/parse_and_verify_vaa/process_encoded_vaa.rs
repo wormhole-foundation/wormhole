@@ -39,7 +39,7 @@ pub struct ProcessEncodedVaa<'info> {
     /// guardian_set_index in `VaaV1` here easily. Instead we check that the guardian set index
     /// matches once the VAA is verified via the `VerifySignaturesV1` directive.
     #[account(
-        seeds = [GuardianSet::seed_prefix(), &guardian_set.index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
     guardian_set: Option<Account<'info, GuardianSet>>,

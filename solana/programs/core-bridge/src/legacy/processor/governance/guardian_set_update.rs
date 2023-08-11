@@ -18,14 +18,14 @@ pub struct GuardianSetUpdate<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::seed_prefix()],
+        seeds = [BridgeProgramData::SEED_PREFIX],
         bump,
     )]
     bridge: Account<'info, BridgeProgramData>,
 
     #[account(
         seeds = [
-            PartialPostedVaaV1::seed_prefix(),
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump
@@ -47,7 +47,7 @@ pub struct GuardianSetUpdate<'info> {
 
     #[account(
         mut,
-        seeds = [GuardianSet::seed_prefix(), &bridge.guardian_set_index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &bridge.guardian_set_index.to_be_bytes()],
         bump,
     )]
     curr_guardian_set: Account<'info, GuardianSet>,
@@ -56,7 +56,7 @@ pub struct GuardianSetUpdate<'info> {
         init,
         payer = payer,
         space = try_compute_size(&posted_vaa)?,
-        seeds = [GuardianSet::seed_prefix(), &(curr_guardian_set.index + 1).to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &(curr_guardian_set.index + 1).to_be_bytes()],
         bump,
     )]
     new_guardian_set: Account<'info, GuardianSet>,
@@ -134,7 +134,7 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
         for other in keys.iter().skip(i + 1) {
             require!(guardian != other, CoreBridgeError::DuplicateGuardianAddress);
         }
-    } 
+    }
 
     // Set new guardian set account fields.
     ctx.accounts.new_guardian_set.set_inner(GuardianSet {
