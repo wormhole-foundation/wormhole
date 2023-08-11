@@ -3,6 +3,9 @@ package governor
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -244,13 +247,24 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 }
 
 func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
+	var db db.MockGovernorDB
+
+	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return newChainGovernorForTestWithDB(ctx, &db, gk)
+}
+
+func newChainGovernorForTestWithDB(ctx context.Context, db *db.MockGovernorDB, gk *ecdsa.PrivateKey) (*ChainGovernor, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
 	logger := zap.NewNop()
-	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+
+	gov := NewChainGovernor(logger, db, gk, common.GoTest)
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -1024,20 +1038,24 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	gov := NewChainGovernor(logger, &db, gk, common.GoTest)
 
 	gov.env = common.TestNet
-	err := gov.initConfig()
+	err = gov.initConfig()
 	require.NoError(t, err)
 }
 
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	gov := NewChainGovernor(logger, &db, gk, common.GoTest)
 
 	gov.env = common.TestNet
-	err := gov.initConfig()
+	err = gov.initConfig()
 	require.NoError(t, err)
 }
 
@@ -1790,5 +1808,255 @@ func TestCoinGeckoQueries(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPreviouslyApproved(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	msg1 := &common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			50,
+		),
+	}
+
+	digest1 := gov.HashFromMsg(msg1)
+
+	// Not in the database should return false.
+	previouslyApproved, err := gov.previouslyApproved(msg1, digest1)
+	require.NoError(t, err)
+	assert.Equal(t, false, previouslyApproved)
+
+	// In the database but with a different hash should return false.
+	err = gov.db.StoreSignedVAA(msg1.CreateVAA(0))
+	require.NoError(t, err)
+	msg1.Nonce += 1 // Nonce is part of the signing body, so changing that will change the digest.
+	digest2 := gov.HashFromMsg(msg1)
+	require.NotEqual(t, digest1, digest2)
+	previouslyApproved, err = gov.previouslyApproved(msg1, digest2)
+	require.NoError(t, err)
+	assert.Equal(t, false, previouslyApproved)
+
+	v := msg1.CreateVAA(0)
+
+	// In the database with the right hash but not signed by anyone should return false.
+	err = gov.db.StoreSignedVAA(v)
+	require.NoError(t, err)
+	previouslyApproved, err = gov.previouslyApproved(msg1, digest2)
+	require.NoError(t, err)
+	assert.Equal(t, false, previouslyApproved)
+
+	// In the database with the right hash but not signed by us should return false.
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	v.AddSignature(key, 0)
+	assert.Equal(t, len(v.Signatures), 1)
+	err = gov.db.StoreSignedVAA(v)
+	require.NoError(t, err)
+	previouslyApproved, err = gov.previouslyApproved(msg1, digest2)
+	require.NoError(t, err)
+	assert.Equal(t, false, previouslyApproved)
+
+	// In the database with the right hash and signed by us should return true.
+	v.AddSignature(gov.gk, 0)
+	assert.Equal(t, len(v.Signatures), 2)
+	err = gov.db.StoreSignedVAA(v)
+	require.NoError(t, err)
+	previouslyApproved, err = gov.previouslyApproved(msg1, digest2)
+	require.NoError(t, err)
+	assert.Equal(t, true, previouslyApproved)
+}
+
+func TestPreviouslyApprovedTransferIsAllowed(t *testing.T) {
+	// The duplicate should not get published and not get enqueued again.
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	bigTxLimit := uint64(100000)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, bigTxLimit)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	// Create a big transfer
+	msg := &common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			float64(bigTxLimit+1),
+		),
+	}
+
+	// Sign it and store it in the database.
+	v := msg.CreateVAA(0)
+	v.AddSignature(gov.gk, 0)
+	err = gov.db.StoreSignedVAA(v)
+	require.NoError(t, err)
+
+	// Do the quick check to see that it would be allowed.
+	previouslyApproved, err := gov.previouslyApproved(msg, gov.HashFromMsg(msg))
+	require.NoError(t, err)
+	require.Equal(t, true, previouslyApproved)
+
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:10pm (CST)")
+	canPost, err := gov.ProcessMsgForTime(msg, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, true, canPost)
+	assert.Equal(t, 0, numTrans)
+	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsSeen))
+}
+
+func TestReloadedPreviouslyApprovedTransferIsDropped(t *testing.T) {
+	ctx := context.Background()
+	var db db.MockGovernorDB
+	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	bigTxLimit := uint64(100000)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	// Create a big transfer
+	msg := &common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			float64(bigTxLimit+1),
+		),
+	}
+
+	// Create a governor and submit the big transfer, which should get enqueued and written to the database as pending.
+	{
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		require.NoError(t, err)
+		assert.NotNil(t, gov)
+		gov.setDayLengthInMinutes(24 * 60)
+		err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, bigTxLimit)
+		require.NoError(t, err)
+		err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+		require.NoError(t, err)
+
+		err = gov.loadFromDB()
+		require.NoError(t, err)
+
+		// It should get enqueued.
+		now := time.Now()
+		canPost, err := gov.ProcessMsgForTime(msg, now)
+		require.NoError(t, err)
+
+		numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+		assert.Equal(t, false, canPost)
+		assert.Equal(t, 0, numTrans)
+		assert.Equal(t, uint64(0), valueTrans)
+		assert.Equal(t, 1, numPending)
+		assert.Equal(t, uint64(0xa93e1de), valuePending)
+		assert.Equal(t, 1, len(gov.msgsSeen))
+	}
+
+	// Create a new governor using the existing database which should reload that transfer.
+	{
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		require.NoError(t, err)
+		assert.NotNil(t, gov)
+		gov.setDayLengthInMinutes(24 * 60)
+		err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, bigTxLimit)
+		require.NoError(t, err)
+		err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+		require.NoError(t, err)
+
+		err = gov.loadFromDB()
+		require.NoError(t, err)
+
+		numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+		assert.Equal(t, 0, numTrans)
+		assert.Equal(t, uint64(0), valueTrans)
+		assert.Equal(t, 1, numPending)
+		assert.Equal(t, uint64(0xa93e1de), valuePending)
+		assert.Equal(t, 1, len(gov.msgsSeen))
+	}
+
+	// Sign the VAA and store it in the database.
+	v := msg.CreateVAA(0)
+	v.AddSignature(gk, 0)
+	err = db.StoreSignedVAA(v)
+	require.NoError(t, err)
+
+	// Create a third governor using the existing database which should drop this VAA because it has previously been approved.
+	{
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		require.NoError(t, err)
+		assert.NotNil(t, gov)
+		gov.setDayLengthInMinutes(24 * 60)
+		err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, bigTxLimit)
+		require.NoError(t, err)
+		err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+		require.NoError(t, err)
+
+		err = gov.loadFromDB()
+		require.NoError(t, err)
+
+		numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+		assert.Equal(t, 0, numTrans)
+		assert.Equal(t, uint64(0), valueTrans)
+		assert.Equal(t, 0, numPending)
+		assert.Equal(t, uint64(0), valuePending)
+		assert.Equal(t, 0, len(gov.msgsSeen))
 	}
 }

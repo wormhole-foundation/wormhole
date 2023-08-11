@@ -26,7 +26,9 @@
 package governor
 
 import (
+	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -38,6 +40,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"go.uber.org/zap"
 )
@@ -114,6 +118,7 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 type ChainGovernor struct {
 	db                    db.GovernorDB // protected by `mutex`
 	logger                *zap.Logger
+	gk                    *ecdsa.PrivateKey
 	mutex                 sync.Mutex
 	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
 	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
@@ -132,11 +137,13 @@ type ChainGovernor struct {
 func NewChainGovernor(
 	logger *zap.Logger,
 	db db.GovernorDB,
+	gk *ecdsa.PrivateKey,
 	env common.Environment,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger.With(zap.String("component", "cgov")),
+		gk:                  gk,
 		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
@@ -324,6 +331,26 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		}
 
 		gov.logger.Info("allowing duplicate vaa to be published again, but not adding it to the notional value",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+		)
+		return true, nil
+	}
+
+	previouslyApproved, err := gov.previouslyApproved(msg, hash)
+	if err != nil {
+		gov.logger.Error("failed to see if this transfer has previously been approved by us",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
+		return false, err
+	}
+
+	if previouslyApproved {
+		gov.logger.Info("allowing duplicate vaa to be published again because it has previously reached quorum and been signed by us, not adding it to the notional value",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
 			zap.Stringer("txHash", msg.TxHash),
@@ -687,4 +714,55 @@ func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())
+}
+
+// previouslyApproved checks to see if this VAA has previously reached quorum and we are listed as a signer. If so, the VAA can be allowed to continue.
+func (gov *ChainGovernor) previouslyApproved(msg *common.MessagePublication, newDigest string) (bool, error) {
+	// Look up the VAA in the database.
+	vaaID := db.VAAID{
+		EmitterChain:   msg.EmitterChain,
+		EmitterAddress: msg.EmitterAddress,
+		Sequence:       msg.Sequence,
+	}
+	vb, err := gov.db.GetSignedVAABytes(vaaID)
+	if err != nil {
+		if err != db.ErrVAANotFound {
+			return false, fmt.Errorf(`failed to look up VAA "%s" in the database: %v`, msg.MessageIDString(), err)
+		}
+		return false, nil
+	}
+
+	v, err := vaa.Unmarshal(vb)
+	if err != nil {
+		panic(fmt.Sprintf(`cgov: failed to unmarshal VAA "%s" from db: %v`, msg.MessageIDString(), err))
+	}
+
+	// Verify the digest matches.
+	oldDigest := hex.EncodeToString(v.SigningDigest().Bytes())
+	if oldDigest != newDigest {
+		gov.logger.Warn("unable to approve previously stored VAA because the digest has changed",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("oldDigest", oldDigest),
+			zap.String("newDigest", newDigest),
+		)
+		return false, nil
+	}
+
+	// Generate our signature for this VAA so we can see if we are listed as a signer.
+	sig, err := crypto.Sign(v.SigningDigest().Bytes(), gov.gk)
+	if err != nil {
+		panic(fmt.Sprintf(`cgov: failed to sign VAA "%s" from db: %v`, msg.MessageIDString(), err))
+	}
+	ourSig := [65]byte{}
+	copy(ourSig[:], sig)
+
+	// See if we are listed as a signer. If so, we can approve it.
+	for _, sig := range v.Signatures {
+		if bytes.Equal(sig.Signature[:], ourSig[:]) {
+			return true, nil
+		}
+	}
+
+	// We have not previously signed this one, so we can't approve it.
+	return false, nil
 }

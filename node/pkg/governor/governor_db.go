@@ -139,6 +139,27 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 		return
 	}
 
+	previouslyApproved, err := gov.previouslyApproved(msg, hash)
+	if err != nil {
+		gov.logger.Error("failed to see if this transfer has previously been approved, keeping it",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
+	} else if previouslyApproved {
+		gov.logger.Info("reloaded pending transfer has previously reached quorum and been signed by us, dropping it",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+		)
+		err := gov.db.DeletePendingMsg(pending)
+		if err != nil {
+			gov.logger.Error("failed to delete pending transfer that has previously been approved", zap.Error(err))
+		}
+		return
+	}
+
 	gov.logger.Info("reloaded pending transfer",
 		zap.String("MsgID", msg.MessageIDString()),
 		zap.Stringer("TxHash", msg.TxHash),

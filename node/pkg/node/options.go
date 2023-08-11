@@ -146,7 +146,7 @@ func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
 				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env)
+				g.gov = governor.NewChainGovernor(logger, g.db, g.gk, g.env)
 			} else {
 				logger.Info("chain governor is disabled")
 			}

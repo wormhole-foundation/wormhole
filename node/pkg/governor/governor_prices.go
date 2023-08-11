@@ -8,6 +8,9 @@ package governor
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -280,7 +283,13 @@ func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.MainNet)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic("failed to generate key")
+	}
+
+	gov := NewChainGovernor(logger, &db, key, common.MainNet)
 
 	if err := gov.initConfig(); err != nil {
 		return err

@@ -2,12 +2,16 @@ package publicrpc
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -69,7 +73,9 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 func TestGovernorIsVAAEnqueuedNoMessage(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewProduction()
-	gov := governor.NewChainGovernor(logger, nil, common.GoTest)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	gov := governor.NewChainGovernor(logger, nil, key, common.GoTest)
 	server := &PublicrpcServer{logger: logger, gov: gov}
 
 	// A message without the messageId set should not panic but return an error instead.

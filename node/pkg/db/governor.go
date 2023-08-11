@@ -22,29 +22,81 @@ type GovernorDB interface {
 	DeleteTransfer(t *Transfer) error
 	DeletePendingMsg(k *PendingTransfer) error
 	GetChainGovernorData(logger *zap.Logger) (transfers []*Transfer, pending []*PendingTransfer, err error)
+	StoreSignedVAA(v *vaa.VAA) error
+	GetSignedVAABytes(id VAAID) (b []byte, err error)
 }
 
 type MockGovernorDB struct {
+	storedVAAs       map[VAAID][]byte
+	transfers        map[string]*Transfer
+	pendingTransfers map[string]*PendingTransfer
 }
 
 func (d *MockGovernorDB) StoreTransfer(t *Transfer) error {
+	if d.transfers == nil {
+		d.transfers = make(map[string]*Transfer)
+	}
+	d.transfers[t.MsgID] = t
 	return nil
 }
 
 func (d *MockGovernorDB) StorePendingMsg(k *PendingTransfer) error {
+	if d.pendingTransfers == nil {
+		d.pendingTransfers = make(map[string]*PendingTransfer)
+	}
+	d.pendingTransfers[k.Msg.MessageIDString()] = k
 	return nil
 }
 
 func (d *MockGovernorDB) DeleteTransfer(t *Transfer) error {
+	if d.transfers != nil {
+		delete(d.transfers, t.MsgID)
+	}
 	return nil
 }
 
 func (d *MockGovernorDB) DeletePendingMsg(pending *PendingTransfer) error {
+	if d.pendingTransfers != nil {
+		delete(d.pendingTransfers, pending.Msg.MessageIDString())
+	}
 	return nil
 }
 
 func (d *MockGovernorDB) GetChainGovernorData(logger *zap.Logger) (transfers []*Transfer, pending []*PendingTransfer, err error) {
-	return nil, nil, nil
+	if d.transfers != nil {
+		for _, t := range d.transfers {
+			transfers = append(transfers, t)
+		}
+	}
+	if d.pendingTransfers != nil {
+		for _, pt := range d.pendingTransfers {
+			pending = append(pending, pt)
+		}
+	}
+	return transfers, pending, nil
+}
+
+func (d *MockGovernorDB) GetSignedVAABytes(id VAAID) (b []byte, err error) {
+	v, exists := d.storedVAAs[id]
+	if !exists {
+		return nil, ErrVAANotFound
+	}
+	return v, nil
+}
+
+func (d *MockGovernorDB) StoreSignedVAA(v *vaa.VAA) error {
+	if d.storedVAAs == nil {
+		d.storedVAAs = make(map[VAAID][]byte)
+	}
+
+	vaaID := VaaIDFromVAA(v)
+	b, err := v.Marshal()
+	if err != nil {
+		panic("failed to marshal VAA to store in mock db")
+	}
+
+	d.storedVAAs[*vaaID] = b
+	return nil
 }
 
 type Transfer struct {

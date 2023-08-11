@@ -1,6 +1,9 @@
 package governor
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -11,7 +14,9 @@ import (
 
 func TestIsVAAEnqueuedNilMessageID(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	gov := NewChainGovernor(logger, nil, common.GoTest)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	gov := NewChainGovernor(logger, nil, key, common.GoTest)
 	enqueued, err := gov.IsVAAEnqueued(nil)
 	require.EqualError(t, err, "no message ID specified")
 	assert.Equal(t, false, enqueued)
