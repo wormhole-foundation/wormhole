@@ -71,6 +71,13 @@
       "chainId": 24,
       "rpc": "https://optimism.api.onfinality.io/public",
       "wormholeAddress": "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"
+    },
+    {
+      "description": "Base",
+      "evmNetworkId": 8453,
+      "chainId": 30,
+      "rpc": "https://base.blockpi.network/v1/rpc/public",
+      "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
     }
   ]
 }
