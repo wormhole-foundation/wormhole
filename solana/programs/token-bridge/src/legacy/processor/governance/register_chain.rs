@@ -107,7 +107,6 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
 
 fn try_new_foreign_chain(acc_info: &AccountInfo) -> Result<[u8; 2]> {
     let data = &acc_info.try_borrow_data()?[GOVERNANCE_DECREE_START..];
-    msg!("data... {:?}", data);
     match gov::RegisterChain::parse(data) {
         Ok(decree) => Ok(decree.foreign_chain().to_be_bytes()),
         Err(_) => err!(TokenBridgeError::InvalidGovernanceAction),
