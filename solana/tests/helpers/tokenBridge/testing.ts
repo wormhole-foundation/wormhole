@@ -30,10 +30,17 @@ export async function expectCorrectTokenBalanceChanges(
       return;
     }
     case TransferDirection.In: {
-      throw new Error("not implemented yet");
+      const totalTokenBalanceChange = balancesAfter.token - balancesBefore.token;
+      expect(totalTokenBalanceChange % BigInt(2)).to.equal(BigInt(0));
+      const balanceChange = totalTokenBalanceChange / BigInt(2);
+      expect(balancesBefore.custodyToken - balancesAfter.custodyToken).to.equal(balanceChange);
+      expect(balancesBefore.forkCustodyToken - balancesAfter.forkCustodyToken).to.equal(
+        balanceChange
+      );
+      return;
     }
     default: {
-      throw new Error("impossible");
+      throw new Error("impossible TransferDirection");
     }
   }
 }

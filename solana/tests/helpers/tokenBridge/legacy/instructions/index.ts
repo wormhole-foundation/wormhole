@@ -10,6 +10,7 @@ export * from "./governance";
 export * from "./initialize";
 export * from "./transferTokens";
 export * from "./transferTokensWithPayload";
+export * from "./completeTransfer";
 
 export function approveTransferAuthorityIx(
   program: TokenBridgeProgram,
