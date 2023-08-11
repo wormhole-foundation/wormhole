@@ -7,7 +7,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../..";
-import { Config, coreEmitterPda, tokenMetadataPda, wrappedAssetPda } from "../state";
+import { Config, coreEmitterPda, tokenMetadataPda, WrappedAsset } from "../state";
 import * as coreBridge from "../../../coreBridge";
 
 export type LegacyAttestTokenContext = {
@@ -62,7 +62,7 @@ export function legacyAttestTokenIx(
   }
 
   if (nativeAsset === undefined) {
-    nativeAsset = wrappedAssetPda(programId, mint);
+    nativeAsset = WrappedAsset.address(programId, mint);
   }
 
   if (tokenMetadata === undefined) {

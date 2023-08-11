@@ -5,6 +5,7 @@ import { TokenBridgeProgram } from "../..";
 import { transferAuthorityPda } from "../state";
 
 export * from "./attestToken";
+export * from "./createOrUpdateWrapped";
 export * from "./governance";
 export * from "./initialize";
 export * from "./transferTokens";
