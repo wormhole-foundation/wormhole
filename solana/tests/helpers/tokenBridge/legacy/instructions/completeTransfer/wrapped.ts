@@ -7,12 +7,20 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
-import { Config, custodyAuthorityPda, custodyTokenPda, RegisteredEmitter } from "../../state";
+import {
+  Config,
+  custodyAuthorityPda,
+  custodyTokenPda,
+  mintAuthorityPda,
+  RegisteredEmitter,
+  WrappedAsset,
+  wrappedMintPda,
+} from "../../state";
 import { PostedVaaV1, Claim } from "../../../../coreBridge";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-export type LegacyCompleteTransferNativeContext = {
+export type LegacyCompleteTransferWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
   postedVaa?: PublicKey;
@@ -20,20 +28,23 @@ export type LegacyCompleteTransferNativeContext = {
   registeredEmitter?: PublicKey;
   recipientToken: PublicKey;
   payerToken?: PublicKey;
-  custodyToken?: PublicKey;
-  mint: PublicKey;
-  custodyAuthority?: PublicKey;
+  wrappedMint?: PublicKey;
+  wrappedAsset?: PublicKey;
+  mintAuthority?: PublicKey;
   rent?: PublicKey;
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferNativeIx(
+export function legacyCompleteTransferWrappedIx(
   program: TokenBridgeProgram,
-  accounts: LegacyCompleteTransferNativeContext,
+  accounts: LegacyCompleteTransferWrappedContext,
   parsedVaa: ParsedVaa
 ) {
   const programId = program.programId;
-  const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
+  const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
+
+  const tokenAddress = Array.from(payload.subarray(33, 65));
+  const tokenChain = payload.readUInt16BE(65);
 
   let {
     payer,
@@ -43,9 +54,9 @@ export function legacyCompleteTransferNativeIx(
     registeredEmitter,
     recipientToken,
     payerToken,
-    custodyToken,
-    mint,
-    custodyAuthority,
+    wrappedMint,
+    wrappedAsset,
+    mintAuthority,
     rent,
     coreBridgeProgram,
   } = accounts;
@@ -79,16 +90,20 @@ export function legacyCompleteTransferNativeIx(
     );
   }
 
+  if (wrappedMint === undefined) {
+    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddress);
+  }
+
   if (payerToken === undefined) {
-    payerToken = getAssociatedTokenAddressSync(mint, payer);
+    payerToken = getAssociatedTokenAddressSync(wrappedMint, payer);
   }
 
-  if (custodyToken === undefined) {
-    custodyToken = custodyTokenPda(programId, mint);
+  if (wrappedAsset === undefined) {
+    wrappedAsset = WrappedAsset.address(programId, wrappedMint);
   }
 
-  if (custodyAuthority === undefined) {
-    custodyAuthority = custodyAuthorityPda(programId);
+  if (mintAuthority === undefined) {
+    mintAuthority = mintAuthorityPda(programId);
   }
 
   if (rent === undefined) {
@@ -132,17 +147,17 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyToken,
+      pubkey: wrappedMint,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: mint,
+      pubkey: wrappedAsset,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: custodyAuthority,
+      pubkey: mintAuthority,
       isWritable: false,
       isSigner: false,
     },

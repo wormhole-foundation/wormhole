@@ -7,33 +7,44 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
-import { Config, custodyAuthorityPda, custodyTokenPda, RegisteredEmitter } from "../../state";
+import {
+  Config,
+  custodyAuthorityPda,
+  custodyTokenPda,
+  mintAuthorityPda,
+  RegisteredEmitter,
+  WrappedAsset,
+  wrappedMintPda,
+} from "../../state";
 import { PostedVaaV1, Claim } from "../../../../coreBridge";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-export type LegacyCompleteTransferNativeContext = {
+export type LegacyCompleteTransferWithPayloadWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
   postedVaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
-  recipientToken: PublicKey;
-  payerToken?: PublicKey;
-  custodyToken?: PublicKey;
-  mint: PublicKey;
-  custodyAuthority?: PublicKey;
+  dstToken: PublicKey;
+  redeemerAuthority?: PublicKey;
+  wrappedMint?: PublicKey;
+  wrappedAsset?: PublicKey;
+  mintAuthority?: PublicKey;
   rent?: PublicKey;
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferNativeIx(
+export function legacyCompleteTransferWithPayloadWrappedIx(
   program: TokenBridgeProgram,
-  accounts: LegacyCompleteTransferNativeContext,
+  accounts: LegacyCompleteTransferWithPayloadWrappedContext,
   parsedVaa: ParsedVaa
 ) {
   const programId = program.programId;
-  const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
+  const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
+
+  const tokenAddress = Array.from(payload.subarray(33, 65));
+  const tokenChain = payload.readUInt16BE(65);
 
   let {
     payer,
@@ -41,11 +52,11 @@ export function legacyCompleteTransferNativeIx(
     postedVaa,
     claim,
     registeredEmitter,
-    recipientToken,
-    payerToken,
-    custodyToken,
-    mint,
-    custodyAuthority,
+    dstToken,
+    redeemerAuthority,
+    wrappedMint,
+    wrappedAsset,
+    mintAuthority,
     rent,
     coreBridgeProgram,
   } = accounts;
@@ -79,16 +90,20 @@ export function legacyCompleteTransferNativeIx(
     );
   }
 
-  if (payerToken === undefined) {
-    payerToken = getAssociatedTokenAddressSync(mint, payer);
+  if (redeemerAuthority === undefined) {
+    redeemerAuthority = payer;
   }
 
-  if (custodyToken === undefined) {
-    custodyToken = custodyTokenPda(programId, mint);
+  if (wrappedMint === undefined) {
+    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddress);
   }
 
-  if (custodyAuthority === undefined) {
-    custodyAuthority = custodyAuthorityPda(programId);
+  if (wrappedAsset === undefined) {
+    wrappedAsset = WrappedAsset.address(programId, wrappedMint);
+  }
+
+  if (mintAuthority === undefined) {
+    mintAuthority = mintAuthorityPda(programId);
   }
 
   if (rent === undefined) {
@@ -122,27 +137,32 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: recipientToken,
+      pubkey: dstToken,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: payerToken,
+      pubkey: redeemerAuthority,
+      isWritable: false,
+      isSigner: true,
+    },
+    {
+      pubkey: dstToken, // NOTE: This exists because of a bug in the legacy program.
+      isWritable: false, // TODO: check this
+      isSigner: false,
+    },
+    {
+      pubkey: wrappedMint,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: custodyToken,
-      isWritable: true,
-      isSigner: false,
-    },
-    {
-      pubkey: mint,
+      pubkey: wrappedAsset,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: custodyAuthority,
+      pubkey: mintAuthority,
       isWritable: false,
       isSigner: false,
     },
@@ -168,7 +188,7 @@ export function legacyCompleteTransferNativeIx(
     },
   ];
 
-  const data = Buffer.alloc(1, 2);
+  const data = Buffer.alloc(1, 10);
 
   return new TransactionInstruction({
     keys,
