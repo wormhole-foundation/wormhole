@@ -145,6 +145,103 @@ export function encodeAndSignGovernancePayload(payload: string): string {
   return "0x" + vm;
 }
 
+export function extractChainToBeRegisteredFromRegisterChainVaa(vaa: Buffer): number {
+  // Structure of a register chain Vaa
+  // version: uint8 <-- should be 1
+  // guardianSetIndex: uint32
+  // signaturesLength: uint8
+  // signatures: bytes66[signaturesLength]
+  // timestamp: uint32
+  // nonce: uint32
+  // emitterChainId: uint16 <-- should be wh governance (solana chain id)
+  // emitterContract: bytes32 <-- should be wh governance
+  // sequence: uint64
+  // consistencyLevel: uint8
+  // module: bytes32 <-- should be wormhole relayer
+  // action: uint8 <-- should be register chain
+  // chain: uint16 <-- should be broadcast
+  // emitterChain: uint16 <-- need to extract
+  // emitterAddress: bytes 32
+  const uint8Size = 1;
+  const uint16Size = uint8Size * 2;
+  const uint32Size = uint8Size * 4;
+  const uint64Size = uint8Size * 8;
+  const bytes32Size = 32;
+  // Each signature has the guardian index in one byte (uint8) and (r, s, v) tuple in 65 bytes
+  const signatureSize = 66;
+
+  const governanceChain = 1;
+  const governanceContract =
+    "0x0000000000000000000000000000000000000000000000000000000000000004";
+  // See WormholeRelayerGovernance.sol
+  const GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT = 1;
+  const TARGET_CHAIN_BROADCAST = 0;
+
+  // We'll do some very basic sanity checks
+  // We won't verify signatures here
+  const version = vaa.readUint8(0);
+  if (version !== 1) {
+    throw new Error("Unknown VAA version ${version}");
+  }
+
+  const signaturesOffset = uint8Size + uint32Size;
+  const signaturesLength = vaa.readUint8(signaturesOffset);
+
+  const timestampOffset =
+    signaturesOffset + uint8Size + signaturesLength * signatureSize;
+  const emitterChainIdOffset = timestampOffset + uint32Size * 2;
+  const emitterChainId = vaa.readUint16BE(emitterChainIdOffset);
+  const emitterContractOffset = emitterChainIdOffset + uint16Size;
+  const emitterContract = vaa.subarray(
+    emitterContractOffset,
+    emitterContractOffset + bytes32Size,
+  );
+  if (emitterChainId !== governanceChain) {
+    throw new Error(
+      `VAA initiated by incorrect chain. Expected chain ${governanceChain} but found chain ${emitterChainId}`,
+    );
+  }
+  if (
+    !emitterContract.equals(Buffer.from(governanceContract.substring(2), "hex"))
+  ) {
+    throw new Error(
+      `VAA initiated by incorrect contract. Expected contract ${governanceContract} but found contract ${
+        "0x" + emitterContract.toString("hex")
+      }`,
+    );
+  }
+
+  const moduleOffset =
+    emitterContractOffset + bytes32Size + uint64Size + uint8Size;
+  const moduleBuf = vaa.subarray(moduleOffset, moduleOffset + bytes32Size);
+  if (
+    !moduleBuf.equals(Buffer.from(wormholeRelayerModule.substring(2), "hex"))
+  ) {
+    throw new Error(
+      `Unexpected governance module ${"0x" + moduleBuf.toString("hex")}`,
+    );
+  }
+
+  const actionOffset = moduleOffset + bytes32Size;
+  const action = vaa.readUint8(actionOffset);
+  if (action !== GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT) {
+    throw new Error(
+      `Unexpected wormhole relayer governance action id ${action}`,
+    );
+  }
+
+  const governanceTargetChainOffset = actionOffset + uint8Size;
+  const governanceTargetChain = vaa.readUint16BE(governanceTargetChainOffset);
+  if (governanceTargetChain !== TARGET_CHAIN_BROADCAST) {
+    throw new Error(
+      `Expected the register chain VAA to be addressed as a broadcast to all chains but it is addressed to chain ${governanceTargetChain} instead`,
+    );
+  }
+
+  const chainToRegisterOffset = governanceTargetChainOffset + uint16Size;
+  return vaa.readUint16BE(chainToRegisterOffset);
+}
+
 export function doubleKeccak256(body: ethers.BytesLike) {
   return ethers.utils.keccak256(ethers.utils.keccak256(body));
 }
