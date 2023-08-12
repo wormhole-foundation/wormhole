@@ -147,6 +147,9 @@ func init() {
 	AdminClientIbcTranslatorUpdateChannelChainCmd.Flags().AddFlagSet(ibcUpdateChannelChainFlagSet)
 	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 	TemplateCmd.AddCommand(AdminClientIbcTranslatorUpdateChannelChainCmd)
+
+	// GatewaySetTokenfactoryPfmDefaultParamsCmd doesn't have any flags
+	TemplateCmd.AddCommand(AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd)
 }
 
 var TemplateCmd = &cobra.Command{
