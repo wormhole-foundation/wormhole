@@ -6,23 +6,31 @@ import {
   init,
   writeOutputFiles,
   getDeliveryProviderAddress,
-  getOperatingChains,
   Deployment,
+  getOperationDescriptor,
+  loadLastRun,
 } from "../helpers/env";
 
 const processName = "deployWormholeRelayer";
 init();
-const chains = getOperatingChains();
+const operation = getOperationDescriptor();
+
+interface WormholeRelayerDeployment {
+  wormholeRelayerImplementations: Deployment[];
+  wormholeRelayerProxies: Deployment[];
+}
 
 async function run() {
   console.log("Start! " + processName);
 
-  const output: Record<string, Deployment[]> = {
-    wormholeRelayerImplementations: [],
-    wormholeRelayerProxies: [],
+  const lastRun: WormholeRelayerDeployment | undefined =
+    loadLastRun(processName);
+  const deployments: WormholeRelayerDeployment = {
+    wormholeRelayerImplementations: lastRun?.wormholeRelayerImplementations?.filter(isSupportedChain) || [],
+    wormholeRelayerProxies: lastRun?.wormholeRelayerProxies?.filter(isSupportedChain) || [],
   };
 
-  for (const chain of chains) {
+  for (const chain of operation.operatingChains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
     const coreRelayerImplementation = await deployWormholeRelayerImplementation(
       chain,
@@ -33,12 +41,21 @@ async function run() {
       getDeliveryProviderAddress(chain),
     );
 
-    output.wormholeRelayerImplementations.push(coreRelayerImplementation);
-    output.wormholeRelayerProxies.push(coreRelayerProxy);
+    deployments.wormholeRelayerImplementations.push(
+      coreRelayerImplementation,
+    );
+    deployments.wormholeRelayerProxies.push(coreRelayerProxy);
     console.log("");
   }
 
-  writeOutputFiles(output, processName);
+  writeOutputFiles(deployments, processName);
+}
+
+function isSupportedChain(deploy: Deployment): boolean {
+  const item = operation.supportedChains.find((chain) => {
+    return deploy.chainId === chain.chainId;
+  });
+  return item !== undefined;
 }
 
 run().then(() => console.log("Done! " + processName));

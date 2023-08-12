@@ -5,7 +5,6 @@ import {
   loadChains,
   ChainInfo,
   loadScriptConfig,
-  getWormholeRelayerAddress,
   getDeliveryProvider,
   getDeliveryProviderAddress,
   getOperatingChains,
@@ -29,7 +28,7 @@ interface PricingInfo {
 const processName = "configureDeliveryProvider";
 init();
 const operatingChains = getOperatingChains();
-const chains = loadChains();
+const allChains = loadChains();
 const config = loadScriptConfig(processName);
 
 async function run() {
@@ -72,7 +71,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
   const updates: DeliveryProviderStructs.UpdateStruct[] = [];
 
   // Set the entire relay provider configuration
-  for (const targetChain of chains) {
+  for (const targetChain of allChains) {
     const targetChainPriceUpdate = (config.pricingInfo as PricingInfo[]).find(
       (x: any) => x.chainId == targetChain.chainId
     );
