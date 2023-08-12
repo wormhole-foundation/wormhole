@@ -95,6 +95,9 @@ message GovernanceMessage {
     WormchainWasmInstantiateAllowlist wormchain_wasm_instantiate_allowlist = 23;
     WormchainIbcComposabilityMwSetContract wormchain_ibc_composability_mw_set_contract = 24;
 
+    // Gateway
+    GatewaySetTokenfactoryPfmDefaultParams gateway_set_tokenfactory_pfm_default_params = 25;
+
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
 
@@ -247,6 +250,8 @@ message WormchainIbcComposabilityMwSetContract {
     // The address of the contract that is set in the ibc composability middleware.
     string contract = 1;
 }
+
+message GatewaySetTokenfactoryPfmDefaultParams {}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;

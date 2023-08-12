@@ -232,6 +232,12 @@ var AdminClientWormchainIbcComposabilityMwSetContractCmd = &cobra.Command{
 	Run:   runWormchainIbcComposabilityMwSetContractTemplate,
 }
 
+var AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd = &cobra.Command{
+	Use:   "gateway-set-tokenfactory-pfm-default-params",
+	Short: "Generate an empty gateway set tokenfactory and packet forward middleware default params template at specified path",
+	Run:   runGatewaySetTokenfactoryPfmDefaultParamsTemplate,
+}
+
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
 	Use:   "ibc-receiver-update-channel-chain",
 	Short: "Generate an empty ibc receiver channelId to chainId mapping update template at specified path",
@@ -689,6 +695,27 @@ func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args 
 					WormchainIbcComposabilityMwSetContract: &nodev1.WormchainIbcComposabilityMwSetContract{
 						Contract: *wormchainIbcComposabilityMwContractAddress,
 					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGatewaySetTokenfactoryPfmDefaultParamsTemplate(cmd *cobra.Command, args []string) {
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams{
+					GatewaySetTokenfactoryPfmDefaultParams: &nodev1.GatewaySetTokenfactoryPfmDefaultParams{},
 				},
 			},
 		},
