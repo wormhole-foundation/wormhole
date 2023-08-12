@@ -4,6 +4,7 @@ import {
   ChainInfo,
   writeOutputFiles,
   getMockIntegration,
+  getProvider,
 } from "../helpers/env";
 
 const processName = "readMockIntegrationState";
@@ -41,7 +42,8 @@ async function readState(
   );
 
   try {
-    const mockIntegration = await getMockIntegration(chain);
+    const provider = getProvider(chain);
+    const mockIntegration = await getMockIntegration(chain, provider);
     const contractAddress = mockIntegration.address;
     const messageHistory = await mockIntegration.getMessageHistory();
     const registeredContracts: { chainId: number; contract: string }[] = [];

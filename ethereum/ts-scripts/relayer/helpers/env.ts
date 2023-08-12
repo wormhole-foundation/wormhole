@@ -27,6 +27,19 @@ export type Deployment = {
   address: string;
 };
 
+export interface OperationDescriptor {
+  /**
+   * Txs will be signed for these chains
+   */
+  operatingChains: ChainInfo[];
+  /**
+   * Deployment artifacts exist for these chains and may be used to perform
+   * cross registration or sanity checks.
+   * Excludes operating chains.
+   */
+  supportedChains: ChainInfo[];
+}
+
 const DEFAULT_ENV = "testnet";
 
 export let env = "";
@@ -49,9 +62,30 @@ export function init(overrides: { lastRunOverride?: boolean } = {}): string {
 }
 
 function get_env_var(env: string): string {
-  const v = process.env[env];
-  return v || "";
+  return process.env[env] || "";
 }
+
+/**
+ * Beware if deciding to cache the JSON in these two.
+ * Some scripts may depend on reading updates to the JSON file.
+ */
+
+export function readChains() {
+  const filepath = `./ts-scripts/relayer/config/${env}/chains.json`;
+  const chainFile = fs.readFileSync(filepath, "utf8");
+  return JSON.parse(chainFile);
+}
+
+export function readContracts() {
+  const filepath = `./ts-scripts/relayer/config/${env}/contracts.json`;
+  const contractsFile = fs.readFileSync(filepath, "utf8");
+  if (!contractsFile) {
+    throw Error(`Failed to find contracts file at ${filepath}!`);
+  }
+  return JSON.parse(contractsFile);
+}
+
+/**********************/
 
 function getContainer(): string | null {
   const container = get_env_var("CONTAINER");
@@ -73,10 +107,9 @@ export function loadScriptConfig(processName: string): any {
   return config;
 }
 
-export function getOperatingChains(): ChainInfo[] {
-  const allChains = loadChains();
+function getOperatingChainIds() {
   const container = getContainer();
-  let operatingChains = null;
+  let operatingChains: number[] | undefined = undefined;
 
   if (container == "evm1") {
     operatingChains = [2];
@@ -85,37 +118,61 @@ export function getOperatingChains(): ChainInfo[] {
     operatingChains = [4];
   }
 
-  const chainFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/chains.json`
-  );
-  const chains = JSON.parse(chainFile.toString());
-  if (chains.operatingChains) {
+  const chains = readChains();
+  if (chains.operatingChains !== undefined) {
     operatingChains = chains.operatingChains;
   }
-  if (!operatingChains) {
+  return operatingChains
+}
+
+export function getOperatingChains(): ChainInfo[] {
+  const allChains = loadChains();
+  const operatingChains = getOperatingChainIds();
+
+  if (operatingChains === undefined) {
     return allChains;
   }
 
   const output: ChainInfo[] = [];
-  operatingChains.forEach((x: number) => {
+  for (const chain of operatingChains) {
     const item = allChains.find((y) => {
-      return x == y.chainId;
+      return chain == y.chainId;
     });
-    if (item) {
+    if (item !== undefined) {
       output.push(item);
     }
-  });
+  }
 
   return output;
 }
 
+export function getOperationDescriptor(): OperationDescriptor {
+  const allChains = loadChains();
+  const operatingChains = getOperatingChainIds();
+
+  if (operatingChains === undefined) {
+    return { operatingChains: allChains, supportedChains: [] };
+  }
+
+  const result: OperationDescriptor = { operatingChains: [], supportedChains: [] };
+  for (const chain of allChains) {
+    const item = operatingChains.find((y) => {
+      return chain.chainId == y;
+    });
+    if (item !== undefined) {
+      result.operatingChains.push(chain);
+    } else {
+      result.supportedChains.push(chain);
+    }
+  }
+
+  return result;
+}
+
 export function loadChains(): ChainInfo[] {
-  const chainFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/chains.json`
-  );
-  const chains = JSON.parse(chainFile.toString());
+  const chains = readChains();
   if (!chains.chains) {
-    throw Error("Failed to pull chain config file!");
+    throw Error("Couldn't find chain information!");
   }
   return chains.chains;
 }
@@ -139,10 +196,7 @@ export function loadPrivateKey(): string {
 }
 
 export function loadGuardianSetIndex(): number {
-  const chainFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/chains.json`
-  );
-  const chains = JSON.parse(chainFile.toString());
+  const chains = readChains();
   if (chains.guardianSetIndex == undefined) {
     throw Error("Failed to pull guardian set index from the chains file!");
   }
@@ -150,13 +204,7 @@ export function loadGuardianSetIndex(): number {
 }
 
 export function loadDeliveryProviders(): Deployment[] {
-  const contractsFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/contracts.json`
-  );
-  if (!contractsFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const contracts = JSON.parse(contractsFile.toString());
+  const contracts = readContracts();
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`,
@@ -176,13 +224,7 @@ export function loadDeliveryProviders(): Deployment[] {
 }
 
 export function loadWormholeRelayers(dev: boolean): Deployment[] {
-  const contractsFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/contracts.json`
-  );
-  if (!contractsFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const contracts = JSON.parse(contractsFile.toString());
+  const contracts = readContracts();
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`,
@@ -216,13 +258,7 @@ export function loadMockIntegrations(): Deployment[] {
 }
 
 export function loadCreate2Factories(): Deployment[] {
-  const contractsFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/contracts.json`
-  );
-  if (!contractsFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const contracts = JSON.parse(contractsFile.toString());
+  const contracts = readContracts();
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`,
@@ -289,6 +325,21 @@ export function writeOutputFiles(output: unknown, processName: string) {
   );
 }
 
+export function loadLastRun(processName: string): any {
+  try {
+    return JSON.parse(fs.readFileSync(
+      `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
+      "utf8",
+    ));
+  } catch (error: unknown) {
+    if (error instanceof Error && (error as any).code === 'ENOENT') {
+      return undefined;
+    } else {
+      throw error;
+    }
+  }
+}
+
 export async function getSigner(chain: ChainInfo): Promise<ethers.Signer> {
   const provider = getProvider(chain);
   const privateKey = loadPrivateKey();
@@ -310,7 +361,7 @@ export function getProvider(
   chain: ChainInfo,
 ): ethers.providers.StaticJsonRpcProvider {
   const provider = new ethers.providers.StaticJsonRpcProvider(
-    loadChains().find((x: any) => x.chainId == chain.chainId)?.rpc || ""
+    loadChains().find((x) => x.chainId == chain.chainId)?.rpc || "",
   );
 
   return provider;
@@ -327,17 +378,6 @@ export function getDeliveryProviderAddress(chain: ChainInfo): string {
     );
   }
   return thisChainsProvider;
-}
-
-export function loadGuardianRpc(): string {
-  const chainFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/chains.json`
-  );
-  if (!chainFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const chain = JSON.parse(chainFile.toString());
-  return chain.guardianRPC;
 }
 
 export async function getDeliveryProvider(
@@ -360,13 +400,7 @@ export async function getWormholeRelayerAddress(
   // See if we are in dev mode (i.e. forge contracts compiled without via-ir)
   const dev = get_env_var("DEV") == "True" ? true : false;
 
-  const contractsFile = fs.readFileSync(
-    `./ts-scripts/relayer/config/${env}/contracts.json`
-  );
-  if (!contractsFile) {
-    throw Error("Failed to find contracts file for this process!");
-  }
-  const contracts = JSON.parse(contractsFile.toString());
+  const contracts = readContracts();
   //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
   if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
     const thisChainsRelayer = loadWormholeRelayers(dev).find(
@@ -421,11 +455,12 @@ export function getMockIntegrationAddress(chain: ChainInfo): string {
 
 export async function getMockIntegration(
   chain: ChainInfo,
+  provider?: ethers.providers.StaticJsonRpcProvider,
 ): Promise<MockRelayerIntegration> {
   const thisIntegration = getMockIntegrationAddress(chain);
   const contract = MockRelayerIntegration__factory.connect(
     thisIntegration,
-    await getSigner(chain)
+    provider || await getSigner(chain),
   );
   return contract;
 }

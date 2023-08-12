@@ -135,11 +135,13 @@ export async function deployWormholeRelayerImplementation(
   const overrides = await buildOverridesDeploy(factory, chain, [
     chain.wormholeAddress,
   ]);
-  const result = await new WormholeRelayer__factory(signer)
+  const result = await factory
     .deploy(chain.wormholeAddress, overrides)
     .then(deployed);
 
-  console.log("Successfully deployed contract at " + result.address);
+  console.log(
+    `Successfully deployed WormholeRelayer contract at ${result.address}`,
+  );
   return { address: result.address, chainId: chain.chainId };
 }
 
@@ -195,7 +197,7 @@ export async function deployWormholeRelayerProxy(
     console.error("Computed address does not match desired");
   }
 
-  console.log("Successfully deployed contract at " + computedAddr);
+  console.log(`Successfully deployed contract WormholeRelayerProxy at ${computedAddr}`);
   return { address: computedAddr, chainId: chain.chainId };
 }
 
