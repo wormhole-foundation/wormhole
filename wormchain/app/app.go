@@ -402,6 +402,7 @@ func New(
 	)
 
 	app.WireICS20PreWasmKeeper(&app.WormholeKeeper)
+	app.WormholeKeeper.SetPfmKeeper(*app.PacketForwardKeeper)
 
 	// register the proposal types
 	govRouter := govtypes.NewRouter()
@@ -433,6 +434,7 @@ func New(
 		app.DistrKeeper,
 		tokenFactoryCapabilities,
 	)
+	app.WormholeKeeper.SetTokenfactoryKeeper(app.TokenFactoryKeeper)
 
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks

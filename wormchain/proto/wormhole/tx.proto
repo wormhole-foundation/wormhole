@@ -27,8 +27,12 @@ service Msg {
 
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
+
+  rpc SetTokenFactoryPfmDefaultParams(MsgSetTokenFactoryPfmDefaultParams) returns (EmptyResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
+
+message EmptyResponse {}
 
 message MsgCreateAllowlistEntryRequest {
   // signer should be a guardian validator in a current set or future set.
@@ -159,3 +163,10 @@ message MsgMigrateContractResponse {
   bytes data = 1;
 }
 // this line is used by starport scaffolding # proto/tx/message
+
+message MsgSetTokenFactoryPfmDefaultParams {
+  // Sender is the actor that signs the messages
+  string signer = 1;
+  // vaa must be governance msg with valid module and action
+  bytes vaa = 2;
+}
