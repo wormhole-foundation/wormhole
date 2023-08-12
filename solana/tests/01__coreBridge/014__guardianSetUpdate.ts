@@ -142,6 +142,20 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       guardians.updateGuardianSetIndex(newGuardianSetIndex);
     });
   });
+
+  describe("More Verify Signatures and Post VAA Tests", () => {
+    it.skip("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
+      // TODO
+    });
+
+    it.skip("Invoke `verify_signatures` with New Guardian Set", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot Invoke `verify_signatures` with Different Guardian Set on Same Signature Set", async () => {
+      // TODO
+    });
+  });
 });
 
 function defaultVaa(newIndex: number, newKeys: Buffer[], keyRange: number[]): Buffer {
