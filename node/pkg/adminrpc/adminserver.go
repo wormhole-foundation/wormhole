@@ -361,12 +361,11 @@ func wormchainIbcComposabilityMwSetContract(
 }
 
 func gatewaySetTokenfactoryPfmDefaultParams(
-	req *nodev1.GatewaySetTokenfactoryPfmDefaultParams,
 	timestamp time.Time,
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) {
+) *vaa.VAA {
 	v := vaa.CreateGovernanceVAA(
 		timestamp,
 		nonce,
@@ -375,7 +374,7 @@ func gatewaySetTokenfactoryPfmDefaultParams(
 		vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionSetTokenfactoryPfmDefaultParams, vaa.ChainIDWormchain),
 	)
 
-	return v, nil
+	return v
 }
 
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
@@ -552,7 +551,7 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 	case *nodev1.GovernanceMessage_WormchainIbcComposabilityMwSetContract:
 		v, err = wormchainIbcComposabilityMwSetContract(payload.WormchainIbcComposabilityMwSetContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams:
-		v, err = gatewaySetTokenfactoryPfmDefaultParams(payload.GatewaySetTokenfactoryPfmDefaultParams, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+		v = gatewaySetTokenfactoryPfmDefaultParams(timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 		v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
