@@ -6,12 +6,14 @@ import {
   getDeliveryProvider,
   getDeliveryProviderAddress,
   getProvider,
-  writeOutputFiles,
   getOperatingChains,
+  loadChains,
+  writeOutputFiles,
 } from "../helpers/env";
 
 const processName = "readDeliveryProviderContractState";
 init();
+const allChains = loadChains();
 const chains = getOperatingChains();
 
 async function run() {
@@ -19,8 +21,8 @@ async function run() {
 
   const states: any = [];
 
-  for (let i = 0; i < chains.length; i++) {
-    const state = await readState(chains[i]);
+  for (const chain of chains) {
+    const state = await readState(chain);
     if (state) {
       printState(state);
       states.push(state);
@@ -73,33 +75,33 @@ async function readState(
     const weiPrices: { chainId: number; weiPrice: BigNumber }[] = [];
     const owner: string = await deliveryProvider.owner();
 
-    for (const chainInfo of chains) {
+    for (const targetChain of allChains) {
       supportedChains.push({
-        chainId: chainInfo.chainId,
-        isSupported: await deliveryProvider.isChainSupported(chainInfo.chainId),
+        chainId: targetChain.chainId,
+        isSupported: await deliveryProvider.isChainSupported(targetChain.chainId),
       });
 
       targetChainAddresses.push({
-        chainId: chainInfo.chainId,
+        chainId: targetChain.chainId,
         whAddress: await deliveryProvider.getTargetChainAddress(
-          chainInfo.chainId
+          targetChain.chainId
         ),
       });
 
       deliveryOverheads.push({
-        chainId: chainInfo.chainId,
+        chainId: targetChain.chainId,
         deliveryOverhead: await deliveryProvider.quoteDeliveryOverhead(
-          chainInfo.chainId
+          targetChain.chainId
         ),
       });
       gasPrices.push({
-        chainId: chainInfo.chainId,
-        gasPrice: await deliveryProvider.quoteGasPrice(chainInfo.chainId),
+        chainId: targetChain.chainId,
+        gasPrice: await deliveryProvider.quoteGasPrice(targetChain.chainId),
       });
       weiPrices.push({
-        chainId: chainInfo.chainId,
+        chainId: targetChain.chainId,
         weiPrice: await deliveryProvider.quoteAssetConversion(
-          chainInfo.chainId,
+          targetChain.chainId,
           ethers.utils.parseEther("1")
         ),
       });

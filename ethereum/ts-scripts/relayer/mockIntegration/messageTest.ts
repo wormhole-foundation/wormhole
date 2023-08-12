@@ -1,9 +1,7 @@
 import {
   ChainInfo,
-  getWormholeRelayer,
   getOperatingChains,
   init,
-  loadChains,
 } from "../helpers/env";
 import { sendMessage } from "./messageUtils";
 

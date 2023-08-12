@@ -28,7 +28,6 @@ export async function sendMessage(
   console.log("relay quote: " + relayQuote);
 
   const mockIntegration = await getMockIntegration(sourceChain);
-  const targetAddress = getMockIntegrationAddress(targetChain);
 
   const message = await mockIntegration.getMessage();
   console.log("got message from integration " + message);
