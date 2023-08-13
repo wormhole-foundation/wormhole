@@ -12,7 +12,8 @@ export async function expectCorrectTokenBalanceChanges(
   connection: Connection,
   token: PublicKey,
   balancesBefore: TokenBalances,
-  direction: TransferDirection
+  direction: TransferDirection,
+  arbiterFee?: bigint
 ) {
   const program = getAnchorProgram(connection, localnet());
   const forkedProgram = getAnchorProgram(connection, mainnet());
@@ -43,4 +44,20 @@ export async function expectCorrectTokenBalanceChanges(
       throw new Error("impossible TransferDirection");
     }
   }
+}
+
+export async function expectCorrectRelayerBalanceChanges(
+  connection: Connection,
+  token: PublicKey,
+  balancesBefore: TokenBalances,
+  expectedRelayerFee: bigint
+) {
+  const program = getAnchorProgram(connection, localnet());
+  const forkedProgram = getAnchorProgram(connection, mainnet());
+  const balancesAfter = await getTokenBalances(program, forkedProgram, token);
+
+  const totalTokenBalanceChange = balancesBefore.token - balancesAfter.token;
+  expect(totalTokenBalanceChange % BigInt(2)).to.equal(BigInt(0));
+  const balanceChange = totalTokenBalanceChange / BigInt(2);
+  expect(balanceChange).to.equal(expectedRelayerFee);
 }
