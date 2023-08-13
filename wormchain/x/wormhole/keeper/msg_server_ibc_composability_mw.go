@@ -20,7 +20,7 @@ func (k msgServer) SetIbcComposabilityMwContract(goCtx context.Context, msg *typ
 	}
 
 	// Verify VAA
-	action, payload, err := k.VerifyGovernanceVAA(ctx, v, vaa.WasmdModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, vaa.GatewayModule)
 	if err != nil {
 		return nil, err
 	}

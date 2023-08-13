@@ -16,6 +16,13 @@ var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
 var WasmdModuleStr = string(WasmdModule[:])
 
+// GatewayModule is the identifier of the Gateway module (which is used for general Gateway-related governance messages)
+var GatewayModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x4d, 0x6f, 0x64, 0x75, 0x6c, 0x65,
+}
+var GatewayModuleStr = string(GatewayModule[:])
+
 // CircleIntegrationModule is the identifier of the Circle Integration module (which is used for governance messages).
 // It is the hex representation of "CircleIntegration" left padded with zeroes.
 var CircleIntegrationModule = [32]byte{
@@ -33,7 +40,7 @@ var IbcReceiverModule = [32]byte{
 var IbcReceiverModuleStr = string(IbcReceiverModule[:])
 
 // IbcTranslatorModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
-// It is the hex representation of "IbcReceiver" left padded with zeroes.
+// It is the hex representation of "IbcTranslator" left padded with zeroes.
 var IbcTranslatorModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x6c, 0x61, 0x74, 0x6f, 0x72,
@@ -65,7 +72,9 @@ var (
 	ActionMigrateContract                GovernanceAction = 3
 	ActionAddWasmInstantiateAllowlist    GovernanceAction = 4
 	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
-	ActionSetIbcComposabilityMwContract  GovernanceAction = 6
+
+	// Gateway governance actions
+	ActionSetIbcComposabilityMwContract GovernanceAction = 1
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -299,7 +308,7 @@ func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 func (r BodyWormchainIbcComposabilityMwContract) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionSetIbcComposabilityMwContract, ChainIDWormchain, payload.Bytes())
+	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionSetIbcComposabilityMwContract, ChainIDWormchain, payload.Bytes())
 }
 
 func (r *BodyWormchainIbcComposabilityMwContract) Deserialize(bz []byte) {
