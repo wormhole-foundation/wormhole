@@ -31,13 +31,18 @@ export async function expectCorrectTokenBalanceChanges(
       return;
     }
     case TransferDirection.In: {
+      if (arbiterFee === undefined) {
+        arbiterFee = BigInt(0);
+      }
       const totalTokenBalanceChange = balancesAfter.token - balancesBefore.token;
       expect(totalTokenBalanceChange % BigInt(2)).to.equal(BigInt(0));
       const balanceChange = totalTokenBalanceChange / BigInt(2);
-      expect(balancesBefore.custodyToken - balancesAfter.custodyToken).to.equal(balanceChange);
-      expect(balancesBefore.forkCustodyToken - balancesAfter.forkCustodyToken).to.equal(
+      expect(balancesBefore.custodyToken - balancesAfter.custodyToken - arbiterFee).to.equal(
         balanceChange
       );
+      expect(
+        balancesBefore.forkCustodyToken - balancesAfter.forkCustodyToken - arbiterFee
+      ).to.equal(balanceChange);
       return;
     }
     default: {
@@ -56,7 +61,7 @@ export async function expectCorrectRelayerBalanceChanges(
   const forkedProgram = getAnchorProgram(connection, mainnet());
   const balancesAfter = await getTokenBalances(program, forkedProgram, token);
 
-  const totalTokenBalanceChange = balancesBefore.token - balancesAfter.token;
+  const totalTokenBalanceChange = balancesAfter.token - balancesBefore.token;
   expect(totalTokenBalanceChange % BigInt(2)).to.equal(BigInt(0));
   const balanceChange = totalTokenBalanceChange / BigInt(2);
   expect(balanceChange).to.equal(expectedRelayerFee);

@@ -92,11 +92,11 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
           connection,
           payerToken,
           relayerBalancesBefore,
-          BigInt(fee.toString())
+          fee * BigInt(10 ** (decimals - 8))
         );
       });
 
-      it.skip(`Invoke \`complete_transfer_native\` (${decimals} Decimals (With Fee))`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (With Fee))`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -109,7 +109,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
         // Amounts.
         const amount = BigInt(699999);
-        const fee = BigInt(199999);
+        let fee = BigInt(199999);
 
         // Create the signed transfer VAA.
         const signedVaa = getSignedTransferVaa(mint, amount, fee, recipientToken.address);
@@ -136,12 +136,8 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
           payer
         );
 
-        console.log(recipientBalancesBefore);
-        console.log(await getTokenBalances(program, forkedProgram, recipientToken.address));
-
-        console.log("Relayer:");
-        console.log(relayerBalancesBefore);
-        console.log(await getTokenBalances(program, forkedProgram, payerToken));
+        // Denormalize the fee.
+        fee = fee * BigInt(10 ** (decimals - 8));
 
         // Check recipient and relayer token balance changes.
         await tokenBridge.expectCorrectTokenBalanceChanges(
