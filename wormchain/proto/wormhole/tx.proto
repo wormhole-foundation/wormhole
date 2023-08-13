@@ -28,7 +28,7 @@ service Msg {
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
 
-  rpc SetTokenFactoryPfmDefaultParams(MsgSetTokenFactoryPfmDefaultParams) returns (EmptyResponse);
+  rpc InPlaceUpgrade(MsgInPlaceUpgrade) returns (EmptyResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
 
@@ -164,9 +164,14 @@ message MsgMigrateContractResponse {
 }
 // this line is used by starport scaffolding # proto/tx/message
 
-message MsgSetTokenFactoryPfmDefaultParams {
+message MsgInPlaceUpgrade {
   // Sender is the actor that signs the messages
   string signer = 1;
+  // Possible set of in place upgrades to perform
+  MsgSetTokenFactoryPfmDefaultParams set_tokenfactory_pfm_default_params = 2;
+}
+
+message MsgSetTokenFactoryPfmDefaultParams {
   // vaa must be governance msg with valid module and action
   bytes vaa = 2;
 }

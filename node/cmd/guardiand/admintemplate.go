@@ -54,6 +54,8 @@ var ibcUpdateChannelChainTargetChainId *string
 var ibcUpdateChannelChainChannelId *string
 var ibcUpdateChannelChainChainId *string
 
+var gatewayInPlaceUpgradeType *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -149,7 +151,10 @@ func init() {
 	TemplateCmd.AddCommand(AdminClientIbcTranslatorUpdateChannelChainCmd)
 
 	// GatewaySetTokenfactoryPfmDefaultParamsCmd doesn't have any flags
-	TemplateCmd.AddCommand(AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd)
+	gatewayInPlaceUpgradeFlagSet := pflag.NewFlagSet("gateway-in-place-upgrade", pflag.ExitOnError)
+	gatewayInPlaceUpgradeType = gatewayInPlaceUpgradeFlagSet.String("type", "", "Type of in place upgrade to perform")
+	AdminClientGatewayInPlaceUpgradeCmd.Flags().AddFlagSet(gatewayInPlaceUpgradeFlagSet)
+	TemplateCmd.AddCommand(AdminClientGatewayInPlaceUpgradeCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -235,10 +240,10 @@ var AdminClientWormchainIbcComposabilityMwSetContractCmd = &cobra.Command{
 	Run:   runWormchainIbcComposabilityMwSetContractTemplate,
 }
 
-var AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd = &cobra.Command{
-	Use:   "gateway-set-tokenfactory-pfm-default-params",
-	Short: "Generate an empty gateway set tokenfactory and packet forward middleware default params template at specified path",
-	Run:   runGatewaySetTokenfactoryPfmDefaultParamsTemplate,
+var AdminClientGatewayInPlaceUpgradeCmd = &cobra.Command{
+	Use:   "gateway-in-place-upgrade",
+	Short: "Generate an empty gateway in place upgrade template at specified path",
+	Run:   runGatewayInPlaceUpgradeTemplate,
 }
 
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
@@ -710,15 +715,30 @@ func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args 
 	fmt.Print(string(b))
 }
 
-func runGatewaySetTokenfactoryPfmDefaultParamsTemplate(cmd *cobra.Command, args []string) {
+func runGatewayInPlaceUpgradeTemplate(cmd *cobra.Command, args []string) {
+	// validate the upgrade type
+	if *gatewayInPlaceUpgradeType == "" {
+		log.Fatal("--type must be specified")
+	}
+
+	var action nodev1.GatewayInPlaceUpgradeAction
+	switch *gatewayInPlaceUpgradeType {
+	case "set_tokenfactory_pfm_default_params":
+		action = nodev1.GatewayInPlaceUpgradeAction_GATEWAY_IN_PLACE_UPGRADE_ACTION_SET_TOKENFACTORY_PFM_DEFAULT_PARAMS
+	default:
+		log.Fatal("unrecognized in place upgrade action")
+	}
+
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
 				Nonce:    rand.Uint32(),
-				Payload: &nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams{
-					GatewaySetTokenfactoryPfmDefaultParams: &nodev1.GatewaySetTokenfactoryPfmDefaultParams{},
+				Payload: &nodev1.GovernanceMessage_GatewayInPlaceUpgrade{
+					GatewayInPlaceUpgrade: &nodev1.GatewayInPlaceUpgrade{
+						Action: action,
+					},
 				},
 			},
 		},

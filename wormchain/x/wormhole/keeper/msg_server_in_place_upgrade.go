@@ -11,15 +11,27 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func (k msgServer) SetTokenFactoryPfmDefaultParams(
+func (k msgServer) InPlaceUpgrade(
 	goCtx context.Context,
+	msg *types.MsgInPlaceUpgrade,
+) (*types.EmptyResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	if msg.SetTokenfactoryPfmDefaultParams != nil {
+		return k.setTokenfactoryPfmDefaultParams(ctx, msg.Signer, msg.SetTokenfactoryPfmDefaultParams)
+	}
+
+	return nil, sdkerrors.Wrapf(sdkerrors.ErrNotSupported, "InPlaceUpgrade message type not supported")
+}
+
+func (k msgServer) setTokenfactoryPfmDefaultParams(
+	ctx sdk.Context,
+	signer string,
 	msg *types.MsgSetTokenFactoryPfmDefaultParams,
 ) (*types.EmptyResponse, error) {
 	if !k.setTokenfactory || !k.setPfm {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrNotSupported, "either x/tokenfactory or PFM keeper not set")
 	}
-
-	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	// Parse VAA
 	v, err := ParseVAA(msg.Vaa)
@@ -39,14 +51,14 @@ func (k msgServer) SetTokenFactoryPfmDefaultParams(
 	}
 
 	// Validate signer
-	_, err = sdk.AccAddressFromBech32(msg.Signer)
+	_, err = sdk.AccAddressFromBech32(signer)
 	if err != nil {
 		return nil, sdkerrors.Wrap(err, "signer")
 	}
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
 		sdk.EventTypeMessage,
 		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-		sdk.NewAttribute(sdk.AttributeKeySender, msg.Signer),
+		sdk.NewAttribute(sdk.AttributeKeySender, signer),
 	))
 
 	// Set the default params for both tokenfactory and PFM

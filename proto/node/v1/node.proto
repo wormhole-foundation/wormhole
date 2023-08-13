@@ -96,7 +96,7 @@ message GovernanceMessage {
     WormchainIbcComposabilityMwSetContract wormchain_ibc_composability_mw_set_contract = 24;
 
     // Gateway
-    GatewaySetTokenfactoryPfmDefaultParams gateway_set_tokenfactory_pfm_default_params = 25;
+    GatewayInPlaceUpgrade gateway_in_place_upgrade = 25;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -251,7 +251,14 @@ message WormchainIbcComposabilityMwSetContract {
     string contract = 1;
 }
 
-message GatewaySetTokenfactoryPfmDefaultParams {}
+enum GatewayInPlaceUpgradeAction {
+  GATEWAY_IN_PLACE_UPGRADE_ACTION_UNSPECIFIED = 0;
+  GATEWAY_IN_PLACE_UPGRADE_ACTION_SET_TOKENFACTORY_PFM_DEFAULT_PARAMS = 1;
+}
+
+message GatewayInPlaceUpgrade {
+  GatewayInPlaceUpgradeAction action = 1;
+}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
