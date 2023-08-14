@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::LegacyVerifySignaturesArgs, utils},
+    legacy::instruction::LegacyVerifySignaturesArgs,
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
@@ -10,6 +10,33 @@ use anchor_lang::{
     solana_program::{keccak, sysvar},
 };
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct SigVerifyOffsets {
+    pub signature_offset: u16, // offset to [signature,recovery_id,etherum_address] of 64+1+20 bytes
+    pub signature_ix_index: u8, // instruction index to find data
+    pub eth_pubkey_offset: u16, // offset to [signature,recovery_id] of 64+1 bytes
+    pub eth_pubkey_ix_index: u8, // instruction index to find data
+    pub message_offset: u16,   // offset to start of message data
+    pub message_size: u16,     // size of message data
+    pub message_ix_index: u8,  // index of instruction data to get message data
+}
+
+impl SigVerifyOffsets {
+    pub const LEN: usize = 2    // signature_key_offset
+        + 1                     // signature_instruction_index
+        + 2                     // pubkey_offset
+        + 1                     // pubkey_instruction_index
+        + 2                     // message_data_offset
+        + 2                     // message_data_size
+        + 1                     // message_instruction_index
+    ;
+}
+
+struct SigVerifyParameters {
+    eth_pubkey: [u8; 20],
+    message: [u8; 32],
+}
 
 #[derive(Accounts)]
 pub struct VerifySignatures<'info> {
@@ -92,7 +119,7 @@ pub fn verify_signatures(
     // NOTE: It would have been nice to be able to perform this check in `access_control`, but there
     // is no data from the instruction sysvar loaded by that point. We have to load it and perform
     // the safety checks in this instruction handler.
-    let instruction_sysvar_data = ctx.accounts.instructions.try_borrow_data()?;
+    let instruction_sysvar_data = ctx.accounts.instructions.data.borrow();
 
     // We grab the index of the instruction before this instruction, which should be the sig verify
     // program. To avoid a redundant Instructions sysvar check, we allow this deprecated method.
@@ -106,11 +133,6 @@ pub fn verify_signatures(
     )
     .ok_or(CoreBridgeError::InstructionAtWrongIndex)?;
 
-    // We assume there are not more than 255 instructions in this transaction because the Secp256k1
-    // Program assumes instruction indices are u8.
-    let sig_verify_index =
-        u8::try_from(sig_verify_index).map_err(|_| CoreBridgeError::InvalidSecpInstruction)?;
-
     // And here we verify that the previous instruction is actually the `secp256k1_program`. To
     // avoid a redundant Instructions sysvar check, we allow this deprecated method.
     #[allow(deprecated)]
@@ -119,37 +141,18 @@ pub fn verify_signatures(
         &instruction_sysvar_data,
     )
     .map_err(|_| ProgramError::InvalidInstructionData.into())
-    .and_then(|ix| utils::deserialize_secp256k1_ix(&ix))?;
+    .and_then(|ix| deserialize_secp256k1_ix(&ix))?;
 
     // Number of specified `signers` must equal the number of signatures verified in the sig verify
     // program instruction.
-    require_eq!(guardian_indices.len(), sig_verify_params.len());
-
-    // Now verify the secp256k1 program's instruction data integrity. The encoded instruction index
-    // must be the same for all offsets. And the message itself should be the same for each offset.
-    //
-    // NOTE: The message signed is the hash of the raw Wormhole message due to the limitation of how
-    // many bytes a Solana transaction allows. Guardians actually sign the hash of this message
-    // hash.
-    let first = &sig_verify_params[0];
-    require!(
-        sig_verify_params
-            .iter()
-            .all(|item| item.offsets.signature_ix_index == sig_verify_index
-                && item.offsets.eth_pubkey_ix_index == sig_verify_index
-                && item.offsets.message_ix_index == sig_verify_index
-                && item.offsets.message_offset == first.offsets.message_offset
-                && usize::from(item.offsets.message_size) == keccak::HASH_BYTES),
-        CoreBridgeError::InvalidSecpInstruction
+    require_eq!(
+        guardian_indices.len(),
+        sig_verify_params.len(),
+        CoreBridgeError::SignerIndicesMismatch
     );
 
     // We're going to use this message data later on.
-    let message_hash = {
-        let mut out = [0; keccak::HASH_BYTES];
-        out.copy_from_slice(&first.message);
-        MessageHash::from(out)
-    };
-
+    let message_hash = MessageHash::from(sig_verify_params[0].message);
     let signature_set = &mut ctx.accounts.signature_set;
 
     // If the signature set account has not been initialized yet, establish the expected account
@@ -157,10 +160,17 @@ pub fn verify_signatures(
     if signature_set.is_initialized() {
         // Otherwise, verify that the guardian set index is what we expect from
         // the last time we wrote to the signature set account.
-        require_eq!(signature_set.guardian_set_index, guardian_set.index);
+        require_eq!(
+            signature_set.guardian_set_index,
+            guardian_set.index,
+            CoreBridgeError::GuardianSetMismatch
+        );
 
         // And verify that the message hash is the same.
-        require_eq!(signature_set.message_hash, message_hash);
+        require!(
+            signature_set.message_hash == message_hash,
+            CoreBridgeError::MessageMismatch
+        );
     } else {
         // We're assuming that the hashed Wormhole message is not zero bytes.
         // So if the account data is all zeros, we're assuming that the account
@@ -187,4 +197,74 @@ pub fn verify_signatures(
 
     // Done.
     Ok(())
+}
+
+fn deserialize_secp256k1_ix(
+    ix: &solana_program::instruction::Instruction,
+) -> Result<Vec<SigVerifyParameters>> {
+    // Check that the program invoked is the secp256k1 program.
+    require_keys_eq!(
+        ix.program_id,
+        solana_program::secp256k1_program::id(),
+        CoreBridgeError::InvalidSigVerifyInstruction
+    );
+
+    let ix_data = &ix.data;
+
+    // First byte encodes the number of signatures.
+    let mut params = Vec::with_capacity(ix_data[0].into());
+
+    // For each offset encoded, grab each SigVerify parameter (signature, eth pubkey, message).
+    let mut last_message_offset = None;
+    for i in 0..params.capacity() {
+        let offsets_idx = 1 + i * SigVerifyOffsets::LEN;
+        let offsets = SigVerifyOffsets::deserialize(
+            &mut &ix_data[offsets_idx..(offsets_idx + SigVerifyOffsets::LEN)],
+        )?;
+        // Because guardians sign the hash of the message body hash, this verified message must be
+        // 32 bytes.
+        require_eq!(
+            offsets.message_size,
+            32,
+            CoreBridgeError::InvalidSigVerifyInstruction
+        );
+
+        // The instruction index must be the same for signature, eth pubkey and message.
+        require_eq!(
+            offsets.signature_ix_index,
+            offsets.eth_pubkey_ix_index,
+            CoreBridgeError::InvalidSigVerifyInstruction
+        );
+        require_eq!(
+            offsets.signature_ix_index,
+            offsets.message_ix_index,
+            CoreBridgeError::InvalidSigVerifyInstruction
+        );
+
+        let eth_pubkey_offset = usize::from(offsets.eth_pubkey_offset);
+        let mut eth_pubkey = [0; 20];
+        eth_pubkey.copy_from_slice(&ix_data[eth_pubkey_offset..(eth_pubkey_offset + 20)]);
+
+        // The message offset should be the same for each sig verify offsets since each signature is
+        // for the same message.
+        let message_offset = usize::from(offsets.message_offset);
+        if let Some(last_message_offset) = last_message_offset {
+            require_eq!(
+                message_offset,
+                last_message_offset,
+                CoreBridgeError::InvalidSigVerifyInstruction
+            );
+        }
+
+        let mut message = [0; keccak::HASH_BYTES];
+        message.copy_from_slice(&ix_data[message_offset..(message_offset + keccak::HASH_BYTES)]);
+
+        params.push(SigVerifyParameters {
+            eth_pubkey,
+            message,
+        });
+        last_message_offset = Some(message_offset);
+    }
+
+    Ok(params)
 }
