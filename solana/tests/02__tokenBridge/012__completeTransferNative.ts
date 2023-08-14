@@ -44,7 +44,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
   describe("Ok", () => {
     for (const { mint, decimals } of mints) {
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (No Fee)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, No Fee)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -99,7 +99,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         ]);
       });
 
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (With Fee)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, With Fee)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -158,7 +158,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         ]);
       });
 
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (Self Redeemption with Fee)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Self Redeemption with Fee)`, async () => {
         // Create recipient token account.
         const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
@@ -199,7 +199,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         );
       });
 
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (Self Redeemption no fee)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Self Redeemption no fee)`, async () => {
         // Create recipient token account.
         const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
@@ -240,7 +240,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         );
       });
 
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (Recipient == Wallet Address)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -300,7 +300,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         expect(relayerBalancesAfter.token - relayerBalancesBefore.token).to.equal(fee);
       });
 
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals (Invalid Target Chain)`, async () => {
+      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -346,7 +346,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         await expectIxErr(connection, [ix], [payer], "RecipientChainNotSolana");
       });
 
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals (Invalid Recipent ATA)`, async () => {
+      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Recipent ATA)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
