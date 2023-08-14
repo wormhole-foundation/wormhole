@@ -4,7 +4,6 @@ mod processor;
 pub(crate) use processor::*;
 
 pub mod state;
-pub mod utils;
 
 pub use crate::ID;
 

@@ -76,14 +76,17 @@ pub enum CoreBridgeError {
     #[msg("InstructionAtWrongIndex")]
     InstructionAtWrongIndex = 0x702,
 
-    #[msg("InvalidSecpInstruction")]
-    InvalidSecpInstruction = 0x704,
+    #[msg("InvalidSigVerifyInstruction")]
+    InvalidSigVerifyInstruction = 0x704,
 
     #[msg("PostVaaGuardianSetExpired")]
     PostVaaGuardianSetExpired = 0x706,
 
     #[msg("InvalidGuardianKeyRecovery")]
     InvalidGuardianKeyRecovery = 0x708,
+
+    #[msg("SignerIndicesMismatch")]
+    SignerIndicesMismatch = 0x70a,
 
     #[msg("ZeroGuardians")]
     ZeroGuardians = 0x1010,

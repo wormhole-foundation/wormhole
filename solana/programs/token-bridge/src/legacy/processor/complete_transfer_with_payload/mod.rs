@@ -44,7 +44,10 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
                 // The redeemer must be the token account owner if the redeemer authority is the
                 // same as the redeemer (i.e. the signer of this transaction, which does not
                 // represent a program's PDA.
-                require!(redeemer == recipient_token.owner, ErrorCode::ConstraintTokenOwner);
+                require!(
+                    redeemer == recipient_token.owner,
+                    ErrorCode::ConstraintTokenOwner
+                );
             }
 
             // Done.
