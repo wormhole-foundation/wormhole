@@ -28,6 +28,7 @@ jobs:
         working-directory: ./clients/js
         run: |
           source ./__tests__/utils/env/worm-submit-env-values
+          echo $SOLANA_KEY
 
       - name: build worm CLI (Makefile)
         working-directory: ./clients/js
