@@ -9,7 +9,11 @@ import {
   CONTRACTS,
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
-import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
+import {
+  getWormholeRelayer,
+  RPCS_BY_CHAIN,
+  RELAYER_CONTRACTS,
+} from "../consts";
 import {
   parseWormholeRelayerPayloadType,
   parseOverrideInfoFromDeliveryEvent,
@@ -196,8 +200,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    deliveryEventsPreFilter.filter((deliveryEvent, i) => isValid[i]),
-    targetChainProvider
+    deliveryEventsPreFilter.filter((deliveryEvent, i) => isValid[i])
   );
 }
 
@@ -253,40 +256,51 @@ export function deliveryStatus(status: number) {
   }
 }
 
+export function transformDeliveryLog(log: {
+  args: [
+    string,
+    number,
+    BigNumber,
+    string,
+    number,
+    BigNumber,
+    number,
+    string,
+    string
+  ];
+  transactionHash: string;
+}): DeliveryTargetInfo {
+  const status = deliveryStatus(log.args[4]);
+  if (!isChain(log.args[1]))
+    throw Error(`Invalid source chain id: ${log.args[1]}`);
+  const sourceChain = CHAIN_ID_TO_NAME[log.args[1] as ChainId];
+  return {
+    status,
+    transactionHash: log.transactionHash,
+    vaaHash: log.args[3],
+    sourceVaaSequence: log.args[2],
+    sourceChain,
+    gasUsed: BigNumber.from(log.args[5]),
+    refundStatus: parseRefundStatus(log.args[6]),
+    revertString:
+      status == DeliveryStatus.ReceiverFailure
+        ? log.args[7]
+        : status == DeliveryStatus.ForwardRequestFailure
+        ? parseForwardFailureError(Buffer.from(log.args[7].substring(2), "hex"))
+        : undefined,
+    overrides:
+      Buffer.from(log.args[8].substring(2), "hex").length > 0
+        ? parseOverrideInfoFromDeliveryEvent(
+            Buffer.from(log.args[8].substring(2), "hex")
+          )
+        : undefined,
+  };
+}
+
 async function transformDeliveryEvents(
-  events: DeliveryEvent[],
-  targetProvider: ethers.providers.Provider
+  events: DeliveryEvent[]
 ): Promise<DeliveryTargetInfo[]> {
-  return Promise.all(
-    events.map(async (x) => {
-      const status = deliveryStatus(x.args[4]);
-      if (!isChain(x.args[1]))
-        throw Error(`Invalid source chain id: ${x.args[1]}`);
-      const sourceChain = CHAIN_ID_TO_NAME[x.args[1] as ChainId];
-      return {
-        status,
-        transactionHash: x.transactionHash,
-        vaaHash: x.args[3],
-        sourceVaaSequence: x.args[2],
-        sourceChain,
-        gasUsed: BigNumber.from(x.args[5]),
-        refundStatus: parseRefundStatus(x.args[6]),
-        revertString:
-          status == DeliveryStatus.ReceiverFailure
-            ? x.args[7]
-            : status == DeliveryStatus.ForwardRequestFailure
-            ? parseForwardFailureError(
-                Buffer.from(x.args[7].substring(2), "hex")
-              )
-            : undefined,
-        overridesInfo:
-          Buffer.from(x.args[8].substring(2), "hex").length > 0 &&
-          parseOverrideInfoFromDeliveryEvent(
-            Buffer.from(x.args[8].substring(2), "hex")
-          ),
-      };
-    })
-  );
+  return events.map((x) => transformDeliveryLog(x));
 }
 
 export function getWormholeRelayerLog(
@@ -341,4 +355,62 @@ export function vaaKeyToVaaKeyStruct(vaaKey: VaaKey): VaaKeyStruct {
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     sequence: vaaKey.sequence || 0,
   };
+}
+
+export async function getDeliveryHash(
+  rx: ethers.ContractReceipt,
+  sourceChain: ChainName,
+  optionalParams?: {
+    network?: Network;
+    provider?: ethers.providers.Provider;
+    index?: number;
+  }
+): Promise<string> {
+  const network: Network = optionalParams?.network || "MAINNET";
+  const provider: ethers.providers.Provider =
+    optionalParams?.provider || getDefaultProvider(network, sourceChain);
+  const wormholeAddress = CONTRACTS[network][sourceChain].core;
+  if (!wormholeAddress) {
+    throw Error(`No wormhole contract on ${sourceChain} for ${network}`);
+  }
+  const wormholeRelayerAddress =
+    RELAYER_CONTRACTS[network][sourceChain]?.wormholeRelayerAddress;
+  if (!wormholeRelayerAddress) {
+    throw Error(
+      `No wormhole relayer contract on ${sourceChain} for ${network}`
+    );
+  }
+  const logs = rx.logs.filter(
+    (log) =>
+      log.address.toLowerCase() === wormholeAddress.toLowerCase() &&
+      log.topics[1].toLowerCase() ===
+        "0x" +
+          tryNativeToHexString(wormholeRelayerAddress, "ethereum").toLowerCase()
+  );
+  const index = optionalParams?.index || 0;
+  if (logs.length === 0)
+    throw Error(
+      `No wormhole relayer log found${
+        index > 0 ? ` (the ${index}-th wormhole relayer log was requested)` : ""
+      }`
+    );
+  const log = logs[index];
+  const wormholePublishedMessage =
+    Implementation__factory.createInterface().parseLog(log);
+  const block = await provider.getBlock(rx.blockHash);
+  const body = ethers.utils.solidityPack(
+    ["uint32", "uint32", "uint16", "bytes32", "uint64", "uint8", "bytes"],
+
+    [
+      block.timestamp,
+      wormholePublishedMessage.args["nonce"],
+      CHAINS[sourceChain],
+      log.topics[1],
+      wormholePublishedMessage.args["sequence"],
+      wormholePublishedMessage.args["consistencyLevel"],
+      wormholePublishedMessage.args["payload"],
+    ]
+  );
+  const deliveryHash = ethers.utils.keccak256(ethers.utils.keccak256(body));
+  return deliveryHash;
 }

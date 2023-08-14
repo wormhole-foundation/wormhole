@@ -11,7 +11,8 @@ members = [
     "packages/wormhole-bindings",
     "packages/cw_transcode",
     "contracts/wormhole-ibc",
-    "contracts/wormchain-ibc-receiver"
+    "contracts/wormchain-ibc-receiver",
+    "contracts/ibc-translator"
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See

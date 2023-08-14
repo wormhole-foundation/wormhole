@@ -32,7 +32,13 @@ import {
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
-import {ForwardInstruction} from "./WormholeRelayerStorage.sol";
+import {
+    ForwardInstruction,
+    DeliverySuccessState,
+    DeliveryFailureState,
+    getDeliveryFailureState,
+    getDeliverySuccessState
+} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
@@ -275,6 +281,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         DeliveryResults memory results;
 
+        // Enforce replay protection
+        if (getDeliverySuccessState().deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
+            results.status = DeliveryStatus.RECEIVER_FAILURE;
+            results.additionalStatusInfo = "Delivery already executed";
+            setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
+            emitDeliveryEvent(vaaInfo, results);
+            return;
+        }
+
         // Forces external call
         // In order to catch reverts
         // (If the user's contract requests a forward
@@ -320,6 +335,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             );
         }
 
+        setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
+
+        emitDeliveryEvent(vaaInfo, results);
+    }
+
+    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results) private {
         emit Delivery(
             fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
             vaaInfo.sourceChain,
@@ -683,6 +704,18 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    // Sets current block number to implement replay protection and for indexing purposes
+    function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
+        if (status == DeliveryStatus.SUCCESS || status == DeliveryStatus.FORWARD_REQUEST_SUCCESS) {
+            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
+
+            // Clear out failure block if it exists
+            delete getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
+        } else {
+            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
         }
     }
 }

@@ -1,6 +1,7 @@
 #[cfg(feature = "fake")]
 pub mod fake;
 mod query;
+pub mod tokenfactory;
 
 pub use query::*;
 

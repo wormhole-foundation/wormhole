@@ -62,6 +62,36 @@ function getRegisteredWormholeRelayersState()
     }
 }
 
+// Replay Protection and Indexing
+
+struct DeliverySuccessState {
+    mapping(bytes32 => uint256) deliverySuccessBlock;
+}
+
+struct DeliveryFailureState {
+    mapping(bytes32 => uint256) deliveryFailureBlock;
+}
+
+//keccak256("DeliverySuccessState") - 1
+bytes32 constant DELIVERY_SUCCESS_STATE_STORAGE_SLOT =
+    0x1b988580e74603c035f5a7f71f2ae4647578af97cd0657db620836b9955fd8f5;
+
+//keccak256("DeliveryFailureState") - 1
+bytes32 constant DELIVERY_FAILURE_STATE_STORAGE_SLOT =
+    0x6c615753402911c4de18a758def0565f37c41834d6eff72b16cb37cfb697f2a5;
+
+function getDeliverySuccessState() pure returns (DeliverySuccessState storage state) {
+    assembly ("memory-safe") {
+        state.slot := DELIVERY_SUCCESS_STATE_STORAGE_SLOT
+    }
+}
+
+function getDeliveryFailureState() pure returns (DeliveryFailureState storage state) {
+    assembly ("memory-safe") {
+        state.slot := DELIVERY_FAILURE_STATE_STORAGE_SLOT
+    }
+}
+
 // ---------------------------------- Temporary/Volatile Storage -----------------------------------
 
 //Unlike proper persistent storage, everything below is only used for the lifetime of the current
