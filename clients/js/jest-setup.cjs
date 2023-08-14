@@ -3,4 +3,4 @@ require("./__tests__/utils/env/worm-submit/wormSubmitCliEnv.cjs");
 
 // Add more setup jest configurations/plugins below here..
 
-export default {};
+module.exports = {};
