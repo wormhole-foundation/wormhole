@@ -126,6 +126,10 @@ var (
 	xplaLCD      *string
 	xplaContract *string
 
+	gatewayWS       *string
+	gatewayLCD      *string
+	gatewayContract *string
+
 	algorandIndexerRPC   *string
 	algorandIndexerToken *string
 	algorandAlgodRPC     *string
@@ -286,6 +290,10 @@ func init() {
 	xplaWS = NodeCmd.Flags().String("xplaWS", "", "Path to root for XPLA websocket connection")
 	xplaLCD = NodeCmd.Flags().String("xplaLCD", "", "Path to LCD service root for XPLA http calls")
 	xplaContract = NodeCmd.Flags().String("xplaContract", "", "Wormhole contract address on XPLA blockchain")
+
+	gatewayWS = NodeCmd.Flags().String("gatewayWS", "", "Path to root for Gateway watcher websocket connection")
+	gatewayLCD = NodeCmd.Flags().String("gatewayLCD", "", "Path to LCD service root for Gateway watcher http calls")
+	gatewayContract = NodeCmd.Flags().String("gatewayContract", "", "Wormhole contract address on Gateway blockchain")
 
 	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
@@ -623,6 +631,14 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
 	}
 
+	if *gatewayWS != "" {
+		if *gatewayLCD == "" || *gatewayContract == "" {
+			logger.Fatal("If --gatewayWS is specified, then --gatewayLCD and --gatewayContract must be specified")
+		}
+	} else if *gatewayLCD != "" || *gatewayContract != "" {
+		logger.Fatal("If --gatewayWS is not specified, then --gatewayLCD and --gatewayContract must not be specified")
+	}
+
 	if *testnetMode {
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
@@ -881,6 +897,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
+	rpcMap["gatewayWS"] = *gatewayWS
+	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
 
@@ -1352,6 +1370,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:      *pythnetContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(gatewayWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "gateway",
+			ChainID:   vaa.ChainIDWormchain,
+			Websocket: *gatewayWS,
+			Lcd:       *gatewayLCD,
+			Contract:  *gatewayContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

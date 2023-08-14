@@ -258,8 +258,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   wormchain: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "wormhole1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqaqfk2j",
+    token_bridge:
+      "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh",
     nft_bridge: undefined,
   },
   sepolia: {
@@ -604,8 +605,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   wormchain: {
-    core: "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
-    token_bridge: "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
+    core: "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+    token_bridge:
+      "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
     nft_bridge: undefined,
   },
   sepolia: {
