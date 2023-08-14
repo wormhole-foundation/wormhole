@@ -7,7 +7,7 @@ metadata:
 spec:
   ports:
     - name: rest
-      port: 7597
+      port: 3000
       protocol: TCP
   selector:
     app: ibc-relayer
@@ -32,26 +32,16 @@ spec:
         - name: ibc-relayer
           image: ibc-relayer-image
           command:
-            - rly
-            - transact
-            - link-then-start
-            - terra-wormchain
-            - --debug-addr
-            - 0.0.0.0:7597
-            - --src-port
-            - wasm.terra1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgsnyey7t
-            - --dst-port
-            - wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
-            - --version
-            - ibc-wormhole-v1
-            - --override
+            - /bin/bash
+            - -c
+            - "/app/hermes-startup.sh"
           ports:
-            - containerPort: 7597
+            - containerPort: 3000
               name: rest
               protocol: TCP
           readinessProbe:
             httpGet:
-              port: 7597
+              port: 3000
               path: /
             periodSeconds: 1
       restartPolicy: Always

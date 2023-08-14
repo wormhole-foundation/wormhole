@@ -870,7 +870,7 @@ if ibc_relayer:
     k8s_resource(
         "ibc-relayer",
         port_forwards = [
-            port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
+            port_forward(3101, container_port = 3000, name = "HTTPDEBUG [:3101]", host = webHost),
         ],
         resource_deps = ["wormchain-deploy", "terra2-terrad"],
         labels = ["ibc-relayer"],

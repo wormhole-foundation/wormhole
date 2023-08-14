@@ -1,0 +1,78 @@
+[global]
+log_level = 'info'
+[mode.clients]
+enabled = true
+refresh = true
+misbehaviour = false
+
+[mode.connections]
+enabled = false
+
+[mode.channels]
+enabled = false
+
+[mode.packets]
+enabled = true
+clear_interval = 100
+clear_on_start = true
+tx_confirmation = false
+
+[rest]
+enabled = true
+host = '0.0.0.0'
+port = 3000
+
+[telemetry]
+enabled = true
+host = '0.0.0.0'
+port = 3001
+
+[[chains]]
+id = 'localterra'
+type = 'CosmosSdk'
+rpc_addr = 'http://terra2-terrad:26657'
+event_source = { mode = 'push', url = 'ws://terra2-terrad:26657/websocket', batch_delay = '500ms' }
+grpc_addr = 'http://terra2-terrad:9090'
+rpc_timeout = '20s'
+account_prefix = 'terra'
+key_name = 'keyterra'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 300000
+max_gas = 10000000
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 2097152
+clock_drift = '5s'
+max_block_time = '30s'
+memo_prefix = ''
+sequential_batch_tx = false
+trust_threshold = { numerator = '2', denominator = '3' }
+trusting_period = '2days'
+gas_price = { price = 1, denom = 'uluna' }
+address_type = { derivation = 'cosmos' }
+
+[[chains]]
+id = 'wormchain'
+type = 'CosmosSdk'
+rpc_addr = 'http://wormchain:26657'
+event_source = { mode = 'push', url = 'ws://wormchain:26657/websocket', batch_delay = '500ms' }
+grpc_addr = 'http://wormchain:9090'
+rpc_timeout = '10s'
+account_prefix = 'wormhole'
+key_name = 'keywormhole'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 0
+max_gas = 1000000
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 2097152
+clock_drift = '5s'
+max_block_time = '30s'
+memo_prefix = ''
+sequential_batch_tx = false
+trust_threshold = { numerator = '2', denominator = '3' }
+trusting_period = '5days'
+gas_price = { price = 0.01, denom = 'utest' }
+address_type = { derivation = 'cosmos' }

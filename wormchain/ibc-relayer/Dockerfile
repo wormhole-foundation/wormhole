@@ -1,24 +1,23 @@
-FROM docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62
+FROM docker.io/library/rust:1.70.0-slim-buster@sha256:9e6d3a85a45821bb670b745960a0b3fb4bbbf550c45af6000423348e0e4685e3
 
 #used for a readiness probe
 RUN apt-get update
-RUN apt install -y netcat
-RUN apt install -y jq
+RUN apt install -y netcat jq curl
+
+RUN curl -OL --ssl https://github.com/informalsystems/hermes/archive/refs/tags/v1.6.0.tar.gz
+RUN printf '%s %s\n' "1675ccd585635d4f934dc2cd1153b20db85f8dcbdf382be5ae65983f5bcf6d6e" "v1.6.0.tar.gz" | sha256sum --check
+RUN tar xzf v1.6.0.tar.gz
+WORKDIR hermes-1.6.0
+RUN cargo build --release --bin hermes --locked
+RUN mv target/release/hermes /usr/bin
 
 WORKDIR /app
 
-RUN curl -OL --ssl https://github.com/cosmos/relayer/archive/c30b8d9e0ba6b45f8a576f768cad0777de545cb3.tar.gz
-RUN printf '%s %s\n' "ede065997ee5873b6256748662fb93cd2652f45cb19937b7e6873ecc088109d9" "c30b8d9e0ba6b45f8a576f768cad0777de545cb3.tar.gz" | sha256sum --check
-RUN tar xzf c30b8d9e0ba6b45f8a576f768cad0777de545cb3.tar.gz
-WORKDIR relayer-c30b8d9e0ba6b45f8a576f768cad0777de545cb3
-RUN make install
+COPY ./wormchain/ibc-relayer/mnemonic_file.txt ./
+COPY ./wormchain/ibc-relayer/hermes-config.toml /root/.hermes/config.toml
+COPY ./wormchain/ibc-relayer/hermes-startup.sh ./
 
-COPY ./wormchain/ibc-relayer/chains /chains
+RUN chmod +x ./hermes-startup.sh
 
-RUN rly config init
-RUN rly chains add-dir /chains
-RUN rly keys restore localterra default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius" --coin-type 330
-RUN rly keys restore wormchain default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
-RUN rly paths new localterra wormchain terra-wormchain
-
-EXPOSE 7597
+EXPOSE 3000
+EXPOSE 3001
