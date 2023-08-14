@@ -1590,6 +1590,7 @@ contract WormholeRelayerTests is Test {
         stack.relayerRefundAddress = payable(setup.target.relayer);
         stack.parsed = relayerWormhole.parseVM(stack.encodedDeliveryVAA);
         stack.instruction = WormholeRelayerSerde.decodeDeliveryInstruction(stack.parsed.payload);
+        stack.deliveryVaaHash = stack.parsed.hash;
         EvmExecutionInfoV1 memory executionInfo =
             decodeEvmExecutionInfoV1(stack.instruction.encodedExecutionInfo);
         stack.budget = Wei.unwrap(
@@ -1716,6 +1717,74 @@ contract WormholeRelayerTests is Test {
         map[setup.differentChainId].coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
+    }
+
+    // aka: replay protection doesn't fire when it shouldn't
+    function testReplayProtectionDoesNotFireWhenItShouldNot(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
+
+        vm.recordLogs();
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
+    }
+
+    function testReplayProtection(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
+
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.prank(setup.target.relayer);
+        assertFalse(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+        assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
+        assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(
+            stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+        assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
+        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), block.number);
     }
 
     function testRevertDeliveryVaaKeysLengthDoesNotMatchVaasLength(

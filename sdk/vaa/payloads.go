@@ -52,9 +52,11 @@ var (
 	ActionCoreRecoverChainId GovernanceAction = 5
 
 	// Wormchain cosmwasm governance actions
-	ActionStoreCode           GovernanceAction = 1
-	ActionInstantiateContract GovernanceAction = 2
-	ActionMigrateContract     GovernanceAction = 3
+	ActionStoreCode                      GovernanceAction = 1
+	ActionInstantiateContract            GovernanceAction = 2
+	ActionMigrateContract                GovernanceAction = 3
+	ActionAddWasmInstantiateAllowlist    GovernanceAction = 4
+	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -129,6 +131,12 @@ type (
 	// BodyWormchainInstantiateContract is a governance message to migrate a cosmwasm contract on wormchain
 	BodyWormchainMigrateContract struct {
 		MigrationParamsHash [32]byte
+	}
+
+	// BodyWormchainAllowlistInstantiateContract is a governance message to allowlist a specific contract address to instantiate a specific wasm code id.
+	BodyWormchainWasmAllowlistInstantiate struct {
+		ContractAddr [32]byte
+		CodeId       uint64
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -248,6 +256,27 @@ func (r BodyWormchainInstantiateContract) Serialize() []byte {
 
 func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
+}
+
+func (r BodyWormchainWasmAllowlistInstantiate) Serialize(action GovernanceAction) []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.ContractAddr[:])
+	MustWrite(payload, binary.BigEndian, r.CodeId)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, action, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
+	if len(bz) != 40 {
+		panic("incorrect payload length")
+	}
+
+	var contractAddr [32]byte
+	copy(contractAddr[:], bz[0:32])
+
+	codeId := binary.BigEndian.Uint64(bz[32:40])
+
+	r.ContractAddr = contractAddr
+	r.CodeId = codeId
 }
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
