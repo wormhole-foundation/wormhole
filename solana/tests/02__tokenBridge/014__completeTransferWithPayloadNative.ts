@@ -51,7 +51,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
 
   describe("Ok", () => {
     for (const { mint, decimals } of mints) {
-      it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals (Redeemer == Redeemer Authority)`, async () => {
+      it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Redeemer == Redeemer Authority)`, async () => {
         // Create recipient token account.
         const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
@@ -86,7 +86,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         );
       });
 
-      it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals (Redeemer != Redeemer Authority)`, async () => {
+      it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Redeemer != Redeemer Authority)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
         const recipientToken = await getOrCreateAssociatedTokenAccount(
