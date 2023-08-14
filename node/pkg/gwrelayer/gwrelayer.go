@@ -180,7 +180,8 @@ func (gwr *GatewayRelayer) worker(ctx context.Context) error {
 		case v := <-gwr.subChan:
 			if err := gwr.submitVAAToContract(v); err != nil {
 				gwr.logger.Error("failed to submit vaa to contract", zap.String("msgId", v.MessageID()), zap.Error(err))
-				return fmt.Errorf("failed to submit vaa to contract: %w", err)
+				// TODO: For now we don't want to restart because this will happen if the VAA has already been submitted by another guardian.
+				//return fmt.Errorf("failed to submit vaa to contract: %w", err)
 			}
 		}
 	}
