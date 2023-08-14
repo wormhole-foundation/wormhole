@@ -41,8 +41,6 @@ pub fn validate_token_transfer<'ctx, 'info>(
             // Done.
             Ok((transfer.token_chain(), transfer.token_address()))
         }
-        None => {
-            err!(TokenBridgeError::InvalidTokenBridgeVaa)
-        }
+        None => err!(TokenBridgeError::InvalidTokenBridgeVaa),
     }
 }
