@@ -44,13 +44,10 @@ func NewHandler(k keeper.Keeper) sdk.Handler {
 		case *types.MsgDeleteAllowlistEntryRequest:
 			res, err := msgServer.DeleteAllowlistEntry(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
-		case *types.MsgSetIbcComposabilityMwContract:
-			res, err := msgServer.SetIbcComposabilityMwContract(sdk.WrapSDKContext(ctx), msg)
+		case *types.MsgExecuteGatewayGovernanceVaa:
+			res, err := msgServer.ExecuteGatewayGovernanceVaa(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
 			// this line is used by starport scaffolding # 1
-		case *types.MsgInPlaceUpgrade:
-			res, err := msgServer.InPlaceUpgrade(sdk.WrapSDKContext(ctx), msg)
-			return sdk.WrapServiceResult(ctx, res, err)
 		default:
 			errMsg := fmt.Sprintf("unrecognized %s message type: %T", types.ModuleName, msg)
 			return nil, sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
