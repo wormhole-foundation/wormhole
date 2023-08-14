@@ -63,12 +63,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         const signedVaa = getSignedTransferVaa(mint, amount, fee, recipientToken.address);
 
         // Fetch balances before.
-        const recipientBalancesBefore = await getTokenBalances(
-          program,
-          forkedProgram,
-          recipientToken.address
-        );
-        const relayerBalancesBefore = await getTokenBalances(program, forkedProgram, payerToken);
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken),
+        ]);
 
         // Complete the transfer.
         await parallelTxDetails(
@@ -85,18 +83,20 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         );
 
         // Check recipient and relayer token balance changes.
-        await tokenBridge.expectCorrectTokenBalanceChanges(
-          connection,
-          recipientToken.address,
-          recipientBalancesBefore,
-          tokenBridge.TransferDirection.In
-        );
-        await tokenBridge.expectCorrectRelayerBalanceChanges(
-          connection,
-          payerToken,
-          relayerBalancesBefore,
-          fee * BigInt(10 ** (decimals - 8))
-        );
+        await Promise.all([
+          tokenBridge.expectCorrectTokenBalanceChanges(
+            connection,
+            recipientToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In
+          ),
+          tokenBridge.expectCorrectRelayerBalanceChanges(
+            connection,
+            payerToken,
+            relayerBalancesBefore,
+            fee * BigInt(10 ** (decimals - 8))
+          ),
+        ]);
       });
 
       it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (With Fee)`, async () => {
@@ -118,12 +118,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         const signedVaa = getSignedTransferVaa(mint, amount, fee, recipientToken.address);
 
         // Fetch balances before.
-        const recipientBalancesBefore = await getTokenBalances(
-          program,
-          forkedProgram,
-          recipientToken.address
-        );
-        const relayerBalancesBefore = await getTokenBalances(program, forkedProgram, payerToken);
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken),
+        ]);
 
         // Complete the transfer.
         await parallelTxDetails(
@@ -143,19 +141,21 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         fee = fee * BigInt(10 ** (decimals - 8));
 
         // Check recipient and relayer token balance changes.
-        await tokenBridge.expectCorrectTokenBalanceChanges(
-          connection,
-          recipientToken.address,
-          recipientBalancesBefore,
-          tokenBridge.TransferDirection.In,
-          fee
-        );
-        await tokenBridge.expectCorrectRelayerBalanceChanges(
-          connection,
-          payerToken,
-          relayerBalancesBefore,
-          fee
-        );
+        await Promise.all([
+          tokenBridge.expectCorrectTokenBalanceChanges(
+            connection,
+            recipientToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            fee
+          ),
+          tokenBridge.expectCorrectRelayerBalanceChanges(
+            connection,
+            payerToken,
+            relayerBalancesBefore,
+            fee
+          ),
+        ]);
       });
 
       it(`Invoke \`complete_transfer_native\` (${decimals} Decimals (Self Redeemption with Fee)`, async () => {
@@ -259,12 +259,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         const signedVaa = getSignedTransferVaa(mint, amount, fee, recipientToken.address);
 
         // Fetch balances before.
-        const recipientBalancesBefore = await getTokenBalances(
-          program,
-          forkedProgram,
-          recipientToken.address
-        );
-        const relayerBalancesBefore = await getTokenBalances(program, forkedProgram, payerToken);
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken),
+        ]);
 
         // Post the VAA.
         await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
@@ -289,12 +287,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         amount = amount * BigInt(10 ** (decimals - 8));
 
         // Fetch balances after.
-        const recipientBalancesAfter = await getTokenBalances(
-          program,
-          forkedProgram,
-          recipientToken.address
-        );
-        const relayerBalancesAfter = await getTokenBalances(program, forkedProgram, payerToken);
+        const [recipientBalancesAfter, relayerBalancesAfter] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken),
+        ]);
 
         // Check recipient and relayer token balance changes.
         expect(recipientBalancesAfter.token - recipientBalancesBefore.token).to.equal(amount - fee);
@@ -418,18 +414,11 @@ async function parallelTxDetails(
   const connection = program.provider.connection;
 
   // Post the VAA.
-  await parallelPostVaa(connection, payer, signedVaa);
+  const parsed = await parallelPostVaa(connection, payer, signedVaa);
 
   // Create instruction.
-  const ix = tokenBridge.legacyCompleteTransferNativeIx(program, accounts, parseVaa(signedVaa));
-  const forkedIx = tokenBridge.legacyCompleteTransferNativeIx(
-    forkedProgram,
-    accounts,
-    parseVaa(signedVaa)
-  );
+  const ix = tokenBridge.legacyCompleteTransferNativeIx(program, accounts, parsed);
+  const forkedIx = tokenBridge.legacyCompleteTransferNativeIx(forkedProgram, accounts, parsed);
 
-  return await Promise.all([
-    expectIxOkDetails(connection, [ix], [payer]),
-    expectIxOkDetails(connection, [forkedIx], [payer]),
-  ]);
+  return expectIxOkDetails(connection, [ix, forkedIx], [payer]);
 }

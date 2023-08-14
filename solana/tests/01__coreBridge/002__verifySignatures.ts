@@ -9,7 +9,6 @@ const GUARDIAN_SET_INDEX = 0;
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
 describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
-  console.log("hurrdurr", process.env.ANCHOR_PROVIDER_URL);
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
