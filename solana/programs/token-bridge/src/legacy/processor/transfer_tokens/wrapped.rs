@@ -40,7 +40,7 @@ pub struct TransferTokensWrapped<'info> {
     wrapped_mint: Box<Account<'info, Mint>>,
 
     #[account(
-        seeds = [wrapped_mint.key().as_ref()],
+        seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump
     )]
     wrapped_asset: Account<'info, WrappedAsset>,
