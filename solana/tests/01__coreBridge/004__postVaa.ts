@@ -5,6 +5,7 @@ import { expect } from "chai";
 import { ethers } from "ethers";
 import {
   GUARDIAN_KEYS,
+  SignatureSets,
   expectDeepEqual,
   expectIxOkDetails,
   parallelVerifySignatures,
@@ -52,16 +53,10 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
         forkSignatureSet,
       });
 
-      const postedVaaData = await coreBridge.PostedVaaV1.fromPda(
-        connection,
-        program.programId,
-        messageHash
-      );
-      const forkPostedVaaData = await coreBridge.PostedVaaV1.fromPda(
-        connection,
-        forkedProgram.programId,
-        messageHash
-      );
+      const [postedVaaData, forkPostedVaaData] = await Promise.all([
+        coreBridge.PostedVaaV1.fromPda(connection, program.programId, messageHash),
+        coreBridge.PostedVaaV1.fromPda(connection, forkedProgram.programId, messageHash),
+      ]);
 
       // Signature set accounts are different, so we cannot do a deep equal compare. But we'll be
       // close enough by checking each field.
@@ -95,11 +90,6 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
   });
 });
 
-type SignatureSets = {
-  signatureSet: anchor.web3.Keypair;
-  forkSignatureSet: anchor.web3.Keypair;
-};
-
 type DefaultArgsOutput = {
   signatureSet: anchor.web3.Keypair;
   forkSignatureSet: anchor.web3.Keypair;
@@ -128,7 +118,7 @@ async function createArgs(
   payer: anchor.web3.Keypair,
   signedVaa: Buffer
 ): Promise<DefaultArgsOutput> {
-  const [signatureSet, forkSignatureSet] = await parallelVerifySignatures(
+  const { signatureSet, forkSignatureSet } = await parallelVerifySignatures(
     connection,
     payer,
     signedVaa

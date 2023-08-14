@@ -1,8 +1,9 @@
-import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { BridgeProgramData, CoreBridgeProgram } from ".";
 import * as coreBridge from "../coreBridge";
 import { expectDeepEqual } from "../utils";
+import { Keypair, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 
 export async function expectEqualBridgeAccounts(
   program: CoreBridgeProgram,
@@ -19,8 +20,8 @@ export async function expectEqualBridgeAccounts(
 
 export async function expectEqualMessageAccounts(
   program: CoreBridgeProgram,
-  messageSigner: anchor.web3.Keypair,
-  forkedMessageSigner: anchor.web3.Keypair,
+  messageSigner: Keypair,
+  forkedMessageSigner: Keypair,
   unreliable: boolean
 ) {
   const connection = program.provider.connection;
@@ -59,10 +60,10 @@ export async function expectEqualGuardianSet(
 
 export async function expectLegacyPostMessageAfterEffects(
   program: CoreBridgeProgram,
-  txDetails: anchor.web3.VersionedTransactionResponse,
+  txDetails: VersionedTransactionResponse,
   accounts: coreBridge.LegacyPostMessageContext,
   args: coreBridge.LegacyPostMessageArgs,
-  expectedSequence: anchor.BN,
+  expectedSequence: BN,
   unreliable: boolean,
   actualPayload: Buffer
 ) {
@@ -87,7 +88,7 @@ export async function expectLegacyPostMessageAfterEffects(
     : coreBridge.PostedMessageV1.fromAccountAddress(connection, message));
 
   expect(msgFinality).equals(finality === 0 ? 1 : 32);
-  expect(emitterAuthority.equals(anchor.web3.PublicKey.default)).is.true;
+  expect(emitterAuthority.equals(PublicKey.default)).is.true;
   expect(status).equals(coreBridge.MessageStatus.Unset);
   expect(_gap0.equals(Buffer.alloc(3))).is.true;
   expect(postedTimestamp).equals(txDetails.blockTime!);
