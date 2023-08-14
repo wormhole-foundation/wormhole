@@ -59,6 +59,7 @@ export const getOriginalAsset = async (
     case "oasis":
     case "optimism":
     case "polygon":
+    // case "rootstock":
     case "sepolia": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getOriginalAssetEth(
