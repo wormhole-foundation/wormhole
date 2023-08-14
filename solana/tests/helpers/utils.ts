@@ -9,6 +9,7 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
+  SystemProgram,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
@@ -16,14 +17,14 @@ import {
 import { expect } from "chai";
 import { Err, Ok } from "ts-results";
 import * as coreBridge from "./coreBridge";
-import { CoreBridgeProgram } from "./coreBridge";
-import { TokenBridgeProgram, custodyTokenPda } from "./tokenBridge";
+import * as tokenBridge from "./tokenBridge";
 
 export type InvalidAccountConfig = {
   label: string;
   contextName: string;
   address: PublicKey;
   errorMsg: string;
+  dataLength?: number;
 };
 
 export type InvalidArgConfig = {
@@ -180,7 +181,7 @@ async function debugSendAndConfirmTransaction(
 // const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function invokeVerifySignaturesAndPostVaa(
-  program: CoreBridgeProgram,
+  program: coreBridge.CoreBridgeProgram,
   payer: Keypair,
   signedVaa: Buffer
 ) {
@@ -237,21 +238,21 @@ export type TokenBalances = {
 };
 
 export async function getTokenBalances(
-  tokenBridgeProgram: TokenBridgeProgram,
-  forkTokenBridgeProgram: TokenBridgeProgram,
+  tokenBridgeProgram: tokenBridge.TokenBridgeProgram,
+  forkTokenBridgeProgram: tokenBridge.TokenBridgeProgram,
   token: PublicKey
 ): Promise<TokenBalances> {
   const connection = tokenBridgeProgram.provider.connection;
   const tokenAccount = await getAccount(connection, token);
   const custodyToken = await getAccount(
     connection,
-    custodyTokenPda(tokenBridgeProgram.programId, tokenAccount.mint)
+    tokenBridge.custodyTokenPda(tokenBridgeProgram.programId, tokenAccount.mint)
   )
     .then((token) => token.amount)
     .catch((_) => BigInt(0));
   const forkCustodyToken = await getAccount(
     connection,
-    custodyTokenPda(forkTokenBridgeProgram.programId, tokenAccount.mint)
+    tokenBridge.custodyTokenPda(forkTokenBridgeProgram.programId, tokenAccount.mint)
   )
     .then((token) => token.amount)
     .catch((_) => BigInt(0));
@@ -267,7 +268,7 @@ export function range(start: number, end: number): number[] {
 }
 
 export async function invokeVerifySignatures(
-  program: CoreBridgeProgram,
+  program: coreBridge.CoreBridgeProgram,
   payer: Keypair,
   signatureSet: Keypair,
   signedVaa: Buffer
@@ -296,28 +297,38 @@ export async function invokeVerifySignatures(
   );
 }
 
+export class SignatureSets {
+  signatureSet: Keypair;
+  forkSignatureSet: Keypair;
+
+  constructor() {
+    this.signatureSet = Keypair.generate();
+    this.forkSignatureSet = Keypair.generate();
+  }
+}
+
 export async function parallelVerifySignatures(
   connection: Connection,
   payer: Keypair,
   signedVaa: Buffer
 ) {
-  const signatureSets = [Keypair.generate(), Keypair.generate()];
+  const { signatureSet, forkSignatureSet } = new SignatureSets();
   await Promise.all([
     invokeVerifySignatures(
       coreBridge.getAnchorProgram(connection, coreBridge.localnet()),
       payer,
-      signatureSets[0],
+      signatureSet,
       signedVaa
     ),
     invokeVerifySignatures(
       coreBridge.getAnchorProgram(connection, coreBridge.mainnet()),
       payer,
-      signatureSets[1],
+      forkSignatureSet,
       signedVaa
     ),
   ]);
 
-  return signatureSets;
+  return { signatureSet, forkSignatureSet };
 }
 
 export async function airdrop(connection: Connection, account: PublicKey) {
@@ -325,4 +336,27 @@ export async function airdrop(connection: Connection, account: PublicKey) {
   await connection.requestAirdrop(account, lamports).then((sig) => confirmLatest(connection, sig));
 
   return lamports;
+}
+
+export async function createAccountIx(
+  connection: Connection,
+  programId: PublicKey,
+  payer: Keypair,
+  dataLength: number
+) {
+  const generated = Keypair.generate();
+  const createIx = await connection.getMinimumBalanceForRentExemption(dataLength).then((lamports) =>
+    SystemProgram.createAccount({
+      fromPubkey: payer.publicKey,
+      newAccountPubkey: generated.publicKey,
+      space: dataLength,
+      lamports,
+      programId,
+    })
+  );
+
+  return {
+    generated,
+    createIx,
+  };
 }
