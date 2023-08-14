@@ -13,6 +13,7 @@ import { expect } from "chai";
 import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  ETHEREUM_STEAK_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
   expectDeepEqual,
   expectIxOk,
@@ -42,7 +43,7 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   describe("Ok", () => {
-    it("Invoke `create_or_update_wrapped` for New Asset", async () => {
+    it("Invoke `create_or_update_wrapped` for New Asset (18 decimals)", async () => {
       const signedVaa = defaultVaa();
 
       const parsed = await parallelTxOk(
@@ -125,26 +126,84 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
       // fork.
       expect(dataV1.name).equals(newName.substring(0, 32));
     });
+
+    it("Invoke `create_or_update_wrapped` for New Asset (7 decimals)", async () => {
+      const signedVaa = defaultVaa({
+        symbol: "STEAK",
+        name: "medium rare",
+        decimals: 7,
+        address: ETHEREUM_STEAK_TOKEN_ADDRESS,
+      });
+
+      const parsed = await parallelTxOk(
+        program,
+        forkedProgram,
+        { payer: payer.publicKey },
+        signedVaa,
+        payer
+      );
+
+      // Check metadata.
+      const {
+        wrappedAsset,
+        dataV1,
+        decomposedMetadata: metadata,
+      } = await expectCorrectData(program, parsed);
+      const {
+        wrappedAsset: forkWrappedAsset,
+        dataV1: forkDataV1,
+        decomposedMetadata: forkMetadata,
+      } = await expectCorrectData(forkedProgram, parsed);
+
+      expectDeepEqual(wrappedAsset, forkWrappedAsset);
+      expectDeepEqual(metadata, forkMetadata);
+
+      expect(dataV1.symbol).equals(forkDataV1.symbol);
+      expect(dataV1.sellerFeeBasisPoints).equals(forkDataV1.sellerFeeBasisPoints);
+
+      // Note the differences between the new implementation and the fork.
+      expect(dataV1.name).equals("medium rare".padEnd(32, "\x00"));
+      expect(forkDataV1.name).equals("medium rare (Wormhole)".padEnd(32, "\x00"));
+
+      // Instead of adding the suffix " (Wormhole)", we use the URI to describe the original asset.
+      const uri: { wormholeChainId: number; canonicalAddress: string; nativeDecimals: number } =
+        JSON.parse(dataV1.uri.replace(/\0/g, ""));
+      expectDeepEqual(uri, {
+        wormholeChainId: 2,
+        canonicalAddress: "0x000000000000000000000000beefdeadbeefdeadbeefdeadbeefdeadbeefdead",
+        nativeDecimals: 7,
+      });
+    });
   });
 });
 
-function defaultVaa(args?: { symbol?: string; name?: string }): Buffer {
+function defaultVaa(args?: {
+  symbol?: string;
+  name?: string;
+  decimals?: number;
+  address?: Uint8Array;
+}): Buffer {
   if (args === undefined) {
     args = {};
   }
 
-  let { symbol, name } = args;
+  let { symbol, name, decimals, address } = args;
   if (symbol === undefined) {
     symbol = "DEADBEEF";
   }
   if (name === undefined) {
     name = "Dead beef. Moo.";
   }
-  const decimals = 18;
+  if (decimals === undefined) {
+    decimals = 18;
+  }
+  if (address === undefined) {
+    address = ETHEREUM_DEADBEEF_TOKEN_ADDRESS;
+  }
   const nonce = 420;
   const timestamp = 12345678;
   const published = ethereumTokenBridge.publishAttestMeta(
-    Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+    Buffer.from(address).toString("hex"),
     decimals,
     symbol,
     name,

@@ -42,3 +42,7 @@ export const ETHEREUM_DEADBEEF_TOKEN_ADDRESS = tryNativeToUint8Array(
   "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
   "ethereum"
 );
+export const ETHEREUM_STEAK_TOKEN_ADDRESS = tryNativeToUint8Array(
+  "0xbeefdeadbeefdeadbeefdeadbeefdeadbeefdead",
+  "ethereum"
+);
