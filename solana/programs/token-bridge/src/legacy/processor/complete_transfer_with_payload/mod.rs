@@ -13,7 +13,7 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
     posted_vaa: &'ctx Account<'info, PostedVaaV1Bytes>,
     registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
     redeemer_authority: &'ctx Signer<'info>,
-    dst_token: &'ctx Account<'info, TokenAccount>,
+    recipient_token: &'ctx Account<'info, TokenAccount>,
 ) -> Result<(u16, [u8; 32])> {
     let msg = crate::utils::require_valid_token_bridge_posted_vaa(posted_vaa, registered_emitter)?;
     match msg.transfer_with_message() {
@@ -44,7 +44,7 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
                 // The redeemer must be the token account owner if the redeemer authority is the
                 // same as the redeemer (i.e. the signer of this transaction, which does not
                 // represent a program's PDA.
-                require!(redeemer == dst_token.owner, ErrorCode::ConstraintTokenOwner);
+                require!(redeemer == recipient_token.owner, ErrorCode::ConstraintTokenOwner);
             }
 
             // Done.
