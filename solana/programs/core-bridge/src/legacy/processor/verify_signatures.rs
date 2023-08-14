@@ -10,26 +10,15 @@ use anchor_lang::{
 };
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct SigVerifyOffsets {
-    pub signature_offset: u16, // offset to [signature,recovery_id,etherum_address] of 64+1+20 bytes
-    pub signature_ix_index: u8, // instruction index to find data
-    pub eth_pubkey_offset: u16, // offset to [signature,recovery_id] of 64+1 bytes
-    pub eth_pubkey_ix_index: u8, // instruction index to find data
-    pub message_offset: u16,   // offset to start of message data
-    pub message_size: u16,     // size of message data
-    pub message_ix_index: u8,  // index of instruction data to get message data
-}
-
-impl SigVerifyOffsets {
-    pub const LEN: usize = 2    // signature_key_offset
-        + 1                     // signature_instruction_index
-        + 2                     // pubkey_offset
-        + 1                     // pubkey_instruction_index
-        + 2                     // message_data_offset
-        + 2                     // message_data_size
-        + 1                     // message_instruction_index
-    ;
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, InitSpace)]
+struct SigVerifyOffsets {
+    signature_offset: u16, // offset to [signature,recovery_id,etherum_address] of 64+1+20 bytes
+    signature_ix_index: u8, // instruction index to find data
+    eth_pubkey_offset: u16, // offset to [signature,recovery_id] of 64+1 bytes
+    eth_pubkey_ix_index: u8, // instruction index to find data
+    message_offset: u16,   // offset to start of message data
+    message_size: u16,     // size of message data
+    message_ix_index: u8,  // index of instruction data to get message data
 }
 
 struct SigVerifyParameters {
@@ -216,9 +205,9 @@ fn deserialize_secp256k1_ix(
     // For each offset encoded, grab each SigVerify parameter (signature, eth pubkey, message).
     let mut last_message_offset = None;
     for i in 0..params.capacity() {
-        let offsets_idx = 1 + i * SigVerifyOffsets::LEN;
+        let offsets_idx = 1 + i * SigVerifyOffsets::INIT_SPACE;
         let offsets = SigVerifyOffsets::deserialize(
-            &mut &ix_data[offsets_idx..(offsets_idx + SigVerifyOffsets::LEN)],
+            &mut &ix_data[offsets_idx..(offsets_idx + SigVerifyOffsets::INIT_SPACE)],
         )?;
         // Because guardians sign the hash of the message body hash, this verified message must be
         // 32 bytes.
