@@ -5,7 +5,6 @@ use crate::{
     types::MessageHash,
 };
 use anchor_lang::{
-    error,
     prelude::*,
     solana_program::{keccak, sysvar},
 };
@@ -64,7 +63,7 @@ pub struct VerifySignatures<'info> {
 
     /// CHECK: Instruction sysvar used to read libsecp256k1 instruction data.
     #[account(
-        address = sysvar::instructions::id() @ error::ErrorCode::AccountSysvarMismatch
+        address = sysvar::instructions::id() @ ErrorCode::AccountSysvarMismatch
     )]
     instructions: AccountInfo<'info>,
 
