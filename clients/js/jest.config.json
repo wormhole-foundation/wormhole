@@ -18,8 +18,5 @@
   ],
   "testPathIgnorePatterns": [
     "/__tests__\\/utils/"
-  ],
-  "setupFiles": [
-    "./jest.setup.cjs"
   ]
 }
