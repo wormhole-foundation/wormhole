@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import { expect } from "chai";
 import { ethers } from "ethers";
 import {
   GUARDIAN_KEYS,
@@ -7,10 +8,8 @@ import {
   expectDeepEqual,
   expectIxErr,
   expectIxOkDetails,
-  sleep,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { expect } from "chai";
 
 // TODO: Need to add negative tests for GuardianZeroAddress, DuplicateGuardians, etc.
 
@@ -147,9 +146,6 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
     it("Cannot Invoke `initialize` again", async () => {
       // Create the initialize instruction using the default args.
       const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, defaultArgs());
-
-      // Sleep to avoid anchor validator error.
-      await sleep(10000);
 
       // Confirm that we cannot invoke initialize again.
       await expectIxErr(connection, [ix], [payer], "already in use");

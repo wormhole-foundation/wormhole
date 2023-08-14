@@ -19,6 +19,10 @@ import * as tokenBridge from "./tokenBridge";
 import * as coreBridge from "./coreBridge";
 import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
+const CACHED_BLOCKHASH: { blockhash: string } = {
+  blockhash: "",
+};
+
 export type InvalidAccountConfig = {
   label: string;
   contextName: string;
@@ -150,6 +154,23 @@ async function debugSendAndConfirmTransaction(
   const logError = options === undefined ? true : options.logError;
   const confirmOptions = options === undefined ? undefined : options.confirmOptions;
 
+  // This is a bloody hack to wait for the next valid blockhash. Wait 20s because the local
+  // validator may not respond with a new blockhash in a timely manner... Inspired by
+  // https://github.com/solana-labs/solana-web3.js/blob/master/packages/library-legacy/src/connection.ts#L5584-L5615.
+
+  const lastBlockhash = CACHED_BLOCKHASH.blockhash;
+  for (let i = 0; i < 1000; ++i) {
+    const latestBlockhash = await connection.getLatestBlockhash("finalized");
+
+    if (lastBlockhash !== latestBlockhash.blockhash) {
+      CACHED_BLOCKHASH.blockhash = latestBlockhash.blockhash;
+      break;
+    }
+
+    // Half of the sleep time.
+    await sleep(200);
+  }
+
   return sendAndConfirmTransaction(connection, tx, signers, confirmOptions)
     .then((sig) => new Ok(sig))
     .catch((err) => {
@@ -165,7 +186,7 @@ async function debugSendAndConfirmTransaction(
     });
 }
 
-export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function invokeVerifySignaturesAndPostVaa(
   program: CoreBridgeProgram,

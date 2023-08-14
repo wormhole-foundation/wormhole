@@ -1,26 +1,15 @@
+import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { ethers } from "ethers";
-import {
-  GUARDIAN_KEYS,
-  InvalidAccountConfig,
-  InvalidArgConfig,
-  createSecp256k1Instruction,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-  sleep,
-} from "../helpers";
+import { GUARDIAN_KEYS, createSecp256k1Instruction, expectDeepEqual, expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { expect } from "chai";
-import { ComputeBudgetProgram, Secp256k1Program } from "@solana/web3.js";
-import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
 const GUARDIAN_SET_INDEX = 0;
 
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
 describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
+  console.log("hurrdurr", process.env.ANCHOR_PROVIDER_URL);
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -49,25 +38,18 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
     // This signature set will be written multiple times.
     const signatureSet = anchor.web3.Keypair.generate();
 
-    for (let i = 0; i < 19; ++i) {
-      it(`Invoke \`verify_signatures\` for Guardian [${i}]`, async () => {
+    for (let i = 0; i < 17; i += 2) {
+      it(`Invoke \`verify_signatures\` for Guardians [${i}], [${i + 1}], [${i + 2}]`, async () => {
         const guardianSet = coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX);
-        const ethAddress = await coreBridge.GuardianSet.fromAccountAddress(
-          connection,
-          guardianSet
-        ).then((acct) => Buffer.from(acct.keys[i]));
-
-        const rsv = guardians.addSignatures(message, [i]).subarray(7, 7 + 65);
-        const signature = rsv.subarray(0, 64);
-        const recoveryId = rsv[64];
-        const sigVerifyIx = Secp256k1Program.createInstructionWithEthAddress({
-          ethAddress,
-          message: messageHash,
-          signature,
-          recoveryId,
-        });
+        const sigVerifyIx = await createSigVerifyIx(program, GUARDIAN_SET_INDEX, message, [
+          i,
+          i + 1,
+          i + 2,
+        ]);
         const signerIndices = new Array(19).fill(-1);
         signerIndices[i] = 0;
+        signerIndices[i + 1] = 1;
+        signerIndices[i + 2] = 2;
 
         const verifyIx = coreBridge.legacyVerifySignaturesIx(
           program,
@@ -83,7 +65,7 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
           signatureSet.publicKey
         );
         const sigVerifySuccesses: boolean[] = new Array(19).fill(false);
-        for (let j = 0; j <= i; ++j) {
+        for (let j = 0; j <= i + 2; ++j) {
           sigVerifySuccesses[j] = true;
         }
         expectDeepEqual(signatureSetData, {
@@ -99,6 +81,30 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
     });
   });
 });
+
+function generateSignature(message: Buffer, guardianIndex: number) {
+  return guardians.addSignatures(message, [guardianIndex]).subarray(7, 7 + 65);
+}
+
+async function createSigVerifyIx(
+  program: coreBridge.CoreBridgeProgram,
+  guardianSetIndex: number,
+  message: Buffer,
+  guardianIndices: number[]
+) {
+  const guardianSet = coreBridge.GuardianSet.address(program.programId, guardianSetIndex);
+  const ethAddresses = await coreBridge.GuardianSet.fromAccountAddress(
+    program.provider.connection,
+    guardianSet
+  ).then((acct) => guardianIndices.map((i) => Buffer.from(acct.keys[i])));
+  const signatures = guardianIndices.map((i) => generateSignature(message, i));
+
+  return createSecp256k1Instruction(
+    signatures,
+    ethAddresses,
+    Buffer.from(ethers.utils.arrayify(ethers.utils.keccak256(message)))
+  );
+}
 
 function defaultArgs() {
   return {};
