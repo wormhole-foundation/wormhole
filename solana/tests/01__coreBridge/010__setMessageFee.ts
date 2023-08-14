@@ -6,7 +6,7 @@ import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
   expectIxErr,
-  expectIxOkDetails,
+  expectIxOk,
   parallelPostVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
@@ -93,7 +93,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       const signedVaa = defaultVaa(amount);
 
       // Set the message fee for both programs.
-      await parallelTxDetails(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
+      await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
 
       // Make sure the bridge accounts are the same.
       await coreBridge.expectEqualBridgeAccounts(program, forkedProgram);
@@ -141,7 +141,7 @@ function defaultVaa(amount: anchor.BN): Buffer {
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }
 
-async function parallelTxDetails(
+async function parallelTxOk(
   program: coreBridge.CoreBridgeProgram,
   forkedProgram: coreBridge.CoreBridgeProgram,
   accounts: coreBridge.LegacySetMessageFeeContext,
@@ -159,9 +159,5 @@ async function parallelTxDetails(
   // Create the set fee instructions.
   const ix = coreBridge.legacySetMessageFeeIx(program, accounts, parsedVaa);
   const forkedIx = coreBridge.legacySetMessageFeeIx(forkedProgram, accounts, parsedVaa);
-
-  return Promise.all([
-    expectIxOkDetails(connection, [ix], [payer]),
-    expectIxOkDetails(connection, [forkedIx], [payer]),
-  ]);
+  return expectIxOk(connection, [ix, forkedIx], [payer]);
 }

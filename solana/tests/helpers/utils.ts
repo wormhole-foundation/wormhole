@@ -145,7 +145,7 @@ async function debugSendAndConfirmTransaction(
   const logError = options === undefined ? true : options.logError;
   const confirmOptions = options === undefined ? undefined : options.confirmOptions;
 
-  const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+  const latestBlockhash = await connection.getLatestBlockhash();
 
   const messageV0 = new TransactionMessage({
     payerKey: signers[0].publicKey,
