@@ -11,7 +11,7 @@ import {
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { Err, Ok } from "ts-results";
-import { postVaaSolana } from "@certusone/wormhole-sdk";
+import { parseVaa, postVaaSolana } from "@certusone/wormhole-sdk";
 import { NodeWallet } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { CoreBridgeProgram } from "./coreBridge";
 import { TokenBridgeProgram, custodyTokenPda } from "./tokenBridge";
@@ -205,7 +205,7 @@ export async function invokeVerifySignaturesAndPostVaa(
 }
 
 export async function parallelPostVaa(connection: Connection, payer: Keypair, signedVaa: Buffer) {
-  return Promise.all([
+  await Promise.all([
     invokeVerifySignaturesAndPostVaa(
       coreBridge.getAnchorProgram(connection, coreBridge.localnet()),
       payer,
@@ -217,6 +217,8 @@ export async function parallelPostVaa(connection: Connection, payer: Keypair, si
       signedVaa
     ),
   ]);
+
+  return parseVaa(signedVaa);
 }
 
 export type TokenBalances = {
