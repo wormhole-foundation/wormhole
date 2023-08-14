@@ -10,6 +10,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
     state::{PostedVaaV1Bytes, VaaV1MessageHash},
+    CoreBridge,
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
@@ -30,7 +31,7 @@ pub struct CompleteTransferWrapped<'info> {
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump,
-        seeds::program = core_bridge_program::ID,
+        seeds::program = core_bridge_program,
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
@@ -93,10 +94,7 @@ pub struct CompleteTransferWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-
-    /// CHECK: Token Bridge never needed this account for this instruction.
-    _core_bridge_program: UncheckedAccount<'info>,
-
+    core_bridge_program: Program<'info, CoreBridge>,
     token_program: Program<'info, Token>,
 }
 
