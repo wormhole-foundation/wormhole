@@ -27,7 +27,7 @@ jobs:
       - name: Populate ENV variables
         working-directory: ./clients/js
         run: |
-          npm run test:env
+          source ./__tests__/utils/env/worm-submit-env-values
 
       - name: build worm CLI (Makefile)
         working-directory: ./clients/js
