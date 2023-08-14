@@ -43,6 +43,7 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	for _, elem := range genState.WasmInstantiateAllowlist {
 		k.SetWasmInstantiateAllowlist(ctx, elem)
 	}
+	k.StoreIbcComposabilityMwContract(ctx, genState.IbcComposabilityMwContract)
 	// this line is used by starport scaffolding # genesis/module/init
 }
 
@@ -67,6 +68,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	genesis.GuardianValidatorList = k.GetAllGuardianValidator(ctx)
 	genesis.AllowedAddresses = k.GetAllAllowedAddresses(ctx)
 	genesis.WasmInstantiateAllowlist = k.GetAllWasmInstiateAllowedAddresses(ctx)
+	genesis.IbcComposabilityMwContract = k.GetIbcComposabilityMwContract(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis

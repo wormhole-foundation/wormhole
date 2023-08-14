@@ -76,6 +76,10 @@ service Query {
 		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/allowlist/{validator_address}";
 	}
 
+	rpc IbcComposabilityMwContract(QueryIbcComposabilityMwContractRequest) returns (QueryIbcComposabilityMwContractResponse) {
+		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/ibc_composability_mw_contract";
+	}
+
 	rpc WasmInstantiateAllowlistAll(QueryAllWasmInstantiateAllowlist) returns (QueryAllWasmInstantiateAllowlistResponse) {
 		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/wasm_instantiate_allowlist";
 	}
@@ -191,6 +195,13 @@ message QueryLatestGuardianSetIndexRequest {
 
 message QueryLatestGuardianSetIndexResponse {
   uint32 latestGuardianSetIndex = 1;
+}
+
+message QueryIbcComposabilityMwContractRequest {
+}
+
+message QueryIbcComposabilityMwContractResponse {
+	string contractAddress = 1;
 }
 
 message QueryAllWasmInstantiateAllowlist {

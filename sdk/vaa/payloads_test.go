@@ -156,12 +156,12 @@ func TestBodyIbcReceiverUpdateChannelChain(t *testing.T) {
 
 	channelId := LeftPadIbcChannelId("channel-0")
 
-	bodyIbcReceiverUpdateChannelChain := BodyIbcReceiverUpdateChannelChain{
+	bodyIbcReceiverUpdateChannelChain := BodyIbcUpdateChannelChain{
 		TargetChainId: ChainIDWormchain,
 		ChannelId:     channelId,
 		ChainId:       ChainIDInjective,
 	}
-	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize()))
+	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize(IbcReceiverModuleStr)))
 }
 
 func TestLeftPadBytes(t *testing.T) {
@@ -208,4 +208,21 @@ func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
 		NewDefaultDeliveryProviderAddress: addr,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultDeliveryProvider.Serialize()))
+}
+
+func TestBodyWormchainIbcComposabilityMwContractSerialize(t *testing.T) {
+	expected := "00000000000000000000000000000000000000476174657761794d6f64756c65010c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	bodyWormchainIbcComposabilityMwContract := BodyWormchainIbcComposabilityMwContract{
+		ContractAddr: dummyBytes,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormchainIbcComposabilityMwContract.Serialize()))
+}
+
+func TestBodyWormchainIbcComposabilityMwContractDeserialize(t *testing.T) {
+	expected := BodyWormchainIbcComposabilityMwContract{
+		ContractAddr: dummyBytes,
+	}
+	var payloadBody BodyWormchainIbcComposabilityMwContract
+	payloadBody.Deserialize(dummyBytes[:])
+	assert.Equal(t, expected, payloadBody)
 }
