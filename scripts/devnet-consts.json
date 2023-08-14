@@ -199,10 +199,10 @@
       "rpcPort": "1317",
       "tendermintPort": "26657",
       "contracts": {
-        "coreEmitterAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
-        "coreNativeAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
-        "tokenBridgeEmitterAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
-        "tokenBridgeNativeAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
+        "coreEmitterAddress": "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+        "coreNativeAddress": "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+        "tokenBridgeEmitterAddress": "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
+        "tokenBridgeNativeAddress": "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
         "accountingNativeAddress": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
       },
       "accounts": {
