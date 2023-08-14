@@ -2,6 +2,7 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
+import { expectIxOk } from "../../old-tests/helpers";
 import { GUARDIAN_KEYS, expectIxErr, expectIxOkDetails, parallelPostVaa } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -44,7 +45,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       }
 
       // Invoke the instruction.
-      const [txDetails, txForkDetails, signedVaa] = await parallelTxDetails(
+      const signedVaa = await parallelTxDetails(
         program,
         forkedProgram,
         {
@@ -142,9 +143,6 @@ async function parallelTxDetails(
   const forkedIx = coreBridge.legacyTransferFeesIx(forkedProgram, accounts, parsedVaa);
 
   // Invoke the instruction.
-  return Promise.all([
-    expectIxOkDetails(connection, [ix], [payer]),
-    expectIxOkDetails(connection, [forkedIx], [payer]),
-    signedVaa,
-  ]);
+  await expectIxOk(connection, [ix, forkedIx], [payer]);
+  return signedVaa;
 }

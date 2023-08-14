@@ -1,17 +1,10 @@
-import * as anchor from "@coral-xyz/anchor";
-import {
-  GUARDIAN_KEYS,
-  expectIxErr,
-  expectIxOkDetails,
-  InvalidAccountConfig,
-  range,
-  parallelPostVaa,
-} from "../helpers";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import * as coreBridge from "../helpers/coreBridge";
+import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
+import { GUARDIAN_KEYS, expectIxErr, expectIxOkDetails, parallelPostVaa, range } from "../helpers";
+import * as coreBridge from "../helpers/coreBridge";
+import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
@@ -47,7 +40,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys, range(0, 13));
 
       // Invoke the instruction.
-      const [txDetails, txForkDetails] = await parallelTxDetails(
+      const txDetails = await parallelTxDetails(
         program,
         forkedProgram,
         {
@@ -109,7 +102,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys, range(0, 2));
 
       // Invoke the instruction.
-      const [txDetails, txForkDetails] = await parallelTxDetails(
+      const txDetails = await parallelTxDetails(
         program,
         forkedProgram,
         {
@@ -184,8 +177,5 @@ async function parallelTxDetails(
   const forkedIx = coreBridge.legacyGuardianSetUpdateIx(forkedProgram, accounts, parsedVaa);
 
   // Invoke the instruction.
-  return Promise.all([
-    expectIxOkDetails(connection, [ix], [payer]),
-    expectIxOkDetails(connection, [forkedIx], [payer]),
-  ]);
+  return expectIxOkDetails(connection, [ix, forkedIx], [payer]);
 }
