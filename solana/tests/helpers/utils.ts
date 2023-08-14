@@ -7,6 +7,7 @@ import {
   Transaction,
   TransactionInstruction,
   sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { Err, Ok } from "ts-results";
@@ -14,8 +15,7 @@ import { postVaaSolana } from "@certusone/wormhole-sdk";
 import { NodeWallet } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { CoreBridgeProgram } from "./coreBridge";
 import { TokenBridgeProgram, custodyTokenPda } from "./tokenBridge";
-import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
-import * as tokenBridge from "./tokenBridge";
+import { getAccount } from "@solana/spl-token";
 import * as coreBridge from "./coreBridge";
 import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
@@ -305,4 +305,11 @@ export async function parallelVerifySignatures(
   ]);
 
   return signatureSets;
+}
+
+export async function airdrop(connection: Connection, account: PublicKey) {
+  const lamports = 69 * LAMPORTS_PER_SOL;
+  await connection.requestAirdrop(account, lamports).then((sig) => confirmLatest(connection, sig));
+
+  return lamports;
 }

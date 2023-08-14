@@ -18,7 +18,7 @@ export type LegacyCompleteTransferWithPayloadNativeContext = {
   postedVaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
-  dstToken: PublicKey;
+  recipientToken: PublicKey;
   redeemerAuthority?: PublicKey;
   custodyToken?: PublicKey;
   mint: PublicKey;
@@ -41,7 +41,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
     postedVaa,
     claim,
     registeredEmitter,
-    dstToken,
+    recipientToken,
     redeemerAuthority,
     custodyToken,
     mint,
@@ -122,7 +122,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: dstToken,
+      pubkey: recipientToken,
       isWritable: true,
       isSigner: false,
     },
@@ -132,7 +132,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: true,
     },
     {
-      pubkey: dstToken, // NOTE: This exists because of a bug in the legacy program.
+      pubkey: recipientToken, // NOTE: This exists because of a bug in the legacy program.
       isWritable: false, // TODO: check this
       isSigner: false,
     },

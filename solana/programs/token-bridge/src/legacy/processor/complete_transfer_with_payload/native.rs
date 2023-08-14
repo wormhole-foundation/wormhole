@@ -29,7 +29,8 @@ pub struct CompleteTransferWithPayloadNative<'info> {
             PostedVaaV1Bytes::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
-        bump
+        bump,
+        seeds::program = core_bridge_program::ID
     )]
     posted_vaa: Account<'info, PostedVaaV1Bytes>,
 
@@ -60,7 +61,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
         mut,
         token::mint = mint,
     )]
-    dst_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -107,7 +108,7 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
-            &ctx.accounts.dst_token,
+            &ctx.accounts.recipient_token,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
@@ -148,7 +149,7 @@ pub fn complete_transfer_with_payload_native(
     withdraw_native_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.custody_token,
-        &ctx.accounts.dst_token,
+        &ctx.accounts.recipient_token,
         &ctx.accounts.custody_authority,
         ctx.bumps["custody_authority"],
         transfer_amount,
