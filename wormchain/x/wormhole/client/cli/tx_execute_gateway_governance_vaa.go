@@ -25,7 +25,7 @@ func CmdExecuteGatewayGovernanceVaa() *cobra.Command {
 				return err
 			}
 
-			vaaBz, err := hex.DecodeString(args[1])
+			vaaBz, err := hex.DecodeString(args[0])
 			if err != nil {
 				return err
 			}

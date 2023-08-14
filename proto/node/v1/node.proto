@@ -93,10 +93,10 @@ message GovernanceMessage {
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
     WormchainWasmInstantiateAllowlist wormchain_wasm_instantiate_allowlist = 23;
-    WormchainIbcComposabilityMwSetContract wormchain_ibc_composability_mw_set_contract = 24;
 
     // Gateway
-    GatewayInPlaceUpgrade gateway_in_place_upgrade = 25;
+    GatewayIbcComposabilityMwSetContract gateway_ibc_composability_mw_set_contract = 24;
+    GatewaySetTokenfactoryPfmDefaultParams gateway_set_tokenfactory_pfm_default_params = 25;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -246,19 +246,12 @@ message WormchainWasmInstantiateAllowlist {
   WormchainWasmInstantiateAllowlistAction action = 3;
 }
 
-message WormchainIbcComposabilityMwSetContract {
+message GatewayIbcComposabilityMwSetContract {
     // The address of the contract that is set in the ibc composability middleware.
     string contract = 1;
 }
 
-enum GatewayInPlaceUpgradeAction {
-  GATEWAY_IN_PLACE_UPGRADE_ACTION_UNSPECIFIED = 0;
-  GATEWAY_IN_PLACE_UPGRADE_ACTION_SET_TOKENFACTORY_PFM_DEFAULT_PARAMS = 1;
-}
-
-message GatewayInPlaceUpgrade {
-  GatewayInPlaceUpgradeAction action = 1;
-}
+message GatewaySetTokenfactoryPfmDefaultParams {}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;

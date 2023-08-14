@@ -56,7 +56,7 @@ func (k msgServer) setIbcComposabilityMwContract(
 	payload []byte,
 ) (*types.EmptyResponse, error) {
 	// validate the contractAddress in the VAA payload match the ones in the message
-	var payloadBody vaa.BodyWormchainIbcComposabilityMwContract
+	var payloadBody vaa.BodyGatewayIbcComposabilityMwContract
 	payloadBody.Deserialize(payload)
 
 	// convert bytes to bech32 address

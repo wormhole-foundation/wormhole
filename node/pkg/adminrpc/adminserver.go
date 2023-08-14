@@ -338,8 +338,8 @@ func wormchainWasmInstantiateAllowlist(
 	return v, nil
 }
 
-func wormchainIbcComposabilityMwSetContract(
-	req *nodev1.WormchainIbcComposabilityMwSetContract,
+func gatewayIbcComposabilityMwSetContract(
+	req *nodev1.GatewayIbcComposabilityMwSetContract,
 	timestamp time.Time,
 	guardianSetIndex uint32,
 	nonce uint32,
@@ -353,37 +353,28 @@ func wormchainIbcComposabilityMwSetContract(
 	var decodedAddr32 [32]byte
 	copy(decodedAddr32[:], decodedAddr)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainIbcComposabilityMwContract{
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyGatewayIbcComposabilityMwContract{
 		ContractAddr: decodedAddr32,
 	}.Serialize())
 
 	return v, nil
 }
 
-func gatewayInPlaceUpgrade(
-	req *nodev1.GatewayInPlaceUpgrade,
+func gatewaySetTokenfactoryPfmDefaultParams(
 	timestamp time.Time,
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) {
-	// validate the in place upgrade action
-	var action vaa.GovernanceAction
-	if req.Action == nodev1.GatewayInPlaceUpgradeAction_GATEWAY_IN_PLACE_UPGRADE_ACTION_SET_TOKENFACTORY_PFM_DEFAULT_PARAMS {
-		action = vaa.ActionSetTokenfactoryPfmDefaultParams
-	} else {
-		return nil, fmt.Errorf("unrecognized gateway in place upgrade action")
-	}
-
+) *vaa.VAA {
 	v := vaa.CreateGovernanceVAA(
 		timestamp,
 		nonce,
 		sequence,
 		guardianSetIndex,
-		vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, action, vaa.ChainIDWormchain),
+		vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionSetTokenfactoryPfmDefaultParams, vaa.ChainIDWormchain),
 	)
 
-	return v, nil
+	return v
 }
 
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
@@ -557,10 +548,10 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_WormchainWasmInstantiateAllowlist:
 		v, err = wormchainWasmInstantiateAllowlist(payload.WormchainWasmInstantiateAllowlist, timestamp, currentSetIndex, message.Nonce, message.Sequence)
-	case *nodev1.GovernanceMessage_WormchainIbcComposabilityMwSetContract:
-		v, err = wormchainIbcComposabilityMwSetContract(payload.WormchainIbcComposabilityMwSetContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
-	case *nodev1.GovernanceMessage_GatewayInPlaceUpgrade:
-		v, err = gatewayInPlaceUpgrade(payload.GatewayInPlaceUpgrade, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_GatewayIbcComposabilityMwSetContract:
+		v, err = gatewayIbcComposabilityMwSetContract(payload.GatewayIbcComposabilityMwSetContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams:
+		v = gatewaySetTokenfactoryPfmDefaultParams(timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 		v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
