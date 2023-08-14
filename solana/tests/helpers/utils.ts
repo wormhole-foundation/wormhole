@@ -1,27 +1,23 @@
+import { parseVaa } from "@certusone/wormhole-sdk";
+import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import { BN } from "@coral-xyz/anchor";
+import { getAccount } from "@solana/spl-token";
 import {
   ConfirmOptions,
   Connection,
   Keypair,
+  LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
-  Transaction,
   TransactionInstruction,
-  sendAndConfirmTransaction,
-  LAMPORTS_PER_SOL,
+  TransactionMessage,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { Err, Ok } from "ts-results";
-import { parseVaa, postVaaSolana } from "@certusone/wormhole-sdk";
-import { NodeWallet } from "@certusone/wormhole-sdk/lib/cjs/solana";
+import * as coreBridge from "./coreBridge";
 import { CoreBridgeProgram } from "./coreBridge";
 import { TokenBridgeProgram, custodyTokenPda } from "./tokenBridge";
-import { getAccount } from "@solana/spl-token";
-import * as coreBridge from "./coreBridge";
-import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-
-const CACHED_BLOCKHASH: { blockhash: string } = {
-  blockhash: "",
-};
 
 export type InvalidAccountConfig = {
   label: string;
@@ -61,11 +57,11 @@ async function confirmLatest(connection: Connection, signature: string) {
 
 export async function expectIxOk(
   connection: Connection,
-  ixs: TransactionInstruction[],
+  instructions: TransactionInstruction[],
   signers: Signer[],
   confirmOptions?: ConfirmOptions
 ) {
-  return debugSendAndConfirmTransaction(connection, new Transaction().add(...ixs), signers, {
+  return debugSendAndConfirmTransaction(connection, instructions, signers, {
     logError: true,
     confirmOptions,
   }).then((result) => result.unwrap());
@@ -73,20 +69,15 @@ export async function expectIxOk(
 
 export async function expectIxErr(
   connection: Connection,
-  ixs: TransactionInstruction[],
+  instructions: TransactionInstruction[],
   signers: Signer[],
   expectedError: string,
   confirmOptions?: ConfirmOptions
 ) {
-  const errorMsg = await debugSendAndConfirmTransaction(
-    connection,
-    new Transaction().add(...ixs),
-    signers,
-    {
-      logError: false,
-      confirmOptions,
-    }
-  ).then((result) => {
+  const errorMsg = await debugSendAndConfirmTransaction(connection, instructions, signers, {
+    logError: false,
+    confirmOptions,
+  }).then((result) => {
     if (result.err) {
       return result.toString();
     } else {
@@ -144,7 +135,7 @@ export function loadProgramBpf(
 
 async function debugSendAndConfirmTransaction(
   connection: Connection,
-  tx: Transaction,
+  instructions: TransactionInstruction[],
   signers: Signer[],
   options?: {
     logError?: boolean;
@@ -154,25 +145,25 @@ async function debugSendAndConfirmTransaction(
   const logError = options === undefined ? true : options.logError;
   const confirmOptions = options === undefined ? undefined : options.confirmOptions;
 
-  // This is a bloody hack to wait for the next valid blockhash. Wait 20s because the local
-  // validator may not respond with a new blockhash in a timely manner... Inspired by
-  // https://github.com/solana-labs/solana-web3.js/blob/master/packages/library-legacy/src/connection.ts#L5584-L5615.
+  const latestBlockhash = await connection.getLatestBlockhash("confirmed");
 
-  const lastBlockhash = CACHED_BLOCKHASH.blockhash;
-  for (let i = 0; i < 1000; ++i) {
-    const latestBlockhash = await connection.getLatestBlockhash("finalized");
+  const messageV0 = new TransactionMessage({
+    payerKey: signers[0].publicKey,
+    recentBlockhash: latestBlockhash.blockhash,
+    instructions,
+  }).compileToV0Message();
 
-    if (lastBlockhash !== latestBlockhash.blockhash) {
-      CACHED_BLOCKHASH.blockhash = latestBlockhash.blockhash;
-      break;
-    }
+  const tx = new VersionedTransaction(messageV0);
 
-    // Half of the sleep time.
-    await sleep(200);
-  }
+  // sign your transaction with the required `Signers`
+  tx.sign(signers);
 
-  return sendAndConfirmTransaction(connection, tx, signers, confirmOptions)
-    .then((sig) => new Ok(sig))
+  return connection
+    .sendTransaction(tx, confirmOptions)
+    .then(async (signature) => {
+      await connection.confirmTransaction({ signature, ...latestBlockhash });
+      return new Ok(signature);
+    })
     .catch((err) => {
       if (logError) {
         console.log(err);
@@ -186,21 +177,39 @@ async function debugSendAndConfirmTransaction(
     });
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function invokeVerifySignaturesAndPostVaa(
   program: CoreBridgeProgram,
   payer: Keypair,
   signedVaa: Buffer
 ) {
-  const connection = program.provider.connection;
-  const wallet = new NodeWallet(payer);
-  return postVaaSolana(
-    connection,
-    wallet.signTransaction,
-    program.programId,
-    wallet.key(),
-    signedVaa
+  const signatureSet = Keypair.generate();
+  await invokeVerifySignatures(program, payer, signatureSet, signedVaa);
+
+  const parsed = parseVaa(signedVaa);
+  const args = {
+    version: parsed.version,
+    guardianSetIndex: parsed.guardianSetIndex,
+    timestamp: parsed.timestamp,
+    nonce: parsed.nonce,
+    emitterChain: parsed.emitterChain,
+    emitterAddress: Array.from(parsed.emitterAddress),
+    sequence: new BN(parsed.sequence.toString()),
+    consistencyLevel: parsed.consistencyLevel,
+    payload: parsed.payload,
+  };
+
+  return expectIxOk(
+    program.provider.connection,
+    [
+      coreBridge.legacyPostVaaIx(
+        program,
+        { payer: payer.publicKey, signatureSet: signatureSet.publicKey },
+        args
+      ),
+    ],
+    [payer]
   );
 }
 
@@ -275,13 +284,15 @@ export async function invokeVerifySignatures(
     throw new Error("impossible");
   }
 
-  const txs: Transaction[] = [];
+  const ixGroups: TransactionInstruction[][] = [];
   for (let i = 0; i < ixs.length; i += 2) {
-    txs.push(new Transaction().add(...ixs.slice(i, i + 2)));
+    ixGroups.push(ixs.slice(i, i + 2));
   }
 
   return Promise.all(
-    txs.map((tx) => sendAndConfirmTransaction(connection, tx, [payer, signatureSet]))
+    ixGroups.map((instructions) =>
+      debugSendAndConfirmTransaction(connection, instructions, [payer, signatureSet])
+    )
   );
 }
 
