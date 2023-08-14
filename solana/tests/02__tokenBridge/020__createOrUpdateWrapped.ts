@@ -1,50 +1,31 @@
-import * as anchor from "@coral-xyz/anchor";
 import {
-  createAssociatedTokenAccount,
-  getAssociatedTokenAddressSync,
-  getMint,
-  mintTo,
-} from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
-import {
-  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
-  GUARDIAN_KEYS,
-  MINT_INFO_8,
-  MINT_INFO_9,
-  MintInfo,
-  expectDeepEqual,
-  expectIxOk,
-  expectIxOkDetails,
-  getTokenBalances,
-  parallelPostVaa,
-} from "../helpers";
-import * as coreBridge from "../helpers/coreBridge";
-import * as tokenBridge from "../helpers/tokenBridge";
-import { MockTokenBridge, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import {
-  ChainId,
   ParsedVaa,
   coalesceChainId,
-  coalesceChainName,
   parseAttestMetaPayload,
   parseVaa,
   tryNativeToHexString,
-  tryNativeToUint8Array,
 } from "@certusone/wormhole-sdk";
+import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import * as anchor from "@coral-xyz/anchor";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
+import { getMint } from "@solana/spl-token";
 import { expect } from "chai";
+import {
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  GUARDIAN_KEYS,
+  expectDeepEqual,
+  expectIxOk,
+  parallelPostVaa,
+} from "../helpers";
+import * as tokenBridge from "../helpers/tokenBridge";
 
 const GUARDIAN_SET_INDEX = 2;
 const ETHEREUM_TOKEN_BRIDGE_SEQ = 2_020_000;
 
-const CHAIN_NAME = "ethereum";
-const DEFAULT_TOKEN_ADDRESS = tryNativeToHexString(
-  "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-  CHAIN_NAME
-);
 const ethereumTokenBridge = new MockTokenBridge(
-  tryNativeToHexString(ETHEREUM_TOKEN_BRIDGE_ADDRESS, CHAIN_NAME),
-  coalesceChainId(CHAIN_NAME),
+  tryNativeToHexString(ETHEREUM_TOKEN_BRIDGE_ADDRESS, "ethereum"),
+  coalesceChainId("ethereum"),
   1,
   ETHEREUM_TOKEN_BRIDGE_SEQ - 1
 );
@@ -115,9 +96,7 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         const mint = tokenBridge.wrappedMintPda(
           program.programId,
           2,
-          Array.from(
-            tryNativeToUint8Array("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", CHAIN_NAME)
-          )
+          Array.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS)
         );
         const {
           data: { name, symbol },
@@ -161,15 +140,11 @@ function defaultVaa(args?: { symbol?: string; name?: string }): Buffer {
   if (name === undefined) {
     name = "Dead beef. Moo.";
   }
-  const tokenAddress = tryNativeToHexString(
-    "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-    CHAIN_NAME
-  );
   const decimals = 18;
   const nonce = 420;
   const timestamp = 12345678;
   const published = ethereumTokenBridge.publishAttestMeta(
-    tokenAddress,
+    Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
     decimals,
     symbol,
     name,
