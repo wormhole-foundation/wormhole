@@ -207,12 +207,14 @@ contract MockWormhole is IWormhole {
         return sequences[emitter];
     }
 
-    function verifyVM(VM memory /*vm*/ )
+    function verifyVM(VM memory vm )
         external
-        pure
-        returns (bool, /*valid*/ string memory /*reason*/ )
+        view
+        returns (bool valid,  string memory reason )
     {
-        revert("unsupported verifyVM in wormhole mock");
+        //behold the rigorous checking!
+        valid = !invalidVMs[vm.hash];
+        reason = "";
     }
 
     function verifySignatures(

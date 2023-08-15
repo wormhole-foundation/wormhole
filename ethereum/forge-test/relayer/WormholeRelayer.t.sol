@@ -1373,7 +1373,6 @@ LocalNative forwardDeliveryCost;
      */
 
     function invalidateVM(bytes memory message, WormholeSimulator simulator) internal {
-        change(message, message.length - 1);
         simulator.invalidateVM(message);
     }
 
