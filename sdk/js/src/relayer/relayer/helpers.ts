@@ -24,7 +24,6 @@ import {
   RefundStatus,
   VaaKey,
   DeliveryOverrideArgs,
-  parseForwardFailureError,
   parseRefundStatus,
 } from "../structs";
 import {
@@ -44,7 +43,7 @@ export type DeliveryTargetInfo = {
   sourceVaaSequence: BigNumber | null;
   gasUsed: BigNumber;
   refundStatus: RefundStatus;
-  revertString?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
+  revertString?: string; // Only defined if status is RECEIVER_FAILURE 
   overrides?: DeliveryOverrideArgs;
 };
 
@@ -247,10 +246,6 @@ export function deliveryStatus(status: number) {
       return DeliveryStatus.DeliverySuccess;
     case 1:
       return DeliveryStatus.ReceiverFailure;
-    case 2:
-      return DeliveryStatus.ForwardRequestFailure;
-    case 3:
-      return DeliveryStatus.ForwardRequestSuccess;
     default:
       return DeliveryStatus.ThisShouldNeverHappen;
   }
@@ -285,8 +280,6 @@ export function transformDeliveryLog(log: {
     revertString:
       status == DeliveryStatus.ReceiverFailure
         ? log.args[7]
-        : status == DeliveryStatus.ForwardRequestFailure
-        ? parseForwardFailureError(Buffer.from(log.args[7].substring(2), "hex"))
         : undefined,
     overrides:
       Buffer.from(log.args[8].substring(2), "hex").length > 0
