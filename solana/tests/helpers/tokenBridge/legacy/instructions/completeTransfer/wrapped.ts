@@ -28,7 +28,7 @@ export type LegacyCompleteTransferWrappedContext = {
   registeredEmitter?: PublicKey;
   recipientToken: PublicKey;
   payerToken?: PublicKey;
-  wrappedMint?: PublicKey;
+  wrappedMint: PublicKey;
   wrappedAsset?: PublicKey;
   mintAuthority?: PublicKey;
   rent?: PublicKey;
@@ -42,9 +42,6 @@ export function legacyCompleteTransferWrappedIx(
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
-
-  const tokenAddress = Array.from(payload.subarray(33, 65));
-  const tokenChain = payload.readUInt16BE(65);
 
   let {
     payer,
@@ -88,10 +85,6 @@ export function legacyCompleteTransferWrappedIx(
       emitterChain,
       Array.from(emitterAddress)
     );
-  }
-
-  if (wrappedMint === undefined) {
-    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddress);
   }
 
   if (payerToken === undefined) {
@@ -183,7 +176,7 @@ export function legacyCompleteTransferWrappedIx(
     },
   ];
 
-  const data = Buffer.alloc(1, 2);
+  const data = Buffer.alloc(1, 3);
 
   return new TransactionInstruction({
     keys,
