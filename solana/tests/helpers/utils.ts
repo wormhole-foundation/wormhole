@@ -18,6 +18,7 @@ import { expect } from "chai";
 import { Err, Ok } from "ts-results";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
+import { skip } from "node:test";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -36,6 +37,12 @@ export type InvalidArgConfig = {
 
 export type MintInfo = {
   mint: PublicKey;
+  decimals: number;
+};
+
+export type WrappedMintInfo = {
+  mint: PublicKey;
+  address: Uint8Array;
   decimals: number;
 };
 

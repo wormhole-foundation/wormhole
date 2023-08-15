@@ -3,6 +3,7 @@ import {
   coalesceChainId,
   parseAttestMetaPayload,
   parseVaa,
+  tryHexToNativeString,
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";

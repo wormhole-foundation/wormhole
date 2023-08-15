@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { MintInfo } from "./utils";
+import { MintInfo, WrappedMintInfo } from "./utils";
 import { tryNativeToHexString, tryNativeToUint8Array } from "@certusone/wormhole-sdk";
 
 export const GUARDIAN_KEYS = [
@@ -46,3 +46,14 @@ export const ETHEREUM_STEAK_TOKEN_ADDRESS = tryNativeToUint8Array(
   "0xbeefdeadbeefdeadbeefdeadbeefdeadbeefdead",
   "ethereum"
 );
+
+export const MINT_INFO_WRAPPED_7: WrappedMintInfo = {
+  mint: new PublicKey("7qoJ8hnVCi21U7tEEmpvoDgpnqBQrESoNkbTjCUEniay"),
+  address: ETHEREUM_STEAK_TOKEN_ADDRESS,
+  decimals: 7,
+};
+export const MINT_INFO_WRAPPED_8: WrappedMintInfo = {
+  mint: new PublicKey("4ZUtcEraN2z4qqJNLVXR5oLoP43Y6uv53YzXjJfohF3A"),
+  address: ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  decimals: 8,
+};
