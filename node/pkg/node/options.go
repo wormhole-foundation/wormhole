@@ -23,6 +23,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -146,7 +147,7 @@ func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
 				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.gk, g.env)
+				g.gov = governor.NewChainGovernor(logger, g.db, eth_crypto.PubkeyToAddress(g.gk.PublicKey), g.gst, g.env)
 			} else {
 				logger.Info("chain governor is disabled")
 			}

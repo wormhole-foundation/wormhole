@@ -25,6 +25,9 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 // The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
@@ -284,12 +287,16 @@ func CheckQuery(logger *zap.Logger) error {
 	ctx := context.Background()
 	var db db.MockGovernorDB
 
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic("failed to generate key")
 	}
 
-	gov := NewChainGovernor(logger, &db, key, common.MainNet)
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+
+	gov := NewChainGovernor(logger, &db, ethCrypto.PubkeyToAddress(gk.PublicKey), gst, common.MainNet)
 
 	if err := gov.initConfig(); err != nil {
 		return err

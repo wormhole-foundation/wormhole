@@ -2,16 +2,15 @@ package publicrpc
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -73,9 +72,11 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 func TestGovernorIsVAAEnqueuedNoMessage(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewProduction()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	gov := governor.NewChainGovernor(logger, nil, key, common.GoTest)
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+	gov := governor.NewChainGovernor(logger, nil, ethCrypto.PubkeyToAddress(gk.PublicKey), gst, common.GoTest)
 	server := &PublicrpcServer{logger: logger, gov: gov}
 
 	// A message without the messageId set should not panic but return an error instead.

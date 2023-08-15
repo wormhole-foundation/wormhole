@@ -15,12 +15,15 @@ import (
 	"testing"
 	"time"
 
-	eth_common "github.com/ethereum/go-ethereum/common"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -248,23 +251,23 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 
 func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 	var db db.MockGovernorDB
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
 
-	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, err
-	}
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
 
-	return newChainGovernorForTestWithDB(ctx, &db, gk)
+	return newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 }
 
-func newChainGovernorForTestWithDB(ctx context.Context, db *db.MockGovernorDB, gk *ecdsa.PrivateKey) (*ChainGovernor, error) {
+func newChainGovernorForTestWithDB(ctx context.Context, db *db.MockGovernorDB, gk *ecdsa.PrivateKey, gst *common.GuardianSetState) (*ChainGovernor, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
 	logger := zap.NewNop()
 
-	gov := NewChainGovernor(logger, db, gk, common.GoTest)
+	gov := NewChainGovernor(logger, db, ethCrypto.PubkeyToAddress(gk.PublicKey), gst, common.GoTest)
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -296,12 +299,12 @@ func newChainGovernorForTestWithDB(ctx context.Context, db *db.MockGovernorDB, g
 }
 
 // Converts a string into a go-ethereum Hash object used as test input.
-func hashFromString(str string) eth_common.Hash {
+func hashFromString(str string) ethCommon.Hash {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
 	}
 
-	return eth_common.HexToHash(str)
+	return ethCommon.HexToHash(str)
 }
 
 func TestVaaForUninterestingEmitterChain(t *testing.T) {
@@ -1038,24 +1041,28 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	gov := NewChainGovernor(logger, &db, gk, common.GoTest)
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+	gov := NewChainGovernor(logger, &db, ethCrypto.PubkeyToAddress(gk.PublicKey), gst, common.GoTest)
 
 	gov.env = common.TestNet
-	err = gov.initConfig()
+	err := gov.initConfig()
 	require.NoError(t, err)
 }
 
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	gov := NewChainGovernor(logger, &db, gk, common.GoTest)
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+	gov := NewChainGovernor(logger, &db, ethCrypto.PubkeyToAddress(gk.PublicKey), gst, common.GoTest)
 
 	gov.env = common.TestNet
-	err = gov.initConfig()
+	err := gov.initConfig()
 	require.NoError(t, err)
 }
 
@@ -1813,7 +1820,12 @@ func TestCoinGeckoQueries(t *testing.T) {
 
 func TestPreviouslyApproved(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
+	var db db.MockGovernorDB
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+	gov, err := newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
@@ -1866,10 +1878,15 @@ func TestPreviouslyApproved(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, false, previouslyApproved)
 
+	gs = gov.gst.Get()
+	require.NotNil(t, gs)
+	guardianIndex, found := gs.KeyIndex(gov.guardianAddr)
+	require.Equal(t, true, found)
+
 	// In the database with the right hash but not signed by us should return false.
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	v.AddSignature(key, 0)
+	v.AddSignature(key, uint8(guardianIndex+1))
 	assert.Equal(t, len(v.Signatures), 1)
 	err = gov.db.StoreSignedVAA(v)
 	require.NoError(t, err)
@@ -1878,7 +1895,7 @@ func TestPreviouslyApproved(t *testing.T) {
 	assert.Equal(t, false, previouslyApproved)
 
 	// In the database with the right hash and signed by us should return true.
-	v.AddSignature(gov.gk, 0)
+	v.AddSignature(gk, uint8(guardianIndex))
 	assert.Equal(t, len(v.Signatures), 2)
 	err = gov.db.StoreSignedVAA(v)
 	require.NoError(t, err)
@@ -1890,8 +1907,12 @@ func TestPreviouslyApproved(t *testing.T) {
 func TestPreviouslyApprovedTransferIsAllowed(t *testing.T) {
 	// The duplicate should not get published and not get enqueued again.
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
+	var db db.MockGovernorDB
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
+	gov, err := newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
@@ -1929,7 +1950,7 @@ func TestPreviouslyApprovedTransferIsAllowed(t *testing.T) {
 
 	// Sign it and store it in the database.
 	v := msg.CreateVAA(0)
-	v.AddSignature(gov.gk, 0)
+	v.AddSignature(gk, 0)
 	err = gov.db.StoreSignedVAA(v)
 	require.NoError(t, err)
 
@@ -1954,8 +1975,10 @@ func TestPreviouslyApprovedTransferIsAllowed(t *testing.T) {
 func TestReloadedPreviouslyApprovedTransferIsDropped(t *testing.T) {
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
+	gst.Set(gs)
 	bigTxLimit := uint64(100000)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
@@ -1984,7 +2007,7 @@ func TestReloadedPreviouslyApprovedTransferIsDropped(t *testing.T) {
 
 	// Create a governor and submit the big transfer, which should get enqueued and written to the database as pending.
 	{
-		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 		require.NoError(t, err)
 		assert.NotNil(t, gov)
 		gov.setDayLengthInMinutes(24 * 60)
@@ -2012,7 +2035,7 @@ func TestReloadedPreviouslyApprovedTransferIsDropped(t *testing.T) {
 
 	// Create a new governor using the existing database which should reload that transfer.
 	{
-		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 		require.NoError(t, err)
 		assert.NotNil(t, gov)
 		gov.setDayLengthInMinutes(24 * 60)
@@ -2040,7 +2063,7 @@ func TestReloadedPreviouslyApprovedTransferIsDropped(t *testing.T) {
 
 	// Create a third governor using the existing database which should drop this VAA because it has previously been approved.
 	{
-		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk)
+		gov, err := newChainGovernorForTestWithDB(ctx, &db, gk, gst)
 		require.NoError(t, err)
 		assert.NotNil(t, gov)
 		gov.setDayLengthInMinutes(24 * 60)

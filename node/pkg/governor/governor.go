@@ -26,9 +26,7 @@
 package governor
 
 import (
-	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -41,7 +39,8 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"go.uber.org/zap"
 )
@@ -118,7 +117,8 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 type ChainGovernor struct {
 	db                    db.GovernorDB // protected by `mutex`
 	logger                *zap.Logger
-	gk                    *ecdsa.PrivateKey
+	guardianAddr          ethCommon.Address
+	gst                   *common.GuardianSetState
 	mutex                 sync.Mutex
 	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
 	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
@@ -137,13 +137,15 @@ type ChainGovernor struct {
 func NewChainGovernor(
 	logger *zap.Logger,
 	db db.GovernorDB,
-	gk *ecdsa.PrivateKey,
+	guardianAddr ethCommon.Address,
+	gst *common.GuardianSetState,
 	env common.Environment,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger.With(zap.String("component", "cgov")),
-		gk:                  gk,
+		guardianAddr:        guardianAddr,
+		gst:                 gst,
 		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
@@ -514,7 +516,11 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) 
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
-		gov.logger.Info("ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
+		gov.logger.Info("ignoring vaa because the token is not in the list",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.Stringer("originChain", payload.OriginChain),
+			zap.String("originAddress", hex.EncodeToString(payload.OriginAddress.Bytes())),
+		)
 		return false, nil, nil, nil, nil
 	}
 
@@ -738,7 +744,8 @@ func (gov *ChainGovernor) previouslyApproved(msg *common.MessagePublication, new
 	}
 
 	// Verify the digest matches.
-	oldDigest := hex.EncodeToString(v.SigningDigest().Bytes())
+	digest := v.SigningDigest().Bytes()
+	oldDigest := hex.EncodeToString(digest)
 	if oldDigest != newDigest {
 		gov.logger.Warn("unable to approve previously stored VAA because the digest has changed",
 			zap.String("msgID", msg.MessageIDString()),
@@ -748,18 +755,40 @@ func (gov *ChainGovernor) previouslyApproved(msg *common.MessagePublication, new
 		return false, nil
 	}
 
-	// Generate our signature for this VAA so we can see if we are listed as a signer.
-	sig, err := crypto.Sign(v.SigningDigest().Bytes(), gov.gk)
-	if err != nil {
-		panic(fmt.Sprintf(`cgov: failed to sign VAA "%s" from db: %v`, msg.MessageIDString(), err))
+	gs := gov.gst.Get()
+	if gs == nil {
+		return false, fmt.Errorf("failed to get guardian set")
 	}
-	ourSig := [65]byte{}
-	copy(ourSig[:], sig)
 
-	// See if we are listed as a signer. If so, we can approve it.
+	guardianIndex, found := gs.KeyIndex(gov.guardianAddr)
+	if !found {
+		return false, fmt.Errorf("failed to get guardian index")
+	}
+
+	// Look through the VAA to see if we signed it (based on our guardian index).
 	for _, sig := range v.Signatures {
-		if bytes.Equal(sig.Signature[:], ourSig[:]) {
-			return true, nil
+		if int(sig.Index) == guardianIndex {
+			// We signed it. Make sure the signature still matches.
+			pubKey, err := ethCrypto.Ecrecover(digest, sig.Signature[:])
+			if err != nil {
+				return false, fmt.Errorf("ecrecover failed: %v", err)
+			}
+			recoveredAddr := ethCommon.BytesToAddress(ethCrypto.Keccak256(pubKey[1:])[12:])
+
+			// See if it was signed by our key.
+			if recoveredAddr == gov.guardianAddr {
+				return true, nil // Bingo! We can approve this!
+			}
+
+			gov.logger.Warn("unable to approve previously stored VAA because the signature does not match",
+				zap.String("msgID", msg.MessageIDString()),
+				zap.String("oldDigest", oldDigest),
+				zap.String("newDigest", newDigest),
+				zap.Int("guardianIndex", guardianIndex),
+				zap.String("guardianAddr", hex.EncodeToString(gov.guardianAddr.Bytes())),
+				zap.String("recoveredAddr", hex.EncodeToString(recoveredAddr.Bytes())),
+			)
+			return false, nil
 		}
 	}
 
