@@ -1956,13 +1956,30 @@ LocalNative forwardDeliveryCost;
         (LocalNative deliveryCost,) =
             setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), Gas.wrap(500_000));
 
+        DeliveryStack memory stack;
+
         setup.source.integration.sendMessageWithReentrantDelivery{value: deliveryCost.unwrap()}(
             setup.targetChain,
             500_000,
             0
         );
 
-        genericRelayer.relay(setup.sourceChain);
+        prepareDeliveryStack(stack, setup, 0);
+
+        vm.deal(payable(address(setup.target.integration)), 1e30);
+        vm.recordLogs();
+        setup.target.integration.deliverReentrant{value: 1e28}(
+            stack.encodedDeliveryVAA
+        );
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertTrue(
+            getDeliveryStatus(logs[logs.length - 2]) == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            "Inner delivery should have failed due to reentrancy guard"
+        );
+        assertTrue(
+            getDeliveryStatus(logs[logs.length - 1]) == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS,
+            "Outer delivery should have succeeded"
+        );
     }
 
      function testEncodeAndDecodeDeliveryInstruction(

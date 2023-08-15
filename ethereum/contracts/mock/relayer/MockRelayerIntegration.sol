@@ -253,9 +253,12 @@ contract MockRelayerIntegration is IWormholeReceiver {
     }
 
     bytes deliveryVaa;
+
     function deliverReentrant(bytes memory _deliveryVaa) public payable {
         deliveryVaa = _deliveryVaa;
-        relayer.deliver(new bytes[](0), _deliveryVaa, payable(msg.sender), bytes(""));
+        relayer.deliver{value: msg.value}(
+            new bytes[](0), _deliveryVaa, payable(address(this)), bytes("")
+        );
     }
 
     function receiveWormholeMessages(
@@ -280,6 +283,11 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
         messageHistory.push(message.message);
 
+        if (message.version == Version.REENTRANT) {
+            relayer.deliver{value: address(this).balance}(
+                new bytes[](0), deliveryVaa, payable(address(this)), bytes("")
+            );
+        }
         if (message.version == Version.SEND_BACK || message.version == Version.MULTI_SEND_BACK) {
             (LocalNative cost,) =
                 relayer.quoteEVMDeliveryPrice(sourceChain, TargetNative.wrap(0), Gas.wrap(500_000));
@@ -316,10 +324,6 @@ contract MockRelayerIntegration is IWormholeReceiver {
             }
             (bool success,) = address(0).call{value: address(this).balance}("");
             require(success, "Failed to send funds");
-        }
-
-        if (message.version == Version.REENTRANT) {
-            relayer.deliver(new bytes[](0), deliveryVaa, payable(address(this)), bytes(""));
         }
     }
 
