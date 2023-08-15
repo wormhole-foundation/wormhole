@@ -57,9 +57,17 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes memory deliveryOverrides
     ) public payable {
 
+        IWormhole.VM memory vm = getWormhole().parseVM(encodedDeliveryVAA);
+        DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
+
+        // Cross-chain refunds do not need to be verified 
+        if (instruction.targetAddress == 0x0) {
+            handleCrossChainRefund(vm, instruction, relayerRefundAddress);
+            return;
+        }
+
         // Parse and verify VAA containing delivery instructions, revert if invalid
-        (IWormhole.VM memory vm, bool valid, string memory reason) =
-            getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
+        (bool valid, string memory reason) = getWormhole().verifyVM(vm);
         if (!valid) {
             revert InvalidDeliveryVaa(reason);
         }
@@ -70,8 +78,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
         }
     
-        DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
-
         DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
             sourceChain: vm.emitterChainId,
             sourceSequence: vm.sequence,
@@ -258,14 +264,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      */
 
     function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
-
-        // If the targetAddress is the 0 address
-        // Then emit event and return
-        // (This is used for cross-chain refunds)
-        if (checkIfCrossChainRefund(vaaInfo)) {
-            return;
-        }
-
         DeliveryResults memory results;
 
         // Enforce replay protection
@@ -330,50 +328,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         emitDeliveryEvent(vaaInfo, results);
     }
 
-    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results) private {
-        emit Delivery(
-            fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
-            vaaInfo.sourceChain,
-            vaaInfo.sourceSequence,
-            vaaInfo.deliveryVaaHash,
-            results.status,
-            results.gasUsed,
-            payRefunds(
-                vaaInfo.deliveryInstruction,
-                vaaInfo.relayerRefundAddress,
-                (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
-                results.status
-            ),
-            results.additionalStatusInfo,
-            (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
-        );
-    }
-
-    function checkIfCrossChainRefund(DeliveryVAAInfo memory vaaInfo)
-        internal
-        returns (bool isCrossChainRefund)
-    {
-        if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
-            emit Delivery(
-                fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
-                vaaInfo.sourceChain,
-                vaaInfo.sourceSequence,
-                vaaInfo.deliveryVaaHash,
-                DeliveryStatus.SUCCESS,
-                Gas.wrap(0),
-                payRefunds(
-                    vaaInfo.deliveryInstruction,
-                    vaaInfo.relayerRefundAddress,
-                    LocalNative.wrap(0),
-                    DeliveryStatus.RECEIVER_FAILURE
-                ),
-                bytes(""),
-                (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
-            );
-            isCrossChainRefund = true;
-        }
-    }
-
     function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
         external
         returns (uint8 status, Gas gasUsed, bytes memory targetRevertDataTruncated)
@@ -425,6 +379,49 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             // Call to 'receiveWormholeMessages' on targetAddress reverted
             status = uint8(DeliveryStatus.RECEIVER_FAILURE);
         }
+    }
+
+    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results) private {
+        emit Delivery(
+            fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
+            vaaInfo.sourceChain,
+            vaaInfo.sourceSequence,
+            vaaInfo.deliveryVaaHash,
+            results.status,
+            results.gasUsed,
+            payRefunds(
+                vaaInfo.deliveryInstruction,
+                vaaInfo.relayerRefundAddress,
+                (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
+                results.status
+            ),
+            results.additionalStatusInfo,
+            (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
+        );
+    }
+
+    function handleCrossChainRefund(
+        IWormhole.VM memory vm,
+        DeliveryInstruction memory deliveryInstruction,
+        address payable relayerRefundAddress
+    ) internal {
+        RefundStatus refundStatus = payRefunds(
+            deliveryInstruction,
+            relayerRefundAddress,
+            LocalNative.wrap(0),
+            DeliveryStatus.RECEIVER_FAILURE
+        );
+        emit Delivery(
+            fromWormholeFormat(deliveryInstruction.targetAddress),
+            vm.emitterChainId,
+            vm.sequence,
+            vm.hash,
+            DeliveryStatus.SUCCESS,
+            Gas.wrap(0),
+            refundStatus,
+            bytes(""),
+            bytes("")
+        );
     }
 
     function payRefunds(

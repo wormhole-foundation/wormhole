@@ -247,7 +247,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             requestedReceiverValue: sendParams.receiverValue,
             extraReceiverValue: provider.quoteAssetConversion(
                 sendParams.targetChain, sendParams.paymentForExtraReceiverValue
-                ),
+            ),
             encodedExecutionInfo: encodedExecutionInfo,
             refundChain: sendParams.refundChain,
             refundAddress: sendParams.refundAddress,
