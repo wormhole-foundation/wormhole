@@ -43,7 +43,7 @@ export type DeliveryTargetInfo = {
   sourceVaaSequence: BigNumber | null;
   gasUsed: BigNumber;
   refundStatus: RefundStatus;
-  revertString?: string; // Only defined if status is RECEIVER_FAILURE 
+  revertString?: string; // Only defined if status is RECEIVER_FAILURE
   overrides?: DeliveryOverrideArgs;
 };
 
@@ -278,9 +278,7 @@ export function transformDeliveryLog(log: {
     gasUsed: BigNumber.from(log.args[5]),
     refundStatus: parseRefundStatus(log.args[6]),
     revertString:
-      status == DeliveryStatus.ReceiverFailure
-        ? log.args[7]
-        : undefined,
+      status == DeliveryStatus.ReceiverFailure ? log.args[7] : undefined,
     overrides:
       Buffer.from(log.args[8].substring(2), "hex").length > 0
         ? parseOverrideInfoFromDeliveryEvent(
