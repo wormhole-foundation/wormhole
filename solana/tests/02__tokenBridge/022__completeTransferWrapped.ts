@@ -33,7 +33,7 @@ const dummyTokenBridge = new MockTokenBridge(
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
-describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () => {
+describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;

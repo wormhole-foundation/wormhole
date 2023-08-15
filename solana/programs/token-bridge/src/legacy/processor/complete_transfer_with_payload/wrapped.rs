@@ -62,7 +62,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         mut,
         token::mint = wrapped_mint,
     )]
-    dst_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -102,7 +102,7 @@ impl<'info> CompleteTransferWithPayloadWrapped<'info> {
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
-            &ctx.accounts.dst_token,
+            &ctx.accounts.recipient_token,
         )?;
 
         // For wrapped transfers, this token must have originated from another network.
@@ -142,7 +142,7 @@ pub fn complete_transfer_with_payload_wrapped(
     mint_wrapped_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.wrapped_mint,
-        &ctx.accounts.dst_token,
+        &ctx.accounts.recipient_token,
         &ctx.accounts.mint_authority,
         ctx.bumps["mint_authority"],
         mint_amount,
