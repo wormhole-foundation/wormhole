@@ -4,10 +4,7 @@ use crate::{
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
-use anchor_lang::{
-    prelude::*,
-    solana_program::{keccak, sysvar},
-};
+use anchor_lang::{prelude::*, solana_program::sysvar};
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, InitSpace)]
@@ -244,8 +241,8 @@ fn deserialize_secp256k1_ix(
             );
         }
 
-        let mut message = [0; keccak::HASH_BYTES];
-        message.copy_from_slice(&ix_data[message_offset..(message_offset + keccak::HASH_BYTES)]);
+        let mut message = [0; 32];
+        message.copy_from_slice(&ix_data[message_offset..(message_offset + 32)]);
 
         params.push(SigVerifyParameters {
             eth_pubkey,
