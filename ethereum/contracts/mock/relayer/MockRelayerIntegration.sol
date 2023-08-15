@@ -25,6 +25,7 @@ struct DeliveryData {
 
 contract MockRelayerIntegration is IWormholeReceiver {
     using BytesLib for bytes;
+    using LocalNativeLib for LocalNative;
 
     // wormhole instance on this chain
     IWormhole immutable wormhole;
@@ -46,8 +47,9 @@ contract MockRelayerIntegration is IWormholeReceiver {
     enum Version {
         SEND,
         SEND_WITH_ADDITIONAL_VAA,
-        FORWARD,
-        MULTIFORWARD
+        SEND_BACK,
+        MULTI_SEND_BACK,
+        REENTRANT
     }
 
     struct Message {
@@ -68,17 +70,13 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint32 gasLimit,
         uint128 receiverValue
     ) public payable returns (uint64 sequence) {
-        bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
-        return sendToEvm(
+        return _sendMessageWithVersion(
+            Message(Version.SEND, _message, bytes("")),
             targetChain,
-            getRegisteredContractAddress(targetChain),
             gasLimit,
-            targetChain,
-            getRegisteredContractAddress(targetChain),
             receiverValue,
-            0,
-            fullMessage,
-            new VaaKey[](0)
+            targetChain,
+            getRegisteredContractAddress(targetChain)
         );
     }
 
@@ -111,53 +109,25 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 refundChain,
         address refundAddress
     ) public payable returns (uint64 sequence) {
-        bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
-        return sendToEvm(
+        return _sendMessageWithVersion(
+            Message(Version.SEND, _message, bytes("")),
             targetChain,
-            getRegisteredContractAddress(targetChain),
             gasLimit,
+            receiverValue,
             refundChain,
-            refundAddress,
-            receiverValue,
-            0,
-            fullMessage,
-            new VaaKey[](0)
+            refundAddress
         );
     }
 
-    function sendMessageWithForwardedResponse(
-        bytes memory _message,
-        bytes memory _forwardedMessage,
-        uint16 targetChain,
-        uint32 gasLimit,
-        uint128 receiverValue
-    ) public payable returns (uint64 sequence) {
-        bytes memory fullMessage =
-            encodeMessage(Message(Version.FORWARD, _message, _forwardedMessage));
-        return sendToEvm(
-            targetChain,
-            getRegisteredContractAddress(targetChain),
-            gasLimit,
-            targetChain,
-            getRegisteredContractAddress(targetChain),
-            receiverValue,
-            0,
-            fullMessage,
-            new VaaKey[](0)
-        );
-    }
-
-    function sendMessageWithForwardedResponse(
-        bytes memory _message,
-        bytes memory _forwardedMessage,
+    function _sendMessageWithVersion(
+        Message memory message,
         uint16 targetChain,
         uint32 gasLimit,
         uint128 receiverValue,
         uint16 refundChain,
         address refundAddress
-    ) public payable returns (uint64 sequence) {
-        bytes memory fullMessage =
-            encodeMessage(Message(Version.FORWARD, _message, _forwardedMessage));
+    ) internal returns (uint64 sequence) {
+        bytes memory fullMessage = encodeMessage(message);
         return sendToEvm(
             targetChain,
             getRegisteredContractAddress(targetChain),
@@ -178,18 +148,64 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint32 gasLimit,
         uint128 receiverValue
     ) public payable returns (uint64 sequence) {
-        bytes memory fullMessage =
-            encodeMessage(Message(Version.MULTIFORWARD, _message, _forwardedMessage));
-        return sendToEvm(
+        return _sendMessageWithVersion(
+            Message(Version.MULTI_SEND_BACK, _message, _forwardedMessage),
             targetChain,
-            getRegisteredContractAddress(targetChain),
             gasLimit,
-            targetChain,
-            getRegisteredContractAddress(targetChain),
             receiverValue,
-            0,
-            fullMessage,
-            new VaaKey[](0)
+            targetChain,
+            getRegisteredContractAddress(targetChain)
+        );
+    }
+
+    function sendMessageWithForwardedResponse(
+        bytes memory _message,
+        bytes memory _forwardedMessage,
+        uint16 targetChain,
+        uint32 gasLimit,
+        uint128 receiverValue,
+        uint16 refundChain,
+        address refundAddress
+    ) public payable returns (uint64 sequence) {
+        return _sendMessageWithVersion(
+            Message(Version.SEND_BACK, _message, _forwardedMessage),
+            targetChain,
+            gasLimit,
+            receiverValue,
+            refundChain,
+            refundAddress
+        );
+    }
+
+    function sendMessageWithForwardedResponse(
+        bytes memory _message,
+        bytes memory _forwardedMessage,
+        uint16 targetChain,
+        uint32 gasLimit,
+        uint128 receiverValue
+    ) public payable returns (uint64 sequence) {
+        return _sendMessageWithVersion(
+            Message(Version.SEND_BACK, _message, _forwardedMessage),
+            targetChain,
+            gasLimit,
+            receiverValue,
+            targetChain,
+            getRegisteredContractAddress(targetChain)
+        );
+    }
+
+    function sendMessageWithReentrantDelivery(
+        uint16 targetChain,
+        uint32 gasLimit,
+        uint128 receiverValue
+    ) public payable returns (uint64 sequence) {
+        return _sendMessageWithVersion(
+            Message(Version.REENTRANT, bytes(""), bytes("")),
+            targetChain,
+            gasLimit,
+            receiverValue,
+            targetChain,
+            getRegisteredContractAddress(targetChain)
         );
     }
 
@@ -236,6 +252,12 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
     }
 
+    bytes deliveryVaa;
+    function deliverReentrant(bytes memory _deliveryVaa) public payable {
+        deliveryVaa = _deliveryVaa;
+        relayer.deliver(new bytes[](0), _deliveryVaa, payable(msg.sender), bytes(""));
+    }
+
     function receiveWormholeMessages(
         bytes memory payload,
         bytes[] memory additionalVaas,
@@ -258,35 +280,46 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
         messageHistory.push(message.message);
 
-        if (message.version == Version.FORWARD || message.version == Version.MULTIFORWARD) {
-            relayer.forwardToEvm{value: msg.value}(
+        if (message.version == Version.SEND_BACK || message.version == Version.MULTI_SEND_BACK) {
+            (LocalNative cost,) =
+                relayer.quoteEVMDeliveryPrice(sourceChain, TargetNative.wrap(0), Gas.wrap(500_000));
+            relayer.sendToEvm{value: LocalNative.unwrap(cost)}(
                 sourceChain,
                 getRegisteredContractAddress(sourceChain),
                 encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
                 TargetNative.wrap(0),
                 LocalNative.wrap(0),
-                Gas.wrap(500000),
+                Gas.wrap(500_000),
                 sourceChain,
                 getRegisteredContractAddress(sourceChain),
                 relayer.getDefaultDeliveryProvider(),
                 new VaaKey[](0),
                 15
             );
+            if (message.version == Version.MULTI_SEND_BACK) {
+                (cost,) = relayer.quoteEVMDeliveryPrice(
+                    wormhole.chainId(), TargetNative.wrap(0), Gas.wrap(500_000)
+                );
+                relayer.sendToEvm{value: LocalNative.unwrap(cost)}(
+                    wormhole.chainId(),
+                    getRegisteredContractAddress(wormhole.chainId()),
+                    encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
+                    TargetNative.wrap(0),
+                    LocalNative.wrap(address(this).balance - LocalNative.unwrap(cost)),
+                    Gas.wrap(500_000),
+                    sourceChain,
+                    getRegisteredContractAddress(sourceChain),
+                    relayer.getDefaultDeliveryProvider(),
+                    new VaaKey[](0),
+                    15
+                );
+            }
+            (bool success,) = address(0).call{value: address(this).balance}("");
+            require(success, "Failed to send funds");
         }
-        if (message.version == Version.MULTIFORWARD) {
-            relayer.forwardToEvm{value: 0}(
-                wormhole.chainId(),
-                getRegisteredContractAddress(wormhole.chainId()),
-                encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
-                TargetNative.wrap(0),
-                LocalNative.wrap(0),
-                Gas.wrap(500000),
-                wormhole.chainId(),
-                getRegisteredContractAddress(wormhole.chainId()),
-                relayer.getDefaultDeliveryProvider(),
-                new VaaKey[](0),
-                15
-            );
+
+        if (message.version == Version.REENTRANT) {
+            relayer.deliver(new bytes[](0), deliveryVaa, payable(address(this)), bytes(""));
         }
     }
 
