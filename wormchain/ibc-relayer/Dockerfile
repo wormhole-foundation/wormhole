@@ -13,7 +13,8 @@ RUN mv target/release/hermes /usr/bin
 
 WORKDIR /app
 
-COPY ./wormchain/ibc-relayer/mnemonic_file.txt ./
+COPY ./wormchain/ibc-relayer/mnemonic_gateway.txt ./
+COPY ./wormchain/ibc-relayer/mnemonic_terra.txt ./
 COPY ./wormchain/ibc-relayer/hermes-config.toml /root/.hermes/config.toml
 COPY ./wormchain/ibc-relayer/hermes-startup.sh ./
 
