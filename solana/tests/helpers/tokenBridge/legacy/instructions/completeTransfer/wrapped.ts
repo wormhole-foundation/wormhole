@@ -1,4 +1,6 @@
+import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
   AccountMeta,
   PublicKey,
@@ -7,18 +9,14 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
+import { Claim, PostedVaaV1 } from "../../../../coreBridge";
 import {
   Config,
-  custodyAuthorityPda,
-  custodyTokenPda,
-  mintAuthorityPda,
   RegisteredEmitter,
   WrappedAsset,
+  mintAuthorityPda,
   wrappedMintPda,
 } from "../../state";
-import { PostedVaaV1, Claim } from "../../../../coreBridge";
-import { ParsedVaa } from "@certusone/wormhole-sdk";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export type LegacyCompleteTransferWrappedContext = {
   payer: PublicKey;
@@ -28,7 +26,7 @@ export type LegacyCompleteTransferWrappedContext = {
   registeredEmitter?: PublicKey;
   recipientToken: PublicKey;
   payerToken?: PublicKey;
-  wrappedMint: PublicKey;
+  wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
   mintAuthority?: PublicKey;
   rent?: PublicKey;
@@ -42,6 +40,9 @@ export function legacyCompleteTransferWrappedIx(
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
+
+  const tokenAddress = Array.from(payload.subarray(33, 65));
+  const tokenChain = payload.readUInt16BE(65);
 
   let {
     payer,
@@ -85,6 +86,10 @@ export function legacyCompleteTransferWrappedIx(
       emitterChain,
       Array.from(emitterAddress)
     );
+  }
+
+  if (wrappedMint === undefined) {
+    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddress);
   }
 
   if (payerToken === undefined) {

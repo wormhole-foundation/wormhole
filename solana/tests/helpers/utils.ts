@@ -41,7 +41,7 @@ export type MintInfo = {
 };
 
 export type WrappedMintInfo = {
-  mint: PublicKey;
+  chain: number;
   address: Uint8Array;
   decimals: number;
 };
@@ -240,6 +240,7 @@ export async function parallelPostVaa(connection: Connection, payer: Keypair, si
 
 export type TokenBalances = {
   token: bigint;
+  forkToken: bigint;
   custodyToken: bigint;
   forkCustodyToken: bigint;
 };
@@ -247,10 +248,14 @@ export type TokenBalances = {
 export async function getTokenBalances(
   tokenBridgeProgram: tokenBridge.TokenBridgeProgram,
   forkTokenBridgeProgram: tokenBridge.TokenBridgeProgram,
-  token: PublicKey
+  token: PublicKey,
+  forkToken?: PublicKey
 ): Promise<TokenBalances> {
   const connection = tokenBridgeProgram.provider.connection;
   const tokenAccount = await getAccount(connection, token);
+  const forkTokenAccount =
+    forkToken !== undefined ? await getAccount(connection, forkToken) : tokenAccount;
+
   const custodyToken = await getAccount(
     connection,
     tokenBridge.custodyTokenPda(tokenBridgeProgram.programId, tokenAccount.mint)
@@ -259,12 +264,13 @@ export async function getTokenBalances(
     .catch((_) => BigInt(0));
   const forkCustodyToken = await getAccount(
     connection,
-    tokenBridge.custodyTokenPda(forkTokenBridgeProgram.programId, tokenAccount.mint)
+    tokenBridge.custodyTokenPda(forkTokenBridgeProgram.programId, forkTokenAccount.mint)
   )
     .then((token) => token.amount)
     .catch((_) => BigInt(0));
   return {
     token: tokenAccount.amount,
+    forkToken: forkTokenAccount.amount,
     custodyToken,
     forkCustodyToken,
   };
