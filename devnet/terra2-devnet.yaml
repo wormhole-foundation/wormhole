@@ -12,6 +12,9 @@ spec:
     - name: rest
       port: 1317
       protocol: TCP
+    - name: grpc
+      port: 9090
+      protocol: TCP
   selector:
     app: terra2-terrad
 ---
@@ -68,6 +71,7 @@ spec:
           ports:
             - containerPort: 26657
             - containerPort: 1317
+            - containerPort: 9090
           readinessProbe:
             httpGet:
               port: 26657

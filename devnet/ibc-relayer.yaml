@@ -9,6 +9,9 @@ spec:
     - name: rest
       port: 3000
       protocol: TCP
+    - name: telemetry
+      port: 3001
+      protocol: TCP
   selector:
     app: ibc-relayer
 ---
@@ -38,6 +41,9 @@ spec:
           ports:
             - containerPort: 3000
               name: rest
+              protocol: TCP
+            - containerPort: 3001
+              name: metrics
               protocol: TCP
           readinessProbe:
             httpGet:
