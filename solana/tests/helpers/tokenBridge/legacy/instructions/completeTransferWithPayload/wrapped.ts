@@ -26,7 +26,7 @@ export type LegacyCompleteTransferWithPayloadWrappedContext = {
   postedVaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
-  dstToken: PublicKey;
+  recipientToken: PublicKey;
   redeemerAuthority?: PublicKey;
   wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
@@ -52,7 +52,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
     postedVaa,
     claim,
     registeredEmitter,
-    dstToken,
+    recipientToken,
     redeemerAuthority,
     wrappedMint,
     wrappedAsset,
@@ -137,7 +137,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: dstToken,
+      pubkey: recipientToken,
       isWritable: true,
       isSigner: false,
     },
@@ -147,7 +147,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
       isSigner: true,
     },
     {
-      pubkey: dstToken, // NOTE: This exists because of a bug in the legacy program.
+      pubkey: recipientToken, // NOTE: This exists because of a bug in the legacy program.
       isWritable: false, // TODO: check this
       isSigner: false,
     },
