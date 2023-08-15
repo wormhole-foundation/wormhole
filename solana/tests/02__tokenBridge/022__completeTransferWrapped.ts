@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Account, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   MINT_INFO_WRAPPED_7,
@@ -46,34 +46,41 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
 
   describe("Ok", () => {
-    for (const { mint, decimals, address } of wrappedMints.slice(0, 1)) {
+    for (const { chain, decimals, address } of wrappedMints.slice(0, 1)) {
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, No Fee)`, async () => {
+        const [mint, forkMint] = [program, forkedProgram].map((program) =>
+          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+        );
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient.publicKey
-        );
-        const payerToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          payer.publicKey
-        );
+        const [recipientToken, forkRecipientToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, recipient.publicKey),
+        ]);
+
+        const [payerToken, forkPayerToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+        ]);
 
         // Amounts.
         const amount = BigInt(699999);
         const fee = BigInt(0);
 
         // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(address, amount, fee, recipientToken.address);
+        const [signedVaa, forkSignedVaa] = [recipientToken, forkRecipientToken].map((acct) =>
+          getSignedTransferVaa(address, amount, fee, acct.address)
+        );
 
         // Fetch balances before.
         const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
-          getTokenBalances(program, forkedProgram, recipientToken.address),
-          getTokenBalances(program, forkedProgram, payerToken.address),
+          getTokenBalances(
+            program,
+            forkedProgram,
+            recipientToken.address,
+            forkRecipientToken.address
+          ),
+          getTokenBalances(program, forkedProgram, payerToken.address, forkPayerToken.address),
         ]);
 
         // Complete the transfer.
@@ -81,12 +88,13 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
           program,
           forkedProgram,
           {
-            payer: payer.publicKey,
-            recipientToken: recipientToken.address,
-            wrappedMint: mint,
-            payerToken: payerToken.address,
+            recipientToken,
+            forkRecipientToken,
           },
-          signedVaa,
+          {
+            signedVaa,
+            forkSignedVaa,
+          },
           payer
         );
 
@@ -131,18 +139,31 @@ function getSignedTransferVaa(
 async function parallelTxDetails(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
-  accounts: tokenBridge.LegacyCompleteTransferWrappedContext,
-  signedVaa: Buffer,
+  tokenAccounts: {
+    recipientToken: Account;
+    forkRecipientToken: Account;
+  },
+  signedVaas: { signedVaa: Buffer; forkSignedVaa: Buffer },
   payer: anchor.web3.Keypair
 ) {
   const connection = program.provider.connection;
+  const { recipientToken, forkRecipientToken } = tokenAccounts;
+  const { signedVaa, forkSignedVaa } = signedVaas;
 
   // Post the VAA.
   const parsed = await parallelPostVaa(connection, payer, signedVaa);
+  const forkParsed = await parallelPostVaa(connection, payer, forkSignedVaa);
 
   // Create instruction.
-  const ix = tokenBridge.legacyCompleteTransferWrappedIx(program, accounts, parsed);
-  const forkedIx = tokenBridge.legacyCompleteTransferWrappedIx(forkedProgram, accounts, parsed);
-
+  const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+    program,
+    { payer: payer.publicKey, recipientToken: recipientToken.address },
+    parsed
+  );
+  const forkedIx = tokenBridge.legacyCompleteTransferWrappedIx(
+    forkedProgram,
+    { payer: payer.publicKey, recipientToken: forkRecipientToken.address },
+    forkParsed
+  );
   return expectIxOkDetails(connection, [ix, forkedIx], [payer]);
 }

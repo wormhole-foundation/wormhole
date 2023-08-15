@@ -48,12 +48,12 @@ export const ETHEREUM_STEAK_TOKEN_ADDRESS = tryNativeToUint8Array(
 );
 
 export const MINT_INFO_WRAPPED_7: WrappedMintInfo = {
-  mint: new PublicKey("7qoJ8hnVCi21U7tEEmpvoDgpnqBQrESoNkbTjCUEniay"),
+  chain: 2,
   address: ETHEREUM_STEAK_TOKEN_ADDRESS,
   decimals: 7,
 };
 export const MINT_INFO_WRAPPED_8: WrappedMintInfo = {
-  mint: new PublicKey("4ZUtcEraN2z4qqJNLVXR5oLoP43Y6uv53YzXjJfohF3A"),
+  chain: 2,
   address: ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   decimals: 8,
 };
