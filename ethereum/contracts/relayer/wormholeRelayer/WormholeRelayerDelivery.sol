@@ -8,7 +8,6 @@ import {
     InvalidEmitter,
     InsufficientRelayerFunds,
     TargetChainIsNotThisChain,
-    ForwardNotSufficientlyFunded,
     VaaKeysLengthDoesNotMatchVaasLength,
     VaaKeysDoNotMatchVaas,
     InvalidOverrideGasLimit,
@@ -33,7 +32,6 @@ import {
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
 import {
-    ForwardInstruction,
     DeliverySuccessState,
     DeliveryFailureState,
     getDeliveryFailureState,
@@ -73,14 +71,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
-
-        // Lock the contract (and store some information about the delivery in temporary storage)
-        startDelivery(
-            fromWormholeFormat(instruction.targetAddress),
-            fromWormholeFormat(instruction.refundDeliveryProvider),
-            instruction.refundChain,
-            instruction.refundAddress
-        );
 
         DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
             sourceChain: vm.emitterChainId,
@@ -125,9 +115,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         checkVaaKeysWithVAAs(instruction.vaaKeys, encodedVMs);
 
         executeDelivery(deliveryVaaInfo);
-
-        // Unlock contract
-        finishDelivery();
     }
 
     // ------------------------------------------- PRIVATE -------------------------------------------
@@ -282,19 +269,22 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         DeliveryResults memory results;
 
         // Enforce replay protection
-        if (getDeliverySuccessState().deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
+        mapping(bytes32 => uint256) storage deliverySuccessBlock =  getDeliverySuccessState().deliverySuccessBlock;
+        if (deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
             results.status = DeliveryStatus.RECEIVER_FAILURE;
             results.additionalStatusInfo = "Delivery already executed";
             setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
             emitDeliveryEvent(vaaInfo, results);
             return;
         }
+        // Optimisitcally set to also prevent reentrancy
+        deliverySuccessBlock[vaaInfo.deliveryVaaHash] = block.number;
+
 
         // Forces external call
         // In order to catch reverts
-        // (If the user's contract requests a forward
-        // and there ends up not being enough funds,
-        // then we will revert this call)
+        // (Previously needed for reverts, but waiting to remove since this is sensitive code 
+        //  and would need a real audit to redeploy)
         try 
         this.executeInstruction(
             EvmDeliveryInstruction({
@@ -330,7 +320,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             (gasUsed_, knownError) = tryDecodeExecuteInstructionError(revertData);
             results = DeliveryResults(
                 knownError? gasUsed_ : vaaInfo.gasLimit,
-                DeliveryStatus.FORWARD_REQUEST_FAILURE,
+                DeliveryStatus.RECEIVER_FAILURE,
                 revertData
             );
         }
@@ -431,114 +421,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         if (success) {
             targetRevertDataTruncated = new bytes(0);
             status = uint8(DeliveryStatus.SUCCESS);
-
-            ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
-
-            if (forwardInstructions.length > 0) {
-                // forward(s) were requested during execution of the call to targetAddress above
-
-                // Calculate the amount to refund the user for unused gas
-                LocalNative transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(
-                    evmInstruction.targetChainRefundPerGasUnused
-                ).asLocalNative();
-
-                // Check if refund amount is enough, and if so, emit forwards  
-                emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
-
-                // If we reach here (i.e. emitForward didn't revert) then the forward succeeded
-                status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
-            }
         } else {
             // Call to 'receiveWormholeMessages' on targetAddress reverted
             status = uint8(DeliveryStatus.RECEIVER_FAILURE);
-        }
-    }
-
-    /**
-     * - Checks if enough funds were passed into a forward (and reverts if not)
-     * - Increases the 'extraReceiverValue' of the first forward in order to use all of the funds
-     * - Publishes the DeliveryInstruction
-     * - Pays the relayer's reward address to deliver the forward
-     *
-     * @param transactionFeeRefundAmount amount of maxTransactionFee that was unused
-     * @param forwardInstructions An array of structs containing information about the user's forward
-     *     request(s)
-     */
-    function emitForward(
-        Gas gasUsed,
-        LocalNative transactionFeeRefundAmount,
-        ForwardInstruction[] storage forwardInstructions
-    ) private {
-        LocalNative wormholeMessageFee = getWormholeMessageFee();
-
-        // Decode delivery instructions from each 'forward' request
-        DeliveryInstruction[] memory instructions =
-            new DeliveryInstruction[](forwardInstructions.length);
-
-        // Calculate total msg.value passed into all 'forward' requests
-        LocalNative totalMsgValue;
-        // Calculate total fee for all 'forward' requests
-        LocalNative totalFee;
-
-        for (uint256 i = 0; i < forwardInstructions.length;) {
-            unchecked {
-                totalMsgValue = totalMsgValue + forwardInstructions[i].msgValue;
-            }
-            instructions[i] =
-                (forwardInstructions[i].encodedInstruction).decodeDeliveryInstruction();
-            totalFee = totalFee + forwardInstructions[i].deliveryPrice
-                + forwardInstructions[i].paymentForExtraReceiverValue + wormholeMessageFee;
-            unchecked {
-                ++i;
-            }
-        }
-
-        //  Combine refund amount with any additional funds which were passed in to the forward as
-        //  msg.value and check that this value is enough to fund all the forwards, reverting otherwise
-        LocalNative fundsForForward;
-        unchecked {
-            fundsForForward = transactionFeeRefundAmount + totalMsgValue;
-        }
-        if (fundsForForward.unwrap() < totalFee.unwrap()) {
-            revert Cancelled(gasUsed, fundsForForward, totalFee);
-        }
-        
-        // Simulates if the user had increased the 'paymentForExtraReceiverValue' field of their first forward
-        // to the maximum value such that the forward(s) would still have enough funds
-
-        TargetNative extraReceiverValue;
-        try IDeliveryProvider(
-            fromWormholeFormat(instructions[0].sourceDeliveryProvider)
-        ).quoteAssetConversion(instructions[0].targetChain, fundsForForward - totalFee)
-        returns (TargetNative _extraReceiverValue) {
-            extraReceiverValue = _extraReceiverValue;
-        } catch {
-            revert DeliveryProviderReverted(gasUsed);
-        }
-        
-        unchecked {
-            instructions[0].extraReceiverValue =
-                instructions[0].extraReceiverValue + extraReceiverValue;
-        }
-
-        //Publishes the DeliveryInstruction(s) for each forward request and pays the associated deliveryProvider
-        for (uint256 i = 0; i < forwardInstructions.length;) {
-            (, bool paymentSucceeded) = publishAndPay(
-                wormholeMessageFee,
-                forwardInstructions[i].deliveryPrice,
-                // We had increased the 'paymentForExtraReceiverValue' of the first forward
-                forwardInstructions[i].paymentForExtraReceiverValue
-                    + ((i == 0) ? (fundsForForward - totalFee) : LocalNative.wrap(0)),
-                i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
-                forwardInstructions[i].consistencyLevel,
-                forwardInstructions[i].rewardAddress
-            );
-            if (!paymentSucceeded) {
-                revert DeliveryProviderPaymentFailed(gasUsed);
-            }
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -553,8 +438,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         LocalNative receiverValueRefundAmount = LocalNative.wrap(0);
 
         if (
-            status == DeliveryStatus.FORWARD_REQUEST_FAILURE
-                || status == DeliveryStatus.RECEIVER_FAILURE
+            status == DeliveryStatus.RECEIVER_FAILURE
         ) {
             receiverValueRefundAmount = (
                 deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue
@@ -564,11 +448,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         // Total refund to the user
         // (If the forward succeeded, the 'transactionFeeRefundAmount' was used there already)
         LocalNative refundToRefundAddress = receiverValueRefundAmount
-            + (
-                status == DeliveryStatus.FORWARD_REQUEST_SUCCESS
-                    ? LocalNative.wrap(0)
-                    : transactionFeeRefundAmount
-            );
+            + transactionFeeRefundAmount;
 
         //Refund the user
         refundStatus = payRefundToRefundAddress(
@@ -707,15 +587,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    // Sets current block number to implement replay protection and for indexing purposes
+    // Ensures current block number is set to implement replay protection and for indexing purposes
     function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
-        if (status == DeliveryStatus.SUCCESS || status == DeliveryStatus.FORWARD_REQUEST_SUCCESS) {
-            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
-
-            // Clear out failure block if it exists
+        if (status == DeliveryStatus.SUCCESS) {
+            // Clear out failure block if it exists from previous delivery failure
             delete getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
         } else {
             getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
+            // Unset success block that was optimistically set
+            delete getDeliverySuccessState().deliverySuccessBlock[deliveryHash];
         }
     }
 }
