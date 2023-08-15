@@ -17,7 +17,7 @@ import {
     RedeliveryInstruction
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
-import {ForwardInstruction, getDefaultDeliveryProviderState} from "./WormholeRelayerStorage.sol";
+import {getDefaultDeliveryProviderState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
@@ -155,88 +155,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         );
     }
 
-    function forwardPayloadToEvm(
-        uint16 targetChain,
-        address targetAddress,
-        bytes memory payload,
-        TargetNative receiverValue,
-        Gas gasLimit
-    ) external payable {
-        (address deliveryProvider,) =
-            getOriginalOrDefaultDeliveryProvider(targetChain);
-        forward(
-            targetChain,
-            toWormholeFormat(targetAddress),
-            payload,
-            receiverValue,
-            LocalNative.wrap(0),
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
-            getCurrentRefundChain(),
-            getCurrentRefundAddress(),
-            deliveryProvider,
-            new VaaKey[](0),
-            CONSISTENCY_LEVEL_FINALIZED
-        );
-    }
-
-    function forwardVaasToEvm(
-        uint16 targetChain,
-        address targetAddress,
-        bytes memory payload,
-        TargetNative receiverValue,
-        Gas gasLimit,
-        VaaKey[] memory vaaKeys
-    ) external payable {
-        (address deliveryProvider,) =
-            getOriginalOrDefaultDeliveryProvider(targetChain);
-        forward(
-            targetChain,
-            toWormholeFormat(targetAddress),
-            payload,
-            receiverValue,
-            LocalNative.wrap(0),
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
-            getCurrentRefundChain(),
-            getCurrentRefundAddress(),
-            deliveryProvider,
-            vaaKeys,
-            CONSISTENCY_LEVEL_FINALIZED
-        );
-    }
-
-    function forwardToEvm(
-        uint16 targetChain,
-        address targetAddress,
-        bytes memory payload,
-        TargetNative receiverValue,
-        LocalNative paymentForExtraReceiverValue,
-        Gas gasLimit,
-        uint16 refundChain,
-        address refundAddress,
-        address deliveryProviderAddress,
-        VaaKey[] memory vaaKeys,
-        uint8 consistencyLevel
-    ) public payable {
-        // provide ability to use original relay provider
-        if (deliveryProviderAddress == address(0)) {
-            deliveryProviderAddress = getOriginalDeliveryProvider();
-        }
-
-        forward(
-            targetChain,
-            toWormholeFormat(targetAddress),
-            payload,
-            receiverValue,
-            paymentForExtraReceiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
-            refundChain,
-            toWormholeFormat(refundAddress),
-            deliveryProviderAddress,
-            vaaKeys,
-            consistencyLevel
-        );
-    }
-
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
@@ -267,36 +185,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint8 consistencyLevel
     ) public payable returns (uint64 sequence) {
         sequence = send(
-            Send(
-                targetChain,
-                targetAddress,
-                payload,
-                receiverValue,
-                paymentForExtraReceiverValue,
-                encodedExecutionParameters,
-                refundChain,
-                refundAddress,
-                deliveryProviderAddress,
-                vaaKeys,
-                consistencyLevel
-            )
-        );
-    }
-
-    function forward(
-        uint16 targetChain,
-        bytes32 targetAddress,
-        bytes memory payload,
-        TargetNative receiverValue,
-        LocalNative paymentForExtraReceiverValue,
-        bytes memory encodedExecutionParameters,
-        uint16 refundChain,
-        bytes32 refundAddress,
-        address deliveryProviderAddress,
-        VaaKey[] memory vaaKeys,
-        uint8 consistencyLevel
-    ) public payable {
-        forward(
             Send(
                 targetChain,
                 targetAddress,
@@ -385,58 +273,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             revert DeliveryProviderCannotReceivePayment();
     }
 
-    function forward(Send memory sendParams) internal {
-
-        // Revert if a delivery with targetAddress == msg.sender is not currently in progress
-        checkMsgSenderInDelivery();
-
-        IDeliveryProvider provider = IDeliveryProvider(sendParams.deliveryProviderAddress);
-
-        // Revert if delivery provider does not support the target chain
-        if (!provider.isChainSupported(sendParams.targetChain)) {
-            revert DeliveryProviderDoesNotSupportTargetChain(
-                sendParams.deliveryProviderAddress, sendParams.targetChain
-            );
-        }
-
-        // Obtain the delivery provider's fee for this delivery, as well as some encoded info (e.g. refund per unit of gas unused)
-        (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
-            sendParams.targetChain, sendParams.receiverValue, sendParams.encodedExecutionParameters
-        );
-
-        // Encode all relevant info the delivery provider needs to perform this delivery as requested
-        bytes memory encodedInstruction = DeliveryInstruction({
-            targetChain: sendParams.targetChain,
-            targetAddress: sendParams.targetAddress,
-            payload: sendParams.payload,
-            requestedReceiverValue: sendParams.receiverValue,
-            extraReceiverValue: provider.quoteAssetConversion(
-                sendParams.targetChain, sendParams.paymentForExtraReceiverValue
-                ),
-            encodedExecutionInfo: encodedExecutionInfo,
-            refundChain: sendParams.refundChain,
-            refundAddress: sendParams.refundAddress,
-            refundDeliveryProvider: provider.getTargetChainAddress(sendParams.targetChain),
-            sourceDeliveryProvider: toWormholeFormat(sendParams.deliveryProviderAddress),
-            senderAddress: toWormholeFormat(msg.sender),
-            vaaKeys: sendParams.vaaKeys
-        }).encode();
-
-        // Store information about this delivery in state
-        // so that it can be performed after the execution of the current delivery,
-        // when the 'refund' available to use for this delivery is known
-        appendForwardInstruction(
-            ForwardInstruction({
-                encodedInstruction: encodedInstruction,
-                msgValue: LocalNative.wrap(msg.value),
-                deliveryPrice: deliveryPrice,
-                paymentForExtraReceiverValue: sendParams.paymentForExtraReceiverValue,
-                consistencyLevel: sendParams.consistencyLevel,
-                rewardAddress: provider.getRewardAddress()
-            })
-        );
-    }
-
     function resend(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
@@ -500,23 +336,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         deliveryProvider = fromWormholeFormat(
             IDeliveryProvider(getDefaultDeliveryProviderState().defaultDeliveryProvider)
                 .getTargetChainAddress(targetChain)
-        );
-    }
-
-    function getOriginalOrDefaultDeliveryProvider(uint16 targetChain)
-        public
-        view
-        returns (address deliveryProvider, address deliveryProviderOnTarget)
-    {
-        deliveryProvider = getOriginalDeliveryProvider();
-        if (
-            deliveryProvider == address(0)
-                || !IDeliveryProvider(deliveryProvider).isChainSupported(targetChain)
-        ) {
-            deliveryProvider = getDefaultDeliveryProvider();
-        }
-        deliveryProviderOnTarget = fromWormholeFormat(
-            IDeliveryProvider(deliveryProvider).getTargetChainAddress(targetChain)
         );
     }
 
