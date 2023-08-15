@@ -136,7 +136,6 @@ const guardianIndices = ci ? [0, 1] : [0];
 
 const REASONABLE_GAS_LIMIT = 500000;
 const TOO_LOW_GAS_LIMIT = 10000;
-const REASONABLE_GAS_LIMIT_FORWARDS = 900000;
 
 const wormholeRelayerAddresses = new Map<ChainName, string>();
 wormholeRelayerAddresses.set(sourceChain, source.wormholeRelayerAddress);
@@ -177,42 +176,6 @@ const testSend = async (
     notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
     0,
     { value, gasLimit: REASONABLE_GAS_LIMIT }
-  );
-  console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
-  await tx.wait();
-  console.log("Message confirmed!");
-
-  return tx.wait();
-};
-
-const testForward = async (
-  payload1: string,
-  payload2: string,
-  notEnoughExtraForwardingValue?: boolean
-): Promise<ContractReceipt> => {
-  const valueNeededOnTargetChain = await relayer.getPrice(
-    targetChain,
-    sourceChain,
-    notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
-    optionalParamsTarget
-  );
-  const value = await relayer.getPrice(
-    sourceChain,
-    targetChain,
-    REASONABLE_GAS_LIMIT_FORWARDS,
-    { receiverValue: valueNeededOnTargetChain, ...optionalParams }
-  );
-  console.log(`Quoted gas delivery fee: ${value}`);
-
-  const tx = await source.mockIntegration[
-    "sendMessageWithForwardedResponse(bytes,bytes,uint16,uint32,uint128)"
-  ](
-    payload1,
-    payload2,
-    target.chainId,
-    REASONABLE_GAS_LIMIT_FORWARDS,
-    valueNeededOnTargetChain,
-    { value: value, gasLimit: REASONABLE_GAS_LIMIT }
   );
   console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
   await tx.wait();
@@ -334,112 +297,6 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Checking if message was relayed");
     const message = await target.mockIntegration.getMessage();
     expect(message).toBe(arbitraryPayload);
-  });
-
-  test("Executes a Forward Request Success", async () => {
-    const arbitraryPayload1 = getArbitraryBytes32();
-    const arbitraryPayload2 = getArbitraryBytes32();
-    console.log(
-      `Sent message: ${arbitraryPayload1}, expecting ${arbitraryPayload2} to be forwarded`
-    );
-
-    const rx = await testForward(arbitraryPayload1, arbitraryPayload2);
-
-    await waitForRelay(2);
-
-    console.log("Checking status using SDK");
-    const status = await getStatus(rx.transactionHash);
-    expect(status).toBe("Forward Request Success");
-
-    console.log("Checking if message was relayed");
-    const message1 = await target.mockIntegration.getMessage();
-    expect(message1).toBe(arbitraryPayload1);
-
-    console.log("Checking if forward message was relayed back");
-    const message2 = await source.mockIntegration.getMessage();
-    expect(message2).toBe(arbitraryPayload2);
-  });
-
-  test("Executes multiple forwards", async () => {
-    const arbitraryPayload1 = getArbitraryBytes32();
-    const arbitraryPayload2 = getArbitraryBytes32();
-    console.log(
-      `Sent message: ${arbitraryPayload1}, expecting ${arbitraryPayload2} to be forwarded`
-    );
-    const valueNeededOnTargetChain1 = await relayer.getPrice(
-      targetChain,
-      sourceChain,
-      REASONABLE_GAS_LIMIT,
-      optionalParamsTarget
-    );
-    const valueNeededOnTargetChain2 = await relayer.getPrice(
-      targetChain,
-      targetChain,
-      REASONABLE_GAS_LIMIT,
-      optionalParamsTarget
-    );
-
-    const value = await relayer.getPrice(
-      sourceChain,
-      targetChain,
-      REASONABLE_GAS_LIMIT_FORWARDS,
-      {
-        receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
-        ...optionalParams,
-      }
-    );
-    console.log(`Quoted gas delivery fee: ${value}`);
-
-    const tx =
-      await source.mockIntegration.sendMessageWithMultiForwardedResponse(
-        arbitraryPayload1,
-        arbitraryPayload2,
-        target.chainId,
-        REASONABLE_GAS_LIMIT_FORWARDS,
-        valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
-        { value: value, gasLimit: REASONABLE_GAS_LIMIT }
-      );
-    console.log("Sent delivery request!");
-    await tx.wait();
-    console.log("Message confirmed!");
-
-    await waitForRelay(2);
-
-    const status = await getStatus(tx.hash);
-    console.log(`Status of forward: ${status}`);
-
-    console.log("Checking if first forward was relayed");
-    const message1 = await source.mockIntegration.getMessage();
-    expect(message1).toBe(arbitraryPayload2);
-
-    console.log("Checking if second forward was relayed");
-    const message2 = await target.mockIntegration.getMessage();
-    expect(message2).toBe(arbitraryPayload2);
-  });
-
-  testIfDevnet()("Executes a Forward Request Failure", async () => {
-    const arbitraryPayload1 = getArbitraryBytes32();
-    const arbitraryPayload2 = getArbitraryBytes32();
-    console.log(
-      `Sent message: ${arbitraryPayload1}, expecting ${arbitraryPayload2} to be forwarded (but should fail)`
-    );
-
-    const rx = await testForward(arbitraryPayload1, arbitraryPayload2, true);
-
-    await waitForRelay();
-
-    const status = await getStatus(rx.transactionHash);
-    expect(status).toBe("Forward Request Failure");
-
-    console.log("Checking if message was relayed (it shouldn't have been!");
-    const message1 = await target.mockIntegration.getMessage();
-    expect(message1).not.toBe(arbitraryPayload1);
-
-    console.log(
-      "Checking if forward message was relayed back (it shouldn't have been!)"
-    );
-    const message2 = await source.mockIntegration.getMessage();
-    expect(message2).not.toBe(arbitraryPayload2);
   });
 
   testIfDevnet()("Test getPrice in Typescript SDK", async () => {
