@@ -29,7 +29,7 @@ pub mod cpi {
                     emitter: *ctx.accounts.emitter.key,
                     emitter_sequence: *ctx.accounts.emitter_sequence.key,
                     payer: *ctx.accounts.payer.key,
-                    fee_collector: *ctx.accounts.fee_collector.key,
+                    fee_collector: ctx.accounts.fee_collector.as_ref().map(|info| *info.key),
                     system_program: *ctx.accounts.system_program.key,
                 },
                 args,
@@ -58,7 +58,7 @@ pub mod cpi {
                     emitter: *ctx.accounts.emitter.key,
                     emitter_sequence: *ctx.accounts.emitter_sequence.key,
                     payer: *ctx.accounts.payer.key,
-                    fee_collector: *ctx.accounts.fee_collector.key,
+                    fee_collector: ctx.accounts.fee_collector.as_ref().map(|info| *info.key),
                     system_program: *ctx.accounts.system_program.key,
                 },
                 args,
@@ -82,7 +82,7 @@ pub mod cpi {
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
         /// CHECK: Core Bridge Fee Collector (mut, seeds = ["fee_collector"]).
-        pub fee_collector: AccountInfo<'info>,
+        pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
     }
@@ -100,7 +100,7 @@ pub mod cpi {
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
         /// CHECK: Core Bridge Fee Collector (mut, seeds = \["fee_collector"\]).
-        pub fee_collector: AccountInfo<'info>,
+        pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
     }

@@ -79,7 +79,7 @@ pub struct TransferTokensWrapped<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: UncheckedAccount<'info>,
+    core_fee_collector: Option<UncheckedAccount<'info>>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,

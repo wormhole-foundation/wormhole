@@ -132,17 +132,17 @@ export function legacyUpgradeContractIx(
     },
     {
       pubkey: buffer,
-      isWritable: false,
+      isWritable: true, // legacy requires this to be writable, but the rewrite does not
       isSigner: false,
     },
     {
       pubkey: programData,
-      isWritable: false,
+      isWritable: true, // legacy requires this to be writable, but the rewrite does not
       isSigner: false,
     },
     {
       pubkey: thisProgram,
-      isWritable: false,
+      isWritable: true, // legacy requires this to be writable, but the rewrite does not
       isSigner: false,
     },
     {

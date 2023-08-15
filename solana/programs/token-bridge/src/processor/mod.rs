@@ -9,6 +9,7 @@ use crate::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, MINT_AUTHORITY_SEED_PREFIX,
         TRANSFER_AUTHORITY_SEED_PREFIX,
     },
+    error::TokenBridgeError,
     utils::TruncateAmount,
 };
 use anchor_lang::{
@@ -26,9 +27,9 @@ pub struct PostTokenBridgeMessage<'ctx, 'info> {
     pub core_bridge_data: &'ctx Account<'info, BridgeProgramData>,
     pub core_message: &'ctx Signer<'info>,
     pub core_emitter: &'ctx AccountInfo<'info>,
-    pub core_emitter_sequence: &'ctx AccountInfo<'info>,
+    pub core_emitter_sequence: &'ctx UncheckedAccount<'info>,
     pub payer: &'ctx Signer<'info>,
-    pub core_fee_collector: &'ctx AccountInfo<'info>,
+    pub core_fee_collector: &'ctx Option<UncheckedAccount<'info>>,
     pub system_program: &'ctx Program<'info, System>,
     pub core_bridge_program: &'ctx Program<'info, CoreBridge>,
 }
@@ -40,19 +41,27 @@ pub fn post_token_bridge_message<W: Writeable>(
     message: W,
 ) -> Result<()> {
     // Pay fee to the core bridge program if there is one.
-    let fee_lamports = accounts.core_bridge_data.fee_lamports;
-    if fee_lamports > 0 {
-        system_program::transfer(
-            CpiContext::new(
-                accounts.system_program.to_account_info(),
-                Transfer {
-                    from: accounts.payer.to_account_info(),
-                    to: accounts.core_fee_collector.to_account_info(),
-                },
-            ),
-            fee_lamports,
-        )?;
-    }
+    let fee_collector = match (
+        accounts.core_bridge_data.fee_lamports,
+        accounts.core_fee_collector,
+    ) {
+        (0, _) => None,
+        (lamports, Some(core_fee_collector)) => {
+            system_program::transfer(
+                CpiContext::new(
+                    accounts.system_program.to_account_info(),
+                    Transfer {
+                        from: accounts.payer.to_account_info(),
+                        to: core_fee_collector.to_account_info(),
+                    },
+                ),
+                lamports,
+            )?;
+
+            Some(core_fee_collector.to_account_info())
+        }
+        _ => return err!(TokenBridgeError::CoreFeeCollectorRequired),
+    };
 
     let mut payload = Vec::with_capacity(message.written_size());
     message.write(&mut payload)?;
@@ -66,7 +75,7 @@ pub fn post_token_bridge_message<W: Writeable>(
                 emitter: accounts.core_emitter.to_account_info(),
                 emitter_sequence: accounts.core_emitter_sequence.to_account_info(),
                 payer: accounts.payer.to_account_info(),
-                fee_collector: accounts.core_fee_collector.to_account_info(),
+                fee_collector,
                 system_program: accounts.system_program.to_account_info(),
             },
             &[&[EMITTER_SEED_PREFIX, &[emitter_bump]]],

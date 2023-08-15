@@ -28,6 +28,7 @@ endif
 
 test: node_modules
 	cargo test
+	NETWORK=mainnet $(MAKE) build
 	anchor test --arch sbf
 
 lint:

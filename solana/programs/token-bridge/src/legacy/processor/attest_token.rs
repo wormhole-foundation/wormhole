@@ -59,7 +59,6 @@ pub struct AttestToken<'info> {
     /// will check that the seeds for this account are correct (because we do not want to
     /// accidentally pass in an account that isn't actually supposed to be mutable).
     #[account(
-        mut,
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
@@ -107,7 +106,7 @@ pub struct AttestToken<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: UncheckedAccount<'info>,
+    core_fee_collector: Option<UncheckedAccount<'info>>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
@@ -132,8 +131,6 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;
-
-    msg!("hurrdurr? {:?}", ctx.accounts.core_emitter.key());
 
     // Finally post Wormhole message via Core Bridge.
     post_token_bridge_message(

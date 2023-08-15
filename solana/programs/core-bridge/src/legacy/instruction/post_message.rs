@@ -24,21 +24,26 @@ mod __no_entrypoint {
         pub emitter: Pubkey,
         pub emitter_sequence: Pubkey,
         pub payer: Pubkey,
-        pub fee_collector: Pubkey,
+        pub fee_collector: Option<Pubkey>,
         pub system_program: Pubkey,
     }
 
     pub fn post_message(accounts: PostMessage, args: LegacyPostMessageArgs) -> Instruction {
+        let fee_collector = match accounts.fee_collector {
+            Some(fee_collector) => fee_collector,
+            None => Pubkey::default(),
+        };
+
         let accounts = vec![
             AccountMeta::new(accounts.bridge, false),
             AccountMeta::new(accounts.message, true),
             AccountMeta::new_readonly(accounts.emitter, true),
             AccountMeta::new(accounts.emitter_sequence, false),
             AccountMeta::new(accounts.payer, true),
-            AccountMeta::new(accounts.fee_collector, false),
+            AccountMeta::new(fee_collector, false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
-            AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(accounts.system_program, false),
+            AccountMeta::new_readonly(crate::ID, false), // _rent
         ];
 
         Instruction::new_with_borsh(crate::ID, &(LegacyInstruction::PostMessage, args), accounts)
