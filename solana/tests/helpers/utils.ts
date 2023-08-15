@@ -15,10 +15,10 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { expect } from "chai";
+import { execSync } from "child_process";
 import { Err, Ok } from "ts-results";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
-import { skip } from "node:test";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -114,31 +114,23 @@ export async function expectIxOkDetails(
   });
 }
 
-export function loadProgramBpf(
-  publisher: Keypair,
-  artifactPath: string,
-  bufferAuthority: PublicKey
-): PublicKey {
-  throw new Error("not implemented yet");
+export function loadProgramBpf(artifactPath: string, bufferAuthority: PublicKey): PublicKey {
   // Write keypair to temporary file.
-  //   const keypath = `${tmpPath()}/payer_${new Date().toISOString()}.json`;
-  //   fs.writeFileSync(keypath, JSON.stringify(Array.from(publisher.secretKey)));
+  const keypath = `${__dirname}/../keys/pFCBP4bhqdSsrWUVTgqhPsLrfEdChBK17vgFM7TxjxQ.json`;
 
-  //   // Invoke BPF Loader Upgradeable `write-buffer` instruction.
-  //   const buffer = (() => {
-  //     const output = execSync(
-  //       `solana -k ${keypath} program write-buffer ${artifactPath} -u localhost`
-  //     );
-  //     return new PublicKey(output.toString().match(/^.{8}([A-Za-z0-9]+)/)[1]);
-  //   })();
+  // Invoke BPF Loader Upgradeable `write-buffer` instruction.
+  const buffer = (() => {
+    const output = execSync(`solana -u l -k ${keypath} program write-buffer ${artifactPath}`);
+    return new PublicKey(output.toString().match(/^.{8}([A-Za-z0-9]+)/)[1]);
+  })();
 
-  //   // Invoke BPF Loader Upgradeable `set-buffer-authority` instruction.
-  //   execSync(
-  //     `solana -k ${keypath} program set-buffer-authority ${buffer.toString()} --new-buffer-authority ${bufferAuthority.toString()} -u localhost`
-  //   );
+  // Invoke BPF Loader Upgradeable `set-buffer-authority` instruction.
+  execSync(
+    `solana -k ${keypath} program set-buffer-authority ${buffer.toString()} --new-buffer-authority ${bufferAuthority.toString()} -u localhost`
+  );
 
-  //   // Return the pubkey for the buffer (our new program implementation).
-  //   return buffer;
+  // Return the pubkey for the buffer (our new program implementation).
+  return buffer;
 }
 
 async function debugSendAndConfirmTransaction(

@@ -79,10 +79,10 @@ pub struct PostMessage<'info> {
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
+    system_program: Program<'info, System>,
+
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,
-
-    system_program: Program<'info, System>,
 }
 
 pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> Result<()> {

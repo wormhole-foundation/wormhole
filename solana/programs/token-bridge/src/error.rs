@@ -15,6 +15,9 @@ pub enum TokenBridgeError {
     #[msg("InvalidMint")]
     InvalidMint = 0x06,
 
+    #[msg("CoreFeeCollectorRequired")]
+    CoreFeeCollectorRequired = 0x08,
+
     #[msg("InvalidGovernanceEmitter")]
     InvalidGovernanceEmitter = 0x20,
 

@@ -14,7 +14,7 @@ import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
-const GOVERNANCE_SEQUENCE = 2_003_000;
+const GOVERNANCE_SEQUENCE = 1_010_000;
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
   GOVERNANCE_SEQUENCE - 1

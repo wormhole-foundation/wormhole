@@ -112,12 +112,12 @@ export function handleLegacyPostMessageIx(
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: SystemProgram.programId,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: SystemProgram.programId,
+      pubkey: rent,
       isWritable: false,
       isSigner: false,
     },

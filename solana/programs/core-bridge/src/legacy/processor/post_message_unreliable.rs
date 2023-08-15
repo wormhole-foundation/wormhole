@@ -62,10 +62,10 @@ pub struct PostMessageUnreliable<'info> {
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
+    system_program: Program<'info, System>,
+
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,
-
-    system_program: Program<'info, System>,
 }
 
 impl<'info> PostMessageUnreliable<'info> {
