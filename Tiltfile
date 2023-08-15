@@ -675,6 +675,7 @@ if terra2:
         port_forwards = [
             port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
             port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
+            port_forward(9091, container_port = 9090, name = "Terra 2 GRPC [:1318]", host = webHost),
         ],
         labels = ["terra2"],
         trigger_mode = trigger_mode,
