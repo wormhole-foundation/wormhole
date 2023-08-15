@@ -9,6 +9,7 @@ import {
   getTokenBalances,
   parallelPostVaa,
   expectIxErr,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -46,7 +47,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
 
   describe("Ok", () => {
-    for (const { chain, decimals, address } of wrappedMints.slice(0, 1)) {
+    for (const { chain, decimals, address } of wrappedMints) {
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, No Fee)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
@@ -65,7 +66,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
         // Amounts.
         const amount = BigInt(699999);
-        const fee = BigInt(0);
+        let fee = BigInt(0);
 
         // Create the signed transfer VAA.
         const [signedVaa, forkSignedVaa] = [recipientToken, forkRecipientToken].map((acct) =>
@@ -98,21 +99,366 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
           payer
         );
 
+        // Denormalize the fee.
+        if (decimals > 8) {
+          fee = fee * BigInt(10 ** decimals - 8);
+        }
+
         // Check recipient and relayer token balance changes.
-        // await Promise.all([
-        //   tokenBridge.expectCorrectTokenBalanceChanges(
-        //     connection,
-        //     recipientToken.address,
-        //     recipientBalancesBefore,
-        //     tokenBridge.TransferDirection.In
-        //   ),
-        //   tokenBridge.expectCorrectRelayerBalanceChanges(
-        //     connection,
-        //     payerToken.address,
-        //     relayerBalancesBefore,
-        //     fee * BigInt(10 ** (decimals - 8))
-        //   ),
-        // ]);
+        await Promise.all([
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            recipientToken.address,
+            forkRecipientToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            amount
+          ),
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            payerToken.address,
+            forkPayerToken.address,
+            relayerBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            fee
+          ),
+        ]);
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, With Fee)`, async () => {
+        const [mint, forkMint] = [program, forkedProgram].map((program) =>
+          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+        );
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const [recipientToken, forkRecipientToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, recipient.publicKey),
+        ]);
+
+        const [payerToken, forkPayerToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+        ]);
+
+        // Amounts.
+        const amount = BigInt(4206999999);
+        let fee = BigInt(500000);
+
+        // Create the signed transfer VAA.
+        const [signedVaa, forkSignedVaa] = [recipientToken, forkRecipientToken].map((acct) =>
+          getSignedTransferVaa(address, amount, fee, acct.address)
+        );
+
+        // Fetch balances before.
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(
+            program,
+            forkedProgram,
+            recipientToken.address,
+            forkRecipientToken.address
+          ),
+          getTokenBalances(program, forkedProgram, payerToken.address, forkPayerToken.address),
+        ]);
+
+        // Complete the transfer.
+        await parallelTxDetails(
+          program,
+          forkedProgram,
+          {
+            recipientToken,
+            forkRecipientToken,
+          },
+          {
+            signedVaa,
+            forkSignedVaa,
+          },
+          payer
+        );
+
+        // Denormalize the fee.
+        if (decimals > 8) {
+          fee = fee * BigInt(10 ** decimals - 8);
+        }
+
+        // Check recipient and relayer token balance changes.
+        await Promise.all([
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            recipientToken.address,
+            forkRecipientToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            amount - fee
+          ),
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            payerToken.address,
+            forkPayerToken.address,
+            relayerBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            fee
+          ),
+        ]);
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Self Redemption no Fee)`, async () => {
+        const [mint, forkMint] = [program, forkedProgram].map((program) =>
+          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+        );
+        const [payerToken, forkPayerToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+        ]);
+
+        // Amounts.
+        const amount = BigInt(4206999999);
+        let fee = BigInt(0);
+
+        // Create the signed transfer VAA.
+        const [signedVaa, forkSignedVaa] = [payerToken, forkPayerToken].map((acct) =>
+          getSignedTransferVaa(address, amount, fee, acct.address)
+        );
+
+        // Fetch balances before.
+        const recipientBalancesBefore = await getTokenBalances(
+          program,
+          forkedProgram,
+          payerToken.address,
+          forkPayerToken.address
+        );
+
+        // Complete the transfer.
+        await parallelTxDetails(
+          program,
+          forkedProgram,
+          {
+            recipientToken: payerToken,
+            forkRecipientToken: forkPayerToken,
+          },
+          {
+            signedVaa,
+            forkSignedVaa,
+          },
+          payer
+        );
+
+        // Check recipient and relayer token balance changes.
+        await Promise.all([
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            payerToken.address,
+            forkPayerToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            amount // no fee for this test
+          ),
+        ]);
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Self Redemption with Fee)`, async () => {
+        const [mint, forkMint] = [program, forkedProgram].map((program) =>
+          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+        );
+        const [payerToken, forkPayerToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+        ]);
+
+        // Amounts, set fee to nonzero value.
+        const amount = BigInt(4206999999);
+        let fee = BigInt(500000);
+
+        // Create the signed transfer VAA.
+        const [signedVaa, forkSignedVaa] = [payerToken, forkPayerToken].map((acct) =>
+          getSignedTransferVaa(address, amount, fee, acct.address)
+        );
+
+        // Fetch balances before.
+        const recipientBalancesBefore = await getTokenBalances(
+          program,
+          forkedProgram,
+          payerToken.address,
+          forkPayerToken.address
+        );
+
+        // Complete the transfer.
+        await parallelTxDetails(
+          program,
+          forkedProgram,
+          {
+            recipientToken: payerToken,
+            forkRecipientToken: forkPayerToken,
+          },
+          {
+            signedVaa,
+            forkSignedVaa,
+          },
+          payer
+        );
+
+        // Check recipient and relayer token balance changes.
+        await Promise.all([
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            payerToken.address,
+            forkPayerToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            amount // Fee shouldn't be paid out, so we don't need to account for it.
+          ),
+        ]);
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(
+          address,
+          amount,
+          fee,
+          recipient.publicKey // Recipient is the wallet address, not the ATA.
+        );
+
+        // Fetch balances before.
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken.address),
+        ]);
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxOkDetails(connection, [ix], [payer]);
+
+        // Denormalize the fee.
+        if (decimals > 8) {
+          fee = fee * BigInt(10 ** decimals - 8);
+        }
+
+        // Check recipient and relayer token balance changes.
+        const [recipientBalancesAfter, relayerBalancesAfter] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken.address),
+        ]);
+
+        expect(recipientBalancesAfter.token - recipientBalancesBefore.token).equals(amount - fee);
+        expect(relayerBalancesAfter.token - relayerBalancesBefore.token).equals(fee);
+      });
+
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(
+          address,
+          amount,
+          fee,
+          recipientToken.address,
+          CHAIN_ID_ETH // Invalid target chain.
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "RecipientChainNotSolana");
+      });
+
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Recipient ATA)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: payerToken.address }, // Pass invalid recipient ATA
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
       });
     }
   });
