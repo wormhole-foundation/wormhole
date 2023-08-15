@@ -306,9 +306,7 @@ export function stringifyWormholeRelayerInfo(
           }Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${ethers.utils.formatEther(
             executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed)
           )} of ${targetChainName} currency\n${
-            !refundAddressChosen || e.status === "Forward Request Success"
-              ? ""
-              : `Refund amount: ${ethers.utils.formatEther(
+              `Refund amount: ${ethers.utils.formatEther(
                   executionInfo.targetChainRefundPerGasUnused.mul(
                     executionInfo.gasLimit.sub(e.gasUsed)
                   )
