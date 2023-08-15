@@ -48,7 +48,7 @@ var wormchainMigrateContractInstantiationMsg *string
 var wormchainWasmInstantiateAllowlistCodeId *string
 var wormchainWasmInstantiateAllowlistContractAddress *string
 
-var wormchainIbcComposabilityMwContractAddress *string
+var gatewayIbcComposabilityMwContractAddress *string
 
 var ibcUpdateChannelChainTargetChainId *string
 var ibcUpdateChannelChainChannelId *string
@@ -132,11 +132,11 @@ func init() {
 	TemplateCmd.AddCommand(AdminClientWormchainAddWasmInstantiateAllowlistCmd)
 	TemplateCmd.AddCommand(AdminClientWormchainDeleteWasmInstantiateAllowlistCmd)
 
-	// flags for the wormchain-ibc-composability-mw-set-contract command
-	wormchainIbcComposabilityMwFlagSet := pflag.NewFlagSet("wormchain-ibc-composability-mw-set-contract", pflag.ExitOnError)
-	wormchainIbcComposabilityMwContractAddress = wormchainIbcComposabilityMwFlagSet.String("contract-address", "", "contract address to set in the ibc composability middleware")
-	AdminClientWormchainIbcComposabilityMwSetContractCmd.Flags().AddFlagSet(wormchainIbcComposabilityMwFlagSet)
-	TemplateCmd.AddCommand(AdminClientWormchainIbcComposabilityMwSetContractCmd)
+	// flags for the gateway-ibc-composability-mw-set-contract command
+	gatewayIbcComposabilityMwFlagSet := pflag.NewFlagSet("gateway-ibc-composability-mw-set-contract", pflag.ExitOnError)
+	gatewayIbcComposabilityMwContractAddress = gatewayIbcComposabilityMwFlagSet.String("contract-address", "", "contract address to set in the ibc composability middleware")
+	AdminClientGatewayIbcComposabilityMwSetContractCmd.Flags().AddFlagSet(gatewayIbcComposabilityMwFlagSet)
+	TemplateCmd.AddCommand(AdminClientGatewayIbcComposabilityMwSetContractCmd)
 
 	// flags for the ibc-receiver-update-channel-chain and ibc-translator-update-channel-chain commands
 	ibcUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
@@ -147,6 +147,9 @@ func init() {
 	AdminClientIbcTranslatorUpdateChannelChainCmd.Flags().AddFlagSet(ibcUpdateChannelChainFlagSet)
 	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 	TemplateCmd.AddCommand(AdminClientIbcTranslatorUpdateChannelChainCmd)
+
+	// AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd doesn't have any flags
+	TemplateCmd.AddCommand(AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -226,10 +229,16 @@ var AdminClientWormchainDeleteWasmInstantiateAllowlistCmd = &cobra.Command{
 	Run:   runWormchainDeleteWasmInstantiateAllowlistTemplate,
 }
 
-var AdminClientWormchainIbcComposabilityMwSetContractCmd = &cobra.Command{
-	Use:   "wormchain-ibc-composability-mw-set-contract",
+var AdminClientGatewayIbcComposabilityMwSetContractCmd = &cobra.Command{
+	Use:   "gateway-ibc-composability-mw-set-contract",
 	Short: "Set the contract that the IBC Composability middleware will query",
-	Run:   runWormchainIbcComposabilityMwSetContractTemplate,
+	Run:   runGatewayIbcComposabilityMwSetContractTemplate,
+}
+
+var AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd = &cobra.Command{
+	Use:   "gateway-set-tokenfactory-pfm-default-params",
+	Short: "Generate an empty gateway set tokenfactory pfm default params template at specified path",
+	Run:   runGatewaySetTokenfactoryPfmDefaultParamsTemplate,
 }
 
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
@@ -674,8 +683,8 @@ func runWormchainWasmInstantiateAllowlistTemplate(action nodev1.WormchainWasmIns
 	fmt.Print(string(b))
 }
 
-func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args []string) {
-	if *wormchainIbcComposabilityMwContractAddress == "" {
+func runGatewayIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args []string) {
+	if *gatewayIbcComposabilityMwContractAddress == "" {
 		log.Fatal("--contract-address must be specified")
 	}
 
@@ -685,10 +694,31 @@ func runWormchainIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args 
 			{
 				Sequence: rand.Uint64(),
 				Nonce:    rand.Uint32(),
-				Payload: &nodev1.GovernanceMessage_WormchainIbcComposabilityMwSetContract{
-					WormchainIbcComposabilityMwSetContract: &nodev1.WormchainIbcComposabilityMwSetContract{
-						Contract: *wormchainIbcComposabilityMwContractAddress,
+				Payload: &nodev1.GovernanceMessage_GatewayIbcComposabilityMwSetContract{
+					GatewayIbcComposabilityMwSetContract: &nodev1.GatewayIbcComposabilityMwSetContract{
+						Contract: *gatewayIbcComposabilityMwContractAddress,
 					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGatewaySetTokenfactoryPfmDefaultParamsTemplate(cmd *cobra.Command, args []string) {
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams{
+					GatewaySetTokenfactoryPfmDefaultParams: &nodev1.GatewaySetTokenfactoryPfmDefaultParams{},
 				},
 			},
 		},

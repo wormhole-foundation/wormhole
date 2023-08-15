@@ -13,28 +13,26 @@ import (
 
 var _ = strconv.Itoa(0)
 
-// CmdSetIbcComposabilityMwContract will set the contract that ibc composability middleware will use.
-func CmdSetIbcComposabilityMwContract() *cobra.Command {
+// CmdExecuteGatewayGovernanceVaa will submit and execute a governance VAA for wormhole Gateway.
+func CmdExecuteGatewayGovernanceVaa() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-ibc-composability-mw-contract [bech32 contract addr] [vaa-hex]",
-		Short: "Sets the contract that ibc composability middleware will use",
-		Args:  cobra.ExactArgs(2),
+		Use:   "execute-gateway-governance-vaa [vaa-hex]",
+		Short: "Execute the provided Wormhole Gateway governance VAA",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			address := args[0]
 
-			vaaBz, err := hex.DecodeString(args[1])
+			vaaBz, err := hex.DecodeString(args[0])
 			if err != nil {
 				return err
 			}
 
-			msg := types.MsgSetIbcComposabilityMwContract{
-				Signer:  clientCtx.GetFromAddress().String(),
-				Address: address,
-				Vaa:     vaaBz,
+			msg := types.MsgExecuteGatewayGovernanceVaa{
+				Signer: clientCtx.GetFromAddress().String(),
+				Vaa:    vaaBz,
 			}
 
 			if err = msg.ValidateBasic(); err != nil {

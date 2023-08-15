@@ -23,12 +23,14 @@ service Msg {
   rpc AddWasmInstantiateAllowlist(MsgAddWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
   rpc DeleteWasmInstantiateAllowlist(MsgDeleteWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
 
-  rpc SetIbcComposabilityMwContract(MsgSetIbcComposabilityMwContract) returns (MsgSetIbcComposabilityMwContractResponse);
-
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
+
+  rpc ExecuteGatewayGovernanceVaa(MsgExecuteGatewayGovernanceVaa) returns (EmptyResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
+
+message EmptyResponse {}
 
 message MsgCreateAllowlistEntryRequest {
   // signer should be a guardian validator in a current set or future set.
@@ -124,18 +126,7 @@ message MsgDeleteWasmInstantiateAllowlist {
     bytes vaa = 4;
 }
 
-message MsgWasmInstantiateAllowlistResponse {}
-
-message MsgSetIbcComposabilityMwContract {
-    // signer should be a guardian validator in a current set or future set.
-    string signer = 1;
-    // the contract address to set
-    string address = 2;
-    // vaa is the SetIbcComposabilityMwContract governance message
-    bytes vaa = 3;
-}
-
-message MsgSetIbcComposabilityMwContractResponse {}
+message MsgWasmInstantiateAllowlistResponse {} 
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {
@@ -159,3 +150,10 @@ message MsgMigrateContractResponse {
   bytes data = 1;
 }
 // this line is used by starport scaffolding # proto/tx/message
+
+message MsgExecuteGatewayGovernanceVaa {
+  // Sender is the actor that signs the messages
+  string signer = 1;
+  // vaa must be governance msg with valid module, action, and payload
+  bytes vaa = 2;
+}

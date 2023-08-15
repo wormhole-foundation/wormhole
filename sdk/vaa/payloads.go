@@ -74,7 +74,8 @@ var (
 	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
 
 	// Gateway governance actions
-	ActionSetIbcComposabilityMwContract GovernanceAction = 1
+	ActionSetIbcComposabilityMwContract   GovernanceAction = 1
+	ActionSetTokenfactoryPfmDefaultParams GovernanceAction = 2
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -160,8 +161,8 @@ type (
 		CodeId       uint64
 	}
 
-	// BodyWormchainIbcComposabilityMwContract is a governance message to set a specific contract (i.e. IBC Translator) for the ibc composability middleware to use
-	BodyWormchainIbcComposabilityMwContract struct {
+	// BodyGatewayIbcComposabilityMwContract is a governance message to set a specific contract (i.e. IBC Translator) for the ibc composability middleware to use
+	BodyGatewayIbcComposabilityMwContract struct {
 		ContractAddr [32]byte
 	}
 
@@ -305,13 +306,13 @@ func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 	r.CodeId = codeId
 }
 
-func (r BodyWormchainIbcComposabilityMwContract) Serialize() []byte {
+func (r BodyGatewayIbcComposabilityMwContract) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionSetIbcComposabilityMwContract, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyWormchainIbcComposabilityMwContract) Deserialize(bz []byte) {
+func (r *BodyGatewayIbcComposabilityMwContract) Deserialize(bz []byte) {
 	if len(bz) != 32 {
 		panic("incorrect payload length")
 	}
@@ -355,6 +356,10 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+}
+
+func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) []byte {
+	return serializeBridgeGovernanceVaa(module, actionId, chainId, []byte{})
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
