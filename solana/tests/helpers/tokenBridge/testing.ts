@@ -51,6 +51,33 @@ export async function expectCorrectTokenBalanceChanges(
   }
 }
 
+export async function expectCorrectWrappedTokenBalanceChanges(
+  connection: Connection,
+  token: PublicKey,
+  forkedToken: PublicKey,
+  balancesBefore: TokenBalances,
+  direction: TransferDirection,
+  expectedChange: bigint
+) {
+  const program = getAnchorProgram(connection, localnet());
+  const forkedProgram = getAnchorProgram(connection, mainnet());
+  const balancesAfter = await getTokenBalances(program, forkedProgram, token, forkedToken);
+
+  switch (direction) {
+    case TransferDirection.Out: {
+      throw new Error("Not implemented yet.");
+    }
+    case TransferDirection.In: {
+      expect(balancesAfter.token - balancesBefore.token).to.equal(expectedChange);
+      expect(balancesAfter.forkToken - balancesBefore.forkToken).to.equal(expectedChange);
+      return;
+    }
+    default: {
+      throw new Error("impossible TransferDirection");
+    }
+  }
+}
+
 export async function expectCorrectRelayerBalanceChanges(
   connection: Connection,
   token: PublicKey,
