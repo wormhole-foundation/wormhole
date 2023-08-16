@@ -283,6 +283,23 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	return v, nil
 }
 
+func gatewayScheduleUpgrade(req *nodev1.GatewayScheduleUpgrade, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyGatewayScheduleUpgrade{
+		Name:   req.Name,
+		Height: req.Height,
+	}.Serialize())
+
+	return v, nil
+}
+
+func gatewayCancelUpgrade(timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain),
+	)
+
+	return v, nil
+}
+
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -422,6 +439,10 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainMigrateContract:
 			v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_GatewayScheduleUpgrade:
+			v, err = gatewayScheduleUpgrade(payload.GatewayScheduleUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_GatewayCancelUpgrade:
+			v, err = gatewayCancelUpgrade(timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 			v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:

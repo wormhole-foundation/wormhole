@@ -31,6 +31,9 @@ var module *string
 var shutdownGuardianKey *string
 var shutdownPubKey *string
 
+var gatewayScheduleUpgradeName *string
+var gatewayScheduleUpgradeHeight *string
+
 var circleIntegrationChainID *string
 var circleIntegrationFinality *string
 var circleIntegrationForeignEmitterChainID *string
@@ -72,6 +75,16 @@ func init() {
 
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
+
+	// flags for the gateway-schedule-upgrade command
+	gatewayScheduleUpgradeFlagSet := pflag.NewFlagSet("gateway-schedule-upgrade", pflag.ExitOnError)
+	gatewayScheduleUpgradeName = gatewayScheduleUpgradeFlagSet.String("name", "", "Scheduled upgrade name")
+	gatewayScheduleUpgradeHeight = gatewayScheduleUpgradeFlagSet.String("height", "", "Scheduled upgrade height")
+	AdminClientGatewayScheduleUpgradeCmd.Flags().AddFlagSet(gatewayScheduleUpgradeFlagSet)
+	TemplateCmd.AddCommand(AdminClientGatewayScheduleUpgradeCmd)
+
+	// AdminClientGatewayCancelUpgradeCmd doesn't have any flags
+	TemplateCmd.AddCommand(AdminClientGatewayCancelUpgradeCmd)
 
 	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
 	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
@@ -137,6 +150,18 @@ var AdminClientShutdownProofCmd = &cobra.Command{
 	Use:   "shutdown-proof",
 	Short: "Generate an auth proof for shutdown voting on behalf of the guardian.",
 	Run:   runShutdownProofTemplate,
+}
+
+var AdminClientGatewayScheduleUpgradeCmd = &cobra.Command{
+	Use:   "gateway-schedule-upgrade",
+	Short: "Schedule an upgrade on Gateway with a specified name for a specified height",
+	Run:   runGatewayScheduleUpgradeTemplate,
+}
+
+var AdminClientGatewayCancelUpgradeCmd = &cobra.Command{
+	Use:   "gateway-cancel-upgrade",
+	Short: "Cancel a scheduled upgrade on Gateway",
+	Run:   runGatewayCancelUpgradeTemplate,
 }
 
 var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
@@ -337,6 +362,62 @@ func runShutdownProofTemplate(cmd *cobra.Command, args []string) {
 
 	proofHex := hex.EncodeToString(ethProof)
 	fmt.Print(proofHex)
+}
+
+func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
+	if *gatewayScheduleUpgradeName == "" {
+		log.Fatal("--name must be specified")
+	}
+
+	if *gatewayScheduleUpgradeHeight == "" {
+		log.Fatal("--height must be specified")
+	}
+
+	height, err := strconv.ParseUint(*gatewayScheduleUpgradeHeight, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse height as uint64: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_GatewayScheduleUpgrade{
+					GatewayScheduleUpgrade: &nodev1.GatewayScheduleUpgrade{
+						Name:   *gatewayScheduleUpgradeName,
+						Height: height,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGatewayCancelUpgradeTemplate(cmd *cobra.Command, args []string) {
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload:  &nodev1.GovernanceMessage_GatewayCancelUpgrade{},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
 }
 
 func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args []string) {
