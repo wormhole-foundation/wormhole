@@ -18,25 +18,25 @@ The Wormhole project engages 3rd party firms to conduct independent security aud
 
 As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
 
-- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Ethereum Contracts_
-- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solana Contracts_
-- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Terra Contracts_
-- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Guardian_
-- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solitaire_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Solana Contracts_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Terra Contracts_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Guardian_
-- **[August 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-08-16_kudelski.pdf)**: _Algorand Contracts_
-- **[September 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_Near_OtterSec.pdf)**: _NEAR Contracts_
-- **[September 2022 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _Solana Contracts_
-- **[September 2022 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
-- **[October 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
-- **[October 2022 - Hacken](https://storage.googleapis.com/wormhole-audits/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
-- **[November 2022 - Zellic](https://storage.googleapis.com/wormhole-audits/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
-- **[February 2023 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
-- **[April 2023 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
-- **[April 2023 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
+- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Ethereum Contracts_
+- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Solana Contracts_
+- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Terra Contracts_
+- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Guardian_
+- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Solitaire_
+- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Ethereum Contracts_
+- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Solana Contracts_
+- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Terra Contracts_
+- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Guardian_
+- **[August 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-08-16_kudelski.pdf)**: _Algorand Contracts_
+- **[September 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Near_OtterSec.pdf)**: _NEAR Contracts_
+- **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _Solana Contracts_
+- **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
+- **[October 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
+- **[October 2022 - Hacken](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
+- **[November 2022 - Zellic](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
+- **[February 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
+- **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
+- **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
 - **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
 - **Q4 2022 - Halborn (DRAFT)**: _Accounting_
 - **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
