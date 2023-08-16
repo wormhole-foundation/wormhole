@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
   AccountMeta,
   PublicKey,
@@ -11,12 +11,13 @@ import { LegacyTransferTokensWithPayloadArgs } from "..";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
 import * as coreBridge from "../../../../coreBridge";
 import { Config, coreEmitterPda, WrappedAsset, transferAuthorityPda } from "../../state";
+import { getAccount } from "@solana/spl-token";
 
 export type LegacyTransferTokensWithPayloadWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  srcToken: PublicKey;
-  srcOwner: PublicKey;
+  srcToken?: PublicKey;
+  srcOwner?: PublicKey;
   wrappedMint: PublicKey;
   wrappedAsset?: PublicKey;
   transferAuthority?: PublicKey;
@@ -31,7 +32,7 @@ export type LegacyTransferTokensWithPayloadWrappedContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyTransferTokensWithPayloadWrappedIx(
+export async function legacyTransferTokensWithPayloadWrappedIx(
   program: TokenBridgeProgram,
   accounts: LegacyTransferTokensWithPayloadWrappedContext,
   args: LegacyTransferTokensWithPayloadArgs
@@ -63,6 +64,14 @@ export function legacyTransferTokensWithPayloadWrappedIx(
 
   if (config === undefined) {
     config = Config.address(programId);
+  }
+
+  if (srcToken === undefined) {
+    srcToken = getAssociatedTokenAddressSync(wrappedMint, payer);
+  }
+
+  if (srcOwner === undefined) {
+    srcOwner = await getAccount(program.provider.connection, srcToken).then((a) => a.owner);
   }
 
   if (wrappedAsset === undefined) {

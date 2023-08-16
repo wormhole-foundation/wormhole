@@ -31,13 +31,13 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
         );
 
-        // Fetch recipient token account, these accounts shoudl've been created in other tests.
+        // Fetch recipient token account, these accounts should've been created in other tests.
         const [payerToken, forkPayerToken] = await Promise.all([
           getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
           getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
         ]);
 
-        // Fetch balances before.
+        // Fetch balance before the outbound transfer.
         const balancesBefore = await getTokenBalances(
           program,
           forkedProgram,
@@ -45,7 +45,7 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
           forkPayerToken.address
         );
 
-        // Amount.
+        // Transfer amount.
         const amount = new anchor.BN("88888888");
 
         // Invoke the instruction.
@@ -107,12 +107,15 @@ async function parallelTxDetails(
   senderAuthority: anchor.web3.Keypair
 ) {
   const connection = program.provider.connection;
+
+  // Accounts and args.
+  const { payer: owner, wrappedMint, forkWrappedMint, srcToken, forkSrcToken, srcOwner } = accounts;
   const { amount } = args;
   const coreMessage = anchor.web3.Keypair.generate();
-  const { payer: owner, wrappedMint, forkWrappedMint, srcToken, forkSrcToken, srcOwner } = accounts;
 
+  // Approve the transfer.
   const approveIx = tokenBridge.approveTransferAuthorityIx(program, srcToken, owner, amount);
-  const ix = tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
+  const ix = await tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
     program,
     {
       coreMessage: coreMessage.publicKey,
@@ -127,6 +130,7 @@ async function parallelTxDetails(
     args
   );
 
+  // Approve the forked transfer.
   const forkCoreMessage = anchor.web3.Keypair.generate();
   const forkedApproveIx = tokenBridge.approveTransferAuthorityIx(
     forkedProgram,
@@ -134,7 +138,7 @@ async function parallelTxDetails(
     owner,
     amount
   );
-  const forkedIx = tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
+  const forkedIx = await tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
     forkedProgram,
     {
       coreMessage: forkCoreMessage.publicKey,
