@@ -83,7 +83,7 @@ export async function legacyTransferTokensWithPayloadWrappedIx(
   }
 
   if (coreBridgeData === undefined) {
-    coreBridgeData = coreBridge.BridgeProgramData.address(coreBridgeProgram);
+    coreBridgeData = coreBridge.Config.address(coreBridgeProgram);
   }
 
   if (coreEmitter === undefined) {
