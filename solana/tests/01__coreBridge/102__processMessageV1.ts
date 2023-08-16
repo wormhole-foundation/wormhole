@@ -25,11 +25,29 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    // TODO
+    it.skip("Cannot Invoke `process_message_v1` with Different Emitter Authority", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot Invoke `process_message_v1` to Close Draft Message without `close_account_destination`", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot Invoke `process_message_v1` with Nonsensical Index", async () => {
+      // TODO
+    });
   });
 
   describe("Ok", () => {
-    it.skip("Invoke `process_message_v1` With Large Message", async () => {
+    it.skip("Invoke `process_message_v1` to Write Part of Large Message", async () => {
+      // TODO
+    });
+
+    it.skip("Invoke `process_message_v1` to Write More of Large Message", async () => {
+      // TODO
+    });
+
+    it.skip("Invoke `process_message_v1` to Close Draft Message", async () => {
       // TODO
     });
   });

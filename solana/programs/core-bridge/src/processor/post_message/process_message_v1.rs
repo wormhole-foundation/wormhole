@@ -35,7 +35,11 @@ impl<'info> ProcessMessageV1<'info> {
             info.status == MessageStatus::Writing,
             CoreBridgeError::MessageAlreadyPublished
         );
-        require_keys_eq!(info.emitter_authority, ctx.accounts.emitter_authority.key());
+        require_keys_eq!(
+            info.emitter_authority,
+            ctx.accounts.emitter_authority.key(),
+            CoreBridgeError::EmitterAuthorityMismatch
+        );
 
         // Done.
         Ok(())
@@ -53,14 +57,14 @@ pub fn process_message_v1(
     ctx: Context<ProcessMessageV1>,
     directive: ProcessMessageV1Directive,
 ) -> Result<()> {
-    let msg_acct_info = &ctx.accounts.draft_message;
+    let msg_acc_info = &ctx.accounts.draft_message;
     match directive {
         ProcessMessageV1Directive::CloseMessageAccount => {
             match &ctx.accounts.close_account_destination {
                 Some(sol_destination) => {
                     msg!("Directive: CloseMessageAccount");
                     utils::close_account(
-                        msg_acct_info.to_account_info(),
+                        msg_acc_info.to_account_info(),
                         sol_destination.to_account_info(),
                     )
                 }
@@ -70,7 +74,7 @@ pub fn process_message_v1(
         ProcessMessageV1Directive::Write { index, data } => {
             msg!("Directive: Write");
             write_message(
-                msg_acct_info,
+                msg_acc_info,
                 index
                     .try_into()
                     .map_err(|_| CoreBridgeError::InvalidInstructionArgument)?,
@@ -80,9 +84,9 @@ pub fn process_message_v1(
     }
 }
 
-fn write_message(msg_acct_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
+fn write_message(msg_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
     let msg_length = {
-        let mut acct_data: &[u8] = &msg_acct_info.try_borrow_data()?;
+        let mut acct_data: &[u8] = &msg_acc_info.try_borrow_data()?;
         acct_data = &acct_data[(START - 4)..];
 
         let payload_len = u32::deserialize(&mut acct_data)?;
@@ -92,7 +96,7 @@ fn write_message(msg_acct_info: &AccountInfo, index: usize, data: Vec<u8>) -> Re
     let end = index.saturating_add(data.len());
     require_gte!(msg_length, end, CoreBridgeError::DataOverflow);
 
-    let acct_data = &mut msg_acct_info.try_borrow_mut_data()?;
+    let acct_data = &mut msg_acc_info.try_borrow_mut_data()?;
     acct_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
