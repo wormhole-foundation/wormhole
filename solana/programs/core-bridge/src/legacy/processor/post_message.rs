@@ -2,8 +2,8 @@ use crate::{
     error::CoreBridgeError,
     legacy::instruction::LegacyPostMessageArgs,
     state::{
-        BridgeProgramData, EmitterSequence, FeeCollector, MessageStatus, PostedMessageV1,
-        PostedMessageV1Data, PostedMessageV1Info,
+        Config, EmitterSequence, FeeCollector, MessageStatus, PostedMessageV1, PostedMessageV1Data,
+        PostedMessageV1Info,
     },
 };
 use anchor_lang::prelude::*;
@@ -16,10 +16,10 @@ pub struct PostMessage<'info> {
     /// been paid.
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     /// Posted message account data.
     ///
@@ -95,7 +95,7 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
             require_keys_eq!(ctx.accounts.message.emitter, Default::default());
 
             handle_post_new_message(
-                &mut ctx.accounts.bridge,
+                &mut ctx.accounts.config,
                 &mut ctx.accounts.message,
                 &ctx.accounts.emitter_authority,
                 &mut ctx.accounts.emitter_sequence,
@@ -106,7 +106,7 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
         MessageStatus::Writing => {
             msg!("MessageStatus: Writing");
             handle_post_prepared_message(
-                &mut ctx.accounts.bridge,
+                &mut ctx.accounts.config,
                 &mut ctx.accounts.message,
                 &ctx.accounts.emitter_authority,
                 &mut ctx.accounts.emitter_sequence,
@@ -118,7 +118,7 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
 }
 
 pub(in crate::legacy) fn handle_post_new_message(
-    bridge: &mut Account<BridgeProgramData>,
+    config: &mut Account<Config>,
     msg: &mut PostedMessageV1Data,
     emitter: &Signer,
     emitter_sequence: &mut Account<EmitterSequence>,
@@ -137,11 +137,11 @@ pub(in crate::legacy) fn handle_post_new_message(
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    // Determine whether fee has been paid. Update bridge program data account if so.
+    // Determine whether fee has been paid. Update core bridge config account if so.
     //
     // NOTE: This is inconsistent with other Core Bridge implementations, where we would check that
     // the change would equal exactly the fee amount.
-    handle_message_fee(bridge, fee_collector)?;
+    handle_message_fee(config, fee_collector)?;
 
     // Sequence number will be used later on.
     let sequence = emitter_sequence.value;
@@ -174,7 +174,7 @@ pub(in crate::legacy) fn handle_post_new_message(
 }
 
 fn handle_post_prepared_message(
-    bridge: &mut Account<BridgeProgramData>,
+    config: &mut Account<Config>,
     msg: &mut PostedMessageV1Data,
     emitter_authority: &Signer,
     emitter_sequence: &mut Account<EmitterSequence>,
@@ -197,11 +197,11 @@ fn handle_post_prepared_message(
     // this Core Bridge message.
     require_keys_eq!(msg.emitter_authority, emitter_authority.key());
 
-    // Determine whether fee has been paid. Update bridge program data account if so.
+    // Determine whether fee has been paid. Update core bridge config account if so.
     //
     // NOTE: This is inconsistent with other Core Bridge implementations, where we would check that
     // the change would equal exactly the fee amount.
-    handle_message_fee(bridge, fee_collector)?;
+    handle_message_fee(config, fee_collector)?;
 
     // Now indicate that this message will be observed by the guardians.
     msg.status = MessageStatus::Unset;
@@ -219,29 +219,26 @@ fn handle_post_prepared_message(
 }
 
 fn handle_message_fee(
-    bridge: &mut Account<BridgeProgramData>,
+    config: &mut Account<Config>,
     fee_collector: &Option<Account<FeeCollector>>,
 ) -> Result<()> {
-    if bridge.fee_lamports == 0 {
-        // Nothing to do.
-        Ok(())
-    } else {
-        match fee_collector {
-            Some(fee_collector) => {
-                let collector_lamports = fee_collector.to_account_info().lamports();
-                require!(
-                    collector_lamports >= bridge.last_lamports.saturating_add(bridge.fee_lamports),
-                    CoreBridgeError::InsufficientMessageFee
-                );
+    match (config.fee_lamports, fee_collector) {
+        (0, _) => Ok(()), // Nothing to do.
+        (lamports, Some(fee_collector)) => {
+            let collector_lamports = fee_collector.to_account_info().lamports();
+            require_eq!(
+                collector_lamports,
+                config.last_lamports.saturating_add(lamports),
+                CoreBridgeError::InsufficientMessageFee
+            );
 
-                // Update bridge program data to reflect paid fees.
-                bridge.last_lamports = collector_lamports;
+            // Update core bridge config to reflect paid fees.
+            config.last_lamports = collector_lamports;
 
-                // Done.
-                Ok(())
-            }
-            None => err!(ErrorCode::AccountNotEnoughKeys),
+            // Done.
+            Ok(())
         }
+        _ => err!(ErrorCode::AccountNotEnoughKeys),
     }
 }
 

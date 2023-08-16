@@ -1,8 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, FeeCollector, PartialPostedVaaV1, VaaV1MessageHash},
-    utils::GOVERNANCE_DECREE_START,
+    state::{Claim, Config, FeeCollector, PartialPostedVaaV1, VaaV1MessageHash},
 };
 use anchor_lang::{
     prelude::*,
@@ -10,6 +9,8 @@ use anchor_lang::{
 };
 use wormhole_io::Readable;
 use wormhole_solana_common::SeedPrefix;
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_TRANSFER_FEES: u8 = 4;
 
@@ -20,10 +21,10 @@ pub struct TransferFees<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     #[account(
         seeds = [
@@ -66,9 +67,9 @@ pub struct TransferFees<'info> {
 
 impl<'info> TransferFees<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(
+        let action = super::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
-            &ctx.accounts.bridge,
+            &ctx.accounts.config,
         )?;
 
         require_eq!(
@@ -138,8 +139,8 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
         amount,
     )?;
 
-    // Set the bridge program data to reflect removing collected fees.
-    ctx.accounts.bridge.last_lamports = fee_collector.lamports();
+    // Set the config program data to reflect removing collected fees.
+    ctx.accounts.config.last_lamports = fee_collector.lamports();
 
     // Done.
     Ok(())

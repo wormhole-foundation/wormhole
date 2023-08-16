@@ -1,3 +1,4 @@
+import { BN } from "@coral-xyz/anchor";
 import {
   AccountInfo,
   Commitment,
@@ -7,14 +8,25 @@ import {
 } from "@solana/web3.js";
 
 export class Config {
-  coreBridge: PublicKey;
+  guardianSetIndex: number;
+  lastLamports: BN;
+  guardianSetTtl: number;
+  feeLamports: BN;
 
-  private constructor(coreBridge: PublicKey) {
-    this.coreBridge = coreBridge;
+  private constructor(
+    guardianSetIndex: number,
+    lastLamports: BN,
+    guardianSetTtl: number,
+    feeLamports: BN
+  ) {
+    this.guardianSetIndex = guardianSetIndex;
+    this.lastLamports = lastLamports;
+    this.guardianSetTtl = guardianSetTtl;
+    this.feeLamports = feeLamports;
   }
 
   static address(programId: PublicKey): PublicKey {
-    return PublicKey.findProgramAddressSync([Buffer.from("config")], programId)[0];
+    return PublicKey.findProgramAddressSync([Buffer.from("Bridge")], programId)[0];
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): Config {
@@ -38,10 +50,14 @@ export class Config {
   }
 
   static deserialize(data: Buffer): Config {
-    if (data.length != 32) {
-      throw new Error("data.length != 32");
+    if (data.length != 24) {
+      throw new Error("data.length != 24");
     }
-    const coreBridge = new PublicKey(data);
-    return new Config(coreBridge);
+    const guardianSetIndex = data.readUInt32LE(0);
+    const lastLamports = new BN(data.subarray(4, 12), undefined, "le");
+
+    const guardianSetExpirationTime = data.readUInt32LE(12);
+    const feeLamports = new BN(data.subarray(16, 24), undefined, "le");
+    return new Config(guardianSetIndex, lastLamports, guardianSetExpirationTime, feeLamports);
   }
 }

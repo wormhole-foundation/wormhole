@@ -34,13 +34,11 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
       {
         label: "instructions",
         contextName: "instructions",
-        address: anchor.web3.Keypair.generate().publicKey,
         errorMsg: "AccountSysvarMismatch",
       },
       {
         label: "guardian_set",
         contextName: "guardianSet",
-        address: null,
         errorMsg: "ConstraintSeeds",
         dataLength: 4 + 4 + 20 * 19 + 4 + 4,
       },
@@ -48,20 +46,18 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
-        const createResult = await (async () => {
-          if (cfg.address === null) {
-            const { generated, createIx } = await createAccountIx(
-              program.provider.connection,
-              program.programId,
-              payer,
-              cfg.dataLength!
-            );
-            cfg.address = generated.publicKey;
-            return { generated, createIx };
-          } else {
-            return null;
-          }
-        })();
+        const created = anchor.web3.Keypair.generate();
+
+        if (cfg.dataLength !== undefined) {
+          const ix = await createAccountIx(
+            program.provider.connection,
+            program.programId,
+            payer,
+            created,
+            cfg.dataLength
+          );
+          await expectIxOk(connection, [ix], [payer, created]);
+        }
 
         const signatureSet = anchor.web3.Keypair.generate();
         let accounts: coreBridge.LegacyVerifySignaturesContext = {
@@ -69,23 +65,13 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
           guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
           signatureSet: signatureSet.publicKey,
         };
-        accounts[cfg.contextName] = cfg.address;
+        accounts[cfg.contextName] = created.publicKey;
 
-        const signers = [payer, signatureSet];
-        const ixs: anchor.web3.TransactionInstruction[] = [];
-        if (createResult !== null) {
-          const { generated, createIx } = createResult;
-          signers.push(generated);
-          ixs.push(createIx);
-        }
+        const ix = coreBridge.legacyVerifySignaturesIx(program, accounts, {
+          signerIndices: new Array(19),
+        });
 
-        ixs.push(
-          coreBridge.legacyVerifySignaturesIx(program, accounts, {
-            signerIndices: new Array(19),
-          })
-        );
-
-        await expectIxErr(connection, ixs, signers, cfg.errorMsg);
+        await expectIxErr(connection, [ix], [payer, signatureSet], cfg.errorMsg);
       });
     }
 

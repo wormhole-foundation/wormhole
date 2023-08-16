@@ -6,7 +6,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use core_bridge_program::{self, state::BridgeProgramData, CoreBridge};
+use core_bridge_program::{self, state::Config as CoreBridgeConfig, CoreBridge};
 use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
 
@@ -57,11 +57,11 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     /// We need to deserialize this account to determine the Wormhole message fee.
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [CoreBridgeConfig::SEED_PREFIX],
         bump,
         seeds::program = core_bridge_program
     )]
-    core_bridge_data: Account<'info, BridgeProgramData>,
+    core_bridge_config: Account<'info, CoreBridgeConfig>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -143,7 +143,7 @@ pub fn transfer_tokens_with_payload_wrapped(
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
         PostTokenBridgeMessage {
-            core_bridge_data: &ctx.accounts.core_bridge_data,
+            core_bridge_config: &ctx.accounts.core_bridge_config,
             core_message: &ctx.accounts.core_message,
             core_emitter: &ctx.accounts.core_emitter,
             core_emitter_sequence: &ctx.accounts.core_emitter_sequence,

@@ -2,13 +2,14 @@ use crate::{
     constants::UPGRADE_SEED_PREFIX,
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, PartialPostedVaaV1, VaaV1MessageHash},
-    utils::GOVERNANCE_DECREE_START,
+    state::{Claim, Config, PartialPostedVaaV1, VaaV1MessageHash},
 };
 use anchor_lang::prelude::*;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 use wormhole_io::Readable;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_CONTRACT_UPGRADE: u8 = 1;
 
@@ -19,10 +20,10 @@ pub struct UpgradeContract<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     #[account(
         seeds = [
@@ -82,9 +83,9 @@ pub struct UpgradeContract<'info> {
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(
+        let action = super::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
-            &ctx.accounts.bridge,
+            &ctx.accounts.config,
         )?;
 
         require_eq!(

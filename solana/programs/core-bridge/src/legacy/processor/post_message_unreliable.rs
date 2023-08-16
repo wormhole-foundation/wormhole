@@ -1,6 +1,6 @@
 use crate::{
     legacy::instruction::{LegacyPostMessageArgs, LegacyPostMessageUnreliableArgs},
-    state::{BridgeProgramData, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
+    state::{Config, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
 };
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
@@ -14,10 +14,10 @@ pub struct PostMessageUnreliable<'info> {
     /// been paid.
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    bridge: Account<'info, Config>,
 
     /// Posted message account data.
     ///

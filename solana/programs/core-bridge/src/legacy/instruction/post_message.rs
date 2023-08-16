@@ -19,7 +19,7 @@ mod __no_entrypoint {
     use super::*;
 
     pub struct PostMessage {
-        pub bridge: Pubkey,
+        pub config: Pubkey,
         pub message: Pubkey,
         pub emitter: Pubkey,
         pub emitter_sequence: Pubkey,
@@ -35,7 +35,7 @@ mod __no_entrypoint {
         };
 
         let accounts = vec![
-            AccountMeta::new(accounts.bridge, false),
+            AccountMeta::new(accounts.config, false),
             AccountMeta::new(accounts.message, true),
             AccountMeta::new_readonly(accounts.emitter, true),
             AccountMeta::new(accounts.emitter_sequence, false),

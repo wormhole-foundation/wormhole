@@ -2,7 +2,6 @@ use crate::{
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
     state::{Claim, RegisteredEmitter},
-    utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
@@ -11,6 +10,8 @@ use core_bridge_program::{
 };
 use wormhole_raw_vaas::token_bridge::gov;
 use wormhole_solana_common::SeedPrefix;
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_REGISTER_CHAIN: u8 = 1;
 
@@ -72,7 +73,7 @@ pub struct RegisterChain<'info> {
 
 impl<'info> RegisterChain<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
+        let action = super::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
 
         require_eq!(
             action,

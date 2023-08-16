@@ -18,13 +18,13 @@ use anchor_lang::{
 };
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount};
 use core_bridge_program::{
-    state::BridgeProgramData, types::Commitment, CoreBridge, LegacyPostMessage,
+    state::Config as CoreBridgeConfig, types::Commitment, CoreBridge, LegacyPostMessage,
     LegacyPostMessageArgs,
 };
 use wormhole_io::Writeable;
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
-    pub core_bridge_data: &'ctx Account<'info, BridgeProgramData>,
+    pub core_bridge_config: &'ctx Account<'info, CoreBridgeConfig>,
     pub core_message: &'ctx Signer<'info>,
     pub core_emitter: &'ctx AccountInfo<'info>,
     pub core_emitter_sequence: &'ctx UncheckedAccount<'info>,
@@ -42,7 +42,7 @@ pub fn post_token_bridge_message<W: Writeable>(
 ) -> Result<()> {
     // Pay fee to the core bridge program if there is one.
     let fee_collector = match (
-        accounts.core_bridge_data.fee_lamports,
+        accounts.core_bridge_config.fee_lamports,
         accounts.core_fee_collector,
     ) {
         (0, _) => None,
@@ -70,7 +70,7 @@ pub fn post_token_bridge_message<W: Writeable>(
         CpiContext::new_with_signer(
             accounts.core_bridge_program.to_account_info(),
             LegacyPostMessage {
-                bridge: accounts.core_bridge_data.to_account_info(),
+                config: accounts.core_bridge_config.to_account_info(),
                 message: accounts.core_message.to_account_info(),
                 emitter: accounts.core_emitter.to_account_info(),
                 emitter_sequence: accounts.core_emitter_sequence.to_account_info(),

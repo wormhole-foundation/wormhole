@@ -23,7 +23,6 @@ import * as tokenBridge from "./tokenBridge";
 export type InvalidAccountConfig = {
   label: string;
   contextName: string;
-  address: PublicKey;
   errorMsg: string;
   dataLength?: number;
 };
@@ -347,21 +346,16 @@ export async function createAccountIx(
   connection: Connection,
   programId: PublicKey,
   payer: Keypair,
+  accountKeypair: Keypair,
   dataLength: number
 ) {
-  const generated = Keypair.generate();
-  const createIx = await connection.getMinimumBalanceForRentExemption(dataLength).then((lamports) =>
+  return connection.getMinimumBalanceForRentExemption(dataLength).then((lamports) =>
     SystemProgram.createAccount({
       fromPubkey: payer.publicKey,
-      newAccountPubkey: generated.publicKey,
+      newAccountPubkey: accountKeypair.publicKey,
       space: dataLength,
       lamports,
       programId,
     })
   );
-
-  return {
-    generated,
-    createIx,
-  };
 }

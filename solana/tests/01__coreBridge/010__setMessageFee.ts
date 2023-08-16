@@ -5,8 +5,10 @@ import { expect } from "chai";
 import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
+  createAccountIx,
   expectIxErr,
   expectIxOk,
+  invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
@@ -36,39 +38,42 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
   describe("Invalid Interaction", () => {
     const accountConfigs: InvalidAccountConfig[] = [
       {
-        label: "bridge",
-        contextName: "bridge",
-        address: anchor.web3.Keypair.generate().publicKey,
-        errorMsg: "AccountNotInitialized",
-      },
-      {
-        label: "posted_vaa",
-        contextName: "postedVaa",
-        address: anchor.web3.Keypair.generate().publicKey,
-        errorMsg: "AccountNotInitialized",
+        label: "config",
+        contextName: "config",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 24,
       },
       {
         label: "claim",
         contextName: "claim",
-        address: anchor.web3.Keypair.generate().publicKey,
-        errorMsg: "AccountNotInitialized",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 1,
       },
     ];
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
+        const created = anchor.web3.Keypair.generate();
+
+        if (cfg.dataLength !== undefined) {
+          const ix = await createAccountIx(
+            program.provider.connection,
+            program.programId,
+            payer,
+            created,
+            cfg.dataLength
+          );
+          await expectIxOk(connection, [ix], [payer, created]);
+        }
         const accounts = { payer: payer.publicKey };
-        accounts[cfg.contextName] = cfg.address;
+        accounts[cfg.contextName] = created.publicKey;
+
+        const signedVaa = defaultVaa(new anchor.BN(69));
+        await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
         await expectIxErr(
           connection,
-          [
-            coreBridge.legacySetMessageFeeIx(
-              program,
-              accounts,
-              parseVaa(defaultVaa(new anchor.BN(69)))
-            ),
-          ],
+          [coreBridge.legacySetMessageFeeIx(program, accounts, parseVaa(signedVaa))],
           [payer],
           cfg.errorMsg
         );
@@ -83,11 +88,8 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
 
       // Fetch the bridge data before executing the instruciton to verify that the
       // new fee amount is different than the current fee amount.
-      const bridgeDataBefore = await coreBridge.BridgeProgramData.fromPda(
-        connection,
-        program.programId
-      );
-      expect(bridgeDataBefore.config.feeLamports.toString()).to.not.equal(amount.toString());
+      const bridgeDataBefore = await coreBridge.Config.fromPda(connection, program.programId);
+      expect(bridgeDataBefore.feeLamports.toString()).to.not.equal(amount.toString());
 
       // Fetch default VAA.
       const signedVaa = defaultVaa(amount);
@@ -100,11 +102,8 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
 
       // Verify that the message fee was set correctly. We only need to check one program
       // since we already verified that the bridge accounts are the same.
-      const bridgeDataAfter = await coreBridge.BridgeProgramData.fromPda(
-        connection,
-        program.programId
-      );
-      expect(bridgeDataAfter.config.feeLamports.toString()).to.equal(amount.toString());
+      const bridgeDataAfter = await coreBridge.Config.fromPda(connection, program.programId);
+      expect(bridgeDataAfter.feeLamports.toString()).to.equal(amount.toString());
 
       // Save the VAA.
       localVariables.set("signedVaa", signedVaa);

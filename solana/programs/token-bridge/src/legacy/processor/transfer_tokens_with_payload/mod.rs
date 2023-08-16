@@ -2,13 +2,11 @@ mod native;
 pub use native::*;
 
 mod wrapped;
-use ruint::aliases::U256;
 pub use wrapped::*;
 
 use anchor_lang::prelude::*;
+use ruint::aliases::U256;
 use wormhole_io::Writeable;
-
-use std::io;
 
 pub fn new_sender_address(
     sender_authority: &Signer,
@@ -40,10 +38,10 @@ impl Writeable for TransferWithMessage {
         1 + 32 + 32 + 2 + 32 + 2 + 32 + self.payload.len()
     }
 
-    fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    fn write<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         Self: Sized,
-        W: io::Write,
+        W: std::io::Write,
     {
         self.norm_amount.write(writer)?;
         self.token_address.write(writer)?;

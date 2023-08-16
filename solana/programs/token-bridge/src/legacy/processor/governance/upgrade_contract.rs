@@ -1,6 +1,6 @@
 use crate::{
     constants::UPGRADE_SEED_PREFIX, error::TokenBridgeError, legacy::instruction::EmptyArgs,
-    state::Claim, utils::GOVERNANCE_DECREE_START,
+    state::Claim,
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
@@ -10,6 +10,8 @@ use core_bridge_program::{
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 use wormhole_raw_vaas::token_bridge::gov;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_CONTRACT_UPGRADE: u8 = 2;
 
@@ -78,7 +80,7 @@ pub struct UpgradeContract<'info> {
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
+        let action = super::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa)?;
 
         require_eq!(
             action,

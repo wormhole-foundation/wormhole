@@ -42,7 +42,7 @@ pub struct PostVaa<'info> {
     guardian_set: Account<'info, GuardianSet>,
 
     /// CHECK: Core Bridge never needed this account for this instruction.
-    _bridge: UncheckedAccount<'info>,
+    _config: UncheckedAccount<'info>,
 
     /// Signature set, which stores signature validation from libsecp256k1 program.
     ///

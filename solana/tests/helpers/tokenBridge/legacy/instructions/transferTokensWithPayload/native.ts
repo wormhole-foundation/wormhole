@@ -26,7 +26,7 @@ export type LegacyTransferTokensWithPayloadNativeContext = {
   custodyToken?: PublicKey;
   transferAuthority?: PublicKey;
   custodyAuthority?: PublicKey;
-  coreBridgeData?: PublicKey;
+  coreBridgeConfig?: PublicKey;
   coreMessage: PublicKey;
   coreEmitter?: PublicKey;
   coreEmitterSequence?: PublicKey;
@@ -52,7 +52,7 @@ export function legacyTransferTokensWithPayloadNativeIx(
     custodyToken,
     transferAuthority,
     custodyAuthority,
-    coreBridgeData,
+    coreBridgeConfig,
     coreMessage,
     coreEmitter,
     coreEmitterSequence,
@@ -83,8 +83,8 @@ export function legacyTransferTokensWithPayloadNativeIx(
     custodyAuthority = custodyAuthorityPda(programId);
   }
 
-  if (coreBridgeData === undefined) {
-    coreBridgeData = coreBridge.BridgeProgramData.address(coreBridgeProgram);
+  if (coreBridgeConfig === undefined) {
+    coreBridgeConfig = coreBridge.Config.address(coreBridgeProgram);
   }
 
   if (coreEmitter === undefined) {
@@ -144,7 +144,7 @@ export function legacyTransferTokensWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeData,
+      pubkey: coreBridgeConfig,
       isWritable: true,
       isSigner: false,
     },

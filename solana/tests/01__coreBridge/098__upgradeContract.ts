@@ -1,23 +1,19 @@
 import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
-import { expect } from "chai";
+import { execSync } from "child_process";
+import * as fs from "fs";
 import {
   GUARDIAN_KEYS,
   expectIxErr,
   expectIxOk,
-  expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
-  parallelPostVaa,
-  range,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
-import * as fs from "fs";
-import { execSync } from "child_process";
 
-const ARTIFACTS_PATH = `${__dirname}/../../artifacts-mainnet/wormhole_core_bridge_solana.so`;
+const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_core_bridge_solana.so`;
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 2;
