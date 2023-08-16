@@ -76,6 +76,8 @@ var (
 	// Gateway governance actions
 	ActionSetIbcComposabilityMwContract   GovernanceAction = 1
 	ActionSetTokenfactoryPfmDefaultParams GovernanceAction = 2
+	ActionScheduleUpgrade                 GovernanceAction = 3
+	ActionCancelUpgrade                   GovernanceAction = 4
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -164,6 +166,12 @@ type (
 	// BodyGatewayIbcComposabilityMwContract is a governance message to set a specific contract (i.e. IBC Translator) for the ibc composability middleware to use
 	BodyGatewayIbcComposabilityMwContract struct {
 		ContractAddr [32]byte
+	}
+
+	// BodyGatewayScheduleUpgrade is a governance message to schedule an upgrade on Gateway
+	BodyGatewayScheduleUpgrade struct {
+		Name   string
+		Height uint64
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -321,6 +329,18 @@ func (r *BodyGatewayIbcComposabilityMwContract) Deserialize(bz []byte) {
 	copy(contractAddr[:], bz[0:32])
 
 	r.ContractAddr = contractAddr
+}
+
+func (r BodyGatewayScheduleUpgrade) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write([]byte(r.Name))
+	MustWrite(payload, binary.BigEndian, r.Height)
+	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) {
+	r.Name = string(bz[0 : len(bz)-8])
+	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
 }
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {

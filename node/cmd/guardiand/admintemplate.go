@@ -50,6 +50,9 @@ var wormchainWasmInstantiateAllowlistContractAddress *string
 
 var gatewayIbcComposabilityMwContractAddress *string
 
+var gatewayScheduleUpgradeName *string
+var gatewayScheduleUpgradeHeight *string
+
 var ibcUpdateChannelChainTargetChainId *string
 var ibcUpdateChannelChainChannelId *string
 var ibcUpdateChannelChainChainId *string
@@ -137,6 +140,16 @@ func init() {
 	gatewayIbcComposabilityMwContractAddress = gatewayIbcComposabilityMwFlagSet.String("contract-address", "", "contract address to set in the ibc composability middleware")
 	AdminClientGatewayIbcComposabilityMwSetContractCmd.Flags().AddFlagSet(gatewayIbcComposabilityMwFlagSet)
 	TemplateCmd.AddCommand(AdminClientGatewayIbcComposabilityMwSetContractCmd)
+
+	// flags for the gateway-schedule-upgrade command
+	gatewayScheduleUpgradeFlagSet := pflag.NewFlagSet("gateway-schedule-upgrade", pflag.ExitOnError)
+	gatewayScheduleUpgradeName = gatewayScheduleUpgradeFlagSet.String("name", "", "Scheduled upgrade name")
+	gatewayScheduleUpgradeHeight = gatewayScheduleUpgradeFlagSet.String("height", "", "Scheduled upgrade height")
+	AdminClientGatewayScheduleUpgradeCmd.Flags().AddFlagSet(gatewayScheduleUpgradeFlagSet)
+	TemplateCmd.AddCommand(AdminClientGatewayScheduleUpgradeCmd)
+
+	// AdminClientGatewayCancelUpgradeCmd doesn't have any flags
+	TemplateCmd.AddCommand(AdminClientGatewayCancelUpgradeCmd)
 
 	// flags for the ibc-receiver-update-channel-chain and ibc-translator-update-channel-chain commands
 	ibcUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
@@ -239,6 +252,18 @@ var AdminClientGatewaySetTokenfactoryPfmDefaultParamsCmd = &cobra.Command{
 	Use:   "gateway-set-tokenfactory-pfm-default-params",
 	Short: "Generate an empty gateway set tokenfactory pfm default params template at specified path",
 	Run:   runGatewaySetTokenfactoryPfmDefaultParamsTemplate,
+}
+
+var AdminClientGatewayScheduleUpgradeCmd = &cobra.Command{
+	Use:   "gateway-schedule-upgrade",
+	Short: "Schedule an upgrade on Gateway with a specified name for a specified height",
+	Run:   runGatewayScheduleUpgradeTemplate,
+}
+
+var AdminClientGatewayCancelUpgradeCmd = &cobra.Command{
+	Use:   "gateway-cancel-upgrade",
+	Short: "Cancel a scheduled upgrade on Gateway",
+	Run:   runGatewayCancelUpgradeTemplate,
 }
 
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
@@ -720,6 +745,62 @@ func runGatewaySetTokenfactoryPfmDefaultParamsTemplate(cmd *cobra.Command, args 
 				Payload: &nodev1.GovernanceMessage_GatewaySetTokenfactoryPfmDefaultParams{
 					GatewaySetTokenfactoryPfmDefaultParams: &nodev1.GatewaySetTokenfactoryPfmDefaultParams{},
 				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
+	if *gatewayScheduleUpgradeName == "" {
+		log.Fatal("--name must be specified")
+	}
+
+	if *gatewayScheduleUpgradeHeight == "" {
+		log.Fatal("--height must be specified")
+	}
+
+	height, err := strconv.ParseUint(*gatewayScheduleUpgradeHeight, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse height as uint64: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_GatewayScheduleUpgrade{
+					GatewayScheduleUpgrade: &nodev1.GatewayScheduleUpgrade{
+						Name:   *gatewayScheduleUpgradeName,
+						Height: height,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGatewayCancelUpgradeTemplate(cmd *cobra.Command, args []string) {
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload:  &nodev1.GovernanceMessage_GatewayCancelUpgrade{},
 			},
 		},
 	}

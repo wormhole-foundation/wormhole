@@ -97,6 +97,8 @@ message GovernanceMessage {
     // Gateway
     GatewayIbcComposabilityMwSetContract gateway_ibc_composability_mw_set_contract = 24;
     GatewaySetTokenfactoryPfmDefaultParams gateway_set_tokenfactory_pfm_default_params = 25;
+    GatewayScheduleUpgrade gateway_schedule_upgrade = 26;
+    GatewayCancelUpgrade gateway_cancel_upgrade = 27;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -252,6 +254,16 @@ message GatewayIbcComposabilityMwSetContract {
 }
 
 message GatewaySetTokenfactoryPfmDefaultParams {}
+
+message GatewayScheduleUpgrade {
+  // Name of the upgrade
+  string name = 1;
+
+  // Height of the upgrade halt
+  uint64 height = 2;
+}
+
+message GatewayCancelUpgrade {}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
