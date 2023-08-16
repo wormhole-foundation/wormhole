@@ -3,8 +3,10 @@ import { ethers } from "ethers";
 import {
   InvalidAccountConfig,
   InvalidArgConfig,
+  createAccountIx,
   expectDeepEqual,
   expectIxErr,
+  expectIxOk,
   expectIxOkDetails,
 } from "../helpers";
 import { transferMessageFeeIx } from "../helpers/coreBridge/utils";
@@ -25,27 +27,40 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
   describe("Invalid Interaction", () => {
     const accountConfigs: InvalidAccountConfig[] = [
       {
-        label: "bridge",
-        contextName: "bridge",
-        address: anchor.web3.Keypair.generate().publicKey,
-        errorMsg: "AccountNotInitialized",
+        label: "config",
+        contextName: "config",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 24,
       },
       {
         label: "fee_collector",
         contextName: "feeCollector",
-        address: anchor.web3.Keypair.generate().publicKey,
-        errorMsg: "AccountNotInitialized",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 0,
       },
       {
         label: "emitter_sequence",
         contextName: "emitterSequence",
-        address: anchor.web3.Keypair.generate().publicKey,
         errorMsg: "ConstraintSeeds",
+        dataLength: 8,
       },
     ];
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
+        const created = anchor.web3.Keypair.generate();
+
+        if (cfg.dataLength !== undefined) {
+          const ix = await createAccountIx(
+            program.provider.connection,
+            cfg.label == "fee_collector" ? anchor.web3.PublicKey.default : program.programId,
+            payer,
+            created,
+            cfg.dataLength
+          );
+          await expectIxOk(connection, [ix], [payer, created]);
+        }
+
         // Create the post message instruction.
         const messageSigner = anchor.web3.Keypair.generate();
         const emitter = anchor.web3.Keypair.generate();
@@ -54,7 +69,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
           emitter: emitter.publicKey,
           payer: payer.publicKey,
         };
-        accounts[cfg.contextName] = cfg.address;
+        accounts[cfg.contextName] = created.publicKey;
         const ix = coreBridge.legacyPostMessageIx(program, accounts, defaultArgs());
         await expectIxErr(connection, [ix], [payer, emitter, messageSigner], cfg.errorMsg);
       });

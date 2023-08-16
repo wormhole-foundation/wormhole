@@ -32,7 +32,7 @@ export class WrappedAsset {
   ): Promise<WrappedAsset> {
     const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
-      throw new Error(`Unable to find BridgeProgramData account at ${address}`);
+      throw new Error(`Unable to find Config account at ${address}`);
     }
     return WrappedAsset.fromAccountInfo(accountInfo);
   }

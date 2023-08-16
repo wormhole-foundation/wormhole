@@ -5,14 +5,14 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { BridgeProgramData, Claim, GuardianSet, PostedVaaV1 } from "../../state";
+import { Config, Claim, GuardianSet, PostedVaaV1 } from "../../state";
 import { CoreBridgeProgram } from "../../..";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
 
 export type LegacyGuardianSetUpdateContext = {
   payer: PublicKey;
-  bridge?: PublicKey;
+  config?: PublicKey;
   postedVaa?: PublicKey;
   claim?: PublicKey;
   currGuardianSet?: PublicKey;
@@ -27,10 +27,10 @@ export function legacyGuardianSetUpdateIx(
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, guardianSetIndex, hash } = parsed;
 
-  let { payer, bridge, postedVaa, claim, currGuardianSet, newGuardianSet } = accounts;
+  let { payer, config, postedVaa, claim, currGuardianSet, newGuardianSet } = accounts;
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(programId);
+  if (config === undefined) {
+    config = Config.address(programId);
   }
 
   if (postedVaa === undefined) {
@@ -61,7 +61,7 @@ export function legacyGuardianSetUpdateIx(
       isSigner: true,
     },
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: true,
       isSigner: false,
     },

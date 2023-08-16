@@ -8,11 +8,11 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
-import { BridgeProgramData, Claim, FeeCollector, PostedVaaV1 } from "../../state";
+import { Config, Claim, FeeCollector, PostedVaaV1 } from "../../state";
 
 export type LegacyTransferFeesContext = {
   payer: PublicKey;
-  bridge?: PublicKey;
+  config?: PublicKey;
   postedVaa?: PublicKey;
   claim?: PublicKey;
   feeCollector?: PublicKey;
@@ -28,10 +28,10 @@ export function legacyTransferFeesIx(
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsed;
 
-  let { payer, bridge, postedVaa, claim, feeCollector, recipient, rent } = accounts;
+  let { payer, config, postedVaa, claim, feeCollector, recipient, rent } = accounts;
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(programId);
+  if (config === undefined) {
+    config = Config.address(programId);
   }
 
   if (postedVaa === undefined) {
@@ -62,7 +62,7 @@ export function legacyTransferFeesIx(
       isSigner: true,
     },
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: true,
       isSigner: false,
     },

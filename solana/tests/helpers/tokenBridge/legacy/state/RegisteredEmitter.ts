@@ -50,7 +50,7 @@ export class RegisteredEmitter {
   ): Promise<RegisteredEmitter> {
     const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
-      throw new Error(`Unable to find BridgeProgramData account at ${address}`);
+      throw new Error(`Unable to find Config account at ${address}`);
     }
     return RegisteredEmitter.fromAccountInfo(accountInfo);
   }

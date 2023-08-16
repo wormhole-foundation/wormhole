@@ -6,7 +6,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import { BridgeProgramData, FeeCollector, EmitterSequence } from "../state";
+import { Config, FeeCollector, EmitterSequence } from "../state";
 
 export enum Finality {
   Confirmed,
@@ -14,7 +14,7 @@ export enum Finality {
 }
 
 export type LegacyPostMessageContext = {
-  bridge?: PublicKey;
+  config?: PublicKey;
   message: PublicKey;
   emitter: PublicKey;
   emitterSequence?: PublicKey;
@@ -47,10 +47,10 @@ export function handleLegacyPostMessageIx(
 ) {
   const programId = program.programId;
 
-  let { bridge, message, emitter, emitterSequence, payer, feeCollector, clock, rent } = accounts;
+  let { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } = accounts;
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(program.programId);
+  if (config === undefined) {
+    config = Config.address(program.programId);
   }
 
   if (emitterSequence === undefined) {
@@ -77,7 +77,7 @@ export function handleLegacyPostMessageIx(
 
   const keys: AccountMeta[] = [
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: true,
       isSigner: false,
     },

@@ -11,7 +11,7 @@ all: check
 
 clean:
 	anchor clean
-	rm -rf node_modules artifacts-mainnet artifacts-testnet artifacts-localnet
+	rm -rf node_modules artifacts-mainnet artifacts-testnet artifacts-localnet tests/artifacts
 
 node_modules:
 	npm ci
@@ -31,7 +31,9 @@ endif
 
 test: node_modules
 	cargo test
-	NETWORK=mainnet $(MAKE) build
+	mkdir -p tests/artifacts
+	anchor build --arch sbf -- --features mainnet -- --no-default-features
+	cp target/deploy/*.so tests/artifacts/
 	anchor test --arch sbf
 
 lint:

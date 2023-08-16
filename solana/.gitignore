@@ -7,3 +7,4 @@ artifacts-*
 node_modules
 target
 test-ledger
+tests/artifacts

@@ -1,12 +1,13 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, PartialPostedVaaV1, VaaV1MessageHash},
-    utils::GOVERNANCE_DECREE_START,
+    state::{Claim, Config, PartialPostedVaaV1, VaaV1MessageHash},
 };
 use anchor_lang::prelude::*;
 use wormhole_io::Readable;
 use wormhole_solana_common::SeedPrefix;
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_SET_MESSAGE_FEE: u8 = 3;
 
@@ -17,10 +18,10 @@ pub struct SetMessageFee<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     #[account(
         seeds = [
@@ -49,9 +50,9 @@ pub struct SetMessageFee<'info> {
 
 impl<'info> SetMessageFee<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = crate::utils::require_valid_governance_posted_vaa(
+        let action = super::require_valid_governance_posted_vaa(
             &ctx.accounts.posted_vaa,
-            &ctx.accounts.bridge,
+            &ctx.accounts.config,
         )?;
 
         require_eq!(
@@ -81,7 +82,7 @@ pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
     let mut data = &acc_info.data.borrow()[(GOVERNANCE_DECREE_START + 24)..];
 
-    ctx.accounts.bridge.fee_lamports = u64::read(&mut data)?;
+    ctx.accounts.config.fee_lamports = u64::read(&mut data)?;
 
     // Done.
     Ok(())

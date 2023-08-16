@@ -8,7 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import { BridgeProgramData, FeeCollector, GuardianPubkey, GuardianSet } from "../state";
+import { Config, FeeCollector, GuardianPubkey, GuardianSet } from "../state";
 
 export type LegacyInitializeContext = {
   bridge?: PublicKey;
@@ -33,7 +33,7 @@ export function legacyInitializeIx(
   let { bridge, guardianSet, feeCollector, payer } = accounts;
 
   if (bridge === undefined) {
-    bridge = BridgeProgramData.address(programId);
+    bridge = Config.address(programId);
   }
 
   if (guardianSet === undefined) {

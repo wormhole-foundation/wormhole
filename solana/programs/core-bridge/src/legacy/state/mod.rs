@@ -1,8 +1,8 @@
-mod bridge_program_data;
-pub use bridge_program_data::*;
-
 mod claim;
 pub use claim::*;
+
+mod config;
+pub use config::*;
 
 mod emitter_sequence;
 pub use emitter_sequence::*;

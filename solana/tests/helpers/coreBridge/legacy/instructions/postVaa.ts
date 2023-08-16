@@ -8,12 +8,12 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import { BridgeProgramData, GuardianSet, PostedVaaV1 } from "../state";
+import { Config, GuardianSet, PostedVaaV1 } from "../state";
 import { ethers } from "ethers";
 
 export type LegacyPostVaaContext = {
   guardianSet?: PublicKey;
-  bridge?: PublicKey;
+  config?: PublicKey;
   signatureSet: PublicKey;
   postedVaa?: PublicKey;
   payer: PublicKey;
@@ -57,14 +57,14 @@ export function legacyPostVaaIx(
     payload,
   } = args;
 
-  let { guardianSet, bridge, signatureSet, postedVaa, payer, clock, rent } = accounts;
+  let { guardianSet, config, signatureSet, postedVaa, payer, clock, rent } = accounts;
 
   if (guardianSet === undefined) {
     guardianSet = GuardianSet.address(programId, args.guardianSetIndex);
   }
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(program.programId);
+  if (config === undefined) {
+    config = Config.address(program.programId);
   }
 
   if (postedVaa === undefined) {
@@ -99,7 +99,7 @@ export function legacyPostVaaIx(
       isSigner: false,
     },
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: false,
       isSigner: false,
     },

@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { BridgeProgramData, CoreBridgeProgram } from ".";
+import { Config, CoreBridgeProgram } from ".";
 import * as coreBridge from "../coreBridge";
 import { expectDeepEqual } from "../utils";
 import { Keypair, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
@@ -12,8 +12,8 @@ export async function expectEqualBridgeAccounts(
   const connection = program.provider.connection;
 
   const [bridgeData, forkBridgeData] = await Promise.all([
-    BridgeProgramData.fromPda(connection, program.programId),
-    BridgeProgramData.fromPda(connection, forkedProgram.programId),
+    Config.fromPda(connection, program.programId),
+    Config.fromPda(connection, forkedProgram.programId),
   ]);
   expectDeepEqual(bridgeData, forkBridgeData);
 }

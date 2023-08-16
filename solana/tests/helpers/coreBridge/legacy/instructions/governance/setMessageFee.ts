@@ -2,11 +2,11 @@ import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
 import { AccountMeta, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
-import { BridgeProgramData, Claim, PostedVaaV1 } from "../../state";
+import { Config, Claim, PostedVaaV1 } from "../../state";
 
 export type LegacySetMessageFeeContext = {
   payer: PublicKey;
-  bridge?: PublicKey;
+  config?: PublicKey;
   postedVaa?: PublicKey;
   claim?: PublicKey;
 };
@@ -19,10 +19,10 @@ export function legacySetMessageFeeIx(
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsed;
 
-  let { payer, bridge, postedVaa, claim } = accounts;
+  let { payer, config, postedVaa, claim } = accounts;
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(programId);
+  if (config === undefined) {
+    config = Config.address(programId);
   }
 
   if (postedVaa === undefined) {
@@ -45,7 +45,7 @@ export function legacySetMessageFeeIx(
       isSigner: true,
     },
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: true,
       isSigner: false,
     },

@@ -24,7 +24,7 @@ pub mod cpi {
         invoke_signed(
             &instruction::post_message(
                 PostMessage {
-                    bridge: *ctx.accounts.bridge.key,
+                    config: *ctx.accounts.config.key,
                     message: *ctx.accounts.message.key,
                     emitter: *ctx.accounts.emitter.key,
                     emitter_sequence: *ctx.accounts.emitter_sequence.key,
@@ -53,7 +53,7 @@ pub mod cpi {
         invoke_signed(
             &instruction::post_message_unreliable(
                 PostMessageUnreliable {
-                    bridge: *ctx.accounts.bridge.key,
+                    config: *ctx.accounts.config.key,
                     message: *ctx.accounts.message.key,
                     emitter: *ctx.accounts.emitter.key,
                     emitter_sequence: *ctx.accounts.emitter_sequence.key,
@@ -71,8 +71,8 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct LegacyPostMessage<'info> {
-        /// CHECK: Core Bridge Program Data (mut, seeds = ["bridge"]).
-        pub bridge: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program Data (mut, seeds = ["Bridge"]).
+        pub config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
         pub message: AccountInfo<'info>,
         /// CHECK: Core Bridge Emitter (read-only signer).
@@ -89,8 +89,8 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct LegacyPostMessageUnreliable<'info> {
-        /// CHECK: Core Bridge Program Data (mut, seeds = \["bridge"\]).
-        pub bridge: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\]).
+        pub config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
         pub message: AccountInfo<'info>,
         /// CHECK: Core Bridge Emitter (read-only signer).

@@ -6,7 +6,7 @@ use std::{
 use crate::{
     error::CoreBridgeError,
     message::{WormDecode, WormEncode},
-    state::{BridgeProgramData, PostedVaaV1},
+    state::{Config, PostedVaaV1},
 };
 use anchor_lang::prelude::*;
 
@@ -165,7 +165,7 @@ pub type PostedGovernanceVaaV1<D> = PostedVaaV1<GovernanceMessage<D>>;
 
 pub(crate) fn require_valid_governance_posted_vaa<'ctx, D>(
     vaa: &'ctx Account<'_, PostedGovernanceVaaV1<D>>,
-    bridge: &'ctx BridgeProgramData,
+    bridge: &'ctx Config,
 ) -> Result<&'ctx GovernanceMessage<D>>
 where
     D: Clone + WormDecode + WormEncode,

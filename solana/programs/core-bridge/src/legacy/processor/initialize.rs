@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::LegacyInitializeArgs,
-    state::{BridgeConfig, BridgeProgramData, FeeCollector, GuardianSet},
+    state::{Config, FeeCollector, GuardianSet},
 };
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
@@ -16,11 +16,11 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = payer,
-        space = BridgeProgramData::INIT_SPACE,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        space = Config::INIT_SPACE,
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     /// New guardian set account, acting as the active guardian set.
     ///
@@ -91,13 +91,11 @@ pub fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Resul
     }
 
     // Set Bridge data account fields.
-    ctx.accounts.bridge.set_inner(BridgeProgramData {
+    ctx.accounts.config.set_inner(Config {
         guardian_set_index: INDEX_ZERO,
         last_lamports: ctx.accounts.fee_collector.to_account_info().lamports(),
-        config: BridgeConfig {
-            guardian_set_ttl: guardian_set_ttl_seconds.into(),
-            fee_lamports,
-        },
+        guardian_set_ttl: guardian_set_ttl_seconds.into(),
+        fee_lamports,
     });
 
     // Set guardian set account fields.

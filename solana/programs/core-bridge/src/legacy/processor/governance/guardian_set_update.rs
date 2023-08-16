@@ -1,13 +1,14 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{BridgeProgramData, Claim, GuardianSet, PartialPostedVaaV1, VaaV1MessageHash},
+    state::{Claim, Config, GuardianSet, PartialPostedVaaV1, VaaV1MessageHash},
     types::Timestamp,
-    utils::GOVERNANCE_DECREE_START,
 };
 use anchor_lang::prelude::*;
 use wormhole_io::Readable;
 use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
+
+use super::GOVERNANCE_DECREE_START;
 
 const ACTION_GUARDIAN_SET_UPDATE: u8 = 2;
 
@@ -18,10 +19,10 @@ pub struct GuardianSetUpdate<'info> {
 
     #[account(
         mut,
-        seeds = [BridgeProgramData::SEED_PREFIX],
+        seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, BridgeProgramData>,
+    config: Account<'info, Config>,
 
     #[account(
         seeds = [
@@ -47,7 +48,7 @@ pub struct GuardianSetUpdate<'info> {
 
     #[account(
         mut,
-        seeds = [GuardianSet::SEED_PREFIX, &bridge.guardian_set_index.to_be_bytes()],
+        seeds = [GuardianSet::SEED_PREFIX, &config.guardian_set_index.to_be_bytes()],
         bump,
     )]
     curr_guardian_set: Account<'info, GuardianSet>,
@@ -84,9 +85,8 @@ fn try_compute_size(posted_vaa: &Account<PartialPostedVaaV1>) -> Result<usize> {
 
 impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let bridge = &ctx.accounts.bridge;
-        let action =
-            crate::utils::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa, bridge)?;
+        let config = &ctx.accounts.config;
+        let action = super::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa, config)?;
 
         require_eq!(
             action,
@@ -99,7 +99,7 @@ impl<'info> GuardianSetUpdate<'info> {
 
         // Encoded guardian set must be the next value after the current guardian set index.
         let new_index = u32::read(&mut data).unwrap();
-        require_eq!(new_index, bridge.guardian_set_index + 1);
+        require_eq!(new_index, config.guardian_set_index + 1);
 
         // Done.
         Ok(())
@@ -144,13 +144,13 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
         expiration_time: Default::default(),
     });
 
-    // Set the new index on the bridge program data.
-    let bridge = &mut ctx.accounts.bridge;
-    bridge.guardian_set_index = new_index;
+    // Set the new index on the config program data.
+    let config = &mut ctx.accounts.config;
+    config.guardian_set_index = new_index;
 
     // Now set the expiration time for the current guardian.
     let now = Clock::get().map(Timestamp::from)?;
-    ctx.accounts.curr_guardian_set.expiration_time = now.saturating_add(&bridge.guardian_set_ttl);
+    ctx.accounts.curr_guardian_set.expiration_time = now.saturating_add(&config.guardian_set_ttl);
 
     // Done.
     Ok(())

@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 
-export * from "./BridgeProgramData";
 export * from "./Claim";
+export * from "./Config";
 export * from "./EmitterSequence";
 export * from "./FeeCollector";
 export * from "./GuardianSet";

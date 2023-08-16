@@ -10,11 +10,11 @@ import {
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
 import { BPF_LOADER_UPGRADEABLE_PROGRAM_ID, ProgramData } from "../../../../native";
-import { BridgeProgramData, Claim, PostedVaaV1, upgradeAuthorityPda } from "../../state";
+import { Config, Claim, PostedVaaV1, upgradeAuthorityPda } from "../../state";
 
 export type LegacyUpgradeContractContext = {
   payer: PublicKey;
-  bridge?: PublicKey;
+  config?: PublicKey;
   postedVaa?: PublicKey;
   claim?: PublicKey;
   upgradeAuthority?: PublicKey;
@@ -37,7 +37,7 @@ export function legacyUpgradeContractIx(
 
   let {
     payer,
-    bridge,
+    config,
     postedVaa,
     claim,
     upgradeAuthority,
@@ -50,8 +50,8 @@ export function legacyUpgradeContractIx(
     bpfLoaderUpgradeableProgram,
   } = accounts;
 
-  if (bridge === undefined) {
-    bridge = BridgeProgramData.address(programId);
+  if (config === undefined) {
+    config = Config.address(programId);
   }
 
   if (postedVaa === undefined) {
@@ -106,7 +106,7 @@ export function legacyUpgradeContractIx(
       isSigner: true,
     },
     {
-      pubkey: bridge,
+      pubkey: config,
       isWritable: true,
       isSigner: false,
     },
