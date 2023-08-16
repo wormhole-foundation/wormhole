@@ -126,8 +126,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
         @Subroutine(TealType.uint64)
         def optin():
             # Alias for readability
-            algo_seed = Gtxn[0]
-            optin = Gtxn[1]
+            algo_seed = Gtxn[Txn.group_index() - Int(1)]
+            optin = Txn
     
             well_formed_optin = And(
                 # Check that we're paying it

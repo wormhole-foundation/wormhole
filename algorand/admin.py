@@ -1151,7 +1151,7 @@ class PortalCore:
             off += 2
             ret["Fee"] = vaa[off:(off + 32)].hex()
 
-        if int.from_bytes((vaa[off:off+1]), "big") == 3:
+        if len(vaa[off:]) > 133 and int.from_bytes((vaa[off:off+1]), "big") == 3:
             ret["Meta"] = "TokenBridge Transfer With Payload"
             ret["Type"] = int.from_bytes((vaa[off:off+1]), "big")
             off += 1
