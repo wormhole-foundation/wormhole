@@ -48,4 +48,3 @@ func CreateV2_22_0_UpgradeHandler(
 		return mm.RunMigrations(ctx, cfg, vm)
 	}
 }
-
