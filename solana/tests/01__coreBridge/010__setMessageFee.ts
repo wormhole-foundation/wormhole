@@ -6,6 +6,7 @@ import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
   createAccountIx,
+  createIfNeeded,
   expectIxErr,
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
@@ -42,31 +43,22 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
         contextName: "config",
         errorMsg: "ConstraintSeeds",
         dataLength: 24,
+        owner: program.programId,
       },
       {
         label: "claim",
         contextName: "claim",
         errorMsg: "ConstraintSeeds",
         dataLength: 1,
+        owner: program.programId,
       },
     ];
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
-        const created = anchor.web3.Keypair.generate();
-
-        if (cfg.dataLength !== undefined) {
-          const ix = await createAccountIx(
-            program.provider.connection,
-            program.programId,
-            payer,
-            created,
-            cfg.dataLength
-          );
-          await expectIxOk(connection, [ix], [payer, created]);
-        }
-        const accounts = { payer: payer.publicKey };
-        accounts[cfg.contextName] = created.publicKey;
+        const accounts = await createIfNeeded(program.provider.connection, cfg, payer, {
+          payer: payer.publicKey,
+        } as coreBridge.LegacySetMessageFeeContext);
 
         const signedVaa = defaultVaa(new anchor.BN(69));
         await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);

@@ -4,6 +4,7 @@ import {
   InvalidAccountConfig,
   InvalidArgConfig,
   createAccountIx,
+  createIfNeeded,
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
@@ -31,47 +32,37 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         contextName: "config",
         errorMsg: "ConstraintSeeds",
         dataLength: 24,
+        owner: program.programId,
       },
       {
         label: "fee_collector",
         contextName: "feeCollector",
         errorMsg: "ConstraintSeeds",
         dataLength: 0,
+        owner: anchor.web3.PublicKey.default,
       },
       {
         label: "emitter_sequence",
         contextName: "emitterSequence",
         errorMsg: "ConstraintSeeds",
         dataLength: 8,
+        owner: program.programId,
       },
     ];
 
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
-        const created = anchor.web3.Keypair.generate();
-
-        if (cfg.dataLength !== undefined) {
-          const ix = await createAccountIx(
-            program.provider.connection,
-            cfg.label == "fee_collector" ? anchor.web3.PublicKey.default : program.programId,
-            payer,
-            created,
-            cfg.dataLength
-          );
-          await expectIxOk(connection, [ix], [payer, created]);
-        }
-
-        // Create the post message instruction.
-        const messageSigner = anchor.web3.Keypair.generate();
+        const message = anchor.web3.Keypair.generate();
         const emitter = anchor.web3.Keypair.generate();
-        const accounts = {
-          message: messageSigner.publicKey,
+        const accounts = await createIfNeeded(program.provider.connection, cfg, payer, {
+          message: message.publicKey,
           emitter: emitter.publicKey,
           payer: payer.publicKey,
-        };
-        accounts[cfg.contextName] = created.publicKey;
+        } as coreBridge.LegacyPostMessageContext);
+
+        // Create the post message instruction.
         const ix = coreBridge.legacyPostMessageIx(program, accounts, defaultArgs());
-        await expectIxErr(connection, [ix], [payer, emitter, messageSigner], cfg.errorMsg);
+        await expectIxErr(connection, [ix], [payer, emitter, message], cfg.errorMsg);
       });
     }
 

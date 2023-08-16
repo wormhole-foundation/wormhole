@@ -3,7 +3,15 @@ import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cj
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { expectIxOk } from "../../old-tests/helpers";
-import { GUARDIAN_KEYS, expectIxErr, expectIxOkDetails, parallelPostVaa } from "../helpers";
+import {
+  GUARDIAN_KEYS,
+  InvalidAccountConfig,
+  createIfNeeded,
+  expectIxErr,
+  expectIxOkDetails,
+  invokeVerifySignaturesAndPostVaa,
+  parallelPostVaa,
+} from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
@@ -29,7 +37,41 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
   const forkedProgram = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    // TODO
+    const accountConfigs: InvalidAccountConfig[] = [
+      {
+        label: "config",
+        contextName: "config",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 24,
+        owner: program.programId,
+      },
+      {
+        label: "claim",
+        contextName: "claim",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 1,
+        owner: program.programId,
+      },
+    ];
+
+    for (const cfg of accountConfigs) {
+      it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
+        const accounts = await createIfNeeded(program.provider.connection, cfg, payer, {
+          payer: payer.publicKey,
+          recipient: payer.publicKey,
+        } as coreBridge.LegacyTransferFeesContext);
+
+        const signedVaa = defaultVaa(new anchor.BN(69), payer.publicKey);
+        await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+        await expectIxErr(
+          connection,
+          [coreBridge.legacyTransferFeesIx(program, accounts, parseVaa(signedVaa))],
+          [payer],
+          cfg.errorMsg
+        );
+      });
+    }
   });
 
   describe("Ok", () => {

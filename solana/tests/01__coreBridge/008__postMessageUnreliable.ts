@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import {
   InvalidAccountConfig,
   InvalidArgConfig,
+  createIfNeeded,
   expectDeepEqual,
   expectIxErr,
   expectIxOkDetails,
@@ -31,7 +32,47 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
   const messageSigner = anchor.web3.Keypair.generate();
   const forkedMessageSigner = anchor.web3.Keypair.generate();
 
-  describe("Invalid Interaction", () => {});
+  describe("Invalid Interaction", () => {
+    const accountConfigs: InvalidAccountConfig[] = [
+      {
+        label: "config",
+        contextName: "config",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 24,
+        owner: program.programId,
+      },
+      {
+        label: "fee_collector",
+        contextName: "feeCollector",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 0,
+        owner: anchor.web3.PublicKey.default,
+      },
+      {
+        label: "emitter_sequence",
+        contextName: "emitterSequence",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 8,
+        owner: program.programId,
+      },
+    ];
+
+    for (const cfg of accountConfigs) {
+      it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
+        const message = anchor.web3.Keypair.generate();
+        const emitter = anchor.web3.Keypair.generate();
+        const accounts = await createIfNeeded(program.provider.connection, cfg, payer, {
+          message: message.publicKey,
+          emitter: emitter.publicKey,
+          payer: payer.publicKey,
+        } as coreBridge.LegacyPostMessageUnreliableContext);
+
+        // Create the post message instruction.
+        const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, defaultArgs());
+        await expectIxErr(connection, [ix], [payer, emitter, message], cfg.errorMsg);
+      });
+    }
+  });
 
   describe("Ok", () => {
     it("Invoke `post_message_unreliable`", async () => {
