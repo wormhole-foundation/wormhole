@@ -1,11 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  COMMON_EMITTER,
-  createAccountIx,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-} from "../helpers";
+import { createAccountIx, expectDeepEqual, expectIxErr, expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 
 // Test variables.
