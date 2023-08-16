@@ -85,6 +85,11 @@ pub fn process_message_v1(
 }
 
 fn write_message(msg_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
+    require!(
+        !data.is_empty(),
+        CoreBridgeError::InvalidInstructionArgument
+    );
+
     let msg_length = {
         let mut acct_data: &[u8] = &msg_acc_info.try_borrow_data()?;
         acct_data = &acct_data[(START - 4)..];
