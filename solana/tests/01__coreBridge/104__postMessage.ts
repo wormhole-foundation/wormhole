@@ -25,15 +25,21 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    // TODO
-  });
-
-  describe("Ok", () => {
-    it.skip("Invoke Legacy `post_message` With Processed Message", async () => {
+    it.skip("Cannot Invoke Legacy `post_message` with Non-Empty Payload on Prepared Message", async () => {
       // TODO
     });
 
-    it.skip("Cannot Invoke `legacy_post_message` With Same Processed Message", async () => {
+    it.skip("Cannot Invoke Legacy `post_message` Different Emitter Authority on Prepared Message", async () => {
+      // TODO
+    });
+  });
+
+  describe("Ok", () => {
+    it.skip("Invoke Legacy `post_message` With Prepared Message", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot nvoke Legacy `post_message` With Same Prepared Message", async () => {
       // TODO
     });
   });

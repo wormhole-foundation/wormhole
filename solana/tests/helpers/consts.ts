@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { MintInfo, WrappedMintInfo } from "./utils";
 import { tryNativeToHexString, tryNativeToUint8Array } from "@certusone/wormhole-sdk";
 
@@ -57,3 +57,12 @@ export const MINT_INFO_WRAPPED_8: WrappedMintInfo = {
   address: ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   decimals: 8,
 };
+
+export const COMMON_EMITTER = Keypair.fromSecretKey(
+  Uint8Array.from([
+    145, 34, 16, 171, 216, 143, 215, 220, 100, 17, 136, 205, 96, 178, 199, 89, 241, 146, 194, 163,
+    246, 102, 245, 74, 126, 30, 25, 67, 114, 12, 115, 145, 180, 118, 0, 230, 97, 203, 112, 115, 55,
+    184, 243, 155, 159, 3, 113, 180, 145, 13, 221, 136, 65, 145, 102, 90, 48, 180, 24, 126, 243,
+    231, 80, 249,
+  ])
+);

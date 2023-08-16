@@ -1,17 +1,12 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
-import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
-import { execSync } from "child_process";
-import * as fs from "fs";
 import {
-  GUARDIAN_KEYS,
+  COMMON_EMITTER,
+  createAccountIx,
+  expectDeepEqual,
   expectIxErr,
   expectIxOk,
-  invokeVerifySignaturesAndPostVaa,
-  loadProgramBpf,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Test variables.
 const localVariables = new Map<string, any>();
@@ -25,12 +20,178 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    // TODO
+    it("Cannot Invoke `init_message_v1` without Created Account", async () => {
+      const emitterAuthority = anchor.web3.Keypair.generate();
+      const draftMessage = anchor.web3.Keypair.generate();
+
+      const initIx = await coreBridge.initMessageV1Ix(
+        program,
+        { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+        { cpiProgramId: null }
+      );
+      await expectIxErr(connection, [initIx], [payer, emitterAuthority], "ConstraintOwner");
+    });
+
+    it("Cannot Invoke `init_message_v1` with Some(cpi_program_id)", async () => {
+      const { draftMessage, emitterAuthority, instructions } = await createIxs(
+        program,
+        payer,
+        Buffer.alloc(69),
+        { cpiProgramId: anchor.web3.Keypair.generate().publicKey }
+      );
+
+      await expectIxErr(
+        connection,
+        instructions,
+        [payer, emitterAuthority, draftMessage],
+        "InvalidProgramEmitter"
+      );
+    });
+
+    it("Cannot Invoke `init_message_v1` with Nonsensical Account Size", async () => {
+      const emitterAuthority = anchor.web3.Keypair.generate();
+      const cpiProgramId = anchor.web3.Keypair.generate().publicKey;
+
+      const draftMessage = anchor.web3.Keypair.generate();
+      const createIx = await createAccountIx(
+        program.provider.connection,
+        program.programId,
+        payer,
+        draftMessage,
+        94 // one less than the minimum without a payload
+      );
+
+      const initIx = await coreBridge.initMessageV1Ix(
+        program,
+        { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+        { cpiProgramId }
+      );
+      await expectIxErr(
+        connection,
+        [createIx, initIx],
+        [payer, emitterAuthority, draftMessage],
+        "InvalidCreatedAccountSize"
+      );
+    });
+
+    it("Cannot Invoke `init_message_v1` with Expected Message Size == 0", async () => {
+      const { draftMessage, emitterAuthority, instructions } = await createIxs(
+        program,
+        payer,
+        Buffer.alloc(0)
+      );
+
+      await expectIxErr(
+        connection,
+        instructions,
+        [payer, emitterAuthority, draftMessage],
+        "InvalidCreatedAccountSize"
+      );
+    });
+
+    it("Cannot Invoke `init_message_v1` with Expected Message Size > 30KB", async () => {
+      const { draftMessage, emitterAuthority, instructions } = await createIxs(
+        program,
+        payer,
+        Buffer.alloc(30 * 1_024 + 1)
+      );
+
+      await expectIxErr(
+        connection,
+        instructions,
+        [payer, emitterAuthority, draftMessage],
+        "ExceedsMaxPayloadSize"
+      );
+    });
   });
 
   describe("Ok", () => {
-    it.skip("Invoke `init_message_v1` with Large Message", async () => {
-      // TODO
+    const messageSizes = [1, 69, 30 * 1_024];
+
+    for (const messageSize of messageSizes) {
+      it(`Invoke \`init_message_v1\` with Message Size == ${messageSize}`, async () => {
+        const { draftMessage, emitterAuthority, instructions } = await createIxs(
+          program,
+          payer,
+          Buffer.alloc(messageSize, "Nothing to see here.")
+        );
+
+        await expectIxOk(connection, instructions, [payer, emitterAuthority, draftMessage]);
+
+        // This checks the discriminator, too.
+        const draftMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
+          connection,
+          draftMessage.publicKey
+        );
+        expectDeepEqual(draftMessageData, {
+          finality: 0,
+          emitterAuthority: emitterAuthority.publicKey,
+          status: coreBridge.MessageStatus.Writing,
+          _gap0: Buffer.alloc(3),
+          postedTimestamp: 0,
+          nonce: 0,
+          sequence: new anchor.BN(0),
+          solanaChainId: 1,
+          emitter: emitterAuthority.publicKey,
+          payload: Buffer.alloc(messageSize),
+        });
+
+        // Only pick one for the next test.
+        if (messageSize == 1) {
+          localVariables.set("draftMessage", draftMessage);
+          localVariables.set("emitterAuthority", emitterAuthority);
+        }
+      });
+    }
+
+    it("Cannot Invoke `init_message_v1` with Same Draft Message", async () => {
+      const draftMessage: anchor.web3.Keypair = localVariables.get("draftMessage")!;
+      const emitterAuthority: anchor.web3.Keypair = localVariables.get("emitterAuthority")!;
+
+      const initIx = await coreBridge.initMessageV1Ix(
+        program,
+        { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+        { cpiProgramId: null }
+      );
+      await expectIxErr(connection, [initIx], [payer, emitterAuthority], "AccountNotZeroed");
     });
   });
 });
+
+async function prepareDraftMessage(
+  program: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  message: Buffer
+) {
+  const draftMessage = anchor.web3.Keypair.generate();
+  const createIx = await createAccountIx(
+    program.provider.connection,
+    program.programId,
+    payer,
+    draftMessage,
+    95 + message.length
+  );
+
+  return {
+    draftMessage,
+    createIx,
+  };
+}
+
+async function createIxs(
+  program: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  message: Buffer,
+  args: coreBridge.InitMessageV1Args = { cpiProgramId: null }
+) {
+  const { draftMessage, createIx } = await prepareDraftMessage(program, payer, message);
+
+  const emitterAuthority = anchor.web3.Keypair.generate();
+  const initIx = await coreBridge.initMessageV1Ix(
+    program,
+    { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+    args
+  );
+
+  return { draftMessage, emitterAuthority, instructions: [createIx, initIx] };
+}

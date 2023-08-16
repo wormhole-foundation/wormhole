@@ -147,4 +147,10 @@ pub enum CoreBridgeError {
 
     #[msg("CannotParseVaa")]
     CannotParseVaa = 0x10b4,
+
+    #[msg("EmitterAuthorityMismatch")]
+    EmitterAuthorityMismatch = 0x10b6,
+
+    #[msg("InvalidProgramEmitter")]
+    InvalidProgramEmitter = 0x10b8,
 }

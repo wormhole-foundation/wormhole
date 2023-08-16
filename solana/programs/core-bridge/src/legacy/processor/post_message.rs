@@ -92,7 +92,11 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
             // message account has not been used already. The emitter will be
             // unset as well if the account was just created with
             // `init_if_needed`.
-            require_keys_eq!(ctx.accounts.message.emitter, Default::default());
+            require_keys_eq!(
+                ctx.accounts.message.emitter,
+                Default::default(),
+                CoreBridgeError::MessageAlreadyPublished
+            );
 
             handle_post_new_message(
                 &mut ctx.accounts.config,
@@ -120,7 +124,7 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
 pub(in crate::legacy) fn handle_post_new_message(
     config: &mut Account<Config>,
     msg: &mut PostedMessageV1Data,
-    emitter: &Signer,
+    emitter_authority: &Signer,
     emitter_sequence: &mut Account<EmitterSequence>,
     fee_collector: &Option<Account<FeeCollector>>,
     args: LegacyPostMessageArgs,
@@ -161,7 +165,7 @@ pub(in crate::legacy) fn handle_post_new_message(
             nonce,
             sequence,
             solana_chain_id: Default::default(),
-            emitter: emitter.key(),
+            emitter: emitter_authority.key(),
         },
         payload,
     };
@@ -195,7 +199,11 @@ fn handle_post_prepared_message(
 
     // The emitter authority passed into the instruction handler must be the same one that drafted
     // this Core Bridge message.
-    require_keys_eq!(msg.emitter_authority, emitter_authority.key());
+    require_keys_eq!(
+        msg.emitter_authority,
+        emitter_authority.key(),
+        CoreBridgeError::EmitterAuthorityMismatch
+    );
 
     // Determine whether fee has been paid. Update core bridge config account if so.
     //
@@ -242,11 +250,11 @@ fn handle_message_fee(
     }
 }
 
-fn compute_size_if_needed(message_acct_info: &AccountInfo<'_>, payload: &Vec<u8>) -> usize {
-    if message_acct_info.data_is_empty() {
+fn compute_size_if_needed(msg_acc_info: &AccountInfo<'_>, payload: &Vec<u8>) -> usize {
+    if msg_acc_info.data_is_empty() {
         PostedMessageV1::compute_size(payload.len())
     } else {
-        message_acct_info.data_len()
+        msg_acc_info.data_len()
     }
 }
 

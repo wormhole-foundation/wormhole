@@ -32,9 +32,16 @@ impl<'info> InitMessageV1<'info> {
         let msg_acct_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
         let mut reader = std::io::Cursor::new(msg_acct_data);
 
+        // Infer the expected message length given the size of the created account.
+        require_gt!(
+            ctx.accounts.draft_message.data_len(),
+            PostedMessageV1::BYTES_START,
+            CoreBridgeError::InvalidCreatedAccountSize
+        );
+
         // All of the discriminator + header bytes + the 4-byte payload length should be zero.
         let mut zeros = [0; PostedMessageV1::BYTES_START];
-        reader.read_exact(&mut zeros)?;
+        reader.read_exact(&mut zeros).unwrap();
         require!(
             !utils::is_nonzero_array(&zeros),
             CoreBridgeError::AccountNotZeroed
@@ -52,19 +59,9 @@ pub struct InitMessageV1Args {
 
 #[access_control(InitMessageV1::constraints(&ctx))]
 pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> Result<()> {
-    // Infer the expected message length given the size of the created account.
-    let expected_msg_length = ctx
-        .accounts
-        .draft_message
-        .data_len()
-        .saturating_sub(PostedMessageV1::BYTES_START);
-    require_gte!(
-        expected_msg_length,
-        0,
-        CoreBridgeError::InvalidCreatedAccountSize
-    );
+    let expected_msg_length = ctx.accounts.draft_message.data_len() - PostedMessageV1::BYTES_START;
 
-    // And this message length cannot exceed the maximum message length.
+    // This message length cannot exceed the maximum message length.
     require_gte!(
         MAX_MESSAGE_PAYLOAD_SIZE,
         expected_msg_length,
