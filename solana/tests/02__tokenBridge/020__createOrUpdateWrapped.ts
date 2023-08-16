@@ -15,6 +15,8 @@ import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   ETHEREUM_STEAK_TOKEN_ADDRESS,
+  ETHEREUM_MAX_7_TOKEN_ADDRESS,
+  ETHEREUM_MAX_8_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
   expectDeepEqual,
   expectIxOk,
@@ -174,6 +176,19 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         canonicalAddress: "0x000000000000000000000000beefdeadbeefdeadbeefdeadbeefdeadbeefdead",
         nativeDecimals: 7,
       });
+    });
+
+    it("Invoke `create_or_update_wrapped` for Boundary Test Assets", async () => {
+      for (const decimals of [7, 8]) {
+        const signedVaa = defaultVaa({
+          symbol: `MAX${decimals}`,
+          name: `Max decimals ${decimals}`,
+          decimals: decimals,
+          address: decimals == 7 ? ETHEREUM_MAX_7_TOKEN_ADDRESS : ETHEREUM_MAX_8_TOKEN_ADDRESS,
+        });
+
+        await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
+      }
     });
   });
 });

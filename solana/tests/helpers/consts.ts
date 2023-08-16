@@ -46,6 +46,14 @@ export const ETHEREUM_STEAK_TOKEN_ADDRESS = tryNativeToUint8Array(
   "0xbeefdeadbeefdeadbeefdeadbeefdeadbeefdead",
   "ethereum"
 );
+export const ETHEREUM_MAX_7_TOKEN_ADDRESS = tryNativeToUint8Array(
+  "0x0000000000000000000000000000000000000001",
+  "ethereum"
+);
+export const ETHEREUM_MAX_8_TOKEN_ADDRESS = tryNativeToUint8Array(
+  "0x0000000000000000000000000000000000000002",
+  "ethereum"
+);
 
 export const MINT_INFO_WRAPPED_7: WrappedMintInfo = {
   chain: 2,
@@ -55,6 +63,16 @@ export const MINT_INFO_WRAPPED_7: WrappedMintInfo = {
 export const MINT_INFO_WRAPPED_8: WrappedMintInfo = {
   chain: 2,
   address: ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  decimals: 8,
+};
+export const MINT_INFO_WRAPPED_MAX_7: WrappedMintInfo = {
+  chain: 2,
+  address: ETHEREUM_MAX_7_TOKEN_ADDRESS,
+  decimals: 7,
+};
+export const MINT_INFO_WRAPPED_MAX_8: WrappedMintInfo = {
+  chain: 2,
+  address: ETHEREUM_MAX_8_TOKEN_ADDRESS,
   decimals: 8,
 };
 
