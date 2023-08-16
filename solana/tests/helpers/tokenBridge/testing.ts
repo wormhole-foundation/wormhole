@@ -65,7 +65,9 @@ export async function expectCorrectWrappedTokenBalanceChanges(
 
   switch (direction) {
     case TransferDirection.Out: {
-      throw new Error("Not implemented yet.");
+      expect(balancesBefore.token - balancesAfter.token).to.equal(expectedChange);
+      expect(balancesBefore.forkToken - balancesAfter.forkToken).to.equal(expectedChange);
+      return;
     }
     case TransferDirection.In: {
       expect(balancesAfter.token - balancesBefore.token).to.equal(expectedChange);
