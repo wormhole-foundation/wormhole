@@ -2,7 +2,16 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { GUARDIAN_KEYS, expectIxErr, expectIxOkDetails, parallelPostVaa, range } from "../helpers";
+import {
+  GUARDIAN_KEYS,
+  InvalidAccountConfig,
+  createIfNeeded,
+  expectIxErr,
+  expectIxOkDetails,
+  invokeVerifySignaturesAndPostVaa,
+  parallelPostVaa,
+  range,
+} from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
@@ -28,7 +37,44 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
   const forkedProgram = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    // TODO
+    const accountConfigs: InvalidAccountConfig[] = [
+      {
+        label: "config",
+        contextName: "config",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 24,
+        owner: program.programId,
+      },
+      {
+        label: "claim",
+        contextName: "claim",
+        errorMsg: "ConstraintSeeds",
+        dataLength: 1,
+        owner: program.programId,
+      },
+    ];
+
+    for (const cfg of accountConfigs) {
+      it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
+        const accounts = await createIfNeeded(program.provider.connection, cfg, payer, {
+          payer: payer.publicKey,
+        } as coreBridge.LegacyGuardianSetUpdateContext);
+
+        const signedVaa = defaultVaa(
+          guardians.setIndex + 1,
+          guardians.getPublicKeys().slice(0, 1),
+          range(0, 13)
+        );
+        await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+        await expectIxErr(
+          connection,
+          [coreBridge.legacyGuardianSetUpdateIx(program, accounts, parseVaa(signedVaa))],
+          [payer],
+          cfg.errorMsg
+        );
+      });
+    }
   });
 
   describe("Ok", () => {

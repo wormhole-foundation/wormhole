@@ -25,6 +25,7 @@ export type InvalidAccountConfig = {
   contextName: string;
   errorMsg: string;
   dataLength?: number;
+  owner?: PublicKey;
 };
 
 export type InvalidArgConfig = {
@@ -358,4 +359,21 @@ export async function createAccountIx(
       programId,
     })
   );
+}
+
+export async function createIfNeeded<T>(
+  connection: Connection,
+  cfg: InvalidAccountConfig,
+  payer: Keypair,
+  accounts: T
+) {
+  const created = Keypair.generate();
+
+  if (cfg.dataLength !== undefined) {
+    const ix = await createAccountIx(connection, cfg.owner, payer, created, cfg.dataLength);
+    await expectIxOk(connection, [ix], [payer, created]);
+  }
+  accounts[cfg.contextName] = created.publicKey;
+
+  return accounts;
 }
