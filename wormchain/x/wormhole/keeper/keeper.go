@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
@@ -18,6 +19,8 @@ type (
 
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
+		upgradeKeeper upgradekeeper.Keeper
+		setUpgrade    bool
 		wasmdKeeper   types.WasmdKeeper
 		setWasmd      bool
 	}
@@ -48,6 +51,11 @@ func NewKeeper(
 func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.wasmdKeeper = keeper
 	k.setWasmd = true
+}
+
+func (k *Keeper) SetUpgradeKeeper(keeper upgradekeeper.Keeper) {
+	k.upgradeKeeper = keeper
+	k.setUpgrade = true
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

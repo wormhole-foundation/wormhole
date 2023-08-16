@@ -16,6 +16,13 @@ var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
 var WasmdModuleStr = string(WasmdModule[:])
 
+// GatewayModule is the identifier of the Gateway module (which is used for general Gateway-related governance messages)
+var GatewayModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x4d, 0x6f, 0x64, 0x75, 0x6c, 0x65,
+}
+var GatewayModuleStr = string(GatewayModule[:])
+
 // CircleIntegrationModule is the identifier of the Circle Integration module (which is used for governance messages).
 // It is the hex representation of "CircleIntegration" left padded with zeroes.
 var CircleIntegrationModule = [32]byte{
@@ -47,6 +54,10 @@ var (
 	ActionStoreCode           GovernanceAction = 1
 	ActionInstantiateContract GovernanceAction = 2
 	ActionMigrateContract     GovernanceAction = 3
+
+	// Gateway governance actions
+	ActionScheduleUpgrade GovernanceAction = 1
+	ActionCancelUpgrade   GovernanceAction = 2
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -118,6 +129,12 @@ type (
 	// BodyWormchainInstantiateContract is a governance message to migrate a cosmwasm contract on wormchain
 	BodyWormchainMigrateContract struct {
 		MigrationParamsHash [32]byte
+	}
+
+	// BodyGatewayScheduleUpgrade is a governance message to schedule an upgrade on Gateway
+	BodyGatewayScheduleUpgrade struct {
+		Name   string
+		Height uint64
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -233,6 +250,18 @@ func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
+func (r BodyGatewayScheduleUpgrade) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write([]byte(r.Name))
+	MustWrite(payload, binary.BigEndian, r.Height)
+	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) {
+	r.Name = string(bz[0 : len(bz)-8])
+	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
+}
+
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})
 }
@@ -256,6 +285,10 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 	payload.Write(r.ChannelId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
 	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
+}
+
+func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) []byte {
+	return serializeBridgeGovernanceVaa(module, actionId, chainId, []byte{})
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
