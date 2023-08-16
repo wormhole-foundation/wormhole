@@ -1,3 +1,6 @@
+SOLANA_CLI="v1.14.22"
+ANCHOR_CLI="v0.28.0"
+
 out_mainnet=artifacts-mainnet
 out_testnet=artifacts-testnet
 out_localnet=artifacts-localnet
@@ -34,3 +37,11 @@ test: node_modules
 lint:
 	cargo fmt --check
 	cargo clippy --no-deps --all-targets -- -D warnings
+
+docker-wip:
+ifdef out_$(NETWORK)
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile \
+		--build-arg SOLANA_CLI=$(SOLANA_CLI) \
+		--build-arg ANCHOR_CLI=$(ANCHOR_CLI) \
+		--build-arg NETWORK=$(NETWORK) .
+endif
