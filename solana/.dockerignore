@@ -5,3 +5,4 @@ bin
 artifacts-*
 **/Makefile
 *.md
+legacy
