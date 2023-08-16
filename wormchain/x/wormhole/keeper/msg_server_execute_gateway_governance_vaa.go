@@ -5,8 +5,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	pfmtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
-	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -42,13 +42,37 @@ func (k msgServer) ExecuteGatewayGovernanceVaa(
 
 	// Execute action
 	switch vaa.GovernanceAction(action) {
+	case vaa.ActionScheduleUpgrade:
+		return k.scheduleUpgrade(ctx, payload)
+	case vaa.ActionCancelUpgrade:
+		return k.cancelUpgrade(ctx)
 	case vaa.ActionSetIbcComposabilityMwContract:
 		return k.setIbcComposabilityMwContract(ctx, payload)
-	case vaa.ActionSetTokenfactoryPfmDefaultParams:
-		return k.setTokenfactoryPfmDefaultParams(ctx)
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 	}
+}
+
+func (k msgServer) scheduleUpgrade(
+	ctx sdk.Context,
+	payload []byte,
+) (*types.EmptyResponse, error) {
+	// Deserialize payload to get the name and height for the upgrade plan
+	var payloadBody vaa.BodyGatewayScheduleUpgrade
+	payloadBody.Deserialize(payload)
+
+	plan := upgradetypes.Plan{
+		Name:   payloadBody.Name,
+		Height: int64(payloadBody.Height),
+	}
+	k.upgradeKeeper.ScheduleUpgrade(ctx, plan)
+
+	return &types.EmptyResponse{}, nil
+}
+
+func (k msgServer) cancelUpgrade(ctx sdk.Context) (*types.EmptyResponse, error) {
+	k.upgradeKeeper.ClearUpgradePlan(ctx)
+	return &types.EmptyResponse{}, nil
 }
 
 func (k msgServer) setIbcComposabilityMwContract(
@@ -73,14 +97,6 @@ func (k msgServer) setIbcComposabilityMwContract(
 	}
 
 	k.StoreIbcComposabilityMwContract(ctx, newContract)
-
-	return &types.EmptyResponse{}, nil
-}
-
-func (k msgServer) setTokenfactoryPfmDefaultParams(ctx sdk.Context) (*types.EmptyResponse, error) {
-	// Set the default params for both tokenfactory and PFM
-	k.tokenfactoryKeeper.SetParams(ctx, tokenfactorytypes.DefaultParams())
-	k.pfmKeeper.SetParams(ctx, pfmtypes.DefaultParams())
 
 	return &types.EmptyResponse{}, nil
 }

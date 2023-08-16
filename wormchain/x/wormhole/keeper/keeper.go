@@ -7,8 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	pfmkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
-	tokenfactorykeeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
@@ -18,15 +17,13 @@ type (
 		storeKey sdk.StoreKey
 		memKey   sdk.StoreKey
 
-		accountKeeper      types.AccountKeeper
-		bankKeeper         types.BankKeeper
-		wasmdKeeper        types.WasmdKeeper
-		tokenfactoryKeeper tokenfactorykeeper.Keeper
-		pfmKeeper          pfmkeeper.Keeper
+		accountKeeper types.AccountKeeper
+		bankKeeper    types.BankKeeper
+		wasmdKeeper   types.WasmdKeeper
+		upgradeKeeper upgradekeeper.Keeper
 
-		setWasmd        bool
-		setTokenfactory bool
-		setPfm          bool
+		setWasmd   bool
+		setUpgrade bool
 	}
 )
 
@@ -57,16 +54,9 @@ func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.setWasmd = true
 }
 
-// Necessary because x/staking relies on x/wormhole and x/tokenfactory relies on x/staking (transitively)
-func (k *Keeper) SetTokenfactoryKeeper(keeper tokenfactorykeeper.Keeper) {
-	k.tokenfactoryKeeper = keeper
-	k.setTokenfactory = true
-}
-
-// Necesesary because x/staking relies on x/wormhole and PFM relies on x/staking (transitively)
-func (k *Keeper) SetPfmKeeper(keeper pfmkeeper.Keeper) {
-	k.pfmKeeper = keeper
-	k.setPfm = true
+func (k *Keeper) SetUpgradeKeeper(keeper upgradekeeper.Keeper) {
+	k.upgradeKeeper = keeper
+	k.setUpgrade = true
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

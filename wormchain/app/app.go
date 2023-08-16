@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	store "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
@@ -85,6 +86,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
@@ -215,6 +217,8 @@ var (
 	}
 
 	tokenFactoryCapabilities = []string{}
+
+	Upgrades = []Upgrade{V2_22_0_Upgrade}
 )
 
 var (
@@ -288,6 +292,9 @@ type App struct {
 
 	// the module manager
 	mm *module.Manager
+
+	// module configurator
+	configurator module.Configurator
 }
 
 // New returns a reference to an initialized Gaia.
@@ -387,6 +394,7 @@ func New(
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp)
+	app.WormholeKeeper.SetUpgradeKeeper(app.UpgradeKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -402,7 +410,6 @@ func New(
 	)
 
 	app.WireICS20PreWasmKeeper(&app.WormholeKeeper)
-	app.WormholeKeeper.SetPfmKeeper(*app.PacketForwardKeeper)
 
 	// register the proposal types
 	govRouter := govtypes.NewRouter()
@@ -434,7 +441,6 @@ func New(
 		app.DistrKeeper,
 		tokenFactoryCapabilities,
 	)
-	app.WormholeKeeper.SetTokenfactoryKeeper(app.TokenFactoryKeeper)
 
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
@@ -481,6 +487,9 @@ func New(
 		AddRoute(wasm.ModuleName, wasm.NewIBCHandler(app.wasmKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper))
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
+
+	//upgrade handlers
+	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 
 	/****  Module Options ****/
 
@@ -616,12 +625,15 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	app.mm.RegisterServices(module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter()))
+	app.mm.RegisterServices(app.configurator)
 
 	// initialize stores
 	app.MountKVStores(keys)
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
+
+	// register upgrade
+	app.setupUpgradeHandlers(app.configurator)
 
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
@@ -643,6 +655,8 @@ func New(
 
 	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
+
+	app.setupUpgradeStoreLoaders()
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
@@ -917,4 +931,64 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// IBC Composability Middleware
 	ibcComposabilityMiddleware := ibccomposabilitymw.NewIBCMiddleware(&hooksTransferModule, &ibcComposabilityMwICS4Wrapper, ibcComposabilityMwKeeper)
 	app.TransferStack = &ibcComposabilityMiddleware
+}
+
+// configure store loader that checks if version == upgradeHeight and applies store upgrades
+func (app *App) setupUpgradeStoreLoaders() {
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic("failed to read upgrade info from disk" + err.Error())
+	}
+
+	if app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		return
+	}
+
+	for _, upgrade := range Upgrades {
+		if upgradeInfo.Name == upgrade.UpgradeName {
+			storeUpgrades := upgrade.StoreUpgrades
+			app.SetStoreLoader(
+				upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades),
+			)
+		}
+	}
+}
+
+func (app *App) setupUpgradeHandlers(cfg module.Configurator) {
+	for _, upgrade := range Upgrades {
+		app.UpgradeKeeper.SetUpgradeHandler(
+			upgrade.UpgradeName,
+			upgrade.CreateUpgradeHandler(
+				app.mm,
+				cfg,
+				app,
+			),
+		)
+	}
+}
+
+// BaseAppParamManager defines an interrace that BaseApp is expected to fullfil
+// that allows upgrade handlers to modify BaseApp parameters.
+type BaseAppParamManager interface {
+	GetConsensusParams(ctx sdk.Context) *tmproto.ConsensusParams
+	StoreConsensusParams(ctx sdk.Context, cp *tmproto.ConsensusParams)
+}
+
+// Upgrade defines a struct containing necessary fields that a SoftwareUpgradeProposal
+// must have written, in order for the state migration to go smoothly.
+// An upgrade must implement this struct, and then set it in the app.go.
+// The app.go will then define the handler.
+type Upgrade struct {
+	// Upgrade version name, for the upgrade handler, e.g. `v7`
+	UpgradeName string
+
+	// CreateUpgradeHandler defines the function that creates an upgrade handler
+	CreateUpgradeHandler func(
+		*module.Manager,
+		module.Configurator,
+		*App,
+	) upgradetypes.UpgradeHandler
+
+	// Store upgrades, should be used for any new modules introduced, new modules deleted, or store names renamed.
+	StoreUpgrades store.StoreUpgrades
 }
