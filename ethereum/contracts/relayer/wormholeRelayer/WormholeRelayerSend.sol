@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 
 import {
     DeliveryProviderDoesNotSupportTargetChain,
+    DeliveryProviderDoesNotSupportMessageKeyType,
     InvalidMsgValue,
     DeliveryProviderCannotReceivePayment,
     MessageKey,
@@ -22,6 +23,8 @@ import {getDefaultDeliveryProviderState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
+
+import "forge-std/console.sol";
 
 abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
     using WormholeRelayerSerde for *; 
@@ -156,6 +159,34 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         );
     }
 
+    function sendToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        MessageKey[] memory messageKeys,
+        uint8 consistencyLevel
+    ) public payable returns (uint64 sequence) {
+        sequence = send(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            payload,
+            receiverValue,
+            paymentForExtraReceiverValue,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            refundChain,
+            toWormholeFormat(refundAddress),
+            deliveryProviderAddress,
+            messageKeys,
+            consistencyLevel
+        );
+    }
+
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
@@ -274,6 +305,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue);
 
+        checkMessageKeyTypesSupportedByDeliveryProvider(provider, sendParams.messageKeys);
+
         // Encode all relevant info the delivery provider needs to perform the delivery as requested
         bytes memory encodedInstruction = DeliveryInstruction({
             targetChain: sendParams.targetChain,
@@ -306,6 +339,27 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
 
         if(!paymentSucceeded) 
             revert DeliveryProviderCannotReceivePayment();
+    }
+
+    function checkMessageKeyTypesSupportedByDeliveryProvider(
+        IDeliveryProvider provider, 
+        MessageKey[] memory messageKeys
+    ) internal view {
+        uint256 seenKeyTypes = 0;
+        for (uint256 i = 0; i < messageKeys.length;) {
+            uint8 keyType = messageKeys[i].keyType;
+            unchecked {
+                ++i;
+            }
+
+            uint256 mask = 1 << keyType;
+            if (seenKeyTypes & mask > 0)
+                continue;
+            if (!provider.isMessageKeyTypeSupported(keyType)) {
+                revert DeliveryProviderDoesNotSupportMessageKeyType(keyType);
+            }
+            seenKeyTypes |= mask;
+        }
     }
 
     function resend(
