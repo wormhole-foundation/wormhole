@@ -6,6 +6,7 @@ import {
     DeliveryProviderDoesNotSupportTargetChain,
     InvalidMsgValue,
     DeliveryProviderCannotReceivePayment,
+    MessageKey,
     VaaKey,
     IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
@@ -195,7 +196,41 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 refundChain,
                 refundAddress,
                 deliveryProviderAddress,
-                vaaKeys,
+                // should we encode this directly into bytes here? 
+                // That means that DeliveryInstruction would also have bytes instead of MessageKey[]
+                WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys), // why doesn't this work without the 'WormholeRelayerSerde.' ?
+                consistencyLevel
+            )
+        );
+    }
+
+    function send(
+        uint16 targetChain,
+        bytes32 targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        bytes memory encodedExecutionParameters,
+        uint16 refundChain,
+        bytes32 refundAddress,
+        address deliveryProviderAddress,
+        MessageKey[] memory messageKeys,
+        uint8 consistencyLevel
+    ) public payable returns (uint64 sequence) {
+        sequence = send(
+            Send(
+                targetChain,
+                targetAddress,
+                payload,
+                receiverValue,
+                paymentForExtraReceiverValue,
+                encodedExecutionParameters,
+                refundChain,
+                refundAddress,
+                deliveryProviderAddress,
+                // should we encode this directly into bytes here? 
+                // That means that DeliveryInstruction would also have bytes instead of MessageKey[]
+                messageKeys,
                 consistencyLevel
             )
         );
@@ -215,7 +250,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 refundChain;
         bytes32 refundAddress;
         address deliveryProviderAddress;
-        VaaKey[] vaaKeys;
+        MessageKey[] messageKeys;
         uint8 consistencyLevel;
     }
 
@@ -254,7 +289,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             refundDeliveryProvider: provider.getTargetChainAddress(sendParams.targetChain),
             sourceDeliveryProvider: toWormholeFormat(sendParams.deliveryProviderAddress),
             senderAddress: toWormholeFormat(msg.sender),
-            vaaKeys: sendParams.vaaKeys
+            messageKeys: sendParams.messageKeys
         }).encode();
 
         // Publish the encoded delivery instruction as a wormhole message

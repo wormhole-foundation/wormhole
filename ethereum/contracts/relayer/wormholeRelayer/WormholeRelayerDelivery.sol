@@ -8,13 +8,15 @@ import {
     InvalidEmitter,
     InsufficientRelayerFunds,
     TargetChainIsNotThisChain,
-    VaaKeysLengthDoesNotMatchVaasLength,
+    MessageKeysLengthDoesNotMatchMessagesLength,
     VaaKeysDoNotMatchVaas,
     InvalidOverrideGasLimit,
     InvalidOverrideReceiverValue,
     InvalidOverrideRefundPerGasUnused,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
+    MessageKey,
+    VAA_KEY_TYPE,
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend,
@@ -112,7 +114,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         // Revert if the VAAs delivered do not match the descriptions specified in the instruction
-        checkVaaKeysWithVAAs(instruction.vaaKeys, encodedVMs);
+        checkMessageKeysWithMessagess(instruction.messageKeys, encodedVMs);
 
         executeDelivery(deliveryVaaInfo);
     }
@@ -561,24 +563,30 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    function checkVaaKeysWithVAAs(
-        VaaKey[] memory vaaKeys,
-        bytes[] memory signedVaas
+    function checkMessageKeysWithMessagess(
+        MessageKey[] memory messageKeys,
+        bytes[] memory signedMessages
     ) private view {
-        if (vaaKeys.length != signedVaas.length) {
-            revert VaaKeysLengthDoesNotMatchVaasLength(vaaKeys.length, signedVaas.length);
+        if (messageKeys.length != signedMessages.length) {
+            revert MessageKeysLengthDoesNotMatchMessagesLength(messageKeys.length, signedMessages.length);
         }
 
-        for (uint256 i = 0; i < vaaKeys.length;) {
-            IWormhole.VM memory parsedVaa = getWormhole().parseVM(signedVaas[i]);
-            VaaKey memory vaaKey = vaaKeys[i];
-            
-            if (
-                vaaKey.chainId != parsedVaa.emitterChainId
-                    || vaaKey.emitterAddress != parsedVaa.emitterAddress
-                    || vaaKey.sequence != parsedVaa.sequence
-            ) {
-                revert VaaKeysDoNotMatchVaas(uint8(i));
+        uint256 numVaas = 0;
+        for (uint256 i = 0; i < messageKeys.length;) {
+            if (messageKeys[i].keyType == VAA_KEY_TYPE) {
+                IWormhole.VM memory parsedVaa = getWormhole().parseVM(signedMessages[i]);
+                (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKeys[i].encodedKey, 0);
+                
+                if (
+                    vaaKey.chainId != parsedVaa.emitterChainId
+                        || vaaKey.emitterAddress != parsedVaa.emitterAddress
+                        || vaaKey.sequence != parsedVaa.sequence
+                ) {
+                    revert VaaKeysDoNotMatchVaas(uint8(i));
+                }
+                unchecked {
+                    ++numVaas;
+                }
             }
 
             unchecked {
