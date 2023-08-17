@@ -1105,7 +1105,7 @@ LocalNative forwardDeliveryCost;
                 ),
             sourceDeliveryProvider: toWormholeFormat(address(setup.source.deliveryProvider)),
             senderAddress: toWormholeFormat(address(setup.source.integration)),
-            vaaKeys: vaaKeys
+            messageKeys: WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys)
         });
 
         checkInstructionEquality(
@@ -1166,21 +1166,42 @@ LocalNative forwardDeliveryCost;
         );
     }
 
+    function checkMessageKey(
+        bytes memory data,
+        uint256 _index,
+        MessageKey memory messageKey
+    ) public returns (uint256 index) {
+        MessageKey memory decodedMessageKey;
+        index = _index;
+        (decodedMessageKey.keyType, index) = data.asUint8(index);
+        assertEq(decodedMessageKey.keyType, messageKey.keyType, "decodedMessageKey.keyType incorrect");
+        if (decodedMessageKey.keyType == VAA_KEY_TYPE) {
+            (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKey.encodedKey, 0);
+            uint32 encodedKeyLen;
+            (encodedKeyLen, index) = data.asUint32(index);
+            assertEq(encodedKeyLen, 42, "encodedKeyLen for VAA_KEY_TYPE must be 42");
+            index = checkVaaKey(data, index, vaaKey);
+        } else {
+            assertFalse(true, "Unsupported keyType found");
+        }
+    }
+
     function checkVaaKey(
         bytes memory data,
         uint256 _index,
         VaaKey memory vaaKey
     ) public returns (uint256 index) {
         VaaKey memory decodedVaaKey;
-        uint8 payloadId;
         index = _index;
-        (payloadId, index) = data.asUint8(index);
-        assertTrue(payloadId == 1, "Is a vaa key version 1");
+        console.log(data.length, index);
         (decodedVaaKey.chainId, index) = data.asUint16(index);
+            console.log(data.length, index);
         assertTrue(decodedVaaKey.chainId == vaaKey.chainId, "Wrong chain id");
         (decodedVaaKey.emitterAddress, index) = data.asBytes32(index);
+            console.log(data.length, index);
         assertTrue(decodedVaaKey.emitterAddress == vaaKey.emitterAddress, "Wrong emitter address");
         (decodedVaaKey.sequence, index) = data.asUint64(index);
+            console.log(data.length, index);
         assertTrue(decodedVaaKey.sequence == vaaKey.sequence, "Wrong sequence");
     }
 
@@ -1254,11 +1275,11 @@ LocalNative forwardDeliveryCost;
             decodedInstruction.senderAddress == expectedInstruction.senderAddress,
             "Wrong sender address"
         );
-        uint8 vaaKeysLength;
-        (vaaKeysLength, index) = data.asUint8(index);
-        decodedInstruction.vaaKeys = new VaaKey[](vaaKeysLength);
-        for (uint256 i = 0; i < vaaKeysLength; i++) {
-            index = checkVaaKey(data, index, expectedInstruction.vaaKeys[i]);
+        uint8 messageKeysLength;
+        (messageKeysLength, index) = data.asUint8(index);
+        decodedInstruction.messageKeys = new MessageKey[](messageKeysLength);
+        for (uint256 i = 0; i < messageKeysLength; i++) {
+            index = checkMessageKey(data, index, expectedInstruction.messageKeys[i]);
         }
         assertTrue(index == data.length, "Wrong length of data");
     }
@@ -1569,7 +1590,7 @@ LocalNative forwardDeliveryCost;
 
         vm.prank(setup.target.relayer);
         vm.expectRevert(
-            abi.encodeWithSignature("VaaKeysLengthDoesNotMatchVaasLength(uint256,uint256)", 0, 1)
+            abi.encodeWithSignature("MessageKeysLengthDoesNotMatchMessagesLength(uint256,uint256)", 0, 1)
         );
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
@@ -1982,17 +2003,45 @@ LocalNative forwardDeliveryCost;
         );
     }
 
-     function testEncodeAndDecodeDeliveryInstruction(
-        bytes memory payload
-    ) public {
-        VaaKey[] memory vaaKeys = new VaaKey[](3);
-        vaaKeys[0] = VaaKey({
+    function testEncodeAndDecodeVaaKey() public {
+        VaaKey memory vaaKey = VaaKey({
             chainId: 1,
             emitterAddress: bytes32(""),
             sequence: 23
         });
-        vaaKeys[1] = vaaKeys[0];
-        vaaKeys[2] = vaaKeys[0];
+        (VaaKey memory newVaaKey,) = WormholeRelayerSerde.decodeVaaKey(WormholeRelayerSerde.encodeVaaKey(vaaKey), 0);
+        checkVaaKey(WormholeRelayerSerde.encodeVaaKey(newVaaKey), 0, vaaKey);
+    }
+
+    function testEncodeAndDecodeMessageKey() public {
+        VaaKey memory vaaKey = VaaKey({
+            chainId: 1,
+            emitterAddress: bytes32(""),
+            sequence: 23
+        });
+        MessageKey memory messageKey = MessageKey({
+            keyType: VAA_KEY_TYPE,
+            encodedKey: WormholeRelayerSerde.encodeVaaKey(vaaKey)
+        });
+
+        (MessageKey memory newMessageKey,) = WormholeRelayerSerde.decodeMessageKey(WormholeRelayerSerde.encodeMessageKey(messageKey), 0);
+        checkMessageKey(WormholeRelayerSerde.encodeMessageKey(newMessageKey), 0, messageKey);
+    }
+
+     function testEncodeAndDecodeDeliveryInstruction(
+        bytes memory payload
+    ) public {
+        MessageKey[] memory messageKeys = new MessageKey[](3);
+        messageKeys[0] = MessageKey({
+            keyType: VAA_KEY_TYPE,
+            encodedKey: WormholeRelayerSerde.encodeVaaKey(VaaKey({
+                chainId: 1,
+                emitterAddress: bytes32(""),
+                sequence: 23
+            }))
+        });
+        messageKeys[1] = messageKeys[0];
+        messageKeys[2] = messageKeys[0];
 
         DeliveryInstruction memory instruction = DeliveryInstruction({
             targetChain: 1,
@@ -2006,7 +2055,7 @@ LocalNative forwardDeliveryCost;
             refundDeliveryProvider: keccak256(bytes("refundRelayProvider")),
             sourceDeliveryProvider: keccak256(bytes("sourceRelayProvider")),
             senderAddress: keccak256(bytes("senderAddress")),
-            vaaKeys: vaaKeys
+            messageKeys: messageKeys
         });
 
         DeliveryInstruction memory newInstruction =

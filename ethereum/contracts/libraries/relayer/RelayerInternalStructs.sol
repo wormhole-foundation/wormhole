@@ -17,7 +17,7 @@ struct DeliveryInstruction {
     bytes32 refundDeliveryProvider;
     bytes32 sourceDeliveryProvider;
     bytes32 senderAddress;
-    VaaKey[] vaaKeys;
+    MessageKey[] messageKeys;
 }
 
 // Meant to hold all necessary values for `CoreRelayerDelivery::executeInstruction`
