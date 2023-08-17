@@ -6,6 +6,8 @@ import {
     InvalidPayloadId,
     InvalidPayloadLength,
     InvalidVaaKeyType,
+    MessageKey,
+    VAA_KEY_TYPE,
     VaaKey
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
@@ -58,7 +60,7 @@ library WormholeRelayerSerde {
             strct.refundDeliveryProvider,
             strct.sourceDeliveryProvider,
             strct.senderAddress,
-            encodeVaaKeyArray(strct.vaaKeys)
+            encodeMessageKeyArray(strct.messageKeys)
         );
     }
 
@@ -83,7 +85,7 @@ library WormholeRelayerSerde {
         (strct.refundDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.sourceDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.senderAddress, offset) = encoded.asBytes32Unchecked(offset);
-        (strct.vaaKeys, offset) = decodeVaaKeyArray(encoded, offset);
+        (strct.messageKeys, offset) = decodeMessageKeyArray(encoded, offset);
 
         strct.requestedReceiverValue = TargetNative.wrap(requestedReceiverValue);
         strct.extraReceiverValue = TargetNative.wrap(extraReceiverValue);
@@ -156,49 +158,114 @@ library WormholeRelayerSerde {
         checkLength(encoded, offset);
     }
 
+    function vaaKeyArrayToMessageKeyArray(VaaKey[] memory vaaKeys)
+        internal
+        pure
+        returns (MessageKey[] memory msgKeys)
+    {
+        msgKeys = new MessageKey[](vaaKeys.length);
+        for (uint256 i = 0; i < vaaKeys.length;) {
+            msgKeys[i] = MessageKey(VAA_KEY_TYPE, encodeVaaKey(vaaKeys[i]));
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     // ------------------------------------------ private --------------------------------------------
 
-    function encodeVaaKeyArray(VaaKey[] memory vaaKeys)
+    function encodeMessageKey(
+        MessageKey memory msgKey
+    ) internal pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(msgKey.keyType, encodeBytes(msgKey.encodedKey));
+    }
+
+    function decodeMessageKey(
+        bytes memory encoded,
+        uint256 startOffset
+    ) internal pure returns (MessageKey memory msgKey, uint256 offset) {
+        (msgKey.keyType, offset) = encoded.asUint8Unchecked(startOffset);
+        (msgKey.encodedKey, offset) = decodeBytes(encoded, offset);
+    }
+
+    function encodeMessageKeyArray(MessageKey[] memory msgKeys)
         private
+        pure
+        returns (bytes memory encoded)
+    {
+        assert(msgKeys.length < type(uint8).max);
+        encoded = abi.encodePacked(uint8(msgKeys.length));
+        for (uint256 i = 0; i < msgKeys.length;) {
+            encoded = abi.encodePacked(encoded, encodeMessageKey(msgKeys[i]));
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function decodeMessageKeyArray(
+        bytes memory encoded,
+        uint256 startOffset
+    ) private pure returns (MessageKey[] memory msgKeys, uint256 offset) {
+        uint8 msgKeysLength;
+        (msgKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
+        msgKeys = new MessageKey[](msgKeysLength);
+        for (uint256 i = 0; i < msgKeys.length;) {
+            (msgKeys[i], offset) = decodeMessageKey(encoded, offset);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function encodeVaaKeyArray(VaaKey[] memory vaaKeys)
+        internal
         pure
         returns (bytes memory encoded)
     {
         assert(vaaKeys.length < type(uint8).max);
         encoded = abi.encodePacked(uint8(vaaKeys.length));
         for (uint256 i = 0; i < vaaKeys.length;) {
-            encoded = abi.encodePacked(encoded, encodeVaaKey(vaaKeys[i]));
+            encoded = abi.encodePacked(
+                encoded, 
+                encodeMessageKey(MessageKey({
+                    keyType: VAA_KEY_TYPE, 
+                    encodedKey: encodeVaaKey(vaaKeys[i])
+                }))
+            );
             unchecked {
                 ++i;
             }
         }
     }
 
-    function decodeVaaKeyArray(
-        bytes memory encoded,
-        uint256 startOffset
-    ) private pure returns (VaaKey[] memory vaaKeys, uint256 offset) {
-        uint8 vaaKeysLength;
-        (vaaKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
-        vaaKeys = new VaaKey[](vaaKeysLength);
-        for (uint256 i = 0; i < vaaKeys.length;) {
-            (vaaKeys[i], offset) = decodeVaaKey(encoded, offset);
-            unchecked {
-                ++i;
-            }
-        }
-    }
+    // function decodeVaaKeyArray(
+    //     bytes memory encoded,
+    //     uint256 startOffset
+    // ) private pure returns (VaaKey[] memory vaaKeys, uint256 offset) {
+    //     uint8 vaaKeysLength;
+    //     (vaaKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
+    //     vaaKeys = new VaaKey[](vaaKeysLength);
+    //     for (uint256 i = 0; i < vaaKeys.length;) {
+    //         (vaaKeys[i], offset) = decodeVaaKey(encoded, offset);
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
+    // }
 
-    function encodeVaaKey(VaaKey memory vaaKey) private pure returns (bytes memory encoded) {
+    function encodeVaaKey(VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
         encoded = abi.encodePacked(
-            encoded, VERSION_VAAKEY, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence
+            encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence
         );
     }
 
     function decodeVaaKey(
         bytes memory encoded,
         uint256 startOffset
-    ) private pure returns (VaaKey memory vaaKey, uint256 offset) {
-        offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
+    ) internal pure returns (VaaKey memory vaaKey, uint256 offset) {
+        // offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
+        offset = startOffset;
         (vaaKey.chainId, offset) = encoded.asUint16Unchecked(offset);
         (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
         (vaaKey.sequence, offset) = encoded.asUint64Unchecked(offset);
