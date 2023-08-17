@@ -33,10 +33,18 @@ impl<'info> InitMessageV1<'info> {
         let mut reader = std::io::Cursor::new(msg_acct_data);
 
         // Infer the expected message length given the size of the created account.
+        let data_len = ctx.accounts.draft_message.data_len();
         require_gt!(
-            ctx.accounts.draft_message.data_len(),
+            data_len,
             PostedMessageV1::BYTES_START,
             CoreBridgeError::InvalidCreatedAccountSize
+        );
+
+        // This message length cannot exceed the maximum message length.
+        require_gte!(
+            MAX_MESSAGE_PAYLOAD_SIZE,
+            data_len - PostedMessageV1::BYTES_START,
+            CoreBridgeError::ExceedsMaxPayloadSize
         );
 
         // All of the discriminator + header bytes + the 4-byte payload length should be zero.
