@@ -29,6 +29,8 @@ import (
 
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+
 	"go.uber.org/zap"
 )
 
@@ -258,6 +260,12 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 
 // handleMissingObservation submits a local reobservation request. It relies on the reobservation code to throttle requests.
 func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
+	// If this transaction is enqueued in the governor, there's no point in requesting a reobservation. It can just uselessly flood the observation request channel.
+	if acct.gov != nil && acct.gov.IsTransactionEnqueued(vaa.ChainID(mo.ChainId), ethCommon.BytesToHash(mo.TxHash)) {
+		acct.logger.Debug("contract reported missing observation that is enqueued in the governor, doing nothing", zap.Stringer("moKey", mo))
+		return
+	}
+
 	acct.logger.Warn("contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
 	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash}
 

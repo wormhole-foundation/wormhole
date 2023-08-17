@@ -127,7 +127,7 @@ func newAccountantForTest(
 		env,
 	)
 
-	err := acct.Start(ctx)
+	err := acct.Start(ctx, nil /*gov*/)
 	require.NoError(t, err)
 	return acct
 }

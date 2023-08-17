@@ -75,6 +75,7 @@
 package governor
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 	"sort"
@@ -600,4 +601,22 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 	}
 
 	sendC <- b
+}
+
+func (gov *ChainGovernor) IsTransactionEnqueued(emitterChainId vaa.ChainID, txHash ethCommon.Hash) bool {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	ce, exists := gov.chains[emitterChainId]
+	if !exists {
+		return false
+	}
+
+	for _, pe := range ce.pending {
+		if bytes.Equal(pe.dbData.Msg.TxHash.Bytes(), txHash.Bytes()) {
+			return true
+		}
+	}
+
+	return false
 }

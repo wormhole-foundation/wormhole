@@ -164,7 +164,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 		// Ideally they should just register a g.runnables["governor"] and g.runnables["accountant"] instead of being treated as special cases.
 		if g.acct != nil {
 			logger.Info("Starting accountant")
-			if err := g.acct.Start(ctx); err != nil {
+			if err := g.acct.Start(ctx, g.gov); err != nil {
 				logger.Fatal("acct: failed to start accountant", zap.Error(err))
 			}
 			defer g.acct.Close()

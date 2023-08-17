@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -91,6 +92,7 @@ type Accountant struct {
 	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
 	subChan              chan *common.MessagePublication
 	env                  common.Environment
+	gov                  *governor.ChainGovernor
 }
 
 // On startup, there can be a large number of re-submission requests.
@@ -132,8 +134,9 @@ func NewAccountant(
 }
 
 // Run initializes the accountant and starts the watcher runnable.
-func (acct *Accountant) Start(ctx context.Context) error {
+func (acct *Accountant) Start(ctx context.Context, gov *governor.ChainGovernor) error {
 	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag))
+	acct.gov = gov
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
