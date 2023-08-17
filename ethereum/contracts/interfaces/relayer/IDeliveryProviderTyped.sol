@@ -32,6 +32,19 @@ interface IDeliveryProvider {
     function isChainSupported(uint16 targetChain) external view returns (bool supported);
 
     /**
+     * @notice This function determines whether a relay provider supports the provided keyType.
+     *      
+     * Note: 0-127 are reserved for standardized keyTypes and 128-255 are allowed to be custom per DeliveryProvider
+     *       Practically this means that 0-127 must mean the same thing for all DeliveryProviders,
+     *       while x within 128-255 may have different meanings between DeliveryProviders 
+     *       (e.g. 130 for provider A means pyth price quotes while 130 for provider B means tweets, 
+     *       but 8 must mean the same for both)
+     *
+     * @param keyType - The keyType within MessageKey that specifies what the encodedKey within a MessageKey means
+     */
+    function isMessageKeyTypeSupported(uint8 keyType) external view returns (bool supported);
+
+    /**
      * @notice If a DeliveryProvider supports a given chain, this function should provide the contract
      *      address (in wormhole format) of the relay provider on that chain.
      *
