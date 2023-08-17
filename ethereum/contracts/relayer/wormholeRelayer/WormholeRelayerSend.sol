@@ -24,8 +24,6 @@ import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
-import "forge-std/console.sol";
-
 abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
     using WormholeRelayerSerde for *; 
     using WeiLib for Wei;
@@ -227,8 +225,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 refundChain,
                 refundAddress,
                 deliveryProviderAddress,
-                // should we encode this directly into bytes here? 
-                // That means that DeliveryInstruction would also have bytes instead of MessageKey[]
                 WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys), // why doesn't this work without the 'WormholeRelayerSerde.' ?
                 consistencyLevel
             )
@@ -259,8 +255,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 refundChain,
                 refundAddress,
                 deliveryProviderAddress,
-                // should we encode this directly into bytes here? 
-                // That means that DeliveryInstruction would also have bytes instead of MessageKey[]
                 messageKeys,
                 consistencyLevel
             )
