@@ -56,8 +56,10 @@ var (
 )
 
 const (
-	settlementTime    = time.Second * 30
-	retryLimitOurs    = time.Hour * 24
+	settlementTime = time.Second * 30
+	// retryLimitOurs defines how long this Guardian will keep an observation in the local state before discarding it.
+	// Oservations from other Guardians can take up to 24h to arrive if they are held in their Governor. Therefore, this value should be greater than 24h.
+	retryLimitOurs    = time.Hour * 30
 	retryLimitNotOurs = time.Hour
 )
 
