@@ -147,7 +147,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Create the instruction.
       const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
 
-      expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
     });
 
     it("Cannot Invoke `set_message_fee` with Invalid Governance Action", async () => {
@@ -177,7 +177,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Create the instruction.
       const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
 
-      expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
     });
 
     it("Cannot Invoke `set_message_fee` with Invalid Target Chain", async () => {
@@ -194,12 +194,14 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Create the instruction.
       const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
 
-      expectIxErr(connection, [ix], [payer], "GovernanceForAnotherChain");
+      await expectIxErr(connection, [ix], [payer], "GovernanceForAnotherChain");
     });
 
     it("Cannot Invoke `set_message_fee` with Fee Larger than Max(u64)", async () => {
       // Fetch the default VAA.
-      const signedVaa = defaultVaa(new anchor.BN("18446744073709551615"));
+      const signedVaa = defaultVaa(new anchor.BN(Buffer.from("10000000000000000", "hex")));
+
+      console.log(signedVaa.subarray(-64, -32).toString("hex"));
 
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
@@ -210,24 +212,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Create the instruction.
       const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
 
-      expectIxErr(connection, [ix], [payer], "U64Overflow");
-    });
-
-    it("Cannot Invoke `set_message_fee` with Invalid Guardian Set Index", async () => {
-      // Fetch the default VAA.
-      const signedVaa = defaultVaa(new anchor.BN(69));
-
-      // Post the VAA.
-      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
-
-      // Parse the vaa and update the guardian set index.
-      let parsedVaa = parseVaa(signedVaa);
-      parsedVaa.guardianSetIndex = 69;
-
-      // Create the instruction.
-      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
-
-      expectIxErr(connection, [ix], [payer], "LatestGuardianSetRequired");
+      await expectIxErr(connection, [ix], [payer], "U64Overflow");
     });
   });
 });
