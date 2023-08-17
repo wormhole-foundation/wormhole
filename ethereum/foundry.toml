@@ -24,6 +24,15 @@ line_length = 100
 multiline_func_header = "params_first"
 # wrap_comments = true
 
+[profile.default.fuzz]
+seed = 1
+runs = 1
+depth = 1
+
+[profile.default.invariant]
+runs = 1
+depth = 1
+
 
 [profile.production]
 via_ir = true

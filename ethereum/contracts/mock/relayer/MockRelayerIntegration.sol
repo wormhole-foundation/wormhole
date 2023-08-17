@@ -235,6 +235,32 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
     }
 
+    function sendToEvm(
+        uint16 targetChain,
+        address destination,
+        uint32 gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        uint128 receiverValue,
+        uint256 paymentForExtraReceiverValue,
+        bytes memory payload,
+        MessageKey[] memory messageKeys
+    ) public payable returns (uint64 sequence) {
+        sequence = relayer.sendToEvm{value: msg.value}(
+            targetChain,
+            destination,
+            payload,
+            TargetNative.wrap(receiverValue),
+            LocalNative.wrap(paymentForExtraReceiverValue),
+            Gas.wrap(gasLimit),
+            refundChain,
+            refundAddress,
+            relayer.getDefaultDeliveryProvider(),
+            messageKeys,
+            200
+        );
+    }
+
     function resend(
         uint16 chainId,
         uint64 sequence,
