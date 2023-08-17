@@ -12,9 +12,9 @@ import (
 	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
-var V2_22_0_Upgrade = Upgrade{
-	UpgradeName:          "v2.22.0",
-	CreateUpgradeHandler: CreateV2_22_0_UpgradeHandler,
+var V2_23_0_Upgrade = Upgrade{
+	UpgradeName:          "v2.23.0",
+	CreateUpgradeHandler: CreateV2_23_0_UpgradeHandler,
 	StoreUpgrades: store.StoreUpgrades{
 		Added: []string{
 			tokenfactorytypes.ModuleName,
@@ -25,13 +25,13 @@ var V2_22_0_Upgrade = Upgrade{
 	},
 }
 
-func CreateV2_22_0_UpgradeHandler(
+func CreateV2_23_0_UpgradeHandler(
 	mm *module.Manager,
 	cfg module.Configurator,
 	app *App,
 ) upgradetypes.UpgradeHandler {
 	return func(ctx sdk.Context, _ upgradetypes.Plan, vm module.VersionMap) (module.VersionMap, error) {
-		logger := ctx.Logger().With("upgrade", "v2.22.0")
+		logger := ctx.Logger().With("upgrade", "v2.23.0")
 
 		// TokenFactory
 		newTokenFactoryParams := tokenfactorytypes.Params{

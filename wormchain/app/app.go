@@ -218,7 +218,7 @@ var (
 
 	tokenFactoryCapabilities = []string{}
 
-	Upgrades = []Upgrade{V2_22_0_Upgrade}
+	Upgrades = []Upgrade{V2_23_0_Upgrade}
 )
 
 var (
