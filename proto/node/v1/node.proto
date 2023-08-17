@@ -95,8 +95,9 @@ message GovernanceMessage {
     WormchainWasmInstantiateAllowlist wormchain_wasm_instantiate_allowlist = 23;
 
     // Gateway
-    GatewayIbcComposabilityMwSetContract gateway_ibc_composability_mw_set_contract = 24;
-    GatewaySetTokenfactoryPfmDefaultParams gateway_set_tokenfactory_pfm_default_params = 25;
+    GatewayScheduleUpgrade gateway_schedule_upgrade = 24;
+    GatewayCancelUpgrade gateway_cancel_upgrade = 25;
+    GatewayIbcComposabilityMwSetContract gateway_ibc_composability_mw_set_contract = 26;
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -251,7 +252,15 @@ message GatewayIbcComposabilityMwSetContract {
     string contract = 1;
 }
 
-message GatewaySetTokenfactoryPfmDefaultParams {}
+message GatewayScheduleUpgrade {
+  // Name of the upgrade
+  string name = 1;
+
+  // Height of the upgrade halt
+  uint64 height = 2;
+}
+
+message GatewayCancelUpgrade {}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
