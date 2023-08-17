@@ -27,6 +27,15 @@ struct VaaKey {
     uint64 sequence;
 }
 
+// 0-127 are reserved for standardized KeyTypes, 128-255 are for custom use
+uint8 constant VAA_KEY_TYPE = 1;
+
+struct MessageKey {
+    uint8 keyType; // 0-127 are reserved for standardized KeyTypes, 128-255 are for custom use
+    bytes encodedKey;
+}
+
+
 interface IWormholeRelayerBase {
     event SendEvent(
         uint64 indexed sequence, LocalNative deliveryQuote, LocalNative paymentForExtraReceiverValue
@@ -175,6 +184,17 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address refundAddress
     ) external payable returns (uint64 sequence);
 
+    // function sendMessagesToEvm(
+    //     uint16 targetChain,
+    //     address targetAddress,
+    //     bytes memory payload,
+    //     TargetNative receiverValue,
+    //     Gas gasLimit,
+    //     MessageKey[] memory messageKeys,
+    //     uint16 refundChain,
+    //     address refundAddress
+    // ) external payable returns (uint64 sequence);
+
     /**
      * @notice Publishes an instruction for the delivery provider at `deliveryProviderAddress` 
      * to relay a payload and VAAs specified by `vaaKeys` to the address `targetAddress` on chain `targetChain` 
@@ -256,6 +276,20 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes32 refundAddress,
         address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) external payable returns (uint64 sequence);
+
+    function send(
+        uint16 targetChain,
+        bytes32 targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        bytes memory encodedExecutionParameters,
+        uint16 refundChain,
+        bytes32 refundAddress,
+        address deliveryProviderAddress,
+        MessageKey[] memory messageKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
 
@@ -519,7 +553,7 @@ error InvalidDeliveryVaa(string reason);
 //When the delivery VAA (signed wormhole message with delivery instructions) was not emitted by the
 //  registered WormholeRelayer contract
 error InvalidEmitter(bytes32 emitter, bytes32 registered, uint16 chainId);
-error VaaKeysLengthDoesNotMatchVaasLength(uint256 keys, uint256 vaas);
+error MessageKeysLengthDoesNotMatchMessagesLength(uint256 keys, uint256 vaas);
 error VaaKeysDoNotMatchVaas(uint8 index);
 //When someone tries to call an external function of the WormholeRelayer that is only intended to be
 //  called by the WormholeRelayer itself (to allow retroactive reverts for atomicity)
