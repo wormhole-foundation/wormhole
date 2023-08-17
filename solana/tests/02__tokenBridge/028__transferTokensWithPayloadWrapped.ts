@@ -5,6 +5,7 @@ import {
   WrappedMintInfo,
   MINT_INFO_WRAPPED_7,
   MINT_INFO_WRAPPED_8,
+  MINT_INFO_WRAPPED_MAX_TWO,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
@@ -21,11 +22,12 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
+  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_TWO;
 
   describe("Ok", () => {
-    for (const { chain, decimals, address } of wrappedMints) {
-      const transferAuthority = anchor.web3.Keypair.generate();
+    const transferAuthority = anchor.web3.Keypair.generate();
 
+    for (const { chain, decimals, address } of wrappedMints) {
       it(`Invoke \`transfer_tokens_with_payload_wrapped\` (${decimals} Decimals)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
@@ -77,6 +79,62 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
         // TODO: Check that the core messages are correct.
       });
     }
+
+    it(`Invoke \`transfer_tokens_with_payload_wrapped\` (8 Decimals)`, async () => {
+      // Fetch special mint for this test.
+      const { chain, address } = wrappedMaxMint;
+
+      const [mint, forkMint] = [program, forkedProgram].map((program) =>
+        tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+      );
+
+      // Fetch recipient token account, these accounts should've been created in other tests.
+      const [payerToken, forkPayerToken] = await Promise.all([
+        getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+        getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+      ]);
+
+      // Fetch balance before the outbound transfer.
+      const balancesBefore = await getTokenBalances(
+        program,
+        forkedProgram,
+        payerToken.address,
+        forkPayerToken.address
+      );
+
+      // Transfer amount.
+      const amount = new anchor.BN(
+        Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE().toString()
+      ).subn(1);
+
+      // Invoke the instruction.
+      const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] = await parallelTxDetails(
+        program,
+        forkedProgram,
+        {
+          payer: payer.publicKey,
+          wrappedMint: mint,
+          forkWrappedMint: forkMint,
+          srcToken: payerToken.address,
+          forkSrcToken: forkPayerToken.address,
+          srcOwner: payerToken.owner, // Payer owns both token accounts.
+        },
+        defaultArgs(amount),
+        payer,
+        transferAuthority
+      );
+
+      await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+        connection,
+        payerToken.address,
+        forkPayerToken.address,
+        balancesBefore,
+        tokenBridge.TransferDirection.Out,
+        BigInt(amount.toString())
+      );
+
+      // TODO: Check that the core messages are correct.
+    });
   });
 });
 

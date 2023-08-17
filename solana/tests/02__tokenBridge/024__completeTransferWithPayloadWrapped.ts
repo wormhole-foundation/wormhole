@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Account, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  MINT_INFO_WRAPPED_MAX_TWO,
   MINT_INFO_WRAPPED_7,
   MINT_INFO_WRAPPED_8,
   WrappedMintInfo,
@@ -10,8 +11,6 @@ import {
   parallelPostVaa,
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
-  MINT_INFO_WRAPPED_MAX_7,
-  MINT_INFO_WRAPPED_MAX_8,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -47,7 +46,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
-  const wrappedMaxMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_MAX_7, MINT_INFO_WRAPPED_MAX_8];
+  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_TWO;
 
   describe("Ok", () => {
     for (const { chain, decimals, address } of wrappedMints) {
@@ -207,60 +206,56 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
       });
     }
 
-    for (const { chain, decimals, address } of wrappedMaxMints) {
-      it(`Invoke \`complete_transfer_with_payload_wrapped\` (${decimals} Decimals, Maximum Transfer Amount)`, async () => {
-        const [mint, forkMint] = [program, forkedProgram].map((program) =>
-          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
-        );
-        // Create recipient token account.
-        const [payerToken, forkPayerToken] = await Promise.all([
-          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
-          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
-        ]);
+    it(`Invoke \`complete_transfer_with_payload_wrapped\` (8 Decimals, Maximum Transfer Amount)`, async () => {
+      // Fetch special mint for this test.
+      const { chain, address } = wrappedMaxMint;
 
-        // Minimum amount.
-        const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() - BigInt(1);
+      const [mint, forkMint] = [program, forkedProgram].map((program) =>
+        tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+      );
+      // Create recipient token account.
+      const [payerToken, forkPayerToken] = await Promise.all([
+        getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+        getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+      ]);
 
-        // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(
-          address,
-          amount,
-          payer.publicKey,
-          "0xdeadbeef"
-        );
+      // Maximum amount.
+      const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() - BigInt(1);
 
-        // Fetch balances before.
-        const recipientBalancesBefore = await getTokenBalances(
-          program,
-          forkedProgram,
-          payerToken.address,
-          forkPayerToken.address
-        );
+      // Create the signed transfer VAA.
+      const signedVaa = await getSignedTransferVaa(address, amount, payer.publicKey, "0xdeadbeef");
 
-        // Complete the transfer.
-        await parallelTxDetails(
-          program,
-          forkedProgram,
-          {
-            recipientToken: payerToken,
-            forkRecipientToken: forkPayerToken,
-            redeemerAuthority: payer,
-          },
-          signedVaa,
-          payer
-        );
+      // Fetch balances before.
+      const recipientBalancesBefore = await getTokenBalances(
+        program,
+        forkedProgram,
+        payerToken.address,
+        forkPayerToken.address
+      );
 
-        // Check recipient and relayer token balance changes.
-        await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
-          connection,
-          payerToken.address,
-          forkPayerToken.address,
-          recipientBalancesBefore,
-          tokenBridge.TransferDirection.In,
-          amount
-        );
-      });
-    }
+      // Complete the transfer.
+      await parallelTxDetails(
+        program,
+        forkedProgram,
+        {
+          recipientToken: payerToken,
+          forkRecipientToken: forkPayerToken,
+          redeemerAuthority: payer,
+        },
+        signedVaa,
+        payer
+      );
+
+      // Check recipient and relayer token balance changes.
+      await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+        connection,
+        payerToken.address,
+        forkPayerToken.address,
+        recipientBalancesBefore,
+        tokenBridge.TransferDirection.In,
+        amount
+      );
+    });
   });
 });
 
