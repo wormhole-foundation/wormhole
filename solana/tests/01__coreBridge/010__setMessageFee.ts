@@ -199,9 +199,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
 
     it("Cannot Invoke `set_message_fee` with Fee Larger than Max(u64)", async () => {
       // Fetch the default VAA.
-      const signedVaa = defaultVaa(new anchor.BN(Buffer.from("10000000000000000", "hex")));
-
-      console.log(signedVaa.subarray(-64, -32).toString("hex"));
+      const signedVaa = defaultVaa(new anchor.BN(Buffer.from("010000000000000000", "hex")));
 
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
