@@ -11,6 +11,7 @@ import "../../interfaces/relayer/TypedUnits.sol";
 import "./DeliveryProviderGetters.sol";
 import "./DeliveryProviderSetters.sol";
 import "./DeliveryProviderStructs.sol";
+import {getSupportedMessageKeyTypes} from "./DeliveryProviderState.sol";
 
 abstract contract DeliveryProviderGovernance is
     DeliveryProviderGetters,
@@ -68,6 +69,13 @@ abstract contract DeliveryProviderGovernance is
                 i += 1;
             }
         }
+    }
+
+    function updateSupportedMessageKeyTypes(uint8 keyType, bool supported)
+        public
+        onlyOwner
+    {
+        getSupportedMessageKeyTypes().supportedKeyTypes[keyType] = supported;
     }
 
     function updatePricingWallet(address newPricingWallet) external onlyOwner {
