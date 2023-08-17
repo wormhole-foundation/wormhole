@@ -30,3 +30,9 @@ token-bridge-cosmwasm = { version = "0.1.0", features = ["library"] }
 wormhole-bindings = "0.1.0"
 wormhole-cosmwasm = { version = "0.1.0", features = ["library"] }
 wormhole-sdk = { version = "0.1.0", features = ["schemars"] }
+
+[dev-dependencies]
+cosmwasm-crypto = { version = "1.2.7" }
+hex = "0.4.3"
+prost = "0.11.0"
+serde = { version = "1.0.103", features = ["derive", "alloc"]}
