@@ -30,6 +30,14 @@ impl<'info> InitEncodedVaa<'info> {
         let msg_acct_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
         let mut reader = std::io::Cursor::new(msg_acct_data);
 
+        // The size of the created account must be more than the size of discriminator and header
+        // (some VAA buffer > 0 bytes).
+        require_gt!(
+            ctx.accounts.encoded_vaa.data_len(),
+            EncodedVaa::BYTES_START,
+            CoreBridgeError::InvalidCreatedAccountSize
+        );
+
         // All of the discriminator + header bytes + the 4-byte payload length should be zero.
         let mut zeros = [0; EncodedVaa::BYTES_START];
         reader.read_exact(&mut zeros)?;
@@ -45,14 +53,7 @@ impl<'info> InitEncodedVaa<'info> {
 
 #[access_control(InitEncodedVaa::constraints(&ctx))]
 pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
-    // The size of the created account must be more than the size of discriminator and header
-    // (some VAA buffer > 0 bytes).
-    let data_len = ctx.accounts.encoded_vaa.data_len();
-    require_gt!(
-        data_len,
-        EncodedVaa::BYTES_START,
-        CoreBridgeError::InvalidCreatedAccountSize
-    );
+    let vaa_len = ctx.accounts.encoded_vaa.data_len() - EncodedVaa::BYTES_START;
 
     let acct_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.try_borrow_mut_data()?;
     let mut writer = std::io::Cursor::new(acct_data);
@@ -69,7 +70,8 @@ pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
         version: Default::default(),
     }
     .try_account_serialize(&mut writer)?;
-    u32::try_from(data_len - EncodedVaa::BYTES_START)
+
+    u32::try_from(vaa_len)
         .unwrap()
         .serialize(&mut writer)
         .map_err(Into::into)

@@ -1,5 +1,5 @@
 import { Commitment, Connection, PublicKey } from "@solana/web3.js";
-import { getAnchorProgram } from "..";
+import { CoreBridgeProgram, getAnchorProgram } from "..";
 
 export enum ProcessingStatus {
   Unset = 0,
@@ -30,17 +30,11 @@ export class EncodedVaa {
     this.buf = buf;
   }
 
-  discriminator() {
+  static discriminator() {
     return Uint8Array.from([226, 101, 163, 4, 133, 160, 84, 245]);
   }
 
-  static async fromAccountAddress(
-    connection: Connection,
-    programId: PublicKey,
-    address: PublicKey,
-    commitment?: Commitment
-  ) {
-    const program = getAnchorProgram(connection, programId);
+  static async fetch(program: CoreBridgeProgram, address: PublicKey, commitment?: Commitment) {
     const {
       header: { status: processingStatus, writeAuthority, version: vaaVersion },
       buf,

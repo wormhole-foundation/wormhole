@@ -27,11 +27,14 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
     });
 
     it("Cannot Invoke `init_message_v1` with Some(cpi_program_id)", async () => {
+      const invalidArgs = {
+        cpiProgramId: anchor.web3.Keypair.generate().publicKey,
+      };
       const { draftMessage, emitterAuthority, instructions } = await createIxs(
         program,
         payer,
-        Buffer.alloc(69),
-        { cpiProgramId: anchor.web3.Keypair.generate().publicKey }
+        69,
+        invalidArgs
       );
 
       await expectIxErr(
@@ -69,11 +72,7 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
     });
 
     it("Cannot Invoke `init_message_v1` with Expected Message Size == 0", async () => {
-      const { draftMessage, emitterAuthority, instructions } = await createIxs(
-        program,
-        payer,
-        Buffer.alloc(0)
-      );
+      const { draftMessage, emitterAuthority, instructions } = await createIxs(program, payer, 0);
 
       await expectIxErr(
         connection,
@@ -87,7 +86,7 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
       const { draftMessage, emitterAuthority, instructions } = await createIxs(
         program,
         payer,
-        Buffer.alloc(30 * 1_024 + 1)
+        30 * 1_024 + 1
       );
 
       await expectIxErr(
@@ -107,7 +106,7 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
         const { draftMessage, emitterAuthority, instructions } = await createIxs(
           program,
           payer,
-          Buffer.alloc(messageSize, "Nothing to see here.")
+          messageSize
         );
 
         await expectIxOk(connection, instructions, [payer, emitterAuthority, draftMessage]);
@@ -155,7 +154,7 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
 async function prepareDraftMessage(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  message: Buffer
+  messageSize: number
 ) {
   const draftMessage = anchor.web3.Keypair.generate();
   const createIx = await createAccountIx(
@@ -163,7 +162,7 @@ async function prepareDraftMessage(
     program.programId,
     payer,
     draftMessage,
-    95 + message.length
+    95 + messageSize
   );
 
   return {
@@ -175,10 +174,10 @@ async function prepareDraftMessage(
 async function createIxs(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  message: Buffer,
+  messageSize: number,
   args: coreBridge.InitMessageV1Args = { cpiProgramId: null }
 ) {
-  const { draftMessage, createIx } = await prepareDraftMessage(program, payer, message);
+  const { draftMessage, createIx } = await prepareDraftMessage(program, payer, messageSize);
 
   const emitterAuthority = anchor.web3.Keypair.generate();
   const initIx = await coreBridge.initMessageV1Ix(
