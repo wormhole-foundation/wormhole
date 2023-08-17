@@ -1,9 +1,9 @@
+import { BN } from "@coral-xyz/anchor";
+import { Keypair, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { expect } from "chai";
 import { Config, CoreBridgeProgram } from ".";
 import * as coreBridge from "../coreBridge";
-import { expectDeepEqual } from "../utils";
-import { Keypair, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import { expectDeepEqual, expectIxOkDetails } from "../utils";
 
 export async function expectEqualBridgeAccounts(
   program: CoreBridgeProgram,
@@ -112,4 +112,88 @@ export async function expectLegacyPostMessageAfterEffects(
     emitter
   ).then((tracker) => tracker.sequence);
   expect(emitterSequenceValue.eq(expectedSequence.addn(1))).is.true;
+}
+
+export async function expectOkPostMessage(
+  program: coreBridge.CoreBridgeProgram,
+  signers: {
+    payer: Keypair;
+    message: Keypair;
+    emitter: Keypair;
+  },
+  args: coreBridge.LegacyPostMessageArgs,
+  sequence: BN,
+  expectedMessage: Buffer,
+  nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean }
+) {
+  if (nullAccounts === undefined) {
+    nullAccounts = { feeCollector: false, clock: false, rent: false };
+  }
+
+  const connection = program.provider.connection;
+  const { feeLamports, lastLamports: lastLamportsBefore } = await coreBridge.Config.fromPda(
+    connection,
+    program.programId
+  );
+
+  const { payer, message, emitter } = signers;
+  const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
+
+  const accounts = {
+    message: message.publicKey,
+    emitter: emitter.publicKey,
+    payer: payer.publicKey,
+  } as coreBridge.LegacyPostMessageContext;
+  for (const [key, isNull] of Object.entries(nullAccounts)) {
+    accounts[key] = isNull ? null : undefined;
+  }
+
+  const ix = coreBridge.legacyPostMessageIx(program, accounts, args);
+
+  // If any accounts are null, confirm they are "null" in the instruction.
+  if (nullAccounts.feeCollector) {
+    expectDeepEqual(ix.keys[5].pubkey, program.programId);
+  }
+  if (nullAccounts.clock) {
+    expectDeepEqual(ix.keys[6].pubkey, program.programId);
+  }
+  if (nullAccounts.rent) {
+    expectDeepEqual(ix.keys[8].pubkey, program.programId);
+  }
+
+  const txDetails = await expectIxOkDetails(
+    connection,
+    [transferFeeIx, ix],
+    [payer, emitter, message]
+  );
+
+  const postedMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
+    connection,
+    message.publicKey
+  );
+  const { nonce, finality } = args;
+  expectDeepEqual(postedMessageData, {
+    finality: finality == coreBridge.Finality.Confirmed ? 1 : 32,
+    emitterAuthority: PublicKey.default,
+    status: coreBridge.MessageStatus.Unset,
+    _gap0: Buffer.alloc(3),
+    postedTimestamp: txDetails.blockTime!,
+    nonce,
+    sequence,
+    solanaChainId: 1,
+    emitter: emitter.publicKey,
+    payload: expectedMessage,
+  });
+
+  const emitterSequence = await coreBridge.EmitterSequence.fromPda(
+    connection,
+    program.programId,
+    emitter.publicKey
+  );
+  expectDeepEqual(emitterSequence, { sequence: sequence.addn(1) });
+
+  const config = await coreBridge.Config.fromPda(connection, program.programId);
+  expectDeepEqual(lastLamportsBefore.add(feeLamports), config.lastLamports);
+
+  return { postedMessageData, emitterSequence, config };
 }

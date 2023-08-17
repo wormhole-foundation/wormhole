@@ -97,7 +97,7 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
 
   describe("Ok", () => {
     const messageSize = 2 * 1_024;
-    const message = Buffer.alloc(messageSize, "All your base are belong to us.");
+    const message = Buffer.alloc(messageSize, "All your base are belong to us. ");
     const chunkSize = 912; // Max that can fit in a transaction.
 
     it(`Invoke \`init_message_v1\` on Message Size == ${messageSize}`, async () => {

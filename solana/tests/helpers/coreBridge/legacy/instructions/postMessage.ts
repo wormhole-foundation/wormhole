@@ -19,9 +19,9 @@ export type LegacyPostMessageContext = {
   emitter: PublicKey;
   emitterSequence?: PublicKey;
   payer: PublicKey;
-  feeCollector?: PublicKey;
-  clock?: PublicKey;
-  rent?: PublicKey;
+  feeCollector?: PublicKey | null;
+  clock?: PublicKey | null;
+  rent?: PublicKey | null;
 };
 
 export type LegacyPostMessageArgs = {
