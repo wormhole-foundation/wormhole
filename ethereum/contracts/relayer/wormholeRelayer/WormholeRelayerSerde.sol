@@ -172,8 +172,6 @@ library WormholeRelayerSerde {
         }
     }
 
-    // ------------------------------------------ private --------------------------------------------
-
     function encodeMessageKey(
         MessageKey memory msgKey
     ) internal pure returns (bytes memory encoded) {
@@ -239,21 +237,6 @@ library WormholeRelayerSerde {
         }
     }
 
-    // function decodeVaaKeyArray(
-    //     bytes memory encoded,
-    //     uint256 startOffset
-    // ) private pure returns (VaaKey[] memory vaaKeys, uint256 offset) {
-    //     uint8 vaaKeysLength;
-    //     (vaaKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
-    //     vaaKeys = new VaaKey[](vaaKeysLength);
-    //     for (uint256 i = 0; i < vaaKeys.length;) {
-    //         (vaaKeys[i], offset) = decodeVaaKey(encoded, offset);
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-    // }
-
     function encodeVaaKey(VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
         encoded = abi.encodePacked(
             encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence
@@ -264,12 +247,13 @@ library WormholeRelayerSerde {
         bytes memory encoded,
         uint256 startOffset
     ) internal pure returns (VaaKey memory vaaKey, uint256 offset) {
-        // offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
         offset = startOffset;
         (vaaKey.chainId, offset) = encoded.asUint16Unchecked(offset);
         (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
         (vaaKey.sequence, offset) = encoded.asUint64Unchecked(offset);
     }
+
+    // ------------------------------------------ private --------------------------------------------
 
     function encodeBytes(bytes memory payload) private pure returns (bytes memory encoded) {
         //casting payload.length to uint32 is safe because you'll be hard-pressed to allocate 4 GB of

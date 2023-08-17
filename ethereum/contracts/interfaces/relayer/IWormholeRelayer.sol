@@ -182,17 +182,6 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address refundAddress
     ) external payable returns (uint64 sequence);
 
-    // function sendMessagesToEvm(
-    //     uint16 targetChain,
-    //     address targetAddress,
-    //     bytes memory payload,
-    //     uint256 receiverValue,
-    //     uint256 gasLimit,
-    //     MessageKey[] memory messageKeys,
-    //     uint16 refundChain,
-    //     address refundAddress
-    // ) external payable returns (uint64 sequence);
-
     /**
      * @notice Publishes an instruction for the delivery provider at `deliveryProviderAddress` 
      * to relay a payload and VAAs specified by `vaaKeys` to the address `targetAddress` on chain `targetChain` 
