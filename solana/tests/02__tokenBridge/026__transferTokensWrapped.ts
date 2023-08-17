@@ -3,6 +3,7 @@ import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import {
   MINT_INFO_WRAPPED_7,
   MINT_INFO_WRAPPED_8,
+  MINT_INFO_WRAPPED_MAX_ONE,
   WrappedMintInfo,
   expectIxOkDetails,
   getTokenBalances,
@@ -23,6 +24,7 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Wrapped)", () => 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
+  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_ONE;
 
   describe("Ok", () => {
     for (const { chain, decimals, address } of wrappedMints) {
@@ -76,6 +78,61 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Wrapped)", () => 
         // TODO: Check that the core messages are correct.
       });
     }
+
+    it(`Invoke \`transfer_tokens_wrapped\` (8 Decimals, Max Transfer Amount)`, async () => {
+      // Fetch special mint for this test.
+      const { chain, address } = wrappedMaxMint;
+
+      const [mint, forkMint] = [program, forkedProgram].map((program) =>
+        tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+      );
+
+      // Fetch recipient token account, these accounts should've been created in other tests.
+      const [srcToken, forkSrcToken] = await Promise.all([
+        getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+        getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+      ]);
+
+      // Fetch balance before the outbound transfer.
+      const balancesBefore = await getTokenBalances(
+        program,
+        forkedProgram,
+        srcToken.address,
+        forkSrcToken.address
+      );
+
+      // Transfer params.
+      const amount = new anchor.BN(
+        Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE().toString()
+      ).subn(1);
+      const relayerFee = new anchor.BN("11111111");
+
+      const [coreMessage, txDetails, forkCoreMessage, forkTxDetails] = await parallelTxDetails(
+        program,
+        forkedProgram,
+        {
+          payer: payer.publicKey,
+          wrappedMint: mint,
+          forkWrappedMint: forkMint,
+          srcToken: srcToken.address,
+          forkSrcToken: forkSrcToken.address,
+          srcOwner: payer.publicKey,
+        },
+        defaultArgs(amount, relayerFee),
+        payer
+      );
+
+      await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+        connection,
+        srcToken.address,
+        forkSrcToken.address,
+        balancesBefore,
+        tokenBridge.TransferDirection.Out,
+        BigInt(amount.toString())
+      );
+
+      // TODO: Check that the core messages are correct.
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   MINT_INFO_WRAPPED_7,
   MINT_INFO_WRAPPED_8,
+  MINT_INFO_WRAPPED_MAX_ONE,
   WrappedMintInfo,
   expectIxOkDetails,
   getTokenBalances,
@@ -16,7 +17,6 @@ import {
   tryNativeToHexString,
   parseVaa,
   CHAIN_ID_ETH,
-  tryUint8ArrayToNative,
 } from "@certusone/wormhole-sdk";
 import { GUARDIAN_KEYS } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
@@ -45,6 +45,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
+  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_ONE;
 
   describe("Ok", () => {
     for (const { chain, decimals, address } of wrappedMints) {
@@ -537,7 +538,141 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
 
         await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
       });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Minimum Transfer Amount)`, async () => {
+        const [mint, forkMint] = [program, forkedProgram].map((program) =>
+          tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+        );
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const [recipientToken, forkRecipientToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, recipient.publicKey),
+        ]);
+
+        const [payerToken, forkPayerToken] = await Promise.all([
+          getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+          getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+        ]);
+
+        // Amounts.
+        const amount = BigInt(1);
+        let fee = BigInt(0);
+
+        // Create the signed transfer VAA.
+        const [signedVaa, forkSignedVaa] = [recipientToken, forkRecipientToken].map((acct) =>
+          getSignedTransferVaa(address, amount, fee, acct.address)
+        );
+
+        // Fetch balances before.
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(
+            program,
+            forkedProgram,
+            recipientToken.address,
+            forkRecipientToken.address
+          ),
+          getTokenBalances(program, forkedProgram, payerToken.address, forkPayerToken.address),
+        ]);
+
+        // Complete the transfer.
+        await parallelTxDetails(
+          program,
+          forkedProgram,
+          {
+            recipientToken,
+            forkRecipientToken,
+          },
+          {
+            signedVaa,
+            forkSignedVaa,
+          },
+          payer
+        );
+
+        // Denormalize the fee.
+        if (decimals > 8) {
+          fee = fee * BigInt(10 ** decimals - 8);
+        }
+
+        // Check recipient and relayer token balance changes.
+        await Promise.all([
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            recipientToken.address,
+            forkRecipientToken.address,
+            recipientBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            amount
+          ),
+          tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+            connection,
+            payerToken.address,
+            forkPayerToken.address,
+            relayerBalancesBefore,
+            tokenBridge.TransferDirection.In,
+            fee
+          ),
+        ]);
+      });
     }
+
+    it(`Invoke \`complete_transfer_wrapped\` (8 Decimals, Maximum Transfer Amount)`, async () => {
+      // Fetch special mint for this test.
+      const { chain, decimals, address } = wrappedMaxMint;
+
+      const [mint, forkMint] = [program, forkedProgram].map((program) =>
+        tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+      );
+      // Create recipient token account.
+      const [payerToken, forkPayerToken] = await Promise.all([
+        getOrCreateAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+        getOrCreateAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+      ]);
+
+      // Amounts.
+      const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() - BigInt(1);
+
+      // Create the signed transfer VAA.
+      const [signedVaa, forkSignedVaa] = [payerToken, forkPayerToken].map((acct) =>
+        getSignedTransferVaa(address, amount, BigInt(0), acct.address)
+      );
+
+      // Fetch balances before.
+      const payerBalancesBefore = await getTokenBalances(
+        program,
+        forkedProgram,
+        payerToken.address,
+        forkPayerToken.address
+      );
+
+      // Complete the transfer.
+      await parallelTxDetails(
+        program,
+        forkedProgram,
+        {
+          recipientToken: payerToken,
+          forkRecipientToken: forkPayerToken,
+        },
+        {
+          signedVaa,
+          forkSignedVaa,
+        },
+        payer
+      );
+
+      // Check recipient and relayer token balance changes.
+      await Promise.all([
+        tokenBridge.expectCorrectWrappedTokenBalanceChanges(
+          connection,
+          payerToken.address,
+          forkPayerToken.address,
+          payerBalancesBefore,
+          tokenBridge.TransferDirection.In,
+          amount
+        ),
+      ]);
+    });
   });
 });
 

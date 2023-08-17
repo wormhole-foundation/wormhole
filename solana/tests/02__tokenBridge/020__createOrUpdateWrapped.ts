@@ -15,12 +15,12 @@ import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   ETHEREUM_STEAK_TOKEN_ADDRESS,
-  ETHEREUM_MAX_7_TOKEN_ADDRESS,
-  ETHEREUM_MAX_8_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
   expectDeepEqual,
   expectIxOk,
   parallelPostVaa,
+  ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
+  ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -179,12 +179,12 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
     });
 
     it("Invoke `create_or_update_wrapped` for Boundary Test Assets", async () => {
-      for (const decimals of [7, 8]) {
+      for (let i = 0; i < 2; i++) {
         const signedVaa = defaultVaa({
-          symbol: `MAX${decimals}`,
-          name: `Max decimals ${decimals}`,
-          decimals: decimals,
-          address: decimals == 7 ? ETHEREUM_MAX_7_TOKEN_ADDRESS : ETHEREUM_MAX_8_TOKEN_ADDRESS,
+          symbol: `MAX`,
+          name: `Max Amount`,
+          decimals: 8,
+          address: i == 0 ? ETHEREUM_TOKEN_ADDRESS_MAX_ONE : ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
         });
 
         await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
