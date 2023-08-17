@@ -1,22 +1,17 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
-import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
-import { execSync } from "child_process";
-import * as fs from "fs";
 import {
-  GUARDIAN_KEYS,
+  createAccountIx,
+  expectDeepEqual,
   expectIxErr,
   expectIxOk,
-  invokeVerifySignaturesAndPostVaa,
-  loadProgramBpf,
+  expectIxOkDetails,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Test variables.
 const localVariables = new Map<string, any>();
 
-describe("Core Bridge -- Instruction: Init Message V1", () => {
+describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -24,7 +19,11 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
   const payer = (provider.wallet as anchor.Wallet).payer;
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
-  describe("Invalid Interaction", () => {
+  describe("Invalid Accounts", () => {
+    // TODO
+  });
+
+  describe("Ok", () => {
     it.skip("Cannot Invoke Legacy `post_message` with Non-Empty Payload on Prepared Message", async () => {
       // TODO
     });
@@ -32,15 +31,145 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
     it.skip("Cannot Invoke Legacy `post_message` Different Emitter Authority on Prepared Message", async () => {
       // TODO
     });
-  });
 
-  describe("Ok", () => {
-    it.skip("Invoke Legacy `post_message` With Prepared Message", async () => {
-      // TODO
+    it("Invoke Legacy `post_message` With Payer as Emitter", async () => {
+      const message = Buffer.from("I'm the captain now. ");
+
+      await everythingOk(program, payer, message, new anchor.BN(3), payer);
     });
 
-    it.skip("Cannot nvoke Legacy `post_message` With Same Prepared Message", async () => {
-      // TODO
+    it("Invoke Legacy `post_message` With Prepared Message", async () => {
+      const message = Buffer.alloc(4 * 1_024, "All your base are belong to us. ");
+
+      const { draftMessage, emitterAuthority } = await everythingOk(
+        program,
+        payer,
+        message,
+        new anchor.BN(0)
+      );
+
+      // Save for next test.
+      localVariables.set("draftMessage", draftMessage);
+      localVariables.set("emitterAuthority", emitterAuthority);
+    });
+
+    it("Cannot Invoke Legacy `post_message` With Same Prepared Message", async () => {
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.Keypair;
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+
+      const nonce = 420;
+      const finality = coreBridge.Finality.Confirmed;
+      const ix = coreBridge.legacyPostMessageIx(
+        program,
+        {
+          message: draftMessage.publicKey,
+          emitter: emitterAuthority.publicKey,
+          payer: payer.publicKey,
+        },
+        { nonce, finality, payload: Buffer.alloc(0) }
+      );
+      await expectIxErr(
+        connection,
+        [ix],
+        [payer, emitterAuthority, draftMessage],
+        "MessageAlreadyPublished"
+      );
     });
   });
 });
+
+async function everythingOk(
+  program: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  message: Buffer,
+  sequence: anchor.BN,
+  emitterAuthority?: anchor.web3.Keypair
+) {
+  if (emitterAuthority === undefined) {
+    emitterAuthority = anchor.web3.Keypair.generate();
+  }
+
+  const { draftMessage } = await initAndProcessMessageV1(program, payer, message, emitterAuthority);
+
+  const nonce = 420;
+  const finality = coreBridge.Finality.Confirmed;
+  await coreBridge.expectOkPostMessage(
+    program,
+    { payer, message: draftMessage, emitter: emitterAuthority },
+    { nonce, finality, payload: Buffer.alloc(0) },
+    sequence,
+    message
+  );
+
+  sequence.iaddn(1);
+
+  return { draftMessage, emitterAuthority };
+}
+
+async function initAndProcessMessageV1(
+  program: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  message: Buffer,
+  emitterAuthority?: anchor.web3.Keypair
+) {
+  if (emitterAuthority === undefined) {
+    emitterAuthority = anchor.web3.Keypair.generate();
+  }
+
+  const connection = program.provider.connection;
+
+  const draftMessage = anchor.web3.Keypair.generate();
+  const createIx = await createAccountIx(
+    program.provider.connection,
+    program.programId,
+    payer,
+    draftMessage,
+    95 + message.length
+  );
+
+  const initIx = await coreBridge.initMessageV1Ix(
+    program,
+    { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+    { cpiProgramId: null }
+  );
+
+  const endAfterInit = 745;
+  const firstProcessIx = await coreBridge.processMessageV1Ix(
+    program,
+    {
+      emitterAuthority: emitterAuthority.publicKey,
+      draftMessage: draftMessage.publicKey,
+      closeAccountDestination: null,
+    },
+    { write: { index: 0, data: message.subarray(0, endAfterInit) } }
+  );
+
+  await expectIxOk(
+    connection,
+    [createIx, initIx, firstProcessIx],
+    [payer, emitterAuthority, draftMessage]
+  );
+
+  const promises: Promise<string>[] = [];
+  if (message.length > endAfterInit) {
+    const chunkSize = 912;
+    for (let start = endAfterInit; start < message.length; start += chunkSize) {
+      const end = Math.min(start + chunkSize, message.length);
+
+      const ix = await coreBridge.processMessageV1Ix(
+        program,
+        {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage: draftMessage.publicKey,
+          closeAccountDestination: null,
+        },
+        { write: { index: start, data: message.subarray(start, end) } }
+      );
+      promises.push(expectIxOk(connection, [ix], [payer, emitterAuthority]));
+    }
+  }
+
+  await Promise.all(promises);
+
+  return { draftMessage, emitterAuthority };
+}

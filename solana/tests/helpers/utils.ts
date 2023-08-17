@@ -28,6 +28,11 @@ export type InvalidAccountConfig = {
   owner?: PublicKey;
 };
 
+export type NullableAccountConfig = {
+  label: string;
+  contextName: string;
+};
+
 export type InvalidArgConfig = {
   label: string;
   argName: string;
