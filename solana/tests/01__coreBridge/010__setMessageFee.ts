@@ -1,8 +1,9 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { parseVaa, tryUint8ArrayToNative } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import {
+  ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
   GUARDIAN_KEYS,
   InvalidAccountConfig,
   createIfNeeded,
@@ -118,13 +119,124 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
         "already in use"
       );
     });
+
+    it("Cannot Invoke `set_message_fee` with Invalid Governance Emitter", async () => {
+      // Create a bad governance emitter.
+      const governance = new GovernanceEmitter(
+        Buffer.from(ETHEREUM_TOKEN_ADDRESS_MAX_TWO).toString("hex"),
+        GOVERNANCE_SEQUENCE - 1
+      );
+      const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+      // Vaa info.
+      const timestamp = 12345678;
+      const chain = 1;
+
+      const published = governance.publishWormholeSetMessageFee(timestamp, chain, BigInt(69));
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the guardian set index.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
+    });
+
+    it("Cannot Invoke `set_message_fee` with Invalid Governance Action", async () => {
+      // Vaa info.
+      const timestamp = 12345678;
+      const chain = 1;
+
+      // Publish the wrong VAA type.
+      const published = governance.publishWormholeTransferFees(
+        timestamp,
+        chain,
+        BigInt(69),
+        Buffer.from(GOVERNANCE_EMITTER_ADDRESS.toString())
+      );
+
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the guardian set index.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
+    });
+
+    it("Cannot Invoke `set_message_fee` with Invalid Target Chain", async () => {
+      // Fetch the default VAA.
+      const invalidTargetChain = 69;
+      const signedVaa = defaultVaa(new anchor.BN(69), invalidTargetChain);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the guardian set index.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      expectIxErr(connection, [ix], [payer], "GovernanceForAnotherChain");
+    });
+
+    it("Cannot Invoke `set_message_fee` with Fee Larger than Max(u64)", async () => {
+      // Fetch the default VAA.
+      const signedVaa = defaultVaa(new anchor.BN("18446744073709551615"));
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the guardian set index.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      expectIxErr(connection, [ix], [payer], "U64Overflow");
+    });
+
+    it("Cannot Invoke `set_message_fee` with Invalid Guardian Set Index", async () => {
+      // Fetch the default VAA.
+      const signedVaa = defaultVaa(new anchor.BN(69));
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the guardian set index.
+      let parsedVaa = parseVaa(signedVaa);
+      parsedVaa.guardianSetIndex = 69;
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      expectIxErr(connection, [ix], [payer], "LatestGuardianSetRequired");
+    });
   });
 });
 
-function defaultVaa(amount: anchor.BN): Buffer {
+function defaultVaa(amount: anchor.BN, emitter?: number): Buffer {
   // Vaa info.
   const timestamp = 12345678;
-  const chain = 1;
+  const chain = emitter === undefined ? 1 : emitter;
+
   const published = governance.publishWormholeSetMessageFee(
     timestamp,
     chain,
