@@ -207,7 +207,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
       });
     }
 
-    for (const { chain, decimals, address } of wrappedMints) {
+    for (const { chain, decimals, address } of wrappedMaxMints) {
       it(`Invoke \`complete_transfer_with_payload_wrapped\` (${decimals} Decimals, Maximum Transfer Amount)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
@@ -219,7 +219,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         ]);
 
         // Minimum amount.
-        const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() - BigInt(5);
+        const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() - BigInt(1);
 
         // Create the signed transfer VAA.
         const signedVaa = await getSignedTransferVaa(
@@ -228,8 +228,6 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           payer.publicKey,
           "0xdeadbeef"
         );
-
-        console.log(signedVaa.toString("hex"));
 
         // Fetch balances before.
         const recipientBalancesBefore = await getTokenBalances(
