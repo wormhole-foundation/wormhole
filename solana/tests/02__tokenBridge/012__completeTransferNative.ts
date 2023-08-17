@@ -299,7 +299,11 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         );
         expect(relayerBalancesAfter.token - relayerBalancesBefore.token).to.equal(fee);
       });
+    }
+  });
 
+  describe("New Implementation", () => {
+    for (const { mint, decimals } of mints) {
       it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();

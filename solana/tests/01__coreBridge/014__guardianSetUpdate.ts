@@ -122,24 +122,6 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it("Cannot Invoke `guardian_set_update` with Same VAA", async () => {
-      const signedVaa: Buffer = localVariables.get("signedVaa");
-
-      // Invoke the instruction.
-      await expectIxErr(
-        connection,
-        [
-          coreBridge.legacyGuardianSetUpdateIx(
-            program,
-            { payer: payer.publicKey },
-            parseVaa(signedVaa)
-          ),
-        ],
-        [payer],
-        "already in use"
-      );
-    });
-
     it("Invoke `guardian_set_update` Again to Set Original Guardian Keys", async () => {
       const newGuardianSetIndex = guardians.setIndex + 1;
       const newGuardianKeys = guardians.getPublicKeys();
@@ -180,14 +162,32 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       // Update mock guardians.
       guardians.updateGuardianSetIndex(newGuardianSetIndex);
     });
-  });
-
-  describe("More Verify Signatures and Post VAA Tests", () => {
-    it.skip("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
-      // TODO
-    });
 
     it.skip("Invoke `verify_signatures` with New Guardian Set", async () => {
+      // TODO
+    });
+  });
+
+  describe("New Implmentation", () => {
+    it("Cannot Invoke `guardian_set_update` with Same VAA", async () => {
+      const signedVaa: Buffer = localVariables.get("signedVaa");
+
+      // Invoke the instruction.
+      await expectIxErr(
+        connection,
+        [
+          coreBridge.legacyGuardianSetUpdateIx(
+            program,
+            { payer: payer.publicKey },
+            parseVaa(signedVaa)
+          ),
+        ],
+        [payer],
+        "already in use"
+      );
+    });
+
+    it.skip("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
       // TODO
     });
 

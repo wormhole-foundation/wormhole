@@ -422,6 +422,46 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
   });
+
+  describe("New Implmentation", () => {
+    it("Cannot Invoke `post_message_unreliable` Without Paying Fee", async () => {
+      // Create the post message instruction.
+      const messageSigner = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: messageSigner.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+      };
+      const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, defaultArgs());
+      await expectIxErr(connection, [ix], [payer, emitter, messageSigner], "InsufficientFees");
+    });
+
+    it("Cannot Invoke `post_message_unreliable` With Invalid Payload", async () => {
+      // Create the post message instruction.
+      const messageSigner = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: messageSigner.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+      };
+      let { nonce, payload, finality } = defaultArgs();
+      payload = Buffer.alloc(0);
+
+      const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
+        nonce,
+        payload,
+        finality,
+      });
+      await expectIxErr(
+        connection,
+        [ix],
+        [payer, emitter, messageSigner],
+        "InvalidInstructionArgument"
+      );
+    });
+  });
 });
 
 function defaultArgs() {

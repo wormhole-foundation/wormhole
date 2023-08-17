@@ -34,19 +34,19 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
       {
         label: "bridge",
         contextName: "bridge",
-        address: anchor.web3.Keypair.generate().publicKey,
+        owner: anchor.web3.Keypair.generate().publicKey,
         errorMsg: "ConstraintSeeds",
       },
       {
         label: "guardian_set",
         contextName: "guardianSet",
-        address: anchor.web3.Keypair.generate().publicKey,
+        owner: anchor.web3.Keypair.generate().publicKey,
         errorMsg: "ConstraintSeeds",
       },
       {
         label: "fee_collector",
         contextName: "feeCollector",
-        address: anchor.web3.Keypair.generate().publicKey,
+        owner: anchor.web3.Keypair.generate().publicKey,
         errorMsg: "ConstraintSeeds",
       },
     ];
@@ -54,7 +54,7 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
     for (const cfg of accountConfigs) {
       it(`Account: ${cfg.label} (${cfg.errorMsg})`, async () => {
         const accounts = { payer: payer.publicKey };
-        accounts[cfg.contextName] = cfg.address;
+        accounts[cfg.contextName] = cfg.owner;
         const ix = coreBridge.legacyInitializeIx(program, accounts, defaultArgs());
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
@@ -142,7 +142,9 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
+  });
 
+  describe("New Implmentation", () => {
     it("Cannot Invoke `initialize` again", async () => {
       // Create the initialize instruction using the default args.
       const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, defaultArgs());

@@ -49,7 +49,9 @@ describe("Token Bridge -- Legacy Instruction: Register Chain", () => {
       // Save the VAA.
       localVariables.set("signedVaa", signedVaa);
     });
+  });
 
+  describe("New Implementation", () => {
     it("Cannot Invoke `register_chain` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
