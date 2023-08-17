@@ -277,6 +277,7 @@ contract WormholeRelayerTests is Test {
             Contracts memory mapEntry;
             (mapEntry.wormhole, mapEntry.wormholeSimulator) = helpers.setUpWormhole(i);
             mapEntry.deliveryProvider = helpers.setUpDeliveryProvider(i);
+            mapEntry.deliveryProvider.updateSupportedMessageKeyTypes(VAA_KEY_TYPE, true);
             mapEntry.coreRelayer =
                 helpers.setUpWormholeRelayer(mapEntry.wormhole, address(mapEntry.deliveryProvider));
             mapEntry.coreRelayerFull = WormholeRelayer(payable(address(mapEntry.coreRelayer)));
@@ -538,6 +539,35 @@ LocalNative forwardDeliveryCost;
     /**
      * More functionality tests
      */
+
+    function testRevertUnsupportedMessageKeyType(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, Gas.wrap(gasParams.targetGasLimit));
+        
+        MessageKey[] memory messageKeys = new MessageKey[](2);
+        messageKeys[0] = MessageKey(VAA_KEY_TYPE, bytes(""));
+        messageKeys[0] = MessageKey(RANDOM_KEY_TYPE, RANDOM_KEY_TYPE_BODY);
+
+        (LocalNative cost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), Gas.wrap(0));
+        
+        vm.expectRevert(abi.encodeWithSelector(DeliveryProviderDoesNotSupportMessageKeyType.selector, RANDOM_KEY_TYPE));
+        setup.source.coreRelayer.sendToEvm{value: cost.unwrap()}(
+            setup.targetChain,
+            address(0x0),
+            bytes(""),
+            TargetNative.wrap(0),
+            LocalNative.wrap(0),
+            Gas.wrap(0),
+            setup.sourceChain,
+            address(0x0),
+            address(setup.source.deliveryProvider),
+            messageKeys,
+            15
+        );
+    }
 
     function testForwardFailure(
         GasParameters memory gasParams,
@@ -1050,6 +1080,9 @@ LocalNative forwardDeliveryCost;
         VaaKey[3] vaaKeysFixed;
     }
 
+    uint8 constant RANDOM_KEY_TYPE = 159;
+    bytes constant RANDOM_KEY_TYPE_BODY = hex"12911894719274912740817248912740817240";
+
     function testUnitTestSend(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
@@ -1058,10 +1091,12 @@ LocalNative forwardDeliveryCost;
         gasParams.targetGasLimit = params.gasLimit;
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, params.gasLimit);
-        VaaKey[] memory vaaKeys = new VaaKey[](3);
+        MessageKey[] memory messageKeys = new MessageKey[](4);
         for (uint256 j = 0; j < 3; j++) {
-            vaaKeys[j] = params.vaaKeysFixed[j];
+            messageKeys[j] = MessageKey(VAA_KEY_TYPE, WormholeRelayerSerde.encodeVaaKey(params.vaaKeysFixed[j]));
         }
+        setup.source.deliveryProvider.updateSupportedMessageKeyTypes(RANDOM_KEY_TYPE, true);
+        messageKeys[3] = MessageKey(RANDOM_KEY_TYPE, RANDOM_KEY_TYPE_BODY); // random keyType and encodedKey 
         vm.recordLogs();
 
         (LocalNative deliveryCost, GasPrice targetChainRefundPerGasUnused) = setup
@@ -1079,7 +1114,7 @@ LocalNative forwardDeliveryCost;
             params.receiverValue,
             params.paymentForExtraReceiverValue,
             params.payload,
-            vaaKeys
+            messageKeys
         );
 
         bytes memory encodedExecutionInfo = abi.encode(
@@ -1105,7 +1140,7 @@ LocalNative forwardDeliveryCost;
                 ),
             sourceDeliveryProvider: toWormholeFormat(address(setup.source.deliveryProvider)),
             senderAddress: toWormholeFormat(address(setup.source.integration)),
-            messageKeys: WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys)
+            messageKeys: messageKeys
         });
 
         checkInstructionEquality(
@@ -1181,6 +1216,14 @@ LocalNative forwardDeliveryCost;
             (encodedKeyLen, index) = data.asUint32(index);
             assertEq(encodedKeyLen, 42, "encodedKeyLen for VAA_KEY_TYPE must be 42");
             index = checkVaaKey(data, index, vaaKey);
+        } else if (decodedMessageKey.keyType == RANDOM_KEY_TYPE) {
+            uint32 encodedKeyLen;
+            (encodedKeyLen, index) = data.asUint32(index);
+            bytes memory encodedKey;
+            (encodedKey, index) = data.sliceUnchecked(index, encodedKeyLen);
+            assertEq(encodedKeyLen, RANDOM_KEY_TYPE_BODY.length, "encodedKeyLen for RANDOM_KEY_TYPE must be RANDOM_KEY_TYPE_BODY.length");
+            assertEq(encodedKey, messageKey.encodedKey, "decoded encodedKey must equal expected");
+            assertEq(encodedKey, RANDOM_KEY_TYPE_BODY);
         } else {
             assertFalse(true, "Unsupported keyType found");
         }
