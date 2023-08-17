@@ -93,6 +93,10 @@ message GovernanceMessage {
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
 
+    // Gateway
+    GatewayScheduleUpgrade gateway_schedule_upgrade = 24;
+    GatewayCancelUpgrade gateway_cancel_upgrade = 25;
+
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
 
@@ -221,6 +225,16 @@ message WormchainMigrateContract {
   // Msg json encoded message to be passed to the contract on migration
   string instantiation_msg = 3;
 }
+
+message GatewayScheduleUpgrade {
+  // Name of the upgrade
+  string name = 1;
+
+  // Height of the upgrade halt
+  uint64 height = 2;
+}
+
+message GatewayCancelUpgrade {}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
