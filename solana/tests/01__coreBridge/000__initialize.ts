@@ -59,27 +59,30 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
         await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
       });
     }
-
-    const argConfigs: InvalidArgConfig[] = [
-      {
-        label: "initial_guardians",
-        argName: "initialGuardians",
-        value: [],
-        errorMsg: "ZeroGuardians",
-      },
-    ];
-
-    for (const cfg of argConfigs) {
-      it(`Instruction Data: ${cfg.label} (${cfg.errorMsg})`, async () => {
-        const args = defaultArgs();
-        args[cfg.argName] = cfg.value;
-        const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, args);
-        await expectIxErr(connection, [ix], [payer], cfg.errorMsg);
-      });
-    }
   });
 
   describe("Ok", () => {
+    it("Cannot Invoke `initialize` With an Empty Guardian Set", async () => {
+      const args = defaultArgs();
+      args["initialGuardians"] = [];
+      const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, args);
+      await expectIxErr(connection, [ix], [payer], "ZeroGuardians");
+    });
+
+    it("Cannot Invoke `initialize` With Zero Address Guardian", async () => {
+      const args = defaultArgs();
+      args["initialGuardians"][0] = new Array(20).fill(0);
+      const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, args);
+      await expectIxErr(connection, [ix], [payer], "GuardianZeroAddress");
+    });
+
+    it("Cannot Invoke `initialize` With Duplicate Guardian Key", async () => {
+      const args = defaultArgs();
+      args["initialGuardians"][0] = args["initialGuardians"][12];
+      const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, args);
+      await expectIxErr(connection, [ix], [payer], "DuplicateGuardianAddress");
+    });
+
     it("Invoke `initialize`", async () => {
       const { guardianSetTtlSeconds, feeLamports, initialGuardians } = defaultArgs();
 
