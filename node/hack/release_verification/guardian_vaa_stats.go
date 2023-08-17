@@ -26,7 +26,7 @@ import (
 )
 
 func getValidatorIndexForChain(chainId vaa.ChainID, onlyafter time.Time) (map[uint8]int, error) {
-	url := fmt.Sprintf("https://api.wormscan.io/api/v1/vaas/%d?page=1&pageSize=10&sortOrder=DESC", chainId)
+	url := fmt.Sprintf("https://api.wormholescan.io/api/v1/vaas/%d?page=1&pageSize=10&sortOrder=DESC", chainId)
 	method := "GET"
 
 	client := &http.Client{}

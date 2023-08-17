@@ -3,14 +3,14 @@
 // take a guardian secret as input.
 //
 // Sign a VAA using signatures from wormscan:
-//   worm edit-vaa -n mainnet --vaa $VAA --wormscanurl https://api.wormscan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
+//   worm edit-vaa -n mainnet --vaa $VAA --wormscanurl https://api.wormholescan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
 //
 // Create the same VAA from scratch:
 //   worm edit-vaa -n mainnet \
 //     --ec 1 --ea 0x0000000000000000000000000000000000000000000000000000000000000004 \
 //     --gsi 3 --sequence 651169458827220885 --nonce 2166843495 --cl 32 \
 //     --payload 000000000000000000000000000000436972636c65496e746567726174696f6e020002000600000000000000000000000009fb06a271faff70a651047395aaeb6265265f1300000001 \
-//     --wormscanurl https://api.wormscan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
+//     --wormscanurl https://api.wormholescan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
 //
 // Sign a VAA using the testnet guardian key:
 //   worm edit-vaa --vaa $VAA --gs $TESTNET_GUARDIAN_SECRET
