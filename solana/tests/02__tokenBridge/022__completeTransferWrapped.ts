@@ -455,90 +455,6 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         ]);
       });
 
-      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
-        );
-
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient.publicKey
-        );
-
-        // Amounts.
-        const amount = BigInt(699999420);
-        let fee = BigInt(50000);
-
-        // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(
-          address,
-          amount,
-          fee,
-          recipientToken.address,
-          CHAIN_ID_ETH // Invalid target chain.
-        );
-
-        // Complete the transfer.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
-          program,
-          { payer: payer.publicKey, recipientToken: recipientToken.address },
-          parseVaa(signedVaa)
-        );
-
-        await expectIxErr(connection, [ix], [payer], "RecipientChainNotSolana");
-      });
-
-      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Recipient ATA)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
-        );
-
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient.publicKey
-        );
-        const payerToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          payer.publicKey
-        );
-
-        // Amounts.
-        const amount = BigInt(699999420);
-        let fee = BigInt(50000);
-
-        // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
-
-        // Complete the transfer.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
-          program,
-          { payer: payer.publicKey, recipientToken: payerToken.address }, // Pass invalid recipient ATA
-          parseVaa(signedVaa)
-        );
-
-        await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
-      });
-
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Minimum Transfer Amount)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
@@ -673,6 +589,94 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         ),
       ]);
     });
+  });
+
+  describe("New Implementation", () => {
+    for (const { chain, decimals, address } of wrappedMints) {
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(
+          address,
+          amount,
+          fee,
+          recipientToken.address,
+          CHAIN_ID_ETH // Invalid target chain.
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "RecipientChainNotSolana");
+      });
+
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Recipient ATA)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: payerToken.address }, // Pass invalid recipient ATA
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
+      });
+    }
   });
 });
 

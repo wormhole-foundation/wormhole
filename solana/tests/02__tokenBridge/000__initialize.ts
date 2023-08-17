@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { expectIxOk } from "../helpers";
+import { expectIxOk, expectIxErr } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -17,9 +17,15 @@ describe("Token Bridge -- Instruction: Initialize", () => {
     it("Invoke `initialize`", async () => {
       await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, defaultArgs(), payer);
     });
+  });
 
-    it.skip("Cannot Invoke `initialize` again", async () => {
-      // TODO
+  describe("New Implentation", () => {
+    it("Cannot Invoke `initialize` again", async () => {
+      // Create the initialize instruction using the default args.
+      const ix = tokenBridge.legacyInitializeIx(program, { payer: payer.publicKey }, defaultArgs());
+
+      // Confirm that we cannot invoke initialize again.
+      await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });
 });

@@ -5,7 +5,6 @@ import { expect } from "chai";
 import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
-  createAccountIx,
   createIfNeeded,
   expectIxErr,
   expectIxOk,
@@ -100,7 +99,9 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Save the VAA.
       localVariables.set("signedVaa", signedVaa);
     });
+  });
 
+  describe("New Implmentation", () => {
     it("Cannot Invoke `set_message_fee` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
