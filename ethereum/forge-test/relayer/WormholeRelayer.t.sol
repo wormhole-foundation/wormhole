@@ -1147,8 +1147,6 @@ LocalNative forwardDeliveryCost;
             relayerWormholeSimulator.parseVMFromLogs(vm.getRecordedLogs()[0]).payload,
             expectedInstruction
         );
-
-        // revert("");
     }
 
     struct UnitTestResendParams {
