@@ -86,6 +86,16 @@ contract MockGenericRelayer {
     }
 
     function vaaKeyMatchesVAA(
+        MessageKey memory messageKey,
+        bytes memory signedVaa
+    ) internal view returns (bool) {
+        if (messageKey.keyType != VAA_KEY_TYPE) 
+            return true;
+        (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKey.encodedKey, 0); 
+        return vaaKeyMatchesVAA(vaaKey, signedVaa);
+    }
+
+    function vaaKeyMatchesVAA(
         VaaKey memory vaaKey,
         bytes memory signedVaa
     ) internal view returns (bool) {
@@ -132,11 +142,11 @@ contract MockGenericRelayer {
             DeliveryInstruction memory instruction =
                 WormholeRelayerSerde.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
 
-            bytes[] memory encodedVMsToBeDelivered = new bytes[](instruction.vaaKeys.length);
+            bytes[] memory encodedVMsToBeDelivered = new bytes[](instruction.messageKeys.length);
 
-            for (uint8 i = 0; i < instruction.vaaKeys.length; i++) {
+            for (uint8 i = 0; i < instruction.messageKeys.length; i++) {
                 for (uint8 j = 0; j < encodedVMs.length; j++) {
-                    if (vaaKeyMatchesVAA(instruction.vaaKeys[i], encodedVMs[j])) {
+                    if (vaaKeyMatchesVAA(instruction.messageKeys[i], encodedVMs[j])) {
                         encodedVMsToBeDelivered[i] = encodedVMs[j];
                         break;
                     }
