@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 
 import "./DeliveryProviderGovernance.sol";
 import "./DeliveryProviderStructs.sol";
+import {getSupportedMessageKeyTypes} from "./DeliveryProviderState.sol";
 import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
@@ -98,12 +99,16 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     }
 
     //Returns the address on this chain that rewards should be sent to
-    function getRewardAddress() public view override returns (address payable) {
+    function getRewardAddress() public view returns (address payable) {
         return rewardAddress();
     }
 
-    function isChainSupported(uint16 targetChain) public view override returns (bool supported) {
+    function isChainSupported(uint16 targetChain) public view returns (bool supported) {
         return _state.supportedChains[targetChain];
+    }
+
+    function isMessageKeyTypeSupported(uint8 keyType) public view returns (bool supported) {
+        return getSupportedMessageKeyTypes().supportedKeyTypes[keyType];
     }
 
     function getTargetChainAddress(uint16 targetChain)
