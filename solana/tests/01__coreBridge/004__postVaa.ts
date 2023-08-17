@@ -7,6 +7,7 @@ import {
   GUARDIAN_KEYS,
   SignatureSets,
   expectDeepEqual,
+  expectIxErr,
   expectIxOkDetails,
   parallelVerifySignatures,
 } from "../helpers";
@@ -32,6 +33,9 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
     connection,
     coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
   );
+
+  // Test variables.
+  const localVariables = new Map<string, any>();
 
   describe("Invalid Interaction", () => {
     // TODO
@@ -85,7 +89,24 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
       expectDeepEqual(postedVaaData.emitterAddress, Array.from(parsed.emitterAddress));
       expectDeepEqual(postedVaaData.payload, parsed.payload);
 
-      // TODO: save vaa for next test to show we cannot post again on new implementation.
+      // Save Vaa to local variables.
+      localVariables.set("signedVaa", signedVaa);
+    });
+  });
+
+  describe("New Implementation", () => {
+    it("Cannot Invoke `post_vaa` With Same VAA", async () => {
+      const signedVaa: Buffer = localVariables.get("signedVaa");
+
+      const { signatureSet, args } = await createArgs(connection, payer, signedVaa);
+
+      const ix = coreBridge.legacyPostVaaIx(
+        program,
+        { signatureSet: signatureSet.publicKey, payer: payer.publicKey },
+        args
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });
 });
