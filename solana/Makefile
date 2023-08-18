@@ -31,19 +31,16 @@ endif
 
 test: node_modules
 	cargo test
-	mkdir -p tests/artifacts
 	anchor build --arch sbf -- --features mainnet -- --no-default-features
-	cp target/deploy/*.so tests/artifacts/
+	mkdir -p tests/artifacts && cp target/deploy/*.so tests/artifacts/
 	anchor test --arch sbf
 
 lint:
 	cargo fmt --check
 	cargo clippy --no-deps --all-targets -- -D warnings
 
-docker-wip:
-ifdef out_$(NETWORK)
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile \
+ci:
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile.ci \
 		--build-arg SOLANA_CLI=$(SOLANA_CLI) \
 		--build-arg ANCHOR_CLI=$(ANCHOR_CLI) \
-		--build-arg NETWORK=$(NETWORK) .
-endif
+		.

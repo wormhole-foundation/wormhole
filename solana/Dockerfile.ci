@@ -1,9 +1,3 @@
-#
-# Docker image to generate deterministic, verifiable builds of Anchor programs.
-# This must be run *after* a given ANCHOR_CLI version is published and a git tag
-# is released on GitHub.
-#
-
 FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -13,9 +7,6 @@ RUN if [ -z "$SOLANA_CLI" ]; then echo 'Environment variable SOLANA_CLI must be 
 
 ARG ANCHOR_CLI
 RUN if [ -z "$ANCHOR_CLI" ]; then echo 'Environment variable ANCHOR_CLI must be specified. Exiting.'; exit 1; fi
-
-ARG NETWORK
-RUN if [ -z "$NETWORK" ]; then echo 'Environment variable NETWORK must be specified. Exiting.'; exit 1; fi
 
 ARG NODE_VERSION="v18.16.0"
 
@@ -56,4 +47,11 @@ COPY . /workdir
 
 WORKDIR /workdir
 
-RUN anchor build --arch sbf -- --features ${NETWORK} -- --no-default-features
+### Check all targets.
+RUN make check
+
+### Run fmt and clippy.
+RUN make lint
+
+### Run ts-mocha integration tests using solana-test-validator.
+RUN make test
