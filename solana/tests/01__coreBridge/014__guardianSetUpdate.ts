@@ -11,6 +11,7 @@ import {
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
   range,
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -185,6 +186,75 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
         [payer],
         "already in use"
       );
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Guardian Set Index", async () => {
+      const signedVaa = defaultVaa(guardians.setIndex + 2, guardians.getPublicKeys(), range(0, 13));
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGuardianSetIndex");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Governance Emitter", async () => {
+      // Create a bad governance emitter.
+      const governance = new GovernanceEmitter(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        GOVERNANCE_SEQUENCE - 1
+      );
+      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
+
+      // Vaa info.
+      const timestamp = 294967295;
+      const published = governance.publishWormholeGuardianSetUpgrade(
+        timestamp,
+        guardians.setIndex + 1,
+        guardians.getPublicKeys()
+      );
+      const signedVaa = invalidGuardians.addSignatures(published, range(0, 13));
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Governance Action", async () => {
+      // Vaa info.
+      const timestamp = 12345678;
+      const chain = 1;
+
+      // Publish the wrong VAA type.
+      const published = governance.publishWormholeSetMessageFee(timestamp, chain, BigInt(69));
+
+      const signedVaa = guardians.addSignatures(published, range(0, 13));
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
     });
 
     it.skip("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
