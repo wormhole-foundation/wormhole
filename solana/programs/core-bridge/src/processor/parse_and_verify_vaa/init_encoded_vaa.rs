@@ -54,8 +54,9 @@ impl<'info> InitEncodedVaa<'info> {
 #[access_control(InitEncodedVaa::constraints(&ctx))]
 pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
     let vaa_len = ctx.accounts.encoded_vaa.data_len() - EncodedVaa::BYTES_START;
+    msg!("vaa_len={}", vaa_len);
 
-    let acct_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.try_borrow_mut_data()?;
+    let acct_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acct_data);
 
     // Finally initialize the encoded VAA account by serializing the discriminator, header and

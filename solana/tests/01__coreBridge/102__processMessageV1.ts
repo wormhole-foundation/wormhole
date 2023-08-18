@@ -107,8 +107,8 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
       localVariables.set("emitterAuthority", emitterAuthority);
     });
 
-    for (let start = 0; start < message.length; start += chunkSize) {
-      const end = Math.min(start + chunkSize, message.length);
+    for (let start = 0; start < messageSize; start += chunkSize) {
+      const end = Math.min(start + chunkSize, messageSize);
 
       it(`Invoke \`process_message_v1\` to Write Part of Message (Range: ${start}..${end})`, async () => {
         const emitterAuthority: anchor.web3.Keypair = localVariables.get("emitterAuthority")!;

@@ -15,18 +15,16 @@ describe("Core Bridge -- Instruction: Init Encoded VAA", () => {
 
   describe("Invalid Interaction", () => {
     it("Cannot Invoke `init_encoded_vaa` without Created Account", async () => {
-      const writeAuthority = anchor.web3.Keypair.generate();
       const encodedVaa = anchor.web3.Keypair.generate();
 
       const initIx = await coreBridge.initEncodedVaaIx(program, {
-        writeAuthority: writeAuthority.publicKey,
+        writeAuthority: payer.publicKey,
         encodedVaa: encodedVaa.publicKey,
       });
-      await expectIxErr(connection, [initIx], [payer, writeAuthority], "ConstraintOwner");
+      await expectIxErr(connection, [initIx], [payer], "ConstraintOwner");
     });
 
     it("Cannot Invoke `init_encoded_vaa` with Nonsensical Account Size", async () => {
-      const writeAuthority = anchor.web3.Keypair.generate();
       const encodedVaa = anchor.web3.Keypair.generate();
 
       const createIx = await createAccountIx(
@@ -38,26 +36,21 @@ describe("Core Bridge -- Instruction: Init Encoded VAA", () => {
       );
 
       const initIx = await coreBridge.initEncodedVaaIx(program, {
-        writeAuthority: writeAuthority.publicKey,
+        writeAuthority: payer.publicKey,
         encodedVaa: encodedVaa.publicKey,
       });
       await expectIxErr(
         connection,
         [createIx, initIx],
-        [payer, writeAuthority, encodedVaa],
+        [payer, encodedVaa],
         "InvalidCreatedAccountSize"
       );
     });
 
     it("Cannot Invoke `init_encoded_vaa` with Expected VAA Size == 0", async () => {
-      const { encodedVaa, writeAuthority, instructions } = await createIxs(program, payer, 0);
+      const { encodedVaa, instructions } = await createIxs(program, payer, 0);
 
-      await expectIxErr(
-        connection,
-        instructions,
-        [payer, writeAuthority, encodedVaa],
-        "InvalidCreatedAccountSize"
-      );
+      await expectIxErr(connection, instructions, [payer, encodedVaa], "InvalidCreatedAccountSize");
     });
   });
 
@@ -66,18 +59,14 @@ describe("Core Bridge -- Instruction: Init Encoded VAA", () => {
 
     for (const vaaSize of vaaSizes) {
       it(`Invoke \`init_encoded_vaa\` with VAA Size == ${vaaSize}`, async () => {
-        const { encodedVaa, writeAuthority, instructions } = await createIxs(
-          program,
-          payer,
-          vaaSize
-        );
+        const { encodedVaa, instructions } = await createIxs(program, payer, vaaSize);
 
-        await expectIxOk(connection, instructions, [payer, writeAuthority, encodedVaa]);
+        await expectIxOk(connection, instructions, [payer, encodedVaa]);
 
         const encodedVaaData = await coreBridge.EncodedVaa.fetch(program, encodedVaa.publicKey);
         expectDeepEqual(encodedVaaData, {
           status: coreBridge.ProcessingStatus.Writing,
-          writeAuthority: writeAuthority.publicKey,
+          writeAuthority: payer.publicKey,
           version: coreBridge.VaaVersion.Unset,
           buf: Buffer.alloc(vaaSize),
         });
@@ -85,20 +74,18 @@ describe("Core Bridge -- Instruction: Init Encoded VAA", () => {
         // Only pick one for the next test.
         if (vaaSize == 1) {
           localVariables.set("encodedVaa", encodedVaa);
-          localVariables.set("writeAuthority", writeAuthority);
         }
       });
     }
 
     it("Cannot Invoke `init_encoded_vaa` with Same Encoded VAA", async () => {
       const encodedVaa: anchor.web3.Keypair = localVariables.get("encodedVaa")!;
-      const writeAuthority: anchor.web3.Keypair = localVariables.get("writeAuthority")!;
 
       const initIx = await coreBridge.initEncodedVaaIx(program, {
-        writeAuthority: writeAuthority.publicKey,
+        writeAuthority: payer.publicKey,
         encodedVaa: encodedVaa.publicKey,
       });
-      await expectIxErr(connection, [initIx], [payer, writeAuthority], "AccountNotZeroed");
+      await expectIxErr(connection, [initIx], [payer], "AccountNotZeroed");
     });
   });
 });
@@ -130,11 +117,10 @@ async function createIxs(
 ) {
   const { encodedVaa, createIx } = await prepareEncodedVaa(program, payer, vaaSize);
 
-  const writeAuthority = anchor.web3.Keypair.generate();
   const initIx = await coreBridge.initEncodedVaaIx(program, {
-    writeAuthority: writeAuthority.publicKey,
+    writeAuthority: payer.publicKey,
     encodedVaa: encodedVaa.publicKey,
   });
 
-  return { encodedVaa, writeAuthority, instructions: [createIx, initIx] };
+  return { encodedVaa, instructions: [createIx, initIx] };
 }

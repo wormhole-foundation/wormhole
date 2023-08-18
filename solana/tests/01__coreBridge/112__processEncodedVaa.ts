@@ -1,7 +1,20 @@
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { createAccountIx, expectDeepEqual, expectIxErr, expectIxOk } from "../helpers";
+import {
+  GUARDIAN_KEYS,
+  createAccountIx,
+  expectDeepEqual,
+  expectIxErr,
+  expectIxOk,
+  expectIxOkDetails,
+} from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
+import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
+
+const GUARDIAN_SET_INDEX = 2;
+
+const dummyEmitter = new MockEmitter(Buffer.alloc(32, "deadbeef").toString("hex"), 69, -1);
+const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
 // Test variables.
 const localVariables = new Map<string, any>();
@@ -15,13 +28,12 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    const messageSize = 69;
+    const vaaSize = 69;
 
-    it.skip("Cannot Invoke `process_encoded_vaa` with Different Emitter Authority", async () => {
+    it("Cannot Invoke `process_encoded_vaa` with Different Write Authority (Write)", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+
       const someoneElse = anchor.web3.Keypair.generate();
-
-      const encodedVaa = await initEncodedVaa(program, payer, messageSize);
-
       const ix = await coreBridge.processEncodedVaaIx(
         program,
         {
@@ -31,11 +43,45 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
         },
         { write: { index: 0, data: Buffer.from("Nope.") } }
       );
-      await expectIxErr(connection, [ix], [payer, someoneElse], "EmitterAuthorityMismatch");
+      await expectIxErr(connection, [ix], [payer, someoneElse], "WriteAuthorityMismatch");
     });
 
-    it.skip("Cannot Invoke `process_encoded_vaa` with Nonsensical Index", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, messageSize);
+    it("Cannot Invoke `process_encoded_vaa` with Different Write Authority (CloseVaaAccount)", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+
+      const someoneElse = anchor.web3.Keypair.generate();
+      const ix = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: someoneElse.publicKey,
+          encodedVaa,
+          guardianSet: null,
+        },
+        { closeVaaAccount: {} }
+      );
+      await expectIxErr(connection, [ix], [payer, someoneElse], "WriteAuthorityMismatch");
+    });
+
+    it("Cannot Invoke `process_encoded_vaa` with Expired Guardidan Set", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+
+      const expiredGuardianSetIndex = 0;
+      expect(GUARDIAN_SET_INDEX).is.greaterThan(expiredGuardianSetIndex);
+
+      const ix = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa,
+          guardianSet: coreBridge.GuardianSet.address(program.programId, expiredGuardianSetIndex),
+        },
+        { write: { index: 0, data: Buffer.from("Nope.") } }
+      );
+      await expectIxErr(connection, [ix], [payer], "GuardianSetExpired");
+    });
+
+    it("Cannot Invoke `process_encoded_vaa` with Nonsensical Index", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
@@ -44,13 +90,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
           encodedVaa,
           guardianSet: null,
         },
-        { write: { index: messageSize, data: Buffer.from("Nope.") } }
+        { write: { index: vaaSize, data: Buffer.from("Nope.") } }
       );
       await expectIxErr(connection, [ix], [payer], "DataOverflow");
     });
 
-    it.skip("Cannot Invoke `process_encoded_vaa` with Too Much Data", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, messageSize);
+    it("Cannot Invoke `process_encoded_vaa` with Too Much Data", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
@@ -59,13 +105,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
           encodedVaa,
           guardianSet: null,
         },
-        { write: { index: 0, data: Buffer.alloc(messageSize + 1, "Nope.") } }
+        { write: { index: 0, data: Buffer.alloc(vaaSize + 1, "Nope.") } }
       );
       await expectIxErr(connection, [ix], [payer], "DataOverflow");
     });
 
-    it.skip("Cannot Invoke `process_encoded_vaa` with No Data", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, messageSize);
+    it("Cannot Invoke `process_encoded_vaa` with No Data", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
@@ -78,86 +124,86 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       );
       await expectIxErr(connection, [ix], [payer], "InvalidInstructionArgument");
     });
+
+    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures on Nonsensical Encoded Vaa", async () => {
+      // TODO
+    });
   });
 
   describe("Ok", () => {
-    const messageSize = 2 * 1_024;
-    const message = Buffer.alloc(messageSize, "All your base are belong to us. ");
+    const signedVaa = defaultVaa();
+    const vaaSize = signedVaa.length;
     const chunkSize = 912; // Max that can fit in a transaction.
 
-    it.skip(`Invoke \`init_message_v1\` on VAA Size == ${messageSize}`, async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, messageSize);
+    it(`Invoke \`init_encoded_vaa\` on VAA Size == ${vaaSize}`, async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
 
       localVariables.set("encodedVaa", encodedVaa);
     });
 
-    for (let start = 0; start < message.length; start += chunkSize) {
-      const end = Math.min(start + chunkSize, message.length);
+    for (let start = 0; start < vaaSize; start += chunkSize) {
+      const end = Math.min(start + chunkSize, vaaSize);
 
-      it.skip(`Invoke \`process_encoded_vaa\` to Write Part of VAA (Range: ${start}..${end})`, async () => {
-        const writeAuthority: anchor.web3.Keypair = localVariables.get("writeAuthority")!;
-        const encodedVaa: anchor.web3.PublicKey = localVariables.get("encodedVaa")!;
+      it(`Invoke \`process_encoded_vaa\` to Write Part of VAA (Range: ${start}..${end})`, async () => {
+        const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
 
         const ix = await coreBridge.processEncodedVaaIx(
           program,
           {
-            writeAuthority: writeAuthority.publicKey,
+            writeAuthority: payer.publicKey,
             encodedVaa,
             guardianSet: null,
           },
-          { write: { index: start, data: message.subarray(start, end) } }
+          { write: { index: start, data: signedVaa.subarray(start, end) } }
         );
-        await expectIxOk(connection, [ix], [payer, writeAuthority]);
+        await expectIxOk(connection, [ix], [payer]);
 
-        const expectedPayload = Buffer.alloc(messageSize);
-        expectedPayload.set(message.subarray(0, end));
+        const expectedBuf = Buffer.alloc(vaaSize);
+        expectedBuf.set(signedVaa.subarray(0, end));
 
-        // const draftMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
-        //   connection,
-        //   encodedVaa
-        // );
-        // expectDeepEqual(draftMessageData, {
-        //   finality: 0,
-        //   writeAuthority: writeAuthority.publicKey,
-        //   status: coreBridge.MessageStatus.Writing,
-        //   _gap0: Buffer.alloc(3),
-        //   postedTimestamp: 0,
-        //   nonce: 0,
-        //   sequence: new anchor.BN(0),
-        //   solanaChainId: 1,
-        //   emitter: writeAuthority.publicKey,
-        //   payload: expectedPayload,
-        // });
+        const encodedVaaData = await coreBridge.EncodedVaa.fetch(program, encodedVaa);
+        expectDeepEqual(encodedVaaData, {
+          status: coreBridge.ProcessingStatus.Writing,
+          writeAuthority: payer.publicKey,
+          version: coreBridge.VaaVersion.Unset,
+          buf: expectedBuf,
+        });
       });
     }
 
-    it.skip("Invoke `process_encoded_vaa` to Close Encoded VAA", async () => {
-      const writeAuthority: anchor.web3.Keypair = localVariables.get("writeAuthority")!;
-      const encodedVaa: anchor.web3.PublicKey = localVariables.get("encodedVaa")!;
+    it("Invoke `process_encoded_vaa` to Close Encoded VAA", async () => {
+      const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
 
-      const guardianSet = anchor.web3.Keypair.generate().publicKey;
-      const balanceBefore = await connection.getBalance(guardianSet);
+      const balanceBefore = await connection.getBalance(payer.publicKey);
 
-      const expectedLamports = await connection
-        .getAccountInfo(encodedVaa)
-        .then((acct) => acct.lamports);
+      // const expectedLamports = await connection
+      //   .getAccountInfo(encodedVaa)
+      //   .then((acct) => acct.lamports);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
         {
-          writeAuthority: writeAuthority.publicKey,
+          writeAuthority: payer.publicKey,
           encodedVaa,
-          guardianSet,
+          guardianSet: null,
         },
         { closeVaaAccount: {} }
       );
-      await expectIxOk(connection, [ix], [payer, writeAuthority]);
+      //const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
+      await expectIxOk(connection, [ix], [payer]);
 
-      const balanceAfter = await connection.getBalance(guardianSet);
-      expect(balanceAfter - balanceBefore).to.equal(expectedLamports);
+      const balanceAfter = await connection.getBalance(payer.publicKey);
 
-      const draftMessageData = await connection.getAccountInfo(encodedVaa);
-      expect(draftMessageData).is.null;
+      // Cannot reconcile expected lamports with lamport change on payer. But we show that the
+      // balance increases, so the closed account lamports must have been sent to the payer.
+      expect(balanceAfter).is.greaterThan(balanceBefore);
+
+      const encodedVaaData = await connection.getAccountInfo(encodedVaa);
+      expect(encodedVaaData).is.null;
+    });
+
+    it("Invoke `process_encoded_vaa` to Write and Verify Signatures", async () => {
+      // TODO
     });
   });
 });
@@ -165,7 +211,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 async function initEncodedVaa(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  messageSize: number
+  vaaSize: number
 ) {
   const encodedVaa = anchor.web3.Keypair.generate();
   const createIx = await createAccountIx(
@@ -173,7 +219,7 @@ async function initEncodedVaa(
     program.programId,
     payer,
     encodedVaa,
-    95 + messageSize
+    46 + vaaSize
   );
 
   const initIx = await coreBridge.initEncodedVaaIx(program, {
@@ -184,4 +230,42 @@ async function initEncodedVaa(
   await expectIxOk(program.provider.connection, [createIx, initIx], [payer, encodedVaa]);
 
   return encodedVaa.publicKey;
+}
+
+function defaultVaa(
+  args?: {
+    nonce?: number;
+    payload?: Buffer;
+    consistencyLevel?: number;
+    timestamp?: number;
+  },
+  guardianIndices?: number[]
+) {
+  if (args === undefined) {
+    args = {};
+  }
+  let { nonce, payload, consistencyLevel, timestamp } = args;
+
+  if (nonce === undefined) {
+    nonce = 420;
+  }
+
+  if (payload === undefined) {
+    payload = Buffer.alloc(2 * 1_024, "Somebody set us up the bomb. ");
+  }
+
+  if (consistencyLevel === undefined) {
+    consistencyLevel = 200;
+  }
+
+  if (timestamp === undefined) {
+    timestamp = 12345678;
+  }
+
+  if (guardianIndices === undefined) {
+    guardianIndices = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14];
+  }
+
+  const published = dummyEmitter.publishMessage(nonce, payload, consistencyLevel, timestamp);
+  return guardians.addSignatures(published, guardianIndices);
 }
