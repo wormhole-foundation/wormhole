@@ -212,6 +212,70 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
 
       await expectIxErr(connection, [ix], [payer], "U64Overflow");
     });
+
+    it("Invoke `post_message` with a Null Fee Collector", async () => {
+      // Fetch the intialial fee state.
+      const startingFeeLamports = await coreBridge.Config.fromPda(
+        connection,
+        program.programId
+      ).then((data) => data.feeLamports);
+
+      // Set the message fee to zero.
+      await updateMessageFee(new anchor.BN(0), payer, program);
+
+      // Post the message with a null fee collector.
+      const message = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: message.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+        feeCollector: null,
+      };
+
+      // Post a message with a null fee collector.
+      const ix = coreBridge.legacyPostMessageIx(program, accounts, {
+        nonce: 420,
+        payload: Buffer.from("All your base are belong to us."),
+        finality: 1,
+      });
+      await expectIxOk(connection, [ix], [payer, emitter, message]);
+
+      // Set the message fee back to the original amount.
+      await updateMessageFee(startingFeeLamports, payer, program);
+    });
+
+    it("Invoke `post_message_unreliable` with a Null Fee Collector", async () => {
+      // Fetch the intialial fee state.
+      const startingFeeLamports = await coreBridge.Config.fromPda(
+        connection,
+        program.programId
+      ).then((data) => data.feeLamports);
+
+      // Set the message fee to zero.
+      await updateMessageFee(new anchor.BN(0), payer, program);
+
+      // Post the message with a null fee collector.
+      const message = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: message.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+        feeCollector: null,
+      };
+
+      // Post a message with a null fee collector.
+      const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
+        nonce: 420,
+        payload: Buffer.from("All your base are belong to us."),
+        finality: 1,
+      });
+      await expectIxOk(connection, [ix], [payer, emitter, message]);
+
+      // Set the message fee back to the original amount.
+      await updateMessageFee(startingFeeLamports, payer, program);
+    });
   });
 });
 
@@ -226,6 +290,33 @@ function defaultVaa(amount: anchor.BN, emitter?: number): Buffer {
     BigInt(amount.toString())
   );
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+}
+
+async function updateMessageFee(
+  amount: anchor.BN,
+  payer: anchor.web3.Keypair,
+  program: coreBridge.CoreBridgeProgram
+) {
+  // Set the message fee to zero.
+  const timestamp = 12345678;
+  const chain = 1;
+  const published = governance.publishWormholeSetMessageFee(
+    timestamp,
+    chain,
+    BigInt(amount.toString())
+  );
+  const signedVaa = guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+
+  // Post the VAA.
+  await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+  // Parse the vaa and update the guardian set index.
+  const parsedVaa = parseVaa(signedVaa);
+
+  // Create the instruction.
+  const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+  await expectIxOk(program.provider.connection, [ix], [payer]);
 }
 
 async function parallelTxOk(
