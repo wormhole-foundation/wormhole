@@ -29,8 +29,8 @@ impl<'info> InitMessageV1<'info> {
         // assumption that no other Core Bridge account that is currently used will have all zeros.
         // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
         // mess around like this. But here we are.
-        let msg_acct_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
-        let mut reader = std::io::Cursor::new(msg_acct_data);
+        let msg_acc_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
+        let mut reader = std::io::Cursor::new(msg_acc_data);
 
         // Infer the expected message length given the size of the created account.
         let data_len = ctx.accounts.draft_message.data_len();
@@ -83,8 +83,8 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // want to manage two separate addresses (program ID and emitter address) cross chain.
     let emitter = new_emitter(&ctx.accounts.emitter_authority, cpi_program_id)?;
 
-    let acct_data: &mut [u8] = &mut ctx.accounts.draft_message.data.borrow_mut();
-    let mut writer = std::io::Cursor::new(acct_data);
+    let acc_data: &mut [u8] = &mut ctx.accounts.draft_message.data.borrow_mut();
+    let mut writer = std::io::Cursor::new(acc_data);
 
     // Finally initialize the draft message account by serializing the discriminator, header and
     // payload length.

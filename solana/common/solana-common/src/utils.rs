@@ -64,11 +64,11 @@ where
     Ok(())
 }
 
-pub fn require_discriminator<const N: usize>(acct_data: &mut &[u8], expected: [u8; N]) -> Result<()>
+pub fn require_discriminator<const N: usize>(acc_data: &mut &[u8], expected: [u8; N]) -> Result<()>
 where
     [u8; N]: AnchorDeserialize,
 {
-    let discriminator = <[u8; N]>::deserialize(acct_data)?;
+    let discriminator = <[u8; N]>::deserialize(acc_data)?;
     require!(
         discriminator == expected,
         ErrorCode::AccountDiscriminatorMismatch

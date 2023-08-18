@@ -99,7 +99,7 @@ impl<'info> UpgradeContract<'info> {
 
         // Read the implementation pubkey and check against the buffer in our account context.
         require_keys_eq!(
-            Pubkey::new_from_array(Readable::read(&mut data).unwrap()),
+            Pubkey::new_from_array(Readable::read(&mut data)?),
             ctx.accounts.buffer.key()
         );
 

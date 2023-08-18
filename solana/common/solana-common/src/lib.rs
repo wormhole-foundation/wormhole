@@ -16,11 +16,11 @@ use anyhow::{anyhow, ensure};
 pub trait LegacyDiscriminator<const N: usize> {
     const LEGACY_DISCRIMINATOR: [u8; N];
 
-    fn require_discriminator(acct_data: &mut &[u8]) -> anchor_lang::Result<()>
+    fn require_discriminator(acc_data: &mut &[u8]) -> anchor_lang::Result<()>
     where
         [u8; N]: AnchorDeserialize,
     {
-        utils::require_discriminator(acct_data, Self::LEGACY_DISCRIMINATOR)
+        utils::require_discriminator(acc_data, Self::LEGACY_DISCRIMINATOR)
     }
 }
 

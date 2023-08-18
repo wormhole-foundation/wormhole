@@ -252,8 +252,8 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     // Deserialize token metadata so we can check whether the name or symbol have changed in
     // this asset metadata VAA.
     let data = {
-        let mut acct_data: &[u8] = &ctx.accounts.token_metadata.try_borrow_data()?;
-        metadata::MetadataAccount::try_deserialize(&mut acct_data).map(|acct| acct.data.clone())?
+        let mut acc_data: &[u8] = &ctx.accounts.token_metadata.try_borrow_data()?;
+        metadata::MetadataAccount::try_deserialize(&mut acc_data).map(|acct| acct.data.clone())?
     };
 
     if name != data.name || symbol != data.symbol {

@@ -27,8 +27,8 @@ impl<'info> InitEncodedVaa<'info> {
         // assumption that no other Core Bridge account that is currently used will have all zeros.
         // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
         // mess around like this. But here we are.
-        let msg_acct_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let mut reader = std::io::Cursor::new(msg_acct_data);
+        let msg_acc_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
+        let mut reader = std::io::Cursor::new(msg_acc_data);
 
         // The size of the created account must be more than the size of discriminator and header
         // (some VAA buffer > 0 bytes).
@@ -54,10 +54,9 @@ impl<'info> InitEncodedVaa<'info> {
 #[access_control(InitEncodedVaa::constraints(&ctx))]
 pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
     let vaa_len = ctx.accounts.encoded_vaa.data_len() - EncodedVaa::BYTES_START;
-    msg!("vaa_len={}", vaa_len);
 
-    let acct_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
-    let mut writer = std::io::Cursor::new(acct_data);
+    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
+    let mut writer = std::io::Cursor::new(acc_data);
 
     // Finally initialize the encoded VAA account by serializing the discriminator, header and
     // expected VAA length.

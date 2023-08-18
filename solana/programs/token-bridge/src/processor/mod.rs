@@ -96,7 +96,6 @@ pub fn mint_wrapped_tokens<'info>(
     mint_authority_bump: u8,
     mint_amount: u64,
 ) -> Result<()> {
-    msg!("mint amount {}", mint_amount);
     token::mint_to(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
