@@ -213,7 +213,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       await expectIxErr(connection, [ix], [payer], "U64Overflow");
     });
 
-    it("Invoke `post_message` with a Null Fee Collector", async () => {
+    it("Invoke `post_message` with a Null Fee Collector (fee == 0)", async () => {
       // Fetch the intialial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
@@ -245,7 +245,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       await updateMessageFee(startingFeeLamports, payer, program);
     });
 
-    it("Invoke `post_message_unreliable` with a Null Fee Collector", async () => {
+    it("Invoke `post_message_unreliable` with a Null Fee Collector (fee == 0)", async () => {
       // Fetch the intialial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
@@ -275,6 +275,60 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
 
       // Set the message fee back to the original amount.
       await updateMessageFee(startingFeeLamports, payer, program);
+    });
+
+    it("Cannot Invoke `post_message` with a Null Fee Collector (Fee > 0)", async () => {
+      // Fetch the intialial fee state.
+      const startingFeeLamports = await coreBridge.Config.fromPda(
+        connection,
+        program.programId
+      ).then((data) => data.feeLamports);
+      expect(startingFeeLamports.gte(new anchor.BN(0))).to.be.true;
+
+      // Post the message with a null fee collector.
+      const message = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: message.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+        feeCollector: null,
+      };
+
+      // Post a message with a null fee collector.
+      const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
+        nonce: 420,
+        payload: Buffer.from("All your base are belong to us."),
+        finality: 1,
+      });
+      await expectIxErr(connection, [ix], [payer, emitter, message], "");
+    });
+
+    it("Cannot Invoke `post_message_unreliable` with a Null Fee Collector (Fee > 0)", async () => {
+      // Fetch the intialial fee state.
+      const startingFeeLamports = await coreBridge.Config.fromPda(
+        connection,
+        program.programId
+      ).then((data) => data.feeLamports);
+      expect(startingFeeLamports.gte(new anchor.BN(0))).to.be.true;
+
+      // Post the message with a null fee collector.
+      const message = anchor.web3.Keypair.generate();
+      const emitter = anchor.web3.Keypair.generate();
+      const accounts = {
+        message: message.publicKey,
+        emitter: emitter.publicKey,
+        payer: payer.publicKey,
+        feeCollector: null,
+      };
+
+      // Post a message with a null fee collector.
+      const ix = coreBridge.legacyPostMessageIx(program, accounts, {
+        nonce: 420,
+        payload: Buffer.from("All your base are belong to us."),
+        finality: 1,
+      });
+      await expectIxErr(connection, [ix], [payer, emitter, message], "");
     });
   });
 });
