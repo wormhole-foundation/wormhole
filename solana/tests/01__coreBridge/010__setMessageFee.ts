@@ -9,6 +9,7 @@ import {
   createIfNeeded,
   expectIxErr,
   expectIxOk,
+  expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
 } from "../helpers";
@@ -301,7 +302,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
         payload: Buffer.from("All your base are belong to us."),
         finality: 1,
       });
-      await expectIxErr(connection, [ix], [payer, emitter, message], "");
+      await expectIxErr(connection, [ix], [payer, emitter, message], "AccountNotEnoughKeys");
     });
 
     it("Cannot Invoke `post_message_unreliable` with a Null Fee Collector (Fee > 0)", async () => {
@@ -328,7 +329,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
         payload: Buffer.from("All your base are belong to us."),
         finality: 1,
       });
-      await expectIxErr(connection, [ix], [payer, emitter, message], "");
+      await expectIxErr(connection, [ix], [payer, emitter, message], "AccountNotEnoughKeys");
     });
   });
 });
