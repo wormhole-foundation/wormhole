@@ -82,15 +82,15 @@ impl<'info> TransferFees<'info> {
         let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
 
         require!(
-            <[u8; 24]>::read(&mut data).unwrap() == [0; 24],
+            <[u8; 24]>::read(&mut data)? == [0; 24],
             CoreBridgeError::U64Overflow
         );
-        let lamports = u64::read(&mut data).unwrap();
+        let lamports = u64::read(&mut data)?;
 
         let recipient = &ctx.accounts.recipient;
         require_keys_eq!(
             recipient.key(),
-            Pubkey::new_from_array(Readable::read(&mut data).unwrap()),
+            Pubkey::new_from_array(Readable::read(&mut data)?),
             CoreBridgeError::InvalidFeeRecipient
         );
 

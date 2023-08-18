@@ -98,7 +98,7 @@ impl<'info> GuardianSetUpdate<'info> {
         let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
 
         // Encoded guardian set must be the next value after the current guardian set index.
-        let new_index = u32::read(&mut data).unwrap();
+        let new_index = u32::read(&mut data)?;
         require_eq!(new_index, config.guardian_set_index + 1);
 
         // Done.

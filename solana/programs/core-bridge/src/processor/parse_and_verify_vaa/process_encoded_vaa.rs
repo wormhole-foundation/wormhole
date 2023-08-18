@@ -161,7 +161,7 @@ fn verify_signatures_v1(
         let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acc_data)?;
         require!(
             header.status == ProcessingStatus::Writing,
-            CoreBridgeError::NotInWritingStatus
+            CoreBridgeError::VaaAlreadyVerified
         );
 
         // Skip vaa length.
