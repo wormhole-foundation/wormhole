@@ -94,7 +94,7 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
             // `init_if_needed`.
             require_keys_eq!(
                 ctx.accounts.message.emitter,
-                Default::default(),
+                Pubkey::default(),
                 CoreBridgeError::MessageAlreadyPublished
             );
 
@@ -200,8 +200,8 @@ fn handle_post_prepared_message(
     // The emitter authority passed into the instruction handler must be the same one that drafted
     // this Core Bridge message.
     require_keys_eq!(
-        msg.emitter_authority,
         emitter_authority.key(),
+        msg.emitter_authority,
         CoreBridgeError::EmitterAuthorityMismatch
     );
 

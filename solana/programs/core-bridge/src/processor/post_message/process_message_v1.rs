@@ -36,8 +36,8 @@ impl<'info> ProcessMessageV1<'info> {
             CoreBridgeError::MessageAlreadyPublished
         );
         require_keys_eq!(
-            info.emitter_authority,
             ctx.accounts.emitter_authority.key(),
+            info.emitter_authority,
             CoreBridgeError::EmitterAuthorityMismatch
         );
 

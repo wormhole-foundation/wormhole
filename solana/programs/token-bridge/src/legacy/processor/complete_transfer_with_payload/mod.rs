@@ -34,10 +34,11 @@ pub fn validate_token_transfer_with_payload<'ctx, 'info>(
             let redeemer = Pubkey::from(transfer.redeemer());
             let redeemer_authority = redeemer_authority.key();
             if redeemer != redeemer_authority {
-                let (pda, _) = Pubkey::find_program_address(&[b"redeemer"], &redeemer);
+                let (expected_authority, _) =
+                    Pubkey::find_program_address(&[b"redeemer"], &redeemer);
                 require_keys_eq!(
                     redeemer_authority,
-                    pda,
+                    expected_authority,
                     TokenBridgeError::InvalidProgramRedeemer
                 )
             } else {

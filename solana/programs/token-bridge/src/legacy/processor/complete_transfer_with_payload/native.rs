@@ -114,8 +114,8 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
 
         // Mint account must agree with the encoded token address.
         require_eq!(
-            Pubkey::from(token_address),
             ctx.accounts.mint.key(),
+            Pubkey::from(token_address),
             TokenBridgeError::InvalidMint
         );
 

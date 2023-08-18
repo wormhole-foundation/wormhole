@@ -1,4 +1,5 @@
 use crate::{
+    error::CoreBridgeError,
     legacy::instruction::{LegacyPostMessageArgs, LegacyPostMessageUnreliableArgs},
     state::{Config, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
 };
@@ -76,7 +77,11 @@ impl<'info> PostMessageUnreliable<'info> {
         // payload, so this check is sufficient.
         if !msg.payload.is_empty() {
             // The emitter must be identical.
-            require_keys_eq!(msg.emitter, ctx.accounts.emitter.key());
+            require_keys_eq!(
+                ctx.accounts.emitter.key(),
+                msg.emitter,
+                CoreBridgeError::EmitterAuthorityMismatch
+            );
         }
 
         Ok(())

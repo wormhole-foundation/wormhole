@@ -98,9 +98,11 @@ impl<'info> UpgradeContract<'info> {
         let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
 
         // Read the implementation pubkey and check against the buffer in our account context.
+        let expected_implementation = <[u8; 32]>::read(&mut data)?;
         require_keys_eq!(
-            Pubkey::new_from_array(Readable::read(&mut data)?),
-            ctx.accounts.buffer.key()
+            ctx.accounts.buffer.key(),
+            Pubkey::from(expected_implementation),
+            CoreBridgeError::ImplementationMismatch
         );
 
         // Done.

@@ -87,10 +87,10 @@ impl<'info> TransferFees<'info> {
         );
         let lamports = u64::read(&mut data)?;
 
-        let recipient = &ctx.accounts.recipient;
+        let expected_recipient = <[u8; 32]>::read(&mut data)?;
         require_keys_eq!(
-            recipient.key(),
-            Pubkey::new_from_array(Readable::read(&mut data)?),
+            ctx.accounts.recipient.key(),
+            Pubkey::from(expected_recipient),
             CoreBridgeError::InvalidFeeRecipient
         );
 

@@ -131,8 +131,8 @@ pub fn verify_signatures(
     // Number of specified `signers` must equal the number of signatures verified in the sig verify
     // program instruction.
     require_eq!(
-        guardian_indices.len(),
         sig_verify_params.len(),
+        guardian_indices.len(),
         CoreBridgeError::SignerIndicesMismatch
     );
 
@@ -146,8 +146,8 @@ pub fn verify_signatures(
         // Otherwise, verify that the guardian set index is what we expect from
         // the last time we wrote to the signature set account.
         require_eq!(
-            signature_set.guardian_set_index,
             guardian_set.index,
+            signature_set.guardian_set_index,
             CoreBridgeError::GuardianSetMismatch
         );
 
@@ -200,7 +200,7 @@ fn deserialize_secp256k1_ix(
     let mut params = Vec::with_capacity(ix_data[0].into());
 
     // For each offset encoded, grab each SigVerify parameter (signature, eth pubkey, message).
-    let mut last_message_offset = None;
+    let mut expected_message_offset = None;
     for i in 0..params.capacity() {
         let offsets_idx = 1 + i * SigVerifyOffsets::INIT_SPACE;
         let offsets = SigVerifyOffsets::deserialize(
@@ -215,14 +215,15 @@ fn deserialize_secp256k1_ix(
         );
 
         // The instruction index must be the same for signature, eth pubkey and message.
+        let expected_ix_index = offsets.signature_ix_index;
         require_eq!(
-            offsets.signature_ix_index,
             offsets.eth_pubkey_ix_index,
+            expected_ix_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
         require_eq!(
-            offsets.signature_ix_index,
             offsets.message_ix_index,
+            expected_ix_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
 
@@ -233,10 +234,10 @@ fn deserialize_secp256k1_ix(
         // The message offset should be the same for each sig verify offsets since each signature is
         // for the same message.
         let message_offset = usize::from(offsets.message_offset);
-        if let Some(last_message_offset) = last_message_offset {
+        if let Some(expected_message_offset) = expected_message_offset {
             require_eq!(
                 message_offset,
-                last_message_offset,
+                expected_message_offset,
                 CoreBridgeError::InvalidSigVerifyInstruction
             );
         }
@@ -248,7 +249,7 @@ fn deserialize_secp256k1_ix(
             eth_pubkey,
             message,
         });
-        last_message_offset = Some(message_offset);
+        expected_message_offset = Some(message_offset);
     }
 
     Ok(params)
