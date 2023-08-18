@@ -7,8 +7,8 @@ use anchor_lang::prelude::error_code;
 /// >= 0x10   -- General Token Bridge.
 /// >= 0x20   -- General Token Bridge Governance.
 /// >= 0x30   -- General SPL Handling.
-/// >= 0x40   -- Inbound Core Bridge Messages.
-/// >= 0x60   -- Outbound Core Bridge Messages.
+/// >= 0x40   -- Inbound Token Bridge Transfers.
+/// >= 0x60   -- Outbound Token Bridge Transfers.
 /// >= 0x100  -- Legacy Attest Token.
 /// >= 0x200  -- Legacy Complete Transfer Native.
 /// >= 0x300  -- Legacy Complete Transfer Wrapped.
@@ -28,6 +28,9 @@ use anchor_lang::prelude::error_code;
 pub enum TokenBridgeError {
     #[msg("CannotParseMessage")]
     CannotParseMessage = 0x02,
+
+    #[msg("U64Overflow")]
+    U64Overflow = 0x06,
 
     #[msg("InvalidTokenBridgeVaa")]
     InvalidTokenBridgeVaa = 0x10,
@@ -56,36 +59,27 @@ pub enum TokenBridgeError {
     #[msg("InvalidMint")]
     InvalidMint = 0x30,
 
-    #[msg("RecipientChainNotSolana")]
-    RecipientChainNotSolana = 0x200,
-
-    #[msg("RedeemerChainNotSolana")]
-    RedeemerChainNotSolana = 0x201,
-
-    #[msg("EmitterZeroAddress")]
-    EmitterZeroAddress = 0x300,
-
-    #[msg("TransferRedeemerNotSigner")]
-    TransferRedeemerNotSigner = 0x900,
-
-    #[msg("CannotSerializeJson")]
-    CannotSerializeJson = 0x6969,
-
-    #[msg("InvalidRelayerFee")]
-    InvalidRelayerFee = 0x420,
-
     #[msg("NativeAsset")]
-    NativeAsset = 0x555,
+    NativeAsset = 0x32,
 
     #[msg("WrappedAsset")]
-    WrappedAsset = 0x556,
+    WrappedAsset = 0x34,
 
-    #[msg("U64Overflow")]
-    U64Overflow = 0x558,
+    #[msg("RecipientChainNotSolana")]
+    RecipientChainNotSolana = 0x40,
+
+    #[msg("RedeemerChainNotSolana")]
+    RedeemerChainNotSolana = 0x42,
 
     #[msg("InvalidProgramRedeemer")]
-    InvalidProgramRedeemer = 0x560,
+    InvalidProgramRedeemer = 0x44,
+
+    #[msg("CannotSerializeJson")]
+    CannotSerializeJson = 0x700,
+
+    #[msg("InvalidRelayerFee")]
+    InvalidRelayerFee = 0x60,
 
     #[msg("ImplementationMismatch")]
-    ImplementationMismatch = 0x600,
+    ImplementationMismatch = 0x800,
 }
