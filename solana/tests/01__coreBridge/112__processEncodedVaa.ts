@@ -28,7 +28,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   describe("Invalid Interaction", () => {
-    const vaaSize = 69;
+    // TODO
+  });
+
+  describe("Ok", () => {
+    const signedVaa = defaultVaa();
+    const vaaSize = signedVaa.length;
+    const chunkSize = 912; // Max that can fit in a transaction.
 
     it("Cannot Invoke `process_encoded_vaa` with Different Write Authority (Write)", async () => {
       const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
@@ -96,7 +102,8 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     });
 
     it("Cannot Invoke `process_encoded_vaa` with Too Much Data", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+      const smallVaaSize = 69;
+      const encodedVaa = await initEncodedVaa(program, payer, smallVaaSize);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
@@ -105,7 +112,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
           encodedVaa,
           guardianSet: null,
         },
-        { write: { index: 0, data: Buffer.alloc(vaaSize + 1, "Nope.") } }
+        { write: { index: 0, data: Buffer.alloc(smallVaaSize + 1, "Nope.") } }
       );
       await expectIxErr(connection, [ix], [payer], "DataOverflow");
     });
@@ -128,12 +135,37 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures on Nonsensical Encoded Vaa", async () => {
       // TODO
     });
-  });
 
-  describe("Ok", () => {
-    const signedVaa = defaultVaa();
-    const vaaSize = signedVaa.length;
-    const chunkSize = 912; // Max that can fit in a transaction.
+    it("Invoke `process_encoded_vaa` to Close Encoded VAA", async () => {
+      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+
+      const balanceBefore = await connection.getBalance(payer.publicKey);
+
+      // const expectedLamports = await connection
+      //   .getAccountInfo(encodedVaa)
+      //   .then((acct) => acct.lamports);
+
+      const ix = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa,
+          guardianSet: null,
+        },
+        { closeVaaAccount: {} }
+      );
+      //const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
+      await expectIxOk(connection, [ix], [payer]);
+
+      const balanceAfter = await connection.getBalance(payer.publicKey);
+
+      // Cannot reconcile expected lamports with lamport change on payer. But we show that the
+      // balance increases, so the closed account lamports must have been sent to the payer.
+      expect(balanceAfter).is.greaterThan(balanceBefore);
+
+      const encodedVaaData = await connection.getAccountInfo(encodedVaa);
+      expect(encodedVaaData).is.null;
+    });
 
     it(`Invoke \`init_encoded_vaa\` on VAA Size == ${vaaSize}`, async () => {
       const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
@@ -171,14 +203,8 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       });
     }
 
-    it("Invoke `process_encoded_vaa` to Close Encoded VAA", async () => {
+    it.skip("Invoke `process_encoded_vaa` to Verify Signatures", async () => {
       const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
-
-      const balanceBefore = await connection.getBalance(payer.publicKey);
-
-      // const expectedLamports = await connection
-      //   .getAccountInfo(encodedVaa)
-      //   .then((acct) => acct.lamports);
 
       const ix = await coreBridge.processEncodedVaaIx(
         program,
@@ -187,22 +213,16 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
           encodedVaa,
           guardianSet: null,
         },
-        { closeVaaAccount: {} }
+        { verifySignaturesV1: {} }
       );
-      //const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
       await expectIxOk(connection, [ix], [payer]);
-
-      const balanceAfter = await connection.getBalance(payer.publicKey);
-
-      // Cannot reconcile expected lamports with lamport change on payer. But we show that the
-      // balance increases, so the closed account lamports must have been sent to the payer.
-      expect(balanceAfter).is.greaterThan(balanceBefore);
-
-      const encodedVaaData = await connection.getAccountInfo(encodedVaa);
-      expect(encodedVaaData).is.null;
     });
 
-    it("Invoke `process_encoded_vaa` to Write and Verify Signatures", async () => {
+    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures Again", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot Invoke `process_encoded_vaa` to Close Encoded VAA After Verifying Signatures", async () => {
       // TODO
     });
   });
