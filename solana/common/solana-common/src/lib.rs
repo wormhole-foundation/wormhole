@@ -61,14 +61,6 @@ pub trait NewAccountSize {
     }
 }
 
-pub trait RequireAuthority {
-    /// Get the `Pubkey` of this struct's authority.
-    fn authority_key(&self) -> Pubkey;
-
-    /// Assign this struct's authority.
-    fn set_authority(&mut self, authority: &Pubkey) -> &mut Self;
-}
-
 pub trait AccountBump {
     /// Get the value of this struct's bump seed.
     fn bump_seed(&self) -> u8;

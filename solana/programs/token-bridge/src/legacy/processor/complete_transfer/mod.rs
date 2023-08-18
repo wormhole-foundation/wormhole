@@ -32,8 +32,8 @@ pub fn validate_token_transfer<'ctx, 'info>(
             let recipient = Pubkey::from(transfer.recipient());
             if recipient != recipient_token.key() {
                 require_keys_eq!(
-                    recipient,
                     recipient_token.owner,
+                    recipient,
                     ErrorCode::ConstraintTokenOwner
                 );
             }

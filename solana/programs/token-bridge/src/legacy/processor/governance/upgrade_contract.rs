@@ -95,7 +95,8 @@ impl<'info> UpgradeContract<'info> {
         // Read the implementation pubkey and check against the buffer in our account context.
         require_keys_eq!(
             Pubkey::new_from_array(decree.implementation()),
-            ctx.accounts.buffer.key()
+            ctx.accounts.buffer.key(),
+            TokenBridgeError::ImplementationMismatch
         );
 
         // Done.

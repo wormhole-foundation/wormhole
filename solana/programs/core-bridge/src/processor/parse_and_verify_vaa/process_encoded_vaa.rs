@@ -178,7 +178,11 @@ fn verify_signatures_v1(
         );
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
-        require_eq!(vaa.guardian_set_index(), guardian_set.index);
+        require_eq!(
+            vaa.guardian_set_index(),
+            guardian_set.index,
+            CoreBridgeError::GuardianSetMismatch
+        );
 
         // Do we have enough signatures for quorum?
         let guardian_keys = &guardian_set.keys;

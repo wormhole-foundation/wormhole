@@ -70,6 +70,12 @@ pub enum CoreBridgeError {
     #[msg("InvalidFeeRecipient")]
     InvalidFeeRecipient = 0x402,
 
+    #[msg("ImplementationMismatch")]
+    ImplementationMismatch = 0x500,
+
+    #[msg("InvalidGuardianSetIndex")]
+    InvalidGuardianSetIndex = 0x600,
+
     #[msg("GuardianSetMismatch")]
     GuardianSetMismatch = 0x700,
 

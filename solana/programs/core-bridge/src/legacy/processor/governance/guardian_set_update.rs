@@ -99,7 +99,11 @@ impl<'info> GuardianSetUpdate<'info> {
 
         // Encoded guardian set must be the next value after the current guardian set index.
         let new_index = u32::read(&mut data)?;
-        require_eq!(new_index, config.guardian_set_index + 1);
+        require_eq!(
+            new_index,
+            config.guardian_set_index + 1,
+            CoreBridgeError::InvalidGuardianSetIndex
+        );
 
         // Done.
         Ok(())

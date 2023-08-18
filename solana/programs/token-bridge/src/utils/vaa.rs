@@ -18,7 +18,7 @@ pub fn require_valid_posted_vaa_key(vaa: &Pubkey) -> Result<()> {
     // IYKYK.
     require!(
         !INVALID_POSTED_VAA_KEYS.contains(&vaa.to_string().as_str()),
-        TokenBridgeError::InvalidPostedVaa
+        TokenBridgeError::InvalidTokenBridgeVaa
     );
 
     Ok(())
@@ -47,11 +47,15 @@ pub fn require_valid_token_bridge_posted_vaa<'ctx>(
         )
     } else {
         // If the legacy definition, the seeds define the contents of this account.
-        let (legacy_address, _) = Pubkey::find_program_address(
+        let (expected_legacy_address, _) = Pubkey::find_program_address(
             &[&emitter_chain.to_be_bytes(), emitter_address.as_ref()],
             &ID,
         );
-        require_keys_eq!(emitter_key, legacy_address);
+        require_keys_eq!(
+            emitter_key,
+            expected_legacy_address,
+            TokenBridgeError::InvalidLegacyTokenBridgeEmitter
+        );
     }
 
     let span: &[u8] = vaa.payload.as_ref();
@@ -83,11 +87,15 @@ pub fn require_valid_token_bridge_partial_posted_vaa<'ctx>(
         )
     } else {
         // If the legacy definition, the seeds define the contents of this account.
-        let (legacy_address, _) = Pubkey::find_program_address(
+        let (expected_legacy_address, _) = Pubkey::find_program_address(
             &[&emitter_chain.to_be_bytes(), emitter_address.as_ref()],
             &ID,
         );
-        require_keys_eq!(emitter_key, legacy_address);
+        require_keys_eq!(
+            emitter_key,
+            expected_legacy_address,
+            TokenBridgeError::InvalidLegacyTokenBridgeEmitter
+        );
     }
 
     Ok(())

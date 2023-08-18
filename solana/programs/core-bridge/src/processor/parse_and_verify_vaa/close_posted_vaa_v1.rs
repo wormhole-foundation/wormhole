@@ -39,10 +39,12 @@ pub fn close_posted_vaa_v1(
     match directive {
         ClosePostedVaaV1Directive::TryOnce => {
             msg!("Directive: TryOnce");
-            let signature_set_key = ctx.accounts.posted_vaa.signature_set;
+            let verified_signature_set = ctx.accounts.posted_vaa.signature_set;
             match &ctx.accounts.signature_set {
-                Some(signature_set) => require_keys_eq!(signature_set_key, signature_set.key()),
-                None => require_keys_eq!(signature_set_key, Default::default()),
+                Some(signature_set) => {
+                    require_keys_eq!(signature_set.key(), verified_signature_set)
+                }
+                None => require_keys_eq!(verified_signature_set, Pubkey::default()),
             };
 
             // Done.
