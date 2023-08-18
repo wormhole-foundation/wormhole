@@ -27,10 +27,10 @@ pub struct ProcessMessageV1<'info> {
 
 impl<'info> ProcessMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let mut acct_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
-        PostedMessageV1::require_discriminator(&mut acct_data)?;
+        let mut acc_data: &[u8] = &ctx.accounts.draft_message.try_borrow_data()?;
+        PostedMessageV1::require_discriminator(&mut acc_data)?;
 
-        let info = PostedMessageV1Info::deserialize(&mut acct_data)?;
+        let info = PostedMessageV1Info::deserialize(&mut acc_data)?;
         require!(
             info.status == MessageStatus::Writing,
             CoreBridgeError::MessageAlreadyPublished
@@ -91,18 +91,18 @@ fn write_message(msg_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Res
     );
 
     let msg_length = {
-        let mut acct_data: &[u8] = &msg_acc_info.try_borrow_data()?;
-        acct_data = &acct_data[(START - 4)..];
+        let mut acc_data: &[u8] = &msg_acc_info.data.borrow();
+        acc_data = &acc_data[(START - 4)..];
 
-        let payload_len = u32::deserialize(&mut acct_data)?;
+        let payload_len = u32::deserialize(&mut acc_data)?;
         usize::try_from(payload_len).unwrap()
     };
 
     let end = index.saturating_add(data.len());
     require_gte!(msg_length, end, CoreBridgeError::DataOverflow);
 
-    let acct_data = &mut msg_acc_info.try_borrow_mut_data()?;
-    acct_data[(START + index)..(START + end)].copy_from_slice(&data);
+    let acc_data = &mut msg_acc_info.data.borrow_mut();
+    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())

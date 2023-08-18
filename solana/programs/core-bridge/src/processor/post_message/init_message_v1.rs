@@ -83,7 +83,7 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // want to manage two separate addresses (program ID and emitter address) cross chain.
     let emitter = new_emitter(&ctx.accounts.emitter_authority, cpi_program_id)?;
 
-    let acct_data: &mut [u8] = &mut ctx.accounts.draft_message.try_borrow_mut_data()?;
+    let acct_data: &mut [u8] = &mut ctx.accounts.draft_message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acct_data);
 
     // Finally initialize the draft message account by serializing the discriminator, header and
@@ -103,8 +103,6 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     .serialize(&mut writer)?;
     u32::try_from(expected_msg_length)
         .unwrap()
-        .serialize(&mut writer)?;
-
-    // Done.
-    Ok(())
+        .serialize(&mut writer)
+        .map_err(Into::into)
 }

@@ -59,7 +59,11 @@ impl<'info> ProcessEncodedVaa<'info> {
         // Check header.
         let mut data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
         let header = ProcessingHeader::try_account_deserialize(&mut data)?;
-        require_keys_eq!(header.write_authority, ctx.accounts.write_authority.key());
+        require_keys_eq!(
+            header.write_authority,
+            ctx.accounts.write_authority.key(),
+            CoreBridgeError::WriteAuthorityMismatch
+        );
 
         // Done.
         Ok(())
@@ -120,29 +124,29 @@ pub fn process_encoded_vaa(
     }
 }
 
-fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, new_data: Vec<u8>) -> Result<()> {
+fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
     require!(
-        !new_data.is_empty(),
+        !data.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let vaa_len = {
-        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut data)?;
+    let vaa_len: usize = {
+        let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
+        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acc_data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
-        let vaa_len = u32::deserialize(&mut data)?;
+        let vaa_len = u32::deserialize(&mut acc_data)?;
         usize::try_from(vaa_len).unwrap()
     };
 
-    let end = index.saturating_add(new_data.len());
+    let end = index.saturating_add(data.len());
     require_gte!(vaa_len, end, CoreBridgeError::DataOverflow);
 
-    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
-    data[(START + index)..(START + end)].copy_from_slice(&new_data);
+    let acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
+    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())
@@ -153,20 +157,18 @@ fn verify_signatures_v1(
     guardian_set: &Account<'_, GuardianSet>,
 ) -> Result<()> {
     let write_authority = {
-        let mut data: &[u8] = &vaa_acc_info.try_borrow_data()?;
-        data = &data[8..];
-
-        let header = ProcessingHeader::deserialize(&mut data)?;
+        let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
+        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acc_data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
         // Skip vaa length.
-        data = &data[4..];
+        acc_data = &acc_data[4..];
 
         // Parse and verify.
-        let vaa = Vaa::parse(data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
+        let vaa = Vaa::parse(acc_data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
 
         // Must be V1.
         require_eq!(
@@ -230,8 +232,8 @@ fn verify_signatures_v1(
         header.write_authority
     };
 
-    let data: &mut [u8] = &mut vaa_acc_info.try_borrow_mut_data()?;
-    let mut writer = std::io::Cursor::new(data);
+    let acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
+    let mut writer = std::io::Cursor::new(acc_data);
     ProcessingHeader {
         status: ProcessingStatus::Verified,
         write_authority,

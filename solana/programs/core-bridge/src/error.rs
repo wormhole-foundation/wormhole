@@ -153,4 +153,7 @@ pub enum CoreBridgeError {
 
     #[msg("InvalidProgramEmitter")]
     InvalidProgramEmitter = 0x10b8,
+
+    #[msg("WriteAuthorityMismatch")]
+    WriteAuthorityMismatch = 0x10ba,
 }

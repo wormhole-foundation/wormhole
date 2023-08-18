@@ -42,9 +42,9 @@ impl ProcessingHeader {
     }
 
     pub fn try_account_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        let mut data: &[u8] = &buf[8..];
-        AnchorDeserialize::deserialize(&mut data)
-            .map_err(|_| error!(ErrorCode::AccountDidNotDeserialize))
+        *buf = &buf[8..];
+        //let mut data: &[u8] = &buf[8..];
+        Self::deserialize(buf).map_err(|_| error!(ErrorCode::AccountDidNotDeserialize))
     }
 }
 
