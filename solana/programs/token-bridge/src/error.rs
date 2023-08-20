@@ -82,4 +82,7 @@ pub enum TokenBridgeError {
 
     #[msg("ImplementationMismatch")]
     ImplementationMismatch = 0x800,
+
+    #[msg("NotSolanaImplementation")]
+    NotSolanaImplementation = 0x802,
 }

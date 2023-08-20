@@ -82,6 +82,7 @@ function defaultVaa(): Buffer {
     chain,
     ETHEREUM_TOKEN_BRIDGE_ADDRESS
   );
+  console.log("registerChain", guardians.addSignatures(published, [0]).toString("hex"));
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }
 

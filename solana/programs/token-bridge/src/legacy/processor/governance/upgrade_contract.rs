@@ -4,6 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
+    constants::SOLANA_CHAIN,
     state::{PartialPostedVaaV1, VaaV1MessageHash},
     CoreBridge,
 };
@@ -91,6 +92,12 @@ impl<'info> UpgradeContract<'info> {
         let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
         let data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
         let decree = gov::ContractUpgrade::parse(data).unwrap();
+
+        require_eq!(
+            decree.chain(),
+            SOLANA_CHAIN,
+            TokenBridgeError::NotSolanaImplementation
+        );
 
         // Read the implementation pubkey and check against the buffer in our account context.
         require_keys_eq!(

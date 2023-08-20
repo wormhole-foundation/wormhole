@@ -46,3 +46,7 @@ export function coreBridgeProgramId(program: TokenBridgeProgram): PublicKey {
     }
   }
 }
+
+export function coreBridgeProgram(program: TokenBridgeProgram): coreBridge.CoreBridgeProgram {
+  return coreBridge.getAnchorProgram(program.provider.connection, coreBridgeProgramId(program));
+}
