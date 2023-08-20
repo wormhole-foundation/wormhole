@@ -47,7 +47,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
   });
 
   describe("Ok", () => {
-    it.skip("Deploy Implementation", async () => {
+    it("Deploy Implementation", async () => {
       const exists = fs.existsSync(ARTIFACTS_PATH);
       if (!exists) {
         // Need to build.
@@ -63,7 +63,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       localVariables.set("cleanUpArtifacts", !exists);
     });
 
-    it.skip("Invoke `upgrade_contract` on Forked Core Bridge", async () => {
+    it("Invoke `upgrade_contract` on Forked Core Bridge", async () => {
       const implementation: anchor.web3.PublicKey = localVariables.get("implementation")!;
 
       // Create the signed VAA.
@@ -75,7 +75,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it.skip("Cannot Invoke `upgrade_contract` with Same VAA", async () => {
+    it("Cannot Invoke `upgrade_contract` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       // Invoke the instruction.
@@ -93,7 +93,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       );
     });
 
-    it.skip("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
+    it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
       const implementation = loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
@@ -114,7 +114,6 @@ function defaultVaa(implementation: anchor.web3.PublicKey, targetChain?: number)
     targetChain === undefined ? 1 : targetChain,
     implementation.toString()
   );
-  console.log("contractUpgrade", guardians.addSignatures(published, [0]).toString("hex"));
   return guardians.addSignatures(published, [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]);
 }
 
