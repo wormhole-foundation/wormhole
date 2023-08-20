@@ -20,7 +20,8 @@ cluster = "Localnet"
 wallet = "tests/keys/pFCBP4bhqdSsrWUVTgqhPsLrfEdChBK17vgFM7TxjxQ.json"
 
 [scripts]
-test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/0**/*.ts"
+###test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/0**/*.ts"
+test = "bash tests/run_specific_tests.sh" ### <-- use this for debugging tests
 
 [test]
 startup_wait = 10000
