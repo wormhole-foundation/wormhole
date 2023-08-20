@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-export { Claim } from "../../../coreBridge/legacy/state/Claim";
+export { upgradeAuthorityPda, Claim } from "../../../coreBridge/legacy/state";
 export * from "./Config";
 export * from "./RegisteredEmitter";
 export * from "./WrappedAsset";

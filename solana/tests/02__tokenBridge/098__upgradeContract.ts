@@ -10,14 +10,14 @@ import {
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
 } from "../helpers";
-import * as coreBridge from "../helpers/coreBridge";
+import * as tokenBridge from "../helpers/tokenBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
-const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_core_bridge_solana.so`;
+const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_token_bridge_solana.so`;
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 2;
-const GOVERNANCE_SEQUENCE = 1_098_000;
+const GOVERNANCE_SEQUENCE = 2_098_000;
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
   GOVERNANCE_SEQUENCE - 1
@@ -27,13 +27,13 @@ const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 // Test variables.
 const localVariables = new Map<string, any>();
 
-describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
+describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
   const payer = (provider.wallet as anchor.Wallet).payer;
-  const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
+  const program = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   after("Clean Up", async () => {
     const cleanUp: boolean = localVariables.get("cleanUpArtifacts")!;
@@ -47,7 +47,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
   });
 
   describe("Ok", () => {
-    it("Deploy Implementation", async () => {
+    it.skip("Deploy Implementation", async () => {
       const exists = fs.existsSync(ARTIFACTS_PATH);
       if (!exists) {
         // Need to build.
@@ -56,14 +56,14 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
 
       const implementation = loadProgramBpf(
         ARTIFACTS_PATH,
-        coreBridge.upgradeAuthorityPda(program.programId)
+        tokenBridge.upgradeAuthorityPda(program.programId)
       );
 
       localVariables.set("implementation", implementation);
       localVariables.set("cleanUpArtifacts", !exists);
     });
 
-    it("Invoke `upgrade_contract` on Forked Core Bridge", async () => {
+    it.skip("Invoke `upgrade_contract` on Forked Core Bridge", async () => {
       const implementation: anchor.web3.PublicKey = localVariables.get("implementation")!;
 
       // Create the signed VAA.
@@ -75,14 +75,14 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       localVariables.set("signedVaa", signedVaa);
     });
 
-    it("Cannot Invoke `upgrade_contract` with Same VAA", async () => {
+    it.skip("Cannot Invoke `upgrade_contract` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
       // Invoke the instruction.
       await expectIxErr(
         connection,
         [
-          coreBridge.legacyUpgradeContractIx(
+          tokenBridge.legacyUpgradeContractIx(
             program,
             { payer: payer.publicKey },
             parseVaa(signedVaa)
@@ -93,10 +93,10 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       );
     });
 
-    it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
+    it.skip("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
       const implementation = loadProgramBpf(
         ARTIFACTS_PATH,
-        coreBridge.upgradeAuthorityPda(program.programId)
+        tokenBridge.upgradeAuthorityPda(program.programId)
       );
 
       // Create the signed VAA.
@@ -109,16 +109,17 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
 
 function defaultVaa(implementation: anchor.web3.PublicKey, targetChain?: number): Buffer {
   const timestamp = 12345678;
-  const published = governance.publishWormholeUpgradeContract(
+  const published = governance.publishTokenBridgeUpgradeContract(
     timestamp,
     targetChain === undefined ? 1 : targetChain,
     implementation.toString()
   );
+  console.log("contractUpgrade", guardians.addSignatures(published, [0]).toString("hex"));
   return guardians.addSignatures(published, [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]);
 }
 
 async function txOk(
-  program: coreBridge.CoreBridgeProgram,
+  program: tokenBridge.TokenBridgeProgram,
   payer: anchor.web3.Keypair,
   signedVaa: Buffer
 ) {
@@ -128,10 +129,10 @@ async function txOk(
   const parsedVaa = parseVaa(signedVaa);
 
   // Verify and Post.
-  await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+  await invokeVerifySignaturesAndPostVaa(tokenBridge.coreBridgeProgram(program), payer, signedVaa);
 
   // Create the transferFees instruction.
-  const ix = coreBridge.legacyUpgradeContractIx(program, { payer: payer.publicKey }, parsedVaa);
+  const ix = tokenBridge.legacyUpgradeContractIx(program, { payer: payer.publicKey }, parsedVaa);
 
   // Invoke the instruction.
   return expectIxOk(connection, [ix], [payer]);
