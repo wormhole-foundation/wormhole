@@ -445,8 +445,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   wormchain: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
+    token_bridge:
+      "wormhole1aaf9r6s7nxhysuegqrxv0wpm27ypyv4886medd3mrkrw6t4yfcnst3qpex",
     nft_bridge: undefined,
   },
   sepolia: {
