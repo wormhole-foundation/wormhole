@@ -1,6 +1,6 @@
 !/bin/bash
 
- core bridge
+# core bridge
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/000__*.ts  # initialize
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/002__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/004__*.ts
@@ -16,15 +16,15 @@ npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/104__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/110__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/112__*.ts
 
- token bridge
+# token bridge
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/000__*.ts  # initialize
+npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/001__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/002__*.ts
+npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/003__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/004__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/006__*.ts
-npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/010__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/012__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/014__*.ts
-npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/020__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/022__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/024__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/026__*.ts
