@@ -221,6 +221,29 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   ];
 }
 
+function parseMessageKey(
+  bytes: Buffer,
+  idx: number
+): [VaaKey | Buffer, number, number] {
+  const version = bytes.readUInt8(idx);
+  idx += 1;
+  const messageKeyEncodedLength = bytes.readUInt32BE(idx);
+  idx += 4;
+  const messageKeyEncoded: Buffer = bytes.slice(
+    idx,
+    idx + messageKeyEncodedLength
+  );
+  idx += messageKeyEncodedLength;
+
+  let messageKey: VaaKey | Buffer;
+  if (version === 1) {
+    messageKey = parseVaaKey(messageKeyEncoded, 0)[0];
+  } else {
+    messageKey = messageKeyEncoded;
+  }
+  return [messageKey, version, idx];
+}
+
 export function parseEVMExecutionInfoV1(
   bytes: Buffer,
   idx: number
