@@ -17,8 +17,6 @@ pub mod error;
 
 pub mod legacy;
 
-pub mod message;
-
 mod processor;
 pub(crate) use processor::*;
 

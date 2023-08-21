@@ -1,16 +1,11 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, GuardianSet, PartialPostedVaaV1, VaaV1MessageHash},
+    state::{Claim, Config, GuardianSet, PartialPostedVaaV1, VaaV1Account},
     types::Timestamp,
 };
 use anchor_lang::prelude::*;
-use wormhole_io::Readable;
 use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
-
-use super::GOVERNANCE_DECREE_START;
-
-const ACTION_GUARDIAN_SET_UPDATE: u8 = 2;
 
 #[derive(Accounts)]
 pub struct GuardianSetUpdate<'info> {
@@ -73,34 +68,41 @@ pub struct GuardianSetUpdate<'info> {
 /// control following the account context checks will fail.
 fn try_compute_size(posted_vaa: &Account<PartialPostedVaaV1>) -> Result<usize> {
     let acc_info: &AccountInfo = posted_vaa.as_ref();
+    let acc_data = acc_info.try_borrow_data()?;
 
-    // Start slice where the encoded number of guardians is.
-    let num_guardians = acc_info
-        .try_borrow_data()
-        .map(|data| data[GOVERNANCE_DECREE_START + 4])
-        .map_err(|_| ErrorCode::AccountDidNotDeserialize)?;
+    let gov_payload = super::parse_gov_payload(&acc_data)?;
 
-    Ok(GuardianSet::compute_size(num_guardians.into()))
+    match gov_payload.decree().guardian_set_update() {
+        Some(decree) => Ok(GuardianSet::compute_size(decree.num_guardians().into())),
+        None => err!(CoreBridgeError::InvalidGovernanceAction),
+    }
 }
 
 impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let config = &ctx.accounts.config;
-        let action = super::require_valid_governance_posted_vaa(&ctx.accounts.posted_vaa, config)?;
+        let vaa = &ctx.accounts.posted_vaa;
 
-        require_eq!(
-            action,
-            ACTION_GUARDIAN_SET_UPDATE,
-            CoreBridgeError::InvalidGovernanceAction
-        );
+        let acc_info: &AccountInfo = vaa.as_ref();
+        let acc_data = acc_info.data.borrow();
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+        let gov_payload = super::require_valid_governance_posted_vaa(
+            vaa.details(),
+            &acc_data,
+            vaa.guardian_set_index,
+            config,
+        )?;
 
         // Encoded guardian set must be the next value after the current guardian set index.
-        let new_index = u32::read(&mut data)?;
+        //
+        // NOTE: Because try_compute_size already determined whether this governance payload is a
+        // guardian set update, we are safe to unwrap here.
         require_eq!(
-            new_index,
+            gov_payload
+                .decree()
+                .guardian_set_update()
+                .unwrap()
+                .new_index(),
             config.guardian_set_index + 1,
             CoreBridgeError::InvalidGuardianSetIndex
         );
@@ -115,17 +117,15 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    // We have already checked that the new guardian set index is correct, so we can just add one to
-    // the existing index and begin deserializing the guardian set.
-    let new_index = ctx.accounts.curr_guardian_set.index + 1;
-
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let mut data = &acc_info.data.borrow()[(GOVERNANCE_DECREE_START + 4)..];
+    let acc_data = acc_info.data.borrow();
+
+    let gov_payload = super::parse_gov_payload(&acc_data).unwrap();
+    let decree = gov_payload.decree().guardian_set_update().unwrap();
 
     // Deserialize new guardian set.
-    let num_guardians = u8::read(&mut data).unwrap();
-    let keys: Vec<[u8; 20]> = (0..num_guardians)
-        .map(|_| Readable::read(&mut data).unwrap())
+    let keys: Vec<[u8; 20]> = (0..usize::from(decree.num_guardians()))
+        .map(|i| decree.guardian_at(i))
         .collect();
     for (i, guardian) in keys.iter().take(keys.len() - 1).enumerate() {
         // We disallow guardian pubkeys that have zero address.
@@ -142,7 +142,7 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
 
     // Set new guardian set account fields.
     ctx.accounts.new_guardian_set.set_inner(GuardianSet {
-        index: new_index,
+        index: ctx.accounts.curr_guardian_set.index + 1,
         creation_time: ctx.accounts.posted_vaa.timestamp,
         keys,
         expiration_time: Default::default(),
@@ -150,7 +150,7 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
 
     // Set the new index on the config program data.
     let config = &mut ctx.accounts.config;
-    config.guardian_set_index = new_index;
+    config.guardian_set_index += 1;
 
     // Now set the expiration time for the current guardian.
     let now = Clock::get().map(Timestamp::from)?;

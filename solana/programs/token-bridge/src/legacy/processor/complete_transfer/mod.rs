@@ -7,14 +7,24 @@ pub use wrapped::*;
 use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
-use core_bridge_program::{constants::SOLANA_CHAIN, state::PostedVaaV1Bytes};
+use core_bridge_program::{
+    constants::SOLANA_CHAIN,
+    state::{PartialPostedVaaV1, VaaV1Account},
+};
 
 pub fn validate_token_transfer<'ctx, 'info>(
-    posted_vaa: &'ctx Account<'info, PostedVaaV1Bytes>,
+    vaa: &'ctx Account<'info, PartialPostedVaaV1>,
     registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
     recipient_token: &'ctx Account<'info, TokenAccount>,
 ) -> Result<(u16, [u8; 32])> {
-    let msg = crate::utils::require_valid_token_bridge_posted_vaa(posted_vaa, registered_emitter)?;
+    let acc_info: &AccountInfo<'info> = vaa.as_ref();
+    let acc_data = acc_info.try_borrow_data()?;
+    let msg = crate::utils::require_valid_token_bridge_posted_vaa(
+        vaa.details(),
+        &acc_data,
+        registered_emitter,
+    )?;
+
     match msg.transfer() {
         Some(transfer) => {
             // This token bridge transfer must be intended to be redeemed on Solana.

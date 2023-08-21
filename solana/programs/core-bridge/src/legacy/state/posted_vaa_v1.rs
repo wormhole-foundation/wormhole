@@ -45,12 +45,22 @@ pub struct PostedVaaV1Metadata {
     pub emitter_address: [u8; 32],
 }
 
-pub trait VaaV1MessageHash {
+#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+pub struct VaaAccountDetails {
+    pub key: Pubkey,
+    pub emitter_chain: u16,
+    pub emitter_address: [u8; 32],
+    pub sequence: u64,
+}
+
+pub trait VaaV1Account {
     /// Recompute the message hash, which can be used to derive the PostedVaa PDA address.
     ///
     /// NOTE: For a cheaper derivation, your instruction handler can take a message hash as an
     /// argument. But at the end of the day, re-hashing isn't that expensive.
     fn try_message_hash(&self) -> Result<keccak::Hash>;
+
+    fn details(&self) -> VaaAccountDetails;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -117,7 +127,7 @@ where
     const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
 }
 
-impl<'info, P> VaaV1MessageHash for Account<'info, PostedVaaV1<P>>
+impl<'info, P> VaaV1Account for Account<'info, PostedVaaV1<P>>
 where
     P: Clone + Readable + Writeable,
 {
@@ -134,6 +144,15 @@ where
             &[self.consistency_level],         // consistency_level
             &payload,                          // payload
         ]))
+    }
+
+    fn details(&self) -> VaaAccountDetails {
+        VaaAccountDetails {
+            key: self.key(),
+            emitter_chain: self.emitter_chain,
+            emitter_address: self.emitter_address,
+            sequence: self.sequence,
+        }
     }
 }
 
@@ -162,7 +181,7 @@ impl LegacyDiscriminator<4> for PostedVaaV1Bytes {
     const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
 }
 
-impl<'info> VaaV1MessageHash for Account<'info, PostedVaaV1Bytes> {
+impl<'info> VaaV1Account for Account<'info, PostedVaaV1Bytes> {
     fn try_message_hash(&self) -> Result<keccak::Hash> {
         Ok(keccak::hashv(&[
             &self.timestamp.to_be_bytes(),     // timestamp
@@ -173,6 +192,15 @@ impl<'info> VaaV1MessageHash for Account<'info, PostedVaaV1Bytes> {
             &[self.consistency_level],         // consistency_level
             &self.payload,                     // payload
         ]))
+    }
+
+    fn details(&self) -> VaaAccountDetails {
+        VaaAccountDetails {
+            key: self.key(),
+            emitter_chain: self.emitter_chain,
+            emitter_address: self.emitter_address,
+            sequence: self.sequence,
+        }
     }
 }
 
@@ -220,7 +248,7 @@ impl Deref for PartialPostedVaaV1 {
     }
 }
 
-impl<'info> VaaV1MessageHash for Account<'info, PartialPostedVaaV1> {
+impl<'info> VaaV1Account for Account<'info, PartialPostedVaaV1> {
     fn try_message_hash(&self) -> Result<keccak::Hash> {
         let acc_info: &AccountInfo = self.as_ref();
         let data: &[u8] = &acc_info.try_borrow_data()?;
@@ -241,5 +269,14 @@ impl<'info> VaaV1MessageHash for Account<'info, PartialPostedVaaV1> {
             &consistency_level,                         // consistency_level
             &data[PartialPostedVaaV1::PAYLOAD_START..], // payload
         ]))
+    }
+
+    fn details(&self) -> VaaAccountDetails {
+        VaaAccountDetails {
+            key: self.key(),
+            emitter_chain: self.emitter_chain,
+            emitter_address: self.emitter_address,
+            sequence: self.sequence,
+        }
     }
 }

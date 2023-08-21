@@ -1,15 +1,12 @@
 use crate::{
+    constants::SOLANA_CHAIN,
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, PartialPostedVaaV1, VaaV1MessageHash},
+    state::{Claim, Config, PartialPostedVaaV1, VaaV1Account},
 };
 use anchor_lang::prelude::*;
-use wormhole_io::Readable;
+use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
-
-use super::GOVERNANCE_DECREE_START;
-
-const ACTION_SET_MESSAGE_FEE: u8 = 3;
 
 #[derive(Accounts)]
 pub struct SetMessageFee<'info> {
@@ -50,27 +47,34 @@ pub struct SetMessageFee<'info> {
 
 impl<'info> SetMessageFee<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = super::require_valid_governance_posted_vaa(
-            &ctx.accounts.posted_vaa,
+        let vaa = &ctx.accounts.posted_vaa;
+
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let acc_data = acc_info.try_borrow_data()?;
+
+        let gov_payload = super::require_valid_governance_posted_vaa(
+            vaa.details(),
+            &acc_data,
+            vaa.guardian_set_index,
             &ctx.accounts.config,
         )?;
 
-        require_eq!(
-            action,
-            ACTION_SET_MESSAGE_FEE,
-            CoreBridgeError::InvalidGovernanceAction
-        );
+        match gov_payload.decree().set_message_fee() {
+            Some(decree) => {
+                require_eq!(
+                    decree.chain(),
+                    SOLANA_CHAIN,
+                    CoreBridgeError::GovernanceForAnotherChain
+                );
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+                let fee = U256::from_be_bytes(decree.fee());
+                require_gte!(U256::from(u64::MAX), fee, CoreBridgeError::U64Overflow);
 
-        require!(
-            <[u8; 24]>::read(&mut data)? == [0; 24],
-            CoreBridgeError::U64Overflow
-        );
-
-        // Done.
-        Ok(())
+                // Done.
+                Ok(())
+            }
+            None => err!(CoreBridgeError::InvalidGovernanceAction),
+        }
     }
 }
 
@@ -80,9 +84,18 @@ pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<
     ctx.accounts.claim.is_complete = true;
 
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let mut data = &acc_info.data.borrow()[(GOVERNANCE_DECREE_START + 24)..];
+    let acc_data = acc_info.data.borrow();
 
-    ctx.accounts.config.fee_lamports = u64::read(&mut data)?;
+    let fee = U256::from_be_bytes(
+        super::parse_gov_payload(&acc_data)
+            .unwrap()
+            .decree()
+            .set_message_fee()
+            .unwrap()
+            .fee(),
+    );
+
+    ctx.accounts.config.fee_lamports = fee.as_limbs()[0];
 
     // Done.
     Ok(())

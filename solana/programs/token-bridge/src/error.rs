@@ -56,6 +56,9 @@ pub enum TokenBridgeError {
     #[msg("GovernanceForAnotherChain")]
     GovernanceForAnotherChain = 0x24,
 
+    #[msg("InvalidGovernanceVaa")]
+    InvalidGovernanceVaa = 0x26,
+
     #[msg("InvalidMint")]
     InvalidMint = 0x30,
 
@@ -82,7 +85,4 @@ pub enum TokenBridgeError {
 
     #[msg("ImplementationMismatch")]
     ImplementationMismatch = 0x800,
-
-    #[msg("NotSolanaImplementation")]
-    NotSolanaImplementation = 0x802,
 }

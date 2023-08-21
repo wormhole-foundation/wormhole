@@ -4,41 +4,40 @@ pub use register_chain::*;
 mod upgrade_contract;
 pub use upgrade_contract::*;
 
+use crate::error::TokenBridgeError;
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, error::CoreBridgeError, state::PartialPostedVaaV1,
+    constants::SOLANA_CHAIN,
+    error::CoreBridgeError,
+    state::{PartialPostedVaaV1, VaaAccountDetails},
 };
-use wormhole_io::Readable;
+use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
 ];
 
-/// A.K.A. "TokenBridge" left padded with zeroes.
-const GOVERNANCE_MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00TokenBridge";
-
-pub const GOVERNANCE_DECREE_START: usize = PartialPostedVaaV1::PAYLOAD_START + 32 + 1;
-
-pub fn require_valid_governance_posted_vaa(vaa: &Account<'_, PartialPostedVaaV1>) -> Result<u8> {
-    crate::utils::require_valid_posted_vaa_key(&vaa.key())?;
+pub fn require_valid_governance_posted_vaa(
+    vaa_details: VaaAccountDetails,
+    vaa_acc_data: &[u8],
+) -> Result<TokenBridgeGovPayload<'_>> {
+    let VaaAccountDetails {
+        key,
+        emitter_chain,
+        emitter_address,
+        sequence: _,
+    } = vaa_details;
+    crate::utils::require_valid_posted_vaa_key(&key)?;
 
     require!(
-        vaa.emitter_chain == SOLANA_CHAIN && vaa.emitter_address == GOVERNANCE_EMITTER,
+        emitter_chain == SOLANA_CHAIN && emitter_address == GOVERNANCE_EMITTER,
         CoreBridgeError::InvalidGovernanceEmitter
     );
 
-    let acc_info: &AccountInfo = vaa.as_ref();
-    let mut data: &[u8] = &acc_info.try_borrow_data()?;
+    parse_gov_payload(vaa_acc_data)
+}
 
-    // Skip to governance message.
-    data = &data[PartialPostedVaaV1::PAYLOAD_START..];
-
-    // Encoded governance module must belong to this program.
-    let module = <[u8; 32]>::read(&mut data)?;
-    require!(
-        module == GOVERNANCE_MODULE,
-        CoreBridgeError::InvalidGovernanceAction
-    );
-
-    u8::read(&mut data).map_err(Into::into)
+pub fn parse_gov_payload(vaa_acc_data: &[u8]) -> Result<TokenBridgeGovPayload<'_>> {
+    TokenBridgeGovPayload::parse(&vaa_acc_data[PartialPostedVaaV1::PAYLOAD_START..])
+        .map_err(|_| TokenBridgeError::InvalidGovernanceVaa.into())
 }
