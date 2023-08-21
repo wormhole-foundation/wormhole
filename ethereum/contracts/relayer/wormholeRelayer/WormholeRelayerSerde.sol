@@ -33,6 +33,8 @@ library WormholeRelayerSerde {
     uint8 private constant PAYLOAD_ID_DELIVERY_INSTRUCTION = 1;
     uint8 private constant PAYLOAD_ID_REDELIVERY_INSTRUCTION = 2;
 
+    uint256 constant VAA_KEY_TYPE_LENGTH = 2 + 32 + 8;
+
     // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
 
     //TODO GAS OPTIMIZATION: All the recursive abi.encodePacked calls in here are _insanely_ gas
@@ -175,7 +177,12 @@ library WormholeRelayerSerde {
     function encodeMessageKey(
         MessageKey memory msgKey
     ) internal pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(msgKey.keyType, encodeBytes(msgKey.encodedKey));
+        if (msgKey.keyType == VAA_KEY_TYPE) {
+            // known length
+            encoded = abi.encodePacked(msgKey.keyType, msgKey.encodedKey);
+        } else {
+            encoded = abi.encodePacked(msgKey.keyType, encodeBytes(msgKey.encodedKey));
+        }
     }
 
     function decodeMessageKey(
@@ -183,27 +190,10 @@ library WormholeRelayerSerde {
         uint256 startOffset
     ) internal pure returns (MessageKey memory msgKey, uint256 offset) {
         (msgKey.keyType, offset) = encoded.asUint8Unchecked(startOffset);
-        (msgKey.encodedKey, offset) = decodeBytes(encoded, offset);
-    }
-
-    function encodeVaaKeyArray(VaaKey[] memory vaaKeys)
-        internal
-        pure
-        returns (bytes memory encoded)
-    {
-        assert(vaaKeys.length < type(uint8).max);
-        encoded = abi.encodePacked(uint8(vaaKeys.length));
-        for (uint256 i = 0; i < vaaKeys.length;) {
-            encoded = abi.encodePacked(
-                encoded, 
-                encodeMessageKey(MessageKey({
-                    keyType: VAA_KEY_TYPE, 
-                    encodedKey: encodeVaaKey(vaaKeys[i])
-                }))
-            );
-            unchecked {
-                ++i;
-            }
+        if (msgKey.keyType == VAA_KEY_TYPE) {
+            (msgKey.encodedKey, offset) = encoded.sliceUnchecked(offset, VAA_KEY_TYPE_LENGTH);
+        } else {
+            (msgKey.encodedKey, offset) = decodeBytes(encoded, offset);
         }
     }
 
