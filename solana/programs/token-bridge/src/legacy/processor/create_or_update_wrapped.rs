@@ -9,7 +9,7 @@ use anchor_spl::{metadata, token};
 use core_bridge_program::{
     self,
     constants::SOLANA_CHAIN,
-    state::{PartialPostedVaaV1, VaaV1MessageHash},
+    state::{PartialPostedVaaV1, VaaV1Account},
     CoreBridge,
 };
 use mpl_token_metadata::state::DataV2;
@@ -159,8 +159,13 @@ fn try_attestation_token_address(posted_vaa: &Account<'_, PartialPostedVaaV1>) -
 
 impl<'info> CreateOrUpdateWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        crate::utils::require_valid_token_bridge_partial_posted_vaa(
-            &ctx.accounts.posted_vaa,
+        let vaa = &ctx.accounts.posted_vaa;
+
+        let acc_info: &AccountInfo = vaa.as_ref();
+        let acc_data = &acc_info.try_borrow_data()?;
+        crate::utils::require_valid_token_bridge_posted_vaa(
+            vaa.details(),
+            acc_data,
             &ctx.accounts.registered_emitter,
         )?;
 
@@ -191,8 +196,9 @@ pub fn create_or_update_wrapped(
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let data = &acc_info.data.borrow()[PartialPostedVaaV1::PAYLOAD_START..];
-    let msg = TokenBridgeMessage::parse(data).unwrap();
+    let acc_data = &acc_info.data.borrow();
+
+    let msg = crate::utils::parse_token_bridge_message(acc_data).unwrap();
     let attestation = msg.attestation().unwrap();
 
     let (symbol, name) = fix_symbol_and_name(attestation);

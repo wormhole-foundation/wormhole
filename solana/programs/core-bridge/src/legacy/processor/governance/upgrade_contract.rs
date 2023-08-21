@@ -1,17 +1,12 @@
 use crate::{
-    constants::UPGRADE_SEED_PREFIX,
+    constants::{SOLANA_CHAIN, UPGRADE_SEED_PREFIX},
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, PartialPostedVaaV1, VaaV1MessageHash},
+    state::{Claim, Config, PartialPostedVaaV1, VaaV1Account},
 };
 use anchor_lang::prelude::*;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
-use wormhole_io::Readable;
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
-
-use super::GOVERNANCE_DECREE_START;
-
-const ACTION_CONTRACT_UPGRADE: u8 = 1;
 
 #[derive(Accounts)]
 pub struct UpgradeContract<'info> {
@@ -83,30 +78,38 @@ pub struct UpgradeContract<'info> {
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let action = super::require_valid_governance_posted_vaa(
-            &ctx.accounts.posted_vaa,
+        let vaa = &ctx.accounts.posted_vaa;
+
+        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+        let acc_data = acc_info.try_borrow_data()?;
+
+        let gov_payload = super::require_valid_governance_posted_vaa(
+            vaa.details(),
+            &acc_data,
+            vaa.guardian_set_index,
             &ctx.accounts.config,
         )?;
 
-        require_eq!(
-            action,
-            ACTION_CONTRACT_UPGRADE,
-            CoreBridgeError::InvalidGovernanceAction
-        );
+        match gov_payload.decree().contract_upgrade() {
+            Some(decree) => {
+                require_eq!(
+                    decree.chain(),
+                    SOLANA_CHAIN,
+                    CoreBridgeError::GovernanceForAnotherChain
+                );
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let mut data = &acc_info.data.borrow()[GOVERNANCE_DECREE_START..];
+                // Read the implementation pubkey and check against the buffer in our account context.
+                require_keys_eq!(
+                    Pubkey::from(decree.implementation()),
+                    ctx.accounts.buffer.key(),
+                    CoreBridgeError::ImplementationMismatch
+                );
 
-        // Read the implementation pubkey and check against the buffer in our account context.
-        let expected_implementation = <[u8; 32]>::read(&mut data)?;
-        require_keys_eq!(
-            ctx.accounts.buffer.key(),
-            Pubkey::from(expected_implementation),
-            CoreBridgeError::ImplementationMismatch
-        );
-
-        // Done.
-        Ok(())
+                // Done.
+                Ok(())
+            }
+            None => err!(CoreBridgeError::InvalidGovernanceAction),
+        }
     }
 }
 

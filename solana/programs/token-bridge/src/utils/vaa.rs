@@ -1,6 +1,6 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
-use core_bridge_program::state::{PartialPostedVaaV1, PostedVaaV1Bytes};
+use core_bridge_program::state::{PartialPostedVaaV1, VaaAccountDetails};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
@@ -14,10 +14,10 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
     "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
 ];
 
-pub fn require_valid_posted_vaa_key(vaa: &Pubkey) -> Result<()> {
+pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
     // IYKYK.
     require!(
-        !INVALID_POSTED_VAA_KEYS.contains(&vaa.to_string().as_str()),
+        !INVALID_POSTED_VAA_KEYS.contains(&acc_key.to_string().as_str()),
         TokenBridgeError::InvalidTokenBridgeVaa
     );
 
@@ -25,13 +25,18 @@ pub fn require_valid_posted_vaa_key(vaa: &Pubkey) -> Result<()> {
 }
 
 pub fn require_valid_token_bridge_posted_vaa<'ctx>(
-    vaa: &'ctx Account<'_, PostedVaaV1Bytes>,
+    details: VaaAccountDetails,
+    vaa_acc_data: &'ctx [u8],
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
-    require_valid_posted_vaa_key(&vaa.key())?;
+    let VaaAccountDetails {
+        key,
+        emitter_chain,
+        emitter_address,
+        sequence: _,
+    } = details;
+    require_valid_posted_vaa_key(&key)?;
 
-    let emitter_chain = vaa.emitter_chain;
-    let emitter_address = vaa.emitter_address;
     let emitter_key = registered_emitter.key();
 
     // Validate registered emitter PDA address.
@@ -58,45 +63,10 @@ pub fn require_valid_token_bridge_posted_vaa<'ctx>(
         );
     }
 
-    let span: &[u8] = vaa.payload.as_ref();
-
-    // Done.
-    TokenBridgeMessage::parse(span).map_err(|_| TokenBridgeError::CannotParseMessage.into())
+    parse_token_bridge_message(vaa_acc_data)
 }
 
-pub fn require_valid_token_bridge_partial_posted_vaa<'ctx>(
-    vaa: &'ctx Account<'_, PartialPostedVaaV1>,
-    registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
-) -> Result<()> {
-    require_valid_posted_vaa_key(&vaa.key())?;
-
-    let emitter_chain = vaa.emitter_chain;
-    let emitter_address = vaa.emitter_address;
-    let emitter_key = registered_emitter.key();
-
-    // Validate registered emitter PDA address.
-    //
-    // NOTE: We can move the PDA address check back into the Anchor account context macro once we
-    // have migrated all registered emitter accounts to the new seeds.
-    let (derived_emitter, _) = Pubkey::find_program_address(&[&emitter_chain.to_be_bytes()], &ID);
-    if emitter_key == derived_emitter {
-        // Emitter info must agree with our registered foreign Token Bridge.
-        require!(
-            emitter_address == registered_emitter.contract,
-            TokenBridgeError::InvalidTokenBridgeEmitter
-        )
-    } else {
-        // If the legacy definition, the seeds define the contents of this account.
-        let (expected_legacy_address, _) = Pubkey::find_program_address(
-            &[&emitter_chain.to_be_bytes(), emitter_address.as_ref()],
-            &ID,
-        );
-        require_keys_eq!(
-            emitter_key,
-            expected_legacy_address,
-            TokenBridgeError::InvalidLegacyTokenBridgeEmitter
-        );
-    }
-
-    Ok(())
+pub fn parse_token_bridge_message(vaa_acc_data: &[u8]) -> Result<TokenBridgeMessage<'_>> {
+    TokenBridgeMessage::parse(&vaa_acc_data[PartialPostedVaaV1::PAYLOAD_START..])
+        .map_err(|_| TokenBridgeError::CannotParseMessage.into())
 }

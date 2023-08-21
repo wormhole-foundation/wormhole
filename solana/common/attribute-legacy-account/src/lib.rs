@@ -41,11 +41,11 @@ pub fn legacy_account(
             impl #impl_gen anchor_lang::AccountSerialize for #account_name #type_gen #where_clause {
                 fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
                     if writer.write_all(&Self::LEGACY_DISCRIMINATOR).is_err() {
-                        return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+                        return err!(anchor_lang::error::ErrorCode::AccountDidNotSerialize);
                     }
 
                     if AnchorSerialize::serialize(self, writer).is_err() {
-                        return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+                        return err!(anchor_lang::error::ErrorCode::AccountDidNotSerialize);
                     }
                     Ok(())
                 }
@@ -56,7 +56,7 @@ pub fn legacy_account(
                 fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
                     let disc_len = Self::LEGACY_DISCRIMINATOR.len();
                     if buf.len() < disc_len {
-                        return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
+                        return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound);
                     };
                     let given_disc = &buf[..disc_len];
                     if Self::LEGACY_DISCRIMINATOR != *given_disc {

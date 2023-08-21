@@ -9,13 +9,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1Bytes, VaaV1MessageHash},
+    state::{PartialPostedVaaV1, VaaV1Account},
     CoreBridge,
 };
-use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
-
-use super::validate_token_transfer;
 
 #[derive(Accounts)]
 pub struct CompleteTransferNative<'info> {
@@ -27,13 +24,13 @@ pub struct CompleteTransferNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1Bytes::SEED_PREFIX,
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref(),
         ],
         bump,
         seeds::program = core_bridge_program,
     )]
-    posted_vaa: Box<Account<'info, PostedVaaV1Bytes>>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -104,7 +101,7 @@ impl<'info> CompleteTransferNative<'info> {
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
-        let (token_chain, token_address) = validate_token_transfer(
+        let (token_chain, token_address) = super::validate_token_transfer(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
@@ -133,7 +130,10 @@ pub fn complete_transfer_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let msg = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload).unwrap();
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let acc_data = &acc_info.data.borrow();
+
+    let msg = crate::utils::parse_token_bridge_message(acc_data).unwrap();
     let transfer = msg.transfer().unwrap();
     let decimals = ctx.accounts.mint.decimals;
 

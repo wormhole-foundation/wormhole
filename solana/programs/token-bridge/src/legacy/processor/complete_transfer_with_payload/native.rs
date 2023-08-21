@@ -9,13 +9,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1Bytes, VaaV1MessageHash},
+    state::{PartialPostedVaaV1, VaaV1Account},
     CoreBridge,
 };
-use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
-
-use super::validate_token_transfer_with_payload;
 
 #[derive(Accounts)]
 pub struct CompleteTransferWithPayloadNative<'info> {
@@ -27,13 +24,13 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1Bytes::SEED_PREFIX,
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump,
         seeds::program = core_bridge_program
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -102,7 +99,7 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
-        let (token_chain, token_address) = validate_token_transfer_with_payload(
+        let (token_chain, token_address) = super::validate_token_transfer_with_payload(
             &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
@@ -132,9 +129,12 @@ pub fn complete_transfer_with_payload_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let acc_data = &acc_info.data.borrow();
+
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
-    let transfer_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+    let transfer_amount = crate::utils::parse_token_bridge_message(acc_data)
         .unwrap()
         .transfer_with_message()
         .unwrap()

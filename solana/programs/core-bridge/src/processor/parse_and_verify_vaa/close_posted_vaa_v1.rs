@@ -1,5 +1,5 @@
 use crate::{
-    state::{PostedVaaV1Bytes, SignatureSet, VaaV1MessageHash},
+    state::{PostedVaaV1Bytes, SignatureSet, VaaV1Account},
     types::MessageHash,
 };
 use anchor_lang::prelude::*;

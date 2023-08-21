@@ -9,10 +9,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use core_bridge_program::{
     constants::SOLANA_CHAIN,
-    state::{PostedVaaV1Bytes, VaaV1MessageHash},
+    state::{PartialPostedVaaV1, VaaV1Account},
     CoreBridge,
 };
-use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 use super::validate_token_transfer_with_payload;
@@ -27,13 +26,13 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
 
     #[account(
         seeds = [
-            PostedVaaV1Bytes::SEED_PREFIX,
+            PartialPostedVaaV1::SEED_PREFIX,
             posted_vaa.try_message_hash()?.as_ref()
         ],
         bump,
         seeds::program = core_bridge_program,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, PartialPostedVaaV1>,
 
     #[account(
         init,
@@ -128,8 +127,11 @@ pub fn complete_transfer_with_payload_wrapped(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
+    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let acc_data = &acc_info.data.borrow();
+
     // Take transfer amount as-is.
-    let mint_amount = TokenBridgeMessage::parse(&ctx.accounts.posted_vaa.payload)
+    let mint_amount = crate::utils::parse_token_bridge_message(acc_data)
         .unwrap()
         .transfer_with_message()
         .unwrap()
