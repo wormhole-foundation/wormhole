@@ -44,9 +44,14 @@ export async function deliver(
   const { budget, deliveryInstruction, deliveryHash } =
     extractDeliveryArguments(deliveryVaa, overrides);
 
+  deliveryInstruction.messageKeys.forEach((key) => {
+    if (key.version !== 1) {
+      throw Error("Custom message key");
+    }
+  });
   const additionalVaas = await fetchAdditionalVaas(
     wormholeRPCs,
-    deliveryInstruction.vaaKeys
+    deliveryInstruction.messageKeys.map((key) => key.vaaKey!)
   );
 
   const wormholeRelayerAddress = getWormholeRelayerAddress(
