@@ -1,6 +1,5 @@
 import { ethers, BigNumber } from "ethers";
 import { ethers_contracts } from "../..";
-import { VaaKeyStruct } from "../../ethers-contracts/MockRelayerIntegration";
 import {
   ChainId,
   ChainName,
@@ -9,16 +8,25 @@ import {
   tryNativeToHexString,
 } from "../../utils";
 import { getWormholeRelayerAddress } from "../consts";
+import {
+  MessageKeyStruct,
+  VaaKeyStruct,
+} from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
+import { encodeVaaKey } from "../structs";
 
 export type SendOptionalParams = {
   environment?: Network;
   receiverValue?: ethers.BigNumberish;
   paymentForExtraReceiverValue?: ethers.BigNumberish;
-  additionalVaas?: [
+  additionalMessages?: [
     {
+      // Either specify the following fields (VaaKey)
       chainId?: ChainId;
-      emitterAddress: string;
-      sequenceNumber: ethers.BigNumberish;
+      emitterAddress?: string;
+      sequenceNumber?: ethers.BigNumberish;
+      // Or specify a different message type to be relayed!
+      keyType?: number;
+      encodedKey?: string;
     }
   ];
   deliveryProviderAddress?: string;
@@ -26,7 +34,6 @@ export type SendOptionalParams = {
   consistencyLevel?: ethers.BigNumberish;
   refundChainId?: ChainId;
   refundAddress?: string;
-  relayParameters?: ethers.BytesLike;
 };
 
 export async function sendToEvm(
@@ -59,9 +66,6 @@ export async function sendToEvm(
     await sourceWormholeRelayer.getDefaultDeliveryProvider();
 
   // Using the most general 'send' function in IWormholeRelayer
-  // Inputs:
-  // targetChainId, targetAddress, refundChainId, refundAddress, maxTransactionFee, receiverValue, payload, vaaKeys,
-  // consistencyLevel, deliveryProviderAddress, relayParameters
   const [deliveryPrice]: [BigNumber, BigNumber] = await sourceWormholeRelayer[
     "quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"
   ](
@@ -80,7 +84,9 @@ export async function sendToEvm(
       `Expected a payment of ${totalPrice.toString()} wei; received ${value.toString()} wei`
     );
   }
-  const tx = sourceWormholeRelayer.sendToEvm(
+  const tx = sourceWormholeRelayer[
+    "sendToEvm(uint16,address,bytes,uint256,uint256,uint256,uint16,address,address,(uint8,bytes)[],uint8)"
+  ](
     targetChainId, // targetChainId
     targetAddress, // targetAddress
     payload,
@@ -95,18 +101,45 @@ export async function sendToEvm(
       signer.getAddress(), // refundAddress
     sendOptionalParams?.deliveryProviderAddress ||
       defaultDeliveryProviderAddress, // deliveryProviderAddress
-    sendOptionalParams?.additionalVaas
-      ? sendOptionalParams.additionalVaas.map(
-          (additionalVaa): VaaKeyStruct => ({
-            chainId: additionalVaa.chainId || sourceChainId,
-            emitterAddress: Buffer.from(
-              tryNativeToHexString(additionalVaa.emitterAddress, "ethereum"),
-              "hex"
-            ),
-            sequence: BigNumber.from(additionalVaa.sequenceNumber || 0),
-          })
+    sendOptionalParams?.additionalMessages
+      ? sendOptionalParams.additionalMessages.map(
+          (additionalMessage): MessageKeyStruct => {
+            if (additionalMessage.keyType) {
+              if (!additionalMessage.encodedKey) {
+                throw Error("No encoded key information provided!");
+              }
+              return {
+                keyType: additionalMessage.keyType,
+                encodedKey: additionalMessage.encodedKey,
+              };
+            } else {
+              if (
+                !additionalMessage.emitterAddress ||
+                !additionalMessage.sequenceNumber
+              ) {
+                throw Error(
+                  "No emitter address or sequence number information provided!"
+                );
+              }
+              const key = {
+                chainId: additionalMessage.chainId || sourceChainId,
+                emitterAddress: Buffer.from(
+                  tryNativeToHexString(
+                    additionalMessage.emitterAddress,
+                    "ethereum"
+                  ),
+                  "hex"
+                ),
+                sequence: BigNumber.from(additionalMessage.sequenceNumber || 0),
+              };
+              return {
+                keyType: 1, // VAA KEY,
+                encodedKey: encodeVaaKey(key),
+              };
+            }
+          }
         )
-      : [], // vaaKeys
+      : [], // messageKeys
     sendOptionalParams?.consistencyLevel || 15, // consistencyLevel
     overrides
   );

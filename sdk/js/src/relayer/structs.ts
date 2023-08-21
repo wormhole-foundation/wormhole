@@ -41,6 +41,12 @@ export function parseRefundStatus(index: number) {
     : RefundStatus.CrossChainRefundFailProviderNotSupported;
 }
 
+export interface MessageKey {
+  version: number;
+  vaaKey?: VaaKey;
+  encodedKey?: Buffer;
+}
+
 export interface VaaKey {
   chainId: number;
   emitterAddress: Buffer;
@@ -59,7 +65,7 @@ export interface DeliveryInstruction {
   refundDeliveryProvider: Buffer;
   sourceDeliveryProvider: Buffer;
   senderAddress: Buffer;
-  vaaKeys: VaaKey[];
+  messageKeys: MessageKey[];
 }
 
 export interface RedeliveryInstruction {
@@ -168,9 +174,9 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   const numMessages = bytes.readUInt8(idx);
   idx += 1;
 
-  let messages = [] as VaaKey[];
+  let messages = [] as MessageKey[];
   for (let i = 0; i < numMessages; ++i) {
-    const res = parseVaaKey(bytes, idx);
+    const res = parseMessageKey(bytes, idx);
     idx = res[1];
     messages.push(res[0]);
   }
@@ -187,7 +193,7 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     refundDeliveryProvider,
     sourceDeliveryProvider,
     senderAddress,
-    vaaKeys: messages,
+    messageKeys: messages,
   };
 }
 
@@ -197,6 +203,13 @@ function parsePayload(bytes: Buffer, idx: number): [Buffer, number] {
   const payload = bytes.slice(idx, idx + length);
   idx += length;
   return [payload, idx];
+}
+
+export function encodeVaaKey(key: VaaKey): string {
+  return ethers.utils.solidityPack(
+    ["uint8", "uint16", "bytes32", "uint64"],
+    [1, key.chainId, key.emitterAddress, key.sequence]
+  );
 }
 
 function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
@@ -221,27 +234,28 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   ];
 }
 
-function parseMessageKey(
-  bytes: Buffer,
-  idx: number
-): [VaaKey | Buffer, number, number] {
+function parseMessageKey(bytes: Buffer, idx: number): [MessageKey, number] {
   const version = bytes.readUInt8(idx);
   idx += 1;
-  const messageKeyEncodedLength = bytes.readUInt32BE(idx);
-  idx += 4;
-  const messageKeyEncoded: Buffer = bytes.slice(
-    idx,
-    idx + messageKeyEncodedLength
-  );
-  idx += messageKeyEncodedLength;
-
-  let messageKey: VaaKey | Buffer;
+  let vaaKey;
+  let encodedKey;
   if (version === 1) {
-    messageKey = parseVaaKey(messageKeyEncoded, 0)[0];
+    let oldIdx = idx;
+    [vaaKey, idx] = parseVaaKey(bytes, idx);
+    encodedKey = bytes.slice(oldIdx, idx);
   } else {
-    messageKey = messageKeyEncoded;
+    const messageKeyEncodedLength = bytes.readUInt32BE(idx);
+    idx += 4;
+    const messageKeyEncoded: Buffer = bytes.slice(
+      idx,
+      idx + messageKeyEncodedLength
+    );
+    idx += messageKeyEncodedLength;
+
+    encodedKey = messageKeyEncoded;
   }
-  return [messageKey, version, idx];
+
+  return [{ version, vaaKey, encodedKey }, idx];
 }
 
 export function parseEVMExecutionInfoV1(
@@ -327,10 +341,16 @@ export function deliveryInstructionsPrintable(
     refundDeliveryProvider: ix.refundDeliveryProvider.toString("hex"),
     sourceDeliveryProvider: ix.sourceDeliveryProvider.toString("hex"),
     senderAddress: ix.senderAddress.toString("hex"),
-    vaaKeys: ix.vaaKeys.map(vaaKeyPrintable),
+    messageKeys: ix.messageKeys.map(messageKeyPrintable),
   };
 }
-
+export function messageKeyPrintable(ix: MessageKey): StringLeaves<MessageKey> {
+  return {
+    version: ix.version,
+    encodedKey: ix.encodedKey ? ix.encodedKey.toString("hex") : undefined,
+    vaaKey: ix.vaaKey ? vaaKeyPrintable(ix.vaaKey) : undefined,
+  };
+}
 export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
   return {
     chainId: ix.chainId?.toString(),

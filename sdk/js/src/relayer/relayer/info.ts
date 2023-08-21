@@ -209,25 +209,30 @@ export function stringifyWormholeRelayerInfo(
         "hex"
       )}\n`;
     }
-    const numMsgs = info.deliveryInstruction.vaaKeys.length;
+    const numMsgs = info.deliveryInstruction.messageKeys.length;
 
     const payload = info.deliveryInstruction.payload.toString("hex");
     if (payload.length > 0) {
       stringifiedInfo += `\nPayload to be relayed (as hex string): 0x${payload}`;
     }
     if (numMsgs > 0) {
-      stringifiedInfo += `\nThe following ${numMsgs} wormhole messages (VAAs) were ${
+      stringifiedInfo += `\nThe following ${numMsgs} 'additional messages' were ${
         payload.length > 0 ? "also " : ""
       }requested to be relayed:\n`;
-      stringifiedInfo += info.deliveryInstruction.vaaKeys
+      stringifiedInfo += info.deliveryInstruction.messageKeys
         .map((msgInfo, i) => {
           let result = "";
-          result += `(VAA ${i}): `;
-          result += `Message from ${
-            msgInfo.chainId ? printChain(msgInfo.chainId) : ""
-          }, with emitter address ${msgInfo.emitterAddress?.toString(
-            "hex"
-          )} and sequence number ${msgInfo.sequence}`;
+          if (msgInfo.vaaKey) {
+            result += `(Wormhole VAA): `;
+            result += `Message from ${
+              msgInfo.vaaKey.chainId ? printChain(msgInfo.vaaKey.chainId) : ""
+            }, with emitter address ${msgInfo.vaaKey.emitterAddress?.toString(
+              "hex"
+            )} and sequence number ${msgInfo.vaaKey.sequence}`;
+          } else {
+            result += `(External Message, Version ${msgInfo.version}): `;
+            result += `Message key is ${msgInfo.encodedKey?.toString("hex")}`;
+          }
 
           return result;
         })
