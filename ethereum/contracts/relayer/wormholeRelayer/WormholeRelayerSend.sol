@@ -225,7 +225,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 refundChain,
                 refundAddress,
                 deliveryProviderAddress,
-                WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys), // why doesn't this work without the 'WormholeRelayerSerde.' ?
+                WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys), 
                 consistencyLevel
             )
         );
