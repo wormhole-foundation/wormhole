@@ -114,7 +114,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         // Revert if the VAAs delivered do not match the descriptions specified in the instruction
-        checkMessageKeysWithMessagess(instruction.messageKeys, encodedVMs);
+        checkMessageKeysWithMessages(instruction.messageKeys, encodedVMs);
 
         executeDelivery(deliveryVaaInfo);
     }
@@ -563,7 +563,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    function checkMessageKeysWithMessagess(
+    function checkMessageKeysWithMessages(
         MessageKey[] memory messageKeys,
         bytes[] memory signedMessages
     ) private view {
