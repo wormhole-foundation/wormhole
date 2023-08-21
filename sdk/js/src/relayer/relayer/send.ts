@@ -80,7 +80,9 @@ export async function sendToEvm(
       `Expected a payment of ${totalPrice.toString()} wei; received ${value.toString()} wei`
     );
   }
-  const tx = sourceWormholeRelayer.sendToEvm(
+  const tx = sourceWormholeRelayer[
+    "sendToEvm(uint16,address,bytes,uint256,uint256,uint256,uint16,address,address,(uint16,bytes32,uint64)[],uint8)"
+  ](
     targetChainId, // targetChainId
     targetAddress, // targetAddress
     payload,
