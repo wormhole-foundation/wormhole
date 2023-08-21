@@ -6,10 +6,10 @@ import {
   InvalidAccountConfig,
   SignatureSets,
   createAccountIx,
-  createSecp256k1Instruction,
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
+  createSigVerifyIx,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
@@ -138,9 +138,13 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
 
       const wrongMessage = Buffer.from("And I'm not.");
       const guardianIndex = 2;
-      const sigVerifyIx = await createSigVerifyIx(program, GUARDIAN_SET_INDEX, wrongMessage, [
-        guardianIndex,
-      ]);
+      const sigVerifyIx = await createSigVerifyIx(
+        program,
+        guardians,
+        GUARDIAN_SET_INDEX,
+        wrongMessage,
+        [guardianIndex]
+      );
 
       const signerIndices = new Array(19).fill(-1);
       signerIndices[guardianIndex] = 0;
@@ -193,6 +197,7 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
       const guardianIndices = [7, 8];
       const sigVerifyIx = await createSigVerifyIx(
         program,
+        guardians,
         GUARDIAN_SET_INDEX,
         message,
         guardianIndices
@@ -225,7 +230,7 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
       const { signatureSet } = new SignatureSets();
       const message = Buffer.from("Maybe legitimate.");
       const guardianIndex = 7;
-      const sigVerifyIx = await createSigVerifyIx(program, GUARDIAN_SET_INDEX, message, [
+      const sigVerifyIx = await createSigVerifyIx(program, guardians, GUARDIAN_SET_INDEX, message, [
         guardianIndex,
       ]);
 
@@ -292,34 +297,6 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
   });
 });
 
-function generateSignature(message: Buffer, guardianIndex: number) {
-  return guardians.addSignatures(message, [guardianIndex]).subarray(7, 7 + 65);
-}
-
-async function createSigVerifyIx(
-  program: coreBridge.CoreBridgeProgram,
-  guardianSetIndex: number,
-  message: Buffer,
-  guardianIndices: number[]
-) {
-  const guardianSet = coreBridge.GuardianSet.address(program.programId, guardianSetIndex);
-  const ethAddresses = await coreBridge.GuardianSet.fromAccountAddress(
-    program.provider.connection,
-    guardianSet
-  ).then((acct) => guardianIndices.map((i) => Buffer.from(acct.keys[i])));
-  const signatures = guardianIndices.map((i) => generateSignature(message, i));
-
-  return createSecp256k1Instruction(
-    signatures,
-    ethAddresses,
-    Buffer.from(ethers.utils.arrayify(ethers.utils.keccak256(message)))
-  );
-}
-
-function defaultArgs() {
-  return {};
-}
-
 async function parallelIxOk(
   program: coreBridge.CoreBridgeProgram,
   forkedProgram: coreBridge.CoreBridgeProgram,
@@ -330,6 +307,7 @@ async function parallelIxOk(
 ) {
   const sigVerifyIx = await createSigVerifyIx(
     program,
+    guardians,
     GUARDIAN_SET_INDEX,
     message,
     guardianIndices

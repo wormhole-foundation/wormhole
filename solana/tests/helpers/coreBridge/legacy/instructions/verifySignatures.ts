@@ -68,6 +68,7 @@ export function legacyVerifySignaturesIx(
       isSigner: false,
     },
   ];
+
   const { signerIndices } = args;
   const numSigners = signerIndices.length;
   const data = Buffer.alloc(1 + numSigners);

@@ -254,7 +254,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       await expectIxErr(connection, [ix], [payer], "U64Overflow");
     });
 
-    it("Cannot Invoke `transfer_fees` with Fee Larger Than Minimum Required Rent Balance", async () => {
+    it("Cannot Invoke `transfer_fees` with Fee Larger than Minimum Required Rent Balance", async () => {
       const lamportBalance = await connection
         .getAccountInfo(coreBridge.FeeCollector.address(program.programId))
         .then((info) => info!.lamports);
@@ -278,7 +278,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       await expectIxErr(connection, [ix], [payer], "NotEnoughLamports");
     });
 
-    it.skip("Cannot Invoke `transfer_fees` With Invalid Recipient", async () => {
+    it("Cannot Invoke `transfer_fees` With Invalid Recipient", async () => {
       // Invalid recipient.
       const recipient = anchor.web3.Keypair.generate();
 
