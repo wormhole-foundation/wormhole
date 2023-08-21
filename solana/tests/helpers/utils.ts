@@ -1,6 +1,7 @@
 import { parseVaa } from "@certusone/wormhole-sdk";
 import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { BN } from "@coral-xyz/anchor";
+import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { getAccount } from "@solana/spl-token";
 import {
   ConfirmOptions,
@@ -17,8 +18,10 @@ import {
 import { expect } from "chai";
 import { execSync } from "child_process";
 import { Err, Ok } from "ts-results";
+import { ethers } from "ethers";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
+import { createSecp256k1Instruction } from "./";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -182,7 +185,7 @@ async function debugSendAndConfirmTransaction(
     });
 }
 
-// const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function invokeVerifySignaturesAndPostVaa(
   program: coreBridge.CoreBridgeProgram,
@@ -381,4 +384,29 @@ export async function createIfNeeded<T>(
   accounts[cfg.contextName] = created.publicKey;
 
   return accounts;
+}
+
+function generateSignature(guardians: MockGuardians, message: Buffer, guardianIndex: number) {
+  return guardians.addSignatures(message, [guardianIndex]).subarray(7, 7 + 65);
+}
+
+export async function createSigVerifyIx(
+  program: coreBridge.CoreBridgeProgram,
+  guardians: MockGuardians,
+  guardianSetIndex: number,
+  message: Buffer,
+  guardianIndices: number[]
+) {
+  const guardianSet = coreBridge.GuardianSet.address(program.programId, guardianSetIndex);
+  const ethAddresses = await coreBridge.GuardianSet.fromAccountAddress(
+    program.provider.connection,
+    guardianSet
+  ).then((acct) => guardianIndices.map((i) => Buffer.from(acct.keys[i])));
+  const signatures = guardianIndices.map((i) => generateSignature(guardians, message, i));
+
+  return createSecp256k1Instruction(
+    signatures,
+    ethAddresses,
+    Buffer.from(ethers.utils.arrayify(ethers.utils.keccak256(message)))
+  );
 }

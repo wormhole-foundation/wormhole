@@ -1,5 +1,9 @@
 import { parseVaa } from "@certusone/wormhole-sdk";
-import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import {
+  GovernanceEmitter,
+  MockGuardians,
+  MockEmitter,
+} from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import {
@@ -12,6 +16,9 @@ import {
   parallelPostVaa,
   range,
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  createSigVerifyIx,
+  SignatureSets,
+  sleep,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -23,6 +30,7 @@ const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
   GOVERNANCE_SEQUENCE - 1
 );
+const dummyEmitter = new MockEmitter(Buffer.alloc(32, "deadbeef").toString("hex"), 69, -1);
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
 // Test variables.
@@ -122,6 +130,129 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       // Save Vaa to local variables.
       localVariables.set("signedVaa", signedVaa);
     });
+  });
+
+  describe("New Implmentation", () => {
+    const currSetRange = range(0, 2);
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Guardian Set Index", async () => {
+      const signedVaa = defaultVaa(guardians.setIndex + 2, guardians.getPublicKeys(), currSetRange);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGuardianSetIndex");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Governance Emitter", async () => {
+      // Create a bad governance emitter.
+      const governance = new GovernanceEmitter(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        GOVERNANCE_SEQUENCE - 1
+      );
+      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
+
+      // Vaa info.
+      const timestamp = 294967295;
+      const published = governance.publishWormholeGuardianSetUpgrade(
+        timestamp,
+        guardians.setIndex + 1,
+        guardians.getPublicKeys()
+      );
+      const signedVaa = invalidGuardians.addSignatures(published, currSetRange);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Governance Action", async () => {
+      // Vaa info.
+      const timestamp = 12345678;
+      const chain = 1;
+
+      // Publish the wrong VAA type.
+      const published = governance.publishWormholeSetMessageFee(timestamp, chain, BigInt(69));
+
+      const signedVaa = guardians.addSignatures(published, currSetRange);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
+    });
+
+    it("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
+      const oldSetRange = [0];
+
+      // Sleep for 5 seconds to expire the guardian set.
+      await sleep(5000);
+
+      // Make sure the guardian set was updated before this test.
+      expect(GUARDIAN_SET_INDEX != guardians.setIndex).to.be.true;
+
+      // Create sigVerify instruction.
+      const message = Buffer.from("Ello M8");
+      const sigVerifyIx = await createSigVerifyIx(
+        program,
+        guardians,
+        GUARDIAN_SET_INDEX, // Use the old guardian set index.
+        message,
+        oldSetRange
+      );
+
+      const signerIndices = new Array(19).fill(-1);
+      let count = 0;
+      for (const i of oldSetRange) {
+        signerIndices[i] = count;
+        ++count;
+      }
+
+      // Create verify instruction.
+      const { signatureSet } = new SignatureSets();
+      const guardianSet = coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX);
+
+      const verifyIx = coreBridge.legacyVerifySignaturesIx(
+        program,
+        { payer: payer.publicKey, guardianSet, signatureSet: signatureSet.publicKey },
+        {
+          signerIndices,
+        }
+      );
+
+      await expectIxErr(
+        connection,
+        [sigVerifyIx, verifyIx],
+        [payer, signatureSet],
+        "PostVaaGuardianSetExpired"
+      );
+    });
+
+    it.skip("Cannot Invoke `verify_signatures` with Different Guardian Set on Same Signature Set", async () => {
+      // TODO
+    });
 
     it("Invoke `guardian_set_update` Again to Set Original Guardian Keys", async () => {
       const newGuardianSetIndex = guardians.setIndex + 1;
@@ -131,7 +262,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       const signedVaa = defaultVaa(newGuardianSetIndex, newGuardianKeys, range(0, 2));
 
       // Invoke the instruction.
-      const txDetails = await parallelTxDetails(
+      await parallelTxDetails(
         program,
         forkedProgram,
         {
@@ -164,12 +295,6 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       guardians.updateGuardianSetIndex(newGuardianSetIndex);
     });
 
-    it.skip("Invoke `verify_signatures` with New Guardian Set", async () => {
-      // TODO
-    });
-  });
-
-  describe("New Implmentation", () => {
     it("Cannot Invoke `guardian_set_update` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
@@ -186,83 +311,6 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
         [payer],
         "already in use"
       );
-    });
-
-    it("Cannot Invoke `guardian_set_update` with Invalid Guardian Set Index", async () => {
-      const signedVaa = defaultVaa(guardians.setIndex + 2, guardians.getPublicKeys(), range(0, 13));
-
-      // Post the VAA.
-      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
-
-      // Create the instruction.
-      const ix = coreBridge.legacyGuardianSetUpdateIx(
-        program,
-        { payer: payer.publicKey },
-        parseVaa(signedVaa)
-      );
-
-      await expectIxErr(connection, [ix], [payer], "InvalidGuardianSetIndex");
-    });
-
-    it("Cannot Invoke `guardian_set_update` with Invalid Governance Emitter", async () => {
-      // Create a bad governance emitter.
-      const governance = new GovernanceEmitter(
-        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
-        GOVERNANCE_SEQUENCE - 1
-      );
-      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
-
-      // Vaa info.
-      const timestamp = 294967295;
-      const published = governance.publishWormholeGuardianSetUpgrade(
-        timestamp,
-        guardians.setIndex + 1,
-        guardians.getPublicKeys()
-      );
-      const signedVaa = invalidGuardians.addSignatures(published, range(0, 13));
-
-      // Post the VAA.
-      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
-
-      // Create the instruction.
-      const ix = coreBridge.legacyGuardianSetUpdateIx(
-        program,
-        { payer: payer.publicKey },
-        parseVaa(signedVaa)
-      );
-
-      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceEmitter");
-    });
-
-    it("Cannot Invoke `guardian_set_update` with Invalid Governance Action", async () => {
-      // Vaa info.
-      const timestamp = 12345678;
-      const chain = 1;
-
-      // Publish the wrong VAA type.
-      const published = governance.publishWormholeSetMessageFee(timestamp, chain, BigInt(69));
-
-      const signedVaa = guardians.addSignatures(published, range(0, 13));
-
-      // Post the VAA.
-      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
-
-      // Create the instruction.
-      const ix = coreBridge.legacyGuardianSetUpdateIx(
-        program,
-        { payer: payer.publicKey },
-        parseVaa(signedVaa)
-      );
-
-      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
-    });
-
-    it.skip("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
-      // TODO
-    });
-
-    it.skip("Cannot Invoke `verify_signatures` with Different Guardian Set on Same Signature Set", async () => {
-      // TODO
     });
   });
 });

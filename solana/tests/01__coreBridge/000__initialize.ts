@@ -160,7 +160,7 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
 
 function defaultArgs() {
   return {
-    guardianSetTtlSeconds: 15,
+    guardianSetTtlSeconds: 5,
     feeLamports: new anchor.BN(42069),
     initialGuardians: GUARDIAN_KEYS.map((privateKey) =>
       Array.from(ethers.utils.arrayify(new ethers.Wallet(privateKey).address))
