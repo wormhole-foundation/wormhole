@@ -1212,9 +1212,6 @@ LocalNative forwardDeliveryCost;
         assertEq(decodedMessageKey.keyType, messageKey.keyType, "decodedMessageKey.keyType incorrect");
         if (decodedMessageKey.keyType == VAA_KEY_TYPE) {
             (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKey.encodedKey, 0);
-            uint32 encodedKeyLen;
-            (encodedKeyLen, index) = data.asUint32(index);
-            assertEq(encodedKeyLen, 42, "encodedKeyLen for VAA_KEY_TYPE must be 42");
             index = checkVaaKey(data, index, vaaKey);
         } else if (decodedMessageKey.keyType == RANDOM_KEY_TYPE) {
             uint32 encodedKeyLen;
