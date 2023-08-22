@@ -26,7 +26,7 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 
 [dependencies]
-wormhole-io = { version = "=0.0.16", features = ["ruint"] }
+wormhole-io = { version = "=0.0.0-alpha.1" }
 wormhole-raw-vaas = { version = "0.0.0-alpha.3", features = ["anchor"], default-features = false }
 wormhole-solana-common = { path = "../../common/solana-common" }
 
