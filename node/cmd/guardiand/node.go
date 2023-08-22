@@ -41,7 +41,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	cosmoscrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
@@ -147,9 +146,11 @@ var (
 	ibcLCD      *string
 	ibcContract *string
 
-	accountantContract     *string
-	accountantWS           *string
-	accountantCheckEnabled *bool
+	accountantContract      *string
+	accountantWS            *string
+	accountantCheckEnabled  *bool
+	accountantKeyPath       *string
+	accountantKeyPassPhrase *string
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -305,6 +306,8 @@ func init() {
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
+
+	// TODO: These are deprecated. Get rid of them once the guardians have had a chance to migrate off of them.
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
@@ -314,6 +317,8 @@ func init() {
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
+	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
+	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
 	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
@@ -993,39 +998,51 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
 
-	// If the wormchain sending info is configured, connect to it.
-	var wormchainKey cosmoscrypto.PrivKey
-	var wormchainConn *wormconn.ClientConn
-	if *wormchainURL != "" {
-		if *wormchainKeyPath == "" {
-			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
+	var accountantWormchainConn *wormconn.ClientConn
+	if *accountantContract != "" {
+		// TODO: wormchainKeyPath and wormchainKeyPassPhrase are being replaced by accountantKeyPath and accountantKeyPassPhrase.
+		//       Give the guardians time to migrate off of the old parameters, but then remove them.
+		keyPath := *accountantKeyPath
+		if keyPath == "" {
+			if *wormchainKeyPath == "" {
+				logger.Fatal("if accountantContract is specified, accountantKeyPath is required", zap.String("component", "gacct"))
+			}
+			logger.Error("the wormchainKeyPath parameter is deprecated, please change to accountantKeyPath", zap.String("component", "gacct"))
+			keyPath = *wormchainKeyPath
+		} else if *wormchainKeyPath != "" {
+			logger.Fatal("the wormchainKeyPath parameter is obsolete, please remove it", zap.String("component", "gacct"))
 		}
 
-		if *wormchainKeyPassPhrase == "" {
-			logger.Fatal("if wormchainURL is specified, wormchainKeyPassPhrase is required")
+		keyPassPhrase := *accountantKeyPassPhrase
+		if keyPassPhrase == "" {
+			if *wormchainKeyPassPhrase == "" {
+				logger.Fatal("if accountantContract is specified, accountantKeyPassPhrase is required", zap.String("component", "gacct"))
+			}
+			logger.Error("the wormchainKeyPassPhrase parameter is deprecated, please change to accountantKeyPassPhrase", zap.String("component", "gacct"))
+			keyPassPhrase = *wormchainKeyPassPhrase
+		} else if *wormchainKeyPassPhrase != "" {
+			logger.Fatal("the wormchainKeyPassPhrase parameter is obsolete, please remove it", zap.String("component", "gacct"))
 		}
 
-		// Load the wormchain key.
-		wormchainKeyPathName := *wormchainKeyPath
+		keyPathName := keyPath
 		if *unsafeDevMode {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
-				logger.Fatal("failed to get devnet index", zap.Error(err))
+				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
 			}
-			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
+			keyPathName = fmt.Sprint(keyPath, idx)
 		}
 
-		logger.Debug("loading key file", zap.String("key path", wormchainKeyPathName))
-		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
+		wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, keyPassPhrase)
 		if err != nil {
-			logger.Fatal("failed to load wormchain private key", zap.Error(err))
+			logger.Fatal("failed to load wormchain private key", zap.Error(err), zap.String("component", "gacct"))
 		}
 
 		// Connect to wormchain.
-		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("wormchainKeyPath", wormchainKeyPathName))
-		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
+		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
 		if err != nil {
-			logger.Fatal("failed to connect to wormchain", zap.Error(err))
+			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gacct"))
 		}
 	}
 
@@ -1051,12 +1068,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			wormchainKeyPathName = fmt.Sprint(*gatewayRelayerKeyPath, idx)
 		}
 
-		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *gatewayRelayerKeyPassPhrase)
+		wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *gatewayRelayerKeyPassPhrase)
 		if err != nil {
 			logger.Fatal("failed to load private key", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
 
-		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("gatewayRelayerKeyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
 		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
@@ -1432,7 +1449,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
-		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, wormchainConn),
+		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, accountantWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
