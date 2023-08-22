@@ -278,9 +278,21 @@ func Run(
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
+		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+		gossipParams := pubsub.DefaultGossipSubParams()
+
+		if bootstrapNode {
+			logger.Info("We are a bootstrap node.")
+			if networkID == "/wormhole/testnet/2/1" {
+				gossipParams.Dhi = 50
+				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", gossipParams.Dhi))
+			}
+		}
+
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
+			pubsub.WithGossipSubParams(gossipParams),
 		)
 		if err != nil {
 			panic(err)
@@ -308,12 +320,7 @@ func Run(
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
 
-		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
 		successes := connectToPeers(ctx, logger, h, bootstrappers)
-
-		if bootstrapNode {
-			logger.Info("We are a bootstrap node.")
-		}
 
 		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
 			// If we fail to connect to any bootstrap peer, kill the service
