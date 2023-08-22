@@ -71,7 +71,7 @@ export class RegisteredEmitter {
     if (data.length != 34) {
       throw new Error("data.length != 34");
     }
-    const chain = data.readUInt16BE(0);
+    const chain = data.readUInt16LE(0);
     const contract = Array.from(data.subarray(2));
     return new RegisteredEmitter(chain, contract);
   }
