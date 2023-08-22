@@ -123,6 +123,7 @@ abstract contract DeliveryProviderStructs {
     struct CoreConfig {
         bool updateWormholeRelayer;
         bool updateRewardAddress;
+        bool updateSupportedKeyTypes;
         /**
          * Address of the WormholeRelayer contract
          */
@@ -131,5 +132,13 @@ abstract contract DeliveryProviderStructs {
          * Address where rewards are sent for successful relays and sends
          */
         address payable rewardAddress;
+        /**
+         *  Address of supported key types (these will be explicity set to true)
+         */ 
+        uint8[] supportedKeyTypes;
+        /**
+         *  Address of unsupported key types (these will explicitly be set to false)
+         */
+        uint8[] unsupportedKeyTypes;
     }
 }
