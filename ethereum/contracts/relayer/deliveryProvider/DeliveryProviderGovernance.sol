@@ -269,6 +269,15 @@ abstract contract DeliveryProviderGovernance is
         if (coreConfig.updateRewardAddress) {
             updateRewardAddressImpl(coreConfig.rewardAddress);
         }
+        if(coreConfig.updateSupportedKeyTypes) {
+            SupportedMessageKeyTypes storage supportedMessageKeyTypes = getSupportedMessageKeyTypes();
+            for(uint256 i=0; i<coreConfig.supportedKeyTypes.length; i++) {
+                supportedMessageKeyTypes.supportedKeyTypes[coreConfig.supportedKeyTypes[i]] = true;
+            }
+            for(uint256 i=0; i<coreConfig.unsupportedKeyTypes.length; i++) {
+                supportedMessageKeyTypes.supportedKeyTypes[coreConfig.unsupportedKeyTypes[i]] = false;
+            }
+        }
     }
 
     /// @dev upgrade serves to upgrade contract implementations
