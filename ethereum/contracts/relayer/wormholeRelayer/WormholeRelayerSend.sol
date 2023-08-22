@@ -50,7 +50,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             LocalNative.wrap(0),
             gasLimit,
             targetChain,
-            getDefaultDeliveryProviderOnChain(targetChain),
+            address(0x0),
             getDefaultDeliveryProvider(),
             new VaaKey[](0),
             CONSISTENCY_LEVEL_FINALIZED
@@ -97,7 +97,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             LocalNative.wrap(0),
             gasLimit,
             targetChain,
-            getDefaultDeliveryProviderOnChain(targetChain),
+            address(0x0),
             getDefaultDeliveryProvider(),
             vaaKeys,
             CONSISTENCY_LEVEL_FINALIZED
@@ -409,18 +409,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
 
     function getDefaultDeliveryProvider() public view returns (address deliveryProvider) {
         deliveryProvider = getDefaultDeliveryProviderState().defaultDeliveryProvider;
-    }
-
-    // Get the delivery provider's contract address on chain 'targetChain'
-    function getDefaultDeliveryProviderOnChain(uint16 targetChain)
-        public
-        view
-        returns (address deliveryProvider)
-    {
-        deliveryProvider = fromWormholeFormat(
-            IDeliveryProvider(getDefaultDeliveryProviderState().defaultDeliveryProvider)
-                .getTargetChainAddress(targetChain)
-        );
     }
 
     function quoteEVMDeliveryPrice(
