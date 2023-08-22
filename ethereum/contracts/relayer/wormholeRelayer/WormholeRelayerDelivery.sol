@@ -453,7 +453,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             + transactionFeeRefundAmount;
 
         //Refund the user
-        refundStatus = payRefundToRefundAddress(
+        refundStatus = deliveryInstruction.refundAddress == bytes32(0x0) ? RefundStatus.NO_REFUND_REQUESTED : payRefundToRefundAddress(
             deliveryInstruction.refundChain,
             deliveryInstruction.refundAddress,
             refundToRefundAddress,
