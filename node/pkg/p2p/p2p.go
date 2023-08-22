@@ -43,6 +43,9 @@ import (
 
 const DefaultPort = 8999
 
+const P2P_VALIDATE_QUEUE_SIZE = 1024
+const P2P_SUBSCRIPTION_BUFFER_SIZE = 1024
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -276,7 +279,9 @@ func Run(
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
-		ps, err := pubsub.NewGossipSub(ctx, h)
+		ps, err := pubsub.NewGossipSub(ctx, h,
+			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
+		)
 		if err != nil {
 			panic(err)
 		}
@@ -294,7 +299,7 @@ func Run(
 
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
-		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
+		sub, err := th.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
