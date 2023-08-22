@@ -97,6 +97,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
       nativeCurrencyPrice: targetChainPriceUpdate.updatePriceNative,
       targetChainAddress: remoteDeliveryProvider,
       maximumTotalBudget: targetChainPriceUpdate.maximumBudget,
+      supportedKeyTypes: [1]
     };
     updates.push(chainConfigUpdate);
   }

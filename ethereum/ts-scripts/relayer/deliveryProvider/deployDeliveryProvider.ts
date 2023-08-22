@@ -36,7 +36,6 @@ async function run() {
       deliveryProviderSetup.address,
       deliveryProviderImplementation.address
     );
-
     output.deliveryProviderImplementations.push(deliveryProviderImplementation);
     output.deliveryProviderSetups.push(deliveryProviderSetup);
     output.deliveryProviderProxies.push(deliveryProviderProxy);
