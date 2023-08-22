@@ -147,7 +147,7 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     it("Cannot Invoke `initialize` again", async () => {
       // Create the initialize instruction using the default args.
       const ix = coreBridge.legacyInitializeIx(program, { payer: payer.publicKey }, defaultArgs());

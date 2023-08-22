@@ -132,7 +132,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     const currSetRange = range(0, 2);
 
     it("Cannot Invoke `guardian_set_update` with Invalid Guardian Set Index", async () => {

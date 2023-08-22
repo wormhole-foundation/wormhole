@@ -103,7 +103,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     it("Cannot Invoke `set_message_fee` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 
