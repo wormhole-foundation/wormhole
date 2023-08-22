@@ -64,6 +64,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
     updateRewardAddress: true,
     coreRelayer,
     rewardAddress: thisChainsConfigInfo.rewardAddress,
+    supportedKeyTypes: [1]
   };
   const updates: DeliveryProviderStructs.UpdateStruct[] = [];
 
@@ -97,7 +98,6 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
       nativeCurrencyPrice: targetChainPriceUpdate.updatePriceNative,
       targetChainAddress: remoteDeliveryProvider,
       maximumTotalBudget: targetChainPriceUpdate.maximumBudget,
-      supportedKeyTypes: [1]
     };
     updates.push(chainConfigUpdate);
   }
