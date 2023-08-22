@@ -423,7 +423,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     it("Cannot Invoke `post_message_unreliable` Without Paying Fee", async () => {
       // Create the post message instruction.
       const messageSigner = anchor.web3.Keypair.generate();

@@ -125,7 +125,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     it("Cannot Invoke `transfer_fees` with Same VAA", async () => {
       const signedVaa: Buffer = localVariables.get("signedVaa");
 

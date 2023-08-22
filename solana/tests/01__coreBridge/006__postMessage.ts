@@ -124,7 +124,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
     });
   });
 
-  describe("New Implmentation", () => {
+  describe("New implementation", () => {
     const nullableAccountConfigs: NullableAccountConfig[] = [
       {
         label: "rent",
