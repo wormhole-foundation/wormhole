@@ -28,12 +28,12 @@ impl Writeable for Transfer {
         W: std::io::Write,
     {
         Transfer::TYPE_ID.write(writer)?;
-        self.norm_amount.write(writer)?;
+        self.norm_amount.to_be_bytes::<32>().write(writer)?;
         self.token_address.write(writer)?;
         self.token_chain.write(writer)?;
         self.recipient.write(writer)?;
         self.recipient_chain.write(writer)?;
-        self.norm_relayer_fee.write(writer)?;
+        self.norm_relayer_fee.to_be_bytes::<32>().write(writer)?;
         Ok(())
     }
 

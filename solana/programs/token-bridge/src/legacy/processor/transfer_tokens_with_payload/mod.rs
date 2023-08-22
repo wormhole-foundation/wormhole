@@ -43,7 +43,7 @@ impl Writeable for TransferWithMessage {
         Self: Sized,
         W: std::io::Write,
     {
-        self.norm_amount.write(writer)?;
+        self.norm_amount.to_be_bytes::<32>().write(writer)?;
         self.token_address.write(writer)?;
         self.token_chain.write(writer)?;
         self.redeemer.write(writer)?;
