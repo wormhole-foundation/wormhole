@@ -46,6 +46,9 @@ const DefaultPort = 8999
 const P2P_VALIDATE_QUEUE_SIZE = 1024
 const P2P_SUBSCRIPTION_BUFFER_SIZE = 1024
 
+// TESTNET_BOOTSTRAP_DHI configures how many nodes may connect to the testnet bootstrap node. This number should not exceed HighWaterMark.
+const TESTNET_BOOTSTRAP_DHI = 350
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -284,7 +287,7 @@ func Run(
 		if bootstrapNode {
 			logger.Info("We are a bootstrap node.")
 			if networkID == "/wormhole/testnet/2/1" {
-				gossipParams.Dhi = 50
+				gossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
 				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", gossipParams.Dhi))
 			}
 		}
