@@ -32,6 +32,8 @@ import {
   CHAIN_ID_XPLA,
   CHAIN_ID_SEI,
   CHAIN_ID_BTC,
+  CHAIN_ID_COSMOSHUB,
+  CHAIN_ID_EVMOS,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -120,6 +122,10 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("uint8ArrayToNative: Osmosis not supported yet.");
+  } else if (chainId === CHAIN_ID_COSMOSHUB) {
+    throw Error("uint8ArrayToNative: CosmosHub not supported yet.");
+  } else if (chainId === CHAIN_ID_EVMOS) {
+    throw Error("uint8ArrayToNative: Evmos not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -257,6 +263,10 @@ export const tryNativeToHexString = (
     return uint8ArrayToHex(arrayify(sha256(Buffer.from(address))));
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
+  } else if (chainId === CHAIN_ID_COSMOSHUB) {
+    throw Error("uint8ArrayToNative: CosmosHub not supported yet.");
+  } else if (chainId === CHAIN_ID_EVMOS) {
+    throw Error("uint8ArrayToNative: Evmos not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     if (!isValidSuiType(address) && isValidSuiAddress(address)) {
       return uint8ArrayToHex(
