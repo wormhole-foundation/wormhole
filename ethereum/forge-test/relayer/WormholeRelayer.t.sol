@@ -1334,6 +1334,9 @@ LocalNative forwardDeliveryCost;
         RedeliveryInstruction memory decodedInstruction;
         (payloadId, index) = data.asUint8(index);
         assertTrue(payloadId == 2, "Is a redelivery instruction");
+        uint8 vaaKeyType;
+        (vaaKeyType, index) = data.asUint8(index);
+        assertTrue(vaaKeyType == 1, "Is a vaa key");
         index = checkVaaKey(data, index, expectedInstruction.deliveryVaaKey);
         (decodedInstruction.targetChain, index) = data.asUint16(index);
         assertTrue(
@@ -2062,6 +2065,16 @@ LocalNative forwardDeliveryCost;
         MessageKey memory messageKey = MessageKey({
             keyType: VAA_KEY_TYPE,
             encodedKey: WormholeRelayerSerde.encodeVaaKey(vaaKey)
+        });
+
+        (MessageKey memory newMessageKey,) = WormholeRelayerSerde.decodeMessageKey(WormholeRelayerSerde.encodeMessageKey(messageKey), 0);
+        checkMessageKey(WormholeRelayerSerde.encodeMessageKey(newMessageKey), 0, messageKey);
+    }
+
+    function testEncodeAndDecodeMessageKeyDifferentType() public {
+        MessageKey memory messageKey = MessageKey({
+            keyType: VAA_KEY_TYPE,
+            encodedKey: bytes("my USDC transfer")
         });
 
         (MessageKey memory newMessageKey,) = WormholeRelayerSerde.decodeMessageKey(WormholeRelayerSerde.encodeMessageKey(messageKey), 0);
