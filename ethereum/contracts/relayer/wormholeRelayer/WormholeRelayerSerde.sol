@@ -100,7 +100,7 @@ library WormholeRelayerSerde {
         pure
         returns (bytes memory encoded)
     {
-        bytes memory vaaKey = encodeVaaKey(strct.deliveryVaaKey);
+        bytes memory vaaKey = abi.encodePacked(VAA_KEY_TYPE, encodeVaaKey(strct.deliveryVaaKey));
         encoded = abi.encodePacked(
             PAYLOAD_ID_REDELIVERY_INSTRUCTION,
             vaaKey,
@@ -120,7 +120,7 @@ library WormholeRelayerSerde {
         uint256 offset = checkUint8(encoded, 0, PAYLOAD_ID_REDELIVERY_INSTRUCTION);
 
         uint256 newRequestedReceiverValue;
-
+        offset = checkUint8(encoded, offset, VAA_KEY_TYPE);
         (strct.deliveryVaaKey, offset) = decodeVaaKey(encoded, offset);
         (strct.targetChain, offset) = encoded.asUint16Unchecked(offset);
         (newRequestedReceiverValue, offset) = encoded.asUint256Unchecked(offset);
