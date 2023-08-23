@@ -998,6 +998,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
 
+	wormchainId := "wormchain"
+	if *testnetMode {
+		wormchainId = "wormchain-testnet-0"
+	}
+
 	var accountantWormchainConn *wormconn.ClientConn
 	if *accountantContract != "" {
 		// TODO: wormchainKeyPath and wormchainKeyPassPhrase are being replaced by accountantKeyPath and accountantKeyPassPhrase.
@@ -1040,7 +1045,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Connect to wormchain.
 		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
+		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gacct"))
 		}
@@ -1074,7 +1079,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
-		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
+		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}

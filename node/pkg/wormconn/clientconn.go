@@ -29,11 +29,12 @@ type ClientConn struct {
 	encCfg        EncodingConfig
 	privateKey    cryptotypes.PrivKey
 	senderAddress string
+	chainId       string
 	mutex         sync.Mutex // Protects the account / sequence number
 }
 
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
-func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey) (*ClientConn, error) {
+func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey, chainId string) (*ClientConn, error) {
 	c, err := grpc.DialContext(
 		ctx,
 		target,
@@ -50,7 +51,7 @@ func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey)
 		return nil, err
 	}
 
-	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, senderAddress: senderAddress}, nil
+	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, senderAddress: senderAddress, chainId: chainId}, nil
 }
 
 func (c *ClientConn) SenderAddress() string {
