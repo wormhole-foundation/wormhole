@@ -7,50 +7,45 @@ pub use wrapped::*;
 use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
-use core_bridge_program::{
-    constants::SOLANA_CHAIN,
-    state::{PartialPostedVaaV1, VaaV1Account},
-};
+use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1};
+use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, Transfer};
 
-pub fn validate_token_transfer<'ctx, 'info>(
-    vaa: &'ctx Account<'info, PartialPostedVaaV1>,
-    registered_emitter: &'ctx Account<'info, RegisteredEmitter>,
-    recipient_token: &'ctx Account<'info, TokenAccount>,
-) -> Result<(u16, [u8; 32])> {
-    let acc_info: &AccountInfo<'info> = vaa.as_ref();
-    let acc_data = acc_info.try_borrow_data()?;
-    let msg = crate::utils::require_valid_token_bridge_posted_vaa(
-        vaa.details(),
-        &acc_data,
-        registered_emitter,
-    )?;
+pub fn validate_posted_token_transfer<'ctx>(
+    vaa_acc_key: &'ctx Pubkey,
+    vaa_acc_data: &'ctx [u8],
+    registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
+    recipient_token: &'ctx Account<'_, TokenAccount>,
+) -> Result<Transfer<'ctx>> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let msg =
+        crate::utils::require_valid_posted_token_bridge_vaa(vaa_acc_key, &vaa, registered_emitter)?;
 
-    match msg.transfer() {
-        Some(transfer) => {
-            // This token bridge transfer must be intended to be redeemed on Solana.
-            require_eq!(
-                transfer.recipient_chain(),
-                SOLANA_CHAIN,
-                TokenBridgeError::RecipientChainNotSolana
-            );
+    let transfer = match msg {
+        TokenBridgeMessage::Transfer(inner) => inner,
+        _ => return err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    };
 
-            // The encoded transfer recipient can either be a token account or the owner of the
-            // token account passed into this account context.
-            //
-            // NOTE: Allowing the encoded transfer recipient to be the token account's owner is a
-            // patch.
-            let recipient = Pubkey::from(transfer.recipient());
-            if recipient != recipient_token.key() {
-                require_keys_eq!(
-                    recipient_token.owner,
-                    recipient,
-                    ErrorCode::ConstraintTokenOwner
-                );
-            }
+    // This token bridge transfer must be intended to be redeemed on Solana.
+    require_eq!(
+        transfer.recipient_chain(),
+        SOLANA_CHAIN,
+        TokenBridgeError::RecipientChainNotSolana
+    );
 
-            // Done.
-            Ok((transfer.token_chain(), transfer.token_address()))
-        }
-        None => err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    // The encoded transfer recipient can either be a token account or the owner of the
+    // token account passed into this account context.
+    //
+    // NOTE: Allowing the encoded transfer recipient to be the token account's owner is a
+    // patch.
+    let recipient = Pubkey::from(transfer.recipient());
+    if recipient != recipient_token.key() {
+        require_keys_eq!(
+            recipient_token.owner,
+            recipient,
+            ErrorCode::ConstraintTokenOwner
+        );
     }
+
+    // Done.
+    Ok(transfer)
 }

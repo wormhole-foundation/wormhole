@@ -6,12 +6,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::{metadata, token};
-use core_bridge_program::{
-    self,
-    constants::SOLANA_CHAIN,
-    state::{PartialPostedVaaV1, VaaV1Account},
-    CoreBridge,
-};
+use core_bridge_program::{self, constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
 use mpl_token_metadata::state::DataV2;
 use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
 use wormhole_solana_common::SeedPrefix;
@@ -34,24 +29,25 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
     registered_emitter: Account<'info, RegisteredEmitter>,
 
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
-        seeds::program = core_bridge_program,
+        seeds::program = core_bridge_program
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
@@ -64,12 +60,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        mint::decimals = try_attestation_decimals(&posted_vaa)?,
+        mint::decimals = try_attestation_decimals(&posted_vaa.try_borrow_data()?)?,
         mint::authority = mint_authority,
         seeds = [
             WRAPPED_MINT_SEED_PREFIX,
-            &try_attestation_token_chain(&posted_vaa)?.to_be_bytes(),
-            try_attestation_token_address(&posted_vaa)?.as_ref(),
+            &try_attestation_token_chain(&posted_vaa.try_borrow_data()?)?.to_be_bytes(),
+            try_attestation_token_address(&posted_vaa.try_borrow_data()?)?.as_ref(),
         ],
         bump,
     )]
@@ -116,64 +112,53 @@ pub struct CreateOrUpdateWrapped<'info> {
     mpl_token_metadata_program: Program<'info, metadata::Metadata>,
 }
 
-fn try_attestation_decimals(posted_vaa: &Account<'_, PartialPostedVaaV1>) -> Result<u8> {
-    let acc_info: &AccountInfo = posted_vaa.as_ref();
-    let data = &acc_info.try_borrow_data()?[PartialPostedVaaV1::PAYLOAD_START..];
-    let msg =
-        TokenBridgeMessage::parse(data).map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-    match msg.attestation() {
-        Some(attestation) => Ok(cap_decimals(attestation.decimals())),
-        None => err!(TokenBridgeError::InvalidTokenBridgeVaa),
-    }
+fn try_attestation_decimals(vaa_acc_data: &[u8]) -> Result<u8> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let msg = TokenBridgeMessage::parse(vaa.payload())
+        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
+    msg.attestation()
+        .map(|attestation| cap_decimals(attestation.decimals()))
+        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
 
-fn try_attestation_token_chain(posted_vaa: &Account<'_, PartialPostedVaaV1>) -> Result<u16> {
-    let acc_info: &AccountInfo = posted_vaa.as_ref();
-    let data = &acc_info.try_borrow_data()?[PartialPostedVaaV1::PAYLOAD_START..];
-    let msg =
-        TokenBridgeMessage::parse(data).map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-    match msg.attestation() {
-        Some(attestation) => {
-            let token_chain = attestation.token_chain();
+fn try_attestation_token_chain(vaa_acc_data: &[u8]) -> Result<u16> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let msg = TokenBridgeMessage::parse(vaa.payload())
+        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
 
-            // This token must have originated from another network.
-            require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+    let token_chain = msg
+        .attestation()
+        .map(|attestation| attestation.token_chain())
+        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))?;
 
-            // Done.
-            Ok(attestation.token_chain())
-        }
-        None => err!(TokenBridgeError::InvalidTokenBridgeVaa),
-    }
+    // This token must have originated from another network.
+    require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+
+    // Done.
+    Ok(token_chain)
 }
 
-fn try_attestation_token_address(posted_vaa: &Account<'_, PartialPostedVaaV1>) -> Result<[u8; 32]> {
-    let acc_info: &AccountInfo = posted_vaa.as_ref();
-    let data = &acc_info.try_borrow_data()?[PartialPostedVaaV1::PAYLOAD_START..];
-    let msg =
-        TokenBridgeMessage::parse(data).map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-    match msg.attestation() {
-        Some(attestation) => Ok(attestation.token_address()),
-        None => err!(TokenBridgeError::InvalidTokenBridgeVaa),
-    }
+fn try_attestation_token_address(vaa_acc_data: &[u8]) -> Result<[u8; 32]> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let msg = TokenBridgeMessage::parse(vaa.payload())
+        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
+    msg.attestation()
+        .map(|attestation| attestation.token_address())
+        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
 
 impl<'info> CreateOrUpdateWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa = &ctx.accounts.posted_vaa;
 
-        let acc_info: &AccountInfo = vaa.as_ref();
-        let acc_data = &acc_info.try_borrow_data()?;
-        crate::utils::require_valid_token_bridge_posted_vaa(
-            vaa.details(),
-            acc_data,
-            &ctx.accounts.registered_emitter,
-        )?;
-
         // NOTE: Other attestation validation is performed using the try_attestation_* methods,
         // which were used in the accounts context.
-
-        // Done.
-        Ok(())
+        crate::utils::require_valid_posted_token_bridge_vaa(
+            &vaa.key(),
+            &PostedVaaV1::parse(&vaa.data.borrow()).unwrap(),
+            &ctx.accounts.registered_emitter,
+        )
+        .map(|_| ())
     }
 }
 
@@ -195,10 +180,9 @@ pub fn create_or_update_wrapped(
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let acc_data = &acc_info.data.borrow();
-
-    let msg = crate::utils::parse_token_bridge_message(acc_data).unwrap();
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
     let (symbol, name) = fix_symbol_and_name(attestation);
@@ -249,10 +233,11 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let data = &acc_info.data.borrow()[PartialPostedVaaV1::PAYLOAD_START..];
-    let msg = TokenBridgeMessage::parse(data).unwrap();
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
+
     let (symbol, name) = fix_symbol_and_name(attestation);
 
     // Deserialize token metadata so we can check whether the name or symbol have changed in

@@ -6,7 +6,15 @@ use crate::{
 };
 use anchor_lang::{prelude::*, Discriminator};
 
-use super::ProcessingStatus;
+#[derive(
+    Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
+)]
+pub enum ProcessingStatus {
+    #[default]
+    Unset,
+    Writing,
+    Verified,
+}
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct Header {
@@ -23,7 +31,10 @@ pub struct EncodedVaa {
 }
 
 impl EncodedVaa {
-    pub(crate) const BYTES_START: usize = super::VAA_BUF_START;
+    pub(crate) const BYTES_START: usize = 8 // DISCRIMINATOR
+        + crate::state::Header::INIT_SPACE
+        + 4 // bytes.len()
+    ;
 
     pub fn payload_size(&self) -> Result<usize> {
         match self.version {

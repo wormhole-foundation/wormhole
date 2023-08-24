@@ -9,13 +9,10 @@ pub use transfer_fees::*;
 
 mod upgrade_contract;
 pub use upgrade_contract::*;
-use wormhole_raw_vaas::core::CoreBridgeGovPayload;
+use wormhole_raw_vaas::core::{CoreBridgeDecree, CoreBridgeGovPayload};
 
 use crate::{
-    constants::SOLANA_CHAIN,
-    error::CoreBridgeError,
-    legacy::state::VaaAccountDetails,
-    state::{Config, PartialPostedVaaV1},
+    constants::SOLANA_CHAIN, error::CoreBridgeError, state::Config, zero_copy::PostedVaaV1,
 };
 use anchor_lang::prelude::*;
 
@@ -23,35 +20,25 @@ pub const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
 ];
 
-pub fn require_valid_governance_posted_vaa<'ctx>(
-    vaa_details: VaaAccountDetails,
+pub fn require_valid_posted_governance_vaa<'ctx>(
     vaa_acc_data: &'ctx [u8],
-    guardian_set_index: u32,
     config: &'ctx Config,
-) -> Result<CoreBridgeGovPayload<'ctx>> {
-    let VaaAccountDetails {
-        key: _,
-        emitter_chain,
-        emitter_address,
-        sequence: _,
-    } = vaa_details;
+) -> Result<CoreBridgeDecree<'ctx>> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
 
     // For the Core Bridge, we require that the current guardian set is used to sign this VAA.
     require_eq!(
         config.guardian_set_index,
-        guardian_set_index,
+        vaa.guardian_set_index(),
         CoreBridgeError::LatestGuardianSetRequired
     );
 
     require!(
-        emitter_chain == SOLANA_CHAIN && emitter_address == GOVERNANCE_EMITTER,
+        vaa.emitter_chain() == SOLANA_CHAIN && vaa.emitter_address() == GOVERNANCE_EMITTER,
         CoreBridgeError::InvalidGovernanceEmitter
     );
 
-    parse_gov_payload(vaa_acc_data)
-}
-
-pub fn parse_gov_payload(vaa_acc_data: &[u8]) -> Result<CoreBridgeGovPayload<'_>> {
-    CoreBridgeGovPayload::parse(&vaa_acc_data[PartialPostedVaaV1::PAYLOAD_START..])
-        .map_err(|_| CoreBridgeError::InvalidGovernanceVaa.into())
+    CoreBridgeGovPayload::parse(vaa.payload())
+        .map(|msg| msg.decree())
+        .map_err(|_| error!(CoreBridgeError::InvalidGovernanceVaa))
 }

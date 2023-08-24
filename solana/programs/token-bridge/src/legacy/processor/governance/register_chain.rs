@@ -4,10 +4,8 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    state::{PartialPostedVaaV1, VaaV1Account},
-    CoreBridge,
-};
+use core_bridge_program::{zero_copy::PostedVaaV1, CoreBridge};
+use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
@@ -29,31 +27,32 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [
-            try_new_foreign_chain(posted_vaa.as_ref())?.as_ref(),
-            try_new_foreign_emitter(posted_vaa.as_ref())?.as_ref(),
+            try_decree_foreign_chain(&posted_vaa.try_borrow_data()?)?.to_be_bytes().as_ref(),
+            try_decree_foreign_emitter(&posted_vaa.try_borrow_data()?)?.as_ref(),
         ],
         bump,
     )]
     registered_emitter: Account<'info, RegisteredEmitter>,
 
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
         seeds::program = core_bridge_program,
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
@@ -69,9 +68,7 @@ pub struct RegisterChain<'info> {
 impl<'info> RegisterChain<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa = &ctx.accounts.posted_vaa;
-        let acc_info: &AccountInfo = vaa.as_ref();
-        super::require_valid_governance_posted_vaa(vaa.details(), &acc_info.data.borrow())
-            .map(|_| ())
+        super::require_valid_posted_governance_vaa(&vaa.key(), &vaa.data.borrow()).map(|_| ())
     }
 }
 
@@ -80,10 +77,11 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let acc_data = acc_info.data.borrow();
-
-    let gov_payload = super::parse_acc_data(&acc_data).unwrap().decree();
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let gov_payload = TokenBridgeGovPayload::parse(vaa.payload())
+        .unwrap()
+        .decree();
     let register_chain = gov_payload.register_chain().unwrap();
 
     ctx.accounts
@@ -97,20 +95,26 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
     Ok(())
 }
 
-fn try_new_foreign_chain(acc_info: &AccountInfo) -> Result<[u8; 2]> {
-    let acc_data = &acc_info.try_borrow_data()?;
-    let gov_payload = super::parse_acc_data(acc_data)?;
-    match gov_payload.decree().register_chain() {
-        Some(decree) => Ok(decree.foreign_chain().to_be_bytes()),
-        None => err!(TokenBridgeError::InvalidGovernanceAction),
-    }
+fn try_decree_foreign_chain(vaa_acc_data: &[u8]) -> Result<u16> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let gov_payload = TokenBridgeGovPayload::parse(vaa.payload())
+        .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
+
+    gov_payload
+        .decree()
+        .register_chain()
+        .map(|decree| decree.foreign_chain())
+        .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
 }
 
-fn try_new_foreign_emitter(acc_info: &AccountInfo) -> Result<[u8; 32]> {
-    let acc_data = &acc_info.try_borrow_data()?;
-    let gov_payload = super::parse_acc_data(acc_data)?;
-    match gov_payload.decree().register_chain() {
-        Some(decree) => Ok(decree.foreign_emitter()),
-        None => err!(TokenBridgeError::InvalidGovernanceAction),
-    }
+fn try_decree_foreign_emitter(vaa_acc_data: &[u8]) -> Result<[u8; 32]> {
+    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+    let gov_payload = TokenBridgeGovPayload::parse(vaa.payload())
+        .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
+
+    gov_payload
+        .decree()
+        .register_chain()
+        .map(|decree| decree.foreign_emitter())
+        .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
 }

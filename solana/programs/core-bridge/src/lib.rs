@@ -26,6 +26,8 @@ pub mod types;
 
 pub mod utils;
 
+pub mod zero_copy;
+
 #[cfg(feature = "cpi")]
 pub use legacy::cpi::*;
 

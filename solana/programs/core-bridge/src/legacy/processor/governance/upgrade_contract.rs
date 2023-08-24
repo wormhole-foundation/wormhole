@@ -2,7 +2,8 @@ use crate::{
     constants::{SOLANA_CHAIN, UPGRADE_SEED_PREFIX},
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, PartialPostedVaaV1, VaaV1Account},
+    state::{Claim, Config},
+    zero_copy::PostedVaaV1,
 };
 use anchor_lang::prelude::*;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
@@ -20,23 +21,24 @@ pub struct UpgradeContract<'info> {
     )]
     config: Account<'info, Config>,
 
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
@@ -78,38 +80,29 @@ pub struct UpgradeContract<'info> {
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = &ctx.accounts.posted_vaa;
+        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
+        let gov_payload =
+            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let acc_data = acc_info.try_borrow_data()?;
+        let decree = gov_payload
+            .contract_upgrade()
+            .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
 
-        let gov_payload = super::require_valid_governance_posted_vaa(
-            vaa.details(),
-            &acc_data,
-            vaa.guardian_set_index,
-            &ctx.accounts.config,
-        )?;
+        require_eq!(
+            decree.chain(),
+            SOLANA_CHAIN,
+            CoreBridgeError::GovernanceForAnotherChain
+        );
 
-        match gov_payload.decree().contract_upgrade() {
-            Some(decree) => {
-                require_eq!(
-                    decree.chain(),
-                    SOLANA_CHAIN,
-                    CoreBridgeError::GovernanceForAnotherChain
-                );
+        // Read the implementation pubkey and check against the buffer in our account context.
+        require_keys_eq!(
+            Pubkey::from(decree.implementation()),
+            ctx.accounts.buffer.key(),
+            CoreBridgeError::ImplementationMismatch
+        );
 
-                // Read the implementation pubkey and check against the buffer in our account context.
-                require_keys_eq!(
-                    Pubkey::from(decree.implementation()),
-                    ctx.accounts.buffer.key(),
-                    CoreBridgeError::ImplementationMismatch
-                );
-
-                // Done.
-                Ok(())
-            }
-            None => err!(CoreBridgeError::InvalidGovernanceAction),
-        }
+        // Done.
+        Ok(())
     }
 }
 

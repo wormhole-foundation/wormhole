@@ -1,6 +1,5 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
-use core_bridge_program::state::{PartialPostedVaaV1, VaaAccountDetails};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
@@ -24,19 +23,15 @@ pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
     Ok(())
 }
 
-pub fn require_valid_token_bridge_posted_vaa<'ctx>(
-    details: VaaAccountDetails,
-    vaa_acc_data: &'ctx [u8],
+pub fn require_valid_posted_token_bridge_vaa<'ctx>(
+    vaa_acc_key: &Pubkey,
+    vaa: &core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
-    let VaaAccountDetails {
-        key,
-        emitter_chain,
-        emitter_address,
-        sequence: _,
-    } = details;
-    require_valid_posted_vaa_key(&key)?;
+    require_valid_posted_vaa_key(vaa_acc_key)?;
 
+    let emitter_chain = vaa.emitter_chain();
+    let emitter_address = vaa.emitter_address();
     let emitter_key = registered_emitter.key();
 
     // Validate registered emitter PDA address.
@@ -63,10 +58,6 @@ pub fn require_valid_token_bridge_posted_vaa<'ctx>(
         );
     }
 
-    parse_token_bridge_message(vaa_acc_data)
-}
-
-pub fn parse_token_bridge_message(vaa_acc_data: &[u8]) -> Result<TokenBridgeMessage<'_>> {
-    TokenBridgeMessage::parse(&vaa_acc_data[PartialPostedVaaV1::PAYLOAD_START..])
-        .map_err(|_| TokenBridgeError::CannotParseMessage.into())
+    TokenBridgeMessage::parse(vaa.payload())
+        .map_err(|_| error!(TokenBridgeError::CannotParseMessage))
 }
