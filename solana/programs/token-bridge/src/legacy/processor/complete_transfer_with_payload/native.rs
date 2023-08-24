@@ -7,11 +7,8 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use core_bridge_program::{
-    constants::SOLANA_CHAIN,
-    state::{PartialPostedVaaV1, VaaV1Account},
-    CoreBridge,
-};
+use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
@@ -22,24 +19,25 @@ pub struct CompleteTransferWithPayloadNative<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
         seeds::program = core_bridge_program
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
@@ -99,20 +97,28 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
-        let (token_chain, token_address) = super::validate_token_transfer_with_payload(
-            &ctx.accounts.posted_vaa,
+        let vaa = &ctx.accounts.posted_vaa;
+        let vaa_key = vaa.key();
+        let acc_data = vaa.try_borrow_data()?;
+        let transfer = super::validate_posted_token_transfer_with_payload(
+            &vaa_key,
+            &acc_data,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
             &ctx.accounts.recipient_token,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
-        require_eq!(token_chain, SOLANA_CHAIN, TokenBridgeError::WrappedAsset);
+        require_eq!(
+            transfer.token_chain(),
+            SOLANA_CHAIN,
+            TokenBridgeError::WrappedAsset
+        );
 
         // Mint account must agree with the encoded token address.
         require_eq!(
             ctx.accounts.mint.key(),
-            Pubkey::from(token_address),
+            Pubkey::from(transfer.token_address()),
             TokenBridgeError::InvalidMint
         );
 
@@ -129,12 +135,12 @@ pub fn complete_transfer_with_payload_native(
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let acc_data = &acc_info.data.borrow();
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
 
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
-    let transfer_amount = crate::utils::parse_token_bridge_message(acc_data)
+    let transfer_amount = TokenBridgeMessage::parse(vaa.payload())
         .unwrap()
         .transfer_with_message()
         .unwrap()

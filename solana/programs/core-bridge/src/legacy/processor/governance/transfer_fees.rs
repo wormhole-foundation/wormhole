@@ -2,13 +2,15 @@ use crate::{
     constants::SOLANA_CHAIN,
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, FeeCollector, PartialPostedVaaV1, VaaV1Account},
+    state::{Claim, Config, FeeCollector},
+    zero_copy::PostedVaaV1,
 };
 use anchor_lang::{
     prelude::*,
     system_program::{self, Transfer},
 };
 use ruint::aliases::U256;
+use wormhole_raw_vaas::core::CoreBridgeGovPayload;
 use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
@@ -23,23 +25,24 @@ pub struct TransferFees<'info> {
     )]
     config: Account<'info, Config>,
 
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
         seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
+            PostedVaaV1::SEED_PREFIX,
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump
     )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    posted_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes()
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
         ],
         bump,
     )]
@@ -64,55 +67,46 @@ pub struct TransferFees<'info> {
 
 impl<'info> TransferFees<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = &ctx.accounts.posted_vaa;
+        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
+        let gov_payload =
+            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
 
-        let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-        let acc_data = acc_info.try_borrow_data()?;
+        let decree = gov_payload
+            .transfer_fees()
+            .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
 
-        let gov_payload = super::require_valid_governance_posted_vaa(
-            vaa.details(),
-            &acc_data,
-            vaa.guardian_set_index,
-            &ctx.accounts.config,
-        )?;
+        require_eq!(
+            decree.chain(),
+            SOLANA_CHAIN,
+            CoreBridgeError::GovernanceForAnotherChain
+        );
 
-        match gov_payload.decree().transfer_fees() {
-            Some(decree) => {
-                require_eq!(
-                    decree.chain(),
-                    SOLANA_CHAIN,
-                    CoreBridgeError::GovernanceForAnotherChain
-                );
+        let amount = U256::from_be_bytes(decree.amount());
+        require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
 
-                let amount = U256::from_be_bytes(decree.amount());
-                require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
+        require_keys_eq!(
+            ctx.accounts.recipient.key(),
+            Pubkey::from(decree.recipient()),
+            CoreBridgeError::InvalidFeeRecipient
+        );
 
-                require_keys_eq!(
-                    ctx.accounts.recipient.key(),
-                    Pubkey::from(decree.recipient()),
-                    CoreBridgeError::InvalidFeeRecipient
-                );
+        let (data_len, lamports) = {
+            let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
+            (fee_collector.data_len(), fee_collector.lamports())
+        };
 
-                let fee_collector: &AccountInfo = ctx.accounts.fee_collector.as_ref();
+        // We cannot remove more than what is required to be rent exempt. We prefer to abort
+        // here rather than abort when we attempt the transfer (since the transfer will fail if
+        // the lamports in the fee collector account drops below being rent exempt).
+        let required_rent = Rent::get().map(|rent| rent.minimum_balance(data_len))?;
+        require_gte!(
+            lamports.saturating_sub(to_u64_unchecked(&amount)),
+            required_rent,
+            CoreBridgeError::NotEnoughLamports
+        );
 
-                // We cannot remove more than what is required to be rent exempt. We prefer to abort
-                // here rather than abort when we attempt the transfer (since the transfer will fail if
-                // the lamports in the fee collector account drops below being rent exempt).
-                let required_rent =
-                    Rent::get().map(|rent| rent.minimum_balance(fee_collector.data_len()))?;
-                require_gte!(
-                    fee_collector
-                        .lamports()
-                        .saturating_sub(to_u64_unchecked(&amount)),
-                    required_rent,
-                    CoreBridgeError::NotEnoughLamports
-                );
-
-                // Done.
-                Ok(())
-            }
-            None => err!(CoreBridgeError::InvalidGovernanceAction),
-        }
+        // Done.
+        Ok(())
     }
 }
 
@@ -121,19 +115,13 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
-    let acc_data = acc_info.data.borrow();
+    let acc_data = ctx.accounts.posted_vaa.data.borrow();
+    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
 
-    let amount = U256::from_be_bytes(
-        super::parse_gov_payload(&acc_data)
-            .unwrap()
-            .decree()
-            .transfer_fees()
-            .unwrap()
-            .amount(),
-    );
+    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
+    let decree = gov_payload.transfer_fees().unwrap();
 
-    let fee_collector: &AccountInfo = ctx.accounts.fee_collector.as_ref();
+    let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
 
     // Finally transfer collected fees to recipient.
     //
@@ -148,7 +136,7 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
             },
             &[&[FeeCollector::SEED_PREFIX, &[ctx.bumps["fee_collector"]]]],
         ),
-        to_u64_unchecked(&amount),
+        to_u64_unchecked(&U256::from_be_bytes(decree.amount())),
     )?;
 
     // Set the config program data to reflect removing collected fees.
@@ -158,6 +146,7 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
     Ok(())
 }
 
+/// Uint encodes limbs in little endian, so we will take the first u64 value.
 fn to_u64_unchecked(value: &U256) -> u64 {
     value.as_limbs()[0]
 }

@@ -1,13 +1,14 @@
-use crate::{error::CoreBridgeError, types::VaaVersion};
-use anchor_lang::prelude::{err, require, AnchorDeserialize, ErrorCode, Pubkey, Result};
+use crate::{error::CoreBridgeError, state, types::VaaVersion};
+use anchor_lang::{
+    prelude::{require, AnchorDeserialize, ErrorCode, Pubkey, Result},
+    Discriminator,
+};
 use wormhole_raw_vaas::Vaa;
 
-use super::ProcessingStatus;
+pub struct EncodedVaa<'a>(&'a [u8]);
 
-pub struct ZeroCopyEncodedVaa<'a>(&'a [u8]);
-
-impl<'a> ZeroCopyEncodedVaa<'a> {
-    pub fn status(&self) -> ProcessingStatus {
+impl<'a> EncodedVaa<'a> {
+    pub fn status(&self) -> state::ProcessingStatus {
         let mut buf = &self.0[..1];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
@@ -27,24 +28,25 @@ impl<'a> ZeroCopyEncodedVaa<'a> {
             self.version() == VaaVersion::V1,
             CoreBridgeError::InvalidVaaVersion
         );
-        Ok(Vaa::parse(&self.0[super::VAA_BUF_START..]).unwrap())
+        Ok(Vaa::parse(&self.0[state::EncodedVaa::BYTES_START..]).unwrap())
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        if span.len() < 8 {
-            return err!(ErrorCode::AccountDiscriminatorNotFound);
-        }
+        const DISC_LEN: usize = state::EncodedVaa::DISCRIMINATOR.len();
 
         require!(
-            super::DISCRIMINATOR == span[..8],
+            span.len() > DISC_LEN,
+            ErrorCode::AccountDiscriminatorNotFound
+        );
+        require!(
+            state::EncodedVaa::DISCRIMINATOR == span[..DISC_LEN],
             ErrorCode::AccountDiscriminatorMismatch
         );
 
-        Ok(Self(&span[8..]))
+        Ok(Self(&span[DISC_LEN..]))
     }
 
     pub fn try_v1(span: &'a [u8]) -> Result<Vaa<'a>> {
-        let acc = Self::parse(span)?;
-        acc.v1()
+        Self::parse(span)?.v1()
     }
 }

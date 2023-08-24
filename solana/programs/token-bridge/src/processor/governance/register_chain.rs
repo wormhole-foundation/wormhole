@@ -3,7 +3,7 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::state::ZeroCopyEncodedVaa;
+use core_bridge_program::zero_copy::EncodedVaa;
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 #[derive(Accounts)]
@@ -15,7 +15,7 @@ pub struct RegisterChain<'info> {
         init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
-        seeds = [try_decree_foreign_chain(&vaa)?.to_be_bytes().as_ref()],
+        seeds = [try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref()],
         bump,
     )]
     registered_emitter: Account<'info, RegisteredEmitter>,
@@ -31,8 +31,8 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [
-            try_decree_foreign_chain(&vaa)?.to_be_bytes().as_ref(),
-            try_decree_foreign_emitter(&vaa)?.as_ref(),
+            try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref(),
+            try_decree_foreign_emitter(&vaa.try_borrow_data()?)?.as_ref(),
         ],
         bump,
     )]
@@ -47,9 +47,9 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            ZeroCopyEncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_address().as_ref(),
-            &ZeroCopyEncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_chain().to_be_bytes(),
-            &ZeroCopyEncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().sequence().to_be_bytes(),
+            EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_address().as_ref(),
+            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_chain().to_be_bytes(),
+            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().sequence().to_be_bytes(),
         ],
         bump,
     )]
@@ -71,7 +71,7 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
 
     let acc_data = ctx.accounts.vaa.data.borrow();
 
-    let vaa = ZeroCopyEncodedVaa::parse(&acc_data).unwrap().v1().unwrap();
+    let vaa = EncodedVaa::parse(&acc_data).unwrap().v1().unwrap();
     let gov_payload = TokenBridgeGovPayload::try_from(vaa.payload())
         .unwrap()
         .decree();
@@ -88,9 +88,10 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     Ok(())
 }
 
-fn try_decree_foreign_chain(acc_info: &AccountInfo) -> Result<u16> {
-    let acc_data = &acc_info.try_borrow_data()?;
-    let gov_payload = super::parse_acc_data(acc_data)?;
+fn try_decree_foreign_chain(vaa_acc_data: &[u8]) -> Result<u16> {
+    let vaa = EncodedVaa::try_v1(vaa_acc_data)?;
+    let gov_payload = TokenBridgeGovPayload::try_from(vaa.body().payload())
+        .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
     gov_payload
         .decree()
         .register_chain()
@@ -98,9 +99,10 @@ fn try_decree_foreign_chain(acc_info: &AccountInfo) -> Result<u16> {
         .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
 }
 
-fn try_decree_foreign_emitter(acc_info: &AccountInfo) -> Result<[u8; 32]> {
-    let acc_data = acc_info.try_borrow_data()?;
-    let gov_payload = super::parse_acc_data(&acc_data)?;
+fn try_decree_foreign_emitter(vaa_acc_data: &[u8]) -> Result<[u8; 32]> {
+    let vaa = EncodedVaa::try_v1(vaa_acc_data)?;
+    let gov_payload = TokenBridgeGovPayload::try_from(vaa.body().payload())
+        .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
     gov_payload
         .decree()
         .register_chain()

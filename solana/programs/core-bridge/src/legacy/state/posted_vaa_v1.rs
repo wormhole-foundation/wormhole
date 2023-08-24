@@ -9,8 +9,8 @@ use solana_program::keccak;
 use wormhole_io::{Readable, Writeable};
 use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize, SeedPrefix};
 
-const SEED_PREFIX: &[u8] = b"PostedVAA";
-const LEGACY_DISCRIMINATOR: [u8; 4] = *b"vaa\x01";
+pub(crate) const POSTED_VAA_V1_SEED_PREFIX: &[u8] = b"PostedVAA";
+pub(crate) const POSTED_VAA_V1_DISCRIMINATOR: [u8; 4] = *b"vaa\x01";
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct PostedVaaV1Metadata {
@@ -45,22 +45,12 @@ pub struct PostedVaaV1Metadata {
     pub emitter_address: [u8; 32],
 }
 
-#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
-pub struct VaaAccountDetails {
-    pub key: Pubkey,
-    pub emitter_chain: u16,
-    pub emitter_address: [u8; 32],
-    pub sequence: u64,
-}
-
 pub trait VaaV1Account {
     /// Recompute the message hash, which can be used to derive the PostedVaa PDA address.
     ///
     /// NOTE: For a cheaper derivation, your instruction handler can take a message hash as an
     /// argument. But at the end of the day, re-hashing isn't that expensive.
     fn try_message_hash(&self) -> Result<keccak::Hash>;
-
-    fn details(&self) -> VaaAccountDetails;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -117,14 +107,14 @@ impl<P> SeedPrefix for PostedVaaV1<P>
 where
     P: Clone + Readable + Writeable,
 {
-    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
+    const SEED_PREFIX: &'static [u8] = POSTED_VAA_V1_SEED_PREFIX;
 }
 
 impl<P> LegacyDiscriminator<4> for PostedVaaV1<P>
 where
     P: Clone + Readable + Writeable,
 {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
+    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_VAA_V1_DISCRIMINATOR;
 }
 
 impl<'info, P> VaaV1Account for Account<'info, PostedVaaV1<P>>
@@ -144,15 +134,6 @@ where
             &[self.consistency_level],         // consistency_level
             &payload,                          // payload
         ]))
-    }
-
-    fn details(&self) -> VaaAccountDetails {
-        VaaAccountDetails {
-            key: self.key(),
-            emitter_chain: self.emitter_chain,
-            emitter_address: self.emitter_address,
-            sequence: self.sequence,
-        }
     }
 }
 
@@ -174,11 +155,11 @@ pub struct PostedVaaV1Bytes {
 }
 
 impl SeedPrefix for PostedVaaV1Bytes {
-    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
+    const SEED_PREFIX: &'static [u8] = POSTED_VAA_V1_SEED_PREFIX;
 }
 
 impl LegacyDiscriminator<4> for PostedVaaV1Bytes {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
+    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_VAA_V1_DISCRIMINATOR;
 }
 
 impl<'info> VaaV1Account for Account<'info, PostedVaaV1Bytes> {
@@ -192,15 +173,6 @@ impl<'info> VaaV1Account for Account<'info, PostedVaaV1Bytes> {
             &[self.consistency_level],         // consistency_level
             &self.payload,                     // payload
         ]))
-    }
-
-    fn details(&self) -> VaaAccountDetails {
-        VaaAccountDetails {
-            key: self.key(),
-            emitter_chain: self.emitter_chain,
-            emitter_address: self.emitter_address,
-            sequence: self.sequence,
-        }
     }
 }
 
@@ -218,64 +190,5 @@ impl NewAccountSize for PostedVaaV1Bytes {
         + PostedVaaV1Metadata::INIT_SPACE
         + 4 // payload.len()
         + payload_len
-    }
-}
-
-#[legacy_account]
-pub struct PartialPostedVaaV1 {
-    pub meta: PostedVaaV1Metadata,
-    pub payload_len: u32,
-}
-
-impl PartialPostedVaaV1 {
-    pub const PAYLOAD_START: usize = 4 + PostedVaaV1Metadata::INIT_SPACE + 4;
-}
-
-impl SeedPrefix for PartialPostedVaaV1 {
-    const SEED_PREFIX: &'static [u8] = SEED_PREFIX;
-}
-
-impl LegacyDiscriminator<4> for PartialPostedVaaV1 {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = LEGACY_DISCRIMINATOR;
-}
-
-impl Deref for PartialPostedVaaV1 {
-    type Target = PostedVaaV1Metadata;
-
-    fn deref(&self) -> &Self::Target {
-        &self.meta
-    }
-}
-
-impl<'info> VaaV1Account for Account<'info, PartialPostedVaaV1> {
-    fn try_message_hash(&self) -> Result<keccak::Hash> {
-        let acc_info: &AccountInfo = self.as_ref();
-        let data: &[u8] = &acc_info.try_borrow_data()?;
-
-        let timestamp = u32::from_le_bytes(data[5..9].try_into().unwrap()).to_be_bytes();
-        let nonce = u32::from_le_bytes(data[45..49].try_into().unwrap()).to_be_bytes();
-        let emitter_chain = u16::from_le_bytes(data[57..59].try_into().unwrap()).to_be_bytes();
-        let emitter_address = &data[59..91];
-        let sequence = u64::from_le_bytes(data[49..57].try_into().unwrap()).to_be_bytes();
-        let consistency_level = [data[4]];
-
-        Ok(keccak::hashv(&[
-            &timestamp,                                 // timestamp
-            &nonce,                                     // nonce
-            &emitter_chain,                             // emitter_chain
-            emitter_address,                            // emitter_address
-            &sequence,                                  // sequence
-            &consistency_level,                         // consistency_level
-            &data[PartialPostedVaaV1::PAYLOAD_START..], // payload
-        ]))
-    }
-
-    fn details(&self) -> VaaAccountDetails {
-        VaaAccountDetails {
-            key: self.key(),
-            emitter_chain: self.emitter_chain,
-            emitter_address: self.emitter_address,
-            sequence: self.sequence,
-        }
     }
 }
