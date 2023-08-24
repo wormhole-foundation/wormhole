@@ -1,22 +1,24 @@
 use crate::{
     error::TokenBridgeError,
-    legacy::instruction::EmptyArgs,
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    state::{PartialPostedVaaV1, VaaV1Account},
-    CoreBridge,
-};
-use wormhole_solana_common::SeedPrefix;
+use core_bridge_program::state::ZeroCopyEncodedVaa;
+use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 #[derive(Accounts)]
 pub struct RegisterChain<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Token Bridge never needed this account for this instruction.
-    _config: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = payer,
+        space = RegisteredEmitter::INIT_SPACE,
+        seeds = [try_new_foreign_chain(&vaa)?.as_ref()],
+        bump,
+    )]
+    registered_emitter: Account<'info, RegisteredEmitter>,
 
     /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
@@ -29,61 +31,60 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [
-            try_new_foreign_chain(posted_vaa.as_ref())?.as_ref(),
-            try_new_foreign_emitter(posted_vaa.as_ref())?.as_ref(),
+            try_new_foreign_chain(&vaa)?.as_ref(),
+            try_new_foreign_emitter(&vaa)?.as_ref(),
         ],
         bump,
     )]
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    legacy_registered_emitter: Account<'info, RegisteredEmitter>,
 
-    #[account(
-        seeds = [
-            PartialPostedVaaV1::SEED_PREFIX,
-            posted_vaa.try_message_hash()?.as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program,
-    )]
-    posted_vaa: Account<'info, PartialPostedVaaV1>,
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    #[account(owner = core_bridge_program::ID)]
+    vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            posted_vaa.emitter_address.as_ref(),
-            &posted_vaa.emitter_chain.to_be_bytes(),
-            &posted_vaa.sequence.to_be_bytes(),
+            ZeroCopyEncodedVaa::parse(&vaa.try_borrow_data()?)?.emitter_address()?.as_ref(),
+            &ZeroCopyEncodedVaa::parse(&vaa.try_borrow_data()?)?.emitter_chain()?.to_be_bytes(),
+            &ZeroCopyEncodedVaa::parse(&vaa.try_borrow_data()?)?.sequence()?.to_be_bytes(),
         ],
         bump,
     )]
     claim: Account<'info, Claim>,
 
-    /// CHECK: Previously needed sysvar.
-    _rent: UncheckedAccount<'info>,
-
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
 }
 
 impl<'info> RegisterChain<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = &ctx.accounts.posted_vaa;
-        let acc_info: &AccountInfo = vaa.as_ref();
-        super::require_valid_governance_posted_vaa(vaa.details(), &acc_info.data.borrow())
+        let acc_info = &ctx.accounts.vaa;
+        let acc_data = acc_info.data.borrow();
+        let gov_payload = super::require_valid_governance_encoded_vaa(&acc_data)?;
+
+        gov_payload
+            .decree()
+            .register_chain()
             .map(|_| ())
+            .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
     }
 }
 
 #[access_control(RegisterChain::constraints(&ctx))]
-pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<()> {
+pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
+    let acc_info: &AccountInfo = ctx.accounts.vaa.as_ref();
     let acc_data = acc_info.data.borrow();
 
-    let gov_payload = super::parse_acc_data(&acc_data).unwrap();
+    let vaa = ZeroCopyEncodedVaa::parse(&acc_data)
+        .unwrap()
+        .vaa_v1()
+        .unwrap();
+    let gov_payload = TokenBridgeGovPayload::try_from(vaa.payload()).unwrap();
     let register_chain = gov_payload.decree().register_chain().unwrap();
 
     ctx.accounts

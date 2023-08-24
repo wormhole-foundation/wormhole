@@ -222,7 +222,6 @@ impl NewAccountSize for PostedVaaV1Bytes {
 }
 
 #[legacy_account]
-#[derive(InitSpace)]
 pub struct PartialPostedVaaV1 {
     pub meta: PostedVaaV1Metadata,
     pub payload_len: u32,

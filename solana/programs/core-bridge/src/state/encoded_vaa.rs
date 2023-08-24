@@ -5,6 +5,7 @@ use crate::{
     types::{MessageHash, VaaVersion},
 };
 use anchor_lang::{prelude::*, Discriminator};
+use wormhole_raw_vaas::{Payload, Vaa};
 
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
@@ -92,4 +93,80 @@ impl Deref for EncodedVaa {
     fn deref(&self) -> &Self::Target {
         &self.header
     }
+}
+
+pub struct ZeroCopyEncodedVaa<'a>(&'a [u8]);
+
+impl<'a> ZeroCopyEncodedVaa<'a> {
+    pub fn status(&self) -> ProcessingStatus {
+        let mut buf = &self.0[..1];
+        AnchorDeserialize::deserialize(&mut buf).unwrap()
+    }
+
+    pub fn write_authority(&self) -> Pubkey {
+        let mut buf = &self.0[1..33];
+        AnchorDeserialize::deserialize(&mut buf).unwrap()
+    }
+
+    pub fn version(&self) -> VaaVersion {
+        let mut buf = &self.0[33..34];
+        AnchorDeserialize::deserialize(&mut buf).unwrap()
+    }
+
+    pub fn vaa_v1(&self) -> Result<Vaa<'a>> {
+        require!(
+            self.version() == VaaVersion::V1,
+            CoreBridgeError::InvalidVaaVersion
+        );
+        Ok(self.vaa_v1_unchecked())
+    }
+
+    fn vaa_v1_unchecked(&self) -> Vaa<'a> {
+        Vaa::parse(&self.0[EncodedVaa::BYTES_START..]).unwrap()
+    }
+
+    pub fn emitter_chain(&self) -> Result<u16> {
+        match self.version() {
+            VaaVersion::V1 => Ok(self.vaa_v1_unchecked().body().emitter_chain()),
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn emitter_address(&self) -> Result<[u8; 32]> {
+        match self.version() {
+            VaaVersion::V1 => Ok(self.vaa_v1_unchecked().body().emitter_address()),
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn sequence(&self) -> Result<u64> {
+        match self.version() {
+            VaaVersion::V1 => Ok(self.vaa_v1_unchecked().body().sequence()),
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn payload(&self) -> Result<Payload<'a>> {
+        match self.version() {
+            VaaVersion::V1 => Ok(self.vaa_v1_unchecked().body().payload()),
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn parse(span: &'a [u8]) -> Result<Self> {
+        if span.len() < 8 {
+            return err!(ErrorCode::AccountDiscriminatorNotFound);
+        }
+
+        require!(
+            Self::DISCRIMINATOR == span[..8],
+            ErrorCode::AccountDiscriminatorMismatch
+        );
+
+        Ok(Self(&span[8..]))
+    }
+}
+
+impl<'a> Discriminator for ZeroCopyEncodedVaa<'a> {
+    const DISCRIMINATOR: [u8; 8] = EncodedVaa::DISCRIMINATOR;
 }

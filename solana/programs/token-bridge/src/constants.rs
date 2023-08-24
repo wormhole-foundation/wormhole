@@ -26,3 +26,7 @@ pub const WRAPPED_MINT_SEED_PREFIX: &[u8] = b"wrapped";
 
 #[constant]
 pub const MAX_DECIMALS: u8 = 8;
+
+pub(crate) const GOVERNANCE_EMITTER: [u8; 32] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
+];
