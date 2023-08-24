@@ -62,8 +62,8 @@ func main() {
 
 	p2pNetworkID := "/wormhole/dev"
 	var p2pPort uint = 8998 // don't collide with spy so we can run from the same container in tilt
-	p2pBootstrap := "/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"
-	nodeKeyPath := "/tmp/querier.key" // don't use node key so we get a new address
+	p2pBootstrap := "/dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"
+	nodeKeyPath := "./querier.key"
 
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
@@ -146,29 +146,34 @@ func main() {
 		panic(err)
 	}
 
-	topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
+	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
+	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
-	logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+	logger.Info("Subscribing pubsub topic", zap.String("topic_req", topic_req), zap.String("topic_resp", topic_resp))
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		panic(err)
 	}
 
-	th, err := ps.Join(topic)
+	th_req, err := ps.Join(topic_req)
 	if err != nil {
-		logger.Panic("failed to join topic", zap.Error(err))
+		logger.Panic("failed to join request topic", zap.String("topic_req", topic_req), zap.Error(err))
 	}
 
-	sub, err := th.Subscribe()
+	th_resp, err := ps.Join(topic_resp)
 	if err != nil {
-		logger.Panic("failed to subscribe topic", zap.Error(err))
+		logger.Panic("failed to join response topic", zap.String("topic_resp", topic_resp), zap.Error(err))
+	}
+
+	sub, err := th_resp.Subscribe()
+	if err != nil {
+		logger.Panic("failed to subscribe to response topic", zap.Error(err))
 	}
 
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
-
 	// Wait for peers
-	for len(th.ListPeers()) < 1 {
+	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
 
@@ -183,7 +188,7 @@ func main() {
 
 	methods := []string{"name", "totalSupply"}
 	callData := []*query.EthCallData{}
-	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
+	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 
 	for _, method := range methods {
 		data, err := wethAbi.Pack(method)
@@ -198,7 +203,8 @@ func main() {
 	}
 
 	// Fetch the latest block number
-	url := "https://rpc.ankr.com/polygon"
+	//url := "https://localhost:8545"
+	url := "http://eth-devnet:8545"
 	logger.Info("Querying for latest block height", zap.String("url", url))
 	blockNum, err := utils.FetchLatestBlockNumberFromUrl(ctx, url)
 	if err != nil {
@@ -221,7 +227,7 @@ func main() {
 	// First request...
 	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
 	queryRequest := createQueryRequest(callRequest)
-	sendQueryAndGetRsp(queryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+	sendQueryAndGetRsp(queryRequest, sk, th_req, ctx, logger, sub, wethAbi, methods)
 
 	// This is just so that when I look at the output, it is easier for me. (Paul)
 	logger.Info("sleeping for 5 seconds")
@@ -235,20 +241,23 @@ func main() {
 	}
 	queryRequest2 := createQueryRequest(callRequest2)
 	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
-	sendQueryAndGetRsp(queryRequest2, sk, th, ctx, logger, sub, wethAbi, methods)
+	sendQueryAndGetRsp(queryRequest2, sk, th_req, ctx, logger, sub, wethAbi, methods)
 
 	// Now, want to send a single query with multiple requests...
 	logger.Info("Starting multiquery test in 5...")
 	time.Sleep(time.Second * 5)
 	multiCallRequest := []*query.EthCallQueryRequest{callRequest, callRequest2}
 	multQueryRequest := createQueryRequestWithMultipleRequests(multiCallRequest)
-	sendQueryAndGetRsp(multQueryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+	sendQueryAndGetRsp(multQueryRequest, sk, th_req, ctx, logger, sub, wethAbi, methods)
 
 	// Cleanly shutdown
 	// Without this the same host won't properly discover peers until some timeout
 	sub.Cancel()
-	if err := th.Close(); err != nil {
-		logger.Fatal("Error closing the topic", zap.Error(err))
+	if err := th_req.Close(); err != nil {
+		logger.Fatal("Error closing the request topic", zap.Error(err))
+	}
+	if err := th_resp.Close(); err != nil {
+		logger.Fatal("Error closing the response topic", zap.Error(err))
 	}
 	if err := h.Close(); err != nil {
 		logger.Fatal("Error closing the host", zap.Error(err))
@@ -270,7 +279,7 @@ func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequ
 		Nonce: rand.Uint32(),
 		PerChainQueries: []*query.PerChainQueryRequest{
 			{
-				ChainId: 5,
+				ChainId: 2,
 				Query:   callRequest,
 			},
 		},
@@ -282,7 +291,7 @@ func createQueryRequestWithMultipleRequests(callRequests []*query.EthCallQueryRe
 	perChainQueries := []*query.PerChainQueryRequest{}
 	for _, req := range callRequests {
 		perChainQueries = append(perChainQueries, &query.PerChainQueryRequest{
-			ChainId: 5,
+			ChainId: 2,
 			Query:   req,
 		})
 	}
