@@ -42,7 +42,13 @@ fn any_target() {
         .submit_vaas(vec![data])
         .expect("failed to submit chain registration");
 
-    let Action::RegisterChain { chain, emitter_address } = v.payload.action else { panic!() };
+    let Action::RegisterChain {
+        chain,
+        emitter_address,
+    } = v.payload.action
+    else {
+        panic!()
+    };
 
     resp.assert_event(
         &Event::new("wasm-RegisterChain")
@@ -67,7 +73,13 @@ fn wormchain_target() {
         .submit_vaas(vec![data])
         .expect("failed to submit chain registration");
 
-    let Action::RegisterChain { chain, emitter_address } = v.payload.action else { panic!() };
+    let Action::RegisterChain {
+        chain,
+        emitter_address,
+    } = v.payload.action
+    else {
+        panic!()
+    };
 
     resp.assert_event(
         &Event::new("wasm-RegisterChain")
