@@ -4,6 +4,8 @@ use crate::{constants::SOLANA_CHAIN, types::Timestamp};
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
 
+pub(crate) const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
+
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
     Unset,
@@ -104,7 +106,7 @@ impl PostedMessageV1 {
 }
 
 impl LegacyDiscriminator<4> for PostedMessageV1 {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
+    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
 }
 
 impl NewAccountSize for PostedMessageV1 {

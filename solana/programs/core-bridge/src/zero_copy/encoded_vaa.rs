@@ -39,7 +39,7 @@ impl<'a> EncodedVaa<'a> {
             ErrorCode::AccountDiscriminatorNotFound
         );
         require!(
-            state::EncodedVaa::DISCRIMINATOR == span[..DISC_LEN],
+            span[..DISC_LEN] == state::EncodedVaa::DISCRIMINATOR,
             ErrorCode::AccountDiscriminatorMismatch
         );
 

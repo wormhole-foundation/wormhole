@@ -111,17 +111,7 @@ pub fn process_legacy_instruction(
                 LegacyTransferTokensArgs
             )
         }
-        LegacyInstruction::RegisterChain => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyRegisterChain",
-                RegisterChain,
-                account_infos,
-                ix_data,
-                register_chain,
-                EmptyArgs
-            )
-        }
+        LegacyInstruction::RegisterChain => err!(ErrorCode::Deprecated),
         LegacyInstruction::CreateOrUpdateWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
