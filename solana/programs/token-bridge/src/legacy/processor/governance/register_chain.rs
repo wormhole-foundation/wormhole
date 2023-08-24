@@ -83,8 +83,8 @@ pub fn register_chain(ctx: Context<RegisterChain>, _args: EmptyArgs) -> Result<(
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
     let acc_data = acc_info.data.borrow();
 
-    let gov_payload = super::parse_acc_data(&acc_data).unwrap();
-    let register_chain = gov_payload.decree().register_chain().unwrap();
+    let gov_payload = super::parse_acc_data(&acc_data).unwrap().decree();
+    let register_chain = gov_payload.register_chain().unwrap();
 
     ctx.accounts
         .registered_emitter

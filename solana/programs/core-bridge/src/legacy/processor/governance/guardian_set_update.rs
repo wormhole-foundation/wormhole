@@ -120,8 +120,8 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
     let acc_info: &AccountInfo = ctx.accounts.posted_vaa.as_ref();
     let acc_data = acc_info.data.borrow();
 
-    let gov_payload = super::parse_gov_payload(&acc_data).unwrap();
-    let decree = gov_payload.decree().guardian_set_update().unwrap();
+    let gov_payload = super::parse_gov_payload(&acc_data).unwrap().decree();
+    let decree = gov_payload.guardian_set_update().unwrap();
 
     // Deserialize new guardian set.
     let keys: Vec<[u8; 20]> = (0..usize::from(decree.num_guardians()))

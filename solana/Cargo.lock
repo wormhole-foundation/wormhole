@@ -2258,15 +2258,15 @@ dependencies = [
 
 [[package]]
 name = "wormhole-io"
-version = "0.0.0-alpha.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f10d19b31847982f69ca5369dab46f8e62afe63366126bee31da8b9ceca1ee2"
+checksum = "6926b6a0b383df50bbb0d0b11378b6d0cf4f606e8386fb624472b7f9a90e830f"
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.0-alpha.3"
+version = "0.0.0-alpha.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89bd67efad79361de96f3a24d4d36b747b003df7602676df772d8b04f30ee6af"
+checksum = "6370356dd16dac3b1b60d8b263b2267554956918ec959d7f18910e8d110b6392"
 dependencies = [
  "anchor-lang",
  "ruint",
