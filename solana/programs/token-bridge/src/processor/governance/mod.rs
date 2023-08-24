@@ -1,6 +1,9 @@
 mod register_chain;
 pub use register_chain::*;
 
+mod secure_registered_emitter;
+pub use secure_registered_emitter::*;
+
 use crate::error::TokenBridgeError;
 use anchor_lang::prelude::*;
 use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::EncodedVaa};

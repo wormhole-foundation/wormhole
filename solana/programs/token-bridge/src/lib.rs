@@ -44,6 +44,10 @@ pub mod wormhole_token_bridge_solana {
         processor::register_chain(ctx)
     }
 
+    pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+        processor::secure_registered_emitter(ctx)
+    }
+
     // Fallback to legacy instructions below.
 
     pub fn process_legacy_instruction(
