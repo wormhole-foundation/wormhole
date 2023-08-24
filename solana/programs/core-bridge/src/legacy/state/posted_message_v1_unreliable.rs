@@ -4,6 +4,8 @@ use crate::state::PostedMessageV1Data;
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
 
+pub(crate) const POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR: [u8; 4] = *b"msu\x00";
+
 #[legacy_account]
 #[derive(Debug, PartialEq, Eq)]
 pub struct PostedMessageV1Unreliable {
@@ -11,7 +13,7 @@ pub struct PostedMessageV1Unreliable {
 }
 
 impl LegacyDiscriminator<4> for PostedMessageV1Unreliable {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = *b"msu\x00";
+    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
 }
 
 impl NewAccountSize for PostedMessageV1Unreliable {

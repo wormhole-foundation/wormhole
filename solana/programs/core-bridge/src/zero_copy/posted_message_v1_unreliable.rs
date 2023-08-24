@@ -1,26 +1,25 @@
 use crate::{state, types::Timestamp};
 use anchor_lang::prelude::{require, AnchorDeserialize, ErrorCode, Pubkey, Result};
-use wormhole_solana_common::SeedPrefix;
 
-pub struct PostedVaaV1<'a>(&'a [u8]);
+pub struct PostedMessageV1Unreliable<'a>(&'a [u8]);
 
-impl<'a> PostedVaaV1<'a> {
+impl<'a> PostedMessageV1Unreliable<'a> {
     pub fn consistency_level(&self) -> u8 {
         let mut buf = &self.0[..1];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
-    pub fn timestamp(&self) -> Timestamp {
-        let mut buf = &self.0[1..5];
+    pub fn emitter_authority(&self) -> Pubkey {
+        let mut buf = &self.0[1..33];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
-    pub fn signature_set(&self) -> Pubkey {
-        let mut buf = &self.0[5..37];
+    pub fn status(&self) -> state::MessageStatus {
+        let mut buf = &self.0[33..34];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
-    pub fn guardian_set_index(&self) -> u32 {
+    pub fn posted_timestamp(&self) -> Timestamp {
         let mut buf = &self.0[37..41];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
@@ -35,12 +34,7 @@ impl<'a> PostedVaaV1<'a> {
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
-    pub fn emitter_chain(&self) -> u16 {
-        let mut buf = &self.0[53..55];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
-    }
-
-    pub fn emitter_address(&self) -> [u8; 32] {
+    pub fn emitter(&self) -> Pubkey {
         let mut buf = &self.0[55..87];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
@@ -54,35 +48,15 @@ impl<'a> PostedVaaV1<'a> {
         &self.0[91..]
     }
 
-    pub fn message_hash(&self) -> solana_program::keccak::Hash {
-        solana_program::keccak::hashv(&[
-            self.timestamp().to_be_bytes().as_ref(),
-            self.nonce().to_be_bytes().as_ref(),
-            self.emitter_chain().to_be_bytes().as_ref(),
-            &self.emitter_address(),
-            &self.sequence().to_be_bytes(),
-            &[self.consistency_level()],
-            self.payload(),
-        ])
-    }
-
-    pub fn digest(&self) -> solana_program::keccak::Hash {
-        solana_program::keccak::hash(self.message_hash().as_ref())
-    }
-
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const DISC_LEN: usize = state::POSTED_VAA_V1_DISCRIMINATOR.len();
+        const DISC_LEN: usize = state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR.len();
 
         require!(span.len() > DISC_LEN, ErrorCode::AccountDidNotDeserialize);
         require!(
-            span[..DISC_LEN] == state::POSTED_VAA_V1_DISCRIMINATOR,
+            span[..DISC_LEN] == state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR,
             ErrorCode::AccountDiscriminatorMismatch
         );
 
         Ok(Self(&span[DISC_LEN..]))
     }
-}
-
-impl<'a> SeedPrefix for PostedVaaV1<'a> {
-    const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
 }
