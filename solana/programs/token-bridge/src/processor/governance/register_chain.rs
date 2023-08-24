@@ -84,6 +84,13 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
             contract: decree.foreign_emitter(),
         });
 
+    ctx.accounts
+        .legacy_registered_emitter
+        .set_inner(RegisteredEmitter {
+            chain: decree.foreign_chain(),
+            contract: decree.foreign_emitter(),
+        });
+
     // Done.
     Ok(())
 }
