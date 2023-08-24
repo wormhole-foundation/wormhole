@@ -18,7 +18,7 @@ pub mod error;
 pub mod legacy;
 
 mod processor;
-//pub(crate) use processor::*;
+pub(crate) use processor::*;
 
 pub mod state;
 
@@ -39,6 +39,10 @@ impl Id for TokenBridge {
 #[program]
 pub mod wormhole_token_bridge_solana {
     use super::*;
+
+    pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
+        processor::register_chain(ctx)
+    }
 
     // Fallback to legacy instructions below.
 

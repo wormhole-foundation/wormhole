@@ -1,3 +1,6 @@
+mod governance;
+pub use governance::*;
+
 mod transfer_tokens;
 pub use transfer_tokens::*;
 

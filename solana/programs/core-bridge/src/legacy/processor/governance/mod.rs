@@ -19,7 +19,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 
-const GOVERNANCE_EMITTER: [u8; 32] = [
+pub const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
 ];
 
