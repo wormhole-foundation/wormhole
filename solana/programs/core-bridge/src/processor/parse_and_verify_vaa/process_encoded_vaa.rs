@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    state::{EncodedVaa, GuardianSet, ProcessingHeader, ProcessingStatus},
+    state::{EncodedVaa, GuardianSet, Header, ProcessingStatus},
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
@@ -57,8 +57,8 @@ impl<'info> ProcessEncodedVaa<'info> {
         }
 
         // Check header.
-        let mut data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let header = ProcessingHeader::try_account_deserialize(&mut data)?;
+        let mut acc_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
+        let header = EncodedVaa::try_acc_header_deserialize(&mut acc_data)?;
         require_keys_eq!(
             header.write_authority,
             ctx.accounts.write_authority.key(),
@@ -132,7 +132,7 @@ fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<
 
     let vaa_len: usize = {
         let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
-        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acc_data)?;
+        let header = EncodedVaa::try_acc_header_deserialize_unchecked(&mut acc_data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
@@ -158,7 +158,7 @@ fn verify_signatures_v1(
 ) -> Result<()> {
     let write_authority = {
         let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
-        let header = ProcessingHeader::try_account_deserialize_unchecked(&mut acc_data)?;
+        let header = EncodedVaa::try_acc_header_deserialize_unchecked(&mut acc_data)?;
         require!(
             header.status == ProcessingStatus::Writing,
             CoreBridgeError::VaaAlreadyVerified
@@ -192,14 +192,6 @@ fn verify_signatures_v1(
             quorum,
             CoreBridgeError::NoQuorum
         );
-
-        // let sigs: Vec<_> = (0..num_signatures)
-        //     .filter_map(|_| GuardianSetSig::read(&mut data).ok())
-        //     .collect();
-        // require!(
-        //     usize::from(num_signatures) == sigs.len(),
-        //     ErrorCode::AccountDidNotDeserialize
-        // );
 
         // Generate the same message hash (using keccak) that the Guardians used to generate their
         // signatures. This message hash will be hashed again to produce the digest for
@@ -236,14 +228,16 @@ fn verify_signatures_v1(
         header.write_authority
     };
 
-    let acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
+    let mut acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
+    acc_data = &mut acc_data[8..];
     let mut writer = std::io::Cursor::new(acc_data);
-    ProcessingHeader {
+    Header {
         status: ProcessingStatus::Verified,
         write_authority,
         version: VaaVersion::V1,
     }
-    .try_account_serialize(&mut writer)
+    .serialize(&mut writer)
+    .map_err(Into::into)
 }
 
 fn verify_guardian_signature(

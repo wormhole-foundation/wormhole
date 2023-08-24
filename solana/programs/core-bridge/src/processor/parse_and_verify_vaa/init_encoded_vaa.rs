@@ -2,9 +2,9 @@ use std::io::Read;
 
 use crate::{
     error::CoreBridgeError,
-    state::{EncodedVaa, ProcessingHeader, ProcessingStatus},
+    state::{EncodedVaa, Header, ProcessingStatus},
 };
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, Discriminator};
 use wormhole_solana_common::utils;
 
 #[derive(Accounts)]
@@ -64,12 +64,13 @@ pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
     // NOTE: This account layout does not match any account found in the state directory. Only the
     // discriminator and header will match the `VaaV1` account (which is how this account will be
     // serialized once the encoded VAA has finished processing).
-    ProcessingHeader {
+    EncodedVaa::DISCRIMINATOR.serialize(&mut writer)?;
+    Header {
         status: ProcessingStatus::Writing,
         write_authority: ctx.accounts.write_authority.key(),
         version: Default::default(),
     }
-    .try_account_serialize(&mut writer)?;
+    .serialize(&mut writer)?;
 
     u32::try_from(vaa_len)
         .unwrap()
