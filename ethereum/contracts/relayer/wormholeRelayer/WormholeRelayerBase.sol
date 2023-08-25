@@ -14,7 +14,9 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {
+    ReentrancyGuardState,
     getDeliverySuccessState,
+    getReentrancyGuardState,
     getDeliveryFailureState,
     getRegisteredWormholeRelayersState
 } from "./WormholeRelayerStorage.sol";
@@ -107,5 +109,17 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         );
 
         emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
+    }
+
+    modifier nonReentrant() {
+        // Reentrancy guard
+        if (getReentrancyGuardState().lockedBy != address(0)) {
+            revert ReentrantDelivery(msg.sender, getReentrancyGuardState().lockedBy);
+        }
+        getReentrancyGuardState().lockedBy = msg.sender;
+
+        _;
+
+        getReentrancyGuardState().lockedBy = address(0);
     }
 }
