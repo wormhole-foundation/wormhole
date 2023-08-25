@@ -185,23 +185,20 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
-    let (symbol, name) = fix_symbol_and_name(attestation);
-    let token_chain = attestation.token_chain();
-    let token_address = attestation.token_address();
-    let native_decimals = attestation.decimals();
-
     // Set wrapped asset data.
     let wrapped_asset = &mut ctx.accounts.wrapped_asset;
     wrapped_asset.set_inner(WrappedAsset {
-        token_chain,
-        token_address,
-        native_decimals,
+        token_chain: attestation.token_chain(),
+        token_address: attestation.token_address(),
+        native_decimals: attestation.decimals(),
     });
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
     let uri = wrapped_asset
         .to_uri()
         .map_err(|_| TokenBridgeError::CannotSerializeJson)?;
+
+    let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
 
     metadata::create_metadata_accounts_v3(
         CpiContext::new_with_signer(
@@ -238,14 +235,14 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
-    let (symbol, name) = fix_symbol_and_name(attestation);
-
     // Deserialize token metadata so we can check whether the name or symbol have changed in
     // this asset metadata VAA.
     let data = {
         let mut acc_data: &[u8] = &ctx.accounts.token_metadata.try_borrow_data()?;
         metadata::MetadataAccount::try_deserialize(&mut acc_data).map(|acct| acct.data.clone())?
     };
+
+    let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
 
     if name != data.name || symbol != data.symbol {
         // Finally update token metadata.
@@ -284,10 +281,18 @@ fn cap_decimals(decimals: u8) -> u8 {
     }
 }
 
-fn fix_symbol_and_name(attestation: &Attestation) -> (String, String) {
+struct FixedMeta {
+    symbol: String,
+    name: String,
+}
+
+fn fix_symbol_and_name(attestation: &Attestation) -> FixedMeta {
     // Truncate symbol to 10 characters (the maximum length for Token Metadata's symbol).
     let mut symbol = attestation.symbol().to_string();
     symbol.truncate(mpl_token_metadata::state::MAX_SYMBOL_LENGTH);
 
-    (symbol, attestation.name().to_string())
+    FixedMeta {
+        symbol,
+        name: attestation.name().to_string(),
+    }
 }
