@@ -264,7 +264,7 @@ func SubmitVAAToContract(
 		return txResp, fmt.Errorf("out of gas: %s", txResp.TxResponse.RawLog)
 	}
 
-	if strings.Contains(txResp.TxResponse.RawLog, "failed") {
+	if strings.Contains(txResp.TxResponse.RawLog, "failed") && !strings.Contains(txResp.TxResponse.RawLog, "VaaAlreadyExecuted") {
 		return txResp, fmt.Errorf("submit failed: %s", txResp.TxResponse.RawLog)
 	}
 
