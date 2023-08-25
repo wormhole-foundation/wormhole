@@ -20,8 +20,8 @@ cluster = "Localnet"
 wallet = "tests/keys/pFCBP4bhqdSsrWUVTgqhPsLrfEdChBK17vgFM7TxjxQ.json"
 
 [scripts]
-###test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/0**/*.ts"
-test = "bash tests/run_specific_tests.sh" ### <-- use this for debugging tests
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/0**/*.ts"
+###test = "bash tests/run_specific_tests.sh" ### <-- use this for debugging tests
 
 [test]
 startup_wait = 10000
@@ -65,3 +65,13 @@ filename = "tests/accounts/mint_9.json"
 [[test.validator.account]]
 address = "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ"
 filename = "tests/accounts/invalid_signature_set_01.json"
+
+### Registered Token Bridge (Ethereum)
+[[test.validator.account]]
+address = "ACsDVoA6BG1YCaZEPa9goQsAJijxq6QKUVGUBVgntxdJ"
+filename = "tests/accounts/registered_emitter_2.json"
+
+### Registered Token Bridge (Ethereum) for Fork
+[[test.validator.account]]
+address = "DujfLgMKW71CT2W8pxknf42FT86VbcK5PjQ6LsutjWKC"
+filename = "tests/accounts/fork.registered_emitter_2.json"
