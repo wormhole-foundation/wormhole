@@ -72,6 +72,7 @@ config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
 config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
+config.define_bool("query_server", False, "Enable cross-chain query server")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -96,6 +97,7 @@ ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
+query_server = cfg.get("query_server", ci)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -897,4 +899,17 @@ if aptos:
         ],
         labels = ["aptos"],
         trigger_mode = trigger_mode,
+    )
+
+if query_server:
+    k8s_yaml_with_ns("devnet/query-server.yaml")
+
+    k8s_resource(
+        "query-server",
+        resource_deps = ["guardian"],
+        port_forwards = [
+            port_forward(6069, name = "REST [:6069]", host = webHost)
+        ],
+        labels = ["query-server"],
+        trigger_mode = trigger_mode
     )
