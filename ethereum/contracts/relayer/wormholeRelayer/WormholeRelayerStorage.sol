@@ -62,6 +62,22 @@ function getRegisteredWormholeRelayersState()
     }
 }
 
+struct ReentrancyGuardState {
+    // if 0 address, no reentrancy guard is active
+    // otherwise, the address of the contract that has locked the reentrancy guard (msg.sender)
+    address lockedBy;
+}
+
+//keccak256("ReentrancyGuardState") - 1
+bytes32 constant REENTRANCY_GUARD_STORAGE_SLOT =
+    0x44dc27ebd67a87ad2af1d98fc4a5f971d9492fe12498e4c413ab5a05b7807a67;
+
+function getReentrancyGuardState() pure returns (ReentrancyGuardState storage state) {
+    assembly ("memory-safe") {
+        state.slot := REENTRANCY_GUARD_STORAGE_SLOT
+    }
+}
+
 // Replay Protection and Indexing
 
 struct DeliverySuccessState {

@@ -15,11 +15,13 @@ import {
     InvalidOverrideRefundPerGasUnused,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
+    DeliveryAlreadyExecuted,
     MessageKey,
     VAA_KEY_TYPE,
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend,
+    ReentrantDelivery,
     RETURNDATA_TRUNCATION_THRESHOLD
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
@@ -36,8 +38,8 @@ import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
 import {
     DeliverySuccessState,
     DeliveryFailureState,
+    getDeliverySuccessState,
     getDeliveryFailureState,
-    getDeliverySuccessState
 } from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
@@ -57,7 +59,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes memory encodedDeliveryVAA,
         address payable relayerRefundAddress,
         bytes memory deliveryOverrides
-    ) public payable {
+    ) public payable nonReentrant {
 
         // Parse and verify VAA containing delivery instructions, revert if invalid
         (IWormhole.VM memory vm, bool valid, string memory reason) =
@@ -70,6 +72,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
         if (vm.emitterAddress != registeredWormholeRelayer) {
             revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
+        }
+
+        // Enforce replay protection
+        if (getDeliverySuccessState().deliverySuccessBlock[vm.hash] != 0) {
+            revert DeliveryAlreadyExecuted(vm.hash);
         }
     
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
@@ -269,19 +276,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         DeliveryResults memory results;
-
-        // Enforce replay protection
-        mapping(bytes32 => uint256) storage deliverySuccessBlock =  getDeliverySuccessState().deliverySuccessBlock;
-        if (deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
-            results.status = DeliveryStatus.RECEIVER_FAILURE;
-            results.additionalStatusInfo = "Delivery already executed";
-            setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
-            emitDeliveryEvent(vaaInfo, results);
-            return;
-        }
-        // Optimisitcally set to also prevent reentrancy
-        deliverySuccessBlock[vaaInfo.deliveryVaaHash] = block.number;
-
 
         // Forces external call
         // In order to catch reverts
@@ -598,12 +592,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     // Ensures current block number is set to implement replay protection and for indexing purposes
     function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
         if (status == DeliveryStatus.SUCCESS) {
+            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
             // Clear out failure block if it exists from previous delivery failure
             delete getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
         } else {
             getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
-            // Unset success block that was optimistically set
-            delete getDeliverySuccessState().deliverySuccessBlock[deliveryHash];
         }
     }
 }
