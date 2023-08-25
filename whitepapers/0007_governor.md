@@ -67,32 +67,6 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 * Guardians need to manually respond to erroneous messages within the 24h time window. It is expected that all Guardians operate collateralization monitoring for the protocol, taking into account the Governor queue. All Guardians should have alerting and incident response procedures in case of an undercollateralization.
 * An attacker could utilize liquidity pools and other bridges to launder illicitly minted wrapped assets.
 
-## User FAQ
-- **Who is the Governor?**
-    - The Governor is not a person, but a software feature built into the guardian reference implementation.
-- **When does the Governor step in?**
-    - The Governor delays messages for up to 24 hours if the aggregate value of messages originating from one chain in the past 24 hours exceeds a threshold that is set per chain, which happens very rarely.
-- **In what direction are Governor thresholds for delays imposed?**
-    - Transfer volume is calculated *from* each chain.
-- **Are Governor thresholds per wallet?**
-    - Governor thresholds are imposed globally from each chain, to address [Sybil-attacks](https://en.wikipedia.org/wiki/Sybil_attack), in which an attacker could split a large transfer into many small transfers.
-- **How can the Governor help protect Wormhole users?**
-    - The Governor can help reduce the impact of a hack or fork by giving the Guardians additional time to respond to any extraordinary events. E.g., if a chain forks, while the Governor and the new fork delay a Wormhole message, do not include that Wormhole message anymore, the Guardians have time to decide which fork to adopt and whether or not to confirm the pending messages, to ensure that Wormhole messages represent the state of the origin chain as accurately as possible.
-- **How does the Governor *exactly* decide which messages to confirm immediately and which to delay?**
-    - The Governor has two configurable values for each chain: The 24h threshold and the single-transaction threshold. These two thresholds only apply to messages originating **from** a given chain. Messages are processed differently if their value exceeds the single-transaction threshold or not. We call these small transfers and large transfers. Large transfers will always be delayed for 24 hours. Small transfers will be confirmed immediately unless the sum of all small transfers in the last 24 hours, plus the transfer in question, exceeds the 24h-threshold (this is to protect against an attacker splitting a large transfer into many small transfers). Those small transfers will be delayed as long as the 24h threshold is exceeded, but never for longer than 24 hours. If a small transfer would still cause the 24h threshold to be exceeded after 24 hours (e.g., because there was a constant flow of smaller transfers), it will be confirmed regardless and not count towards the 24h-threshold.
-- **Is it possible to have my transfer delayed by Governor?**
-    - The above answer explains that transactions can be delayed during high utilization times.  However, the maximum possible wait time is 24hrs, though most transactions have no delay.
-- **How do I know if my transfer will be delayed by the Governor?**
-    - If you are using the Portal Bridge UI, you will get a warning pop-up if your transfer is likely to be delayed. Alternatively, you can receive each Guardian’s Governor config and status  on the Wormhole gossip network ([instructions](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/relayer/spy_relayer/README.md)), which contains a list of tracked tokens, their prices, configured thresholds and available headroom. Based on this data, you can calculate if a transfer is likely to go through or not, assuming there is no other transfer in the meantime. Some Guardians also make the Governor status available through a public API, which can be visualized on the [Wormhole Dashboard](https://wormhole-foundation.github.io/wormhole-dashboard/). The [Wormhole Explorer](https://github.com/wormhole-foundation/wormhole-explorer) is work-in-progress and will provide an easy API to get the aggregated Governor status across all Guardians.
-- **How does Governor determine the notional value of a transfer?**
-    - Two sources determine the notional value of the transfer.  One source is the hard coded floor price shipped with the Guardian software (which is polled from Coingecko at release time) and the other is a dynamic polling of Coingecko on 5-10min intervals.  The notional value of the transfer will be the higher of the two sources.  This is designed in such a way to ensure that if Coingecko reports a nil, zero, or meager price for an asset, it won’t allow an attacker to move effectively infinite amounts of a governed token.
-- **Why doesn’t the Governor use a price oracle like Pyth or Chainlink for notional value computation?**
-    - This is mainly because neither Chainlink or Pyth currently support price feeds for all the registered tokens the Wormhole Guardians wish to Governor.  As price oracles mature to support a broader set of tokens, this may become more viable to use on-chain price oracles for this computation.
-
-## Operator FAQ
-- **I have identified a potentially inaccurate message in the Governor queue. Can I extend the release time to give me more time to investigate?**
-    - Yes. You can use the `ChainGovernorResetReleaseTimer` admin RPC or `governor-reset-release-timer [VAA_ID]` admin command to reset the delay to 24h. Another option would be to drop the message first with the `ChainGovernorDropPendingVAA` admin RPC or `governor-drop-pending-vaa [VAA_ID]` admin command and after the investigation is concluded and it is determined that the message was (and still is) an accurate representation of the source chain state, you can issue a re-observation request.
-
 ## Detailed Design
 
 The Governor is implemented as an additional package that defines (1) a `ChainGovernor` object, (2) `mainnet_tokens.go`, a single map of tokens that will be monitored, and (3) `mainnet_chains.go`, a map of chains governed by the chain governor.
@@ -126,6 +100,14 @@ In this design, there are three mechanisms for enqueued messages to be published
   - _Messages released through this mechanism WOULD be added to the list of processed transactions and thus be counted toward the daily notional limit._
 - Messages will be automatically released after a maximum time limit (this time limit can be adjusted through governance and is currently set to 24 hours).
   - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window._
+
+
+## Operational Considerations
+### Extending the release time to have more time to investigate
+Guardian operators can use the `ChainGovernorResetReleaseTimer` admin RPC or `governor-reset-release-timer [VAA_ID]` admin command to reset the delay to 24h.
+
+### Dropping messages from the Governor
+Guardian operators can use the `ChainGovernorDropPendingVAA` admin RPC or `governor-drop-pending-vaa [VAA_ID]` admin command to remove a VAA from the Governor queue. Note that in most cases this should be done in conjunction with disconnecting a chain or block-listing certain messages because otherwise the message may just get re-observed through automatic observation requests.
 
 ## Potential Improvements
 
