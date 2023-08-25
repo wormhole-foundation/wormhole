@@ -1545,7 +1545,7 @@ LocalNative forwardDeliveryCost;
     }
 
     // aka: replay protection doesn't fire when it shouldn't
-    function testReplayProtectionDoesNotFireWhenItShouldNot(
+    function testNoFalseFiresReplayProtection(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1605,11 +1605,11 @@ LocalNative forwardDeliveryCost;
         assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
         assertEq(setup.target.coreRelayerFull.deliverySuccessBlock(stack.deliveryVaaHash), block.number);
         assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
+        
+        vm.expectRevert(abi.encodeWithSignature("DeliveryAlreadyExecuted(bytes32)", stack.deliveryVaaHash));
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
         );
-        assertTrue(setup.target.coreRelayerFull.deliveryAttempted(stack.deliveryVaaHash));
-        assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), block.number);
     }
 
     function testRevertDeliveryVaaKeysLengthDoesNotMatchVaasLength(
@@ -2037,12 +2037,8 @@ LocalNative forwardDeliveryCost;
         );
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertTrue(
-            getDeliveryStatus(logs[logs.length - 2]) == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            "Inner delivery should have failed due to reentrancy guard"
-        );
-        assertTrue(
-            getDeliveryStatus(logs[logs.length - 1]) == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS,
-            "Outer delivery should have succeeded"
+            getDeliveryStatus(logs[logs.length - 1]) == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            "Outer delivery should have failed because inner call reverts"
         );
     }
 
