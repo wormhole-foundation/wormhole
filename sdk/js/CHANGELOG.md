@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.24
+
+### Changes
+
+Transfer from Sui with payload uses oldest EmitterCap *or* creates a new one if none exist
+
 ## 0.9.23
 
 ### Changes
