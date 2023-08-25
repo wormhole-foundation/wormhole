@@ -10,8 +10,6 @@ use core_bridge_program::{self, state::Config as CoreBridgeConfig, CoreBridge};
 use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
 
-use super::new_sender_address;
-
 #[derive(Accounts)]
 pub struct TransferTokensWithPayloadWrapped<'info> {
     #[account(mut)]
@@ -115,7 +113,7 @@ pub fn transfer_tokens_with_payload_wrapped(
     //
     // NOTE: We perform the derivation check here instead of in the access control because we do not
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
-    let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
+    let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Burn wrapped assets from the source token account.
     burn_wrapped_tokens(
@@ -130,7 +128,7 @@ pub fn transfer_tokens_with_payload_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = super::TransferWithMessage {
+    let token_transfer = crate::messages::TransferWithMessage {
         norm_amount: U256::from(amount),
         token_address: wrapped_asset.token_address,
         token_chain: wrapped_asset.token_chain,

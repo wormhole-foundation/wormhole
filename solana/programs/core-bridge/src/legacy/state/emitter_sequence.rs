@@ -15,3 +15,11 @@ impl LegacyDiscriminator<0> for EmitterSequence {
 impl SeedPrefix for EmitterSequence {
     const SEED_PREFIX: &'static [u8] = b"Sequence";
 }
+
+impl std::ops::Deref for EmitterSequence {
+    type Target = u64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}

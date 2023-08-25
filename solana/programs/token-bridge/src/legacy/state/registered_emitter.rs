@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
 #[legacy_account]
-#[derive(Debug, PartialEq, Eq, InitSpace)]
+#[derive(Debug, Copy, PartialEq, Eq, InitSpace)]
 pub struct RegisteredEmitter {
     pub chain: u16,
     pub contract: [u8; 32],

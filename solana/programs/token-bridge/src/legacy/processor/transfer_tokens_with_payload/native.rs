@@ -15,8 +15,6 @@ use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 use wormhole_solana_common::SeedPrefix;
 
-use super::new_sender_address;
-
 #[derive(Accounts)]
 pub struct TransferTokensWithPayloadNative<'info> {
     #[account(mut)]
@@ -128,7 +126,7 @@ pub fn transfer_tokens_with_payload_native(
     //
     // NOTE: We perform the derivation check here instead of in the access control because we do not
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
-    let sender = new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
+    let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
     // Deposit native assets from the source token account into the custody account.
     let amount = deposit_native_tokens(
@@ -144,7 +142,7 @@ pub fn transfer_tokens_with_payload_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer = super::TransferWithMessage {
+    let token_transfer = crate::messages::TransferWithMessage {
         norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals).0,
         token_address: mint.key().to_bytes(),
         token_chain: SOLANA_CHAIN,

@@ -85,4 +85,13 @@ pub enum TokenBridgeError {
 
     #[msg("ImplementationMismatch")]
     ImplementationMismatch = 0x800,
+
+    #[msg("UnsupportedInstructionDirective")]
+    UnsupportedInstructionDirective = 0x2000,
+
+    #[msg("EmitterAlreadyRegistered")]
+    EmitterAlreadyRegistered = 0x2002,
+
+    #[msg("RegisteredEmitterMismatch")]
+    RegisteredEmitterMismatch = 0x2004,
 }

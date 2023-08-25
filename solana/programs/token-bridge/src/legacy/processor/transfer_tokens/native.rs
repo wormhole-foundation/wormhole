@@ -98,7 +98,7 @@ pub struct TransferTokensNative<'info> {
 }
 
 impl<'info> TransferTokensNative<'info> {
-    fn accounts_and_args(ctx: &Context<Self>, args: &LegacyTransferTokensArgs) -> Result<()> {
+    fn constraints(ctx: &Context<Self>, args: &LegacyTransferTokensArgs) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
@@ -115,7 +115,7 @@ impl<'info> TransferTokensNative<'info> {
     }
 }
 
-#[access_control(TransferTokensNative::accounts_and_args(&ctx, &args))]
+#[access_control(TransferTokensNative::constraints(&ctx, &args))]
 pub fn transfer_tokens_native(
     ctx: Context<TransferTokensNative>,
     args: LegacyTransferTokensArgs,
@@ -142,7 +142,7 @@ pub fn transfer_tokens_native(
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
     let mint = &ctx.accounts.mint;
-    let token_transfer = super::Transfer {
+    let token_transfer = crate::messages::Transfer {
         norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals).0,
         token_address: mint.key().to_bytes(),
         token_chain: SOLANA_CHAIN,
