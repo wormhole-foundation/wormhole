@@ -3,13 +3,33 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::zero_copy::EncodedVaa;
+use core_bridge_program::{zero_copy::EncodedVaa, CoreBridge};
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 #[derive(Accounts)]
 pub struct RegisterChain<'info> {
     #[account(mut)]
     payer: Signer<'info>,
+
+    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    #[account(
+        mut,
+        owner = core_bridge_program::ID
+    )]
+    vaa: AccountInfo<'info>,
+
+    #[account(
+        init,
+        payer = payer,
+        space = Claim::INIT_SPACE,
+        seeds = [
+            EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_address().as_ref(),
+            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_chain().to_be_bytes(),
+            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().sequence().to_be_bytes(),
+        ],
+        bump,
+    )]
+    claim: Account<'info, Claim>,
 
     #[account(
         init,
@@ -38,24 +58,8 @@ pub struct RegisterChain<'info> {
     )]
     legacy_registered_emitter: Account<'info, RegisteredEmitter>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(owner = core_bridge_program::ID)]
-    vaa: AccountInfo<'info>,
-
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_address().as_ref(),
-            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_chain().to_be_bytes(),
-            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().sequence().to_be_bytes(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, Claim>,
-
     system_program: Program<'info, System>,
+    core_bridge_program: Program<'info, CoreBridge>,
 }
 
 impl<'info> RegisterChain<'info> {
@@ -69,24 +73,44 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_data = ctx.accounts.vaa.data.borrow();
+    // Deserialize and set data in registered emitter accounts.
+    {
+        let acc_data = ctx.accounts.vaa.data.borrow();
+        let encoded_vaa = EncodedVaa::parse(&acc_data).unwrap();
+        let gov_payload = TokenBridgeGovPayload::try_from(encoded_vaa.v1().unwrap().payload())
+            .unwrap()
+            .decree();
+        let decree = gov_payload.register_chain().unwrap();
 
-    let vaa = EncodedVaa::parse(&acc_data).unwrap().v1().unwrap();
-    let gov_payload = TokenBridgeGovPayload::try_from(vaa.payload())
+        let registered = RegisteredEmitter {
+            chain: decree.foreign_chain(),
+            contract: decree.foreign_emitter(),
+        };
+
+        ctx.accounts.registered_emitter.set_inner(registered);
+        ctx.accounts.legacy_registered_emitter.set_inner(registered);
+    }
+
+    // Determine if we can close the vaa account.
+    let payer = &ctx.accounts.payer;
+    let write_authority = EncodedVaa::parse(&ctx.accounts.vaa.data.borrow())
         .unwrap()
-        .decree();
-    let decree = gov_payload.register_chain().unwrap();
-
-    let registered = RegisteredEmitter {
-        chain: decree.foreign_chain(),
-        contract: decree.foreign_emitter(),
-    };
-
-    ctx.accounts.registered_emitter.set_inner(registered);
-    ctx.accounts.legacy_registered_emitter.set_inner(registered);
-
-    // Done.
-    Ok(())
+        .write_authority();
+    if payer.key() == write_authority {
+        core_bridge_program::cpi::process_encoded_vaa(
+            CpiContext::new(
+                ctx.accounts.core_bridge_program.to_account_info(),
+                core_bridge_program::cpi::accounts::ProcessEncodedVaa {
+                    write_authority: payer.to_account_info(),
+                    encoded_vaa: ctx.accounts.vaa.to_account_info(),
+                    guardian_set: None,
+                },
+            ),
+            core_bridge_program::ProcessEncodedVaaDirective::CloseVaaAccount,
+        )
+    } else {
+        Ok(())
+    }
 }
 
 fn try_decree_foreign_chain(vaa_acc_data: &[u8]) -> Result<u16> {

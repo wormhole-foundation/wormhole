@@ -30,7 +30,8 @@ export type LegacyCompleteTransferWithPayloadNativeContext = {
 export function legacyCompleteTransferWithPayloadNativeIx(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWithPayloadNativeContext,
-  parsedVaa: ParsedVaa
+  parsedVaa: ParsedVaa,
+  legacyRegisteredEmitterDerive: boolean = true
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
@@ -75,7 +76,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
     registeredEmitter = RegisteredEmitter.address(
       programId,
       emitterChain,
-      Array.from(emitterAddress)
+      legacyRegisteredEmitterDerive ? Array.from(emitterAddress) : undefined
     );
   }
 

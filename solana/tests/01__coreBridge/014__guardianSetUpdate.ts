@@ -296,7 +296,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
     });
 
     it("Cannot Invoke `guardian_set_update` with Same VAA", async () => {
-      const signedVaa: Buffer = localVariables.get("signedVaa");
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
 
       // Invoke the instruction.
       await expectIxErr(

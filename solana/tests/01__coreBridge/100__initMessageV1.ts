@@ -138,8 +138,8 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
     }
 
     it("Cannot Invoke `init_message_v1` with Same Draft Message", async () => {
-      const draftMessage: anchor.web3.Keypair = localVariables.get("draftMessage")!;
-      const emitterAuthority: anchor.web3.Keypair = localVariables.get("emitterAuthority")!;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.Keypair;
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
 
       const initIx = await coreBridge.initMessageV1Ix(
         program,

@@ -4,6 +4,10 @@ use anchor_lang::prelude::{require, AnchorDeserialize, ErrorCode, Pubkey, Result
 pub struct PostedMessageV1Unreliable<'a>(&'a [u8]);
 
 impl<'a> PostedMessageV1Unreliable<'a> {
+    pub const DISCRIMINATOR: [u8; 4] = state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
+
+    const DISC_LEN: usize = Self::DISCRIMINATOR.len();
+
     pub fn consistency_level(&self) -> u8 {
         let mut buf = &self.0[..1];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
@@ -49,14 +53,15 @@ impl<'a> PostedMessageV1Unreliable<'a> {
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const DISC_LEN: usize = state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR.len();
-
-        require!(span.len() > DISC_LEN, ErrorCode::AccountDidNotDeserialize);
         require!(
-            span[..DISC_LEN] == state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR,
+            span.len() > Self::DISC_LEN,
+            ErrorCode::AccountDidNotDeserialize
+        );
+        require!(
+            span[..Self::DISC_LEN] == Self::DISCRIMINATOR,
             ErrorCode::AccountDiscriminatorMismatch
         );
 
-        Ok(Self(&span[DISC_LEN..]))
+        Ok(Self(&span[Self::DISC_LEN..]))
     }
 }

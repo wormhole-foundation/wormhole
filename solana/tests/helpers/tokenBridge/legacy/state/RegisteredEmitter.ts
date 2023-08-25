@@ -29,14 +29,21 @@ export class RegisteredEmitter {
     )[0];
   }
 
+  private static _address(programId: PublicKey, foreignChain: number): PublicKey {
+    const encodedChain = Buffer.alloc(2);
+    encodedChain.writeUInt16BE(foreignChain, 0);
+
+    return PublicKey.findProgramAddressSync([encodedChain], programId)[0];
+  }
+
   // NOTE: The foreignEmitter argument is optional because at some point this argument will go away
   // when the registered chain PDA addresses will only be derived by the foreignChain argument.
   static address(programId: PublicKey, foreignChain: number, foreignEmitter?: number[]): PublicKey {
     if (foreignEmitter === undefined) {
-      throw new Error("must use foreignEmitter to derive PDA address");
+      return RegisteredEmitter._address(programId, foreignChain);
+    } else {
+      return RegisteredEmitter._legacyAddress(programId, foreignChain, foreignEmitter);
     }
-
-    return RegisteredEmitter._legacyAddress(programId, foreignChain, foreignEmitter);
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): RegisteredEmitter {
@@ -50,7 +57,7 @@ export class RegisteredEmitter {
   ): Promise<RegisteredEmitter> {
     const accountInfo = await connection.getAccountInfo(address, commitmentOrConfig);
     if (accountInfo == null) {
-      throw new Error(`Unable to find Config account at ${address}`);
+      throw new Error(`Unable to find RegisteredEmitter account at ${address}`);
     }
     return RegisteredEmitter.fromAccountInfo(accountInfo);
   }

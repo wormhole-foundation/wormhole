@@ -96,7 +96,7 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
 
   describe("New Implementation", () => {
     it("Cannot Invoke `post_vaa` With Same VAA", async () => {
-      const signedVaa: Buffer = localVariables.get("signedVaa");
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
 
       const { signatureSet, args } = await createArgs(connection, payer, signedVaa);
 

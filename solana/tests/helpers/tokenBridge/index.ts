@@ -2,13 +2,12 @@ import { Program } from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import TokenBridgeIdl from "../../../target/idl/wormhole_token_bridge_solana.json";
 import { WormholeTokenBridgeSolana } from "../../../target/types/wormhole_token_bridge_solana";
-import { ProgramId } from "./consts";
 import * as coreBridge from "../coreBridge";
+import { ProgramId } from "./consts";
 
 export * from "./consts";
-// export * from "./instructions";
+export * from "./instructions";
 export * from "./legacy";
-// export * from "./state";
 export * from "./testing";
 
 export type TokenBridgeProgram = Program<WormholeTokenBridgeSolana>;
@@ -47,6 +46,6 @@ export function coreBridgeProgramId(program: TokenBridgeProgram): PublicKey {
   }
 }
 
-export function coreBridgeProgram(program: TokenBridgeProgram): coreBridge.CoreBridgeProgram {
+export function getCoreBridgeProgram(program: TokenBridgeProgram): coreBridge.CoreBridgeProgram {
   return coreBridge.getAnchorProgram(program.provider.connection, coreBridgeProgramId(program));
 }

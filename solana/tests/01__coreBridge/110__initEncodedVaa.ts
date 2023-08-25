@@ -79,7 +79,7 @@ describe("Core Bridge -- Instruction: Init Encoded VAA", () => {
     }
 
     it("Cannot Invoke `init_encoded_vaa` with Same Encoded VAA", async () => {
-      const encodedVaa: anchor.web3.Keypair = localVariables.get("encodedVaa")!;
+      const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.Keypair;
 
       const initIx = await coreBridge.initEncodedVaaIx(program, {
         writeAuthority: payer.publicKey,
