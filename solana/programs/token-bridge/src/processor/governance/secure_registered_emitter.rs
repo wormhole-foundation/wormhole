@@ -66,9 +66,7 @@ fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
     // Copy registered emitter account.
     ctx.accounts
         .registered_emitter
-        .set_inner(*AsRef::<RegisteredEmitter>::as_ref(
-            &ctx.accounts.legacy_registered_emitter,
-        ));
+        .set_inner(*ctx.accounts.legacy_registered_emitter.as_ref());
 
     // Done.
     Ok(())

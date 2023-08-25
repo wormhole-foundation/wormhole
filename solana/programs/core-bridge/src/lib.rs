@@ -19,6 +19,10 @@ pub mod legacy;
 
 mod processor;
 pub(crate) use processor::*;
+pub use processor::{
+    ClosePostedVaaV1Directive, PostVaaV1Directive, ProcessEncodedVaaDirective,
+    ProcessMessageV1Directive,
+};
 
 pub mod state;
 

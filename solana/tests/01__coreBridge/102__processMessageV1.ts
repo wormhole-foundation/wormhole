@@ -111,8 +111,8 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
       const end = Math.min(start + chunkSize, messageSize);
 
       it(`Invoke \`process_message_v1\` to Write Part of Message (Range: ${start}..${end})`, async () => {
-        const emitterAuthority: anchor.web3.Keypair = localVariables.get("emitterAuthority")!;
-        const draftMessage: anchor.web3.PublicKey = localVariables.get("draftMessage")!;
+        const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+        const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
         const ix = await coreBridge.processMessageV1Ix(
           program,
@@ -148,8 +148,8 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
     }
 
     it("Invoke `process_message_v1` to Close Draft Message", async () => {
-      const emitterAuthority: anchor.web3.Keypair = localVariables.get("emitterAuthority")!;
-      const draftMessage: anchor.web3.PublicKey = localVariables.get("draftMessage")!;
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
       const closeAccountDestination = anchor.web3.Keypair.generate().publicKey;
       const balanceBefore = await connection.getBalance(closeAccountDestination);

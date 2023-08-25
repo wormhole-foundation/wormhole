@@ -5,6 +5,10 @@ use wormhole_solana_common::SeedPrefix;
 pub struct PostedVaaV1<'a>(&'a [u8]);
 
 impl<'a> PostedVaaV1<'a> {
+    pub const DISCRIMINATOR: [u8; 4] = state::POSTED_VAA_V1_DISCRIMINATOR;
+
+    const DISC_LEN: usize = Self::DISCRIMINATOR.len();
+
     pub fn consistency_level(&self) -> u8 {
         let mut buf = &self.0[..1];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
@@ -71,15 +75,16 @@ impl<'a> PostedVaaV1<'a> {
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const DISC_LEN: usize = state::POSTED_VAA_V1_DISCRIMINATOR.len();
-
-        require!(span.len() > DISC_LEN, ErrorCode::AccountDidNotDeserialize);
         require!(
-            span[..DISC_LEN] == state::POSTED_VAA_V1_DISCRIMINATOR,
+            span.len() > Self::DISC_LEN,
+            ErrorCode::AccountDidNotDeserialize
+        );
+        require!(
+            span[..Self::DISC_LEN] == Self::DISCRIMINATOR,
             ErrorCode::AccountDiscriminatorMismatch
         );
 
-        Ok(Self(&span[DISC_LEN..]))
+        Ok(Self(&span[Self::DISC_LEN..]))
     }
 }
 

@@ -8,6 +8,11 @@ use wormhole_raw_vaas::Vaa;
 pub struct EncodedVaa<'a>(&'a [u8]);
 
 impl<'a> EncodedVaa<'a> {
+    pub const DISCRIMINATOR: [u8; 8] = state::EncodedVaa::DISCRIMINATOR;
+    pub const VAA_START: usize = state::EncodedVaa::BYTES_START - Self::DISC_LEN;
+
+    const DISC_LEN: usize = Self::DISCRIMINATOR.len();
+
     pub fn status(&self) -> state::ProcessingStatus {
         let mut buf = &self.0[..1];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
@@ -28,22 +33,28 @@ impl<'a> EncodedVaa<'a> {
             self.version() == VaaVersion::V1,
             CoreBridgeError::InvalidVaaVersion
         );
-        Ok(Vaa::parse(&self.0[state::EncodedVaa::BYTES_START..]).unwrap())
+        Ok(Vaa::parse(&self.0[Self::VAA_START..]).unwrap())
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const DISC_LEN: usize = state::EncodedVaa::DISCRIMINATOR.len();
-
         require!(
-            span.len() > DISC_LEN,
+            span.len() > Self::DISC_LEN,
             ErrorCode::AccountDiscriminatorNotFound
         );
         require!(
-            span[..DISC_LEN] == state::EncodedVaa::DISCRIMINATOR,
+            span[..Self::DISC_LEN] == Self::DISCRIMINATOR,
             ErrorCode::AccountDiscriminatorMismatch
         );
 
-        Ok(Self(&span[DISC_LEN..]))
+        let vaa = Self(&span[Self::DISC_LEN..]);
+
+        // We only allow verified VAAs to be read.
+        require!(
+            vaa.status() == state::ProcessingStatus::Verified,
+            CoreBridgeError::UnverifiedVaa
+        );
+
+        Ok(vaa)
     }
 
     pub fn try_v1(span: &'a [u8]) -> Result<Vaa<'a>> {

@@ -36,7 +36,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
   const program = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
   after("Clean Up", async () => {
-    const cleanUp: boolean = localVariables.get("cleanUpArtifacts")!;
+    const cleanUp = localVariables.get("cleanUpArtifacts") as boolean;
     if (cleanUp) {
       fs.rmSync(ARTIFACTS_PATH, { force: true, recursive: true });
     }
@@ -64,7 +64,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Invoke `upgrade_contract` on Forked Core Bridge", async () => {
-      const implementation: anchor.web3.PublicKey = localVariables.get("implementation")!;
+      const implementation = localVariables.get("implementation") as anchor.web3.PublicKey;
 
       // Create the signed VAA.
       const signedVaa = defaultVaa(implementation);
@@ -76,7 +76,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Same VAA", async () => {
-      const signedVaa: Buffer = localVariables.get("signedVaa");
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
 
       // Invoke the instruction.
       await expectIxErr(
@@ -128,7 +128,11 @@ async function txOk(
   const parsedVaa = parseVaa(signedVaa);
 
   // Verify and Post.
-  await invokeVerifySignaturesAndPostVaa(tokenBridge.coreBridgeProgram(program), payer, signedVaa);
+  await invokeVerifySignaturesAndPostVaa(
+    tokenBridge.getCoreBridgeProgram(program),
+    payer,
+    signedVaa
+  );
 
   // Create the transferFees instruction.
   const ix = tokenBridge.legacyUpgradeContractIx(program, { payer: payer.publicKey }, parsedVaa);
