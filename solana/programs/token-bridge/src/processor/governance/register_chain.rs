@@ -77,19 +77,13 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
         .decree();
     let decree = gov_payload.register_chain().unwrap();
 
-    ctx.accounts
-        .registered_emitter
-        .set_inner(RegisteredEmitter {
-            chain: decree.foreign_chain(),
-            contract: decree.foreign_emitter(),
-        });
+    let registered = RegisteredEmitter {
+        chain: decree.foreign_chain(),
+        contract: decree.foreign_emitter(),
+    };
 
-    ctx.accounts
-        .legacy_registered_emitter
-        .set_inner(RegisteredEmitter {
-            chain: decree.foreign_chain(),
-            contract: decree.foreign_emitter(),
-        });
+    ctx.accounts.registered_emitter.set_inner(registered);
+    ctx.accounts.legacy_registered_emitter.set_inner(registered);
 
     // Done.
     Ok(())

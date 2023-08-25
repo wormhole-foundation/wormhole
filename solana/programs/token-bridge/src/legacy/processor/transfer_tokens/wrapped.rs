@@ -93,7 +93,7 @@ pub struct TransferTokensWrapped<'info> {
 }
 
 impl<'info> TransferTokensWrapped<'info> {
-    fn args(args: &LegacyTransferTokensArgs) -> Result<()> {
+    fn constraints(args: &LegacyTransferTokensArgs) -> Result<()> {
         // Cannot configure a fee greater than the total transfer amount.
         require_gte!(
             args.amount,
@@ -106,7 +106,7 @@ impl<'info> TransferTokensWrapped<'info> {
     }
 }
 
-#[access_control(TransferTokensWrapped::args(&args))]
+#[access_control(TransferTokensWrapped::constraints(&args))]
 pub fn transfer_tokens_wrapped(
     ctx: Context<TransferTokensWrapped>,
     args: LegacyTransferTokensArgs,
@@ -132,7 +132,7 @@ pub fn transfer_tokens_wrapped(
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
     // wrapped assets.
     let wrapped_asset = &ctx.accounts.wrapped_asset;
-    let token_transfer = super::Transfer {
+    let token_transfer = crate::messages::Transfer {
         norm_amount: U256::from(amount),
         token_address: wrapped_asset.token_address,
         token_chain: wrapped_asset.token_chain,

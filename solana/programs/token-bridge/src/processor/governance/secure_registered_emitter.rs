@@ -1,4 +1,4 @@
-use crate::state::RegisteredEmitter;
+use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -7,7 +7,7 @@ pub struct SecureRegisteredEmitter<'info> {
     payer: Signer<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [legacy_registered_emitter.chain.to_be_bytes().as_ref()],
@@ -33,16 +33,55 @@ pub struct SecureRegisteredEmitter<'info> {
     system_program: Program<'info, System>,
 }
 
-pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
-    let registered = &ctx.accounts.legacy_registered_emitter;
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
+pub enum SecureRegisteredEmitterDirective {
+    Init,
+    CloseLegacy,
+}
 
+pub fn secure_registered_emitter(
+    ctx: Context<SecureRegisteredEmitter>,
+    directive: SecureRegisteredEmitterDirective,
+) -> Result<()> {
+    match directive {
+        SecureRegisteredEmitterDirective::Init => {
+            msg!("Directive: Init");
+            init(ctx)
+        }
+        SecureRegisteredEmitterDirective::CloseLegacy => {
+            msg!("Directive: CloseLegacy");
+            close_legacy(ctx)
+        }
+    }
+}
+
+fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+    let registered = &mut ctx.accounts.registered_emitter;
+    require_eq!(
+        registered.chain,
+        0,
+        TokenBridgeError::EmitterAlreadyRegistered
+    );
+
+    // Copy registered emitter account.
     ctx.accounts
         .registered_emitter
-        .set_inner(RegisteredEmitter {
-            chain: registered.chain,
-            contract: registered.contract,
-        });
+        .set_inner(*AsRef::<RegisteredEmitter>::as_ref(
+            &ctx.accounts.legacy_registered_emitter,
+        ));
 
     // Done.
     Ok(())
+}
+
+fn close_legacy(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+    require_eq!(
+        ctx.accounts.legacy_registered_emitter.chain,
+        ctx.accounts.registered_emitter.chain,
+        TokenBridgeError::RegisteredEmitterMismatch
+    );
+
+    err!(TokenBridgeError::UnsupportedInstructionDirective)
+
+    //ctx.accounts.legacy_registered_emitter.close(ctx.accounts.payer.to_account_info())
 }

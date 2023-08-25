@@ -1,11 +1,11 @@
 mod governance;
 pub use governance::*;
 
-mod transfer_tokens;
-pub use transfer_tokens::*;
+// mod transfer_tokens;
+// pub use transfer_tokens::*;
 
-mod transfer_tokens_with_payload;
-pub use transfer_tokens_with_payload::*;
+// mod transfer_tokens_with_payload;
+// pub use transfer_tokens_with_payload::*;
 
 use crate::{
     constants::{
@@ -28,9 +28,9 @@ use wormhole_io::Writeable;
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
     pub core_bridge_config: &'ctx Account<'info, CoreBridgeConfig>,
-    pub core_message: &'ctx Signer<'info>,
+    pub core_message: &'ctx AccountInfo<'info>,
     pub core_emitter: &'ctx AccountInfo<'info>,
-    pub core_emitter_sequence: &'ctx UncheckedAccount<'info>,
+    pub core_emitter_sequence: &'ctx AccountInfo<'info>,
     pub payer: &'ctx Signer<'info>,
     pub core_fee_collector: &'ctx Option<UncheckedAccount<'info>>,
     pub system_program: &'ctx Program<'info, System>,

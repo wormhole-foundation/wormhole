@@ -17,6 +17,8 @@ pub mod error;
 
 pub mod legacy;
 
+pub(crate) mod messages;
+
 mod processor;
 pub(crate) use processor::*;
 
@@ -44,8 +46,11 @@ pub mod wormhole_token_bridge_solana {
         processor::register_chain(ctx)
     }
 
-    pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
-        processor::secure_registered_emitter(ctx)
+    pub fn secure_registered_emitter(
+        ctx: Context<SecureRegisteredEmitter>,
+        directive: SecureRegisteredEmitterDirective,
+    ) -> Result<()> {
+        processor::secure_registered_emitter(ctx, directive)
     }
 
     // Fallback to legacy instructions below.
