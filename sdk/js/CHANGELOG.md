@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0
+## 0.10.2
 
 ### Added
 
@@ -14,7 +14,7 @@ transferFromAptos payload type changed from string to Uint8Array
 
 ### Changes
 
-Transfer from Sui with payload uses oldest EmitterCap *or* creates a new one if none exist
+Transfer from Sui with payload uses oldest EmitterCap _or_ creates a new one if none exist
 
 ## 0.9.23
 
