@@ -1,4 +1,4 @@
-import { CHAIN_ID_SOLANA, parseVaa } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA, parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { execSync } from "child_process";
@@ -106,6 +106,28 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       await sendTx(program, payer, signedVaa);
     });
 
+    it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {
+      const realImplementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
+
+      // Create the signed VAA with a random implementation.
+      const signedVaa = defaultVaa(anchor.web3.Keypair.generate().publicKey);
+
+      // Verify and Post.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the upgrade instruction, but pass a buffer with the realImplementation pubkey.
+      const ix = coreBridge.legacyUpgradeContractIx(
+        program,
+        { payer: payer.publicKey, buffer: realImplementation },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "ImplementationMismatch");
+    });
+
     it("Cannot Invoke `upgrade_contract` with Invalid Governance Emitter", async () => {
       const implementation = loadProgramBpf(
         ARTIFACTS_PATH,
@@ -124,6 +146,31 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       const published = governance.publishWormholeUpgradeContract(
         timestamp,
         CHAIN_ID_SOLANA,
+        implementation.toString()
+      );
+      const signedVaa = invalidGuardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      await sendTx(program, payer, signedVaa, "InvalidGovernanceEmitter");
+    });
+
+    it("Cannot Invoke `upgrade_contract` with Governance For Another Chain", async () => {
+      const implementation = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+
+      // Create a bad governance emitter by using an invalid address.
+      const governance = new GovernanceEmitter(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        GOVERNANCE_SEQUENCE - 1
+      );
+      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
+
+      // Create a signed VAA with the wrong target chain ID.
+      const timestamp = 294967295;
+      const published = governance.publishWormholeUpgradeContract(
+        timestamp,
+        CHAIN_ID_ETH,
         implementation.toString()
       );
       const signedVaa = invalidGuardians.addSignatures(
