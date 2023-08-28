@@ -6,6 +6,7 @@ import {
     InvalidPayloadId,
     InvalidPayloadLength,
     InvalidVaaKeyType,
+    TooManyMessageKeys,
     MessageKey,
     VAA_KEY_TYPE,
     VaaKey
@@ -166,7 +167,8 @@ library WormholeRelayerSerde {
         returns (MessageKey[] memory msgKeys)
     {
         msgKeys = new MessageKey[](vaaKeys.length);
-        for (uint256 i = 0; i < vaaKeys.length;) {
+        uint256 len = vaaKeys.length;
+        for (uint256 i = 0; i < len;) {
             msgKeys[i] = MessageKey(VAA_KEY_TYPE, encodeVaaKey(vaaKeys[i]));
             unchecked {
                 ++i;
@@ -198,9 +200,7 @@ library WormholeRelayerSerde {
     }
 
     function encodeVaaKey(VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(
-            encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence
-        );
+        encoded = abi.encodePacked(vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
     }
 
     function decodeVaaKey(
@@ -213,16 +213,17 @@ library WormholeRelayerSerde {
         (vaaKey.sequence, offset) = encoded.asUint64Unchecked(offset);
     }
 
-    // ------------------------------------------ private --------------------------------------------
-
     function encodeMessageKeyArray(MessageKey[] memory msgKeys)
-        private
+        internal
         pure
         returns (bytes memory encoded)
     {
-        assert(msgKeys.length < type(uint8).max);
+        uint256 len = msgKeys.length;
+        if (len > type(uint8).max) {
+            revert TooManyMessageKeys(len);
+        }
         encoded = abi.encodePacked(uint8(msgKeys.length));
-        for (uint256 i = 0; i < msgKeys.length;) {
+        for (uint256 i = 0; i < len;) {
             encoded = abi.encodePacked(encoded, encodeMessageKey(msgKeys[i]));
             unchecked {
                 ++i;
@@ -233,17 +234,19 @@ library WormholeRelayerSerde {
     function decodeMessageKeyArray(
         bytes memory encoded,
         uint256 startOffset
-    ) private pure returns (MessageKey[] memory msgKeys, uint256 offset) {
+    ) internal pure returns (MessageKey[] memory msgKeys, uint256 offset) {
         uint8 msgKeysLength;
         (msgKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
         msgKeys = new MessageKey[](msgKeysLength);
-        for (uint256 i = 0; i < msgKeys.length;) {
+        for (uint256 i = 0; i < msgKeysLength;) {
             (msgKeys[i], offset) = decodeMessageKey(encoded, offset);
             unchecked {
                 ++i;
             }
         }
     }
+
+    // ------------------------------------------ private --------------------------------------------
 
     function encodeBytes(bytes memory payload) private pure returns (bytes memory encoded) {
         //casting payload.length to uint32 is safe because you'll be hard-pressed to allocate 4 GB of
