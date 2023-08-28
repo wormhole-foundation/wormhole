@@ -1,4 +1,4 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { execSync } from "child_process";
@@ -9,6 +9,7 @@ import {
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -69,7 +70,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       // Create the signed VAA.
       const signedVaa = defaultVaa(implementation);
 
-      await txOk(program, payer, signedVaa);
+      await sendTx(program, payer, signedVaa);
 
       // Save for later.
       localVariables.set("signedVaa", signedVaa);
@@ -102,7 +103,51 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       // Create the signed VAA.
       const signedVaa = defaultVaa(implementation);
 
-      await txOk(program, payer, signedVaa);
+      await sendTx(program, payer, signedVaa);
+    });
+
+    it("Cannot Invoke `upgrade_contract` with Invalid Governance Emitter", async () => {
+      const implementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
+
+      // Create a bad governance emitter by using an invalid address.
+      const governance = new GovernanceEmitter(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        GOVERNANCE_SEQUENCE - 1
+      );
+      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
+
+      // Create the bad signed VAA.
+      const timestamp = 294967295;
+      const published = governance.publishWormholeUpgradeContract(
+        timestamp,
+        CHAIN_ID_SOLANA,
+        implementation.toString()
+      );
+      const signedVaa = invalidGuardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      await sendTx(program, payer, signedVaa, "InvalidGovernanceEmitter");
+    });
+
+    it("Cannot Invoke `upgrade_contract` with Invalid Governance Action", async () => {
+      // Publish the wrong VAA type.
+      const timestamp = 294967295;
+      const published = governance.publishWormholeSetMessageFee(
+        timestamp,
+        CHAIN_ID_SOLANA,
+        BigInt(69)
+      );
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      await sendTx(program, payer, signedVaa, "InvalidGovernanceAction");
     });
   });
 });
@@ -117,10 +162,11 @@ function defaultVaa(implementation: anchor.web3.PublicKey, targetChain?: number)
   return guardians.addSignatures(published, [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]);
 }
 
-async function txOk(
+async function sendTx(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  signedVaa: Buffer
+  signedVaa: Buffer,
+  expectedError?: string
 ) {
   const connection = program.provider.connection;
 
@@ -134,5 +180,9 @@ async function txOk(
   const ix = coreBridge.legacyUpgradeContractIx(program, { payer: payer.publicKey }, parsedVaa);
 
   // Invoke the instruction.
-  return expectIxOk(connection, [ix], [payer]);
+  if (expectedError === undefined) {
+    return expectIxOk(connection, [ix], [payer]);
+  } else {
+    return expectIxErr(connection, [ix], [payer], expectedError);
+  }
 }
