@@ -299,7 +299,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue);
 
-        checkMessageKeyTypesSupportedByDeliveryProvider(provider, sendParams.messageKeys);
+        checkKeyTypesSupported(provider, sendParams.messageKeys);
 
         // Encode all relevant info the delivery provider needs to perform the delivery as requested
         bytes memory encodedInstruction = DeliveryInstruction({
@@ -335,24 +335,24 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             revert DeliveryProviderCannotReceivePayment();
     }
 
-    function checkMessageKeyTypesSupportedByDeliveryProvider(
+    function checkKeyTypesSupported(
         IDeliveryProvider provider, 
         MessageKey[] memory messageKeys
     ) internal view {
-        uint256 seenKeyTypes = 0;
-        for (uint256 i = 0; i < messageKeys.length;) {
+        uint256 len = messageKeys.length;
+        if (len == 0) {
+            return;
+        }
+
+        uint256 supportedKeyTypes = provider.getSupportedKeys();
+        for (uint256 i = 0; i < len;) {
             uint8 keyType = messageKeys[i].keyType;
+            if ((supportedKeyTypes & (1 << keyType)) == 0){
+                revert DeliveryProviderDoesNotSupportMessageKeyType(keyType);
+            }
             unchecked {
                 ++i;
             }
-
-            uint256 mask = 1 << keyType;
-            if (seenKeyTypes & mask > 0)
-                continue;
-            if (!provider.isMessageKeyTypeSupported(keyType)) {
-                revert DeliveryProviderDoesNotSupportMessageKeyType(keyType);
-            }
-            seenKeyTypes |= mask;
         }
     }
 

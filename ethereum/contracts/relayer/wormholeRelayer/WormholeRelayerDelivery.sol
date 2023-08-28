@@ -566,7 +566,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         uint256 numVaas = 0;
-        for (uint256 i = 0; i < messageKeys.length;) {
+        uint256 len = messageKeys.length;
+        for (uint256 i = 0; i < len;) {
             if (messageKeys[i].keyType == VAA_KEY_TYPE) {
                 IWormhole.VM memory parsedVaa = getWormhole().parseVM(signedMessages[i]);
                 (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKeys[i].encodedKey, 0);
