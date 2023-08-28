@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
-import {toWormholeFormat, min, pay} from "../../libraries/relayer/Utils.sol";
+import {toWormholeFormat, min, pay} from "../../relayer/libraries/Utils.sol";
 import {
     ReentrantDelivery,
     DeliveryProviderDoesNotSupportTargetChain,
@@ -12,7 +12,7 @@ import {
     InvalidMsgValue,
     IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
-import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
+import {DeliveryInstruction} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {
     ReentrancyGuardState,
     getDeliverySuccessState,

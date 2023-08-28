@@ -7,7 +7,7 @@ import "./DeliveryProviderStructs.sol";
 import {getSupportedMessageKeyTypes} from "./DeliveryProviderState.sol";
 import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
-import "../../libraries/relayer/ExecutionParameters.sol";
+import "../../relayer/libraries/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 
 contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {

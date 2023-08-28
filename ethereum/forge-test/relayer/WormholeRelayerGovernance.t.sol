@@ -21,7 +21,7 @@ import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol"
 import {IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import {MockRelayerIntegration} from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
 import {TestHelpers} from "./TestHelpers.sol";
-import {toWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
+import {toWormholeFormat} from "../../contracts/relayer/libraries/Utils.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Test.sol";
@@ -161,7 +161,13 @@ contract WormholeRelayerGovernanceTests is Test {
             ) == toWormholeFormat(address(wormholeRelayer3))
         );
 
-        vm.expectRevert(abi.encodeWithSignature("ChainAlreadyRegistered(uint16,bytes32)", 3, toWormholeFormat(address(wormholeRelayer3))));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "ChainAlreadyRegistered(uint16,bytes32)",
+                3,
+                toWormholeFormat(address(wormholeRelayer3))
+            )
+        );
         helpers.registerWormholeRelayerContract(
             WormholeRelayer(payable(address(wormholeRelayer1))),
             wormhole,
