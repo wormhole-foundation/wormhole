@@ -393,7 +393,6 @@ contract TestDeliveryProvider is Test {
 
         assertFalse(deliveryProvider.isMessageKeyTypeSupported(keyType));
         deliveryProvider.updateSupportedMessageKeyTypes(keyType, true);
-        console.log(deliveryProvider.getSupportedKeys());
         assertTrue(deliveryProvider.isMessageKeyTypeSupported(keyType));
         deliveryProvider.updateSupportedMessageKeyTypes(keyType, false);
         assertFalse(deliveryProvider.isMessageKeyTypeSupported(keyType));
