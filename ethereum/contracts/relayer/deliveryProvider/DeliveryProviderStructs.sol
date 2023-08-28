@@ -133,12 +133,8 @@ abstract contract DeliveryProviderStructs {
          */
         address payable rewardAddress;
         /**
-         *  Address of supported key types (these will be explicity set to true)
-         */ 
-        uint8[] supportedKeyTypes;
-        /**
-         *  Address of unsupported key types (these will explicitly be set to false)
+         * Bitmap encoding all uint8 keyTypes supported 
          */
-        uint8[] unsupportedKeyTypes;
+        uint256 supportedKeyTypesBitmap;
     }
 }

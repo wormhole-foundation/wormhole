@@ -614,6 +614,7 @@ error DeliveryAlreadyExecuted(bytes32 deliveryHash);
 error InvalidPayloadId(uint8 parsed, uint8 expected);
 error InvalidPayloadLength(uint256 received, uint256 expected);
 error InvalidVaaKeyType(uint8 parsed);
+error TooManyMessageKeys(uint256 numMessageKeys);
 
 error InvalidDeliveryVaa(string reason);
 //When the delivery VAA (signed wormhole message with delivery instructions) was not emitted by the

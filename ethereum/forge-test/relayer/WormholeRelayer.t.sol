@@ -549,7 +549,7 @@ LocalNative forwardDeliveryCost;
         
         MessageKey[] memory messageKeys = new MessageKey[](2);
         messageKeys[0] = MessageKey(VAA_KEY_TYPE, bytes(""));
-        messageKeys[0] = MessageKey(RANDOM_KEY_TYPE, RANDOM_KEY_TYPE_BODY);
+        messageKeys[1] = MessageKey(RANDOM_KEY_TYPE, RANDOM_KEY_TYPE_BODY);
 
         (LocalNative cost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), Gas.wrap(0));
         
@@ -2065,6 +2065,44 @@ LocalNative forwardDeliveryCost;
 
         (MessageKey memory newMessageKey,) = WormholeRelayerSerde.decodeMessageKey(WormholeRelayerSerde.encodeMessageKey(messageKey), 0);
         checkMessageKey(WormholeRelayerSerde.encodeMessageKey(newMessageKey), 0, messageKey);
+    }
+
+    function testRevertEncodeAndDecodeTooLongMessageKeyArray() public {
+        uint256 len = uint256(type(uint8).max) + 1;
+        MessageKey[] memory messageKeys = new MessageKey[](len);
+        for (uint256 i = 0; i < len; ++i) {
+            messageKeys[i] = MessageKey({
+                keyType: RANDOM_KEY_TYPE,
+                encodedKey: RANDOM_KEY_TYPE_BODY
+            });
+        }
+        vm.expectRevert(abi.encodeWithSignature("TooManyMessageKeys(uint256)", len));
+        WormholeRelayerSerde.encodeMessageKeyArray(messageKeys);
+    }
+
+    function testEncodeAndDecodeMessageKeyArray(uint8 len, uint8 idx) public {
+        vm.assume(idx < len || len == 0);
+        MessageKey[] memory messageKeys = new MessageKey[](len);
+        for (uint256 i = 0; i < len; ++i) {
+            messageKeys[i] = MessageKey({
+                keyType: RANDOM_KEY_TYPE,
+                encodedKey: RANDOM_KEY_TYPE_BODY
+            });
+        }
+        VaaKey memory vaaKey = VaaKey({
+            chainId: 1,
+            emitterAddress: bytes32(""),
+            sequence: 23
+        });
+        if (len > 0) {
+            messageKeys[idx] = MessageKey(VAA_KEY_TYPE, WormholeRelayerSerde.encodeVaaKey(vaaKey));
+        }
+
+        (MessageKey[] memory newMessageKeys,) = WormholeRelayerSerde.decodeMessageKeyArray(
+            WormholeRelayerSerde.encodeMessageKeyArray(messageKeys), 0);
+        for (uint256 i = 0; i < len; ++i) {
+            checkMessageKey(WormholeRelayerSerde.encodeMessageKey(newMessageKeys[i]), 0, messageKeys[i]);
+        }
     }
 
     function testEncodeAndDecodeMessageKeyDifferentType() public {
