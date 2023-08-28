@@ -5,6 +5,7 @@ pub struct PostedMessageV1<'a>(&'a [u8]);
 
 impl<'a> PostedMessageV1<'a> {
     pub const DISCRIMINATOR: [u8; 4] = state::POSTED_MESSAGE_V1_DISCRIMINATOR;
+    pub const PAYLOAD_START: usize = 91;
 
     const DISC_LEN: usize = Self::DISCRIMINATOR.len();
 
@@ -44,12 +45,12 @@ impl<'a> PostedMessageV1<'a> {
     }
 
     pub fn payload_size(&self) -> usize {
-        let mut buf = &self.0[87..91];
+        let mut buf = &self.0[87..Self::PAYLOAD_START];
         u32::deserialize(&mut buf).unwrap().try_into().unwrap()
     }
 
     pub fn payload(&self) -> &'a [u8] {
-        &self.0[91..]
+        &self.0[Self::PAYLOAD_START..]
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {

@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { expect } from "chai";
+import { assert, expect } from "chai";
 import { createAccountIx, expectDeepEqual, expectIxErr, expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 
@@ -110,7 +110,7 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
     for (let start = 0; start < messageSize; start += chunkSize) {
       const end = Math.min(start + chunkSize, messageSize);
 
-      it(`Invoke \`process_message_v1\` to Write Part of Message (Range: ${start}..${end})`, async () => {
+      it(`Invoke \`process_message_v1\` to Write (Range: ${start}..${end})`, async () => {
         const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
         const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
@@ -147,7 +147,55 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
       });
     }
 
-    it("Invoke `process_message_v1` to Close Draft Message", async () => {
+    it("Invoke `process_message_v1` to Finalize", async () => {
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
+
+      const ix = await coreBridge.processMessageV1Ix(
+        program,
+        {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage,
+          closeAccountDestination: null,
+        },
+        { finalize: {} }
+      );
+      await expectIxOk(connection, [ix], [payer, emitterAuthority]);
+    });
+
+    it("Cannot Invoke `process_message_v1` to Finalize Again", async () => {
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
+
+      const ix = await coreBridge.processMessageV1Ix(
+        program,
+        {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage,
+          closeAccountDestination: null,
+        },
+        { finalize: {} }
+      );
+      await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
+    });
+
+    it("Cannot Invoke `process_message_v1` to Write After Finalize", async () => {
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
+
+      const ix = await coreBridge.processMessageV1Ix(
+        program,
+        {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage,
+          closeAccountDestination: null,
+        },
+        { finalize: {} }
+      );
+      await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
+    });
+
+    it("Invoke `process_message_v1` to Close Message", async () => {
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 

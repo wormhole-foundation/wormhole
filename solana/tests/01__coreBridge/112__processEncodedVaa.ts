@@ -1,4 +1,6 @@
+import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
+import { ComputeBudgetProgram } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   GUARDIAN_KEYS,
@@ -6,10 +8,8 @@ import {
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
-  expectIxOkDetails,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
 const GUARDIAN_SET_INDEX = 2;
 
@@ -269,6 +269,45 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       const encodedVaaData = await connection.getAccountInfo(encodedVaa);
       expect(encodedVaaData).is.null;
     });
+
+    it("Cannot Invoke `process_encoded_vaa` to Verify Signatures without Quorum", async () => {
+      const guardianIndices = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12];
+      expect(guardianIndices).has.length.lessThan((2 * guardians.signers.length) / 3);
+
+      const badVaa = defaultVaa({ payload: Buffer.from("Unverified."), guardianIndices });
+      const encodedVaa = await initEncodedVaa(program, payer, badVaa.length);
+
+      const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
+      const writeIx = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa,
+          guardianSet: null,
+        },
+        { write: { index: 0, data: badVaa } }
+      );
+
+      const verifyIx = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa,
+          guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
+        },
+        { verifySignaturesV1: {} }
+      );
+
+      await expectIxErr(connection, [computeIx, writeIx, verifyIx], [payer], "NoQuorum");
+    });
+
+    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures with Invalid Signature", async () => {
+      // TODO
+    });
+
+    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures with Mismatching Guardian Set", async () => {
+      // TODO
+    });
   });
 });
 
@@ -296,19 +335,17 @@ async function initEncodedVaa(
   return encodedVaa.publicKey;
 }
 
-function defaultVaa(
-  args?: {
-    nonce?: number;
-    payload?: Buffer;
-    consistencyLevel?: number;
-    timestamp?: number;
-  },
-  guardianIndices?: number[]
-) {
+function defaultVaa(args?: {
+  nonce?: number;
+  payload?: Buffer;
+  consistencyLevel?: number;
+  timestamp?: number;
+  guardianIndices?: number[];
+}) {
   if (args === undefined) {
     args = {};
   }
-  let { nonce, payload, consistencyLevel, timestamp } = args;
+  let { nonce, payload, consistencyLevel, timestamp, guardianIndices } = args;
 
   if (nonce === undefined) {
     nonce = 420;

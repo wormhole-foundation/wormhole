@@ -15,6 +15,7 @@ npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/102__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/104__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/110__*.ts
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/112__*.ts
+npx ts-mocha -p ./tsconfig.json -t 60000 tests/01__**/114__*.ts
 
 # token bridge
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/000__*.ts  # initialize

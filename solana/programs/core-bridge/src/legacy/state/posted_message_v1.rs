@@ -10,6 +10,7 @@ pub(crate) const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 pub enum MessageStatus {
     Unset,
     Writing,
+    Finalized,
 }
 
 /// This type is kind of silly. But because `PostedMessageV1` has the emitter chain ID as a field,
