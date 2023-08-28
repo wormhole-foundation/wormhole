@@ -107,8 +107,12 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         return _state.supportedChains[targetChain];
     }
 
+    function getSupportedKeys() public view returns (uint256 bitmap) {
+        return getSupportedMessageKeyTypes().bitmap;
+    }
+
     function isMessageKeyTypeSupported(uint8 keyType) public view returns (bool supported) {
-        return getSupportedMessageKeyTypes().supportedKeyTypes[keyType];
+        return getSupportedMessageKeyTypes().bitmap & (1 << keyType) > 0;
     }
 
     function getTargetChainAddress(uint16 targetChain)
