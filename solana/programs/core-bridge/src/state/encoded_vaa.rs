@@ -1,10 +1,8 @@
 use std::ops::Deref;
 
-use crate::{
-    error::CoreBridgeError,
-    types::{MessageHash, VaaVersion},
-};
-use anchor_lang::{prelude::*, Discriminator};
+use crate::{error::CoreBridgeError, types::VaaVersion};
+use anchor_lang::prelude::*;
+use wormhole_raw_vaas::Vaa;
 
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
@@ -36,44 +34,12 @@ impl EncodedVaa {
         + 4 // bytes.len()
     ;
 
-    pub fn payload_size(&self) -> Result<usize> {
-        match self.version {
-            VaaVersion::V1 => Ok(self.buf.len() - self.body_index() - 51),
-            _ => err!(CoreBridgeError::InvalidVaaVersion),
-        }
-    }
-
-    pub fn compute_message_hash(&self) -> Result<MessageHash> {
-        match self.version {
-            VaaVersion::V1 => {
-                let body = &self.buf[self.body_index()..];
-                Ok(solana_program::keccak::hash(body).into())
-            }
-            _ => err!(CoreBridgeError::InvalidVaaVersion),
-        }
-    }
-
-    fn body_index(&self) -> usize {
-        match self.version {
-            VaaVersion::Unset => 0,
-            VaaVersion::V1 => 6 + 66 * usize::from(self.buf[5]),
-        }
-    }
-
-    pub fn try_acc_header_deserialize(buf: &mut &[u8]) -> Result<Header> {
-        if buf.len() < 8 {
-            return err!(ErrorCode::AccountDiscriminatorNotFound);
-        }
+    pub fn v1(&self) -> Result<Vaa> {
         require!(
-            EncodedVaa::DISCRIMINATOR == buf[..8],
-            ErrorCode::AccountDiscriminatorMismatch
+            self.header.version == VaaVersion::V1,
+            CoreBridgeError::InvalidVaaVersion
         );
-        Self::try_acc_header_deserialize_unchecked(buf)
-    }
-
-    pub fn try_acc_header_deserialize_unchecked(buf: &mut &[u8]) -> Result<Header> {
-        *buf = &buf[8..];
-        Header::deserialize(buf).map_err(|_| error!(ErrorCode::AccountDidNotDeserialize))
+        Ok(Vaa::parse(&self.buf).unwrap())
     }
 }
 

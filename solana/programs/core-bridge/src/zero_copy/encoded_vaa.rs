@@ -1,6 +1,6 @@
 use crate::{error::CoreBridgeError, state, types::VaaVersion};
 use anchor_lang::{
-    prelude::{require, AnchorDeserialize, ErrorCode, Pubkey, Result},
+    prelude::{error, require, AnchorDeserialize, ErrorCode, Pubkey, Result},
     Discriminator,
 };
 use wormhole_raw_vaas::Vaa;
@@ -28,6 +28,11 @@ impl<'a> EncodedVaa<'a> {
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
+    pub fn vaa_size(&self) -> usize {
+        let mut buf = &self.0[34..38];
+        u32::deserialize(&mut buf).unwrap().try_into().unwrap()
+    }
+
     pub fn v1(&self) -> Result<Vaa<'a>> {
         require!(
             self.version() == VaaVersion::V1,
@@ -36,8 +41,12 @@ impl<'a> EncodedVaa<'a> {
         Ok(Vaa::parse(&self.0[Self::VAA_START..]).unwrap())
     }
 
+    pub(crate) fn v1_unverified(&self) -> Result<Vaa<'a>> {
+        Vaa::parse(&self.0[Self::VAA_START..]).map_err(|_| error!(CoreBridgeError::CannotParseVaa))
+    }
+
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        let vaa = Self::parse_unverified(&span)?;
+        let vaa = Self::parse_unverified(span)?;
 
         // We only allow verified VAAs to be read.
         require!(

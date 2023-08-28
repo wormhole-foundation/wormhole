@@ -44,18 +44,14 @@ pub fn secure_registered_emitter(
     directive: SecureRegisteredEmitterDirective,
 ) -> Result<()> {
     match directive {
-        SecureRegisteredEmitterDirective::Init => {
-            msg!("Directive: Init");
-            init(ctx)
-        }
-        SecureRegisteredEmitterDirective::CloseLegacy => {
-            msg!("Directive: CloseLegacy");
-            close_legacy(ctx)
-        }
+        SecureRegisteredEmitterDirective::Init => init(ctx),
+        SecureRegisteredEmitterDirective::CloseLegacy => close_legacy(ctx),
     }
 }
 
 fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+    msg!("Directive: Init");
+
     let registered = &mut ctx.accounts.registered_emitter;
     require_eq!(
         registered.chain,
@@ -73,6 +69,8 @@ fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
 }
 
 fn close_legacy(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+    msg!("Directive: CloseLegacy");
+
     require_eq!(
         ctx.accounts.legacy_registered_emitter.chain,
         ctx.accounts.registered_emitter.chain,
