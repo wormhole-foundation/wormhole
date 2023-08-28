@@ -194,9 +194,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     });
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
-    let uri = wrapped_asset
-        .to_uri()
-        .map_err(|_| TokenBridgeError::CannotSerializeJson)?;
+    let uri = wrapped_asset.to_uri();
 
     let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
 
