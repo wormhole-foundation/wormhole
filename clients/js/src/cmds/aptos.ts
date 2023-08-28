@@ -324,7 +324,7 @@ export const builder = (y: typeof yargs) =>
     .command(
       "upgrade <package-dir>",
       "Perform upgrade after VAA has been submitted",
-      (_yargs) =>
+      (yargs) =>
         yargs
           .positional("package-dir", {
             type: "string",
@@ -365,7 +365,7 @@ export const builder = (y: typeof yargs) =>
     .command(
       "migrate",
       "Perform migration after contract upgrade",
-      (_yargs) =>
+      (yargs) =>
         yargs
           // TODO(csongor): once the sdk has the addresses, just look that up
           // based on the module
