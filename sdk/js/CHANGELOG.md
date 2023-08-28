@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0
+
+### Added
+
+Transfer from Aptos with payload support
+
+### Changes
+
+transferFromAptos payload type changed from string to Uint8Array
+
 ## 0.9.24
 
 ### Changes
