@@ -13,19 +13,19 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {toWormholeFormat, fromWormholeFormat} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     RedeliveryInstruction
-} from "../../libraries/relayer/RelayerInternalStructs.sol";
+} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
 import {getDefaultDeliveryProviderState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
-import "../../libraries/relayer/ExecutionParameters.sol";
+import "../../relayer/libraries/ExecutionParameters.sol";
 
 abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
-    using WormholeRelayerSerde for *; 
+    using WormholeRelayerSerde for *;
     using WeiLib for Wei;
     using GasLib for Gas;
     using TargetNativeLib for TargetNative;
@@ -225,7 +225,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 refundChain,
                 refundAddress,
                 deliveryProviderAddress,
-                WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys), 
+                WormholeRelayerSerde.vaaKeyArrayToMessageKeyArray(vaaKeys),
                 consistencyLevel
             )
         );
@@ -280,7 +280,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     }
 
     function send(Send memory sendParams) internal returns (uint64 sequence) {
-
         IDeliveryProvider provider = IDeliveryProvider(sendParams.deliveryProviderAddress);
 
         // Revert if delivery provider does not support the target chain
@@ -331,12 +330,13 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             provider.getRewardAddress()
         );
 
-        if(!paymentSucceeded) 
+        if (!paymentSucceeded) {
             revert DeliveryProviderCannotReceivePayment();
+        }
     }
 
     function checkKeyTypesSupported(
-        IDeliveryProvider provider, 
+        IDeliveryProvider provider,
         MessageKey[] memory messageKeys
     ) internal view {
         uint256 len = messageKeys.length;
@@ -347,7 +347,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint256 supportedKeyTypes = provider.getSupportedKeys();
         for (uint256 i = 0; i < len;) {
             uint8 keyType = messageKeys[i].keyType;
-            if ((supportedKeyTypes & (1 << keyType)) == 0){
+            if ((supportedKeyTypes & (1 << keyType)) == 0) {
                 revert DeliveryProviderDoesNotSupportMessageKeyType(keyType);
             }
             unchecked {
@@ -371,7 +371,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 newDeliveryProviderAddress, targetChain
             );
         }
-        
+
         // Obtain the delivery provider's fee for this delivery, as well as some encoded info (e.g. refund per unit of gas unused)
         (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             targetChain, newReceiverValue, newEncodedExecutionParameters
@@ -402,8 +402,9 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             CONSISTENCY_LEVEL_INSTANT,
             provider.getRewardAddress()
         );
-        if (!paymentSucceeded)
+        if (!paymentSucceeded) {
             revert DeliveryProviderCannotReceivePayment();
+        }
     }
 
     function getDefaultDeliveryProvider() public view returns (address deliveryProvider) {
@@ -435,7 +436,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             deliveryProviderAddress
         );
         nativePriceQuote = quote;
-        targetChainRefundPerGasUnused = decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused;
+        targetChainRefundPerGasUnused =
+            decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused;
     }
 
     function quoteEVMDeliveryPrice(
@@ -455,10 +457,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address deliveryProviderAddress
     ) public view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo) {
         IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
-        (LocalNative deliveryPrice, bytes memory _encodedExecutionInfo) = provider
-            .quoteDeliveryPrice(
-            targetChain, receiverValue, encodedExecutionParameters
-        );
+        (LocalNative deliveryPrice, bytes memory _encodedExecutionInfo) =
+            provider.quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters);
         encodedExecutionInfo = _encodedExecutionInfo;
         nativePriceQuote = deliveryPrice + getWormholeMessageFee();
     }
@@ -468,6 +468,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         LocalNative currentChainAmount,
         address deliveryProviderAddress
     ) public view returns (TargetNative targetChainAmount) {
-        return IDeliveryProvider(deliveryProviderAddress).quoteAssetConversion(targetChain, currentChainAmount);
+        return IDeliveryProvider(deliveryProviderAddress).quoteAssetConversion(
+            targetChain, currentChainAmount
+        );
     }
 }

@@ -27,13 +27,13 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../libraries/relayer/Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
     EvmDeliveryInstruction
-} from "../../libraries/relayer/RelayerInternalStructs.sol";
-import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
+} from "../../relayer/libraries/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../relayer/libraries/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
 import {
     DeliverySuccessState,
@@ -43,7 +43,7 @@ import {
 } from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
-import "../../libraries/relayer/ExecutionParameters.sol";
+import "../../relayer/libraries/ExecutionParameters.sol";
 
 abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
     using WormholeRelayerSerde for *; 
