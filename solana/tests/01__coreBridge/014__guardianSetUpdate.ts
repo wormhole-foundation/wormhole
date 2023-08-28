@@ -135,6 +135,50 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
   describe("New implementation", () => {
     const currSetRange = range(0, 2);
 
+    it("Cannot Invoke `guardian_set_update` with Zero Address Key", async () => {
+      let newGuardians = guardians.getPublicKeys();
+
+      // Set the second key to the zero address.
+      newGuardians[1] = Buffer.alloc(32);
+
+      // Create the signed VAA.
+      const signedVaa = defaultVaa(guardians.setIndex + 1, newGuardians, currSetRange);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "GuardianZeroAddress");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Duplicate Key", async () => {
+      let newGuardians = guardians.getPublicKeys();
+
+      // Duplicate the first key
+      newGuardians[1] = newGuardians[0];
+
+      // Create the signed VAA.
+      const signedVaa = defaultVaa(guardians.setIndex + 1, newGuardians, currSetRange);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "DuplicateGuardianAddress");
+    });
+
     it("Cannot Invoke `guardian_set_update` with Invalid Guardian Set Index", async () => {
       const signedVaa = defaultVaa(guardians.setIndex + 2, guardians.getPublicKeys(), currSetRange);
 
