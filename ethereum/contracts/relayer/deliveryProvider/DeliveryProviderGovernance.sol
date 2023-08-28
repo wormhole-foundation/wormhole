@@ -75,7 +75,11 @@ abstract contract DeliveryProviderGovernance is
         public
         onlyOwner
     {
-        getSupportedMessageKeyTypes().supportedKeyTypes[keyType] = supported;
+        if (supported) {
+            getSupportedMessageKeyTypes().bitmap |= (1 << keyType);
+        } else {
+            getSupportedMessageKeyTypes().bitmap &= ~(1 << keyType);
+        }
     }
 
     function updatePricingWallet(address newPricingWallet) external onlyOwner {
@@ -270,13 +274,7 @@ abstract contract DeliveryProviderGovernance is
             updateRewardAddressImpl(coreConfig.rewardAddress);
         }
         if(coreConfig.updateSupportedKeyTypes) {
-            SupportedMessageKeyTypes storage supportedMessageKeyTypes = getSupportedMessageKeyTypes();
-            for(uint256 i=0; i<coreConfig.supportedKeyTypes.length; i++) {
-                supportedMessageKeyTypes.supportedKeyTypes[coreConfig.supportedKeyTypes[i]] = true;
-            }
-            for(uint256 i=0; i<coreConfig.unsupportedKeyTypes.length; i++) {
-                supportedMessageKeyTypes.supportedKeyTypes[coreConfig.unsupportedKeyTypes[i]] = false;
-            }
+            getSupportedMessageKeyTypes().bitmap = coreConfig.supportedKeyTypesBitmap;
         }
     }
 
