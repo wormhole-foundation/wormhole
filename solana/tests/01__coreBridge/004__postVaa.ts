@@ -108,6 +108,46 @@ describe("Core Bridge -- Legacy Instruction: Post VAA", () => {
 
       await expectIxErr(connection, [ix], [payer], "already in use");
     });
+
+    it("Cannot Invoke `post_vaa` No Quorum", async () => {
+      // Specify less than 13 guardians, so quorum is not reached.
+      const signedVaa = defaultVaa({ guardianIndices: [0, 1, 2, 3, 4, 5] });
+
+      const { signatureSet, args, parsed, messageHash } = await createArgs(
+        connection,
+        payer,
+        signedVaa
+      );
+      expectDeepEqual(parsed.hash, Buffer.from(messageHash));
+
+      const ix = coreBridge.legacyPostVaaIx(
+        program,
+        { signatureSet: signatureSet.publicKey, payer: payer.publicKey },
+        args
+      );
+
+      await expectIxErr(connection, [ix], [payer], "NoQuorum");
+    });
+
+    it("Cannot Invoke `post_vaa` Invalid Message Hash", async () => {
+      const signedVaa = defaultVaa({ nonce: 69 });
+      const { signatureSet, args, messageHash } = await createArgs(connection, payer, signedVaa);
+
+      // Fetch the expected posted_vaa account.
+      const postedVaa = await coreBridge.PostedVaaV1.address(program.programId, messageHash);
+
+      // Update the arguments that are passed to the instruction, so that the message hash
+      // is incorrect when it's recomputed in the program.
+      args.nonce = 42069;
+
+      const ix = coreBridge.legacyPostVaaIx(
+        program,
+        { signatureSet: signatureSet.publicKey, payer: payer.publicKey, postedVaa },
+        args
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidMessageHash");
+    });
   });
 });
 
@@ -167,35 +207,44 @@ async function createArgs(
   };
 }
 
-function defaultVaa(
-  nonce?: number,
-  payload?: Buffer,
-  consistencyLevel?: number,
-  timestamp?: number,
-  guardianIndices?: number[]
-) {
-  if (nonce === undefined) {
-    nonce = 420;
+function defaultVaa(args?: {
+  nonce?: number;
+  payload?: Buffer;
+  consistencyLevel?: number;
+  timestamp?: number;
+  guardianIndices?: number[];
+}) {
+  if (args === undefined) {
+    args = {};
   }
 
-  if (payload === undefined) {
-    payload = Buffer.from("All your base are belong to us.");
+  if (args.nonce === undefined) {
+    args.nonce = 420;
   }
 
-  if (consistencyLevel === undefined) {
-    consistencyLevel = 200;
+  if (args.payload === undefined) {
+    args.payload = Buffer.from("All your base are belong to us.");
   }
 
-  if (timestamp === undefined) {
-    timestamp = 12345678;
+  if (args.consistencyLevel === undefined) {
+    args.consistencyLevel = 200;
   }
 
-  if (guardianIndices === undefined) {
-    guardianIndices = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14];
+  if (args.timestamp === undefined) {
+    args.timestamp = 12345678;
   }
 
-  const published = dummyEmitter.publishMessage(nonce, payload, consistencyLevel, timestamp);
-  return guardians.addSignatures(published, guardianIndices);
+  if (args.guardianIndices === undefined) {
+    args.guardianIndices = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14];
+  }
+
+  const published = dummyEmitter.publishMessage(
+    args.nonce,
+    args.payload,
+    args.consistencyLevel,
+    args.timestamp
+  );
+  return guardians.addSignatures(published, args.guardianIndices);
 }
 
 async function parallelIxOk(
