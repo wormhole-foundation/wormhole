@@ -4,6 +4,7 @@ import { BN } from "@coral-xyz/anchor";
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { getAccount } from "@solana/spl-token";
 import {
+  ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
   Keypair,
@@ -409,4 +410,99 @@ export async function createSigVerifyIx(
     ethAddresses,
     Buffer.from(ethers.utils.arrayify(ethers.utils.keccak256(message)))
   );
+}
+
+export async function processVaa(
+  program: coreBridge.CoreBridgeProgram,
+  payer: Keypair,
+  signedVaa: Buffer,
+  guardianSetIndex: number,
+  verify: boolean = true
+) {
+  const connection = program.provider.connection;
+
+  const vaaLen = signedVaa.length;
+
+  const encodedVaa = Keypair.generate();
+  const createIx = await createAccountIx(
+    program.provider.connection,
+    program.programId,
+    payer,
+    encodedVaa,
+    46 + vaaLen
+  );
+
+  const initIx = await coreBridge.initEncodedVaaIx(program, {
+    writeAuthority: payer.publicKey,
+    encodedVaa: encodedVaa.publicKey,
+  });
+
+  const endAfterInit = 840;
+  const firstProcessIx = await coreBridge.processEncodedVaaIx(
+    program,
+    {
+      writeAuthority: payer.publicKey,
+      encodedVaa: encodedVaa.publicKey,
+      guardianSet: null,
+    },
+    { write: { index: 0, data: signedVaa.subarray(0, endAfterInit) } }
+  );
+
+  if (vaaLen > endAfterInit) {
+    await expectIxOk(
+      program.provider.connection,
+      [createIx, initIx, firstProcessIx],
+      [payer, encodedVaa]
+    );
+
+    const chunkSize = 912;
+    for (let start = endAfterInit; start < vaaLen; start += chunkSize) {
+      const end = Math.min(start + chunkSize, vaaLen);
+
+      const writeIx = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa: encodedVaa.publicKey,
+          guardianSet: null,
+        },
+        { write: { index: start, data: signedVaa.subarray(start, end) } }
+      );
+
+      if (verify && end === vaaLen) {
+        const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
+        const verifyIx = await coreBridge.processEncodedVaaIx(
+          program,
+          {
+            writeAuthority: payer.publicKey,
+            encodedVaa: encodedVaa.publicKey,
+            guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
+          },
+          { verifySignaturesV1: {} }
+        );
+        await expectIxOk(connection, [computeIx, writeIx, verifyIx], [payer]);
+      } else {
+        await expectIxOk(connection, [writeIx], [payer]);
+      }
+    }
+  } else if (verify) {
+    const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 420_000 });
+    const verifyIx = await coreBridge.processEncodedVaaIx(
+      program,
+      {
+        writeAuthority: payer.publicKey,
+        encodedVaa: encodedVaa.publicKey,
+        guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
+      },
+      { verifySignaturesV1: {} }
+    );
+
+    await expectIxOk(
+      program.provider.connection,
+      [computeIx, createIx, initIx, firstProcessIx, verifyIx],
+      [payer, encodedVaa]
+    );
+  }
+
+  return encodedVaa.publicKey;
 }

@@ -1,33 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ethers } from "ethers";
 import {
   InvalidAccountConfig,
-  InvalidArgConfig,
   NullableAccountConfig,
-  createAccountIx,
   createIfNeeded,
   expectDeepEqual,
   expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-  expectedPayerSequence,
-  invokeVerifySignaturesAndPostVaa,
-  GUARDIAN_KEYS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { expect } from "chai";
-import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
-import { parseVaa } from "@certusone/wormhole-sdk";
 
-// Mock governance emitter and guardian.
-const GUARDIAN_SET_INDEX = 0;
-const GOVERNANCE_SEQUENCE = 999_999;
-const governance = new GovernanceEmitter(
-  GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
-  GOVERNANCE_SEQUENCE - 1
-);
-const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 describe("Core Bridge -- Legacy Instruction: Post Message", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 

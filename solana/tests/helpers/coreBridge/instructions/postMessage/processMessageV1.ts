@@ -16,6 +16,9 @@ export type ProcessMessageV1Directive =
         index: number;
         data: Buffer;
       };
+    }
+  | {
+      finalize: {};
     };
 
 export async function processMessageV1Ix(
@@ -23,8 +26,5 @@ export async function processMessageV1Ix(
   accounts: ProcessMessageV1Context,
   directive: ProcessMessageV1Directive
 ) {
-  return program.methods
-    .processMessageV1(directive)
-    .accounts(accounts)
-    .instruction();
+  return program.methods.processMessageV1(directive).accounts(accounts).instruction();
 }

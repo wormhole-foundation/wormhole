@@ -10,6 +10,7 @@ import {
 export enum MessageStatus {
   Unset = 0,
   Writing = 1,
+  Finalized = 2,
 }
 
 export class PostedMessageV1 {
@@ -79,6 +80,9 @@ export class PostedMessageV1 {
         }
         case 1: {
           return MessageStatus.Writing;
+        }
+        case 2: {
+          return MessageStatus.Finalized;
         }
         default: {
           throw new Error("Invalid MessageStatus");

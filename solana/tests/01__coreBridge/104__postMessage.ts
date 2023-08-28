@@ -39,7 +39,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
     });
 
     it("Invoke Legacy `post_message` With Prepared Message", async () => {
-      const message = Buffer.alloc(4 * 1_024, "All your base are belong to us. ");
+      const message = Buffer.alloc(5 * 1_024, "All your base are belong to us. ");
 
       const { draftMessage, emitterAuthority } = await everythingOk(
         program,
@@ -116,6 +116,8 @@ async function initAndProcessMessageV1(
     emitterAuthority = anchor.web3.Keypair.generate();
   }
 
+  const messageLen = message.length;
+
   const connection = program.provider.connection;
 
   const draftMessage = anchor.web3.Keypair.generate();
@@ -144,19 +146,18 @@ async function initAndProcessMessageV1(
     { write: { index: 0, data: message.subarray(0, endAfterInit) } }
   );
 
-  await expectIxOk(
-    connection,
-    [createIx, initIx, firstProcessIx],
-    [payer, emitterAuthority, draftMessage]
-  );
+  if (messageLen > endAfterInit) {
+    await expectIxOk(
+      connection,
+      [createIx, initIx, firstProcessIx],
+      [payer, emitterAuthority, draftMessage]
+    );
 
-  const promises: Promise<string>[] = [];
-  if (message.length > endAfterInit) {
     const chunkSize = 912;
-    for (let start = endAfterInit; start < message.length; start += chunkSize) {
-      const end = Math.min(start + chunkSize, message.length);
+    for (let start = endAfterInit; start < messageLen; start += chunkSize) {
+      const end = Math.min(start + chunkSize, messageLen);
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const writeIx = await coreBridge.processMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
@@ -165,11 +166,39 @@ async function initAndProcessMessageV1(
         },
         { write: { index: start, data: message.subarray(start, end) } }
       );
-      promises.push(expectIxOk(connection, [ix], [payer, emitterAuthority]));
-    }
-  }
 
-  await Promise.all(promises);
+      if (end == messageLen) {
+        const finalizeIx = await coreBridge.processMessageV1Ix(
+          program,
+          {
+            emitterAuthority: emitterAuthority.publicKey,
+            draftMessage: draftMessage.publicKey,
+            closeAccountDestination: null,
+          },
+          { finalize: {} }
+        );
+        await expectIxOk(connection, [writeIx, finalizeIx], [payer, emitterAuthority]);
+      } else {
+        await expectIxOk(connection, [writeIx], [payer, emitterAuthority]);
+      }
+    }
+  } else {
+    const finalizeIx = await coreBridge.processMessageV1Ix(
+      program,
+      {
+        emitterAuthority: emitterAuthority.publicKey,
+        draftMessage: draftMessage.publicKey,
+        closeAccountDestination: null,
+      },
+      { finalize: {} }
+    );
+
+    await expectIxOk(
+      connection,
+      [createIx, initIx, firstProcessIx, finalizeIx],
+      [payer, emitterAuthority, draftMessage]
+    );
+  }
 
   return { draftMessage, emitterAuthority };
 }

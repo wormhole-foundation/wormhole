@@ -15,10 +15,10 @@ import { expect } from "chai";
 import {
   GUARDIAN_KEYS,
   OPTIMISM_TOKEN_BRIDGE_ADDRESS,
-  createAccountIx,
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
+  processVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -41,7 +41,6 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
   const connection = provider.connection;
   const payer = (provider.wallet as anchor.Wallet).payer;
   const program = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
-  const wormholeProgram = tokenBridge.getCoreBridgeProgram(program);
 
   // Test variables.
   const localVariables = new Map<string, any>();
@@ -65,14 +64,41 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       await expectIxErr(connection, [ix], [payer], "Deprecated");
     });
 
+    it("Cannot Invoke `register_chain` with Unverified VAA", async () => {
+      // Fetch default VAA.
+      const signedVaa = defaultVaa();
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX,
+        false
+      );
+
+      const encodedVaaData = await coreBridge.EncodedVaa.fetch(
+        tokenBridge.getCoreBridgeProgram(program),
+        encodedVaa
+      );
+      expect(encodedVaaData.status).not.equals(coreBridge.ProcessingStatus.Verified);
+
+      const ix = await tokenBridge.registerChainIx(program, {
+        payer: payer.publicKey,
+        vaa: encodedVaa,
+      });
+
+      await expectIxErr(connection, [ix], [payer], "UnverifiedVaa");
+    });
+
     it("Invoke `register_chain`", async () => {
       // Fetch default VAA.
       const signedVaa = defaultVaa();
 
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const ix = await tokenBridge.registerChainIx(program, {
@@ -113,10 +139,34 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
     it("Cannot Invoke `register_chain` with Same VAA", async () => {
       const signedVaa = localVariables.get("signedVaa") as Buffer;
 
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      await expectIxErr(
+        connection,
+        [
+          await tokenBridge.registerChainIx(program, {
+            payer: payer.publicKey,
+            vaa: encodedVaa,
+          }),
+        ],
+        [payer],
+        "already in use"
+      );
+    });
+
+    it("Cannot Invoke `register_chain` with Already Registered Chain ID", async () => {
+      const signedVaa = defaultVaa({ contract: "0x00000badc0debadc0debadc0debadc0debadc0de" });
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       await expectIxErr(
@@ -146,10 +196,11 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       );
 
       // Post the signed Vaa.
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       await expectIxErr(
@@ -183,10 +234,11 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       );
 
       // Post the signed Vaa.
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       await expectIxErr(
@@ -217,10 +269,11 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       );
 
       // Post the signed Vaa.
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       await expectIxErr(
@@ -253,10 +306,11 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       );
 
       // Post the signed Vaa.
-      const encodedVaa = await initAndProcessEncodedVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       await expectIxErr(
@@ -274,7 +328,13 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
   });
 });
 
-function defaultVaa(chain?: number, contract?: string): Buffer {
+function defaultVaa(args?: { chain?: number; contract?: string }): Buffer {
+  if (args === undefined) {
+    args = {};
+  }
+
+  let { chain, contract } = args;
+
   // Vaa info.
   const timestamp = 12345678;
 
@@ -333,106 +393,4 @@ function createInvalidRegisterChainVaa(
     1 // Finality.
   );
   return guardians.addSignatures(published, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-}
-
-async function initAndProcessEncodedVaa(
-  program: coreBridge.CoreBridgeProgram,
-  payer: anchor.web3.Keypair,
-  signedVaa: Buffer
-) {
-  const connection = program.provider.connection;
-
-  const vaaLen = signedVaa.length;
-
-  const encodedVaa = anchor.web3.Keypair.generate();
-  const createIx = await createAccountIx(
-    program.provider.connection,
-    program.programId,
-    payer,
-    encodedVaa,
-    46 + vaaLen
-  );
-
-  const initIx = await coreBridge.initEncodedVaaIx(program, {
-    writeAuthority: payer.publicKey,
-    encodedVaa: encodedVaa.publicKey,
-  });
-
-  const endAfterInit = 840;
-  const firstProcessIx = await coreBridge.processEncodedVaaIx(
-    program,
-    {
-      writeAuthority: payer.publicKey,
-      encodedVaa: encodedVaa.publicKey,
-      guardianSet: null,
-    },
-    { write: { index: 0, data: signedVaa.subarray(0, endAfterInit) } }
-  );
-
-  if (vaaLen > endAfterInit) {
-    await expectIxOk(
-      program.provider.connection,
-      [createIx, initIx, firstProcessIx],
-      [payer, encodedVaa]
-    );
-
-    const promises: Promise<string>[] = [];
-    const chunkSize = 912;
-    for (let start = endAfterInit; start < vaaLen; start += chunkSize) {
-      const end = Math.min(start + chunkSize, vaaLen);
-
-      const writeIx = await coreBridge.processEncodedVaaIx(
-        program,
-        {
-          writeAuthority: payer.publicKey,
-          encodedVaa: encodedVaa.publicKey,
-          guardianSet: null,
-        },
-        { write: { index: start, data: signedVaa.subarray(start, end) } }
-      );
-
-      if (end === vaaLen) {
-        const computeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
-        const verifyIx = await coreBridge.processEncodedVaaIx(
-          program,
-          {
-            writeAuthority: payer.publicKey,
-            encodedVaa: encodedVaa.publicKey,
-            guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
-          },
-          { verifySignaturesV1: {} }
-        );
-        promises.push(expectIxOk(connection, [computeIx, writeIx, verifyIx], [payer]));
-      } else {
-        promises.push(expectIxOk(connection, [writeIx], [payer]));
-      }
-    }
-
-    const lastPromise = promises.pop();
-
-    if (promises.length > 0) {
-      await Promise.all(promises);
-    }
-
-    await lastPromise;
-  } else {
-    const computeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 420_000 });
-    const verifyIx = await coreBridge.processEncodedVaaIx(
-      program,
-      {
-        writeAuthority: payer.publicKey,
-        encodedVaa: encodedVaa.publicKey,
-        guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
-      },
-      { verifySignaturesV1: {} }
-    );
-
-    await expectIxOk(
-      program.provider.connection,
-      [computeIx, createIx, initIx, firstProcessIx, verifyIx],
-      [payer, encodedVaa]
-    );
-  }
-
-  return encodedVaa.publicKey;
 }

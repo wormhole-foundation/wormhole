@@ -40,9 +40,10 @@ pub struct PostMessage<'info> {
     )]
     message: Account<'info, PostedMessageV1>,
 
-    /// The emitter of the core bridge message. This account is typically an integrating program's
-    /// PDA which signs for this instruction.
-    emitter_authority: Signer<'info>,
+    /// The emitter of the core bridge message. This account is typically an integrating
+    /// program's PDA which signs for this instruction. This account must be a signer if the message
+    /// is created in this instruction.
+    emitter_authority: Option<Signer<'info>>,
 
     /// Sequence tracker for given emitter. Every core bridge message is tagged with a unique
     /// sequence number.
@@ -56,7 +57,7 @@ pub struct PostMessage<'info> {
         space = EmitterSequence::INIT_SPACE,
         seeds = [
             EmitterSequence::SEED_PREFIX,
-            find_emitter_for_sequence(&emitter_authority, &message).as_ref()
+            find_emitter_for_sequence(&emitter_authority, &message)?.as_ref()
         ],
         bump
     )]
@@ -86,6 +87,7 @@ pub struct PostMessage<'info> {
 }
 
 pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> Result<()> {
+    // TODO: Change helper methods to take ctx.
     match ctx.accounts.message.data.status {
         MessageStatus::Unset => {
             // If the message status is unset, we need to make sure that this
@@ -101,32 +103,32 @@ pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> R
             handle_post_new_message(
                 &mut ctx.accounts.config,
                 &mut ctx.accounts.message,
-                &ctx.accounts.emitter_authority,
+                ctx.accounts.emitter_authority.as_ref().unwrap(),
                 &mut ctx.accounts.emitter_sequence,
                 &ctx.accounts.fee_collector,
                 args,
             )
         }
-        MessageStatus::Writing => {
-            msg!("MessageStatus: Writing");
+        MessageStatus::Finalized => {
+            msg!("MessageStatus: Finalized");
             handle_post_prepared_message(
                 &mut ctx.accounts.config,
                 &mut ctx.accounts.message,
-                &ctx.accounts.emitter_authority,
                 &mut ctx.accounts.emitter_sequence,
                 &ctx.accounts.fee_collector,
                 args,
             )
         }
+        _ => err!(CoreBridgeError::InWritingStatus),
     }
 }
 
 pub(in crate::legacy) fn handle_post_new_message(
-    config: &mut Account<Config>,
+    config: &mut Account<'_, Config>,
     msg: &mut PostedMessageV1Data,
-    emitter_authority: &Signer,
-    emitter_sequence: &mut Account<EmitterSequence>,
-    fee_collector: &Option<Account<FeeCollector>>,
+    emitter_authority: &Signer<'_>,
+    emitter_sequence: &mut Account<'_, EmitterSequence>,
+    fee_collector: &Option<Account<'_, FeeCollector>>,
     args: LegacyPostMessageArgs,
 ) -> Result<()> {
     let LegacyPostMessageArgs {
@@ -178,11 +180,10 @@ pub(in crate::legacy) fn handle_post_new_message(
 }
 
 fn handle_post_prepared_message(
-    config: &mut Account<Config>,
+    config: &mut Account<'_, Config>,
     msg: &mut PostedMessageV1Data,
-    emitter_authority: &Signer,
-    emitter_sequence: &mut Account<EmitterSequence>,
-    fee_collector: &Option<Account<FeeCollector>>,
+    emitter_sequence: &mut Account<'_, EmitterSequence>,
+    fee_collector: &Option<Account<'_, FeeCollector>>,
     args: LegacyPostMessageArgs,
 ) -> Result<()> {
     let LegacyPostMessageArgs {
@@ -195,14 +196,6 @@ fn handle_post_prepared_message(
     require!(
         payload.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
-    );
-
-    // The emitter authority passed into the instruction handler must be the same one that drafted
-    // this Core Bridge message.
-    require_keys_eq!(
-        emitter_authority.key(),
-        msg.emitter_authority,
-        CoreBridgeError::EmitterAuthorityMismatch
     );
 
     // Determine whether fee has been paid. Update core bridge config account if so.
@@ -227,8 +220,8 @@ fn handle_post_prepared_message(
 }
 
 fn handle_message_fee(
-    config: &mut Account<Config>,
-    fee_collector: &Option<Account<FeeCollector>>,
+    config: &mut Account<'_, Config>,
+    fee_collector: &Option<Account<'_, FeeCollector>>,
 ) -> Result<()> {
     match (config.fee_lamports, fee_collector) {
         (0, _) => Ok(()), // Nothing to do.
@@ -269,11 +262,21 @@ fn compute_size_if_needed(msg_acc_info: &AccountInfo<'_>, payload: &Vec<u8>) -> 
 /// authority). Whereas with the new prepared message, this emitter can be taken from the
 /// message account to re-derive the emitter sequence PDA address.
 fn find_emitter_for_sequence(
-    emitter_authority: &Signer<'_>,
+    emitter_authority: &Option<Signer<'_>>,
     message: &Account<'_, PostedMessageV1>,
-) -> Pubkey {
+) -> Result<Pubkey> {
     match message.data.status {
-        MessageStatus::Unset => emitter_authority.key(),
-        MessageStatus::Writing => message.emitter,
+        MessageStatus::Unset => {
+            if message.emitter == Pubkey::default() {
+                match emitter_authority {
+                    Some(emitter_authority) => Ok(emitter_authority.key()),
+                    None => err!(ErrorCode::AccountNotEnoughKeys),
+                }
+            } else {
+                Ok(message.emitter)
+            }
+        }
+        MessageStatus::Finalized => Ok(message.emitter),
+        _ => err!(CoreBridgeError::InWritingStatus),
     }
 }

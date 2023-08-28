@@ -37,6 +37,18 @@ impl<'a> EncodedVaa<'a> {
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
+        let vaa = Self::parse_unverified(&span)?;
+
+        // We only allow verified VAAs to be read.
+        require!(
+            vaa.status() == state::ProcessingStatus::Verified,
+            CoreBridgeError::UnverifiedVaa
+        );
+
+        Ok(vaa)
+    }
+
+    pub(crate) fn parse_unverified(span: &'a [u8]) -> Result<Self> {
         require!(
             span.len() > Self::DISC_LEN,
             ErrorCode::AccountDiscriminatorNotFound
@@ -46,15 +58,7 @@ impl<'a> EncodedVaa<'a> {
             ErrorCode::AccountDiscriminatorMismatch
         );
 
-        let vaa = Self(&span[Self::DISC_LEN..]);
-
-        // We only allow verified VAAs to be read.
-        require!(
-            vaa.status() == state::ProcessingStatus::Verified,
-            CoreBridgeError::UnverifiedVaa
-        );
-
-        Ok(vaa)
+        Ok(Self(&span[Self::DISC_LEN..]))
     }
 
     pub fn try_v1(span: &'a [u8]) -> Result<Vaa<'a>> {
