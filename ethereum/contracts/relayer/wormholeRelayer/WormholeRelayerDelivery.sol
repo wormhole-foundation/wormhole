@@ -39,7 +39,7 @@ import {
     DeliverySuccessState,
     DeliveryFailureState,
     getDeliverySuccessState,
-    getDeliveryFailureState,
+    getDeliveryFailureState
 } from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
