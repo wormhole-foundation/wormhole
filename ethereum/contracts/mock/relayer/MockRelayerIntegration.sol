@@ -8,7 +8,7 @@ import "../../interfaces/IWormhole.sol";
 import "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 
-import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {toWormholeFormat} from "../../relayer/libraries/Utils.sol";
 
 struct XAddress {
     uint16 chainId;

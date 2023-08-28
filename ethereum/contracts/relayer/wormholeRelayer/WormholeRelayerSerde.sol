@@ -15,8 +15,8 @@ import {
     DeliveryOverride,
     DeliveryInstruction,
     RedeliveryInstruction
-} from "../../libraries/relayer/RelayerInternalStructs.sol";
-import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
+} from "../../relayer/libraries/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../relayer/libraries/BytesParsing.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
 library WormholeRelayerSerde {
