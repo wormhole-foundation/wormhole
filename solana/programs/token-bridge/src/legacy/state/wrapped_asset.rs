@@ -19,17 +19,17 @@ pub struct WrappedAsset {
 }
 
 impl WrappedAsset {
-    pub fn to_uri(&self) -> serde_json::Result<String> {
+    pub fn to_uri(&self) -> String {
         let mut uri = serde_json::to_string_pretty(&MetadataUri {
             wormhole_chain_id: self.token_chain,
             canonical_address: format!("0x{}", hex::encode(self.token_address)),
             native_decimals: self.native_decimals,
-        })?;
+        }).expect("serialization should not fail");
 
         // Unlikely to happen, but truncate the URI if it's too long.
         uri.truncate(mpl_token_metadata::state::MAX_URI_LENGTH);
 
-        Ok(uri)
+        uri
     }
 }
 
@@ -62,6 +62,6 @@ mod test {
   "nativeDecimals": 18
 }"#;
 
-        assert_eq!(asset.to_uri().unwrap(), expected);
+        assert_eq!(asset.to_uri(), expected);
     }
 }
