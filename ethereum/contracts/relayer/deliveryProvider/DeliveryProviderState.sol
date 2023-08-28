@@ -55,9 +55,8 @@ contract DeliveryProviderState {
     DeliveryProviderStorage.State _state;
 }
 
-
 struct SupportedMessageKeyTypes {
-    mapping(uint8 => bool) supportedKeyTypes;
+    uint256 bitmap;
 }
 
 //keccak256("DefaultDeliveryProviderState") - 1
