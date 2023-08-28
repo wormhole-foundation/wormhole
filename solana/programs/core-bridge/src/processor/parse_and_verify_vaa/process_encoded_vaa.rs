@@ -1,15 +1,13 @@
 use crate::{
     error::CoreBridgeError,
-    state::{EncodedVaa, GuardianSet, Header, ProcessingStatus},
+    state::{GuardianSet, Header, ProcessingStatus},
     types::VaaVersion,
+    zero_copy::EncodedVaa,
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
-use wormhole_raw_vaas::{GuardianSetSig, Vaa};
+use wormhole_raw_vaas::GuardianSetSig;
 use wormhole_solana_common::{utils, SeedPrefix};
-//use wormhole_vaas::GuardianSetSig;
-
-const START: usize = EncodedVaa::BYTES_START;
 
 #[derive(Accounts)]
 pub struct ProcessEncodedVaa<'info> {
@@ -56,12 +54,12 @@ impl<'info> ProcessEncodedVaa<'info> {
             );
         }
 
-        // Check header.
-        let mut acc_data: &[u8] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let header = EncodedVaa::try_acc_header_deserialize(&mut acc_data)?;
+        // Check write authority.
+        let acc_data = ctx.accounts.encoded_vaa.try_borrow_data()?;
+        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
         require_keys_eq!(
-            header.write_authority,
             ctx.accounts.write_authority.key(),
+            vaa.write_authority(),
             CoreBridgeError::WriteAuthorityMismatch
         );
 
@@ -95,80 +93,71 @@ pub fn process_encoded_vaa(
     ctx: Context<ProcessEncodedVaa>,
     directive: ProcessEncodedVaaDirective,
 ) -> Result<()> {
-    let vaa_acc_info = &ctx.accounts.encoded_vaa;
     match directive {
-        ProcessEncodedVaaDirective::CloseVaaAccount => {
-            msg!("Directive: CloseVaaAccount");
-            utils::close_account(
-                vaa_acc_info.to_account_info(),
-                ctx.accounts.write_authority.to_account_info(),
-            )
-        }
-        ProcessEncodedVaaDirective::Write { index, data } => {
-            msg!("Directive: Write");
-            write_vaa(
-                vaa_acc_info,
-                index
-                    .try_into()
-                    .map_err(|_| CoreBridgeError::InvalidInstructionArgument)?,
-                data,
-            )
-        }
-        ProcessEncodedVaaDirective::VerifySignaturesV1 => match &ctx.accounts.guardian_set {
-            Some(guardian_set) => {
-                msg!("Directive: VerifySignaturesV1");
-                verify_signatures_v1(vaa_acc_info, guardian_set)
-            }
-            _ => err!(ErrorCode::AccountNotEnoughKeys),
-        },
+        ProcessEncodedVaaDirective::CloseVaaAccount => close_vaa_account(ctx),
+        ProcessEncodedVaaDirective::Write { index, data } => write(ctx, index, data),
+        ProcessEncodedVaaDirective::VerifySignaturesV1 => verify_signatures_v1(ctx),
     }
 }
 
-fn write_vaa(vaa_acc_info: &AccountInfo, index: usize, data: Vec<u8>) -> Result<()> {
+fn close_vaa_account(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
+    msg!("Directive: CloseVaaAccount");
+
+    utils::close_account(
+        ctx.accounts.encoded_vaa.to_account_info(),
+        ctx.accounts.write_authority.to_account_info(),
+    )
+}
+
+fn write(ctx: Context<ProcessEncodedVaa>, index: u32, data: Vec<u8>) -> Result<()> {
     require!(
         !data.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let vaa_len: usize = {
-        let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
-        let header = EncodedVaa::try_acc_header_deserialize_unchecked(&mut acc_data)?;
+    let vaa_size: usize = {
+        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
+        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
         require!(
-            header.status == ProcessingStatus::Writing,
+            vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
         );
 
-        let vaa_len = u32::deserialize(&mut acc_data)?;
-        usize::try_from(vaa_len).unwrap()
+        vaa.vaa_size()
     };
 
+    let index = usize::try_from(index).unwrap();
     let end = index.saturating_add(data.len());
-    require_gte!(vaa_len, end, CoreBridgeError::DataOverflow);
+    require_gte!(vaa_size, end, CoreBridgeError::DataOverflow);
 
-    let acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
+    const START: usize = 8 + EncodedVaa::VAA_START;
+    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
     acc_data[(START + index)..(START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())
 }
 
-fn verify_signatures_v1(
-    vaa_acc_info: &AccountInfo<'_>,
-    guardian_set: &Account<'_, GuardianSet>,
-) -> Result<()> {
+fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
+    msg!("Directive: VerifySignaturesV1");
+
+    require!(
+        ctx.accounts.guardian_set.is_some(),
+        ErrorCode::AccountNotEnoughKeys
+    );
+
+    let guardian_set = ctx.accounts.guardian_set.as_ref().unwrap();
+
     let write_authority = {
-        let mut acc_data: &[u8] = &vaa_acc_info.data.borrow();
-        let header = EncodedVaa::try_acc_header_deserialize_unchecked(&mut acc_data)?;
+        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
+        let encoded_vaa = EncodedVaa::parse_unverified(&acc_data)?;
         require!(
-            header.status == ProcessingStatus::Writing,
+            encoded_vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::VaaAlreadyVerified
         );
 
-        // Skip vaa length.
-        acc_data = &acc_data[4..];
-
         // Parse and verify.
-        let vaa = Vaa::parse(acc_data).map_err(|_| CoreBridgeError::CannotParseVaa)?;
+        let vaa = encoded_vaa.v1_unverified()?;
 
         // Must be V1.
         require_eq!(
@@ -225,11 +214,11 @@ fn verify_signatures_v1(
             last_guardian_index = Some(index);
         }
 
-        header.write_authority
+        encoded_vaa.write_authority()
     };
 
-    let mut acc_data: &mut [u8] = &mut vaa_acc_info.data.borrow_mut();
-    acc_data = &mut acc_data[8..];
+    // Skip discriminator.
+    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut()[8..];
     let mut writer = std::io::Cursor::new(acc_data);
     Header {
         status: ProcessingStatus::Verified,
