@@ -885,7 +885,7 @@ export async function transferNearFromNear(
  * @param recipientChain Target chain
  * @param recipient Recipient's address on target chain
  * @param relayerFee Fee to pay relayer
- * @param payload Payload3 data, leave undefined for basic token transfers
+ * @param payload Payload3 data, leave null for basic token transfers
  * @returns Transaction payload
  */
 export function transferFromAptos(
@@ -895,7 +895,7 @@ export function transferFromAptos(
   recipientChain: ChainId | ChainName,
   recipient: Uint8Array,
   relayerFee: string = "0",
-  payload: string = ""
+  payload: Uint8Array | null = null
 ): Types.EntryFunctionPayload {
   if (payload) {
     // Currently unsupported
@@ -905,7 +905,6 @@ export function transferFromAptos(
       amount,
       recipientChain,
       recipient,
-      relayerFee,
       createNonce().readUInt32LE(0),
       payload
     );
