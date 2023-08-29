@@ -18,8 +18,6 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 
 [dependencies]
-wormhole-raw-vaas = { version = "=0.0.0-alpha.4", features = ["anchor"], default-features = false }
-
 core-bridge-program = { path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"] }
 token-bridge-program = { path = "../token-bridge", package = "wormhole-token-bridge-solana", features = ["cpi"] }
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }

@@ -1,4 +1,6 @@
+import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AccountMeta,
   PublicKey,
@@ -7,10 +9,8 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
-import { Config, custodyAuthorityPda, custodyTokenPda, RegisteredEmitter } from "../../state";
-import { PostedVaaV1, Claim } from "../../../../coreBridge";
-import { ParsedVaa } from "@certusone/wormhole-sdk";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Claim, PostedVaaV1 } from "../../../../coreBridge";
+import { Config, RegisteredEmitter, custodyAuthorityPda, custodyTokenPda } from "../../state";
 
 export type LegacyCompleteTransferWithPayloadNativeContext = {
   payer: PublicKey;
@@ -18,7 +18,7 @@ export type LegacyCompleteTransferWithPayloadNativeContext = {
   postedVaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
-  recipientToken: PublicKey;
+  dstToken: PublicKey;
   redeemerAuthority?: PublicKey;
   custodyToken?: PublicKey;
   mint: PublicKey;
@@ -27,12 +27,12 @@ export type LegacyCompleteTransferWithPayloadNativeContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferWithPayloadNativeIx(
+export function legacyCompleteTransferWithPayloadNativeAccounts(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWithPayloadNativeContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean = true
-) {
+  legacyRegisteredEmitterDerive: boolean
+): LegacyCompleteTransferWithPayloadNativeContext {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
 
@@ -42,7 +42,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
     postedVaa,
     claim,
     registeredEmitter,
-    recipientToken,
+    dstToken,
     redeemerAuthority,
     custodyToken,
     mint,
@@ -96,6 +96,48 @@ export function legacyCompleteTransferWithPayloadNativeIx(
     rent = SYSVAR_RENT_PUBKEY;
   }
 
+  return {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    dstToken,
+    redeemerAuthority,
+    custodyToken,
+    mint,
+    custodyAuthority,
+    rent,
+    coreBridgeProgram,
+  };
+}
+
+export function legacyCompleteTransferWithPayloadNativeIx(
+  program: TokenBridgeProgram,
+  accounts: LegacyCompleteTransferWithPayloadNativeContext,
+  parsedVaa: ParsedVaa,
+  legacyRegisteredEmitterDerive: boolean = true
+) {
+  const {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    dstToken,
+    redeemerAuthority,
+    custodyToken,
+    mint,
+    custodyAuthority,
+    rent,
+    coreBridgeProgram,
+  } = legacyCompleteTransferWithPayloadNativeAccounts(
+    program,
+    accounts,
+    parsedVaa,
+    legacyRegisteredEmitterDerive
+  );
+
   const keys: AccountMeta[] = [
     {
       pubkey: payer,
@@ -123,7 +165,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: recipientToken,
+      pubkey: dstToken,
       isWritable: true,
       isSigner: false,
     },
@@ -133,7 +175,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: true,
     },
     {
-      pubkey: recipientToken, // NOTE: This exists because of a bug in the legacy program.
+      pubkey: dstToken, // NOTE: This exists because of a bug in the legacy program.
       isWritable: false, // TODO: check this
       isSigner: false,
     },
@@ -178,7 +220,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }

@@ -70,7 +70,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           forkedProgram,
           {
             payer: payer.publicKey,
-            recipientToken: payerToken,
+            dstToken: payerToken,
             mint,
           },
           signedVaa,
@@ -89,7 +89,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
       it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Redeemer != Redeemer Authority)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
+        const dstToken = await getOrCreateAssociatedTokenAccount(
           connection,
           payer,
           mint,
@@ -106,7 +106,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         const recipientBalancesBefore = await getTokenBalances(
           program,
           forkedProgram,
-          recipientToken.address
+          dstToken.address
         );
 
         // Complete the transfer.
@@ -115,7 +115,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           forkedProgram,
           {
             payer: payer.publicKey,
-            recipientToken: recipientToken.address,
+            dstToken: dstToken.address,
             redeemerAuthority: recipient.publicKey,
             mint,
           },
@@ -127,7 +127,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         // Check recipient and relayer token balance changes.
         await tokenBridge.expectCorrectTokenBalanceChanges(
           connection,
-          recipientToken.address,
+          dstToken.address,
           recipientBalancesBefore,
           tokenBridge.TransferDirection.In
         );

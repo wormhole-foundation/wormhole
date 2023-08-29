@@ -2275,15 +2275,14 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "wormhole-core-bridge-solana",
- "wormhole-raw-vaas",
  "wormhole-token-bridge-solana",
 ]
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.0-alpha.4"
+version = "0.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6370356dd16dac3b1b60d8b263b2267554956918ec959d7f18910e8d110b6392"
+checksum = "f413094a0b912931a3a3374d4078fb6802029a9a423121f81d824a5467867028"
 dependencies = [
  "anchor-lang",
  "ruint",
