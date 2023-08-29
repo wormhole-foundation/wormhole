@@ -10,7 +10,7 @@ import {
 import * as mockCpi from "../helpers/mockCpi";
 import * as coreBridge from "../helpers/coreBridge";
 
-describe("Core Bridge -- Legacy Instruction: Post Message", () => {
+describe("Mock CPI -- Core Bridge", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -23,7 +23,11 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
   describe("Legacy", () => {
     it("Invoke `mock_legacy_post_message`", async () => {
       const message = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("my_message"), payerSequenceValue.toBuffer("le", 16)],
+        [
+          Buffer.from("my_message"),
+          payer.publicKey.toBuffer(),
+          payerSequenceValue.toBuffer("le", 16),
+        ],
         program.programId
       )[0];
       const emitter = anchor.web3.PublicKey.findProgramAddressSync(

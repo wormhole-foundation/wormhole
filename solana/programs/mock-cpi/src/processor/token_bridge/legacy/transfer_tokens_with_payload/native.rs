@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token;
 use token_bridge_program::{self, constants::PROGRAM_SENDER_SEED_PREFIX, TokenBridge};
 
-use super::MockLegacyTransferTokensWithPayloadArgs;
+use super::{MockLegacyTransferTokensWithPayloadArgs, CUSTOM_SENDER_SEED_PREFIX};
 
 #[derive(Accounts)]
 pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
@@ -28,7 +28,7 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
 
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(
-        seeds = [b"custom_sender_authority"],
+        seeds = [CUSTOM_SENDER_SEED_PREFIX],
         bump,
     )]
     token_bridge_custom_sender_authority: Option<AccountInfo<'info>>,
@@ -40,7 +40,6 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
     )]
     src_token: Account<'info, token::TokenAccount>,
 
-    /// CHECK: Mint.
     mint: Account<'info, token::Mint>,
 
     /// CHECK: This account is needed for the Token Bridge program.
@@ -60,7 +59,11 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(
         mut,
-        seeds = [MESSAGE_SEED_PREFIX, payer_sequence.to_le_bytes().as_ref()],
+        seeds = [
+            MESSAGE_SEED_PREFIX,
+            payer.key().as_ref(),
+            payer_sequence.to_le_bytes().as_ref()
+        ],
         bump,
     )]
     core_message: AccountInfo<'info>,
@@ -111,7 +114,7 @@ pub fn mock_legacy_transfer_tokens_with_payload_native(
         (None, Some(sender_authority)) => (
             None,
             sender_authority.to_account_info(),
-            b"custom_sender_authority".as_ref(),
+            CUSTOM_SENDER_SEED_PREFIX,
             ctx.bumps["token_bridge_custom_sender_authority"],
         ),
         (None, None) => return err!(ErrorCode::AccountNotEnoughKeys),
@@ -150,6 +153,7 @@ pub fn mock_legacy_transfer_tokens_with_payload_native(
             &[
                 &[
                     MESSAGE_SEED_PREFIX,
+                    ctx.accounts.payer.key().as_ref(),
                     ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
                     &[ctx.bumps["core_message"]],
                 ],

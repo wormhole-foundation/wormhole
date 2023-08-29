@@ -30,7 +30,11 @@ pub struct MockLegacyPostMessage<'info> {
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(
         mut,
-        seeds = [MESSAGE_SEED_PREFIX, payer_sequence.to_le_bytes().as_ref()],
+        seeds = [
+            MESSAGE_SEED_PREFIX,
+            payer.key().as_ref(),
+            payer_sequence.to_le_bytes().as_ref()
+        ],
         bump
     )]
     core_message: AccountInfo<'info>,
@@ -104,6 +108,7 @@ pub fn mock_legacy_post_message(
                 &[LEGACY_EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]],
                 &[
                     MESSAGE_SEED_PREFIX,
+                    ctx.accounts.payer.key().as_ref(),
                     ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
                     &[ctx.bumps["core_message"]],
                 ],

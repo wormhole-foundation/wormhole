@@ -15,7 +15,7 @@ pub fn validate_posted_token_transfer_with_payload<'ctx>(
     vaa_acc_data: &'ctx [u8],
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
     redeemer_authority: &'ctx Signer<'_>,
-    recipient_token: &'ctx Account<'_, TokenAccount>,
+    dst_token: &'ctx Account<'_, TokenAccount>,
 ) -> Result<TransferWithMessage<'ctx>> {
     let vaa = PostedVaaV1::parse(vaa_acc_data)?;
     let msg =
@@ -55,10 +55,7 @@ pub fn validate_posted_token_transfer_with_payload<'ctx>(
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.
-        require!(
-            redeemer == recipient_token.owner,
-            ErrorCode::ConstraintTokenOwner
-        );
+        require!(redeemer == dst_token.owner, ErrorCode::ConstraintTokenOwner);
     }
 
     // Done.

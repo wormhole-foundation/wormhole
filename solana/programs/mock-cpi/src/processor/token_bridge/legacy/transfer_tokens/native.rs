@@ -46,7 +46,11 @@ pub struct MockLegacyTransferTokensNative<'info> {
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(
         mut,
-        seeds = [MESSAGE_SEED_PREFIX, payer_sequence.to_le_bytes().as_ref()],
+        seeds = [
+            MESSAGE_SEED_PREFIX,
+            payer.key().as_ref(),
+            payer_sequence.to_le_bytes().as_ref()
+        ],
         bump,
     )]
     core_message: AccountInfo<'info>,
@@ -115,6 +119,7 @@ pub fn mock_legacy_transfer_tokens_native(
             },
             &[&[
                 MESSAGE_SEED_PREFIX,
+                ctx.accounts.payer.key().as_ref(),
                 ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
                 &[ctx.bumps["core_message"]],
             ]],

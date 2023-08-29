@@ -26,7 +26,7 @@ testnet = []
 
 [dependencies]
 wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "0.0.0-alpha.4", features = ["anchor"], default-features = false }
+wormhole-raw-vaas = { version = "0.0.0-alpha.5", features = ["anchor"], default-features = false }
 wormhole-solana-common = { path = "../../common/solana-common" }
 
 solana-program = "=1.14.20"

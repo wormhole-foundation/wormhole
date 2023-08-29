@@ -84,7 +84,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           program,
           forkedProgram,
           {
-            recipientToken: payerToken,
+            dstToken: payerToken,
             forkRecipientToken: forkPayerToken,
             redeemerAuthority: payer,
           },
@@ -109,7 +109,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         );
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
-        const [recipientToken, forkRecipientToken] = await Promise.all([
+        const [dstToken, forkRecipientToken] = await Promise.all([
           getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey),
           getOrCreateAssociatedTokenAccount(connection, payer, forkMint, recipient.publicKey),
         ]);
@@ -124,7 +124,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         const recipientBalancesBefore = await getTokenBalances(
           program,
           forkedProgram,
-          recipientToken.address,
+          dstToken.address,
           forkRecipientToken.address
         );
 
@@ -133,7 +133,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           program,
           forkedProgram,
           {
-            recipientToken,
+            dstToken,
             forkRecipientToken,
             redeemerAuthority: recipient,
           },
@@ -144,7 +144,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         // Check recipient and relayer token balance changes.
         await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
           connection,
-          recipientToken.address,
+          dstToken.address,
           forkRecipientToken.address,
           recipientBalancesBefore,
           tokenBridge.TransferDirection.In,
@@ -186,7 +186,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           program,
           forkedProgram,
           {
-            recipientToken: payerToken,
+            dstToken: payerToken,
             forkRecipientToken: forkPayerToken,
             redeemerAuthority: payer,
           },
@@ -238,7 +238,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         program,
         forkedProgram,
         {
-          recipientToken: payerToken,
+          dstToken: payerToken,
           forkRecipientToken: forkPayerToken,
           redeemerAuthority: payer,
         },
@@ -283,7 +283,7 @@ async function parallelTxDetails(
   program: tokenBridge.TokenBridgeProgram,
   forkedProgram: tokenBridge.TokenBridgeProgram,
   tokenAccounts: {
-    recipientToken: Account;
+    dstToken: Account;
     forkRecipientToken: Account;
     redeemerAuthority: anchor.web3.Keypair;
   },
@@ -291,7 +291,7 @@ async function parallelTxDetails(
   payer: anchor.web3.Keypair
 ) {
   const connection = program.provider.connection;
-  const { recipientToken, forkRecipientToken, redeemerAuthority } = tokenAccounts;
+  const { dstToken, forkRecipientToken, redeemerAuthority } = tokenAccounts;
 
   // Post the VAA.
   const parsed = await parallelPostVaa(connection, payer, signedVaa);
@@ -301,7 +301,7 @@ async function parallelTxDetails(
     program,
     {
       payer: payer.publicKey,
-      recipientToken: recipientToken.address,
+      dstToken: dstToken.address,
       redeemerAuthority: redeemerAuthority.publicKey,
     },
     parsed
@@ -310,7 +310,7 @@ async function parallelTxDetails(
     forkedProgram,
     {
       payer: payer.publicKey,
-      recipientToken: forkRecipientToken.address,
+      dstToken: forkRecipientToken.address,
       redeemerAuthority: redeemerAuthority.publicKey,
     },
     parsed

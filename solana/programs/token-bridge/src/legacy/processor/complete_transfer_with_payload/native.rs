@@ -57,7 +57,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
         mut,
         token::mint = mint,
     )]
-    recipient_token: Box<Account<'info, token::TokenAccount>>,
+    dst_token: Box<Account<'info, token::TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -105,7 +105,7 @@ impl<'info> CompleteTransferWithPayloadNative<'info> {
             &acc_data,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.redeemer_authority,
-            &ctx.accounts.recipient_token,
+            &ctx.accounts.dst_token,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
@@ -153,7 +153,7 @@ pub fn complete_transfer_with_payload_native(
     withdraw_native_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.custody_token,
-        &ctx.accounts.recipient_token,
+        &ctx.accounts.dst_token,
         &ctx.accounts.custody_authority,
         ctx.bumps["custody_authority"],
         transfer_amount,

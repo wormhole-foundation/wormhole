@@ -1,11 +1,19 @@
 mod attest_token;
-mod initialize;
-mod transfer_tokens;
-mod transfer_tokens_with_payload;
-
 pub use attest_token::*;
+
+mod complete_transfer;
+pub use complete_transfer::*;
+
+mod complete_transfer_with_payload;
+pub use complete_transfer_with_payload::*;
+
+mod initialize;
 pub use initialize::*;
+
+mod transfer_tokens;
 pub use transfer_tokens::*;
+
+mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};

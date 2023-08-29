@@ -16,11 +16,6 @@ clean:
 node_modules:
 	npm ci
 
-check:
-	cargo check --features "localnet" --no-default-features
-	cargo check --features "mainnet" --no-default-features
-	cargo check --features "testnet" --no-default-features
-
 build: $(out_$(NETWORK))
 $(out_$(NETWORK)):
 ifdef out_$(NETWORK)

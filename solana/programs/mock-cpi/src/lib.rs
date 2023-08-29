@@ -42,4 +42,16 @@ pub mod wormhole_mock_cpi_solana {
     ) -> Result<()> {
         processor::mock_legacy_transfer_tokens_with_payload_native(ctx, args)
     }
+
+    pub fn mock_legacy_complete_transfer_with_payload_native(
+        ctx: Context<MockLegacyCompleteTransferWithPayloadNative>,
+    ) -> Result<()> {
+        processor::mock_legacy_complete_transfer_with_payload_native(ctx)
+    }
+
+    pub fn mock_legacy_complete_transfer_with_payload_wrapped(
+        ctx: Context<MockLegacyCompleteTransferWithPayloadWrapped>,
+    ) -> Result<()> {
+        processor::mock_legacy_complete_transfer_with_payload_wrapped(ctx)
+    }
 }

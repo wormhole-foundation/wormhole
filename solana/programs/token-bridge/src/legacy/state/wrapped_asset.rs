@@ -24,7 +24,8 @@ impl WrappedAsset {
             wormhole_chain_id: self.token_chain,
             canonical_address: format!("0x{}", hex::encode(self.token_address)),
             native_decimals: self.native_decimals,
-        }).expect("serialization should not fail");
+        })
+        .expect("serialization should not fail");
 
         // Unlikely to happen, but truncate the URI if it's too long.
         uri.truncate(mpl_token_metadata::state::MAX_URI_LENGTH);
