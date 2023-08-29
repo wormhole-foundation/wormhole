@@ -242,6 +242,17 @@ export function parseEVMExecutionInfoV1(
   return [{ gasLimit, targetChainRefundPerGasUnused }, idx];
 }
 
+export function packEVMExecutionInfoV1(info: EVMExecutionInfoV1): string {
+  return ethers.utils.solidityPack(
+    ["uint8", "uint256", "uint256"],
+    [
+      ExecutionInfoVersion.EVM_V1,
+      info.gasLimit,
+      info.targetChainRefundPerGasUnused,
+    ]
+  );
+}
+
 export function parseWormholeRelayerResend(
   bytes: Buffer
 ): RedeliveryInstruction {
