@@ -76,6 +76,27 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+case "$MODULE" in
+    Core)
+        DIR="../wormhole"
+        LOWER_MODULE="wormhole"
+    ;;
+    TokenBridge)
+        DIR="../token_bridge"
+        LOWER_MODULE="token_bridge"
+    ;;
+    NFTBridge)
+        DIR="../nft_bridge"
+        LOWER_MODULE="nft_bridge"
+    ;;
+    *) echo "unsupported module $MODULE" >&2
+       usage
+       ;;
+esac
+
+NAMED_ADDRS="$(./named_addresses $NETWORK)"
+HASH=$(worm aptos hash-contracts $DIR --named-addresses "$NAMED_ADDRS")
+
 if [ "$NETWORK" = testnet ]; then
     [ -z "$GUARDIAN_SECRET" ] && echo "GUARDIAN_SECRET unset" >&2 && exit 1
 
@@ -85,30 +106,14 @@ elif [ "$NETWORK" = devnet ]; then
 elif [ "$NETWORK" = mainnet ]; then
     # VAA is required for mainnet
     if [ -z "$VAA" ]; then
-        echo "VAA required for mainnet" >&2
-        usage
+        echo "VAA required for mainnet. Pass it in with the --vaa flag." >&2
+        echo "To generate a draft governance proposal, run" >&2
+        echo "    ../../scripts/contract-upgrade-governance.sh -c aptos --address $HASH --module $LOWER_MODULE" >&2
+        exit 1
     fi
 else
     usage
 fi
-
-case "$MODULE" in
-    Core)
-        DIR="../wormhole"
-    ;;
-    TokenBridge)
-        DIR="../token_bridge"
-    ;;
-    NFTBridge)
-        DIR="../nft_bridge"
-    ;;
-    *) echo "unsupported module $MODULE" >&2
-       usage
-       ;;
-esac
-
-NAMED_ADDRS="$(./named_addresses $NETWORK)"
-HASH=$(worm aptos hash-contracts $DIR --named-addresses "$NAMED_ADDRS")
 
 # if VAA is not set, generate it
 [ -z "$VAA" ] && VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET)
