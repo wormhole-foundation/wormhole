@@ -53,7 +53,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	}
 
 	signerData := authsigning.SignerData{
-		ChainID:       "wormchain",
+		ChainID:       c.chainId,
 		AccountNumber: account.GetAccountNumber(),
 		Sequence:      sequence,
 	}

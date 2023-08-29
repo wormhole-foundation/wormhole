@@ -227,11 +227,19 @@ export const transferTokensWithPayload = (
   amount: string,
   recipientChain: ChainId | ChainName,
   recipient: Uint8Array,
-  relayerFee: string,
   nonce: number,
-  payload: string
+  payload: Uint8Array
 ): Types.EntryFunctionPayload => {
-  throw new Error("Transfer with payload are not yet supported in the sdk");
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
+  if (!isValidAptosType(fullyQualifiedType)) {
+    throw new Error("Invalid qualified type");
+  }
+  const recipientChainId = coalesceChainId(recipientChain);
+  return {
+    function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_with_payload_entry`,
+    type_arguments: [fullyQualifiedType],
+    arguments: [amount, recipientChainId, recipient, nonce, payload],
+  };
 };
 
 // Created wrapped coin

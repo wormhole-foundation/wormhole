@@ -56,8 +56,10 @@ var (
 )
 
 const (
-	settlementTime    = time.Second * 30
-	retryLimitOurs    = time.Hour * 24
+	settlementTime = time.Second * 30
+	// retryLimitOurs defines how long this Guardian will keep an observation in the local state before discarding it.
+	// Oservations from other Guardians can take up to 24h to arrive if they are held in their Governor. Therefore, this value should be greater than 24h.
+	retryLimitOurs    = time.Hour * 30
 	retryLimitNotOurs = time.Hour
 )
 
@@ -79,7 +81,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
-				if _, err := p.getSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
+				if p.haveSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)) {
 					// If we have a stored quorum VAA, we can safely expire the state.
 					//
 					// This is a rare case, and we can safely expire the state, since we
@@ -88,11 +90,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					aggregationStateLate.Inc()
 					delete(p.state.signatures, hash)
 					continue
-				} else if err != db.ErrVAANotFound {
-					p.logger.Error("failed to look up VAA in database",
-						zap.String("digest", hash),
-						zap.Error(err),
-					)
 				}
 			}
 		}

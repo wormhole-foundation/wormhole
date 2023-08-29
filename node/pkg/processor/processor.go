@@ -102,9 +102,6 @@ type Processor struct {
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
-	// injectC is a channel of VAAs injected locally.
-	injectC <-chan *vaa.VAA
-
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
@@ -158,7 +155,6 @@ func NewProcessor(
 	gossipSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	injectC <-chan *vaa.VAA,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
@@ -176,7 +172,6 @@ func NewProcessor(
 		obsvC:        obsvC,
 		obsvReqSendC: obsvReqSendC,
 		signedInC:    signedInC,
-		injectC:      injectC,
 		gk:           gk,
 		gst:          gst,
 		db:           db,
@@ -237,7 +232,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			p.handleMessage(ctx, k)
+			p.handleMessage(k)
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -247,9 +242,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.IsMessageCoveredByAccountant(k) {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
-			p.handleMessage(ctx, k)
-		case v := <-p.injectC:
-			p.handleInjection(ctx, v)
+			p.handleMessage(k)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(ctx, m)
@@ -280,7 +273,7 @@ func (p *Processor) Run(ctx context.Context) error {
 								continue
 							}
 						}
-						p.handleMessage(ctx, k)
+						p.handleMessage(k)
 					}
 				}
 			}
@@ -300,31 +293,30 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	return p.db.StoreSignedVAA(v)
 }
 
-func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
-
+// haveSignedVAA returns true if we already have a VAA for the given VAAID
+func (p *Processor) haveSignedVAA(id db.VAAID) bool {
 	if id.EmitterChain == vaa.ChainIDPythNet {
-		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
-		ret, exists := p.pythnetVaas[key]
-		if exists {
-			return ret.v, nil
+		if p.pythnetVaas == nil {
+			return false
 		}
-
-		return nil, db.ErrVAANotFound
+		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
+		_, exists := p.pythnetVaas[key]
+		return exists
 	}
 
 	if p.db == nil {
-		return nil, db.ErrVAANotFound
+		return false
 	}
 
-	vb, err := p.db.GetSignedVAABytes(id)
+	ok, err := p.db.HasVAA(id)
+
 	if err != nil {
-		return nil, err
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("vaaID", string(id.Bytes())),
+			zap.Error(err),
+		)
+		return false
 	}
 
-	vaa, err := vaa.Unmarshal(vb)
-	if err != nil {
-		panic("failed to unmarshal VAA from db")
-	}
-
-	return vaa, err
+	return ok
 }
