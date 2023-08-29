@@ -42,7 +42,10 @@ pub fn validate_posted_token_transfer_with_payload<'ctx>(
     let redeemer = Pubkey::from(transfer.redeemer());
     let redeemer_authority = redeemer_authority.key();
     if redeemer != redeemer_authority {
-        let (expected_authority, _) = Pubkey::find_program_address(&[b"redeemer"], &redeemer);
+        let (expected_authority, _) = Pubkey::find_program_address(
+            &[crate::constants::PROGRAM_REDEEMER_SEED_PREFIX],
+            &redeemer,
+        );
         require_keys_eq!(
             redeemer_authority,
             expected_authority,

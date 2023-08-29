@@ -25,6 +25,14 @@ pub const MINT_AUTHORITY_SEED_PREFIX: &[u8] = b"mint_signer";
 pub const WRAPPED_MINT_SEED_PREFIX: &[u8] = b"wrapped";
 
 #[constant]
+/// Seed for program sender (A.K.A. "sender").
+pub const PROGRAM_SENDER_SEED_PREFIX: &[u8] = b"sender";
+
+#[constant]
+/// Seed for program redeemer (A.K.A. "redeemer").
+pub const PROGRAM_REDEEMER_SEED_PREFIX: &[u8] = b"redeemer";
+
+#[constant]
 pub const MAX_DECIMALS: u8 = 8;
 
 pub(crate) const GOVERNANCE_EMITTER: [u8; 32] = [

@@ -1,12 +1,12 @@
 use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use token_bridge_program::{self, constants::PROGRAM_SENDER_SEED_PREFIX, TokenBridge};
+use token_bridge_program::{self, TokenBridge};
 
-use super::MockLegacyTransferTokensWithPayloadArgs;
+use super::MockLegacyTransferTokensArgs;
 
 #[derive(Accounts)]
-pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
+pub struct MockLegacyTransferTokensNative<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
@@ -18,20 +18,6 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
         bump,
     )]
     payer_sequence: Account<'info, SignerSequence>,
-
-    /// CHECK: This account is needed for the Token Bridge program.
-    #[account(
-        seeds = [PROGRAM_SENDER_SEED_PREFIX],
-        bump,
-    )]
-    token_bridge_program_sender_authority: Option<AccountInfo<'info>>,
-
-    /// CHECK: This account is needed for the Token Bridge program.
-    #[account(
-        seeds = [b"custom_sender_authority"],
-        bump,
-    )]
-    token_bridge_custom_sender_authority: Option<AccountInfo<'info>>,
 
     #[account(
         mut,
@@ -84,43 +70,24 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-pub fn mock_legacy_transfer_tokens_with_payload_native(
-    ctx: Context<MockLegacyTransferTokensWithPayloadNative>,
-    args: MockLegacyTransferTokensWithPayloadArgs,
+pub fn mock_legacy_transfer_tokens_native(
+    ctx: Context<MockLegacyTransferTokensNative>,
+    args: MockLegacyTransferTokensArgs,
 ) -> Result<()> {
-    let MockLegacyTransferTokensWithPayloadArgs {
+    let MockLegacyTransferTokensArgs {
         nonce,
         amount,
-        redeemer,
-        redeemer_chain,
-        payload,
+        recipient,
+        recipient_chain,
     } = args;
 
-    // We are determining which sender authority to test. A program can either use his own program
-    // ID as the sender address or a custom sender address (like his PDA).
-    let (cpi_program_id, sender_authority, sender_seed_prefix, sender_bump) = match (
-        &ctx.accounts.token_bridge_program_sender_authority,
-        &ctx.accounts.token_bridge_custom_sender_authority,
-    ) {
-        (Some(sender_authority), _) => (
-            Some(crate::ID),
-            sender_authority.to_account_info(),
-            PROGRAM_SENDER_SEED_PREFIX,
-            ctx.bumps["token_bridge_program_sender_authority"],
-        ),
-        (None, Some(sender_authority)) => (
-            None,
-            sender_authority.to_account_info(),
-            b"custom_sender_authority".as_ref(),
-            ctx.bumps["token_bridge_custom_sender_authority"],
-        ),
-        (None, None) => return err!(ErrorCode::AccountNotEnoughKeys),
-    };
+    // Where's my money, foo?
+    let relayer_fee = amount / 10;
 
-    token_bridge_program::legacy::cpi::transfer_tokens_with_payload_native(
+    token_bridge_program::legacy::cpi::transfer_tokens_native(
         CpiContext::new_with_signer(
             ctx.accounts.token_bridge_program.to_account_info(),
-            token_bridge_program::legacy::cpi::TransferTokensWithPayloadNative {
+            token_bridge_program::legacy::cpi::TransferTokensNative {
                 payer: ctx.accounts.payer.to_account_info(),
                 src_token: ctx.accounts.src_token.to_account_info(),
                 mint: ctx.accounts.mint.to_account_info(),
@@ -142,27 +109,22 @@ pub fn mock_legacy_transfer_tokens_with_payload_native(
                     .core_fee_collector
                     .as_ref()
                     .map(|acc| acc.to_account_info()),
-                sender_authority,
                 system_program: ctx.accounts.system_program.to_account_info(),
                 core_bridge_program: ctx.accounts.core_bridge_program.to_account_info(),
                 token_program: ctx.accounts.token_program.to_account_info(),
             },
-            &[
-                &[
-                    MESSAGE_SEED_PREFIX,
-                    ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
-                    &[ctx.bumps["core_message"]],
-                ],
-                &[sender_seed_prefix, &[sender_bump]],
-            ],
+            &[&[
+                MESSAGE_SEED_PREFIX,
+                ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
+                &[ctx.bumps["core_message"]],
+            ]],
         ),
-        token_bridge_program::legacy::cpi::TransferTokensWithPayloadArgs {
+        token_bridge_program::legacy::cpi::TransferTokensArgs {
             nonce,
             amount,
-            redeemer,
-            redeemer_chain,
-            payload,
-            cpi_program_id,
+            relayer_fee,
+            recipient,
+            recipient_chain,
         },
     )
 }

@@ -37,11 +37,10 @@ export type LegacyTransferTokensWithPayloadNativeContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyTransferTokensWithPayloadNativeIx(
+export function legacyTransferTokensWithPayloadNativeAccounts(
   program: TokenBridgeProgram,
-  accounts: LegacyTransferTokensWithPayloadNativeContext,
-  args: LegacyTransferTokensWithPayloadArgs
-) {
+  accounts: LegacyTransferTokensWithPayloadNativeContext
+): LegacyTransferTokensWithPayloadNativeContext {
   const programId = program.programId;
 
   let {
@@ -106,6 +105,50 @@ export function legacyTransferTokensWithPayloadNativeIx(
   if (rent === undefined) {
     rent = SYSVAR_RENT_PUBKEY;
   }
+
+  return {
+    payer,
+    config,
+    srcToken,
+    mint,
+    custodyToken,
+    transferAuthority,
+    custodyAuthority,
+    coreBridgeConfig,
+    coreMessage,
+    coreEmitter,
+    coreEmitterSequence,
+    coreFeeCollector,
+    clock,
+    senderAuthority,
+    rent,
+    coreBridgeProgram,
+  };
+}
+
+export function legacyTransferTokensWithPayloadNativeIx(
+  program: TokenBridgeProgram,
+  accounts: LegacyTransferTokensWithPayloadNativeContext,
+  args: LegacyTransferTokensWithPayloadArgs
+) {
+  const {
+    payer,
+    config,
+    srcToken,
+    mint,
+    custodyToken,
+    transferAuthority,
+    custodyAuthority,
+    coreBridgeConfig,
+    coreMessage,
+    coreEmitter,
+    coreEmitterSequence,
+    coreFeeCollector,
+    clock,
+    senderAuthority,
+    rent,
+    coreBridgeProgram,
+  } = legacyTransferTokensWithPayloadNativeAccounts(program, accounts);
 
   const keys: AccountMeta[] = [
     {
@@ -217,7 +260,7 @@ export function legacyTransferTokensWithPayloadNativeIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }

@@ -20,11 +20,8 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
 
   const payerSequenceValue = new anchor.BN(0);
 
-  describe("Ok", () => {
+  describe("Legacy", () => {
     it("Invoke `mock_legacy_post_message`", async () => {
-      const nonce = 420;
-      const payload = Buffer.from("Where's the beef?");
-
       const message = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("my_message"), payerSequenceValue.toBuffer("le", 16)],
         program.programId
@@ -47,6 +44,9 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         payer: payer.publicKey,
       });
 
+      const nonce = 420;
+      const payload = Buffer.from("Where's the beef?");
+
       const ix = await program.methods
         .mockLegacyPostMessage({ nonce, payload })
         .accounts({
@@ -67,77 +67,3 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
     });
   });
 });
-
-function defaultArgs() {
-  return {
-    nonce: 420,
-    payload: Buffer.from("All your base are belong to us."),
-  };
-}
-
-async function everythingOk(
-  program: coreBridge.CoreBridgeProgram,
-  signers: {
-    payer: anchor.web3.Keypair;
-    emitter: anchor.web3.Keypair;
-  },
-  args: coreBridge.LegacyPostMessageArgs,
-  sequence: anchor.BN,
-  nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean }
-) {
-  const { payer, emitter } = signers;
-  const message = anchor.web3.Keypair.generate();
-
-  const out = await coreBridge.expectOkPostMessage(
-    program,
-    { payer, emitter, message },
-    args,
-    sequence,
-    args.payload,
-    nullAccounts
-  );
-
-  sequence.iaddn(1);
-
-  return out;
-}
-
-async function parallelEverythingOk(
-  program: coreBridge.CoreBridgeProgram,
-  forkedProgram: coreBridge.CoreBridgeProgram,
-  signers: {
-    payer: anchor.web3.Keypair;
-    emitter: anchor.web3.Keypair;
-  },
-  args: coreBridge.LegacyPostMessageArgs,
-  sequence: anchor.BN,
-  nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean }
-) {
-  const { payer, emitter } = signers;
-  const message = anchor.web3.Keypair.generate();
-  const forkMessage = anchor.web3.Keypair.generate();
-
-  const [out, forkOut] = await Promise.all([
-    coreBridge.expectOkPostMessage(
-      program,
-      { payer, emitter, message },
-      args,
-      sequence,
-      args.payload,
-      nullAccounts
-    ),
-    coreBridge.expectOkPostMessage(
-      forkedProgram,
-      { payer, emitter, message: forkMessage },
-      args,
-      sequence,
-      args.payload
-    ),
-  ]);
-
-  for (const key of ["postedMessageData", "emitterSequence", "config"]) {
-    expectDeepEqual(out[key], forkOut[key]);
-  }
-
-  sequence.iaddn(1);
-}

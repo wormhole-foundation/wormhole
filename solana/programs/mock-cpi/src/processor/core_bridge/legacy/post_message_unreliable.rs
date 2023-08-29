@@ -5,6 +5,7 @@ const LEGACY_EMITTER_SEED_PREFIX: &[u8] = b"my_unreliable_emitter";
 const MESSAGE_SEED_PREFIX: &[u8] = b"my_unreliable_message";
 
 #[derive(Accounts)]
+#[instruction(nonce: u32)]
 pub struct MockLegacyPostMessageUnreliable<'info> {
     #[account(mut)]
     payer: Signer<'info>,
@@ -21,7 +22,11 @@ pub struct MockLegacyPostMessageUnreliable<'info> {
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(
         mut,
-        seeds = [MESSAGE_SEED_PREFIX],
+        seeds = [
+            MESSAGE_SEED_PREFIX,
+            payer.key().as_ref(),
+            nonce.to_le_bytes().as_ref()
+        ],
         bump
     )]
     core_message: AccountInfo<'info>,
@@ -93,13 +98,18 @@ pub fn mock_legacy_post_message_unreliable(
             },
             &[
                 &[LEGACY_EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]],
-                &[MESSAGE_SEED_PREFIX, &[ctx.bumps["core_message"]]],
+                &[
+                    MESSAGE_SEED_PREFIX,
+                    ctx.accounts.payer.key().as_ref(),
+                    nonce.to_le_bytes().as_ref(),
+                    &[ctx.bumps["core_message"]],
+                ],
             ],
         ),
         core_bridge_program::legacy::cpi::PostMessageUnreliableArgs {
             nonce,
             payload,
-            commitment: core_bridge_program::types::Commitment::Finalized,
+            commitment: crate::constants::CORE_BRIDGE_COMMITMENT,
         },
     )
 }

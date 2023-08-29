@@ -4,6 +4,8 @@ use anchor_lang::prelude::*;
 
 declare_id!("MockCP1696969696969696969696969696969696969");
 
+pub mod constants;
+
 mod processor;
 pub(crate) use processor::*;
 
@@ -27,10 +29,17 @@ pub mod wormhole_mock_cpi_solana {
         processor::mock_legacy_post_message_unreliable(ctx, args)
     }
 
-    pub fn mock_legacy_transfer_tokens_with_payload_mint(
+    pub fn mock_legacy_transfer_tokens_native(
+        ctx: Context<MockLegacyTransferTokensNative>,
+        args: MockLegacyTransferTokensArgs,
+    ) -> Result<()> {
+        processor::mock_legacy_transfer_tokens_native(ctx, args)
+    }
+
+    pub fn mock_legacy_transfer_tokens_with_payload_native(
         ctx: Context<MockLegacyTransferTokensWithPayloadNative>,
         args: MockLegacyTransferTokensWithPayloadArgs,
     ) -> Result<()> {
-        processor::mock_legacy_transfer_tokens_with_payload_mint(ctx, args)
+        processor::mock_legacy_transfer_tokens_with_payload_native(ctx, args)
     }
 }
