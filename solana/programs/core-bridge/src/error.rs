@@ -53,7 +53,7 @@ pub enum CoreBridgeError {
     InvalidGovernanceVaa,
 
     #[msg("InsufficientFees")]
-    InsufficientMessageFee = 0x100,
+    InsufficientFees = 0x100,
 
     #[msg("InvalidSignatureSet")]
     InvalidSignatureSet = 0x200,

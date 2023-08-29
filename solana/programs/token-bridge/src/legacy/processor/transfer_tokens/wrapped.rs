@@ -1,12 +1,12 @@
 use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
-    legacy::LegacyTransferTokensArgs,
+    legacy::TransferTokensArgs,
     processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{self, state::Config as CoreBridgeConfig, CoreBridge};
 use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
@@ -23,7 +23,7 @@ pub struct TransferTokensWrapped<'info> {
         mut,
         token::mint = wrapped_mint
     )]
-    src_token: Box<Account<'info, TokenAccount>>,
+    src_token: Box<Account<'info, token::TokenAccount>>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _src_owner: UncheckedAccount<'info>,
@@ -37,7 +37,7 @@ pub struct TransferTokensWrapped<'info> {
         ],
         bump
     )]
-    wrapped_mint: Box<Account<'info, Mint>>,
+    wrapped_mint: Box<Account<'info, token::Mint>>,
 
     #[account(
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
@@ -89,11 +89,11 @@ pub struct TransferTokensWrapped<'info> {
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, token::Token>,
 }
 
 impl<'info> TransferTokensWrapped<'info> {
-    fn constraints(args: &LegacyTransferTokensArgs) -> Result<()> {
+    fn constraints(args: &TransferTokensArgs) -> Result<()> {
         // Cannot configure a fee greater than the total transfer amount.
         require_gte!(
             args.amount,
@@ -109,9 +109,9 @@ impl<'info> TransferTokensWrapped<'info> {
 #[access_control(TransferTokensWrapped::constraints(&args))]
 pub fn transfer_tokens_wrapped(
     ctx: Context<TransferTokensWrapped>,
-    args: LegacyTransferTokensArgs,
+    args: TransferTokensArgs,
 ) -> Result<()> {
-    let LegacyTransferTokensArgs {
+    let TransferTokensArgs {
         nonce,
         amount,
         relayer_fee,

@@ -15,15 +15,9 @@ use crate::{
     error::TokenBridgeError,
     utils::TruncateAmount,
 };
-use anchor_lang::{
-    prelude::*,
-    system_program::{self, Transfer},
-};
+use anchor_lang::{prelude::*, system_program};
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount};
-use core_bridge_program::{
-    state::Config as CoreBridgeConfig, types::Commitment, CoreBridge, LegacyPostMessage,
-    LegacyPostMessageArgs,
-};
+use core_bridge_program::{state::Config as CoreBridgeConfig, types::Commitment, CoreBridge};
 use wormhole_io::Writeable;
 
 pub struct PostTokenBridgeMessage<'ctx, 'info> {
@@ -53,7 +47,7 @@ pub fn post_token_bridge_message<W: Writeable>(
             system_program::transfer(
                 CpiContext::new(
                     accounts.system_program.to_account_info(),
-                    Transfer {
+                    system_program::Transfer {
                         from: accounts.payer.to_account_info(),
                         to: core_fee_collector.to_account_info(),
                     },
@@ -69,10 +63,10 @@ pub fn post_token_bridge_message<W: Writeable>(
     let mut payload = Vec::with_capacity(message.written_size());
     message.write(&mut payload)?;
 
-    core_bridge_program::legacy_post_message(
+    core_bridge_program::legacy::cpi::post_message(
         CpiContext::new_with_signer(
             accounts.core_bridge_program.to_account_info(),
-            LegacyPostMessage {
+            core_bridge_program::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config.to_account_info(),
                 message: accounts.core_message.to_account_info(),
                 emitter: accounts.core_emitter.to_account_info(),
@@ -83,7 +77,7 @@ pub fn post_token_bridge_message<W: Writeable>(
             },
             &[&[EMITTER_SEED_PREFIX, &[emitter_bump]]],
         ),
-        LegacyPostMessageArgs {
+        core_bridge_program::legacy::cpi::PostMessageArgs {
             nonce,
             payload: message.to_vec(),
             commitment: Commitment::Finalized,

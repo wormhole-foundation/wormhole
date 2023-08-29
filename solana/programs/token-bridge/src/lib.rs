@@ -26,8 +26,7 @@ pub mod state;
 
 pub mod utils;
 
-// #[cfg(feature = "cpi")]
-// pub use legacy::cpi::*;
+pub mod zero_copy;
 
 #[derive(Clone)]
 pub struct TokenBridge;

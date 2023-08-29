@@ -6,7 +6,7 @@ use crate::{
     state::{Claim, RegisteredEmitter, WrappedAsset},
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
@@ -57,7 +57,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         mut,
         token::mint = wrapped_mint,
     )]
-    recipient_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, token::TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -68,7 +68,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         mut,
         mint::authority = mint_authority,
     )]
-    wrapped_mint: Box<Account<'info, Mint>>,
+    wrapped_mint: Box<Account<'info, token::Mint>>,
 
     #[account(
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
@@ -88,7 +88,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, token::Token>,
 }
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {

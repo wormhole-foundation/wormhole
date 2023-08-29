@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::{LegacyPostMessageArgs, LegacyPostMessageUnreliableArgs},
+    legacy::instruction::{PostMessageArgs, PostMessageUnreliableArgs},
     state::{Config, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
 };
 use anchor_lang::prelude::*;
@@ -97,9 +97,9 @@ impl<'info> PostMessageUnreliable<'info> {
 #[access_control(PostMessageUnreliable::constraints(&ctx))]
 pub fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,
-    args: LegacyPostMessageUnreliableArgs,
+    args: PostMessageUnreliableArgs,
 ) -> Result<()> {
-    let LegacyPostMessageUnreliableArgs {
+    let PostMessageUnreliableArgs {
         nonce,
         payload,
         commitment,
@@ -111,7 +111,7 @@ pub fn post_message_unreliable(
         &ctx.accounts.emitter,
         &mut ctx.accounts.emitter_sequence,
         &ctx.accounts.fee_collector,
-        LegacyPostMessageArgs {
+        PostMessageArgs {
             nonce,
             payload,
             commitment,

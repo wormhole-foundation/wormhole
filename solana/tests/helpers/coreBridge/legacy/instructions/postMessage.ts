@@ -24,31 +24,13 @@ export type LegacyPostMessageContext = {
   rent?: PublicKey | null;
 };
 
-export type LegacyPostMessageArgs = {
-  nonce: number;
-  payload: Buffer;
-  finality: Finality;
-};
-
-export function legacyPostMessageIx(
+export function legacyPostMessageAccounts(
   program: CoreBridgeProgram,
-  accounts: LegacyPostMessageContext,
-  args: LegacyPostMessageArgs
-) {
-  return handleLegacyPostMessageIx(program, accounts, args, false);
-}
-
-/* private */
-export function handleLegacyPostMessageIx(
-  program: CoreBridgeProgram,
-  accounts: LegacyPostMessageContext,
-  args: LegacyPostMessageArgs,
-  unreliable: boolean
-) {
+  accounts: LegacyPostMessageContext
+): LegacyPostMessageContext {
   const programId = program.programId;
 
   let { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } = accounts;
-
   if (config === undefined) {
     config = Config.address(program.programId);
   }
@@ -74,6 +56,42 @@ export function handleLegacyPostMessageIx(
   } else if (rent === null) {
     rent = programId;
   }
+
+  return {
+    config,
+    message,
+    emitter,
+    emitterSequence,
+    payer,
+    feeCollector,
+    clock,
+    rent,
+  };
+}
+
+export type LegacyPostMessageArgs = {
+  nonce: number;
+  payload: Buffer;
+  finality: Finality;
+};
+
+export function legacyPostMessageIx(
+  program: CoreBridgeProgram,
+  accounts: LegacyPostMessageContext,
+  args: LegacyPostMessageArgs
+) {
+  return handleLegacyPostMessageIx(program, accounts, args, false);
+}
+
+/* private */
+export function handleLegacyPostMessageIx(
+  program: CoreBridgeProgram,
+  accounts: LegacyPostMessageContext,
+  args: LegacyPostMessageArgs,
+  unreliable: boolean
+) {
+  let { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } =
+    legacyPostMessageAccounts(program, accounts);
 
   const keys: AccountMeta[] = [
     {
@@ -132,7 +150,7 @@ export function handleLegacyPostMessageIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }

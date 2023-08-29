@@ -31,7 +31,8 @@ endif
 
 test: node_modules
 	cargo test
-	anchor build --arch sbf -- --features mainnet -- --no-default-features
+	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
+	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	mkdir -p tests/artifacts && cp target/deploy/*.so tests/artifacts/
 	anchor test --arch sbf
 

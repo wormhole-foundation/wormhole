@@ -3,11 +3,11 @@ use crate::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
     },
     error::TokenBridgeError,
-    legacy::LegacyTransferTokensArgs,
+    legacy::TransferTokensArgs,
     processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{
     self, constants::SOLANA_CHAIN, state::Config as CoreBridgeConfig, CoreBridge,
 };
@@ -27,11 +27,11 @@ pub struct TransferTokensNative<'info> {
         mut,
         token::mint = mint
     )]
-    src_token: Box<Account<'info, TokenAccount>>,
+    src_token: Box<Account<'info, token::TokenAccount>>,
 
     /// Native mint. We ensure this mint is not one that has originated from a foreign network in
     /// access control.
-    mint: Box<Account<'info, Mint>>,
+    mint: Box<Account<'info, token::Mint>>,
 
     #[account(
         init_if_needed,
@@ -41,7 +41,7 @@ pub struct TransferTokensNative<'info> {
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, TokenAccount>>,
+    custody_token: Box<Account<'info, token::TokenAccount>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -94,11 +94,11 @@ pub struct TransferTokensNative<'info> {
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, token::Token>,
 }
 
 impl<'info> TransferTokensNative<'info> {
-    fn constraints(ctx: &Context<Self>, args: &LegacyTransferTokensArgs) -> Result<()> {
+    fn constraints(ctx: &Context<Self>, args: &TransferTokensArgs) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
@@ -118,9 +118,9 @@ impl<'info> TransferTokensNative<'info> {
 #[access_control(TransferTokensNative::constraints(&ctx, &args))]
 pub fn transfer_tokens_native(
     ctx: Context<TransferTokensNative>,
-    args: LegacyTransferTokensArgs,
+    args: TransferTokensArgs,
 ) -> Result<()> {
-    let LegacyTransferTokensArgs {
+    let TransferTokensArgs {
         nonce,
         amount,
         relayer_fee,

@@ -2,7 +2,7 @@ use crate::types::Commitment;
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyPostMessageUnreliableArgs {
+pub struct PostMessageUnreliableArgs {
     pub nonce: u32,
     pub payload: Vec<u8>,
     pub commitment: Commitment,
@@ -36,7 +36,7 @@ mod __no_entrypoint {
     /// * The new message must be the same size as the existing message's payload.
     pub fn post_message_unreliable(
         accounts: PostMessageUnreliable,
-        args: LegacyPostMessageUnreliableArgs,
+        args: PostMessageUnreliableArgs,
     ) -> Instruction {
         let fee_collector = match accounts.fee_collector {
             Some(fee_collector) => fee_collector,

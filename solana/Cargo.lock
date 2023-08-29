@@ -2269,6 +2269,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6926b6a0b383df50bbb0d0b11378b6d0cf4f606e8386fb624472b7f9a90e830f"
 
 [[package]]
+name = "wormhole-mock-cpi-solana"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "wormhole-core-bridge-solana",
+ "wormhole-raw-vaas",
+ "wormhole-token-bridge-solana",
+]
+
+[[package]]
 name = "wormhole-raw-vaas"
 version = "0.0.0-alpha.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

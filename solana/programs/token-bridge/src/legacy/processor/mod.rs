@@ -24,8 +24,8 @@ pub use transfer_tokens_with_payload::*;
 
 use crate::{
     legacy::instruction::{
-        EmptyArgs, LegacyAttestTokenArgs, LegacyInitializeArgs, LegacyTransferTokensArgs,
-        LegacyTransferTokensWithPayloadArgs,
+        EmptyArgs, LegacyAttestTokenArgs, LegacyInitializeArgs, TransferTokensArgs,
+        TransferTokensWithPayloadArgs,
     },
     ID,
 };
@@ -92,23 +92,23 @@ pub fn process_legacy_instruction(
         LegacyInstruction::TransferTokensWrapped => {
             process_anchorized_legacy_instruction!(
                 ID,
-                "LegacyTransferTokensWrapped",
+                "TransferTokensWrapped",
                 TransferTokensWrapped,
                 account_infos,
                 ix_data,
                 transfer_tokens_wrapped,
-                LegacyTransferTokensArgs
+                TransferTokensArgs
             )
         }
         LegacyInstruction::TransferTokensNative => {
             process_anchorized_legacy_instruction!(
                 ID,
-                "LegacyTransferTokensNative",
+                "TransferTokensNative",
                 TransferTokensNative,
                 account_infos,
                 ix_data,
                 transfer_tokens_native,
-                LegacyTransferTokensArgs
+                TransferTokensArgs
             )
         }
         LegacyInstruction::RegisterChain => err!(ErrorCode::Deprecated),
@@ -164,18 +164,18 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 transfer_tokens_with_payload_wrapped,
-                LegacyTransferTokensWithPayloadArgs
+                TransferTokensWithPayloadArgs
             )
         }
         LegacyInstruction::TransferTokensWithPayloadNative => {
             process_anchorized_legacy_instruction!(
                 ID,
-                "LegacyTransferTokensWithPayloadNative",
+                "TransferTokensWithPayloadNative",
                 TransferTokensWithPayloadNative,
                 account_infos,
                 ix_data,
                 transfer_tokens_with_payload_native,
-                LegacyTransferTokensWithPayloadArgs
+                TransferTokensWithPayloadArgs
             )
         }
     }
