@@ -44,7 +44,7 @@ mod __no_entrypoint {
             AccountMeta::new(accounts.core_emitter_sequence, false),
             AccountMeta::new(core_fee_collector, false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
-            AccountMeta::new(accounts.sender_authority, true),
+            AccountMeta::new_readonly(accounts.sender_authority, true),
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(accounts.system_program, false),
             AccountMeta::new_readonly(accounts.core_bridge_program, false),

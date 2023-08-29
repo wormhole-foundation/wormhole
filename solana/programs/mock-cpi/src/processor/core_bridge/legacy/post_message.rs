@@ -1,9 +1,8 @@
-use crate::state::SignerSequence;
+use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::{prelude::*, system_program};
 use core_bridge_program::{state::Config, CoreBridge, SeedPrefix};
 
 const LEGACY_EMITTER_SEED_PREFIX: &[u8] = b"my_legacy_emitter";
-const MESSAGE_SEED_PREFIX: &[u8] = b"my_message";
 
 #[derive(Accounts)]
 pub struct MockLegacyPostMessage<'info> {
@@ -31,7 +30,7 @@ pub struct MockLegacyPostMessage<'info> {
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(
         mut,
-        seeds = [MESSAGE_SEED_PREFIX, payer_sequence.value.to_le_bytes().as_ref()],
+        seeds = [MESSAGE_SEED_PREFIX, payer_sequence.to_le_bytes().as_ref()],
         bump
     )]
     core_message: AccountInfo<'info>,
@@ -105,7 +104,7 @@ pub fn mock_legacy_post_message(
                 &[LEGACY_EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]],
                 &[
                     MESSAGE_SEED_PREFIX,
-                    ctx.accounts.payer_sequence.value.to_le_bytes().as_ref(),
+                    ctx.accounts.payer_sequence.take_and_uptick().as_ref(),
                     &[ctx.bumps["core_message"]],
                 ],
             ],
@@ -113,12 +112,7 @@ pub fn mock_legacy_post_message(
         core_bridge_program::legacy::cpi::PostMessageArgs {
             nonce,
             payload,
-            commitment: core_bridge_program::types::Commitment::Finalized,
+            commitment: crate::constants::CORE_BRIDGE_COMMITMENT,
         },
-    )?;
-
-    ctx.accounts.payer_sequence.value += 1;
-
-    // Done.
-    Ok(())
+    )
 }

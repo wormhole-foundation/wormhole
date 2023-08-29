@@ -90,7 +90,7 @@ export function handleLegacyPostMessageIx(
   args: LegacyPostMessageArgs,
   unreliable: boolean
 ) {
-  let { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } =
+  const { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } =
     legacyPostMessageAccounts(program, accounts);
 
   const keys: AccountMeta[] = [
