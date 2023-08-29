@@ -1,11 +1,11 @@
 use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
-    legacy::LegacyTransferTokensWithPayloadArgs,
+    legacy::TransferTokensWithPayloadArgs,
     processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{self, state::Config as CoreBridgeConfig, CoreBridge};
 use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
@@ -22,7 +22,7 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
         mut,
         token::mint = wrapped_mint
     )]
-    src_token: Box<Account<'info, TokenAccount>>,
+    src_token: Box<Account<'info, token::TokenAccount>>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _src_owner: UncheckedAccount<'info>,
@@ -36,7 +36,7 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
         ],
         bump
     )]
-    wrapped_mint: Box<Account<'info, Mint>>,
+    wrapped_mint: Box<Account<'info, token::Mint>>,
 
     #[account(
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
@@ -93,14 +93,14 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, token::Token>,
 }
 
 pub fn transfer_tokens_with_payload_wrapped(
     ctx: Context<TransferTokensWithPayloadWrapped>,
-    args: LegacyTransferTokensWithPayloadArgs,
+    args: TransferTokensWithPayloadArgs,
 ) -> Result<()> {
-    let LegacyTransferTokensWithPayloadArgs {
+    let TransferTokensWithPayloadArgs {
         nonce,
         amount,
         redeemer,

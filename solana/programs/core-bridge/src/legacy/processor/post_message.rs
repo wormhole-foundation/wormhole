@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::LegacyPostMessageArgs,
+    legacy::instruction::PostMessageArgs,
     state::{
         Config, EmitterSequence, FeeCollector, MessageStatus, PostedMessageV1, PostedMessageV1Data,
         PostedMessageV1Info,
@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
-#[instruction(args: LegacyPostMessageArgs)]
+#[instruction(args: PostMessageArgs)]
 pub struct PostMessage<'info> {
     /// Bridge program data. This account is needed to determine whether the core bridge fee has
     /// been paid.
@@ -86,7 +86,7 @@ pub struct PostMessage<'info> {
     _rent: UncheckedAccount<'info>,
 }
 
-pub fn post_message(ctx: Context<PostMessage>, args: LegacyPostMessageArgs) -> Result<()> {
+pub fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
     // TODO: Change helper methods to take ctx.
     match ctx.accounts.message.data.status {
         MessageStatus::Unset => {
@@ -129,9 +129,9 @@ pub(in crate::legacy) fn handle_post_new_message(
     emitter_authority: &Signer<'_>,
     emitter_sequence: &mut Account<'_, EmitterSequence>,
     fee_collector: &Option<Account<'_, FeeCollector>>,
-    args: LegacyPostMessageArgs,
+    args: PostMessageArgs,
 ) -> Result<()> {
-    let LegacyPostMessageArgs {
+    let PostMessageArgs {
         nonce,
         payload,
         commitment,
@@ -184,9 +184,9 @@ fn handle_post_prepared_message(
     msg: &mut PostedMessageV1Data,
     emitter_sequence: &mut Account<'_, EmitterSequence>,
     fee_collector: &Option<Account<'_, FeeCollector>>,
-    args: LegacyPostMessageArgs,
+    args: PostMessageArgs,
 ) -> Result<()> {
-    let LegacyPostMessageArgs {
+    let PostMessageArgs {
         nonce,
         payload,
         commitment,
@@ -230,7 +230,7 @@ fn handle_message_fee(
             require_eq!(
                 collector_lamports,
                 config.last_lamports.saturating_add(lamports),
-                CoreBridgeError::InsufficientMessageFee
+                CoreBridgeError::InsufficientFees
             );
 
             // Update core bridge config to reflect paid fees.

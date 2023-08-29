@@ -9,21 +9,20 @@ pub use crate::ID;
 
 #[cfg(feature = "cpi")]
 pub mod cpi {
-    pub use instruction::{LegacyPostMessageArgs, LegacyPostMessageUnreliableArgs};
+    pub use instruction::{PostMessageArgs, PostMessageUnreliableArgs};
 
-    use crate::legacy::instruction::{PostMessage, PostMessageUnreliable};
     use anchor_lang::prelude::*;
     use solana_program::program::invoke_signed;
 
     use super::*;
 
-    pub fn legacy_post_message<'info>(
-        ctx: CpiContext<'_, '_, '_, 'info, LegacyPostMessage<'info>>,
-        args: LegacyPostMessageArgs,
+    pub fn post_message<'info>(
+        ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
+        args: PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message(
-                PostMessage {
+                instruction::PostMessage {
                     config: *ctx.accounts.config.key,
                     message: *ctx.accounts.message.key,
                     emitter: *ctx.accounts.emitter.key,
@@ -46,13 +45,13 @@ pub mod cpi {
     /// The constraints for posting a message using this instruction handler are:
     /// * Emitter must be the same as the message account's emitter.
     /// * The new message must be the same size as the existing message's payload.
-    pub fn legacy_post_message_unreliable<'info>(
-        ctx: CpiContext<'_, '_, '_, 'info, LegacyPostMessageUnreliable<'info>>,
-        args: LegacyPostMessageUnreliableArgs,
+    pub fn post_message_unreliable<'info>(
+        ctx: CpiContext<'_, '_, '_, 'info, PostMessageUnreliable<'info>>,
+        args: PostMessageUnreliableArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message_unreliable(
-                PostMessageUnreliable {
+                instruction::PostMessageUnreliable {
                     config: *ctx.accounts.config.key,
                     message: *ctx.accounts.message.key,
                     emitter: *ctx.accounts.emitter.key,
@@ -70,7 +69,7 @@ pub mod cpi {
     }
 
     #[derive(Accounts)]
-    pub struct LegacyPostMessage<'info> {
+    pub struct PostMessage<'info> {
         /// CHECK: Core Bridge Program Data (mut, seeds = ["Bridge"]).
         pub config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
@@ -88,7 +87,7 @@ pub mod cpi {
     }
 
     #[derive(Accounts)]
-    pub struct LegacyPostMessageUnreliable<'info> {
+    pub struct PostMessageUnreliable<'info> {
         /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\]).
         pub config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).

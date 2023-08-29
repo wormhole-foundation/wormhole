@@ -66,7 +66,7 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
       );
 
       // Send the transaction.
-      await expectIxErr(connection, [ix], [payer, coreMessage], "InvalidMint");
+      await expectIxErr(connection, [ix], [payer, coreMessage], "WrappedAsset");
     });
   });
 });

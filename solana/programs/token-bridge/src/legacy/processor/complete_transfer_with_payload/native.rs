@@ -6,7 +6,7 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
@@ -57,7 +57,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
         mut,
         token::mint = mint,
     )]
-    recipient_token: Box<Account<'info, TokenAccount>>,
+    recipient_token: Box<Account<'info, token::TokenAccount>>,
 
     redeemer_authority: Signer<'info>,
 
@@ -72,9 +72,9 @@ pub struct CompleteTransferWithPayloadNative<'info> {
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, TokenAccount>>,
+    custody_token: Box<Account<'info, token::TokenAccount>>,
 
-    mint: Box<Account<'info, Mint>>,
+    mint: Box<Account<'info, token::Mint>>,
 
     /// CHECK: This account is the authority that can move tokens from the custody account.
     #[account(
@@ -88,7 +88,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, token::Token>,
 }
 
 impl<'info> CompleteTransferWithPayloadNative<'info> {

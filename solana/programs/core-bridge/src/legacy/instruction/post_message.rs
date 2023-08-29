@@ -2,7 +2,7 @@ use crate::types::Commitment;
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyPostMessageArgs {
+pub struct PostMessageArgs {
     pub nonce: u32,
     pub payload: Vec<u8>,
     pub commitment: Commitment,
@@ -28,10 +28,10 @@ mod __no_entrypoint {
         pub system_program: Pubkey,
     }
 
-    pub fn post_message(accounts: PostMessage, args: LegacyPostMessageArgs) -> Instruction {
+    pub fn post_message(accounts: PostMessage, args: PostMessageArgs) -> Instruction {
         let fee_collector = match accounts.fee_collector {
             Some(fee_collector) => fee_collector,
-            None => Pubkey::default(),
+            None => crate::ID,
         };
 
         let accounts = vec![

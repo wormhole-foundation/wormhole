@@ -32,8 +32,7 @@ pub mod utils;
 
 pub mod zero_copy;
 
-#[cfg(feature = "cpi")]
-pub use legacy::cpi::*;
+pub use wormhole_solana_common::SeedPrefix;
 
 #[derive(Clone)]
 pub struct CoreBridge;

@@ -18,8 +18,8 @@ pub use verify_signatures::*;
 
 use crate::{
     legacy::instruction::{
-        EmptyArgs, LegacyInitializeArgs, LegacyPostMessageArgs, LegacyPostMessageUnreliableArgs,
-        LegacyPostVaaArgs, LegacyVerifySignaturesArgs,
+        EmptyArgs, LegacyInitializeArgs, LegacyPostVaaArgs, LegacyVerifySignaturesArgs,
+        PostMessageArgs, PostMessageUnreliableArgs,
     },
     ID,
 };
@@ -58,7 +58,7 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 post_message,
-                LegacyPostMessageArgs
+                PostMessageArgs
             )
         }
         LegacyInstruction::PostVaa => {
@@ -135,7 +135,7 @@ pub fn process_legacy_instruction(
                 account_infos,
                 ix_data,
                 post_message_unreliable,
-                LegacyPostMessageUnreliableArgs
+                PostMessageUnreliableArgs
             )
         }
     }
