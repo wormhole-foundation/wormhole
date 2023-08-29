@@ -305,10 +305,6 @@ func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T, allowlistChainID uint1
 	var channelIdBytes [64]byte
 	copy(channelIdBytes[:], channelPadded.Bytes())
 
-	// v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
-	// vBz, err := v.Marshal()
-	// require.NoError(t, err)
-
 	msg := vaa.BodyIbcUpdateChannelChain{
 		TargetChainId: 3104,
 		ChannelId:     channelIdBytes,
