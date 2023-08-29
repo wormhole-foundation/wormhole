@@ -119,11 +119,6 @@ pub fn convert_cw20_to_bank_and_send(
         let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 
         // Populate token factory token's metadata from cw20 token's metadata
-        let tf_description = token_info.name.clone()
-            + ", "
-            + token_info.symbol.as_str()
-            + ", "
-            + tokenfactory_denom.as_str();
         let tf_denom_unit_base = DenomUnit {
             denom: tokenfactory_denom.clone(),
             exponent: 0,
@@ -134,17 +129,24 @@ pub fn convert_cw20_to_bank_and_send(
             + "/"
             + token_info.decimals.to_string().as_str();
         let tf_denom_unit_scaled = DenomUnit {
-            denom: tf_scaled_denom,
+            denom: tf_scaled_denom.clone(),
             exponent: u32::from(token_info.decimals),
             aliases: vec![],
         };
+
+        let mut symbol = token_info.symbol;
+        if symbol.is_empty() {
+            symbol = tf_scaled_denom;
+        }
+        let tf_description =
+            token_info.name.clone() + ", " + symbol.as_str() + ", " + tokenfactory_denom.as_str();
         let tf_metadata = Metadata {
             description: Some(tf_description),
             base: Some(tokenfactory_denom.clone()),
             denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
             display: Some(tokenfactory_denom.clone()),
             name: Some(token_info.name),
-            symbol: Some(token_info.symbol),
+            symbol: Some(symbol),
         };
 
         // call into token factory to create the denom
