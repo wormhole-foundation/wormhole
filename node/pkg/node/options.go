@@ -286,6 +286,14 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("msgChainId", msg.EmitterChain),
 									zap.Stringer("watcherChainId", chainId),
 								)
+							} else if msg.EmitterAddress == vaa.GovernanceEmitter && msg.EmitterChain == vaa.GovernanceChain {
+								logger.Error(
+									"EMERGENCY: PLEASE REPORT THIS IMMEDIATELY! A Solana message was emitted from the governance emitter. This should never be possible.",
+									zap.Stringer("emitter_chain", msg.EmitterChain),
+									zap.Stringer("emitter_address", msg.EmitterAddress),
+									zap.Uint32("nonce", msg.Nonce),
+									zap.Stringer("txhash", msg.TxHash),
+									zap.Time("timestamp", msg.Timestamp))
 							} else {
 								g.msgC.writeC <- msg
 							}
@@ -379,7 +387,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 			adminService, err := adminServiceRunnable(
 				logger,
 				socketPath,
-				g.injectC.writeC,
+				g.msgC.writeC,
 				g.signedInC.writeC,
 				g.obsvReqSendC.writeC,
 				g.db,
@@ -482,7 +490,6 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.gossipSendC,
 				g.obsvC,
 				g.obsvReqSendC.writeC,
-				g.injectC.readC,
 				g.signedInC.readC,
 				g.gk,
 				g.gst,

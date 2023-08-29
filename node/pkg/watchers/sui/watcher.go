@@ -62,13 +62,13 @@ type (
 			TxDigest *string `json:"txDigest"`
 			EventSeq *string `json:"eventSeq"`
 		} `json:"id"`
-		PackageID         *string     `json:"packageId"`
-		TransactionModule *string     `json:"transactionModule"`
-		Sender            *string     `json:"sender"`
-		Type              *string     `json:"type"`
-		Bcs               *string     `json:"bcs"`
-		Timestamp         *string     `json:"timestampMs"`
-		Fields            *FieldsData `json:"parsedJson"`
+		PackageID         *string          `json:"packageId"`
+		TransactionModule *string          `json:"transactionModule"`
+		Sender            *string          `json:"sender"`
+		Type              *string          `json:"type"`
+		Bcs               *string          `json:"bcs"`
+		Timestamp         *string          `json:"timestampMs"`
+		Fields            *json.RawMessage `json:"parsedJson"`
 	}
 
 	SuiEventError struct {
@@ -189,10 +189,19 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 
 	if e.suiMoveEventType != *body.Type {
 		logger.Info("type mismatch", zap.String("e.suiMoveEventType", e.suiMoveEventType), zap.String("type", *body.Type))
-		return errors.New("type mismatch")
+		return nil
 	}
 
-	fields := *body.Fields
+	// Now that we know this is a wormhole event, we can unmarshal the specifics.
+	var fields FieldsData
+	err := json.Unmarshal(*body.Fields, &fields)
+	if err != nil {
+		logger.Error("failed to unmarshal FieldsData", zap.String("SuiResult.Fields", string(*body.Fields)), zap.Error(err))
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+		return fmt.Errorf("inspectBody failed to unmarshal FieldsData: %w", err)
+	}
+
+	// Check if all required fields exist
 	if (fields.ConsistencyLevel == nil) || (fields.Nonce == nil) || (fields.Payload == nil) || (fields.Sender == nil) || (fields.Sequence == nil) {
 		logger.Info("Missing required fields in event.")
 		return nil
