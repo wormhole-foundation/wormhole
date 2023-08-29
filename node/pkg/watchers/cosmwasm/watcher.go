@@ -372,7 +372,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() == "recv_packet" {
+		if eventType.String() == "recv_packet" && chainID != vaa.ChainIDWormchain {
 			logger.Warn("processing ibc-related events is disabled", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			return []*common.MessagePublication{}
 		}

@@ -63,7 +63,7 @@ import {
   createTransferWrappedInstruction,
   createTransferWrappedWithPayloadInstruction,
 } from "../solana/tokenBridge";
-import { getPackageId, isSameType } from "../sui";
+import { getOldestEmitterCapObjectId, getPackageId, isSameType } from "../sui";
 import { SuiCoinObject } from "../sui/types";
 import { isNativeDenom } from "../terra";
 import {
@@ -885,7 +885,7 @@ export async function transferNearFromNear(
  * @param recipientChain Target chain
  * @param recipient Recipient's address on target chain
  * @param relayerFee Fee to pay relayer
- * @param payload Payload3 data, leave undefined for basic token transfers
+ * @param payload Payload3 data, leave null for basic token transfers
  * @returns Transaction payload
  */
 export function transferFromAptos(
@@ -895,7 +895,7 @@ export function transferFromAptos(
   recipientChain: ChainId | ChainName,
   recipient: Uint8Array,
   relayerFee: string = "0",
-  payload: string = ""
+  payload: Uint8Array | null = null
 ): Types.EntryFunctionPayload {
   if (payload) {
     // Currently unsupported
@@ -905,7 +905,6 @@ export function transferFromAptos(
       amount,
       recipientChain,
       recipient,
-      relayerFee,
       createNonce().readUInt32LE(0),
       payload
     );
@@ -922,6 +921,9 @@ export function transferFromAptos(
   );
 }
 
+/**
+ * Transfer an asset from Sui to another chain.
+ */
 export async function transferFromSui(
   provider: JsonRpcProvider,
   coreBridgeStateObjectId: string,
@@ -935,12 +937,9 @@ export async function transferFromSui(
   relayerFee: bigint = BigInt(0),
   payload: Uint8Array | null = null,
   coreBridgePackageId?: string,
-  tokenBridgePackageId?: string
-) {
-  if (payload !== null) {
-    throw new Error("Sui transfer with payload not implemented");
-  }
-
+  tokenBridgePackageId?: string,
+  senderAddress?: string
+): Promise<TransactionBlock> {
   const [primaryCoin, ...mergeCoins] = coins.filter((coin) =>
     isSameType(coin.coinType, coinType)
   );
@@ -980,36 +979,97 @@ export async function transferFromSui(
     arguments: [tx.object(tokenBridgeStateObjectId)],
     typeArguments: [coinType],
   });
-  const [transferTicket, dust] = tx.moveCall({
-    target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
-    arguments: [
-      assetInfo,
-      transferCoin,
-      tx.pure(coalesceChainId(recipientChain)),
-      tx.pure([...recipient]),
-      tx.pure(relayerFee),
-      tx.pure(createNonce().readUInt32LE()),
-    ],
-    typeArguments: [coinType],
-  });
-  tx.moveCall({
-    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
-    arguments: [dust],
-    typeArguments: [coinType],
-  });
-  const [messageTicket] = tx.moveCall({
-    target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
-    arguments: [tx.object(tokenBridgeStateObjectId), transferTicket],
-    typeArguments: [coinType],
-  });
-  tx.moveCall({
-    target: `${coreBridgePackageId}::publish_message::publish_message`,
-    arguments: [
-      tx.object(coreBridgeStateObjectId),
-      feeCoin,
-      messageTicket,
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
-  });
-  return tx;
+  if (payload === null) {
+    const [transferTicket, dust] = tx.moveCall({
+      target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
+      arguments: [
+        assetInfo,
+        transferCoin,
+        tx.pure(coalesceChainId(recipientChain)),
+        tx.pure([...recipient]),
+        tx.pure(relayerFee),
+        tx.pure(createNonce().readUInt32LE()),
+      ],
+      typeArguments: [coinType],
+    });
+    tx.moveCall({
+      target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+      arguments: [dust],
+      typeArguments: [coinType],
+    });
+    const [messageTicket] = tx.moveCall({
+      target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
+      arguments: [tx.object(tokenBridgeStateObjectId), transferTicket],
+      typeArguments: [coinType],
+    });
+    tx.moveCall({
+      target: `${coreBridgePackageId}::publish_message::publish_message`,
+      arguments: [
+        tx.object(coreBridgeStateObjectId),
+        feeCoin,
+        messageTicket,
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  } else {
+    if (!senderAddress) {
+      throw new Error("senderAddress is required for transfer with payload");
+    }
+    // Get or create a new `EmitterCap`
+    let isNewEmitterCap = false;
+    const emitterCap = await (async () => {
+      const objectId = await getOldestEmitterCapObjectId(
+        provider,
+        coreBridgePackageId,
+        senderAddress
+      );
+      if (objectId !== null) {
+        return tx.object(objectId);
+      } else {
+        const [emitterCap] = tx.moveCall({
+          target: `${coreBridgePackageId}::emitter::new`,
+          arguments: [tx.object(coreBridgeStateObjectId)],
+        });
+        isNewEmitterCap = true;
+        return emitterCap;
+      }
+    })();
+    const [transferTicket, dust] = tx.moveCall({
+      target: `${tokenBridgePackageId}::transfer_tokens_with_payload::prepare_transfer`,
+      arguments: [
+        emitterCap,
+        assetInfo,
+        transferCoin,
+        tx.pure(coalesceChainId(recipientChain)),
+        tx.pure([...recipient]),
+        tx.pure([...payload]),
+        tx.pure(createNonce().readUInt32LE()),
+      ],
+      typeArguments: [coinType],
+    });
+    tx.moveCall({
+      target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+      arguments: [dust],
+      typeArguments: [coinType],
+    });
+    const [messageTicket] = tx.moveCall({
+      target: `${tokenBridgePackageId}::transfer_tokens_with_payload::transfer_tokens_with_payload`,
+      arguments: [tx.object(tokenBridgeStateObjectId), transferTicket],
+      typeArguments: [coinType],
+    });
+    tx.moveCall({
+      target: `${coreBridgePackageId}::publish_message::publish_message`,
+      arguments: [
+        tx.object(coreBridgeStateObjectId),
+        feeCoin,
+        messageTicket,
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    if (isNewEmitterCap) {
+      tx.transferObjects([emitterCap], tx.pure(senderAddress));
+    }
+    return tx;
+  }
 }

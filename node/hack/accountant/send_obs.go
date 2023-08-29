@@ -42,7 +42,7 @@ func main() {
 		logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
 	}
 
-	wormchainConn, err := wormconn.NewConn(ctx, wormchainURL, wormchainKey)
+	wormchainConn, err := wormconn.NewConn(ctx, wormchainURL, wormchainKey, "wormchain")
 	if err != nil {
 		logger.Fatal("failed to connect to wormchain", zap.Error(err))
 	}

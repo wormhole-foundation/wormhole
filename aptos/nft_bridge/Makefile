@@ -11,4 +11,4 @@ build:
 .PHONY: test
 ## Run tests
 test:
-	aptos move test
+	aptos move test --dev

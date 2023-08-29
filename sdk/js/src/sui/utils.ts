@@ -446,3 +446,57 @@ export const padSuiType = (type: string): string => {
  */
 export const trimSuiType = (type: string): string =>
   type.replace(/(0x)(0*)/g, "0x");
+
+/**
+ * Create a new EmitterCap object owned by owner.
+ * @returns The created EmitterCap object ID
+ */
+export const newEmitterCap = (
+  coreBridgePackageId: string,
+  coreBridgeStateObjectId: string,
+  owner: string
+): TransactionBlock => {
+  const tx = new TransactionBlock();
+  const [emitterCap] = tx.moveCall({
+    target: `${coreBridgePackageId}::emitter::new`,
+    arguments: [tx.object(coreBridgeStateObjectId)],
+  });
+  tx.transferObjects([emitterCap], tx.pure(owner));
+  return tx;
+};
+
+export const getOldestEmitterCapObjectId = async (
+  provider: JsonRpcProvider,
+  coreBridgePackageId: string,
+  owner: string
+): Promise<string | null> => {
+  let oldestVersion: string | null = null;
+  let oldestObjectId: string | null = null;
+  let response: PaginatedObjectsResponse | null = null;
+  let nextCursor;
+  do {
+    response = await provider.getOwnedObjects({
+      owner,
+      filter: {
+        StructType: `${coreBridgePackageId}::emitter::EmitterCap`,
+      },
+      options: {
+        showContent: true,
+      },
+      cursor: nextCursor,
+    });
+    if (!response || !response.data) {
+      throw new SuiRpcValidationError(response);
+    }
+    for (const objectResponse of response.data) {
+      if (!objectResponse.data) continue;
+      const { version, objectId } = objectResponse.data;
+      if (oldestVersion === null || version < oldestVersion) {
+        oldestVersion = version;
+        oldestObjectId = objectId;
+      }
+    }
+    nextCursor = response.hasNextPage ? response.nextCursor : undefined;
+  } while (nextCursor);
+  return oldestObjectId;
+};

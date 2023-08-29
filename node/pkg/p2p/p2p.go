@@ -43,6 +43,12 @@ import (
 
 const DefaultPort = 8999
 
+const P2P_VALIDATE_QUEUE_SIZE = 1024
+const P2P_SUBSCRIPTION_BUFFER_SIZE = 1024
+
+// TESTNET_BOOTSTRAP_DHI configures how many nodes may connect to the testnet bootstrap node. This number should not exceed HighWaterMark.
+const TESTNET_BOOTSTRAP_DHI = 350
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -275,8 +281,22 @@ func Run(
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
+		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+		gossipParams := pubsub.DefaultGossipSubParams()
+
+		if bootstrapNode {
+			logger.Info("We are a bootstrap node.")
+			if networkID == "/wormhole/testnet/2/1" {
+				gossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
+				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", gossipParams.Dhi))
+			}
+		}
+
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
-		ps, err := pubsub.NewGossipSub(ctx, h)
+		ps, err := pubsub.NewGossipSub(ctx, h,
+			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
+			pubsub.WithGossipSubParams(gossipParams),
+		)
 		if err != nil {
 			panic(err)
 		}
@@ -294,7 +314,7 @@ func Run(
 
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
-		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
+		sub, err := th.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
@@ -303,12 +323,7 @@ func Run(
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
 
-		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
 		successes := connectToPeers(ctx, logger, h, bootstrappers)
-
-		if bootstrapNode {
-			logger.Info("We are a bootstrap node.")
-		}
 
 		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
 			// If we fail to connect to any bootstrap peer, kill the service
@@ -551,21 +566,23 @@ func Run(
 									zap.String("from", envelope.GetFrom().String()))
 							} else {
 								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
-								if ok {
-									if prevPeerId != peerId {
-										logger.Info("p2p_guardian_peer_changed",
-											zap.String("guardian_addr", guardianAddr.String()),
-											zap.String("prevPeerId", prevPeerId.String()),
-											zap.String("newPeerId", peerId.String()),
-										)
-										components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+								if guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
+									prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+									if ok {
+										if prevPeerId != peerId {
+											logger.Info("p2p_guardian_peer_changed",
+												zap.String("guardian_addr", guardianAddr.String()),
+												zap.String("prevPeerId", prevPeerId.String()),
+												zap.String("newPeerId", peerId.String()),
+											)
+											components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+											components.ConnMgr.Protect(peerId, "heartbeat")
+											components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+										}
+									} else {
 										components.ConnMgr.Protect(peerId, "heartbeat")
 										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 									}
-								} else {
-									components.ConnMgr.Protect(peerId, "heartbeat")
-									components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 								}
 							}
 						} else {
