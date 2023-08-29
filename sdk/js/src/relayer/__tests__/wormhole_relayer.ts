@@ -45,6 +45,7 @@ import { deliver } from "../relayer";
 import { env } from "process";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { getSignedVAAWithRetry } from "../../rpc";
+import { EVMExecutionInfoV1, packEVMExecutionInfoV1 } from "../structs";
 
 const network: Network = getNetwork();
 const ci: boolean = isCI();
@@ -263,10 +264,31 @@ describe("Wormhole Relayer Tests", () => {
       source.provider
     ).nextSequence(source.wormholeRelayerAddress);
 
-    console.log(`Got delivery seq: ${deliverySeq}`);
-    const rx = await testSend(arbitraryPayload);
+    const rx = await testSend(arbitraryPayload, false, true);
 
-    await sleep(1000);
+    await waitForRelay();
+
+    // confirm that the message was not relayed successfully
+    {
+      const message = await target.mockIntegration.getMessage();
+      expect(message).not.toBe(arbitraryPayload);
+
+      console.log("Checking status using SDK");
+      const status = await getStatus(rx.transactionHash);
+      expect(status).toBe("Receiver Failure");
+    }
+    const value = await relayer.getPrice(
+      sourceChain,
+      targetChain,
+      REASONABLE_GAS_LIMIT,
+      optionalParams
+    );
+
+    const info = (await relayer.getWormholeRelayerInfo(
+      sourceChain,
+      rx.transactionHash,
+      { wormholeRelayerAddresses, ...optionalParams }
+    )) as relayer.DeliveryInfo;
 
     const rpc = getGuardianRPC(network, ci);
     const emitterAddress = Buffer.from(
@@ -285,7 +307,18 @@ describe("Wormhole Relayer Tests", () => {
       deliveryVaa.vaaBytes,
       target.wallet,
       getGuardianRPC(network, ci),
-      network
+      network,
+      {
+        newExecutionInfo: Buffer.from(
+          packEVMExecutionInfoV1({
+            gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
+            targetChainRefundPerGasUnused: ethers.BigNumber.from(0),
+          }),
+          "hex"
+        ),
+        newReceiverValue: ethers.BigNumber.from(0),
+        redeliveryHash: deliveryVaa.hash, // fake a redelivery
+      }
     );
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
     console.log("Manual delivery tx status", deliveryRx.status);
