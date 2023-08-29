@@ -136,7 +136,7 @@ pub fn convert_cw20_to_bank_and_send(
 
         let mut symbol = token_info.symbol;
         if symbol.is_empty() {
-            symbol = tf_scaled_denom;
+            symbol = tf_scaled_denom.clone();
         }
         let tf_description =
             token_info.name.clone() + ", " + symbol.as_str() + ", " + tokenfactory_denom.as_str();
@@ -144,7 +144,7 @@ pub fn convert_cw20_to_bank_and_send(
             description: Some(tf_description),
             base: Some(tokenfactory_denom.clone()),
             denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-            display: Some(tokenfactory_denom.clone()),
+            display: Some(tf_scaled_denom),
             name: Some(token_info.name),
             symbol: Some(symbol),
         };
