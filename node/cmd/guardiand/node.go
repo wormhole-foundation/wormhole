@@ -737,6 +737,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *pythnetRPC == "" {
 			logger.Fatal("Please specify --pythnetRPC")
 		}
+		if *pythnetWS == "" {
+			logger.Fatal("Please specify --pythnetWS")
+		}
 
 		if *injectiveWS == "" {
 			logger.Fatal("Please specify --injectiveWS")
