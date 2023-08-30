@@ -1,7 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { expectIxOk, expectIxErr } from "../helpers";
+import { expectIxOk, expectIxErr, MINT_INFO_6, MINT_INFO_8, MINT_INFO_9 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
+import { createAssociatedTokenAccount } from "@solana/spl-token";
 
 describe("Token Bridge -- Instruction: Initialize", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -12,6 +13,15 @@ describe("Token Bridge -- Instruction: Initialize", () => {
   const payer = (provider.wallet as anchor.Wallet).payer;
 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
+
+  before("Set up Token Accounts", async () => {
+    // Native mints.
+    await Promise.all(
+      [MINT_INFO_8, MINT_INFO_9].map((info) =>
+        createAssociatedTokenAccount(connection, payer, info.mint, payer.publicKey)
+      )
+    );
+  });
 
   describe("Ok", () => {
     it("Invoke `initialize`", async () => {

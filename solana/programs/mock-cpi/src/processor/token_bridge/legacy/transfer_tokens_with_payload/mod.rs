@@ -1,6 +1,9 @@
 mod native;
 pub use native::*;
 
+mod wrapped;
+pub use wrapped::*;
+
 use anchor_lang::prelude::*;
 
 pub const CUSTOM_SENDER_SEED_PREFIX: &[u8] = b"custom_sender_authority";

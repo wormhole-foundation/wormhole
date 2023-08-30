@@ -1,3 +1,6 @@
+mod complete_transfer;
+pub use complete_transfer::*;
+
 mod complete_transfer_with_payload;
 pub use complete_transfer_with_payload::*;
 

@@ -12,7 +12,7 @@ members = [
 [programs.localnet]
 wormhole_core_bridge_solana = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 wormhole_token_bridge_solana = "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"
-wormhole_mock_cpi_solana = "MockCP1696969696969696969696969696969696969"
+wormhole_mock_cpi_solana = "MockCpi696969696969696969696969696969696969"
 
 [registry]
 url = "https://api.apr.dev"

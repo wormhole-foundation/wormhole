@@ -7,8 +7,8 @@ use anchor_lang::prelude::*;
 
 pub fn require_native_mint(mint: &AccountInfo) -> Result<()> {
     if let Some(mint_authority) = Mint::parse(&mint.try_borrow_data()?)?.mint_authority() {
-        let token_bridge_mint_authority =
-            Pubkey::find_program_address(&[MINT_AUTHORITY_SEED_PREFIX], &crate::ID).0;
+        let (token_bridge_mint_authority, _) =
+            Pubkey::find_program_address(&[MINT_AUTHORITY_SEED_PREFIX], &crate::ID);
         require_keys_neq!(
             mint_authority,
             token_bridge_mint_authority,

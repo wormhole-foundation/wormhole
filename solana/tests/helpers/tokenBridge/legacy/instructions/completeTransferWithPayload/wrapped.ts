@@ -33,11 +33,11 @@ export type LegacyCompleteTransferWithPayloadWrappedContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferWithPayloadWrappedIx(
+export function legacyCompleteTransferWithPayloadWrappedAccounts(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWithPayloadWrappedContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean = true,
+  legacyRegisteredEmitterDerive: boolean,
   tokenAddressOverride?: number[],
   tokenChainOverride?: number
 ) {
@@ -114,6 +114,56 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
   if (rent === undefined) {
     rent = SYSVAR_RENT_PUBKEY;
   }
+
+  return {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    dstToken,
+    redeemerAuthority,
+    wrappedMint,
+    wrappedAsset,
+    mintAuthority,
+    rent,
+    coreBridgeProgram,
+  };
+}
+
+export function legacyCompleteTransferWithPayloadWrappedIx(
+  program: TokenBridgeProgram,
+  accounts: LegacyCompleteTransferWithPayloadWrappedContext,
+  parsedVaa: ParsedVaa,
+  legacyRegisteredEmitterDerive?: boolean,
+  tokenAddressOverride?: number[],
+  tokenChainOverride?: number
+) {
+  if (legacyRegisteredEmitterDerive === undefined) {
+    legacyRegisteredEmitterDerive = true;
+  }
+
+  const {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    dstToken,
+    redeemerAuthority,
+    wrappedMint,
+    wrappedAsset,
+    mintAuthority,
+    rent,
+    coreBridgeProgram,
+  } = legacyCompleteTransferWithPayloadWrappedAccounts(
+    program,
+    accounts,
+    parsedVaa,
+    legacyRegisteredEmitterDerive,
+    tokenAddressOverride,
+    tokenChainOverride
+  );
 
   const keys: AccountMeta[] = [
     {
@@ -197,7 +247,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }

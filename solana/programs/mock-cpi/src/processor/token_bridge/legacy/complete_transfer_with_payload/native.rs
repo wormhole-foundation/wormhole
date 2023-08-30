@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token;
+use anchor_spl::{associated_token, token};
 use token_bridge_program::{self, constants::PROGRAM_REDEEMER_SEED_PREFIX, TokenBridge};
 
-use super::CUSTOM_REDEEMER_SEED_PREFIX;
+use crate::constants::CUSTOM_REDEEMER_SEED_PREFIX;
 
 #[derive(Accounts)]
 pub struct MockLegacyCompleteTransferWithPayloadNative<'info> {
@@ -33,6 +33,7 @@ pub struct MockLegacyCompleteTransferWithPayloadNative<'info> {
     posted_vaa: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
+    #[account(mut)]
     token_bridge_claim: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
@@ -53,6 +54,7 @@ pub struct MockLegacyCompleteTransferWithPayloadNative<'info> {
     system_program: Program<'info, System>,
     token_bridge_program: Program<'info, TokenBridge>,
     token_program: Program<'info, token::Token>,
+    associated_token_program: Program<'info, associated_token::AssociatedToken>,
 }
 
 pub fn mock_legacy_complete_transfer_with_payload_native(
@@ -62,13 +64,13 @@ pub fn mock_legacy_complete_transfer_with_payload_native(
         &ctx.accounts.token_bridge_program_redeemer_authority,
         &ctx.accounts.token_bridge_custom_redeemer_authority,
     ) {
-        (Some(sender_authority), _) => (
-            sender_authority.to_account_info(),
+        (Some(redeemer_authority), _) => (
+            redeemer_authority.to_account_info(),
             PROGRAM_REDEEMER_SEED_PREFIX,
             ctx.bumps["token_bridge_program_redeemer_authority"],
         ),
-        (None, Some(sender_authority)) => (
-            sender_authority.to_account_info(),
+        (None, Some(redeemer_authority)) => (
+            redeemer_authority.to_account_info(),
             CUSTOM_REDEEMER_SEED_PREFIX,
             ctx.bumps["token_bridge_custom_redeemer_authority"],
         ),

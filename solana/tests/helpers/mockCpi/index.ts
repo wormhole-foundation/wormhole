@@ -16,7 +16,7 @@ export type MockCpiProgram = Program<WormholeMockCpiSolana>;
 export function getProgramId(programId?: ProgramId): PublicKey {
   return new PublicKey(
     programId === undefined
-      ? "MockCP1696969696969696969696969696969696969" // localnet
+      ? "MockCpi696969696969696969696969696969696969" // localnet
       : programId
   );
 }
@@ -26,7 +26,7 @@ export function getAnchorProgram(connection: Connection, programId: PublicKey): 
 }
 
 export function localnet(): PublicKey {
-  return getProgramId("MockCP1696969696969696969696969696969696969");
+  return getProgramId("MockCpi696969696969696969696969696969696969");
 }
 
 export function coreBridgeProgramId(program: MockCpiProgram): PublicKey {

@@ -2,9 +2,9 @@ import * as anchor from "@coral-xyz/anchor";
 import { Account, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
-  MINT_INFO_WRAPPED_MAX_TWO,
-  MINT_INFO_WRAPPED_7,
-  MINT_INFO_WRAPPED_8,
+  WRAPPED_MINT_INFO_MAX_TWO,
+  WRAPPED_MINT_INFO_7,
+  WRAPPED_MINT_INFO_8,
   WrappedMintInfo,
   expectIxOkDetails,
   getTokenBalances,
@@ -46,8 +46,8 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
-  const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
-  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_TWO;
+  const wrappedMints: WrappedMintInfo[] = [WRAPPED_MINT_INFO_8, WRAPPED_MINT_INFO_7];
+  const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_TWO;
 
   describe("Ok", () => {
     for (const { chain, decimals, address } of wrappedMints) {

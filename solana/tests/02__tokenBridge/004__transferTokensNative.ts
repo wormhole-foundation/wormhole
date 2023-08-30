@@ -28,7 +28,7 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Native)", () => {
 
   before("Set Up Mints and Token Accounts", async () => {
     for (const { mint } of mints) {
-      const token = await createAssociatedTokenAccount(connection, payer, mint, payer.publicKey);
+      const token = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
       await mintTo(connection, payer, mint, token, payer, BigInt("1000000000000000000"));
     }

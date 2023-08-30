@@ -9,7 +9,7 @@ import {
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
-import { getMint } from "@solana/spl-token";
+import { createAssociatedTokenAccount, getMint } from "@solana/spl-token";
 import { expect } from "chai";
 import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
@@ -21,6 +21,8 @@ import {
   parallelPostVaa,
   ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
   ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
+  WRAPPED_MINT_INFO_8,
+  WRAPPED_MINT_INFO_7,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -44,6 +46,20 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
   const payer = (provider.wallet as anchor.Wallet).payer;
 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
+
+  after("Create Token Accounts", async () => {
+    for (const { chain, address } of [WRAPPED_MINT_INFO_7, WRAPPED_MINT_INFO_8]) {
+      const [mint, forkMint] = [program, forkedProgram].map((program) =>
+        tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
+      );
+
+      // Fetch recipient token account, these accounts should've been created in other tests.
+      await Promise.all([
+        createAssociatedTokenAccount(connection, payer, mint, payer.publicKey),
+        createAssociatedTokenAccount(connection, payer, forkMint, payer.publicKey),
+      ]);
+    }
+  });
 
   describe("Ok", () => {
     it("Invoke `create_or_update_wrapped` for New Asset (18 decimals)", async () => {

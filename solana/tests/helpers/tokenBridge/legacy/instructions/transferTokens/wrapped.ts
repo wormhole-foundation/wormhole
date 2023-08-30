@@ -21,7 +21,7 @@ export type LegacyTransferTokensWrappedContext = {
   wrappedMint: PublicKey;
   wrappedAsset?: PublicKey;
   transferAuthority?: PublicKey;
-  coreBridgeData?: PublicKey;
+  coreBridgeConfig?: PublicKey;
   coreMessage: PublicKey;
   coreEmitter?: PublicKey;
   coreEmitterSequence?: PublicKey;
@@ -31,11 +31,10 @@ export type LegacyTransferTokensWrappedContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export async function legacyTransferTokensWrappedIx(
+export function legacyTransferTokensWrappedAccounts(
   program: TokenBridgeProgram,
-  accounts: LegacyTransferTokensWrappedContext,
-  args: LegacyTransferTokensArgs
-) {
+  accounts: LegacyTransferTokensWrappedContext
+): LegacyTransferTokensWrappedContext {
   const programId = program.programId;
 
   let {
@@ -46,7 +45,7 @@ export async function legacyTransferTokensWrappedIx(
     wrappedMint,
     wrappedAsset,
     transferAuthority,
-    coreBridgeData,
+    coreBridgeConfig,
     coreMessage,
     coreEmitter,
     coreEmitterSequence,
@@ -69,7 +68,7 @@ export async function legacyTransferTokensWrappedIx(
   }
 
   if (srcOwner === undefined) {
-    srcOwner = await getAccount(program.provider.connection, srcToken).then((a) => a.owner);
+    srcOwner = payer;
   }
 
   if (wrappedAsset === undefined) {
@@ -80,8 +79,8 @@ export async function legacyTransferTokensWrappedIx(
     transferAuthority = transferAuthorityPda(programId);
   }
 
-  if (coreBridgeData === undefined) {
-    coreBridgeData = coreBridge.Config.address(coreBridgeProgram);
+  if (coreBridgeConfig === undefined) {
+    coreBridgeConfig = coreBridge.Config.address(coreBridgeProgram);
   }
 
   if (coreEmitter === undefined) {
@@ -103,6 +102,48 @@ export async function legacyTransferTokensWrappedIx(
   if (rent === undefined) {
     rent = SYSVAR_RENT_PUBKEY;
   }
+
+  return {
+    payer,
+    config,
+    srcToken,
+    srcOwner,
+    wrappedMint,
+    wrappedAsset,
+    transferAuthority,
+    coreBridgeConfig,
+    coreMessage,
+    coreEmitter,
+    coreEmitterSequence,
+    coreFeeCollector,
+    clock,
+    rent,
+    coreBridgeProgram,
+  };
+}
+
+export function legacyTransferTokensWrappedIx(
+  program: TokenBridgeProgram,
+  accounts: LegacyTransferTokensWrappedContext,
+  args: LegacyTransferTokensArgs
+) {
+  const {
+    payer,
+    config,
+    srcToken,
+    srcOwner,
+    wrappedMint,
+    wrappedAsset,
+    transferAuthority,
+    coreBridgeConfig,
+    coreMessage,
+    coreEmitter,
+    coreEmitterSequence,
+    coreFeeCollector,
+    clock,
+    rent,
+    coreBridgeProgram,
+  } = legacyTransferTokensWrappedAccounts(program, accounts);
 
   const keys: AccountMeta[] = [
     {
@@ -141,7 +182,7 @@ export async function legacyTransferTokensWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeData,
+      pubkey: coreBridgeConfig,
       isWritable: true,
       isSigner: false,
     },
@@ -203,7 +244,7 @@ export async function legacyTransferTokensWrappedIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }
