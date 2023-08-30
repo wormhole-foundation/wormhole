@@ -144,7 +144,8 @@ wormholeRelayerAddresses.set(targetChain, target.wormholeRelayerAddress);
 
 const getStatus = async (
   txHash: string,
-  _sourceChain?: ChainName
+  _sourceChain?: ChainName,
+  index?: number
 ): Promise<string> => {
   const info = (await relayer.getWormholeRelayerInfo(
     _sourceChain || sourceChain,
@@ -156,7 +157,7 @@ const getStatus = async (
       wormholeRelayerAddresses,
     }
   )) as relayer.DeliveryInfo;
-  return info.targetChainStatus.events[0].status;
+  return info.targetChainStatus.events[index ? index : 0].status;
 };
 
 const testSend = async (
@@ -277,7 +278,7 @@ describe("Wormhole Relayer Tests", () => {
       const status = await getStatus(rx.transactionHash);
       expect(status).toBe("Receiver Failure");
     }
-    const value = await relayer.getPrice(
+    const [value, refundPerGasUnused] = await relayer.getPriceAndRefundInfo(
       sourceChain,
       targetChain,
       REASONABLE_GAS_LIMIT,
@@ -309,22 +310,20 @@ describe("Wormhole Relayer Tests", () => {
       getGuardianRPC(network, ci),
       network,
       {
-        newExecutionInfo: Buffer.from(
-          packEVMExecutionInfoV1({
-            gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
-            targetChainRefundPerGasUnused: ethers.BigNumber.from(0),
-          }),
-          "hex"
-        ),
+        newExecutionInfo: Buffer.from(packEVMExecutionInfoV1({
+          gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
+          targetChainRefundPerGasUnused: ethers.BigNumber.from(refundPerGasUnused),
+        }).substring(2), "hex"),
         newReceiverValue: ethers.BigNumber.from(0),
-        redeliveryHash: deliveryVaa.hash, // fake a redelivery
+        redeliveryHash: Buffer.from(ethers.utils.keccak256("0x1234").substring(2), "hex"), // fake a redelivery
       }
     );
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
     console.log("Manual delivery tx status", deliveryRx.status);
 
     console.log("Checking status using SDK");
-    const status = await getStatus(rx.transactionHash);
+    // Get the status of the second delivery (index 1)
+    const status = await getStatus(rx.transactionHash, undefined, 1);
     expect(status).toBe("Delivery Success");
 
     console.log("Checking if message was relayed");

@@ -243,7 +243,7 @@ export function parseEVMExecutionInfoV1(
 }
 
 export function packEVMExecutionInfoV1(info: EVMExecutionInfoV1): string {
-  return ethers.utils.solidityPack(
+  return ethers.utils.defaultAbiCoder.encode(
     ["uint8", "uint256", "uint256"],
     [
       ExecutionInfoVersion.EVM_V1,
