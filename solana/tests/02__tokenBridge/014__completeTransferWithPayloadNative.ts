@@ -134,6 +134,47 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
       });
     }
   });
+
+  describe("New Implementation", () => {
+    for (const { mint, decimals } of mints) {
+      it(`Cannot Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Invalid Mint)`, async () => {
+        // Create recipient token account.
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          anchor.web3.Keypair.generate().publicKey, // Pass bogus mint
+          amount,
+          payer.publicKey,
+          "0xdeadbeef"
+        );
+
+        // Post the VAA.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create the complete transfer with payload instruction.
+        const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+          program,
+          {
+            payer: payer.publicKey,
+            dstToken: payerToken.address,
+            mint,
+          },
+          parseVaa(signedVaa)
+        );
+
+        expectIxErr(connection, [ix], [payer], "InvalidMint");
+      });
+    }
+  });
 });
 
 function getSignedTransferVaa(

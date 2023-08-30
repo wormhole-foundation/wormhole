@@ -11,6 +11,7 @@ import {
   parallelPostVaa,
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
+  ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -256,6 +257,50 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         amount
       );
     });
+  });
+
+  describe("New Implementation", () => {
+    for (const { chain, decimals, address } of wrappedMints) {
+      it(`Cannot Invoke \`complete_transfer_with_payload_wrapped)\` (${decimals} Decimals, Invalid Mint)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+        // Create payer token account.
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Maximum amount.
+        const amount = BigInt(42069);
+
+        // Create the signed transfer VAA, pass an invalid token address.
+        const signedVaa = await getSignedTransferVaa(
+          ETHEREUM_TOKEN_ADDRESS_MAX_ONE, // Pass invalid address.
+          amount,
+          payer.publicKey,
+          "0xdeadbeef"
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
+          program,
+          {
+            payer: payer.publicKey,
+            dstToken: payerToken.address,
+          },
+          parseVaa(signedVaa),
+          undefined,
+          Array.from(address) // Pass correct token address to derive mint.
+        );
+
+        await expectIxErr(connection, [ix], [payer], "InvalidMint");
+      });
+    }
   });
 });
 

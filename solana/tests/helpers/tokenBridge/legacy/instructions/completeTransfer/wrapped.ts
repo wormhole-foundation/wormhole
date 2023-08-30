@@ -37,12 +37,13 @@ export function legacyCompleteTransferWrappedIx(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWrappedContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean = true
+  legacyRegisteredEmitterDerive: boolean = true,
+  tokenAddressOverride?: number[]
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
 
-  const tokenAddress = Array.from(payload.subarray(33, 65));
+  let tokenAddress = Array.from(payload.subarray(33, 65));
   const tokenChain = payload.readUInt16BE(65);
 
   let {
@@ -90,7 +91,7 @@ export function legacyCompleteTransferWrappedIx(
   }
 
   if (wrappedMint === undefined) {
-    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddress);
+    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddressOverride ?? tokenAddress);
   }
 
   if (payerToken === undefined) {
