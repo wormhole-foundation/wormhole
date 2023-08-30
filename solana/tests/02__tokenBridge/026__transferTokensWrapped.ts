@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import {
-  MINT_INFO_WRAPPED_7,
-  MINT_INFO_WRAPPED_8,
-  MINT_INFO_WRAPPED_MAX_ONE,
+  WRAPPED_MINT_INFO_7,
+  WRAPPED_MINT_INFO_8,
+  WRAPPED_MINT_INFO_MAX_ONE,
   WrappedMintInfo,
   expectIxOkDetails,
   getTokenBalances,
@@ -23,8 +23,8 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Wrapped)", () => 
 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
-  const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
-  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_ONE;
+  const wrappedMints: WrappedMintInfo[] = [WRAPPED_MINT_INFO_8, WRAPPED_MINT_INFO_7];
+  const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_ONE;
 
   describe("Ok", () => {
     for (const { chain, decimals, address } of wrappedMints) {
@@ -219,7 +219,7 @@ async function parallelTxDetails(
 
   // Approve the transfer.
   const approveIx = tokenBridge.approveTransferAuthorityIx(program, srcToken, owner, amount);
-  const ix = await tokenBridge.legacyTransferTokensWrappedIx(
+  const ix = tokenBridge.legacyTransferTokensWrappedIx(
     program,
     {
       coreMessage: coreMessage.publicKey,
@@ -241,7 +241,7 @@ async function parallelTxDetails(
     owner,
     amount
   );
-  const forkedIx = await tokenBridge.legacyTransferTokensWrappedIx(
+  const forkedIx = tokenBridge.legacyTransferTokensWrappedIx(
     forkedProgram,
     {
       coreMessage: forkCoreMessage.publicKey,

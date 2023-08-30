@@ -3,9 +3,9 @@ import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import {
   WrappedMintInfo,
-  MINT_INFO_WRAPPED_7,
-  MINT_INFO_WRAPPED_8,
-  MINT_INFO_WRAPPED_MAX_TWO,
+  WRAPPED_MINT_INFO_7,
+  WRAPPED_MINT_INFO_8,
+  WRAPPED_MINT_INFO_MAX_TWO,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
@@ -21,8 +21,8 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
 
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
-  const wrappedMints: WrappedMintInfo[] = [MINT_INFO_WRAPPED_8, MINT_INFO_WRAPPED_7];
-  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_TWO;
+  const wrappedMints: WrappedMintInfo[] = [WRAPPED_MINT_INFO_8, WRAPPED_MINT_INFO_7];
+  const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_TWO;
 
   describe("Ok", () => {
     const transferAuthority = anchor.web3.Keypair.generate();

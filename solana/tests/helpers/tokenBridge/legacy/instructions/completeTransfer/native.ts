@@ -27,12 +27,12 @@ export type LegacyCompleteTransferNativeContext = {
   coreBridgeProgram?: PublicKey;
 };
 
-export function legacyCompleteTransferNativeIx(
+export function legacyCompleteTransferNativeAccounts(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferNativeContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean = true
-) {
+  legacyRegisteredEmitterDerive: boolean
+): LegacyCompleteTransferNativeContext {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
 
@@ -95,6 +95,48 @@ export function legacyCompleteTransferNativeIx(
   if (rent === undefined) {
     rent = SYSVAR_RENT_PUBKEY;
   }
+
+  return {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    recipientToken,
+    payerToken,
+    custodyToken,
+    mint,
+    custodyAuthority,
+    rent,
+    coreBridgeProgram,
+  };
+}
+
+export function legacyCompleteTransferNativeIx(
+  program: TokenBridgeProgram,
+  accounts: LegacyCompleteTransferNativeContext,
+  parsedVaa: ParsedVaa,
+  legacyRegisteredEmitterDerive: boolean = true
+) {
+  const {
+    payer,
+    config,
+    postedVaa,
+    claim,
+    registeredEmitter,
+    recipientToken,
+    payerToken,
+    custodyToken,
+    mint,
+    custodyAuthority,
+    rent,
+    coreBridgeProgram,
+  } = legacyCompleteTransferNativeAccounts(
+    program,
+    accounts,
+    parsedVaa,
+    legacyRegisteredEmitterDerive
+  );
 
   const keys: AccountMeta[] = [
     {
@@ -173,7 +215,7 @@ export function legacyCompleteTransferNativeIx(
 
   return new TransactionInstruction({
     keys,
-    programId,
+    programId: program.programId,
     data,
   });
 }

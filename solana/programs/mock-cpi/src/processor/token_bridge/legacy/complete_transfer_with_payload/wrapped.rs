@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token;
 use token_bridge_program::{self, constants::PROGRAM_REDEEMER_SEED_PREFIX, TokenBridge};
 
-use super::CUSTOM_REDEEMER_SEED_PREFIX;
+use crate::constants::CUSTOM_REDEEMER_SEED_PREFIX;
 
 #[derive(Accounts)]
 pub struct MockLegacyCompleteTransferWithPayloadWrapped<'info> {
@@ -33,6 +33,7 @@ pub struct MockLegacyCompleteTransferWithPayloadWrapped<'info> {
     posted_vaa: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
+    #[account(mut)]
     token_bridge_claim: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
@@ -42,7 +43,8 @@ pub struct MockLegacyCompleteTransferWithPayloadWrapped<'info> {
     #[account(mut)]
     token_bridge_wrapped_mint: UncheckedAccount<'info>,
 
-    token_bridge_wrapped_asset: Account<'info, token::Mint>,
+    /// CHECK: This account is needed for the Token Bridge program.
+    token_bridge_wrapped_asset: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
     token_bridge_mint_authority: UncheckedAccount<'info>,

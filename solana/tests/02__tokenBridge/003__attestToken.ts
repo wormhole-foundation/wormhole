@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { NATIVE_MINT } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
-import { expectIxOk, WrappedMintInfo, MINT_INFO_WRAPPED_MAX_ONE, expectIxErr } from "../helpers";
+import { expectIxOk, WrappedMintInfo, WRAPPED_MINT_INFO_MAX_ONE, expectIxErr } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -15,7 +15,7 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
   const wormholeProgram = coreBridge.getAnchorProgram(connection, coreBridge.localnet());
   const forkedProgram = tokenBridge.getAnchorProgram(connection, tokenBridge.mainnet());
 
-  const wrappedMaxMint: WrappedMintInfo = MINT_INFO_WRAPPED_MAX_ONE;
+  const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_ONE;
 
   describe("Ok", () => {
     it("Invoke `attest_token`", async () => {

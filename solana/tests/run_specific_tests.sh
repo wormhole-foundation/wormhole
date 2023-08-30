@@ -34,5 +34,5 @@ npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/100__*.ts  # register chai
 npx ts-mocha -p ./tsconfig.json -t 60000 tests/02__**/102__*.ts
 
 # mock cpi
-# npx ts-mocha -p ./tsconfig.json -t 60000 tests/03__**/100__*.ts
-# npx ts-mocha -p ./tsconfig.json -t 60000 tests/03__**/200__*.ts
+npx ts-mocha -p ./tsconfig.json -t 60000 tests/03__**/100__*.ts
+npx ts-mocha -p ./tsconfig.json -t 60000 tests/03__**/200__*.ts

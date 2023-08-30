@@ -57,22 +57,22 @@ export const ETHEREUM_TOKEN_ADDRESS_MAX_TWO = tryNativeToUint8Array(
 
 export const OPTIMISM_TOKEN_BRIDGE_ADDRESS = "0x1D68124e65faFC907325e3EDbF8c4d84499DAa8b";
 
-export const MINT_INFO_WRAPPED_7: WrappedMintInfo = {
+export const WRAPPED_MINT_INFO_7: WrappedMintInfo = {
   chain: 2,
   address: ETHEREUM_STEAK_TOKEN_ADDRESS,
   decimals: 7,
 };
-export const MINT_INFO_WRAPPED_8: WrappedMintInfo = {
+export const WRAPPED_MINT_INFO_8: WrappedMintInfo = {
   chain: 2,
   address: ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   decimals: 8,
 };
-export const MINT_INFO_WRAPPED_MAX_ONE: WrappedMintInfo = {
+export const WRAPPED_MINT_INFO_MAX_ONE: WrappedMintInfo = {
   chain: 2,
   address: ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
   decimals: 8,
 };
-export const MINT_INFO_WRAPPED_MAX_TWO: WrappedMintInfo = {
+export const WRAPPED_MINT_INFO_MAX_TWO: WrappedMintInfo = {
   chain: 2,
   address: ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
   decimals: 8,
