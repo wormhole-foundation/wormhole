@@ -14,9 +14,10 @@ use crate::{
     },
     error::TokenBridgeError,
     utils::TruncateAmount,
+    zero_copy::Mint,
 };
 use anchor_lang::{prelude::*, system_program};
-use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount};
+use anchor_spl::token;
 use core_bridge_program::{state::Config as CoreBridgeConfig, types::Commitment, CoreBridge};
 use wormhole_io::Writeable;
 
@@ -86,9 +87,9 @@ pub fn post_token_bridge_message<W: Writeable>(
 }
 
 pub fn mint_wrapped_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    wrapped_mint: &Account<'info, Mint>,
-    dst_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    wrapped_mint: &AccountInfo<'info>,
+    dst_token: &AccountInfo<'info>,
     mint_authority: &AccountInfo<'info>,
     mint_authority_bump: u8,
     mint_amount: u64,
@@ -96,7 +97,7 @@ pub fn mint_wrapped_tokens<'info>(
     token::mint_to(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
-            MintTo {
+            token::MintTo {
                 mint: wrapped_mint.to_account_info(),
                 to: dst_token.to_account_info(),
                 authority: mint_authority.to_account_info(),
@@ -108,9 +109,9 @@ pub fn mint_wrapped_tokens<'info>(
 }
 
 pub fn burn_wrapped_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    wrapped_mint: &Account<'info, Mint>,
-    src_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    wrapped_mint: &AccountInfo<'info>,
+    src_token: &AccountInfo<'info>,
     transfer_authority: &AccountInfo<'info>,
     transfer_authority_bump: u8,
     burn_amount: u64,
@@ -118,7 +119,7 @@ pub fn burn_wrapped_tokens<'info>(
     token::burn(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
-            Burn {
+            token::Burn {
                 mint: wrapped_mint.to_account_info(),
                 from: src_token.to_account_info(),
                 authority: transfer_authority.to_account_info(),
@@ -130,9 +131,9 @@ pub fn burn_wrapped_tokens<'info>(
 }
 
 pub fn withdraw_native_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    custody_token: &Account<'info, TokenAccount>,
-    dst_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    custody_token: &AccountInfo<'info>,
+    dst_token: &AccountInfo<'info>,
     custody_authority: &AccountInfo<'info>,
     custody_authority_bump: u8,
     transfer_amount: u64,
@@ -152,15 +153,17 @@ pub fn withdraw_native_tokens<'info>(
 }
 
 pub fn deposit_native_tokens<'info>(
-    token_program: &Program<'info, Token>,
-    mint: &Account<'info, Mint>,
-    src_token: &Account<'info, TokenAccount>,
-    custody_token: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, token::Token>,
+    mint: &AccountInfo<'info>,
+    src_token: &AccountInfo<'info>,
+    custody_token: &Account<'info, token::TokenAccount>,
     transfer_authority: &AccountInfo<'info>,
     transfer_authority_bump: u8,
     raw_amount: u64,
 ) -> Result<u64> {
-    let transfer_amount = mint.truncate_amount(raw_amount);
+    let transfer_amount = Mint::parse(&mint.data.borrow())
+        .unwrap()
+        .truncate_amount(raw_amount);
 
     token::transfer(
         CpiContext::new_with_signer(

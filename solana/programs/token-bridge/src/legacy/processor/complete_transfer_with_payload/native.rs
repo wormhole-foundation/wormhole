@@ -4,6 +4,7 @@ use crate::{
     legacy::EmptyArgs,
     processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
+    zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
@@ -53,28 +54,31 @@ pub struct CompleteTransferWithPayloadNative<'info> {
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
     registered_emitter: Account<'info, RegisteredEmitter>,
 
-    #[account(
-        mut,
-        token::mint = mint,
-    )]
-    dst_token: Box<Account<'info, token::TokenAccount>>,
+    /// CHECK: Destination token account. Because we check the mint of the custody token account, we
+    /// can be sure that this token account is the same mint since the Token Program transfer
+    /// instruction handler checks that the mints of these two accounts must be the same.
+    #[account(mut)]
+    dst_token: AccountInfo<'info>,
 
     redeemer_authority: Signer<'info>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _relayer_fee_token: UncheckedAccount<'info>,
 
+    /// CHECK: Custody token account. Because we are deriving this PDA's address, we ensure that
+    /// this account is the Token Bridge's custody token account. And because this account can only
+    /// be created on a native mint's outbound transfer (since these tokens originated from Solana),
+    /// this account should already be created.
     #[account(
-        init_if_needed,
-        payer = payer,
-        token::mint = mint,
-        token::authority = custody_authority,
+        mut,
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, token::TokenAccount>>,
+    custody_token: AccountInfo<'info>,
 
-    mint: Box<Account<'info, token::Mint>>,
+    /// CHECK: Native mint. We ensure this mint is not one that has originated from a foreign
+    /// network in access control.
+    mint: AccountInfo<'info>,
 
     /// CHECK: This account is the authority that can move tokens from the custody account.
     #[account(
@@ -140,12 +144,15 @@ pub fn complete_transfer_with_payload_native(
 
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
+    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
+        .unwrap()
+        .decimals();
     let transfer_amount = TokenBridgeMessage::parse(vaa.payload())
         .unwrap()
         .transfer_with_message()
         .unwrap()
         .encoded_amount()
-        .denorm(ctx.accounts.mint.decimals)
+        .denorm(decimals)
         .try_into()
         .expect("Solana token amounts are u64");
 

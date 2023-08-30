@@ -19,15 +19,16 @@ pub struct TransferTokensWrapped<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    #[account(
-        mut,
-        token::mint = wrapped_mint
-    )]
-    src_token: Box<Account<'info, token::TokenAccount>>,
+    /// CHECK: Source token account. Because we verify the wrapped mint, we can depend on the Token
+    /// Program to burn the right tokens to this account because it requires that this mint
+    /// equals the wrapped mint.
+    #[account(mut)]
+    src_token: AccountInfo<'info>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _src_owner: UncheckedAccount<'info>,
 
+    /// CHECK: Wrapped mint (i.e. minted by Token Bridge program).
     #[account(
         mut,
         seeds = [
@@ -37,13 +38,13 @@ pub struct TransferTokensWrapped<'info> {
         ],
         bump
     )]
-    wrapped_mint: Box<Account<'info, token::Mint>>,
+    wrapped_mint: AccountInfo<'info>,
 
     #[account(
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump
     )]
-    wrapped_asset: Account<'info, WrappedAsset>,
+    wrapped_asset: Box<Account<'info, WrappedAsset>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -53,14 +54,10 @@ pub struct TransferTokensWrapped<'info> {
     )]
     transfer_authority: AccountInfo<'info>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee.
-    #[account(
-        mut,
-        seeds = [CoreBridgeConfig::SEED_PREFIX],
-        bump,
-        seeds::program = core_bridge_program
-    )]
-    core_bridge_config: Account<'info, CoreBridgeConfig>,
+    /// We need to deserialize this account to determine the Wormhole message fee. We do not have to
+    /// check the seeds here because the Core Bridge program will do this for us.
+    #[account(mut)]
+    core_bridge_config: Box<Account<'info, CoreBridgeConfig>>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]

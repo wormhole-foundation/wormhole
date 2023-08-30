@@ -27,7 +27,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -78,12 +78,13 @@ pub struct CreateOrUpdateWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Account<'info, WrappedAsset>,
+    wrapped_asset: Box<Account<'info, WrappedAsset>>,
 
-    /// CHECK: This account is managed by the MPL Token Metadata program. But we still want to
-    /// verify the PDA address because we will deserialize this account once it exists to determine
-    /// whether we need to update metadata based on the new VAA (before passing this account into
-    /// the update metadata instruction).
+    /// CHECK: This account is managed by the MPL Token Metadata program. We verify this PDA to
+    /// ensure that we deserialize the correct metadata before creating or updating.
+    ///
+    /// NOTE: We do not actually have to re-derive this PDA address because the MPL program should
+    /// perform this check anyway. But we are being extra safe here.
     #[account(
         mut,
         seeds = [

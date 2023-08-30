@@ -1,5 +1,5 @@
 use anchor_lang::prelude::{
-    error, require, require_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
+    error, require, require_eq, require_keys_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
 };
 use anchor_spl::token::spl_token::state;
 use solana_program::program_pack::Pack;
@@ -13,10 +13,24 @@ impl<'a> TokenAccount<'a> {
         AnchorDeserialize::deserialize(&mut buf).unwrap()
     }
 
+    pub fn require_mint(acc_data: &'a [u8], mint: &Pubkey) -> Result<()> {
+        let token = Self::parse(acc_data)?;
+        require_keys_eq!(token.mint(), *mint, ErrorCode::ConstraintTokenMint);
+
+        Ok(())
+    }
+
     /// The owner of this account.
     pub fn owner(&self) -> Pubkey {
         let mut buf = &self.0[32..64];
         AnchorDeserialize::deserialize(&mut buf).unwrap()
+    }
+
+    pub fn require_owner(acc_data: &'a [u8], owner: &Pubkey) -> Result<()> {
+        let token = Self::parse(acc_data)?;
+        require_keys_eq!(token.owner(), *owner, ErrorCode::ConstraintTokenOwner);
+
+        Ok(())
     }
 
     /// The amount of tokens this account holds.

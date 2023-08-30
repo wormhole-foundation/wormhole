@@ -1,6 +1,8 @@
 use anchor_lang::prelude::{
-    error, require, require_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
+    err, error, require, require_eq, require_keys_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
 };
+
+use crate::utils::TruncateAmount;
 
 pub struct Mint<'a>(&'a [u8]);
 
@@ -13,6 +15,20 @@ impl<'a> Mint<'a> {
         match u32::deserialize(&mut buf).unwrap() {
             0 => None,
             _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+        }
+    }
+
+    pub fn require_mint_authority(
+        acc_data: &'a [u8],
+        mint_authority: Option<&Pubkey>,
+    ) -> Result<()> {
+        match (Self::parse(acc_data)?.mint_authority(), mint_authority) {
+            (Some(actual), Some(expected)) => {
+                require_keys_eq!(actual, *expected, ErrorCode::ConstraintMintMintAuthority);
+                Ok(())
+            }
+            (None, None) => Ok(()),
+            _ => err!(ErrorCode::ConstraintMintMintAuthority),
         }
     }
 
@@ -49,5 +65,11 @@ impl<'a> Mint<'a> {
         require!(mint.is_initialized(), ErrorCode::AccountNotInitialized);
 
         Ok(mint)
+    }
+}
+
+impl<'a> TruncateAmount for Mint<'a> {
+    fn mint_decimals(&self) -> u8 {
+        self.decimals()
     }
 }
