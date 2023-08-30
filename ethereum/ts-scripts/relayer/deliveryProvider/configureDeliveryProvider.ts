@@ -65,8 +65,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
     updateSupportedKeyTypes: true,
     coreRelayer,
     rewardAddress: thisChainsConfigInfo.rewardAddress,
-    supportedKeyTypes: [1],
-    unsupportedKeyTypes: []
+    supportedKeyTypesBitmap: 1 << 1 // VAA_KEY_TYPE
   };
   const updates: DeliveryProviderStructs.UpdateStruct[] = [];
 

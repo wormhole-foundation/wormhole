@@ -515,7 +515,8 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
         REFUND_FAIL,
         CROSS_CHAIN_REFUND_SENT,
         CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED,
-        CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH
+        CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH,
+        NO_REFUND_REQUESTED
     }
 
     /**
@@ -541,7 +542,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *     This will be either an encoded Cancelled, DeliveryProviderReverted, or DeliveryProviderPaymentFailed error
      * @custom:member refundStatus - Result of the refund. REFUND_SUCCESS or REFUND_FAIL are for
      *     refunds where targetChain=refundChain; the others are for targetChain!=refundChain,
-     *     where a cross chain refund is necessary
+     *     where a cross chain refund is necessary, or if the default code path is used where no refund is requested (NO_REFUND_REQUESTED)
      * @custom:member overridesInfo:
      *   - If not an override: empty bytes array
      *   - Otherwise: An encoded `DeliveryOverride`
