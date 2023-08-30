@@ -17,6 +17,7 @@ import {
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
+  CHAIN_ID_ETH,
   tryNativeToHexString,
   parseVaa,
   tryNativeToUint8Array,
@@ -174,6 +175,47 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
     }
+
+    it(`Cannot Invoke \`complete_transfer_with_payload_native\` (Wrapped Mint)`, async () => {
+      const mint = mints[0].mint;
+
+      // Create recipient token account.
+      const payerToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
+
+      // Amounts.
+      const amount = BigInt(699999);
+
+      // Create the signed transfer VAA. Pass a token chain that is not Solana.
+      const signedVaa = getSignedTransferVaa(
+        mint,
+        amount,
+        payer.publicKey,
+        "0xdeadbeef",
+        undefined,
+        CHAIN_ID_ETH // Specify a token chain that is not Solana.
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create the complete transfer with payload instruction.
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          dstToken: payerToken.address,
+          mint,
+        },
+        parseVaa(signedVaa)
+      );
+
+      expectIxErr(connection, [ix], [payer], "WrappedAsset");
+    });
   });
 });
 
@@ -182,11 +224,12 @@ function getSignedTransferVaa(
   amount: bigint,
   recipient: anchor.web3.PublicKey,
   payload: string,
-  targetChain?: number
+  targetChain?: number,
+  tokenChain?: number
 ): Buffer {
   const vaaBytes = dummyTokenBridge.publishTransferTokensWithPayload(
     tryNativeToHexString(mint.toString(), "solana"),
-    CHAIN_ID_SOLANA,
+    tokenChain ?? CHAIN_ID_SOLANA,
     amount,
     targetChain ?? CHAIN_ID_SOLANA,
     recipient.toBuffer().toString("hex"), // TARGET CONTRACT (redeemer)
