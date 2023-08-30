@@ -9,8 +9,6 @@ import {
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
 import {
   Config,
-  custodyAuthorityPda,
-  custodyTokenPda,
   mintAuthorityPda,
   RegisteredEmitter,
   WrappedAsset,
@@ -18,7 +16,7 @@ import {
 } from "../../state";
 import { PostedVaaV1, Claim } from "../../../../coreBridge";
 import { ParsedVaa } from "@certusone/wormhole-sdk";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export type LegacyCompleteTransferWithPayloadWrappedContext = {
   payer: PublicKey;
@@ -40,7 +38,8 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
   accounts: LegacyCompleteTransferWithPayloadWrappedContext,
   parsedVaa: ParsedVaa,
   legacyRegisteredEmitterDerive: boolean = true,
-  tokenAddressOverride?: number[]
+  tokenAddressOverride?: number[],
+  tokenChainOverride?: number
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
@@ -97,7 +96,11 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
   }
 
   if (wrappedMint === undefined) {
-    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddressOverride ?? tokenAddress);
+    wrappedMint = wrappedMintPda(
+      programId,
+      tokenChainOverride ?? tokenChain,
+      tokenAddressOverride ?? tokenAddress
+    );
   }
 
   if (wrappedAsset === undefined) {

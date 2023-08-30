@@ -38,7 +38,8 @@ export function legacyCompleteTransferWrappedIx(
   accounts: LegacyCompleteTransferWrappedContext,
   parsedVaa: ParsedVaa,
   legacyRegisteredEmitterDerive: boolean = true,
-  tokenAddressOverride?: number[]
+  tokenAddressOverride?: number[],
+  tokenChainOverride?: number
 ) {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
@@ -91,7 +92,11 @@ export function legacyCompleteTransferWrappedIx(
   }
 
   if (wrappedMint === undefined) {
-    wrappedMint = wrappedMintPda(programId, tokenChain, tokenAddressOverride ?? tokenAddress);
+    wrappedMint = wrappedMintPda(
+      programId,
+      tokenChainOverride ?? tokenChain,
+      tokenAddressOverride ?? tokenAddress
+    );
   }
 
   if (payerToken === undefined) {
