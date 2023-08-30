@@ -13,8 +13,14 @@ import {
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
   expectIxErr,
+  MINT_INFO_WRAPPED_7,
 } from "../helpers";
-import { CHAIN_ID_SOLANA, tryNativeToHexString, parseVaa } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  tryNativeToHexString,
+  parseVaa,
+  CHAIN_ID_ETH,
+} from "@certusone/wormhole-sdk";
 import { GUARDIAN_KEYS } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 import * as coreBridge from "../helpers/coreBridge";
@@ -429,6 +435,53 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         await expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
     }
+
+    it(`Cannot Invoke \`complete_transfer_native\` (Wrapped Mint)`, async () => {
+      // Mint.
+      const mint = mints[0].mint;
+
+      // Create recipient token account.
+      const recipient = anchor.web3.Keypair.generate();
+      const recipientToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient.publicKey
+      );
+      const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
+
+      // Amounts.
+      let amount = BigInt(42069);
+      let fee = BigInt(1669);
+
+      // Create the signed transfer VAA. Pass a token chain that is not Solana.
+      const signedVaa = getSignedTransferVaa(
+        mint,
+        amount,
+        fee,
+        recipientToken.address,
+        undefined,
+        CHAIN_ID_ETH // Specify a token chain that is not Solana.
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          recipientToken: recipientToken.address,
+          mint: mint,
+          payerToken,
+        },
+        parseVaa(signedVaa)
+      );
+
+      // Complete the transfer.
+      await expectIxErr(connection, [ix], [payer], "WrappedAsset");
+    });
   });
 });
 
@@ -437,11 +490,12 @@ function getSignedTransferVaa(
   amount: bigint,
   fee: bigint,
   recipient: anchor.web3.PublicKey,
-  targetChain?: number
+  targetChain?: number,
+  tokenChain?: number
 ): Buffer {
   const vaaBytes = dummyTokenBridge.publishTransferTokens(
     tryNativeToHexString(mint.toString(), "solana"),
-    CHAIN_ID_SOLANA,
+    tokenChain ?? CHAIN_ID_SOLANA,
     amount,
     targetChain ?? CHAIN_ID_SOLANA,
     recipient.toBuffer().toString("hex"),
