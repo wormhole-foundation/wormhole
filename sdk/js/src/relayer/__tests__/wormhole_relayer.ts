@@ -310,12 +310,19 @@ describe("Wormhole Relayer Tests", () => {
       getGuardianRPC(network, ci),
       network,
       {
-        newExecutionInfo: Buffer.from(packEVMExecutionInfoV1({
-          gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
-          targetChainRefundPerGasUnused: ethers.BigNumber.from(refundPerGasUnused),
-        }).substring(2), "hex"),
+        newExecutionInfo: Buffer.from(
+          packEVMExecutionInfoV1({
+            gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
+            targetChainRefundPerGasUnused:
+              ethers.BigNumber.from(refundPerGasUnused),
+          }).substring(2),
+          "hex"
+        ),
         newReceiverValue: ethers.BigNumber.from(0),
-        redeliveryHash: Buffer.from(ethers.utils.keccak256("0x1234").substring(2), "hex"), // fake a redelivery
+        redeliveryHash: Buffer.from(
+          ethers.utils.keccak256("0x1234").substring(2),
+          "hex"
+        ), // fake a redelivery
       }
     );
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
