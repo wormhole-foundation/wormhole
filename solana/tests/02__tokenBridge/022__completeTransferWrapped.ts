@@ -768,6 +768,42 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
 
       await expectIxErr(connection, [ix], [payer], "NativeAsset");
     });
+
+    it(`Cannot Invoke \`complete_transfer_wrapped\` (Native Asset)`, async () => {
+      const wrappedAssetInfo = wrappedMints[0];
+      const { chain, address } = wrappedAssetInfo;
+
+      // Mint.
+      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+      // Create recipient token account.
+      const recipient = anchor.web3.Keypair.generate();
+      const recipientToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient.publicKey
+      );
+
+      // MAX U64.
+      const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() + BigInt(10000);
+      let fee = BigInt(0);
+
+      // Create the signed transfer VAA. Specify an amount that is > u64::MAX.
+      const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
+
+      // Complete the transfer.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+        program,
+        { payer: payer.publicKey, recipientToken: recipientToken.address },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "U64Overflow");
+    });
   });
 });
 

@@ -174,6 +174,44 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
 
         expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
+
+      it(`Cannot Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Invalid Redeemer Chain)`, async () => {
+        // Create recipient token account.
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          mint,
+          amount,
+          payer.publicKey,
+          "0xdeadbeef",
+          CHAIN_ID_ETH // Pass invalid target chain.
+        );
+
+        // Post the VAA.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create the complete transfer with payload instruction.
+        const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+          program,
+          {
+            payer: payer.publicKey,
+            dstToken: payerToken.address,
+            mint,
+          },
+          parseVaa(signedVaa)
+        );
+
+        expectIxErr(connection, [ix], [payer], "RedeemerChainNotSolana");
+      });
     }
 
     it(`Cannot Invoke \`complete_transfer_with_payload_native\` (Wrapped Mint)`, async () => {
