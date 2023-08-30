@@ -2,17 +2,13 @@ use crate::{
     constants::EMITTER_SEED_PREFIX,
     legacy::LegacyAttestTokenArgs,
     processor::{post_token_bridge_message, PostTokenBridgeMessage},
-    utils,
+    zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    metadata::{Metadata, MetadataAccount},
-    token::Mint,
-};
+use anchor_spl::metadata;
 use core_bridge_program::{
     self, constants::SOLANA_CHAIN, state::Config as CoreBridgeConfig, CoreBridge,
 };
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -22,29 +18,30 @@ pub struct AttestToken<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    mint: Box<Account<'info, Mint>>,
+    /// CHECK: Native mint. We ensure this mint is not one that has originated from a foreign
+    /// network in access control.
+    mint: AccountInfo<'info>,
 
     /// CHECK: Token Bridge never needed this account for this instruction.
     _native_asset: UncheckedAccount<'info>,
 
+    /// We derive this PDA because we do not involve the Token Metadata program with this
+    /// instruction handler. It is the Token Bridge's job to verify that the metadata attested for
+    /// is the correct one.
     #[account(
         seeds = [
             b"metadata",
-            Metadata::id().as_ref(),
+            metadata::Metadata::id().as_ref(),
             mint.key().as_ref()
         ],
         bump,
-        seeds::program = Metadata::id()
+        seeds::program = metadata::Metadata::id()
     )]
-    token_metadata: Box<Account<'info, MetadataAccount>>,
+    token_metadata: Box<Account<'info, metadata::MetadataAccount>>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee.
-    #[account(
-        mut,
-        seeds = [CoreBridgeConfig::SEED_PREFIX],
-        bump,
-        seeds::program = core_bridge_program
-    )]
+    /// We need to deserialize this account to determine the Wormhole message fee. We do not have to
+    /// check the seeds here because the Core Bridge program will do this for us.
+    #[account(mut)]
     core_bridge_config: Box<Account<'info, CoreBridgeConfig>>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -80,7 +77,7 @@ impl<'info> AttestToken<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        utils::require_native_mint(&ctx.accounts.mint)
+        crate::utils::require_native_mint(&ctx.accounts.mint)
     }
 }
 
@@ -89,6 +86,9 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;
+    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
+        .unwrap()
+        .decimals();
 
     // Finally post Wormhole message via Core Bridge.
     post_token_bridge_message(
@@ -107,7 +107,7 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),
             token_chain: SOLANA_CHAIN,
-            decimals: ctx.accounts.mint.decimals,
+            decimals,
             symbol: string_to_fixed32(&metadata.symbol),
             name: string_to_fixed32(&metadata.name),
         },

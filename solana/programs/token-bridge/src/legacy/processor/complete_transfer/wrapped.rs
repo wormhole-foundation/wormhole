@@ -51,32 +51,32 @@ pub struct CompleteTransferWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
 
-    #[account(
-        mut,
-        token::mint = wrapped_mint,
-    )]
-    recipient_token: Box<Account<'info, token::TokenAccount>>,
+    /// CHECK: Recipient token account. Because we verify the wrapped mint, we can depend on the
+    /// Token Program to mint the right tokens to this account because it requires that this mint
+    /// equals the wrapped mint.
+    #[account(mut)]
+    recipient_token: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        token::mint = wrapped_mint,
-        token::authority = payer,
-    )]
-    payer_token: Box<Account<'info, token::TokenAccount>>,
+    /// CHECK: Payer (relayer) token account. Because we verify the wrapped mint, we can depend on
+    /// the Token Program to mint the right tokens to this account because it requires that this
+    /// mint equals the wrapped mint.
+    #[account(mut)]
+    payer_token: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        mint::authority = mint_authority,
-    )]
-    wrapped_mint: Box<Account<'info, token::Mint>>,
+    /// CHECK: Wrapped mint (i.e. minted by Token Bridge program).
+    ///
+    /// NOTE: Instead of checking the seeds, we check that the mint authority is the Token Bridge's
+    /// in access control.
+    #[account(mut)]
+    wrapped_mint: AccountInfo<'info>,
 
     #[account(
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Account<'info, WrappedAsset>,
+    wrapped_asset: Box<Account<'info, WrappedAsset>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -95,6 +95,11 @@ pub struct CompleteTransferWrapped<'info> {
 
 impl<'info> CompleteTransferWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
+        crate::zero_copy::Mint::require_mint_authority(
+            &ctx.accounts.wrapped_mint.try_borrow_data()?,
+            Some(&ctx.accounts.mint_authority.key()),
+        )?;
+
         let vaa = &ctx.accounts.posted_vaa;
         let vaa_key = vaa.key();
         let acc_data = vaa.try_borrow_data()?;
@@ -110,13 +115,17 @@ impl<'info> CompleteTransferWrapped<'info> {
         // NOTE: This check may be redundant because our wrapped mint PDA should only exist for wrapped assets (i.e.
         // chain ID != 1. But there may be accounts that exist where the chain ID == 1, so we do perform this check as a
         // precaution).
-        let token_chain = transfer.token_chain();
-        require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+        require_neq!(
+            transfer.token_chain(),
+            SOLANA_CHAIN,
+            TokenBridgeError::NativeAsset
+        );
 
         // Wrapped asset account must agree with the encoded token info.
         let asset = &ctx.accounts.wrapped_asset;
         require!(
-            token_chain == asset.token_chain && transfer.token_address() == asset.token_address,
+            transfer.token_chain() == asset.token_chain
+                && transfer.token_address() == asset.token_address,
             TokenBridgeError::InvalidMint
         );
 

@@ -4,6 +4,7 @@ use crate::{
     legacy::EmptyArgs,
     processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
+    zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
@@ -51,32 +52,36 @@ pub struct CompleteTransferNative<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
 
+    /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
+    /// can be sure that this token account is the same mint since the Token Program transfer
+    /// instruction handler checks that the mints of these two accounts must be the same.
+    #[account(mut)]
+    recipient_token: AccountInfo<'info>,
+
+    /// CHECK: Payer (relayer) token account. Because we check the mint of the custody token
+    /// account, we can be sure that this token account is the same mint since the Token Program
+    /// transfer instruction handler checks that the mints of these two accounts must be the same.
+    ///
+    /// NOTE: We will check that the owner of this account belongs to the payer of this transaction.
+    #[account(mut)]
+    payer_token: AccountInfo<'info>,
+
+    /// CHECK: Custody token account. Because we are deriving this PDA's address, we ensure that
+    /// this account is the Token Bridge's custody token account. And because this account can only
+    /// be created on a native mint's outbound transfer (since these tokens originated from Solana),
+    /// this account should already be created.
     #[account(
         mut,
-        token::mint = mint,
-    )]
-    recipient_token: Box<Account<'info, token::TokenAccount>>,
-
-    #[account(
-        mut,
-        token::mint = mint,
-        token::authority = payer,
-    )]
-    payer_token: Box<Account<'info, token::TokenAccount>>,
-
-    #[account(
-        init_if_needed,
-        payer = payer,
-        token::mint = mint,
-        token::authority = custody_authority,
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, token::TokenAccount>>,
+    custody_token: AccountInfo<'info>,
 
-    mint: Box<Account<'info, token::Mint>>,
+    /// CHECK: Native mint. We ensure this mint is not one that has originated from a foreign
+    /// network in access control.
+    mint: AccountInfo<'info>,
 
     /// CHECK: This account is the authority that can move tokens from the custody account.
     #[account(
@@ -95,6 +100,13 @@ pub struct CompleteTransferNative<'info> {
 
 impl<'info> CompleteTransferNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
+        require_keys_eq!(
+            crate::zero_copy::TokenAccount::parse(&ctx.accounts.payer_token.try_borrow_data()?)?
+                .owner(),
+            ctx.accounts.payer.key(),
+            ErrorCode::ConstraintTokenOwner
+        );
+
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
@@ -141,7 +153,9 @@ pub fn complete_transfer_native(
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let transfer = msg.transfer().unwrap();
 
-    let decimals = ctx.accounts.mint.decimals;
+    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
+        .unwrap()
+        .decimals();
 
     // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these

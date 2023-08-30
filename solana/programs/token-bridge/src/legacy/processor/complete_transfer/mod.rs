@@ -6,7 +6,6 @@ pub use wrapped::*;
 
 use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
 use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1};
 use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, Transfer};
 
@@ -14,7 +13,7 @@ pub fn validate_posted_token_transfer<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
     vaa_acc_data: &'ctx [u8],
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
-    recipient_token: &'ctx Account<'_, TokenAccount>,
+    recipient_token: &'ctx AccountInfo<'_>,
 ) -> Result<Transfer<'ctx>> {
     let vaa = PostedVaaV1::parse(vaa_acc_data)?;
     let msg =
@@ -39,11 +38,10 @@ pub fn validate_posted_token_transfer<'ctx>(
     // patch.
     let recipient = Pubkey::from(transfer.recipient());
     if recipient != recipient_token.key() {
-        require_keys_eq!(
-            recipient_token.owner,
-            recipient,
-            ErrorCode::ConstraintTokenOwner
-        );
+        crate::zero_copy::TokenAccount::require_owner(
+            &recipient_token.try_borrow_data()?,
+            &recipient,
+        )?;
     }
 
     // Done.
