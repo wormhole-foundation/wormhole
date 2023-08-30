@@ -272,7 +272,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           payer.publicKey
         );
 
-        // Maximum amount.
+        // Amount.
         const amount = BigInt(42069);
 
         // Create the signed transfer VAA, pass an invalid token address.
@@ -300,6 +300,45 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
 
         await expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
+
+      it(`Cannot Invoke \`complete_transfer_with_payload_wrapped)\` (${decimals} Decimals, Invalid Redeemer Chain)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+        // Create payer token account.
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amount.
+        const amount = BigInt(42069);
+
+        // Create the signed transfer VAA.
+        const signedVaa = await getSignedTransferVaa(
+          address,
+          amount,
+          payer.publicKey,
+          "0xdeadbeef",
+          CHAIN_ID_ETH // Pass invalid target chain.
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
+          program,
+          {
+            payer: payer.publicKey,
+            dstToken: payerToken.address,
+          },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "RedeemerChainNotSolana");
+      });
     }
 
     it(`Cannot Invoke \`complete_transfer_with_payload_wrapped)\` (Native Asset)`, async () => {
@@ -317,7 +356,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         payer.publicKey
       );
 
-      // Maximum amount.
+      // Amount.
       const amount = BigInt(42069);
 
       // Create the signed transfer VAA, pass an invalid token address.
@@ -347,6 +386,43 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
       );
 
       await expectIxErr(connection, [ix], [payer], "NativeAsset");
+    });
+
+    it(`Cannot Invoke \`complete_transfer_with_payload_wrapped)\` (U64Overflow)`, async () => {
+      const wrappedAssetInfo = wrappedMints[0];
+      const { chain, address } = wrappedAssetInfo;
+
+      // Mint.
+      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+      // Create payer token account.
+      const payerToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
+
+      // MAX U64.
+      const amount = Buffer.alloc(8, "ffffffff", "hex").readBigUInt64BE() + BigInt(10000);
+
+      // Create the signed transfer VAA. Specify an amount that is > u64::MAX.
+      const signedVaa = await getSignedTransferVaa(address, amount, payer.publicKey, "0xdeadbeef");
+
+      // Complete the transfer.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
+        program,
+        {
+          payer: payer.publicKey,
+          dstToken: payerToken.address,
+        },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "U64Overflow");
     });
   });
 });
