@@ -11,6 +11,7 @@ import {
   parallelPostVaa,
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
+  ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -675,6 +676,50 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         );
 
         await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
+      });
+
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Mint)`, async () => {
+        const mint = await tokenBridge.wrappedMintPda(
+          program.programId,
+          chain,
+          Array.from(address)
+        );
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA, pass an invalid token address.
+        const signedVaa = await getSignedTransferVaa(
+          ETHEREUM_TOKEN_ADDRESS_MAX_ONE, // Pass invalid address.
+          amount,
+          fee,
+          recipientToken.address,
+          CHAIN_ID_SOLANA
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address },
+          parseVaa(signedVaa),
+          true,
+          Array.from(address) // Pass correct token address to derive mint.
+        );
+
+        await expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
     }
   });

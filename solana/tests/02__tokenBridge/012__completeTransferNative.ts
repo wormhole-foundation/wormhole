@@ -386,6 +386,48 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         // Complete the transfer.
         await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
       });
+
+      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Mint)`, async () => {
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate();
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient.publicKey
+        );
+        const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
+
+        // Amounts.
+        let amount = BigInt(42069);
+        let fee = BigInt(1669);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          anchor.web3.Keypair.generate().publicKey, // Pass bogus mint.
+          amount,
+          fee,
+          recipientToken.address
+        );
+
+        // Post the VAA.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferNativeIx(
+          program,
+          {
+            payer: payer.publicKey,
+            recipientToken: recipientToken.address,
+            mint,
+            payerToken,
+          },
+          parseVaa(signedVaa)
+        );
+
+        // Complete the transfer.
+        await expectIxErr(connection, [ix], [payer], "InvalidMint");
+      });
     }
   });
 });
