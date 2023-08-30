@@ -1,16 +1,12 @@
 import {
-  afterAll,
-  beforeEach,
   describe,
   expect,
-  jest,
   test,
 } from "@jest/globals";
 import { ContractReceipt, ethers } from "ethers";
 import {
   getNetwork,
   isCI,
-  generateRandomString,
   waitForRelay,
   PRIVATE_KEY,
   getGuardianRPC,
@@ -28,24 +24,17 @@ import {
   ChainId,
   CHAINS,
   CONTRACTS,
-  CHAIN_ID_TO_NAME,
   ChainName,
   Network,
-  parseSequencesFromLogEth,
 } from "../../../";
 import { GovernanceEmitter, MockGuardians } from "../../../src/mock";
-import { AddressInfo } from "net";
 import {
-  Bridge__factory,
   Implementation__factory,
 } from "../../ethers-contracts";
-import { Wormhole__factory } from "../../../lib/cjs/ethers-contracts";
-import { getEmitterAddressEth } from "../../bridge";
 import { deliver } from "../relayer";
-import { env } from "process";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { getSignedVAAWithRetry } from "../../rpc";
-import { EVMExecutionInfoV1, packEVMExecutionInfoV1 } from "../structs";
+import { packEVMExecutionInfoV1 } from "../structs";
 
 const network: Network = getNetwork();
 const ci: boolean = isCI();

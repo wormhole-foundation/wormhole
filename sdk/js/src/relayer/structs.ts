@@ -41,10 +41,29 @@ export function parseRefundStatus(index: number) {
     : RefundStatus.CrossChainRefundFailProviderNotSupported;
 }
 
+export enum KeyType {
+  VAA = 1,
+  CCTP = 2,
+}
+export interface MessageKey {
+  keyType: KeyType | number;
+  key: ethers.BytesLike;
+}
+
 export interface VaaKey {
   chainId: number;
   emitterAddress: Buffer;
   sequence: BigNumber;
+}
+
+export interface CCTPKey {
+  domain: number;
+  nonce: ethers.BigNumber;
+}
+
+export interface CCTPMessage {
+  message: Buffer;
+  signature: Buffer;
 }
 
 export interface DeliveryInstruction {
@@ -59,7 +78,7 @@ export interface DeliveryInstruction {
   refundDeliveryProvider: Buffer;
   sourceDeliveryProvider: Buffer;
   senderAddress: Buffer;
-  vaaKeys: VaaKey[];
+  messageKeys: MessageKey[];
 }
 
 export interface RedeliveryInstruction {
@@ -77,10 +96,10 @@ type StringLeaves<Type> =
   | { [P in keyof Type]: StringLeaves<Type[P]> };
 
 export type DeliveryInstructionPrintable = {
-  [Property in keyof DeliveryInstruction]: StringLeaves<
+  [Property in keyof Omit<DeliveryInstruction, "messageKeys">]: StringLeaves<
     DeliveryInstruction[Property]
   >;
-};
+} & { messageKeys: ReturnType<typeof messageKeyPrintable>[] };
 
 export type RedeliveryInstructionPrintable = {
   [Property in keyof RedeliveryInstruction]: StringLeaves<
@@ -168,11 +187,11 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   const numMessages = bytes.readUInt8(idx);
   idx += 1;
 
-  let messages = [] as VaaKey[];
+  let messageKeys = [] as MessageKey[];
   for (let i = 0; i < numMessages; ++i) {
-    const res = parseVaaKey(bytes, idx);
+    const res = parseMessageKey(bytes, idx);
     idx = res[1];
-    messages.push(res[0]);
+    messageKeys.push(res[0]);
   }
 
   return {
@@ -187,7 +206,7 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     refundDeliveryProvider,
     sourceDeliveryProvider,
     senderAddress,
-    vaaKeys: messages,
+    messageKeys: messageKeys,
   };
 }
 
@@ -199,10 +218,60 @@ function parsePayload(bytes: Buffer, idx: number): [Buffer, number] {
   return [payload, idx];
 }
 
-function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
-  const version = bytes.readUInt8(idx);
+export function parseMessageKey(
+  _bytes: ethers.utils.BytesLike,
+  idx: number
+): [MessageKey, number] {
+  const bytes = Buffer.from(ethers.utils.arrayify(_bytes));
+  const keyType = bytes.readUInt8(idx);
   idx += 1;
+  if (keyType === KeyType.VAA) {
+    const vaaKeyLength = 2 + 32 + 8;
+    return [
+      { keyType, key: bytes.slice(idx, idx + vaaKeyLength) },
+      idx + 2 + 32 + 8,
+    ];
+  } else {
+    const len = bytes.readUInt32BE(idx);
+    idx += 4;
+    return [{ keyType, key: bytes.slice(idx, idx + len) }, idx + len];
+  }
+}
 
+export function packMessageKey(key: MessageKey): string {
+  const encodedKey = ethers.utils.arrayify(key.key);
+  const bytes = Buffer.alloc(1 + 4 + encodedKey.length);
+  let idx = 0;
+  bytes.writeUInt8(key.keyType, idx);
+  idx += 1;
+  if (key.keyType === KeyType.VAA) {
+    bytes.fill(encodedKey, idx);
+  } else {
+    const encodedKey = ethers.utils.arrayify(key.key);
+    bytes.writeUInt32BE(encodedKey.length, idx);
+    idx += 4;
+    bytes.fill(encodedKey, idx);
+  }
+  return ethers.utils.hexlify(bytes);
+}
+
+export function parseCCTPKey(_bytes: ethers.BytesLike): CCTPKey {
+  const bytes = Buffer.from(ethers.utils.arrayify(_bytes));
+  const domain = bytes.readUInt32BE(0);
+  const nonce = ethers.BigNumber.from(bytes.readBigUInt64BE(4));
+  return { domain, nonce };
+}
+
+export function packCCTPKey(key: CCTPKey): string {
+  const buf = Buffer.alloc(4 + 8);
+  buf.writeUInt32BE(key.domain, 0);
+  buf.writeBigUInt64BE(key.nonce.toBigInt(), 4);
+  return ethers.utils.hexlify(buf);
+}
+
+export function parseVaaKey(_bytes: ethers.BytesLike): VaaKey {
+  const bytes = Buffer.from(ethers.utils.arrayify(_bytes));
+  let idx = 0;
   const chainId = bytes.readUInt16BE(idx);
   idx += 2;
   const emitterAddress = bytes.slice(idx, idx + 32);
@@ -211,14 +280,34 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 8)
   );
   idx += 8;
-  return [
-    {
-      chainId,
-      emitterAddress,
-      sequence,
-    },
-    idx,
-  ];
+  return {
+    chainId,
+    emitterAddress,
+    sequence,
+  };
+}
+
+export function packVaaKey(vaaKey: VaaKey): string {
+  const bytes = Buffer.alloc(2 + 32 + 8);
+  bytes.writeUInt16BE(vaaKey.chainId, 0);
+  bytes.fill(vaaKey.emitterAddress, 2, 34);
+  bytes.writeBigUInt64BE(vaaKey.sequence.toBigInt(), 34);
+  return ethers.utils.hexlify(bytes);
+}
+
+export function packCCTPMessage(message: CCTPMessage): string {
+  return ethers.utils.defaultAbiCoder.encode(
+    ["bytes", "bytes"],
+    [message.message, message.signature]
+  );
+}
+
+export function parseCCTPMessage(bytes: ethers.BytesLike): CCTPMessage {
+  const [message, signature] = ethers.utils.defaultAbiCoder.decode(
+    ["bytes", "bytes"],
+    bytes
+  );
+  return { message, signature };
 }
 
 export function parseEVMExecutionInfoV1(
@@ -265,9 +354,9 @@ export function parseWormholeRelayerResend(
   }
   idx += 1;
 
-  const parsedKey = parseVaaKey(bytes, idx);
-  const key = parsedKey[0];
-  idx = parsedKey[1];
+  let parsedMessageKey: MessageKey;
+  [parsedMessageKey, idx] = parseMessageKey(bytes, idx);
+  const key: VaaKey = parseVaaKey(parsedMessageKey.key);
 
   const targetChainId: number = bytes.readUInt16BE(idx);
   idx += 2;
@@ -315,8 +404,34 @@ export function deliveryInstructionsPrintable(
     refundDeliveryProvider: ix.refundDeliveryProvider.toString("hex"),
     sourceDeliveryProvider: ix.sourceDeliveryProvider.toString("hex"),
     senderAddress: ix.senderAddress.toString("hex"),
-    vaaKeys: ix.vaaKeys.map(vaaKeyPrintable),
+    messageKeys: ix.messageKeys.map(messageKeyPrintable),
   };
+}
+
+export function messageKeyPrintable(
+  ix: MessageKey
+): StringLeaves<(VaaKey | CCTPKey | { key: string }) & { keyType: number }> {
+  switch (ix.keyType) {
+    case KeyType.VAA:
+      return {
+        keyType: "VAA",
+        ...(vaaKeyPrintable(parseVaaKey(ix.key)) as {
+          [P in keyof VaaKey]: StringLeaves<VaaKey[P]>;
+        }),
+      };
+    case KeyType.CCTP:
+      return {
+        keyType: "CCTP",
+        ...(cctpKeyPrintable(parseCCTPKey(ix.key)) as {
+          [P in keyof CCTPKey]: StringLeaves<CCTPKey[P]>;
+        }),
+      };
+    default:
+      return {
+        keyType: ix.keyType.toString(),
+        key: ethers.utils.hexlify(ix.key),
+      };
+  }
 }
 
 export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
@@ -324,6 +439,13 @@ export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
     chainId: ix.chainId?.toString(),
     emitterAddress: ix.emitterAddress?.toString("hex"),
     sequence: ix.sequence?.toString(),
+  };
+}
+
+export function cctpKeyPrintable(ix: CCTPKey): StringLeaves<CCTPKey> {
+  return {
+    domain: ix.domain.toString(),
+    nonce: ix.nonce.toString(),
   };
 }
 
