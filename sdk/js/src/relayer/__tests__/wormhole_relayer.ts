@@ -1,8 +1,4 @@
-import {
-  describe,
-  expect,
-  test,
-} from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 import { ContractReceipt, ethers } from "ethers";
 import {
   getNetwork,
@@ -28,9 +24,7 @@ import {
   Network,
 } from "../../../";
 import { GovernanceEmitter, MockGuardians } from "../../../src/mock";
-import {
-  Implementation__factory,
-} from "../../ethers-contracts";
+import { Implementation__factory } from "../../ethers-contracts";
 import { deliver } from "../relayer";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { getSignedVAAWithRetry } from "../../rpc";
