@@ -722,6 +722,52 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         await expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
     }
+
+    it(`Cannot Invoke \`complete_transfer_wrapped\` (Native Asset)`, async () => {
+      const wrappedAssetInfo = wrappedMints[0];
+      const { chain, address } = wrappedAssetInfo;
+
+      // Mint.
+      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+      // Create recipient token account.
+      const recipient = anchor.web3.Keypair.generate();
+      const recipientToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient.publicKey
+      );
+
+      // Amounts.
+      const amount = BigInt(699999420);
+      let fee = BigInt(50000);
+
+      // Create the signed transfer VAA. Pass invalid token chain for a wrapped asset.
+      const signedVaa = await getSignedTransferVaa(
+        address,
+        amount,
+        fee,
+        recipientToken.address,
+        undefined,
+        CHAIN_ID_SOLANA // Pass a token chain that is not ETH
+      );
+
+      // Complete the transfer.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+        program,
+        { payer: payer.publicKey, recipientToken: recipientToken.address },
+        parseVaa(signedVaa),
+        true,
+        undefined,
+        CHAIN_ID_ETH // Pass ETH chain ID so the wrapped asset account is derived correctly.
+      );
+
+      await expectIxErr(connection, [ix], [payer], "NativeAsset");
+    });
   });
 });
 
@@ -730,11 +776,12 @@ function getSignedTransferVaa(
   amount: bigint,
   fee: bigint,
   recipient: anchor.web3.PublicKey,
-  targetChain?: number
+  targetChain?: number,
+  tokenChain?: number
 ): Buffer {
   const vaaBytes = dummyTokenBridge.publishTransferTokens(
     Buffer.from(tokenAddress).toString("hex"),
-    CHAIN_ID_ETH,
+    tokenChain ?? CHAIN_ID_ETH,
     amount,
     targetChain ?? CHAIN_ID_SOLANA,
     recipient.toBuffer().toString("hex"),
