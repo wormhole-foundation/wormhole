@@ -9,10 +9,12 @@ import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
+  expectIxErr,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
+import { expect } from "chai";
 
 describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -62,6 +64,34 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Native)", () => {
         // TODO: Check that the core messages are correct.
       });
     }
+  });
+
+  describe("New Implementation", () => {
+    it(`Cannot Invoke \`transfer_tokens_native\` (Invalid Relayer Fee)`, async () => {
+      const { mint } = mints[0];
+      const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
+      const coreMessage = anchor.web3.Keypair.generate();
+
+      // Create an relayerFee that is larger than the amount.
+      const amount = new anchor.BN("88888888");
+      const relayerFee = new anchor.BN("99999999");
+      expect(relayerFee.gt(amount)).to.be.true;
+
+      // Create transfer instruction.
+      const approveIx = tokenBridge.approveTransferAuthorityIx(
+        program,
+        srcToken,
+        payer.publicKey,
+        amount
+      );
+      const ix = tokenBridge.legacyTransferTokensNativeIx(
+        program,
+        { coreMessage: coreMessage.publicKey, payer: payer.publicKey, mint, srcToken },
+        defaultArgs(amount, relayerFee)
+      );
+
+      await expectIxErr(connection, [approveIx, ix], [payer, coreMessage], "InvalidRelayerFee");
+    });
   });
 });
 

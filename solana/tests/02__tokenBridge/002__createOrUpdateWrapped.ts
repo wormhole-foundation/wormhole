@@ -1,4 +1,6 @@
 import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
   ParsedVaa,
   coalesceChainId,
   parseAttestMetaPayload,
@@ -23,6 +25,8 @@ import {
   ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
   WRAPPED_MINT_INFO_8,
   WRAPPED_MINT_INFO_7,
+  expectIxErr,
+  invokeVerifySignaturesAndPostVaa,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -205,6 +209,39 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
 
         await parallelTxOk(program, forkedProgram, { payer: payer.publicKey }, signedVaa, payer);
       }
+    });
+  });
+
+  describe("New Implementation", () => {
+    it("Cannot Invoke `create_or_update_wrapped` (Invalid Token Bridge VAA)", async () => {
+      // Create a bogus token transfer VAA.
+      const published = ethereumTokenBridge.publishTransferTokens(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        CHAIN_ID_ETH,
+        BigInt(10), // Amount.
+        CHAIN_ID_SOLANA,
+        tryNativeToHexString(payer.publicKey.toString(), "solana"),
+        BigInt(0) // Fee.
+      );
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      await invokeVerifySignaturesAndPostVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa
+      );
+
+      // Create the instruction.
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidTokenBridgeVaa");
     });
   });
 });

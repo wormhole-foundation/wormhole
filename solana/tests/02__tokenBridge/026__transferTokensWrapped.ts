@@ -5,12 +5,15 @@ import {
   WRAPPED_MINT_INFO_8,
   WRAPPED_MINT_INFO_MAX_ONE,
   WrappedMintInfo,
+  expectIxErr,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 import * as coreBridge from "../helpers/coreBridge";
 import { PublicKey } from "@solana/web3.js";
+import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { expect } from "chai";
 
 describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Wrapped)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -182,6 +185,48 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Wrapped)", () => 
       );
 
       // TODO: Check that the core messages are correct.
+    });
+  });
+
+  describe("New Implementation", () => {
+    it(`Invoke \`transfer_tokens_wrapped\` (Invalid Relayer Fee)`, async () => {
+      const { address } = wrappedMints[0];
+      const mint = tokenBridge.wrappedMintPda(program.programId, CHAIN_ID_ETH, Array.from(address));
+      const coreMessage = anchor.web3.Keypair.generate();
+
+      // Fetch recipient token account, these accounts should've been created in other tests.
+      const srcToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
+
+      // Create an relayerFee that is larger than the amount.
+      const amount = new anchor.BN("88888888");
+      const relayerFee = new anchor.BN("99999999");
+      expect(relayerFee.gt(amount)).to.be.true;
+
+      // Approve the transfer.
+      const approveIx = tokenBridge.approveTransferAuthorityIx(
+        program,
+        srcToken.address,
+        payer.publicKey,
+        amount
+      );
+      const ix = tokenBridge.legacyTransferTokensWrappedIx(
+        program,
+        {
+          coreMessage: coreMessage.publicKey,
+          payer: payer.publicKey,
+          wrappedMint: mint,
+          srcToken: srcToken.address,
+          srcOwner: payer.publicKey,
+        },
+        defaultArgs(amount, relayerFee)
+      );
+
+      await expectIxErr(connection, [approveIx, ix], [payer, coreMessage], "InvalidRelayerFee");
     });
   });
 });

@@ -12,6 +12,7 @@ import {
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
   ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -769,7 +770,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       await expectIxErr(connection, [ix], [payer], "NativeAsset");
     });
 
-    it(`Cannot Invoke \`complete_transfer_wrapped\` (Native Asset)`, async () => {
+    it(`Cannot Invoke \`complete_transfer_wrapped\` (U64Overflow)`, async () => {
       const wrappedAssetInfo = wrappedMints[0];
       const { chain, address } = wrappedAssetInfo;
 
@@ -803,6 +804,50 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       );
 
       await expectIxErr(connection, [ix], [payer], "U64Overflow");
+    });
+
+    it("Cannot Invoke `complete_transfer_wrapped` (Invalid Token Bridge VAA)", async () => {
+      const wrappedAssetInfo = wrappedMints[0];
+      const { chain, address } = wrappedAssetInfo;
+
+      // Mint.
+      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+      // Create recipient token account.
+      const recipient = anchor.web3.Keypair.generate();
+      const recipientToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient.publicKey
+      );
+
+      // Create a bogus attestation VAA.
+      const published = dummyTokenBridge.publishAttestMeta(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        8, // Decimals
+        "EVOO", // Symbol.
+        "Extra Virgin Olive Oil", // Name.
+        420, // Nonce.
+        1234567 // Timestamp.
+      );
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+        program,
+        { payer: payer.publicKey, recipientToken: recipientToken.address, wrappedMint: mint },
+        parseVaa(signedVaa)
+      );
+
+      // Complete the transfer.
+      await expectIxErr(connection, [ix], [payer], "InvalidTokenBridgeVaa");
     });
   });
 });

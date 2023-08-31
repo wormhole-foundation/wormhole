@@ -19,6 +19,7 @@ import {
   expectIxErr,
   expectIxOk,
   processVaa,
+  TOKEN_BRIDGE_GOVERNANCE_MODULE,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -27,7 +28,6 @@ import * as tokenBridge from "../helpers/tokenBridge";
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 2;
 const GOVERNANCE_SEQUENCE = 2_010_000;
-const GOVERNANCE_MODULE = "000000000000000000000000000000000000000000546f6b656e427269646765";
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
   GOVERNANCE_SEQUENCE - 1
@@ -301,7 +301,7 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
         governanceChain, // Legit governance chain.
         sequence,
         emitterChain,
-        Buffer.from(GOVERNANCE_MODULE, "hex"),
+        Buffer.from(TOKEN_BRIDGE_GOVERNANCE_MODULE, "hex"),
         invalidGovernanceAction
       );
 
