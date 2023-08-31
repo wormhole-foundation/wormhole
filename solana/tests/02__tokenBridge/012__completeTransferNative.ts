@@ -13,7 +13,7 @@ import {
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
   expectIxErr,
-  MINT_INFO_WRAPPED_7,
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -481,6 +481,51 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
       // Complete the transfer.
       await expectIxErr(connection, [ix], [payer], "WrappedAsset");
+    });
+
+    it("Cannot Invoke `complete_transfer_native` (Invalid Token Bridge VAA)", async () => {
+      // Mint.
+      const mint = mints[0].mint;
+
+      // Create recipient token account.
+      const recipient = anchor.web3.Keypair.generate();
+      const recipientToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient.publicKey
+      );
+
+      // Create a bogus attestation VAA.
+      const published = dummyTokenBridge.publishAttestMeta(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        8, // Decimals
+        "EVOO", // Symbol.
+        "Extra Virgin Olive Oil", // Name.
+        420, // Nonce.
+        1234567 // Timestamp.
+      );
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create instruction.
+      const ix = tokenBridge.legacyCompleteTransferNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          recipientToken: recipientToken.address,
+          mint,
+        },
+        parseVaa(signedVaa)
+      );
+
+      // Complete the transfer.
+      await expectIxErr(connection, [ix], [payer], "InvalidTokenBridgeVaa");
     });
   });
 });

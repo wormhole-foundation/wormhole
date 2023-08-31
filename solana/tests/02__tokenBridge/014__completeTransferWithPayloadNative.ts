@@ -14,6 +14,7 @@ import {
   parallelPostVaa,
   expectIxErr,
   airdrop,
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -172,7 +173,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           parseVaa(signedVaa)
         );
 
-        expectIxErr(connection, [ix], [payer], "InvalidMint");
+        await expectIxErr(connection, [ix], [payer], "InvalidMint");
       });
 
       it(`Cannot Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Invalid Redeemer Chain)`, async () => {
@@ -210,7 +211,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           parseVaa(signedVaa)
         );
 
-        expectIxErr(connection, [ix], [payer], "RedeemerChainNotSolana");
+        await expectIxErr(connection, [ix], [payer], "RedeemerChainNotSolana");
       });
     }
 
@@ -252,7 +253,125 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         parseVaa(signedVaa)
       );
 
-      expectIxErr(connection, [ix], [payer], "WrappedAsset");
+      await expectIxErr(connection, [ix], [payer], "WrappedAsset");
+    });
+
+    it(`Cannot Invoke \`complete_transfer_with_payload_native\` (Invalid Program Redeemer)`, async () => {
+      const mint = mints[0].mint;
+
+      // Create recipient token account.
+      const payerToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
+
+      // Amounts.
+      const amount = BigInt(699999);
+
+      // Create the signed transfer VAA with random "to" (redeemer).
+      const signedVaa = getSignedTransferVaa(
+        mint,
+        amount,
+        anchor.web3.Keypair.generate().publicKey, // Create random redeemer.
+        "0xdeadbeef"
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create the complete transfer with payload instruction.
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          dstToken: payerToken.address,
+          mint,
+          redeemerAuthority: payer.publicKey,
+        },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidProgramRedeemer");
+    });
+
+    it(`Cannot Invoke \`complete_transfer_with_payload_native\` (Constraint Token Owner)`, async () => {
+      const mint = mints[0].mint;
+
+      // Create random token account.
+      const invalidTokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        anchor.web3.Keypair.generate().publicKey
+      );
+
+      // Amounts.
+      const amount = BigInt(699999);
+
+      // Create the signed transfer VAA with random "to" (redeemer).
+      const signedVaa = getSignedTransferVaa(mint, amount, payer.publicKey, "0xdeadbeef");
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create the complete transfer with payload instruction.
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          dstToken: invalidTokenAccount.address,
+          mint,
+          redeemerAuthority: payer.publicKey,
+        },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
+    });
+
+    it(`Cannot Invoke \`complete_transfer_with_payload_native\` (Invalid Token Bridge VAA)`, async () => {
+      const mint = mints[0].mint;
+
+      // Create random token account.
+      const payerToken = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        payer.publicKey
+      );
+
+      // Create a bogus attestation VAA.
+      const published = dummyTokenBridge.publishAttestMeta(
+        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
+        8, // Decimals
+        "EVOO", // Symbol.
+        "Extra Virgin Olive Oil", // Name.
+        420, // Nonce.
+        1234567 // Timestamp.
+      );
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+      // Create the complete transfer with payload instruction.
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        {
+          payer: payer.publicKey,
+          dstToken: payerToken.address,
+          mint,
+          redeemerAuthority: payer.publicKey,
+        },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidTokenBridgeVaa");
     });
   });
 });
