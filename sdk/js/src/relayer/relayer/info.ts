@@ -17,6 +17,9 @@ import {
   RefundStatus,
   parseEVMExecutionInfoV1,
   DeliveryOverrideArgs,
+  KeyType,
+  parseVaaKey,
+  parseCCTPKey,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -209,7 +212,7 @@ export function stringifyWormholeRelayerInfo(
         "hex"
       )}\n`;
     }
-    const numMsgs = info.deliveryInstruction.vaaKeys.length;
+    const numMsgs = info.deliveryInstruction.messageKeys.length;
 
     const payload = info.deliveryInstruction.payload.toString("hex");
     if (payload.length > 0) {
@@ -219,16 +222,23 @@ export function stringifyWormholeRelayerInfo(
       stringifiedInfo += `\nThe following ${numMsgs} wormhole messages (VAAs) were ${
         payload.length > 0 ? "also " : ""
       }requested to be relayed:\n`;
-      stringifiedInfo += info.deliveryInstruction.vaaKeys
-        .map((msgInfo, i) => {
+      stringifiedInfo += info.deliveryInstruction.messageKeys
+        .map((msgKey, i) => {
           let result = "";
-          result += `(VAA ${i}): `;
-          result += `Message from ${
-            msgInfo.chainId ? printChain(msgInfo.chainId) : ""
-          }, with emitter address ${msgInfo.emitterAddress?.toString(
-            "hex"
-          )} and sequence number ${msgInfo.sequence}`;
-
+          if (msgKey.keyType == KeyType.VAA) {
+            const vaaKey = parseVaaKey(msgKey.key);
+            result += `(VAA ${i}): `;
+            result += `Message from ${
+              vaaKey.chainId ? printChain(vaaKey.chainId) : ""
+            }, with emitter address ${vaaKey.emitterAddress?.toString(
+              "hex"
+            )} and sequence number ${vaaKey.sequence}`;
+          } else if (msgKey.keyType == KeyType.CCTP) {
+            const cctpKey = parseCCTPKey(msgKey.key);
+            result += `(CCTP ${i}): `;
+            result += `Transfer from cctp domain ${printChain(cctpKey.domain)}`;
+            result += `, with nonce ${cctpKey.nonce}`;
+          }
           return result;
         })
         .join(",\n");
