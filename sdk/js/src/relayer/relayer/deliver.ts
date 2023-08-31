@@ -12,6 +12,8 @@ import {
   parseWormholeRelayerPayloadType,
   parseWormholeRelayerSend,
   VaaKey,
+  KeyType,
+  parseVaaKey,
 } from "../structs";
 import { DeliveryTargetInfo } from "./helpers";
 import { getSignedVAAWithRetry } from "../../rpc";
@@ -44,10 +46,15 @@ export async function deliver(
   const { budget, deliveryInstruction, deliveryHash } =
     extractDeliveryArguments(deliveryVaa, overrides);
 
-  const additionalVaas = await fetchAdditionalVaas(
-    wormholeRPCs,
-    deliveryInstruction.vaaKeys
-  );
+  const vaaKeys = deliveryInstruction.messageKeys.map((key) => {
+    if (key.keyType !== KeyType.VAA) {
+      throw new Error(
+        "Only VAA keys are supported by manual delivery. Found: " + key.keyType
+      );
+    }
+    return parseVaaKey(key.key);
+  });
+  const additionalVaas = await fetchAdditionalVaas(wormholeRPCs, vaaKeys);
 
   const wormholeRelayerAddress = getWormholeRelayerAddress(
     toChainName(deliveryInstruction.targetChainId as ChainId),
