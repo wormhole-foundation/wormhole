@@ -7,7 +7,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
+use core_bridge_program::{constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 use wormhole_solana_common::SeedPrefix;
 

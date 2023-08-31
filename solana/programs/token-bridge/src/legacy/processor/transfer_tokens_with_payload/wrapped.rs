@@ -6,7 +6,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{self, state::Config as CoreBridgeConfig, CoreBridge};
+use core_bridge_program::sdk as core_bridge_sdk;
 use ruint::aliases::U256;
 use wormhole_solana_common::SeedPrefix;
 
@@ -53,10 +53,9 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     )]
     transfer_authority: AccountInfo<'info>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee. We do not have to
-    /// check the seeds here because the Core Bridge program will do this for us.
+    /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_bridge_config: Box<Account<'info, CoreBridgeConfig>>,
+    core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -89,11 +88,11 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info>
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
     for TransferTokensWithPayloadWrapped<'info>
 {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
@@ -101,7 +100,7 @@ impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info>
     }
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokePostMessageV1<'info>
+impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info>
     for TransferTokensWithPayloadWrapped<'info>
 {
     fn payer(&self) -> AccountInfo<'info> {

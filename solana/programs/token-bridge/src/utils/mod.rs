@@ -6,6 +6,9 @@ pub use vaa::*;
 
 use anchor_lang::prelude::*;
 
+/// Determine the sender address based on whether an integrator provides his own program ID. If a
+/// program ID is provided, it is verified against the sender authority, which requires specific
+/// seeds. Otherwise the sender is the authority itself.
 pub fn new_sender_address(
     sender_authority: &Signer,
     cpi_program_id: Option<Pubkey>,

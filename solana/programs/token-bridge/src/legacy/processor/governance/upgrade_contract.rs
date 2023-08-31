@@ -3,7 +3,7 @@ use crate::{
     state::Claim,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1, CoreBridge};
+use core_bridge_program::{constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1};
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
 

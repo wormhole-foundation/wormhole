@@ -4,6 +4,8 @@ use anchor_lang::prelude::{
 
 use crate::utils::TruncateAmount;
 
+/// This implements a zero-copy deserialization for the Token Program's mint account. All struct
+/// field doc strings are shamelessly copied from the SPL Token docs.
 pub struct Mint<'a>(&'a [u8]);
 
 impl<'a> Mint<'a> {

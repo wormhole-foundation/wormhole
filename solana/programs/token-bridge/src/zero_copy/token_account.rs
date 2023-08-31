@@ -4,6 +4,8 @@ use anchor_lang::prelude::{
 use anchor_spl::token::spl_token::state;
 use solana_program::program_pack::Pack;
 
+/// This implements a zero-copy deserialization for the Token Program's token account. All struct
+/// field doc strings are shamelessly copied from the SPL Token docs.
 pub struct TokenAccount<'a>(&'a [u8]);
 
 impl<'a> TokenAccount<'a> {

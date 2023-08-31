@@ -126,7 +126,7 @@ pub fn verify_signatures(
         &instruction_sysvar_data,
     )
     .map_err(|_| ProgramError::InvalidInstructionData.into())
-    .and_then(|ix| deserialize_secp256k1_ix(&ix))?;
+    .and_then(|ix| deserialize_secp256k1_ix(sig_verify_index, &ix))?;
 
     // Number of specified `signers` must equal the number of signatures verified in the sig verify
     // program instruction.
@@ -185,6 +185,7 @@ pub fn verify_signatures(
 }
 
 fn deserialize_secp256k1_ix(
+    sig_verify_index: u16,
     ix: &solana_program::instruction::Instruction,
 ) -> Result<Vec<SigVerifyParameters>> {
     // Check that the program invoked is the secp256k1 program.
@@ -215,15 +216,19 @@ fn deserialize_secp256k1_ix(
         );
 
         // The instruction index must be the same for signature, eth pubkey and message.
-        let expected_ix_index = offsets.signature_ix_index;
         require_eq!(
-            offsets.eth_pubkey_ix_index,
-            expected_ix_index,
+            u16::from(offsets.signature_ix_index),
+            sig_verify_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
         require_eq!(
-            offsets.message_ix_index,
-            expected_ix_index,
+            u16::from(offsets.eth_pubkey_ix_index),
+            sig_verify_index,
+            CoreBridgeError::InvalidSigVerifyInstruction
+        );
+        require_eq!(
+            u16::from(offsets.message_ix_index),
+            sig_verify_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
 

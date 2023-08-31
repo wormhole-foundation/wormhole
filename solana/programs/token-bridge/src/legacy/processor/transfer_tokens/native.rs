@@ -9,9 +9,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{
-    self, constants::SOLANA_CHAIN, state::Config as CoreBridgeConfig, CoreBridge,
-};
+use core_bridge_program::sdk as core_bridge_sdk;
 use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 
@@ -58,10 +56,9 @@ pub struct TransferTokensNative<'info> {
     )]
     custody_authority: AccountInfo<'info>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee. We do not have to
-    /// check the seeds here because the Core Bridge program will do this for us.
+    /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_bridge_config: Box<Account<'info, CoreBridgeConfig>>,
+    core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -89,19 +86,17 @@ pub struct TransferTokensNative<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info> for TransferTokensNative<'info> {
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferTokensNative<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
     }
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokePostMessageV1<'info>
-    for TransferTokensNative<'info>
-{
+impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for TransferTokensNative<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -184,7 +179,7 @@ pub fn transfer_tokens_native(
     let token_transfer = crate::messages::Transfer {
         norm_amount: EncodedAmount::norm(U256::from(amount), decimals).0,
         token_address,
-        token_chain: SOLANA_CHAIN,
+        token_chain: core_bridge_sdk::SOLANA_CHAIN,
         recipient,
         recipient_chain,
         norm_relayer_fee: EncodedAmount::norm(U256::from(relayer_fee), decimals).0,
