@@ -1,3 +1,6 @@
+mod config;
+pub use config::*;
+
 mod encoded_vaa;
 pub use encoded_vaa::*;
 

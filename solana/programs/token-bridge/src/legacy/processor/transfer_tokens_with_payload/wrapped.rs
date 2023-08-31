@@ -1,7 +1,7 @@
 use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     legacy::TransferTokensWithPayloadArgs,
-    processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
+    processor::{burn_wrapped_tokens, post_token_bridge_message},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
@@ -93,6 +93,48 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info>
+    for TransferTokensWithPayloadWrapped<'info>
+{
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_program::sdk::cpi::InvokePostMessageV1<'info>
+    for TransferTokensWithPayloadWrapped<'info>
+{
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+
+    fn config(&self) -> AccountInfo<'info> {
+        self.core_bridge_config.to_account_info()
+    }
+
+    fn message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
+    }
+
+    fn emitter(&self) -> AccountInfo<'info> {
+        self.core_emitter.to_account_info()
+    }
+
+    fn emitter_sequence(&self) -> AccountInfo<'info> {
+        self.core_emitter_sequence.to_account_info()
+    }
+
+    fn fee_collector(&self) -> Option<AccountInfo<'info>> {
+        self.core_fee_collector
+            .as_ref()
+            .map(|acc| acc.to_account_info())
+    }
+
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+}
+
 pub fn transfer_tokens_with_payload_wrapped(
     ctx: Context<TransferTokensWithPayloadWrapped>,
     args: TransferTokensWithPayloadArgs,
@@ -137,16 +179,7 @@ pub fn transfer_tokens_with_payload_wrapped(
 
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
-        PostTokenBridgeMessage {
-            core_bridge_config: &ctx.accounts.core_bridge_config,
-            core_message: &ctx.accounts.core_message,
-            core_emitter: &ctx.accounts.core_emitter,
-            core_emitter_sequence: &ctx.accounts.core_emitter_sequence,
-            payer: &ctx.accounts.payer,
-            core_fee_collector: &ctx.accounts.core_fee_collector,
-            system_program: &ctx.accounts.system_program,
-            core_bridge_program: &ctx.accounts.core_bridge_program,
-        },
+        ctx.accounts,
         ctx.bumps["core_emitter"],
         nonce,
         token_transfer,

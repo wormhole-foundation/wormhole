@@ -58,10 +58,13 @@ impl<'a> Mint<'a> {
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const LEN: usize = anchor_spl::token::Mint::LEN;
-        require_eq!(span.len(), LEN, ErrorCode::AccountDidNotDeserialize);
+        require_eq!(
+            span.len(),
+            anchor_spl::token::Mint::LEN,
+            ErrorCode::AccountDidNotDeserialize
+        );
 
-        let mint = Self(&span[..LEN]);
+        let mint = Self(span);
         require!(mint.is_initialized(), ErrorCode::AccountNotInitialized);
 
         Ok(mint)

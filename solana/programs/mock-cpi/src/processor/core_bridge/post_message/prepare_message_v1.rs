@@ -45,6 +45,24 @@ pub struct MockPrepareMessageV1<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPrepareMessageV1<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_sdk::cpi::InvokeInitAndProcessMessageV1<'info>
+    for MockPrepareMessageV1<'info>
+{
+    fn emitter_authority(&self) -> AccountInfo<'info> {
+        self.emitter_authority.to_account_info()
+    }
+
+    fn message(&self) -> AccountInfo<'info> {
+        self.message.to_account_info()
+    }
+}
+
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct MockPrepareMessageV1Args {
     pub nonce: u32,
@@ -57,52 +75,17 @@ pub fn mock_prepare_message_v1(
 ) -> Result<()> {
     let MockPrepareMessageV1Args { nonce, data } = args;
 
-    let emitter_authority_seeds = &[
-        EMITTER_AUTHORITY_SEED_PREFIX,
-        &[ctx.bumps["emitter_authority"]],
-    ];
-
-    core_bridge_sdk::cpi::init_message_v1(
-        CpiContext::new_with_signer(
-            ctx.accounts.core_bridge_program.to_account_info(),
-            core_bridge_sdk::cpi::InitMessageV1 {
-                emitter_authority: ctx.accounts.emitter_authority.to_account_info(),
-                draft_message: ctx.accounts.message.to_account_info(),
-            },
-            &[emitter_authority_seeds],
-        ),
-        core_bridge_program::InitMessageV1Args {
+    core_bridge_sdk::cpi::prepare_message_v1_bytes(
+        ctx.accounts,
+        data,
+        core_bridge_sdk::cpi::InitMessageV1Args {
             nonce,
-            commitment: core_bridge_sdk::types::Commitment::Finalized,
             cpi_program_id: Some(crate::ID),
+            commitment: core_bridge_sdk::types::Commitment::Finalized,
         },
-    )?;
-
-    core_bridge_sdk::cpi::process_message_v1(
-        CpiContext::new_with_signer(
-            ctx.accounts.core_bridge_program.to_account_info(),
-            core_bridge_sdk::cpi::ProcessMessageV1 {
-                draft_message: ctx.accounts.message.to_account_info(),
-                emitter_authority: ctx.accounts.emitter_authority.to_account_info(),
-                close_account_destination: None,
-            },
-            &[emitter_authority_seeds],
-        ),
-        core_bridge_sdk::cpi::ProcessMessageV1Directive::Write { index: 0, data },
-    )?;
-
-    core_bridge_sdk::cpi::process_message_v1(
-        CpiContext::new_with_signer(
-            ctx.accounts.core_bridge_program.to_account_info(),
-            core_bridge_sdk::cpi::ProcessMessageV1 {
-                draft_message: ctx.accounts.message.to_account_info(),
-                emitter_authority: ctx.accounts.emitter_authority.to_account_info(),
-                close_account_destination: None,
-            },
-            &[emitter_authority_seeds],
-        ),
-        core_bridge_sdk::cpi::ProcessMessageV1Directive::Finalize,
-    )?;
-
-    Ok(())
+        &[
+            EMITTER_AUTHORITY_SEED_PREFIX,
+            &[ctx.bumps["emitter_authority"]],
+        ],
+    )
 }
