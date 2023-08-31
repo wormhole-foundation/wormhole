@@ -2,7 +2,7 @@ use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::TransferTokensArgs,
-    processor::{burn_wrapped_tokens, post_token_bridge_message, PostTokenBridgeMessage},
+    processor::{burn_wrapped_tokens, post_token_bridge_message},
     state::WrappedAsset,
 };
 use anchor_lang::prelude::*;
@@ -175,18 +175,7 @@ fn relayable(ctx: Context<TransferTokens>, args: TransferRelayable) -> Result<()
 
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
-        PostTokenBridgeMessage {
-            core_bridge_config: &ctx.accounts.core_bridge_config,
-            core_message: &ctx.accounts.core_message,
-            core_emitter: &ctx.accounts.core_emitter,
-            core_emitter_sequence: AsRef::<AccountInfo>::as_ref(
-                &ctx.accounts.core_emitter_sequence,
-            ),
-            payer: &ctx.accounts.payer,
-            core_fee_collector: &ctx.accounts.core_fee_collector,
-            system_program: &ctx.accounts.system_program,
-            core_bridge_program: &ctx.accounts.core_bridge_program,
-        },
+        ctx.accounts,
         ctx.bumps["core_emitter"],
         nonce,
         token_transfer,

@@ -27,7 +27,7 @@ pub struct PostMessageUnreliable<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        space = try_compute_size(&message, payload_len)?,
+        space = try_compute_size(message, payload_len)?,
     )]
     message: Account<'info, PostedMessageV1Unreliable>,
 

@@ -4,7 +4,7 @@ use crate::{
     },
     error::TokenBridgeError,
     legacy::TransferTokensArgs,
-    processor::{deposit_native_tokens, post_token_bridge_message, PostTokenBridgeMessage},
+    processor::{deposit_native_tokens, post_token_bridge_message},
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
@@ -93,6 +93,46 @@ pub struct TransferTokensNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info> for TransferTokensNative<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_program::sdk::cpi::InvokePostMessageV1<'info>
+    for TransferTokensNative<'info>
+{
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+
+    fn config(&self) -> AccountInfo<'info> {
+        self.core_bridge_config.to_account_info()
+    }
+
+    fn message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
+    }
+
+    fn emitter(&self) -> AccountInfo<'info> {
+        self.core_emitter.to_account_info()
+    }
+
+    fn emitter_sequence(&self) -> AccountInfo<'info> {
+        self.core_emitter_sequence.to_account_info()
+    }
+
+    fn fee_collector(&self) -> Option<AccountInfo<'info>> {
+        self.core_fee_collector
+            .as_ref()
+            .map(|acc| acc.to_account_info())
+    }
+
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+}
+
 impl<'info> TransferTokensNative<'info> {
     fn constraints(ctx: &Context<Self>, args: &TransferTokensArgs) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
@@ -152,16 +192,7 @@ pub fn transfer_tokens_native(
 
     // Finally publish Wormhole message using the Core Bridge.
     post_token_bridge_message(
-        PostTokenBridgeMessage {
-            core_bridge_config: &ctx.accounts.core_bridge_config,
-            core_message: &ctx.accounts.core_message,
-            core_emitter: &ctx.accounts.core_emitter,
-            core_emitter_sequence: &ctx.accounts.core_emitter_sequence,
-            payer: &ctx.accounts.payer,
-            core_fee_collector: &ctx.accounts.core_fee_collector,
-            system_program: &ctx.accounts.system_program,
-            core_bridge_program: &ctx.accounts.core_bridge_program,
-        },
+        ctx.accounts,
         ctx.bumps["core_emitter"],
         nonce,
         token_transfer,

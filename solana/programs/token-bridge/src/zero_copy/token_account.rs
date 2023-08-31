@@ -86,10 +86,13 @@ impl<'a> TokenAccount<'a> {
     }
 
     pub fn parse(span: &'a [u8]) -> Result<Self> {
-        const LEN: usize = state::Account::LEN;
-        require_eq!(span.len(), LEN, ErrorCode::AccountDidNotDeserialize);
+        require_eq!(
+            span.len(),
+            state::Account::LEN,
+            ErrorCode::AccountDidNotDeserialize
+        );
 
-        let token = Self(&span[..LEN]);
+        let token = Self(span);
         require!(
             token.state() != state::AccountState::Uninitialized,
             ErrorCode::AccountNotInitialized
