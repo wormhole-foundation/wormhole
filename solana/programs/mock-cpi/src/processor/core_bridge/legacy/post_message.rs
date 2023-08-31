@@ -1,6 +1,6 @@
 use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::{prelude::*, system_program};
-use core_bridge_program::{state::Config, CoreBridge, SeedPrefix};
+use core_bridge_program::{state::Config, CoreBridge};
 
 const LEGACY_EMITTER_SEED_PREFIX: &[u8] = b"my_legacy_emitter";
 
@@ -19,12 +19,7 @@ pub struct MockLegacyPostMessage<'info> {
     payer_sequence: Account<'info, SignerSequence>,
 
     /// We need to deserialize this account to determine the Wormhole message fee.
-    #[account(
-        mut,
-        seeds = [Config::SEED_PREFIX],
-        bump,
-        seeds::program = core_bridge_program
-    )]
+    #[account(mut)]
     core_bridge_config: Account<'info, Config>,
 
     /// CHECK: This account is needed for the Core Bridge program.
