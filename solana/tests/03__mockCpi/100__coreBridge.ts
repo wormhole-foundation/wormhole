@@ -182,5 +182,44 @@ describe("Mock CPI -- Core Bridge", () => {
         expectDeepEqual(published, payload);
       }
     });
+
+    it("Invoke `mock_prepare_message_v1`", async () => {
+      const payerSequence = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("seq"), payer.publicKey.toBuffer()],
+        program.programId
+      )[0];
+
+      const payerSequenceValue = await program.account.signerSequence
+        .fetch(payerSequence)
+        .then((seq) => seq.value);
+
+      const message = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("my_draft_message"),
+          payer.publicKey.toBuffer(),
+          payerSequenceValue.toBuffer("le", 16),
+        ],
+        program.programId
+      )[0];
+
+      const emitterAuthority = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("emitter")],
+        program.programId
+      )[0];
+
+      const data = Buffer.from("What's on draft tonight?");
+
+      const ix = await program.methods
+        .mockPrepareMessageV1({ data })
+        .accounts({
+          payer: payer.publicKey,
+          payerSequence,
+          message,
+          emitterAuthority,
+          coreBridgeProgram: mockCpi.coreBridgeProgramId(program),
+        })
+        .instruction();
+      await expectIxOk(connection, [ix], [payer]);
+    });
   });
 });
