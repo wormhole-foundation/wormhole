@@ -9,6 +9,11 @@ import {
 } from "../helpers";
 import * as mockCpi from "../helpers/mockCpi";
 import * as coreBridge from "../helpers/coreBridge";
+import { expect } from "chai";
+
+const UNRELIABLE_PAYLOAD_SIZE = 128;
+
+const localVariables = new Map<string, any>();
 
 describe("Mock CPI -- Core Bridge", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -38,6 +43,7 @@ describe("Mock CPI -- Core Bridge", () => {
         [Buffer.from("seq"), payer.publicKey.toBuffer()],
         program.programId
       )[0];
+
       const {
         config: coreBridgeConfig,
         emitterSequence: coreEmitterSequence,
@@ -67,7 +73,114 @@ describe("Mock CPI -- Core Bridge", () => {
 
       await expectIxOk(connection, [ix], [payer]);
 
+      const published = await coreBridge.PostedMessageV1.fromAccountAddress(
+        connection,
+        message
+      ).then((msg) => msg.payload);
+      expectDeepEqual(published, payload);
+
       payerSequenceValue.iaddn(1);
+    });
+
+    it("Invoke `mock_legacy_post_message_unreliable`", async () => {
+      const nonce = 420;
+      const encodedNonce = Buffer.alloc(4);
+      encodedNonce.writeUInt32LE(nonce, 0);
+
+      const message = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("my_unreliable_message"), payer.publicKey.toBuffer(), encodedNonce],
+        program.programId
+      )[0];
+      const emitter = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("my_unreliable_emitter")],
+        program.programId
+      )[0];
+
+      // Same accounts as post message.
+      const {
+        config: coreBridgeConfig,
+        emitterSequence: coreEmitterSequence,
+        feeCollector: coreFeeCollector,
+      } = coreBridge.legacyPostMessageAccounts(mockCpi.getCoreBridgeProgram(program), {
+        message,
+        emitter,
+        payer: payer.publicKey,
+      });
+
+      const payload = Buffer.alloc(UNRELIABLE_PAYLOAD_SIZE);
+      payload.set(Buffer.from("Where's the beef?"));
+
+      const ix = await program.methods
+        .mockLegacyPostMessageUnreliable({ nonce, payload })
+        .accounts({
+          payer: payer.publicKey,
+          coreBridgeConfig,
+          coreMessage: message,
+          coreEmitter: emitter,
+          coreEmitterSequence,
+          coreFeeCollector,
+          coreBridgeProgram: mockCpi.coreBridgeProgramId(program),
+        })
+        .instruction();
+      await expectIxOk(connection, [ix], [payer]);
+
+      localVariables.set("nonce", nonce);
+
+      const published = await coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+        connection,
+        message
+      ).then((msg) => msg.payload);
+      expectDeepEqual(published, payload);
+    });
+
+    it("Invoke `mock_legacy_post_message_unreliable` on Same Message", async () => {
+      const nonce = localVariables.get("nonce") as number;
+      const encodedNonce = Buffer.alloc(4);
+      encodedNonce.writeUInt32LE(nonce, 0);
+
+      const message = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("my_unreliable_message"), payer.publicKey.toBuffer(), encodedNonce],
+        program.programId
+      )[0];
+      const emitter = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("my_unreliable_emitter")],
+        program.programId
+      )[0];
+
+      const {
+        config: coreBridgeConfig,
+        emitterSequence: coreEmitterSequence,
+        feeCollector: coreFeeCollector,
+      } = coreBridge.legacyPostMessageAccounts(mockCpi.getCoreBridgeProgram(program), {
+        message,
+        emitter,
+        payer: payer.publicKey,
+      });
+
+      const payload = Buffer.alloc(UNRELIABLE_PAYLOAD_SIZE);
+      payload.set(Buffer.from("Not here, m8."));
+
+      const anotherIx = await program.methods
+        .mockLegacyPostMessageUnreliable({ nonce, payload })
+        .accounts({
+          payer: payer.publicKey,
+          coreBridgeConfig,
+          coreMessage: message,
+          coreEmitter: emitter,
+          coreEmitterSequence,
+          coreFeeCollector,
+          coreBridgeProgram: mockCpi.coreBridgeProgramId(program),
+        })
+        .instruction();
+      await expectIxOk(connection, [anotherIx], [payer]);
+
+      {
+        const published = await coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+          connection,
+          message
+        ).then((msg) => msg.payload);
+        expectDeepEqual(published, payload);
+      }
     });
   });
 });

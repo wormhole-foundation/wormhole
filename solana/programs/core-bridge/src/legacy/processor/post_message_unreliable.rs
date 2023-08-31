@@ -27,7 +27,7 @@ pub struct PostMessageUnreliable<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        space = PostedMessageV1Unreliable::compute_size(payload_len.try_into().unwrap()),
+        space = try_compute_size(&message, payload_len)?,
     )]
     message: Account<'info, PostedMessageV1Unreliable>,
 
@@ -44,7 +44,7 @@ pub struct PostMessageUnreliable<'info> {
         seeds = [EmitterSequence::SEED_PREFIX, emitter.key().as_ref()],
         bump,
     )]
-    pub emitter_sequence: Account<'info, EmitterSequence>,
+    emitter_sequence: Account<'info, EmitterSequence>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -67,6 +67,23 @@ pub struct PostMessageUnreliable<'info> {
 
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,
+}
+
+fn try_compute_size(message: &AccountInfo, payload_size: u32) -> Result<usize> {
+    let payload_size = usize::try_from(payload_size).unwrap();
+
+    if !message.data_is_empty() {
+        let expected_size =
+            crate::zero_copy::PostedMessageV1Unreliable::parse(&message.data.borrow())?
+                .payload_size();
+        require_eq!(
+            payload_size,
+            expected_size,
+            CoreBridgeError::PayloadSizeMismatch
+        );
+    }
+
+    Ok(PostedMessageV1Unreliable::compute_size(payload_size))
 }
 
 impl<'info> PostMessageUnreliable<'info> {

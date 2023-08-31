@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, system_program};
-use core_bridge_program::{state::Config, CoreBridge, SeedPrefix};
+use core_bridge_program::{state::Config, CoreBridge};
 
 const LEGACY_EMITTER_SEED_PREFIX: &[u8] = b"my_unreliable_emitter";
 const MESSAGE_SEED_PREFIX: &[u8] = b"my_unreliable_message";
@@ -11,12 +11,7 @@ pub struct MockLegacyPostMessageUnreliable<'info> {
     payer: Signer<'info>,
 
     /// We need to deserialize this account to determine the Wormhole message fee.
-    #[account(
-        mut,
-        seeds = [Config::SEED_PREFIX],
-        bump,
-        seeds::program = core_bridge_program
-    )]
+    #[account(mut)]
     core_bridge_config: Account<'info, Config>,
 
     /// CHECK: This account is needed for the Core Bridge program.
