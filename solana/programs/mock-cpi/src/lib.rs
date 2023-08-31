@@ -15,6 +15,8 @@ pub mod state;
 pub mod wormhole_mock_cpi_solana {
     use super::*;
 
+    // core bridge
+
     pub fn mock_legacy_post_message(
         ctx: Context<MockLegacyPostMessage>,
         args: MockLegacyPostMessageArgs,
@@ -28,6 +30,15 @@ pub mod wormhole_mock_cpi_solana {
     ) -> Result<()> {
         processor::mock_legacy_post_message_unreliable(ctx, args)
     }
+
+    pub fn mock_prepare_message_v1(
+        ctx: Context<MockPrepareMessageV1>,
+        args: MockPrepareMessageV1Args,
+    ) -> Result<()> {
+        processor::mock_prepare_message_v1(ctx, args)
+    }
+
+    // token bridge
 
     pub fn mock_legacy_transfer_tokens_native(
         ctx: Context<MockLegacyTransferTokensNative>,
@@ -80,6 +91,8 @@ pub mod wormhole_mock_cpi_solana {
     ) -> Result<()> {
         processor::mock_legacy_complete_transfer_with_payload_wrapped(ctx)
     }
+
+    // helpers
 
     pub fn withdraw_balance(ctx: Context<WithdrawBalance>) -> Result<()> {
         processor::withdraw_balance(ctx)
