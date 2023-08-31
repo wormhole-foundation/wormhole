@@ -75,7 +75,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
 
     it("Invoke `post_message` Again With Same Emitter", async () => {
       // Fetch default args.
-      const { nonce, finality } = defaultArgs();
+      const { nonce, commitment } = defaultArgs();
 
       // Change the payload.
       const payload = Buffer.from("Somebody set up us the bomb.");
@@ -84,7 +84,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         program,
         forkedProgram,
         { payer, emitter: payer },
-        { nonce, finality, payload },
+        { nonce, commitment, payload },
         commonEmitterSequence
       );
     });
@@ -161,13 +161,13 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         emitter: emitter.publicKey,
         payer: payer.publicKey,
       };
-      let { nonce, payload, finality } = defaultArgs();
+      let { nonce, payload, commitment } = defaultArgs();
       payload = Buffer.alloc(0);
 
       const ix = coreBridge.legacyPostMessageIx(program, accounts, {
         nonce,
         payload,
-        finality,
+        commitment,
       });
       await expectIxErr(connection, [ix], [payer, emitter, message], "InvalidInstructionArgument");
     });
@@ -178,7 +178,7 @@ function defaultArgs() {
   return {
     nonce: 420,
     payload: Buffer.from("All your base are belong to us."),
-    finality: 1,
+    commitment: "finalized" as anchor.web3.Commitment,
   };
 }
 
@@ -195,12 +195,14 @@ async function everythingOk(
   const { payer, emitter } = signers;
   const message = anchor.web3.Keypair.generate();
 
+  const { nonce, payload, commitment } = args;
+  const consistencyLevel = coreBridge.toConsistencyLevel(commitment);
   const out = await coreBridge.expectOkPostMessage(
     program,
     { payer, emitter, message },
     args,
     sequence,
-    args.payload,
+    { nonce, consistencyLevel, payload },
     nullAccounts
   );
 
@@ -224,13 +226,15 @@ async function parallelEverythingOk(
   const message = anchor.web3.Keypair.generate();
   const forkMessage = anchor.web3.Keypair.generate();
 
+  const { nonce, payload, commitment } = args;
+  const consistencyLevel = coreBridge.toConsistencyLevel(commitment);
   const [out, forkOut] = await Promise.all([
     coreBridge.expectOkPostMessage(
       program,
       { payer, emitter, message },
       args,
       sequence,
-      args.payload,
+      { nonce, consistencyLevel, payload },
       nullAccounts
     ),
     coreBridge.expectOkPostMessage(
@@ -238,7 +242,7 @@ async function parallelEverythingOk(
       { payer, emitter, message: forkMessage },
       args,
       sequence,
-      args.payload
+      { nonce, consistencyLevel, payload }
     ),
   ]);
 

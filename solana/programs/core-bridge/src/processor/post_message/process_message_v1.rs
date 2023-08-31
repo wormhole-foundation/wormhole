@@ -124,7 +124,7 @@ fn write(ctx: Context<ProcessMessageV1>, index: u32, data: Vec<u8>) -> Result<()
 fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
     msg!("Directive: Finalize");
 
-    let emitter = {
+    let (nonce, consistency_level, emitter) = {
         let acc_data = ctx.accounts.draft_message.data.borrow();
         let message = PostedMessageV1::parse(&acc_data)?;
 
@@ -133,7 +133,11 @@ fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
             CoreBridgeError::NotInWritingStatus
         );
 
-        message.emitter()
+        (
+            message.nonce(),
+            message.consistency_level(),
+            message.emitter(),
+        )
     };
 
     // Skip the discriminator.
@@ -143,12 +147,12 @@ fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
     // Serialize all info for simplicity.
     writer.write_all(&PostedMessageV1::DISCRIMINATOR)?;
     PostedMessageV1Info {
-        consistency_level: Default::default(),
+        consistency_level,
         emitter_authority: ctx.accounts.emitter_authority.key(),
         status: MessageStatus::Finalized,
         _gap_0: Default::default(),
         posted_timestamp: Default::default(),
-        nonce: Default::default(),
+        nonce,
         sequence: Default::default(),
         solana_chain_id: Default::default(),
         emitter,

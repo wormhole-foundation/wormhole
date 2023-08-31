@@ -70,11 +70,11 @@ export async function expectLegacyPostMessageAfterEffects(
   const connection = program.provider.connection;
 
   const { emitter, message } = accounts;
-  const { nonce, payload, finality } = args;
+  const { nonce, payload, commitment } = args;
 
   const {
     status,
-    finality: msgFinality,
+    consistencyLevel,
     emitterAuthority,
     _gap0,
     postedTimestamp,
@@ -87,7 +87,7 @@ export async function expectLegacyPostMessageAfterEffects(
     ? coreBridge.PostedMessageV1Unreliable.fromAccountAddress(connection, message)
     : coreBridge.PostedMessageV1.fromAccountAddress(connection, message));
 
-  expect(msgFinality).equals(finality === 0 ? 1 : 32);
+  expect(consistencyLevel).equals(commitment === "confirmed" ? 1 : 32);
   expect(emitterAuthority.equals(PublicKey.default)).is.true;
   expect(status).equals(coreBridge.MessageStatus.Unset);
   expect(_gap0.equals(Buffer.alloc(3))).is.true;
@@ -123,7 +123,11 @@ export async function expectOkPostMessage(
   },
   args: coreBridge.LegacyPostMessageArgs,
   sequence: BN,
-  expectedMessage: Buffer,
+  expected: {
+    consistencyLevel: number;
+    nonce: number;
+    payload: Buffer;
+  },
   nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean }
 ) {
   if (nullAccounts === undefined) {
@@ -171,9 +175,9 @@ export async function expectOkPostMessage(
     connection,
     message.publicKey
   );
-  const { nonce, finality } = args;
+  const { nonce, consistencyLevel, payload } = expected;
   expectDeepEqual(postedMessageData, {
-    finality: finality == coreBridge.Finality.Confirmed ? 1 : 32,
+    consistencyLevel,
     emitterAuthority: PublicKey.default,
     status: coreBridge.MessageStatus.Unset,
     _gap0: Buffer.alloc(3),
@@ -182,7 +186,7 @@ export async function expectOkPostMessage(
     sequence,
     solanaChainId: 1,
     emitter: emitter.publicKey,
-    payload: expectedMessage,
+    payload,
   });
 
   const emitterSequence = await coreBridge.EmitterSequence.fromPda(

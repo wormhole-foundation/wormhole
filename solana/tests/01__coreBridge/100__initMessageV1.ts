@@ -21,13 +21,15 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
       const initIx = await coreBridge.initMessageV1Ix(
         program,
         { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-        { cpiProgramId: null }
+        defaultArgs()
       );
       await expectIxErr(connection, [initIx], [payer, emitterAuthority], "ConstraintOwner");
     });
 
     it("Cannot Invoke `init_message_v1` with Some(cpi_program_id)", async () => {
       const invalidArgs = {
+        nonce: 420,
+        commitment: "finalized" as anchor.web3.Commitment,
         cpiProgramId: anchor.web3.Keypair.generate().publicKey,
       };
       const { draftMessage, emitterAuthority, instructions } = await createIxs(
@@ -61,7 +63,7 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
       const initIx = await coreBridge.initMessageV1Ix(
         program,
         { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-        { cpiProgramId }
+        defaultArgs()
       );
       await expectIxErr(
         connection,
@@ -117,12 +119,12 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
           draftMessage.publicKey
         );
         expectDeepEqual(draftMessageData, {
-          finality: 0,
+          consistencyLevel: 32,
           emitterAuthority: emitterAuthority.publicKey,
           status: coreBridge.MessageStatus.Writing,
           _gap0: Buffer.alloc(3),
           postedTimestamp: 0,
-          nonce: 0,
+          nonce: 420,
           sequence: new anchor.BN(0),
           solanaChainId: 1,
           emitter: emitterAuthority.publicKey,
@@ -144,12 +146,16 @@ describe("Core Bridge -- Instruction: Init Message V1", () => {
       const initIx = await coreBridge.initMessageV1Ix(
         program,
         { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-        { cpiProgramId: null }
+        defaultArgs()
       );
       await expectIxErr(connection, [initIx], [payer, emitterAuthority], "AccountNotZeroed");
     });
   });
 });
+
+function defaultArgs() {
+  return { nonce: 420, commitment: "finalized" as anchor.web3.Commitment, cpiProgramId: null };
+}
 
 async function prepareDraftMessage(
   program: coreBridge.CoreBridgeProgram,
@@ -175,7 +181,7 @@ async function createIxs(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
   messageSize: number,
-  args: coreBridge.InitMessageV1Args = { cpiProgramId: null }
+  args: coreBridge.InitMessageV1Args = defaultArgs()
 ) {
   const { draftMessage, createIx } = await prepareDraftMessage(program, payer, messageSize);
 

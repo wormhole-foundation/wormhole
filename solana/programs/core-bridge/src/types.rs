@@ -103,6 +103,12 @@ impl Timestamp {
     }
 }
 
+impl PartialEq<u32> for Timestamp {
+    fn eq(&self, other: &u32) -> bool {
+        self.value == *other
+    }
+}
+
 impl From<u32> for Timestamp {
     fn from(value: u32) -> Self {
         Timestamp { value }

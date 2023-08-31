@@ -35,16 +35,24 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
     it("Invoke Legacy `post_message` With Payer as Emitter", async () => {
       const message = Buffer.from("I'm the captain now. ");
 
-      await everythingOk(program, payer, message, new anchor.BN(3), payer);
+      const nonce = 420;
+      const commitment = "confirmed";
+
+      await everythingOk(program, payer, message, nonce, commitment, new anchor.BN(3), payer);
     });
 
     it("Invoke Legacy `post_message` With Prepared Message", async () => {
       const message = Buffer.alloc(5 * 1_024, "All your base are belong to us. ");
 
+      const nonce = 420;
+      const commitment = "confirmed";
+
       const { draftMessage, emitterAuthority } = await everythingOk(
         program,
         payer,
         message,
+        nonce,
+        commitment,
         new anchor.BN(0)
       );
 
@@ -57,8 +65,9 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.Keypair;
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
 
-      const nonce = 420;
-      const finality = coreBridge.Finality.Confirmed;
+      // Intentionally different from how the message was prepared.
+      const nonce = 0;
+      const commitment = "finalized";
       const ix = coreBridge.legacyPostMessageIx(
         program,
         {
@@ -66,7 +75,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
           emitter: emitterAuthority.publicKey,
           payer: payer.publicKey,
         },
-        { nonce, finality, payload: Buffer.alloc(0) }
+        { nonce, commitment, payload: Buffer.alloc(0) }
       );
       await expectIxErr(
         connection,
@@ -82,6 +91,8 @@ async function everythingOk(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
   message: Buffer,
+  nonce: number,
+  commitment: anchor.web3.Commitment,
   sequence: anchor.BN,
   emitterAuthority?: anchor.web3.Keypair
 ) {
@@ -89,16 +100,21 @@ async function everythingOk(
     emitterAuthority = anchor.web3.Keypair.generate();
   }
 
-  const { draftMessage } = await initAndProcessMessageV1(program, payer, message, emitterAuthority);
+  const { draftMessage } = await initAndProcessMessageV1(
+    program,
+    payer,
+    message,
+    nonce,
+    commitment,
+    emitterAuthority
+  );
 
-  const nonce = 420;
-  const finality = coreBridge.Finality.Confirmed;
   await coreBridge.expectOkPostMessage(
     program,
     { payer, message: draftMessage, emitter: emitterAuthority },
-    { nonce, finality, payload: Buffer.alloc(0) },
+    { nonce, commitment, payload: Buffer.alloc(0) },
     sequence,
-    message
+    { nonce, consistencyLevel: 1, payload: message }
   );
 
   sequence.iaddn(1);
@@ -110,6 +126,8 @@ async function initAndProcessMessageV1(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
   message: Buffer,
+  nonce: number,
+  commitment: anchor.web3.Commitment,
   emitterAuthority?: anchor.web3.Keypair
 ) {
   if (emitterAuthority === undefined) {
@@ -132,10 +150,10 @@ async function initAndProcessMessageV1(
   const initIx = await coreBridge.initMessageV1Ix(
     program,
     { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-    { cpiProgramId: null }
+    { nonce, commitment, cpiProgramId: null }
   );
 
-  const endAfterInit = 745;
+  const endAfterInit = 740;
   const firstProcessIx = await coreBridge.processMessageV1Ix(
     program,
     {

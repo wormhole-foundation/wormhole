@@ -77,7 +77,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
   describe("Ok", () => {
     it("Invoke `post_message_unreliable`", async () => {
       // Fetch default args.
-      const { nonce, payload, finality } = defaultArgs();
+      const { nonce, payload, commitment } = defaultArgs();
 
       // Create parallel transaction args.
       const args: parallelTxArgs = {
@@ -96,7 +96,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Invoke `postMessage`.
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         args,
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         payer
       );
 
@@ -120,7 +120,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: messageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -134,7 +134,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: forkedMessageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -157,11 +157,15 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
     it("Invoke `post_message_unreliable` Using Same Message Signer", async () => {
       // Fetch existing message from the program. Since we are using the same
       // signer, the message data account should be the same.
-      const [existingFinality, existingNonce, existingPayload] =
+      const [existingCommitment, existingNonce, existingPayload] =
         await coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
           connection,
           messageSigner.publicKey
-        ).then((msg): [number, number, Buffer] => [msg.finality, msg.nonce, msg.payload]);
+        ).then((msg): [anchor.web3.Commitment, number, Buffer] => [
+          coreBridge.fromConsistencyLevel(msg.consistencyLevel),
+          msg.nonce,
+          msg.payload,
+        ]);
 
       // Create parallel transaction args.
       const args: parallelTxArgs = {
@@ -181,8 +185,8 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const nonce = 69;
       expect(nonce).not.equals(existingNonce);
 
-      const finality = 0;
-      expect(finality).not.equals(existingFinality);
+      const commitment = "confirmed";
+      expect(commitment).not.equals(existingCommitment);
 
       const payload = Buffer.alloc(existingPayload.length);
       payload.fill(0);
@@ -192,7 +196,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Invoke `postMessage`.
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         args,
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         payer
       );
 
@@ -216,7 +220,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: messageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -230,7 +234,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: forkedMessageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -252,8 +256,8 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
     it("Invoke `post_message_unreliable` with New Message Signer", async () => {
       // Fetch default args.
-      let { nonce, payload, finality } = defaultArgs();
-      payload = Buffer.from("Would you just look at that?");
+      const { nonce, commitment } = defaultArgs();
+      const payload = Buffer.from("Would you just look at that?");
 
       // Create two new message signers.
       const newMessageSigner = anchor.web3.Keypair.generate();
@@ -276,7 +280,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Invoke `postMessage`.
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         args,
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         payer
       );
 
@@ -300,7 +304,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: newMessageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -314,7 +318,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: newForkedMessageSigner.publicKey,
           emitter: commonEmitter.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         commonEmitterSequence,
         true,
         payload
@@ -336,8 +340,8 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
     it("Invoke `post_message_unreliable` with Payer as Emitter", async () => {
       // Fetch default args.
-      let { nonce, payload, finality } = defaultArgs();
-      payload = Buffer.from("Would you just look at that?");
+      const { nonce, commitment } = defaultArgs();
+      const payload = Buffer.from("Would you just look at that?");
 
       // Create two new message signers.
       const newMessageSigner = anchor.web3.Keypair.generate();
@@ -367,7 +371,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Invoke `postMessage`.
       const [txDetails, forkTxDetails] = await parallelTxDetails(
         args,
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         payer
       );
 
@@ -391,7 +395,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: newMessageSigner.publicKey,
           emitter: payer.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         sequenceBefore.sequence,
         true,
         payload
@@ -405,7 +409,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
           message: newForkedMessageSigner.publicKey,
           emitter: payer.publicKey,
         },
-        { nonce, payload, finality },
+        { nonce, payload, commitment },
         sequenceBefore.sequence,
         true,
         payload
@@ -446,13 +450,13 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
         emitter: emitter.publicKey,
         payer: payer.publicKey,
       };
-      let { nonce, payload, finality } = defaultArgs();
-      payload = Buffer.alloc(0);
+      const { nonce, commitment } = defaultArgs();
+      const payload = Buffer.alloc(0);
 
       const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
         nonce,
         payload,
-        finality,
+        commitment,
       });
       await expectIxErr(
         connection,
@@ -468,7 +472,7 @@ function defaultArgs() {
   return {
     nonce: 420,
     payload: Buffer.from("All your base are belong to us."),
-    finality: 1,
+    commitment: "finalized" as anchor.web3.Commitment,
   };
 }
 

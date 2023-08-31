@@ -9,6 +9,7 @@ export * from "./instructions";
 export * from "./legacy";
 export * from "./state";
 export * from "./testing";
+export * from "./types";
 export * from "./utils";
 
 export type CoreBridgeProgram = Program<WormholeCoreBridgeSolana>;

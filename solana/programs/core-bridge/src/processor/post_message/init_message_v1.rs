@@ -4,6 +4,7 @@ use crate::{
     constants::MAX_MESSAGE_PAYLOAD_SIZE,
     error::CoreBridgeError,
     state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
+    types::Commitment,
 };
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{utils, LegacyDiscriminator};
@@ -62,6 +63,8 @@ impl<'info> InitMessageV1<'info> {
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitMessageV1Args {
+    pub nonce: u32,
+    pub commitment: Commitment,
     pub cpi_program_id: Option<Pubkey>,
 }
 
@@ -76,7 +79,11 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
         CoreBridgeError::ExceedsMaxPayloadSize
     );
 
-    let InitMessageV1Args { cpi_program_id } = args;
+    let InitMessageV1Args {
+        nonce,
+        commitment,
+        cpi_program_id,
+    } = args;
 
     // This instruction allows a program to declare its own program ID as an emitter if we can
     // derive the emitter authority from seeds [b"emitter"]. This is useful for programs that do not
@@ -90,12 +97,12 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // payload length.
     writer.write_all(&PostedMessageV1::LEGACY_DISCRIMINATOR)?;
     PostedMessageV1Info {
-        consistency_level: Default::default(),
+        consistency_level: commitment.into(),
         emitter_authority: ctx.accounts.emitter_authority.key(),
         status: MessageStatus::Writing,
         _gap_0: Default::default(),
         posted_timestamp: Default::default(),
-        nonce: Default::default(),
+        nonce,
         sequence: Default::default(),
         solana_chain_id: Default::default(),
         emitter,
