@@ -4,9 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
-use core_bridge_program::{
-    self, constants::SOLANA_CHAIN, state::Config as CoreBridgeConfig, CoreBridge,
-};
+use core_bridge_program::sdk as core_bridge_sdk;
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -37,10 +35,9 @@ pub struct AttestToken<'info> {
     )]
     token_metadata: Box<Account<'info, metadata::MetadataAccount>>,
 
-    /// We need to deserialize this account to determine the Wormhole message fee. We do not have to
-    /// check the seeds here because the Core Bridge program will do this for us.
+    /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_bridge_config: Box<Account<'info, CoreBridgeConfig>>,
+    core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -68,16 +65,16 @@ pub struct AttestToken<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokeCoreBridge<'info> for AttestToken<'info> {
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for AttestToken<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
     }
 }
 
-impl<'info> core_bridge_program::sdk::cpi::InvokePostMessageV1<'info> for AttestToken<'info> {
+impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for AttestToken<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -133,7 +130,7 @@ pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> R
         nonce,
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),
-            token_chain: SOLANA_CHAIN,
+            token_chain: core_bridge_sdk::SOLANA_CHAIN,
             decimals,
             symbol: string_to_fixed32(&metadata.symbol),
             name: string_to_fixed32(&metadata.name),

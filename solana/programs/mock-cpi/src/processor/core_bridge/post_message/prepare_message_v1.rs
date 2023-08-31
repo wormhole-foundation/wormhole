@@ -41,7 +41,7 @@ pub struct MockPrepareMessageV1<'info> {
     )]
     emitter_authority: AccountInfo<'info>,
 
-    core_bridge_program: Program<'info, core_bridge_program::CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
     system_program: Program<'info, System>,
 }
 

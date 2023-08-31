@@ -13,6 +13,7 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
     "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
 ];
 
+/// We disallow certain posted VAA accounts from being used to redeem Token Bridge transfers.
 pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
     // IYKYK.
     require!(
@@ -23,6 +24,11 @@ pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
     Ok(())
 }
 
+/// In order for a VAA to be a valid Token Bridge VAA, it must have been sent by another registered
+/// Token Bridge and must be serialized as one of the following messages:
+/// - Transfer (Payload ID == 1)
+/// - Attestation (Payload ID == 2)
+/// - Transfer with Message (Payload ID == 3)
 pub fn require_valid_posted_token_bridge_vaa<'ctx>(
     vaa_acc_key: &Pubkey,
     vaa: &core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
@@ -58,6 +64,7 @@ pub fn require_valid_posted_token_bridge_vaa<'ctx>(
         );
     }
 
+    // Make sure we are working with a valid Token Bridge message.
     TokenBridgeMessage::parse(vaa.payload())
         .map_err(|_| error!(TokenBridgeError::CannotParseMessage))
 }

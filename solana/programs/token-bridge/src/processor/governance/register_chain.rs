@@ -3,7 +3,7 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{zero_copy::EncodedVaa, CoreBridge};
+use core_bridge_program::{sdk::cpi::CoreBridge, zero_copy::EncodedVaa};
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 #[derive(Accounts)]

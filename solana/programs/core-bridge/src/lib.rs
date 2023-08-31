@@ -36,15 +36,6 @@ pub mod zero_copy;
 
 pub use wormhole_solana_common::SeedPrefix;
 
-#[derive(Clone)]
-pub struct CoreBridge;
-
-impl Id for CoreBridge {
-    fn id() -> Pubkey {
-        ID
-    }
-}
-
 #[program]
 pub mod wormhole_core_bridge_solana {
     use super::*;
