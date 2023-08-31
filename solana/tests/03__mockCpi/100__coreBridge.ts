@@ -207,10 +207,11 @@ describe("Mock CPI -- Core Bridge", () => {
         program.programId
       )[0];
 
+      const nonce = 420;
       const data = Buffer.from("What's on draft tonight?");
 
       const ix = await program.methods
-        .mockPrepareMessageV1({ data })
+        .mockPrepareMessageV1({ nonce, data })
         .accounts({
           payer: payer.publicKey,
           payerSequence,
@@ -220,6 +221,44 @@ describe("Mock CPI -- Core Bridge", () => {
         })
         .instruction();
       await expectIxOk(connection, [ix], [payer]);
+
+      const draftMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
+        connection,
+        message
+      );
+      expectDeepEqual(draftMessageData, {
+        consistencyLevel: 32,
+        emitterAuthority,
+        status: coreBridge.MessageStatus.Finalized,
+        _gap0: Buffer.alloc(3),
+        postedTimestamp: 0,
+        nonce,
+        sequence: new anchor.BN(0),
+        solanaChainId: 1,
+        emitter: program.programId,
+        payload: data,
+      });
+
+      localVariables.set("message", message);
+    });
+
+    it.skip("Invoke Legacy `post_message` with Prepared Message", async () => {
+      const message = localVariables.get("message") as anchor.web3.PublicKey;
+
+      const nonce = 69;
+      const ix = coreBridge.legacyPostMessageIx(
+        mockCpi.getCoreBridgeProgram(program),
+        {
+          payer: payer.publicKey,
+          message,
+          emitter: program.programId,
+        },
+        { nonce, commitment: "confirmed", payload: Buffer.alloc(0) }
+      );
+      await expectIxOk(connection, [ix], [payer]);
+
+      const messageData = await coreBridge.PostedMessageV1.fromAccountAddress(connection, message);
+      console.log(messageData);
     });
   });
 });

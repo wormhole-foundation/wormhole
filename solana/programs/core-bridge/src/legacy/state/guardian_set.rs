@@ -22,10 +22,10 @@ impl GuardianSet {
     pub fn is_active(&self, timestamp: &Timestamp) -> bool {
         // Note: This is a fix for Wormhole on mainnet.  The initial guardian set was never expired
         // so we block it here.
-        if self.index == 0 && self.creation_time == 1628099186.into() {
+        if self.index == 0 && self.creation_time == 1628099186 {
             false
         } else {
-            self.expiration_time == Default::default() || self.expiration_time >= *timestamp
+            self.expiration_time == 0 || self.expiration_time >= *timestamp
         }
     }
 }

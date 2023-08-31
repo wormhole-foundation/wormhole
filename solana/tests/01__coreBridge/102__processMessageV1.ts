@@ -133,12 +133,12 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
           draftMessage
         );
         expectDeepEqual(draftMessageData, {
-          finality: 0,
+          consistencyLevel: 32,
           emitterAuthority: emitterAuthority.publicKey,
           status: coreBridge.MessageStatus.Writing,
           _gap0: Buffer.alloc(3),
           postedTimestamp: 0,
-          nonce: 0,
+          nonce: 420,
           sequence: new anchor.BN(0),
           solanaChainId: 1,
           emitter: emitterAuthority.publicKey,
@@ -244,7 +244,7 @@ async function initMessageV1(
   const initIx = await coreBridge.initMessageV1Ix(
     program,
     { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-    { cpiProgramId: null }
+    { nonce: 420, commitment: "finalized", cpiProgramId: null }
   );
 
   await expectIxOk(

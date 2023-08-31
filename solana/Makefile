@@ -19,7 +19,8 @@ node_modules:
 build: $(out_$(NETWORK))
 $(out_$(NETWORK)):
 ifdef out_$(NETWORK)
-	anchor build --arch sbf -- --features "$(NETWORK)" -- --no-default-features
+	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features "$(NETWORK)" -- --no-default-features
+	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features "$(NETWORK)" -- --no-default-features
 	mkdir -p $(out_$(NETWORK))
 	cp target/deploy/*.so $(out_$(NETWORK))/
 endif

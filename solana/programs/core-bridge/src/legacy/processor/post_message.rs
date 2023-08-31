@@ -40,10 +40,10 @@ pub struct PostMessage<'info> {
     )]
     message: Account<'info, PostedMessageV1>,
 
-    /// The emitter of the core bridge message. This account is typically an integrating
+    /// CHECK: The emitter of the core bridge message. This account is typically an integrating
     /// program's PDA which signs for this instruction. This account must be a signer if the message
     /// is created in this instruction.
-    emitter_authority: Option<Signer<'info>>,
+    emitter: AccountInfo<'info>,
 
     /// Sequence tracker for given emitter. Every core bridge message is tagged with a unique
     /// sequence number.
@@ -57,7 +57,7 @@ pub struct PostMessage<'info> {
         space = EmitterSequence::INIT_SPACE,
         seeds = [
             EmitterSequence::SEED_PREFIX,
-            find_emitter_for_sequence(&emitter_authority, &message)?.as_ref()
+            find_emitter_for_sequence(&emitter, &message)?.as_ref()
         ],
         bump
     )]
@@ -89,46 +89,31 @@ pub struct PostMessage<'info> {
 pub fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
     // TODO: Change helper methods to take ctx.
     match ctx.accounts.message.data.status {
-        MessageStatus::Unset => {
-            // If the message status is unset, we need to make sure that this
-            // message account has not been used already. The emitter will be
-            // unset as well if the account was just created with
-            // `init_if_needed`.
-            require_keys_eq!(
-                ctx.accounts.message.emitter,
-                Pubkey::default(),
-                CoreBridgeError::MessageAlreadyPublished
-            );
-
-            handle_post_new_message(
-                &mut ctx.accounts.config,
-                &mut ctx.accounts.message,
-                ctx.accounts.emitter_authority.as_ref().unwrap(),
-                &mut ctx.accounts.emitter_sequence,
-                &ctx.accounts.fee_collector,
-                args,
-            )
-        }
-        MessageStatus::Finalized => {
-            msg!("MessageStatus: Finalized");
-            handle_post_prepared_message(
-                &mut ctx.accounts.config,
-                &mut ctx.accounts.message,
-                &mut ctx.accounts.emitter_sequence,
-                &ctx.accounts.fee_collector,
-                args,
-            )
-        }
-        _ => err!(CoreBridgeError::InWritingStatus),
+        MessageStatus::Unset => handle_post_new_message(
+            &mut ctx.accounts.config,
+            &mut ctx.accounts.message,
+            &ctx.accounts.emitter,
+            &mut ctx.accounts.emitter_sequence,
+            &ctx.accounts.fee_collector,
+            args,
+        ),
+        MessageStatus::Writing => err!(CoreBridgeError::InWritingStatus),
+        MessageStatus::Finalized => handle_post_prepared_message(
+            &mut ctx.accounts.config,
+            &mut ctx.accounts.message,
+            &mut ctx.accounts.emitter_sequence,
+            &ctx.accounts.fee_collector,
+            args,
+        ),
     }
 }
 
 pub(in crate::legacy) fn handle_post_new_message(
-    config: &mut Account<'_, Config>,
+    config: &mut Account<Config>,
     msg: &mut PostedMessageV1Data,
-    emitter_authority: &Signer<'_>,
-    emitter_sequence: &mut Account<'_, EmitterSequence>,
-    fee_collector: &Option<Account<'_, FeeCollector>>,
+    emitter_authority: &AccountInfo,
+    emitter_sequence: &mut Account<EmitterSequence>,
+    fee_collector: &Option<Account<FeeCollector>>,
     args: PostMessageArgs,
 ) -> Result<()> {
     let PostMessageArgs {
@@ -186,10 +171,12 @@ fn handle_post_prepared_message(
     fee_collector: &Option<Account<'_, FeeCollector>>,
     args: PostMessageArgs,
 ) -> Result<()> {
+    msg!("MessageStatus: Finalized");
+
     let PostMessageArgs {
-        nonce,
+        nonce: _,
         payload,
-        commitment,
+        commitment: _,
     } = args;
 
     // The payload argument is not allowed if the message has been prepared beforehand.
@@ -206,10 +193,8 @@ fn handle_post_prepared_message(
 
     // Now indicate that this message will be observed by the guardians.
     msg.status = MessageStatus::Unset;
-    msg.consistency_level = commitment.into();
     msg.emitter_authority = Default::default();
     msg.posted_timestamp = Clock::get().map(Into::into)?;
-    msg.nonce = nonce;
     msg.sequence = emitter_sequence.value;
 
     // Increment emitter sequence value.
@@ -262,21 +247,27 @@ fn compute_size_if_needed(msg_acc_info: &AccountInfo<'_>, payload: &Vec<u8>) -> 
 /// authority). Whereas with the new prepared message, this emitter can be taken from the
 /// message account to re-derive the emitter sequence PDA address.
 fn find_emitter_for_sequence(
-    emitter_authority: &Option<Signer<'_>>,
-    message: &Account<'_, PostedMessageV1>,
+    emitter: &AccountInfo,
+    msg: &Account<PostedMessageV1>,
 ) -> Result<Pubkey> {
-    match message.data.status {
+    match msg.data.status {
         MessageStatus::Unset => {
-            if message.emitter == Pubkey::default() {
-                match emitter_authority {
-                    Some(emitter_authority) => Ok(emitter_authority.key()),
-                    None => err!(ErrorCode::AccountNotEnoughKeys),
-                }
+            // Because the message status is unset, either the account has been created in the
+            // account context or this message was already published.
+            if msg.posted_timestamp == 0 && msg.emitter == Pubkey::default() {
+                // Because this message was newly created in this instruction, the emitter must be
+                // a signer to authorize posting this message.
+                require!(emitter.is_signer, ErrorCode::AccountNotSigner);
+                Ok(emitter.key())
             } else {
-                Ok(message.emitter)
+                // Message is already published, so we should revert.
+                err!(CoreBridgeError::MessageAlreadyPublished)
             }
         }
-        MessageStatus::Finalized => Ok(message.emitter),
-        _ => err!(CoreBridgeError::InWritingStatus),
+        MessageStatus::Writing => err!(CoreBridgeError::InWritingStatus),
+        MessageStatus::Finalized => {
+            require_eq!(emitter.key(), msg.emitter, CoreBridgeError::EmitterMismatch);
+            Ok(msg.emitter)
+        }
     }
 }

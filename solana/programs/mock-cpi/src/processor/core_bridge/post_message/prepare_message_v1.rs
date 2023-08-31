@@ -5,7 +5,7 @@ use core_bridge_program::sdk as core_bridge_sdk;
 const EMITTER_AUTHORITY_SEED_PREFIX: &[u8] = b"emitter";
 
 #[derive(Accounts)]
-#[instruction(data_len: u32)]
+#[instruction(_nonce: u32, data_len: u32)]
 pub struct MockPrepareMessageV1<'info> {
     #[account(mut)]
     payer: Signer<'info>,
@@ -47,6 +47,7 @@ pub struct MockPrepareMessageV1<'info> {
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct MockPrepareMessageV1Args {
+    pub nonce: u32,
     pub data: Vec<u8>,
 }
 
@@ -54,7 +55,7 @@ pub fn mock_prepare_message_v1(
     ctx: Context<MockPrepareMessageV1>,
     args: MockPrepareMessageV1Args,
 ) -> Result<()> {
-    let MockPrepareMessageV1Args { data } = args;
+    let MockPrepareMessageV1Args { nonce, data } = args;
 
     let emitter_authority_seeds = &[
         EMITTER_AUTHORITY_SEED_PREFIX,
@@ -71,6 +72,8 @@ pub fn mock_prepare_message_v1(
             &[emitter_authority_seeds],
         ),
         core_bridge_program::InitMessageV1Args {
+            nonce,
+            commitment: core_bridge_sdk::types::Commitment::Finalized,
             cpi_program_id: Some(crate::ID),
         },
     )?;

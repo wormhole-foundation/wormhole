@@ -238,7 +238,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       const ix = coreBridge.legacyPostMessageIx(program, accounts, {
         nonce: 420,
         payload: Buffer.from("All your base are belong to us."),
-        finality: 1,
+        commitment: "finalized",
       });
       await expectIxOk(connection, [ix], [payer, emitter, message]);
 
@@ -270,7 +270,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
         nonce: 420,
         payload: Buffer.from("All your base are belong to us."),
-        finality: 1,
+        commitment: "finalized",
       });
       await expectIxOk(connection, [ix], [payer, emitter, message]);
 
@@ -300,7 +300,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, {
         nonce: 420,
         payload: Buffer.from("All your base are belong to us."),
-        finality: 1,
+        commitment: "finalized",
       });
       await expectIxErr(connection, [ix], [payer, emitter, message], "AccountNotEnoughKeys");
     });
@@ -327,7 +327,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       const ix = coreBridge.legacyPostMessageIx(program, accounts, {
         nonce: 420,
         payload: Buffer.from("All your base are belong to us."),
-        finality: 1,
+        commitment: "finalized",
       });
       await expectIxErr(connection, [ix], [payer, emitter, message], "AccountNotEnoughKeys");
     });

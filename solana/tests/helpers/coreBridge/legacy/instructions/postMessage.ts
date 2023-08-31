@@ -4,14 +4,10 @@ import {
   SYSVAR_CLOCK_PUBKEY,
   SystemProgram,
   TransactionInstruction,
+  Commitment,
 } from "@solana/web3.js";
-import { CoreBridgeProgram } from "../..";
+import { CoreBridgeProgram, toLegacyCommitment } from "../..";
 import { Config, FeeCollector, EmitterSequence } from "../state";
-
-export enum Finality {
-  Confirmed,
-  Finalized,
-}
 
 export type LegacyPostMessageContext = {
   config?: PublicKey;
@@ -72,7 +68,7 @@ export function legacyPostMessageAccounts(
 export type LegacyPostMessageArgs = {
   nonce: number;
   payload: Buffer;
-  finality: Finality;
+  commitment: Commitment;
 };
 
 export function legacyPostMessageIx(
@@ -140,13 +136,13 @@ export function handleLegacyPostMessageIx(
       isSigner: false,
     },
   ];
-  const { nonce, payload, finality } = args;
+  const { nonce, payload, commitment } = args;
   const data = Buffer.alloc(1 + 4 + 4 + payload.length + 1);
   data.writeUInt8(unreliable ? 8 : 1, 0);
   data.writeUInt32LE(nonce, 1);
   data.writeUInt32LE(payload.length, 5);
   data.set(payload, 9);
-  data.writeUInt8(finality, 9 + payload.length);
+  data.writeUInt8(toLegacyCommitment(commitment), 9 + payload.length);
 
   return new TransactionInstruction({
     keys,

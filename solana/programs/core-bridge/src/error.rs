@@ -55,6 +55,9 @@ pub enum CoreBridgeError {
     #[msg("InsufficientFees")]
     InsufficientFees = 0x100,
 
+    #[msg("EmitterMismatch")]
+    EmitterMismatch = 0x102,
+
     #[msg("InvalidSignatureSet")]
     InvalidSignatureSet = 0x200,
 

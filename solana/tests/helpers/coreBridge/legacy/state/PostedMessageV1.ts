@@ -14,7 +14,7 @@ export enum MessageStatus {
 }
 
 export class PostedMessageV1 {
-  finality: number;
+  consistencyLevel: number;
   emitterAuthority: PublicKey;
   status: MessageStatus;
   _gap0: Buffer;
@@ -26,7 +26,7 @@ export class PostedMessageV1 {
   payload: Buffer;
 
   protected constructor(
-    finality: number,
+    consistencyLevel: number,
     emitterAuthority: PublicKey,
     status: MessageStatus,
     _gap0: Buffer,
@@ -37,7 +37,7 @@ export class PostedMessageV1 {
     emitter: PublicKey,
     payload: Buffer
   ) {
-    this.finality = finality;
+    this.consistencyLevel = consistencyLevel;
     this.emitterAuthority = emitterAuthority;
     this.status = status;
     this._gap0 = _gap0;
@@ -71,7 +71,7 @@ export class PostedMessageV1 {
   }
 
   static deserialize(data: Buffer): PostedMessageV1 {
-    const finality = data.readUInt8(0);
+    const consistencyLevel = data.readUInt8(0);
     const emitterAuthority = new PublicKey(data.subarray(1, 33));
     const status = (() => {
       switch (data.readUInt8(33)) {
@@ -99,7 +99,7 @@ export class PostedMessageV1 {
     const payload = data.subarray(91, 91 + payloadLen);
 
     return new PostedMessageV1(
-      finality,
+      consistencyLevel,
       emitterAuthority,
       status,
       _gap0,

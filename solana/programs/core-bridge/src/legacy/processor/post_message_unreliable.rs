@@ -97,7 +97,7 @@ impl<'info> PostMessageUnreliable<'info> {
             require_keys_eq!(
                 ctx.accounts.emitter.key(),
                 msg.emitter,
-                CoreBridgeError::EmitterAuthorityMismatch
+                CoreBridgeError::EmitterMismatch
             );
         }
 
