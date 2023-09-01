@@ -163,6 +163,7 @@ spec:
             # - --chainGovernorEnabled=true
             - --ccqEnabled=true
             - --ccqAllowedRequesters=beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+            - --ccqAllowedPeers=12D3KooWSnju8zhywCYVi2JwTqky1sySPnmtYLsHHzc4WerMnDQH
             # - --logLevel=debug
           securityContext:
             capabilities:

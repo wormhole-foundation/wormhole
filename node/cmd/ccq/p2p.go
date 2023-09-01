@@ -40,9 +40,10 @@ type SignedResponse struct {
 }
 
 type P2PSub struct {
-	sub   *pubsub.Subscription
-	topic *pubsub.Topic
-	host  host.Host
+	sub        *pubsub.Subscription
+	topic_req  *pubsub.Topic
+	topic_resp *pubsub.Topic
+	host       host.Host
 }
 
 func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrap, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger) (*P2PSub, error) {
@@ -105,23 +106,39 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 		return nil, err
 	}
 
-	topicName := fmt.Sprintf("%s/%s", networkID, "broadcast")
+	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
+	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
-	logger.Info("Subscribing pubsub topic", zap.String("topic", topicName))
-	ps, err := pubsub.NewGossipSub(ctx, h)
+	logger.Info("Subscribing pubsub topic", zap.String("topic_req", topic_req), zap.String("topic_resp", topic_resp))
+
+	// Comment from security team in PR #2981: CCQServers should have a parameter of D = 36, Dlo = 19, Dhi = 40, Dout = 18 such that they can reach all Guardians directly.
+	gossipParams := pubsub.DefaultGossipSubParams()
+	gossipParams.D = 36
+	gossipParams.Dlo = 19
+	gossipParams.Dhi = 40
+	gossipParams.Dout = 18
+
+	ps, err := pubsub.NewGossipSub(ctx, h, pubsub.WithGossipSubParams(gossipParams))
 	if err != nil {
+		logger.Error("failed to create gossip subscription", zap.Error(err))
 		return nil, err
 	}
 
-	topic, err := ps.Join(topicName)
+	th_req, err := ps.Join(topic_req)
 	if err != nil {
-		logger.Error("failed to join topic", zap.Error(err))
+		logger.Error("failed to join request topic", zap.String("topic_req", topic_req), zap.Error(err))
 		return nil, err
 	}
 
-	sub, err := topic.Subscribe()
+	th_resp, err := ps.Join(topic_resp)
 	if err != nil {
-		logger.Error("failed to subscribe topic", zap.Error(err))
+		logger.Error("failed to join response topic", zap.String("topic_resp", topic_resp), zap.Error(err))
+		return nil, err
+	}
+
+	sub, err := th_resp.Subscribe()
+	if err != nil {
+		logger.Error("failed to subscribe to response topic", zap.Error(err))
 		return nil, err
 	}
 
@@ -129,7 +146,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 	// Wait for peers
-	for len(topic.ListPeers()) < 1 {
+	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
 
@@ -230,8 +247,9 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 	}()
 
 	return &P2PSub{
-		sub:   sub,
-		topic: topic,
-		host:  h,
+		sub:        sub,
+		topic_req:  th_req,
+		topic_resp: th_resp,
+		host:       h,
 	}, nil
 }

@@ -39,7 +39,7 @@ type GuardianOption struct {
 
 // GuardianOptionP2P configures p2p networking.
 // Dependencies: Accountant, Governor
-func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, port uint, ibcFeaturesFunc func() string) *GuardianOption {
+func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, port uint, ccqBootstrapPeers string, ccqPort uint, ccqAllowedPeers string, ibcFeaturesFunc func() string) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
 		dependencies: []string{"accountant", "governor", "gateway-relayer"},
@@ -76,6 +76,9 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 				(g.queryHandler != nil),
 				g.signedQueryReqC.writeC,
 				g.queryResponsePublicationC.readC,
+				ccqBootstrapPeers,
+				ccqPort,
+				ccqAllowedPeers,
 			)
 
 			return nil
