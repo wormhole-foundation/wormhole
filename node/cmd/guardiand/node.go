@@ -215,6 +215,9 @@ var (
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
+	ccqP2pPort           *uint
+	ccqP2pBootstrap      *string
+	ccqAllowedPeers      *string
 
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
@@ -390,6 +393,9 @@ func init() {
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
+	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
+	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (comma-separated)")
+	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
 
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
@@ -490,6 +496,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Use the first guardian node as bootstrap
 		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
+		*ccqP2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *ccqP2pPort, g0key.String())
 
 		// Deterministic ganache ETH devnet address.
 		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
@@ -1468,7 +1475,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionProcessor(),
 	}

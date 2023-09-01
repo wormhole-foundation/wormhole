@@ -359,7 +359,9 @@ func runSpy(cmd *cobra.Command, args []string) {
 				false, // ccqEnabled
 				nil,   // query requests
 				nil,   // query responses
-
+				"",    // query bootstrap peers
+				0,     // query port
+				"",    // query allow list
 			)); err != nil {
 			return err
 		}
