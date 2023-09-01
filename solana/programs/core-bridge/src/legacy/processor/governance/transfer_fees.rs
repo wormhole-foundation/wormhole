@@ -1,8 +1,8 @@
 use crate::{
-    constants::SOLANA_CHAIN,
+    constants::{FEE_COLLECTOR_SEED_PREFIX, SOLANA_CHAIN},
     error::CoreBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, Config, FeeCollector},
+    state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
 use anchor_lang::{
@@ -48,12 +48,13 @@ pub struct TransferFees<'info> {
     )]
     claim: Account<'info, Claim>,
 
+    /// CHECK: Fee collector.
     #[account(
         mut,
-        seeds = [FeeCollector::SEED_PREFIX],
+        seeds = [FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
-    fee_collector: Account<'info, FeeCollector>,
+    fee_collector: AccountInfo<'info>,
 
     /// CHECK: This recipient account must equal the one encoded in the governance VAA.
     #[account(mut)]
@@ -134,7 +135,7 @@ pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()>
                 from: fee_collector.to_account_info(),
                 to: ctx.accounts.recipient.to_account_info(),
             },
-            &[&[FeeCollector::SEED_PREFIX, &[ctx.bumps["fee_collector"]]]],
+            &[&[FEE_COLLECTOR_SEED_PREFIX, &[ctx.bumps["fee_collector"]]]],
         ),
         to_u64_unchecked(&U256::from_be_bytes(decree.amount())),
     )?;

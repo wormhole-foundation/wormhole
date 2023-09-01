@@ -74,9 +74,13 @@ export type LegacyPostMessageArgs = {
 export function legacyPostMessageIx(
   program: CoreBridgeProgram,
   accounts: LegacyPostMessageContext,
-  args: LegacyPostMessageArgs
+  args: LegacyPostMessageArgs,
+  requireOtherSigners: {
+    emitter?: boolean;
+    message?: boolean;
+  } = {}
 ) {
-  return handleLegacyPostMessageIx(program, accounts, args, false);
+  return handleLegacyPostMessageIx(program, accounts, args, false, requireOtherSigners);
 }
 
 /* private */
@@ -84,10 +88,24 @@ export function handleLegacyPostMessageIx(
   program: CoreBridgeProgram,
   accounts: LegacyPostMessageContext,
   args: LegacyPostMessageArgs,
-  unreliable: boolean
+  unreliable: boolean,
+  requireOtherSigners: {
+    emitter?: boolean;
+    message?: boolean;
+  }
 ) {
   const { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } =
     legacyPostMessageAccounts(program, accounts);
+
+  let { emitter: emitterIsSigner, message: messageIsSigner } = requireOtherSigners;
+
+  if (emitterIsSigner === undefined) {
+    emitterIsSigner = true;
+  }
+
+  if (messageIsSigner === undefined) {
+    messageIsSigner = true;
+  }
 
   const keys: AccountMeta[] = [
     {
@@ -98,12 +116,12 @@ export function handleLegacyPostMessageIx(
     {
       pubkey: message,
       isWritable: true,
-      isSigner: true,
+      isSigner: messageIsSigner,
     },
     {
       pubkey: emitter,
-      isWritable: true,
-      isSigner: true,
+      isWritable: false,
+      isSigner: emitterIsSigner,
     },
     {
       pubkey: emitterSequence,

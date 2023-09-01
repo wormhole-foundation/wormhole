@@ -28,7 +28,7 @@ pub fn post_prepared_message_v1<'info, A: InvokePostMessageV1<'info>>(
     post_new_message_v1_bytes(
         accounts,
         PostMessageArgs {
-            nonce: Default::default(),
+            nonce: Default::default(), // not checked
             payload: Vec::new(),
             commitment: crate::types::Commitment::Finalized, // not checked
         },

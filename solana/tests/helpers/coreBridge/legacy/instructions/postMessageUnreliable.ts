@@ -13,5 +13,14 @@ export function legacyPostMessageUnreliableIx(
   accounts: LegacyPostMessageUnreliableContext,
   args: LegacyPostMessageUnreliableArgs
 ) {
-  return handleLegacyPostMessageIx(program, accounts, args, true);
+  return handleLegacyPostMessageIx(
+    program,
+    accounts,
+    args,
+    true, // unreliable
+    {
+      emitter: true,
+      message: true,
+    } // requireOtherSigners
+  );
 }

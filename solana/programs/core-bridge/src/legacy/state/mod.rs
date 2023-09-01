@@ -7,9 +7,6 @@ pub use config::*;
 mod emitter_sequence;
 pub use emitter_sequence::*;
 
-mod fee_collector;
-pub use fee_collector::*;
-
 mod guardian_set;
 pub use guardian_set::*;
 

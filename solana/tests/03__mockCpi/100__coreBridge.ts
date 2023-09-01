@@ -6,10 +6,12 @@ import {
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
+  expectIxOkDetails,
 } from "../helpers";
 import * as mockCpi from "../helpers/mockCpi";
 import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
+import { PublicKey } from "@solana/web3.js";
 
 const UNRELIABLE_PAYLOAD_SIZE = 128;
 
@@ -242,23 +244,42 @@ describe("Mock CPI -- Core Bridge", () => {
       localVariables.set("message", message);
     });
 
-    it.skip("Invoke Legacy `post_message` with Prepared Message", async () => {
+    it("Invoke Legacy `post_message` with Prepared Message", async () => {
       const message = localVariables.get("message") as anchor.web3.PublicKey;
 
       const nonce = 69;
+
+      const coreBridgeProgram = mockCpi.getCoreBridgeProgram(program);
+      const transferIx = await coreBridge.transferMessageFeeIx(coreBridgeProgram, payer.publicKey);
+
       const ix = coreBridge.legacyPostMessageIx(
-        mockCpi.getCoreBridgeProgram(program),
+        coreBridgeProgram,
         {
           payer: payer.publicKey,
           message,
           emitter: program.programId,
         },
-        { nonce, commitment: "confirmed", payload: Buffer.alloc(0) }
+        { nonce, commitment: "confirmed", payload: Buffer.alloc(0) },
+        {
+          emitter: false,
+          message: false,
+        } // require other signers
       );
-      await expectIxOk(connection, [ix], [payer]);
+      const txDetails = await expectIxOkDetails(connection, [transferIx, ix], [payer]);
 
       const messageData = await coreBridge.PostedMessageV1.fromAccountAddress(connection, message);
-      console.log(messageData);
+      expectDeepEqual(messageData, {
+        consistencyLevel: 32,
+        emitterAuthority: anchor.web3.PublicKey.default,
+        status: coreBridge.MessageStatus.Unset,
+        _gap0: Buffer.alloc(3),
+        postedTimestamp: txDetails.blockTime!,
+        nonce: 420,
+        sequence: new anchor.BN(0),
+        solanaChainId: 1,
+        emitter: program.programId,
+        payload: Buffer.from("What's on draft tonight?"),
+      });
     });
   });
 });
