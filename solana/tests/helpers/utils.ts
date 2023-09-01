@@ -2,7 +2,11 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { BN } from "@coral-xyz/anchor";
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { getAccount } from "@solana/spl-token";
+import {
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import {
   ComputeBudgetProgram,
   ConfirmOptions,
@@ -12,9 +16,11 @@ import {
   PublicKey,
   Signer,
   SystemProgram,
+  Transaction,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { execSync } from "child_process";
@@ -505,4 +511,22 @@ export async function processVaa(
   }
 
   return encodedVaa.publicKey;
+}
+
+export async function createAssociatedTokenAccountOffCurve(
+  connection: Connection,
+  payer: Signer,
+  mint: PublicKey,
+  owner: PublicKey,
+  confirmOptions?: ConfirmOptions
+): Promise<PublicKey> {
+  const associatedToken = getAssociatedTokenAddressSync(mint, owner, true);
+
+  const transaction = new Transaction().add(
+    createAssociatedTokenAccountInstruction(payer.publicKey, associatedToken, owner, mint)
+  );
+
+  await sendAndConfirmTransaction(connection, transaction, [payer], confirmOptions);
+
+  return associatedToken;
 }

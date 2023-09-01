@@ -10,8 +10,7 @@ import {
 import { LegacyTransferTokensArgs } from "../";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
 import * as coreBridge from "../../../../coreBridge";
-import { Config, coreEmitterPda, WrappedAsset, transferAuthorityPda } from "../../state";
-import { getAccount } from "@solana/spl-token";
+import { Config, WrappedAsset, coreEmitterPda, transferAuthorityPda } from "../../state";
 
 export type LegacyTransferTokensWrappedContext = {
   payer: PublicKey;

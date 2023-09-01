@@ -29,7 +29,7 @@ export type LegacyCompleteTransferWrappedContext = {
   wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
   mintAuthority?: PublicKey;
-  rent?: PublicKey;
+  recipient?: PublicKey;
   coreBridgeProgram?: PublicKey;
 };
 
@@ -37,10 +37,18 @@ export function legacyCompleteTransferWrappedAccounts(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWrappedContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean,
-  tokenAddressOverride?: number[],
-  tokenChainOverride?: number
+  overrides: {
+    legacyRegisteredEmitterDerive: boolean;
+    tokenAddress?: number[];
+    tokenChain?: number;
+  }
 ) {
+  const {
+    legacyRegisteredEmitterDerive,
+    tokenAddress: tokenAddressOverride,
+    tokenChain: tokenChainOverride,
+  } = overrides;
+
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash, payload } = parsedVaa;
 
@@ -58,7 +66,7 @@ export function legacyCompleteTransferWrappedAccounts(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
   } = accounts;
 
@@ -111,8 +119,10 @@ export function legacyCompleteTransferWrappedAccounts(
     mintAuthority = mintAuthorityPda(programId);
   }
 
-  if (rent === undefined) {
-    rent = SYSVAR_RENT_PUBKEY;
+  if (recipient === undefined) {
+    recipient = SYSVAR_RENT_PUBKEY;
+  } else if (recipient === null) {
+    recipient = programId;
   }
 
   return {
@@ -126,7 +136,7 @@ export function legacyCompleteTransferWrappedAccounts(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
   };
 }
@@ -135,10 +145,14 @@ export function legacyCompleteTransferWrappedIx(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferWrappedContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive?: boolean,
-  tokenAddressOverride?: number[],
-  tokenChainOverride?: number
+  overrides: {
+    legacyRegisteredEmitterDerive?: boolean;
+    tokenAddress?: number[];
+    tokenChain?: number;
+  } = {}
 ) {
+  let { legacyRegisteredEmitterDerive } = overrides;
+
   if (legacyRegisteredEmitterDerive === undefined) {
     legacyRegisteredEmitterDerive = true;
   }
@@ -154,16 +168,12 @@ export function legacyCompleteTransferWrappedIx(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
-  } = legacyCompleteTransferWrappedAccounts(
-    program,
-    accounts,
-    parsedVaa,
+  } = legacyCompleteTransferWrappedAccounts(program, accounts, parsedVaa, {
+    ...overrides,
     legacyRegisteredEmitterDerive,
-    tokenAddressOverride,
-    tokenChainOverride
-  );
+  });
 
   const keys: AccountMeta[] = [
     {
@@ -217,7 +227,7 @@ export function legacyCompleteTransferWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: recipient,
       isWritable: false,
       isSigner: false,
     },

@@ -167,6 +167,7 @@ pub mod cpi {
                 custody_token: *ctx.accounts.custody_token.key,
                 mint: *ctx.accounts.mint.key,
                 custody_authority: *ctx.accounts.custody_authority.key,
+                recipient: ctx.accounts.recipient.as_ref().map(|info| *info.key),
                 system_program: *ctx.accounts.system_program.key,
                 core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 token_program: *ctx.accounts.token_program.key,
@@ -191,6 +192,7 @@ pub mod cpi {
                 wrapped_mint: *ctx.accounts.wrapped_mint.key,
                 wrapped_asset: *ctx.accounts.wrapped_asset.key,
                 mint_authority: *ctx.accounts.mint_authority.key,
+                recipient: ctx.accounts.recipient.as_ref().map(|info| *info.key),
                 system_program: *ctx.accounts.system_program.key,
                 core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 token_program: *ctx.accounts.token_program.key,
@@ -443,6 +445,12 @@ pub mod cpi {
         /// CHECK: Custody Authority (read-only, seeds = ["custody_signer"], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
+        /// CHECK: Recipient, which should be the account owner of recipient token (read-only).
+        ///
+        /// NOTE: This used to be the rent sysvar. If the VAA encodes the recipient token account,
+        /// this account does not need to be provided. Otherwise you need to provide this account,
+        /// whose pubkey should match the VAA recipient.
+        pub recipient: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Core Bridge Program.
@@ -480,6 +488,12 @@ pub mod cpi {
         /// CHECK: Mint Authority (read-only, seeds = ["mint_signer"], seeds::program =
         /// token_bridge_program).
         pub mint_authority: AccountInfo<'info>,
+        /// CHECK: Recipient, which should be the account owner of recipient token (read-only).
+        ///
+        /// NOTE: This used to be the rent sysvar. If the VAA encodes the recipient token account,
+        /// this account does not need to be provided. Otherwise you need to provide this account,
+        /// whose pubkey should match the VAA recipient.
+        pub recipient: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Core Bridge Program.

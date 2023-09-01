@@ -77,6 +77,12 @@ pub enum TokenBridgeError {
     #[msg("InvalidProgramRedeemer")]
     InvalidProgramRedeemer = 0x44,
 
+    #[msg("NestedTokenAccount")]
+    NestedTokenAccount = 0x46,
+
+    #[msg("InvalidRecipient")]
+    InvalidRecipient = 0x48,
+
     #[msg("CannotSerializeJson")]
     CannotSerializeJson = 0x700,
 

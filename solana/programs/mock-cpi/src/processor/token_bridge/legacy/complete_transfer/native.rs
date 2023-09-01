@@ -10,8 +10,12 @@ pub struct MockLegacyCompleteTransferNative<'info> {
     #[account(
         mut,
         token::mint = mint,
+        token::authority = recipient,
     )]
     recipient_token: Account<'info, token::TokenAccount>,
+
+    /// CHECK: VAA recipient (i.e. recipient token owner).
+    recipient: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -68,6 +72,7 @@ pub fn mock_legacy_complete_transfer_native(
                 .accounts
                 .token_bridge_custody_authority
                 .to_account_info(),
+            recipient: Some(ctx.accounts.recipient.to_account_info()),
             system_program: ctx.accounts.system_program.to_account_info(),
             core_bridge_program: ctx.accounts.core_bridge_program.to_account_info(),
             token_program: ctx.accounts.token_program.to_account_info(),

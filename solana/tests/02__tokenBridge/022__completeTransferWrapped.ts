@@ -1,30 +1,31 @@
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  parseVaa,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
+import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { Account, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { expect } from "chai";
 import {
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  GUARDIAN_KEYS,
   WRAPPED_MINT_INFO_7,
   WRAPPED_MINT_INFO_8,
   WRAPPED_MINT_INFO_MAX_ONE,
   WrappedMintInfo,
+  createAssociatedTokenAccountOffCurve,
+  expectIxErr,
   expectIxOkDetails,
   getTokenBalances,
-  parallelPostVaa,
-  expectIxErr,
   invokeVerifySignaturesAndPostVaa,
-  ETHEREUM_TOKEN_ADDRESS_MAX_ONE,
-  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  parallelPostVaa,
 } from "../helpers";
-import {
-  CHAIN_ID_SOLANA,
-  tryNativeToHexString,
-  parseVaa,
-  CHAIN_ID_ETH,
-} from "@certusone/wormhole-sdk";
-import { GUARDIAN_KEYS } from "../helpers";
-import * as tokenBridge from "../helpers/tokenBridge";
 import * as coreBridge from "../helpers/coreBridge";
-import { MockTokenBridge, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { expect } from "chai";
+import * as tokenBridge from "../helpers/tokenBridge";
 
 const GUARDIAN_SET_INDEX = 2;
 const dummyTokenBridge = new MockTokenBridge(
@@ -313,73 +314,6 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         ]);
       });
 
-      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
-        );
-
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient.publicKey
-        );
-        const payerToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          payer.publicKey
-        );
-
-        // Amounts.
-        const amount = BigInt(699999420);
-        let fee = BigInt(50000);
-
-        // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(
-          address,
-          amount,
-          fee,
-          recipient.publicKey // Recipient is the wallet address, not the ATA.
-        );
-
-        // Fetch balances before.
-        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
-          getTokenBalances(program, forkedProgram, recipientToken.address),
-          getTokenBalances(program, forkedProgram, payerToken.address),
-        ]);
-
-        // Complete the transfer.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
-          program,
-          { payer: payer.publicKey, recipientToken: recipientToken.address },
-          parseVaa(signedVaa)
-        );
-
-        await expectIxOkDetails(connection, [ix], [payer]);
-
-        // Denormalize the fee.
-        if (decimals > 8) {
-          fee = fee * BigInt(10 ** decimals - 8);
-        }
-
-        // Check recipient and relayer token balance changes.
-        const [recipientBalancesAfter, relayerBalancesAfter] = await Promise.all([
-          getTokenBalances(program, forkedProgram, recipientToken.address),
-          getTokenBalances(program, forkedProgram, payerToken.address),
-        ]);
-
-        expect(recipientBalancesAfter.token - recipientBalancesBefore.token).equals(amount - fee);
-        expect(relayerBalancesAfter.token - relayerBalancesBefore.token).equals(fee);
-      });
-
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Minimum Transfer Amount)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>
           tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address))
@@ -595,12 +529,145 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
 
   describe("New Implementation", () => {
     for (const { chain, decimals, address } of wrappedMints) {
-      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address with Rent Sysvar)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate().publicKey;
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient
         );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          address,
+          amount,
+          BigInt(0),
+          recipient // Recipient is the wallet address, not the ATA.
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "InvalidRecipient");
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address with an Invalid Address)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate().publicKey;
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          address,
+          amount,
+          BigInt(0),
+          recipient // Recipient is the wallet address, not the ATA.
+        );
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        const anotherGuy = anchor.web3.Keypair.generate().publicKey;
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address, recipient: anotherGuy },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxErr(connection, [ix], [payer], "InvalidRecipient");
+      });
+
+      it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate().publicKey;
+        const recipientToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          recipient
+        );
+        const payerToken = await getOrCreateAssociatedTokenAccount(
+          connection,
+          payer,
+          mint,
+          payer.publicKey
+        );
+
+        // Amounts.
+        const amount = BigInt(699999420);
+        let fee = BigInt(50000);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          address,
+          amount,
+          fee,
+          recipient // Recipient is the wallet address, not the ATA.
+        );
+
+        // Fetch balances before.
+        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken.address),
+        ]);
+
+        // Complete the transfer.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+          program,
+          { payer: payer.publicKey, recipientToken: recipientToken.address, recipient },
+          parseVaa(signedVaa)
+        );
+
+        await expectIxOkDetails(connection, [ix], [payer]);
+
+        // Denormalize the fee.
+        if (decimals > 8) {
+          fee = fee * BigInt(10 ** decimals - 8);
+        }
+
+        // Check recipient and relayer token balance changes.
+        const [recipientBalancesAfter, relayerBalancesAfter] = await Promise.all([
+          getTokenBalances(program, forkedProgram, recipientToken.address),
+          getTokenBalances(program, forkedProgram, payerToken.address),
+        ]);
+
+        expect(recipientBalancesAfter.token - recipientBalancesBefore.token).equals(amount - fee);
+        expect(relayerBalancesAfter.token - relayerBalancesBefore.token).equals(fee);
+      });
+
+      it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
@@ -616,7 +683,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         let fee = BigInt(50000);
 
         // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(
+        const signedVaa = getSignedTransferVaa(
           address,
           amount,
           fee,
@@ -638,11 +705,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       });
 
       it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Recipient ATA)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
-        );
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
@@ -652,6 +715,13 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
           mint,
           recipient.publicKey
         );
+        const trollToken = await createAssociatedTokenAccountOffCurve(
+          connection,
+          payer,
+          mint,
+          recipientToken.address
+        );
+
         const payerToken = await getOrCreateAssociatedTokenAccount(
           connection,
           payer,
@@ -664,7 +734,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         let fee = BigInt(50000);
 
         // Create the signed transfer VAA.
-        const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
+        const signedVaa = getSignedTransferVaa(address, amount, fee, recipientToken.address);
 
         // Complete the transfer.
         await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
@@ -672,19 +742,15 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         // Create instruction.
         const ix = tokenBridge.legacyCompleteTransferWrappedIx(
           program,
-          { payer: payer.publicKey, recipientToken: payerToken.address }, // Pass invalid recipient ATA
+          { payer: payer.publicKey, recipientToken: trollToken, recipient: recipientToken.address }, // Pass invalid recipient ATA
           parseVaa(signedVaa)
         );
 
-        await expectIxErr(connection, [ix], [payer], "ConstraintTokenOwner");
+        await expectIxErr(connection, [ix], [payer], "NestedTokenAccount");
       });
 
       it(`Cannot Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Invalid Mint)`, async () => {
-        const mint = await tokenBridge.wrappedMintPda(
-          program.programId,
-          chain,
-          Array.from(address)
-        );
+        const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
@@ -700,7 +766,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         let fee = BigInt(50000);
 
         // Create the signed transfer VAA, pass an invalid token address.
-        const signedVaa = await getSignedTransferVaa(
+        const signedVaa = getSignedTransferVaa(
           ETHEREUM_TOKEN_ADDRESS_MAX_ONE, // Pass invalid address.
           amount,
           fee,
@@ -716,8 +782,9 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
           program,
           { payer: payer.publicKey, recipientToken: recipientToken.address },
           parseVaa(signedVaa),
-          true,
-          Array.from(address) // Pass correct token address to derive mint.
+          {
+            tokenAddress: Array.from(address), // Pass correct token address to derive mint.
+          }
         );
 
         await expectIxErr(connection, [ix], [payer], "InvalidMint");
@@ -729,7 +796,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       const { chain, address } = wrappedAssetInfo;
 
       // Mint.
-      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+      const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
       // Create recipient token account.
       const recipient = anchor.web3.Keypair.generate();
@@ -745,7 +812,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       let fee = BigInt(50000);
 
       // Create the signed transfer VAA. Pass invalid token chain for a wrapped asset.
-      const signedVaa = await getSignedTransferVaa(
+      const signedVaa = getSignedTransferVaa(
         address,
         amount,
         fee,
@@ -762,9 +829,9 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
         program,
         { payer: payer.publicKey, recipientToken: recipientToken.address },
         parseVaa(signedVaa),
-        true,
-        undefined,
-        CHAIN_ID_ETH // Pass ETH chain ID so the wrapped asset account is derived correctly.
+        {
+          tokenChain: CHAIN_ID_ETH, // Pass ETH chain ID so the wrapped asset account is derived correctly.
+        }
       );
 
       await expectIxErr(connection, [ix], [payer], "NativeAsset");
@@ -775,7 +842,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       const { chain, address } = wrappedAssetInfo;
 
       // Mint.
-      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+      const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
       // Create recipient token account.
       const recipient = anchor.web3.Keypair.generate();
@@ -791,7 +858,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       let fee = BigInt(0);
 
       // Create the signed transfer VAA. Specify an amount that is > u64::MAX.
-      const signedVaa = await getSignedTransferVaa(address, amount, fee, recipientToken.address);
+      const signedVaa = getSignedTransferVaa(address, amount, fee, recipientToken.address);
 
       // Complete the transfer.
       await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
@@ -811,7 +878,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
       const { chain, address } = wrappedAssetInfo;
 
       // Mint.
-      const mint = await tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+      const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
 
       // Create recipient token account.
       const recipient = anchor.web3.Keypair.generate();

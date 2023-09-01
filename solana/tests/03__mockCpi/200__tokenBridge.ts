@@ -1,36 +1,32 @@
-import * as anchor from "@coral-xyz/anchor";
-import {
-  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
-  GUARDIAN_KEYS,
-  InvalidAccountConfig,
-  MINT_INFO_9,
-  WRAPPED_MINT_INFO_8,
-  NullableAccountConfig,
-  createIfNeeded,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  invokeVerifySignaturesAndPostVaa,
-} from "../helpers";
-import * as mockCpi from "../helpers/mockCpi";
-import * as coreBridge from "../helpers/coreBridge";
-import * as tokenBridge from "../helpers/tokenBridge";
-import {
-  createAssociatedTokenAccount,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-  getAssociatedTokenAddressSync,
-  mintTo,
-  transfer,
-} from "@solana/spl-token";
 import {
   CHAIN_ID_SOLANA,
   parseTokenTransferPayload,
   parseVaa,
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
-import { expect } from "chai";
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import * as anchor from "@coral-xyz/anchor";
+import {
+  createAssociatedTokenAccount,
+  getAccount,
+  getAssociatedTokenAddressSync,
+  mintTo,
+  transfer,
+} from "@solana/spl-token";
+import { expect } from "chai";
+import {
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  GUARDIAN_KEYS,
+  MINT_INFO_9,
+  WRAPPED_MINT_INFO_8,
+  createAssociatedTokenAccountOffCurve,
+  expectDeepEqual,
+  expectIxOk,
+  invokeVerifySignaturesAndPostVaa,
+} from "../helpers";
+import * as coreBridge from "../helpers/coreBridge";
+import * as mockCpi from "../helpers/mockCpi";
+import * as tokenBridge from "../helpers/tokenBridge";
 
 const GUARDIAN_SET_INDEX = 2;
 const foreignTokenBridge = new MockTokenBridge(
@@ -348,7 +344,6 @@ describe("Mock CPI -- Token Bridge", () => {
 
       // For the validator-loaded Token Bridge program, we have not registered Ethereum using the
       // new register chain instruction.
-      const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
         payerToken,
@@ -363,9 +358,12 @@ describe("Mock CPI -- Token Bridge", () => {
           payer: payer.publicKey,
           recipientToken,
           mint,
+          recipient,
         },
         parsed,
-        legacyRegisteredEmitterDerive
+        {
+          legacyRegisteredEmitterDerive: true,
+        }
       );
 
       const ix = await program.methods
@@ -373,6 +371,7 @@ describe("Mock CPI -- Token Bridge", () => {
         .accounts({
           payer: payer.publicKey,
           recipientToken,
+          recipient,
           payerToken,
           postedVaa,
           tokenBridgeClaim,
@@ -602,7 +601,6 @@ describe("Mock CPI -- Token Bridge", () => {
 
       // For the validator-loaded Token Bridge program, we have not registered Ethereum using the
       // new register chain instruction.
-      const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
         payerToken,
@@ -616,9 +614,12 @@ describe("Mock CPI -- Token Bridge", () => {
         {
           payer: payer.publicKey,
           recipientToken,
+          recipient,
         },
         parsed,
-        legacyRegisteredEmitterDerive
+        {
+          legacyRegisteredEmitterDerive: true,
+        }
       );
 
       const ix = await program.methods
@@ -626,6 +627,7 @@ describe("Mock CPI -- Token Bridge", () => {
         .accounts({
           payer: payer.publicKey,
           recipientToken,
+          recipient,
           payerToken,
           postedVaa,
           tokenBridgeClaim,
@@ -1174,22 +1176,4 @@ function getSignedTransferWrappedWithPayloadVaa(
     0 // nonce
   );
   return guardians.addSignatures(vaaBytes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-}
-
-export async function createAssociatedTokenAccountOffCurve(
-  connection: anchor.web3.Connection,
-  payer: anchor.web3.Signer,
-  mint: anchor.web3.PublicKey,
-  owner: anchor.web3.PublicKey,
-  confirmOptions?: anchor.web3.ConfirmOptions
-): Promise<anchor.web3.PublicKey> {
-  const associatedToken = getAssociatedTokenAddressSync(mint, owner, true);
-
-  const transaction = new anchor.web3.Transaction().add(
-    createAssociatedTokenAccountInstruction(payer.publicKey, associatedToken, owner, mint)
-  );
-
-  await anchor.web3.sendAndConfirmTransaction(connection, transaction, [payer], confirmOptions);
-
-  return associatedToken;
 }
