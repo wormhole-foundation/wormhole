@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::instruction::LegacyInitializeArgs,
-    state::{Config, FeeCollector, GuardianSet},
+    state::{Config, GuardianSet},
 };
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
@@ -37,16 +37,16 @@ pub struct Initialize<'info> {
     )]
     guardian_set: Account<'info, GuardianSet>,
 
-    /// System account that collects lamports for `post_message`.
+    /// CHECK: System account that collects lamports for `post_message`.
     #[account(
         init,
         payer = payer,
-        space = FeeCollector::INIT_SPACE,
-        seeds = [FeeCollector::SEED_PREFIX],
+        space = 0,
+        seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
         owner = system_program.key(),
     )]
-    fee_collector: Account<'info, FeeCollector>,
+    fee_collector: AccountInfo<'info>,
 
     #[account(mut)]
     payer: Signer<'info>,

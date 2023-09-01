@@ -4,6 +4,9 @@ use anchor_lang::prelude::constant;
 pub const SOLANA_CHAIN: u16 = 1;
 
 #[constant]
+pub const FEE_COLLECTOR_SEED_PREFIX: &[u8] = b"fee_collector";
+
+#[constant]
 /// Seed for upgrade authority (A.K.A. "upgrade").
 pub const UPGRADE_SEED_PREFIX: &[u8] = b"upgrade";
 

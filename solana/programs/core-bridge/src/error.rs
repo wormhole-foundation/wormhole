@@ -14,6 +14,7 @@ use anchor_lang::prelude::error_code;
 /// >= 0x700  -- Legacy Verify Signatures.
 /// >= 0x800  -- Legacy Post Message Unreliable.
 /// >= 0x1000 -- Core Bridge Anchor Instruction.
+/// >= 0x2000 -- Core Bridge SDK.
 ///
 /// NOTE: All of these error codes when triggered are offset by `ERROR_CODE_OFFSET` (6000). So for
 /// example, `U64Overflow` will return as 6006.

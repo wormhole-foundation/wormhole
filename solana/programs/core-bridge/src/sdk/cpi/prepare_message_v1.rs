@@ -4,17 +4,13 @@ use anchor_lang::prelude::*;
 
 use super::InvokeCoreBridge;
 
-pub trait InvokeInitAndProcessMessageV1<'info>: InvokeCoreBridge<'info> {
+pub trait InvokePrepareMessageV1<'info>: InvokeCoreBridge<'info> {
     fn emitter_authority(&self) -> AccountInfo<'info>;
 
     fn message(&self) -> AccountInfo<'info>;
 }
 
-pub fn prepare_message_v1<
-    'info,
-    A: InvokeInitAndProcessMessageV1<'info>,
-    W: wormhole_io::Writeable,
->(
+pub fn prepare_message_v1<'info, A: InvokePrepareMessageV1<'info>, W: wormhole_io::Writeable>(
     accounts: &A,
     message: W,
     init_args: InitMessageV1Args,
@@ -28,7 +24,7 @@ pub fn prepare_message_v1<
     )
 }
 
-pub fn prepare_message_v1_bytes<'info, A: InvokeInitAndProcessMessageV1<'info>>(
+pub fn prepare_message_v1_bytes<'info, A: InvokePrepareMessageV1<'info>>(
     accounts: &A,
     data: Vec<u8>,
     init_args: InitMessageV1Args,

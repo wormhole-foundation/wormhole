@@ -1,12 +1,10 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::{PostMessageArgs, PostMessageUnreliableArgs},
-    state::{Config, EmitterSequence, FeeCollector, PostedMessageV1Unreliable},
+    legacy::instruction::PostMessageUnreliableArgs,
+    state::{Config, EmitterSequence, PostedMessageV1Unreliable},
 };
 use anchor_lang::prelude::*;
 use wormhole_solana_common::{NewAccountSize, SeedPrefix};
-
-use super::handle_post_new_message;
 
 #[derive(Accounts)]
 #[instruction(_nonce: u32, payload_len: u32)]
@@ -18,9 +16,9 @@ pub struct PostMessageUnreliable<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    bridge: Account<'info, Config>,
+    config: Account<'info, Config>,
 
-    /// Posted message account data.
+    /// CHECK: Posted message account data.
     ///
     /// NOTE: This space requirement enforces that the payload length is the same for every call to
     /// this instruction handler.
@@ -49,16 +47,13 @@ pub struct PostMessageUnreliable<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// Collect core bridge message fee when posting a message.
-    ///
-    /// NOTE: This account is optional because we do not need to pay a fee to post a message if the
-    /// fee is zero.
+    /// CHECK: Fee collector.
     #[account(
         mut,
-        seeds = [FeeCollector::SEED_PREFIX],
+        seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
-    fee_collector: Option<Account<'info, FeeCollector>>,
+    fee_collector: Option<AccountInfo<'info>>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
@@ -122,16 +117,31 @@ pub fn post_message_unreliable(
         commitment,
     } = args;
 
-    handle_post_new_message(
-        &mut ctx.accounts.bridge,
-        &mut ctx.accounts.message,
-        &ctx.accounts.emitter,
-        &mut ctx.accounts.emitter_sequence,
+    // Should we require the payload not be empty?
+    require!(
+        !payload.is_empty(),
+        CoreBridgeError::InvalidInstructionArgument
+    );
+
+    let data = crate::legacy::new_posted_message_data(
+        &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
-        PostMessageArgs {
-            nonce,
-            payload,
-            commitment,
-        },
-    )
+        &mut ctx.accounts.emitter_sequence,
+        commitment.into(),
+        nonce,
+        &ctx.accounts.emitter.key(),
+        payload,
+    )?;
+
+    // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
+    // able to remove this to save on compute units.
+    msg!("Sequence: {}", data.sequence);
+
+    // Finally set the `message` account with posted data.
+    ctx.accounts
+        .message
+        .set_inner(PostedMessageV1Unreliable { data });
+
+    // Done.
+    Ok(())
 }
