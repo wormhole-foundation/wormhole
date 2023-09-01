@@ -1,5 +1,5 @@
 import { Commitment, GetAccountInfoConfig, PublicKey, SystemProgram } from "@solana/web3.js";
-import { Config, FeeCollector } from "../legacy/state";
+import { Config, feeCollectorPda } from "../legacy/state";
 import { CoreBridgeProgram } from "..";
 
 export async function transferMessageFeeIx(
@@ -12,7 +12,7 @@ export async function transferMessageFeeIx(
     (bridgeProgramData) =>
       SystemProgram.transfer({
         fromPubkey: payer,
-        toPubkey: FeeCollector.address(program.programId),
+        toPubkey: feeCollectorPda(program.programId),
         lamports: BigInt(bridgeProgramData.feeLamports.toString()),
       })
   );

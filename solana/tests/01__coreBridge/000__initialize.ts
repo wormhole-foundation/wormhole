@@ -4,7 +4,6 @@ import { ethers } from "ethers";
 import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
-  InvalidArgConfig,
   expectDeepEqual,
   expectIxErr,
   expectIxOkDetails,
@@ -137,11 +136,11 @@ describe("Core Bridge -- Legacy Instruction: Initialize", () => {
       );
 
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });

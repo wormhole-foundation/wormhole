@@ -4,6 +4,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { expectIxOk } from "../../old-tests/helpers";
 import {
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
   InvalidAccountConfig,
   createIfNeeded,
@@ -11,7 +12,6 @@ import {
   expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
-  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -112,11 +112,11 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
 
       // Validate fee collector.
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
 
@@ -256,7 +256,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
 
     it("Cannot Invoke `transfer_fees` with Fee Larger than Minimum Required Rent Balance", async () => {
       const lamportBalance = await connection
-        .getAccountInfo(coreBridge.FeeCollector.address(program.programId))
+        .getAccountInfo(coreBridge.feeCollectorPda(program.programId))
         .then((info) => info!.lamports);
 
       // Fetch the default VAA.
@@ -334,7 +334,7 @@ async function parallelTxDetails(
   for (const _program of [program, forkedProgram]) {
     const transferIx = anchor.web3.SystemProgram.transfer({
       fromPubkey: payer.publicKey,
-      toPubkey: coreBridge.FeeCollector.address(_program.programId),
+      toPubkey: coreBridge.feeCollectorPda(_program.programId),
       lamports: amount.toNumber(),
     });
     await expectIxOkDetails(connection, [transferIx], [payer]);

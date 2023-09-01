@@ -8,7 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
-import { Config, FeeCollector, GuardianPubkey, GuardianSet } from "../state";
+import { Config, GuardianPubkey, GuardianSet, feeCollectorPda } from "../state";
 
 export type LegacyInitializeContext = {
   bridge?: PublicKey;
@@ -41,7 +41,7 @@ export function legacyInitializeIx(
   }
 
   if (feeCollector === undefined) {
-    feeCollector = FeeCollector.address(programId);
+    feeCollector = feeCollectorPda(programId);
   }
 
   const keys: AccountMeta[] = [

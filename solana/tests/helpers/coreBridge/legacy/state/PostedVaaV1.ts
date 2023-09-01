@@ -82,7 +82,7 @@ export class PostedVaaV1 {
     const signatureSet = new PublicKey(data.subarray(5, 37));
     const guardianSetIndex = data.readUInt32LE(37);
     const nonce = data.readUInt32LE(41);
-    const sequence = new BN(data.subarray(45, 53));
+    const sequence = new BN(data.subarray(45, 53), "le");
     const emitterChain = data.readUInt16LE(53);
     const emitterAddress = Array.from(data.subarray(55, 87));
     const payloadLen = data.readUInt32LE(87);

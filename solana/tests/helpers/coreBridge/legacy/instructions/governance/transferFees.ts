@@ -8,7 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../../..";
-import { Config, Claim, FeeCollector, PostedVaaV1 } from "../../state";
+import { Config, Claim, PostedVaaV1, feeCollectorPda } from "../../state";
 
 export type LegacyTransferFeesContext = {
   payer: PublicKey;
@@ -48,7 +48,7 @@ export function legacyTransferFeesIx(
   }
 
   if (feeCollector === undefined) {
-    feeCollector = FeeCollector.address(programId);
+    feeCollector = feeCollectorPda(programId);
   }
 
   if (rent === undefined) {
