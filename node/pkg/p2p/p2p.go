@@ -344,14 +344,25 @@ func Run(
 
 		bootTime := time.Now()
 
-		ccqErrC := make(chan error)
-		var ccq *ccqP2p
 		if ccqEnabled {
-			ccq = newCcqRunP2p(logger, ccqAllowedPeers)
+			ccqErrC := make(chan error)
+			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
 			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case ccqErr := <-ccqErrC:
+						logger.Error("ccqp2p returned an error", zap.Error(ccqErr), zap.String("component", "ccqp2p"))
+						rootCtxCancel()
+						return
+					}
+				}
+			}()
 		}
 
 		// Periodically run guardian state set cleanup.
@@ -363,9 +374,6 @@ func Run(
 				case <-ticker.C:
 					gst.Cleanup()
 				case <-ctx.Done():
-					return
-				case ccqErr := <-ccqErrC:
-					logger.Error("ccqp2p returned an error", zap.Error(ccqErr), zap.String("component", "ccqp2p"))
 					return
 				}
 			}
