@@ -14,18 +14,15 @@ impl<'a> EncodedVaa<'a> {
     const DISC_LEN: usize = Self::DISCRIMINATOR.len();
 
     pub fn status(&self) -> state::ProcessingStatus {
-        let mut buf = &self.0[..1];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        AnchorDeserialize::deserialize(&mut &self.0[..1]).unwrap()
     }
 
     pub fn write_authority(&self) -> Pubkey {
-        let mut buf = &self.0[1..33];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        Pubkey::try_from(&self.0[1..33]).unwrap()
     }
 
     pub fn version(&self) -> VaaVersion {
-        let mut buf = &self.0[33..34];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        AnchorDeserialize::deserialize(&mut &self.0[33..34]).unwrap()
     }
 
     pub fn vaa_size(&self) -> usize {

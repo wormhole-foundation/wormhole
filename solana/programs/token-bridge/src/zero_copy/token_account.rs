@@ -1,5 +1,5 @@
 use anchor_lang::prelude::{
-    error, require, require_eq, require_keys_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
+    error, require, require_eq, require_keys_eq, ErrorCode, Pubkey, Result,
 };
 use anchor_spl::token::spl_token::state;
 use solana_program::program_pack::Pack;
@@ -11,8 +11,7 @@ pub struct TokenAccount<'a>(&'a [u8]);
 impl<'a> TokenAccount<'a> {
     /// The mint associated with this account
     pub fn mint(&self) -> Pubkey {
-        let mut buf = &self.0[0..32];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        Pubkey::try_from(&self.0[0..32]).unwrap()
     }
 
     pub fn require_mint(acc_data: &'a [u8], mint: &Pubkey) -> Result<()> {
@@ -24,8 +23,7 @@ impl<'a> TokenAccount<'a> {
 
     /// The owner of this account.
     pub fn owner(&self) -> Pubkey {
-        let mut buf = &self.0[32..64];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        Pubkey::try_from(&self.0[32..64]).unwrap()
     }
 
     pub fn require_owner(acc_data: &'a [u8], owner: &Pubkey) -> Result<()> {
@@ -37,17 +35,15 @@ impl<'a> TokenAccount<'a> {
 
     /// The amount of tokens this account holds.
     pub fn amount(&self) -> u64 {
-        let mut buf = &self.0[64..72];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        u64::from_le_bytes(self.0[64..72].try_into().unwrap())
     }
 
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
     pub fn delegate(&self) -> Option<Pubkey> {
-        let mut buf = &self.0[72..108];
-        match u32::deserialize(&mut buf).unwrap() {
+        match u32::from_le_bytes(self.0[72..76].try_into().unwrap()) {
             0 => None,
-            _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+            _ => Some(Pubkey::try_from(&self.0[76..108]).unwrap()),
         }
     }
 
@@ -65,25 +61,22 @@ impl<'a> TokenAccount<'a> {
     /// Account is required to be rent-exempt, so the value is used by the Processor to ensure that
     /// wrapped SOL accounts do not drop below this threshold.
     pub fn is_native(&self) -> Option<u64> {
-        let mut buf = &self.0[109..121];
-        match u32::deserialize(&mut buf).unwrap() {
+        match u32::from_le_bytes(self.0[109..113].try_into().unwrap()) {
             0 => None,
-            _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+            _ => Some(u64::from_le_bytes(self.0[113..121].try_into().unwrap())),
         }
     }
 
     /// The amount delegated
     pub fn delegated_amount(&self) -> u64 {
-        let mut buf = &self.0[121..129];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        u64::from_le_bytes(self.0[121..129].try_into().unwrap())
     }
 
     /// Optional authority to close the account.
     pub fn close_authority(&self) -> Option<Pubkey> {
-        let mut buf = &self.0[129..165];
-        match u32::deserialize(&mut buf).unwrap() {
+        match u32::from_le_bytes(self.0[129..133].try_into().unwrap()) {
             0 => None,
-            _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+            _ => Some(Pubkey::try_from(&self.0[133..165]).unwrap()),
         }
     }
 

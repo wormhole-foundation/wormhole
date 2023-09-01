@@ -1,5 +1,5 @@
 use anchor_lang::prelude::{
-    err, error, require, require_eq, require_keys_eq, AnchorDeserialize, ErrorCode, Pubkey, Result,
+    err, error, require, require_eq, require_keys_eq, ErrorCode, Pubkey, Result,
 };
 
 use crate::utils::TruncateAmount;
@@ -13,10 +13,9 @@ impl<'a> Mint<'a> {
     /// mint creation. If no mint authority is present then the mint has a fixed supply and no
     /// further tokens may be minted.
     pub fn mint_authority(&self) -> Option<Pubkey> {
-        let mut buf = &self.0[0..36];
-        match u32::deserialize(&mut buf).unwrap() {
+        match u32::from_le_bytes(self.0[..4].try_into().unwrap()) {
             0 => None,
-            _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+            _ => Some(Pubkey::try_from(&self.0[4..36]).unwrap()),
         }
     }
 
@@ -36,8 +35,7 @@ impl<'a> Mint<'a> {
 
     /// Total supply of tokens.
     pub fn supply(&self) -> u64 {
-        let mut buf = &self.0[36..44];
-        AnchorDeserialize::deserialize(&mut buf).unwrap()
+        u64::from_le_bytes(self.0[36..44].try_into().unwrap())
     }
 
     /// Number of base 10 digits to the right of the decimal place.
@@ -52,10 +50,9 @@ impl<'a> Mint<'a> {
 
     /// Optional authority to freeze token accounts.
     pub fn freeze_authority(&self) -> Option<Pubkey> {
-        let mut buf = &self.0[46..82];
-        match u32::deserialize(&mut buf).unwrap() {
+        match u32::from_le_bytes(self.0[46..50].try_into().unwrap()) {
             0 => None,
-            _ => Some(AnchorDeserialize::deserialize(&mut buf).unwrap()),
+            _ => Some(Pubkey::try_from(&self.0[50..82]).unwrap()),
         }
     }
 
