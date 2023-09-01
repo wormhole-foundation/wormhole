@@ -13,7 +13,6 @@ import {
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
-import { proxyContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -392,41 +391,23 @@ export async function getDeliveryProvider(
   return contract;
 }
 
-const wormholeRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getWormholeRelayerAddress(
   chain: ChainInfo,
-  forceCalculate?: boolean,
 ): Promise<string> {
   // See if we are in dev mode (i.e. forge contracts compiled without via-ir)
   const dev = get_env_var("DEV") == "True" ? true : false;
 
-  const contracts = readContracts();
-  //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
-  if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
-    const thisChainsRelayer = loadWormholeRelayers(dev).find(
-      (x) => x.chainId == chain.chainId,
-    )?.address;
-    if (thisChainsRelayer) {
-      return thisChainsRelayer;
-    } else {
-      throw Error(
-        "Failed to find a WormholeRelayer contract address on chain " +
-          chain.chainId,
-      );
-    }
+  const thisChainsRelayer = loadWormholeRelayers(dev).find(
+    (x) => x.chainId == chain.chainId,
+  )?.address;
+  if (thisChainsRelayer) {
+    return thisChainsRelayer;
+  } else {
+    throw Error(
+      "Failed to find a WormholeRelayer contract address on chain " +
+      chain.chainId,
+    );
   }
-
-  if (!wormholeRelayerAddressesCache[chain.chainId]) {
-    const create2Factory = await getCreate2Factory(chain);
-    const signer = await getSigner(chain);
-    const address = await signer.getAddress();
-
-    wormholeRelayerAddressesCache[
-      chain.chainId
-    ] = await create2Factory.computeProxyAddress(address, proxyContractSalt);
-  }
-
-  return wormholeRelayerAddressesCache[chain.chainId]!;
 }
 
 export async function getWormholeRelayer(
