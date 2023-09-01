@@ -21,6 +21,7 @@ import {
 jest.setTimeout(60000);
 
 const CI = false;
+const ENV = "DEVNET";
 const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
 const QUERY_SERVER_URL = "http://localhost:6069/v1/query";
@@ -99,12 +100,17 @@ describe("eth call", () => {
     const nonce = 1;
     const request = new QueryRequest(nonce, [ethQuery]);
     const serialized = request.serialize();
-    const digest = QueryRequest.digest("DEVNET", serialized);
+    const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put<QueryResponse>(QUERY_SERVER_URL, {
-      signature,
-      bytes: Buffer.from(serialized).toString("hex"),
-    });
+    const api_key = "my_secret_key";
+    const response = await axios.put<QueryResponse>(
+      QUERY_SERVER_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": api_key } }
+    );
     expect(response.status).toBe(200);
     const queryResponse = QueryResponse.fromBytes(
       Buffer.from(response.data.bytes, "hex")

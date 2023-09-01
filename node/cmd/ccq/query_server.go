@@ -21,6 +21,7 @@ var (
 	p2pBootstrap      *string
 	listenAddr        *string
 	nodeKeyPath       *string
+	permFile          *string
 	ethRPC            *string
 	ethContract       *string
 	logLevel          *string
@@ -30,10 +31,11 @@ var (
 
 func init() {
 	p2pNetworkID = QueryServerCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
-	p2pPort = QueryServerCmd.Flags().Uint("port", 8996, "P2P UDP listener port")
+	p2pPort = QueryServerCmd.Flags().Uint("port", 8995, "P2P UDP listener port")
 	p2pBootstrap = QueryServerCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
-	listenAddr = QueryServerCmd.Flags().String("listenAddr", "[::]:6069", "Listen address for query server (disabled if blank)")
 	nodeKeyPath = QueryServerCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	listenAddr = QueryServerCmd.Flags().String("listenAddr", "[::]:6069", "Listen address for query server (disabled if blank)")
+	permFile = QueryServerCmd.Flags().String("permFile", "", "JSON file containing permissions configuration")
 	ethRPC = QueryServerCmd.Flags().String("ethRPC", "", "Ethereum RPC for fetching current guardian set")
 	ethContract = QueryServerCmd.Flags().String("ethContract", "", "Ethereum core bridge address for fetching current guardian set")
 	logLevel = QueryServerCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
@@ -87,11 +89,19 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	if *p2pBootstrap == "" {
 		logger.Fatal("Please specify --bootstrap")
 	}
+	if *permFile == "" {
+		logger.Fatal("Please specify --permFile")
+	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
 	}
 	if *ethContract == "" {
 		logger.Fatal("Please specify --ethContract")
+	}
+
+	permissions, err := parseConfig(*permFile)
+	if err != nil {
+		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}
 
 	// Load p2p private key
@@ -113,7 +123,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, pendingResponses)
+		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, pendingResponses, logger)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
