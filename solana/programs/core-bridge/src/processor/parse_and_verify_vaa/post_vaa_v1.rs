@@ -34,6 +34,10 @@ pub struct PostVaaV1<'info> {
 impl<'info> PostVaaV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // We can only create a legacy VAA account if the VAA account was verified.
+        //
+        // NOTE: We are keeping this here as a fail safe. We should never reach this point because
+        // if the VAA is unverified, its version will not be set (so the account context zero-copy
+        // getters before this access control will fail).
         require!(
             ctx.accounts.vaa.status == ProcessingStatus::Verified,
             CoreBridgeError::UnverifiedVaa

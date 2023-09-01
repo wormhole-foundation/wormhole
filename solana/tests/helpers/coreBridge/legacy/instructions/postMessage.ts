@@ -1,13 +1,13 @@
 import {
   AccountMeta,
+  Commitment,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
   SystemProgram,
   TransactionInstruction,
-  Commitment,
 } from "@solana/web3.js";
 import { CoreBridgeProgram, toLegacyCommitment } from "../..";
-import { Config, FeeCollector, EmitterSequence } from "../state";
+import { Config, EmitterSequence, feeCollectorPda } from "../state";
 
 export type LegacyPostMessageContext = {
   config?: PublicKey;
@@ -36,7 +36,7 @@ export function legacyPostMessageAccounts(
   }
 
   if (feeCollector === undefined) {
-    feeCollector = FeeCollector.address(program.programId);
+    feeCollector = feeCollectorPda(program.programId);
   } else if (feeCollector === null) {
     feeCollector = programId;
   }

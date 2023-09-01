@@ -1,4 +1,4 @@
-import { parseVaa, tryUint8ArrayToNative } from "@certusone/wormhole-sdk";
+import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
@@ -9,7 +9,6 @@ import {
   createIfNeeded,
   expectIxErr,
   expectIxOk,
-  expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
 } from "../helpers";

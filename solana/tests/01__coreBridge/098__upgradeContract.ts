@@ -10,6 +10,8 @@ import {
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  createAccountIx,
+  BPF_LOADER_UPGRADEABLE_PROGRAM_ID,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -107,13 +109,11 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {
-      const realImplementation = loadProgramBpf(
-        ARTIFACTS_PATH,
-        coreBridge.upgradeAuthorityPda(program.programId)
-      );
+      const implementation = anchor.web3.Keypair.generate().publicKey;
+      const anotherImplementation = anchor.web3.Keypair.generate().publicKey;
 
       // Create the signed VAA with a random implementation.
-      const signedVaa = defaultVaa(anchor.web3.Keypair.generate().publicKey);
+      const signedVaa = defaultVaa(anotherImplementation);
 
       // Verify and Post.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
@@ -121,7 +121,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       // Create the upgrade instruction, but pass a buffer with the realImplementation pubkey.
       const ix = coreBridge.legacyUpgradeContractIx(
         program,
-        { payer: payer.publicKey, buffer: realImplementation },
+        { payer: payer.publicKey, buffer: implementation },
         parseVaa(signedVaa)
       );
 
@@ -129,10 +129,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Invalid Governance Emitter", async () => {
-      const implementation = loadProgramBpf(
-        ARTIFACTS_PATH,
-        coreBridge.upgradeAuthorityPda(program.programId)
-      );
+      const implementation = anchor.web3.Keypair.generate().publicKey;
 
       // Create a bad governance emitter by using an invalid address.
       const governance = new GovernanceEmitter(

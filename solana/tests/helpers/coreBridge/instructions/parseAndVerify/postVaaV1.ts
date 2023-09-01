@@ -7,7 +7,6 @@ export type PostVaaV1Context = {
   writeAuthority: PublicKey;
   vaa: PublicKey;
   postedVaa?: PublicKey;
-  systemProgram: PublicKey;
 };
 
 export type PostVaaV1Directive = { tryOnce: {} };
@@ -17,12 +16,10 @@ export async function postVaaV1Ix(
   accounts: PostVaaV1Context,
   directive: PostVaaV1Directive
 ) {
-  let { writeAuthority, vaa, postedVaa, systemProgram } = accounts;
+  let { writeAuthority, vaa, postedVaa } = accounts;
 
   if (postedVaa === undefined) {
-    const vaaBuf = await program.account.encodedVaa
-      .fetch(vaa)
-      .then((vaaData) => vaaData.buf);
+    const vaaBuf = await program.account.encodedVaa.fetch(vaa).then((vaaData) => vaaData.buf);
     const numSignatures = vaaBuf.readUInt8(5);
     const message = vaaBuf.subarray(6 + 66 * numSignatures);
 
@@ -34,6 +31,6 @@ export async function postVaaV1Ix(
 
   return program.methods
     .postVaaV1(directive)
-    .accounts({ writeAuthority, vaa, postedVaa, systemProgram })
+    .accounts({ writeAuthority, vaa, postedVaa })
     .instruction();
 }

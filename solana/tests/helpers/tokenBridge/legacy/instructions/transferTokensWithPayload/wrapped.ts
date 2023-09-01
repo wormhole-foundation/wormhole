@@ -93,7 +93,7 @@ export function legacyTransferTokensWithPayloadWrappedAccounts(
   }
 
   if (coreFeeCollector === undefined) {
-    coreFeeCollector = coreBridge.FeeCollector.address(coreBridgeProgram);
+    coreFeeCollector = coreBridge.feeCollectorPda(coreBridgeProgram);
   }
 
   if (senderAuthority === undefined) {

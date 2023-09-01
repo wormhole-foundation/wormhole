@@ -461,7 +461,7 @@ export async function processVaa(
       [payer, encodedVaa]
     );
 
-    const chunkSize = 912;
+    const chunkSize = 900;
     for (let start = endAfterInit; start < vaaLen; start += chunkSize) {
       const end = Math.min(start + chunkSize, vaaLen);
 
@@ -529,4 +529,17 @@ export async function createAssociatedTokenAccountOffCurve(
   await sendAndConfirmTransaction(connection, transaction, [payer], confirmOptions);
 
   return associatedToken;
+}
+
+export async function transferLamports(
+  connection: Connection,
+  payer: Keypair,
+  other: PublicKey,
+  lamports: bigint = BigInt("1000000000")
+) {
+  return expectIxOk(
+    connection,
+    [SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: other, lamports })],
+    [payer]
+  );
 }

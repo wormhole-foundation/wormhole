@@ -1,16 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { ethers } from "ethers";
-import {
-  InvalidAccountConfig,
-  InvalidArgConfig,
-  createIfNeeded,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOkDetails,
-} from "../helpers";
-import { transferMessageFeeIx } from "../helpers/coreBridge/utils";
-import * as coreBridge from "../helpers/coreBridge";
 import { expect } from "chai";
+import { InvalidAccountConfig, createIfNeeded, expectIxErr, expectIxOkDetails } from "../helpers";
+import * as coreBridge from "../helpers/coreBridge";
+import { transferMessageFeeIx } from "../helpers/coreBridge/utils";
 
 describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -145,11 +137,11 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       // Validate fee collector.
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
@@ -245,11 +237,11 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       // Validate fee collector.
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
@@ -329,11 +321,11 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       // Validate fee collector.
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });
@@ -417,11 +409,11 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       // Validate fee collector.
       const feeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData).is.not.null;
       const forkFeeCollectorData = await connection.getAccountInfo(
-        coreBridge.FeeCollector.address(program.programId)
+        coreBridge.feeCollectorPda(program.programId)
       );
       expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
     });

@@ -73,6 +73,7 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
         payer,
         signedVaa,
         GUARDIAN_SET_INDEX,
+        payer,
         false
       );
 
