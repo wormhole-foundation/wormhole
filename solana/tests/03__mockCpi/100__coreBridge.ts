@@ -1,17 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  InvalidAccountConfig,
-  NullableAccountConfig,
-  createIfNeeded,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-} from "../helpers";
-import * as mockCpi from "../helpers/mockCpi";
+import { expectDeepEqual, expectIxOk, expectIxOkDetails } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { expect } from "chai";
-import { PublicKey } from "@solana/web3.js";
+import * as mockCpi from "../helpers/mockCpi";
 
 const UNRELIABLE_PAYLOAD_SIZE = 128;
 
@@ -185,7 +175,7 @@ describe("Mock CPI -- Core Bridge", () => {
       }
     });
 
-    it("Invoke `mock_prepare_message_v1`", async () => {
+    it("Invoke `mock_prepare_message_v1` where Redeemer == Program ID", async () => {
       const payerSequence = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("seq"), payer.publicKey.toBuffer()],
         program.programId

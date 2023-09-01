@@ -1,4 +1,6 @@
+import { ParsedVaa } from "@certusone/wormhole-sdk";
 import { BN } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
   AccountMeta,
   PublicKey,
@@ -7,10 +9,8 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TokenBridgeProgram, coreBridgeProgramId } from "../../..";
-import { Config, custodyAuthorityPda, custodyTokenPda, RegisteredEmitter } from "../../state";
-import { PostedVaaV1, Claim } from "../../../../coreBridge";
-import { ParsedVaa } from "@certusone/wormhole-sdk";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Claim, PostedVaaV1 } from "../../../../coreBridge";
+import { Config, RegisteredEmitter, custodyAuthorityPda, custodyTokenPda } from "../../state";
 
 export type LegacyCompleteTransferNativeContext = {
   payer: PublicKey;
@@ -23,7 +23,7 @@ export type LegacyCompleteTransferNativeContext = {
   custodyToken?: PublicKey;
   mint: PublicKey;
   custodyAuthority?: PublicKey;
-  rent?: PublicKey;
+  recipient?: PublicKey | null;
   coreBridgeProgram?: PublicKey;
 };
 
@@ -31,10 +31,14 @@ export function legacyCompleteTransferNativeAccounts(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferNativeContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean
+  overrides: {
+    legacyRegisteredEmitterDerive: boolean;
+  }
 ): LegacyCompleteTransferNativeContext {
   const programId = program.programId;
   const { emitterChain, emitterAddress, sequence, hash } = parsedVaa;
+
+  const { legacyRegisteredEmitterDerive } = overrides;
 
   let {
     payer,
@@ -47,7 +51,7 @@ export function legacyCompleteTransferNativeAccounts(
     custodyToken,
     mint,
     custodyAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
   } = accounts;
 
@@ -92,8 +96,10 @@ export function legacyCompleteTransferNativeAccounts(
     custodyAuthority = custodyAuthorityPda(programId);
   }
 
-  if (rent === undefined) {
-    rent = SYSVAR_RENT_PUBKEY;
+  if (recipient === undefined) {
+    recipient = SYSVAR_RENT_PUBKEY;
+  } else if (recipient === null) {
+    recipient = programId;
   }
 
   return {
@@ -107,7 +113,7 @@ export function legacyCompleteTransferNativeAccounts(
     custodyToken,
     mint,
     custodyAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
   };
 }
@@ -116,8 +122,16 @@ export function legacyCompleteTransferNativeIx(
   program: TokenBridgeProgram,
   accounts: LegacyCompleteTransferNativeContext,
   parsedVaa: ParsedVaa,
-  legacyRegisteredEmitterDerive: boolean = true
+  overrides: {
+    legacyRegisteredEmitterDerive?: boolean;
+  } = {}
 ) {
+  let { legacyRegisteredEmitterDerive } = overrides;
+
+  if (legacyRegisteredEmitterDerive === undefined) {
+    legacyRegisteredEmitterDerive = true;
+  }
+
   const {
     payer,
     config,
@@ -129,14 +143,11 @@ export function legacyCompleteTransferNativeIx(
     custodyToken,
     mint,
     custodyAuthority,
-    rent,
+    recipient,
     coreBridgeProgram,
-  } = legacyCompleteTransferNativeAccounts(
-    program,
-    accounts,
-    parsedVaa,
-    legacyRegisteredEmitterDerive
-  );
+  } = legacyCompleteTransferNativeAccounts(program, accounts, parsedVaa, {
+    legacyRegisteredEmitterDerive,
+  });
 
   const keys: AccountMeta[] = [
     {
@@ -190,7 +201,7 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: recipient,
       isWritable: false,
       isSigner: false,
     },

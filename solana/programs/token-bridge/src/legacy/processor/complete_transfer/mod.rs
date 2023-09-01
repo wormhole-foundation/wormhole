@@ -14,6 +14,7 @@ pub fn validate_posted_token_transfer<'ctx>(
     vaa_acc_data: &'ctx [u8],
     registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
     recipient_token: &'ctx AccountInfo<'_>,
+    recipient: &'ctx Option<AccountInfo>,
 ) -> Result<Transfer<'ctx>> {
     let vaa = PostedVaaV1::parse(vaa_acc_data)?;
     let msg =
@@ -36,11 +37,38 @@ pub fn validate_posted_token_transfer<'ctx>(
     //
     // NOTE: Allowing the encoded transfer recipient to be the token account's owner is a
     // patch.
-    let recipient = Pubkey::from(transfer.recipient());
-    if recipient != recipient_token.key() {
+    let expected_recipient = Pubkey::from(transfer.recipient());
+    if expected_recipient != recipient_token.key() {
+        require!(recipient.is_some(), ErrorCode::ConstraintTokenOwner);
+
+        let recipient = recipient.as_ref().unwrap();
+
+        // If the owner of this token account is the token program, someone is trolling by calling
+        // the complete transfer instruction with an ATA owned by the encoded recipient,
+        // which itself is an ATA. Go away.
+        require_keys_neq!(
+            *recipient.owner,
+            anchor_spl::token::ID,
+            TokenBridgeError::NestedTokenAccount
+        );
+
+        // Check that the recipient provided is the expected recipient.
+        //
+        // NOTE: If the provided account is the rent sysvar, this means an integrator is calling
+        // complete transfer with an old integration but expecting the redemption to be successful
+        // if the encoded VAA recipient is a token account owner. It is expected for integrators to
+        // handle this case by providing the recipient account info instead of the rent sysvar if he
+        // expects to redeem transfers to token accounts whose owner is encoded in the VAA.
+        require_keys_eq!(
+            recipient.key(),
+            expected_recipient,
+            TokenBridgeError::InvalidRecipient
+        );
+
+        // Finally check that the owner of the recipient token account is the encoded recipient.
         crate::zero_copy::TokenAccount::require_owner(
             &recipient_token.try_borrow_data()?,
-            &recipient,
+            &expected_recipient,
         )?;
     }
 
