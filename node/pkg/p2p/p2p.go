@@ -214,6 +214,9 @@ func Run(
 	ccqEnabled bool,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
+	ccqBootstrapPeers string,
+	ccqPort uint,
+	ccqAllowedPeers string,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -340,6 +343,27 @@ func Run(
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 		bootTime := time.Now()
+
+		if ccqEnabled {
+			ccqErrC := make(chan error)
+			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
+			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
+			}
+			defer ccq.close()
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case ccqErr := <-ccqErrC:
+						logger.Error("ccqp2p returned an error", zap.Error(ccqErr), zap.String("component", "ccqp2p"))
+						rootCtxCancel()
+						return
+					}
+				}
+			}()
+		}
 
 		// Periodically run guardian state set cleanup.
 		go func() {
@@ -503,45 +527,6 @@ func Run(
 					} else {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
-				case msg := <-queryResponseReadC:
-					if !ccqEnabled {
-						logger.Error("received a cross chain query response when the feature is disabled, dropping it", zap.String("component", "ccqp2p"))
-						continue
-					}
-					msgBytes, err := msg.Marshal()
-					if err != nil {
-						logger.Error("failed to marshal query response", zap.Error(err), zap.String("component", "ccqp2p"))
-						continue
-					}
-					digest := query.GetQueryResponseDigestFromBytes(msgBytes)
-					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
-					if err != nil {
-						panic(err)
-					}
-					envelope := &gossipv1.GossipMessage{
-						Message: &gossipv1.GossipMessage_SignedQueryResponse{
-							SignedQueryResponse: &gossipv1.SignedQueryResponse{
-								QueryResponse: msgBytes,
-								Signature:     sig,
-							},
-						},
-					}
-					b, err := proto.Marshal(envelope)
-					if err != nil {
-						panic(err)
-					}
-					err = th.Publish(ctx, b)
-					p2pMessagesSent.Inc()
-					if err != nil {
-						logger.Error("failed to publish query response", zap.Error(err), zap.String("component", "ccqp2p"))
-					} else {
-						logger.Info("published signed query response",
-							zap.String("requestID", msg.RequestID()),
-							zap.Any("query_response", msg),
-							zap.Any("signature", sig),
-							zap.String("component", "ccqp2p"),
-						)
-					}
 				}
 			}
 		}()
@@ -699,16 +684,6 @@ func Run(
 			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 				if signedGovSt != nil {
 					signedGovSt <- m.SignedChainGovernorStatus
-				}
-			case *gossipv1.GossipMessage_SignedQueryRequest:
-				if signedQueryReqC != nil {
-					if ccqEnabled {
-						if err := query.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
-							logger.Warn("failed to handle query request", zap.Error(err), zap.String("component", "ccqp2p"))
-						}
-					} else {
-						logger.Debug("dropping cross chain query request because the feature is not enabled", zap.String("component", "ccqp2p"))
-					}
 				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
