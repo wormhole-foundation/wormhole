@@ -42,7 +42,10 @@ for chain in $chain_ids
     # TODO: actually consult this from `worm` CLI
     # Perhaps the value present in the chains file can be used as a fallback when the current version of the `worm` program doesn't know about
     # a particular wormhole deployment
-    set wormhole_address (jq --raw-output ".create2Factories[] | select(.chainId == $chain) | .address" $chains_file)
+    set wormhole_address (jq --raw-output ".chains[] | select(.chainId == $chain) | .wormholeAddress" $chains_file)
+    # This actually pads the address to 32 bytes with 12 zero bytes at the start
+    # And we discard the "0x"
+    set wormhole_address (cast to-uint256 $wormhole_address | sed 's/^0x//g' -)
 
     # These two are documented in `forge verify-contract` as accepted environment variables.
     # We need the token to be unquoted when passed to `forge verify-contract`
@@ -59,9 +62,8 @@ for chain in $chain_ids
     # `cast compute-address` prints out "Computed Address: 0x..." so we have to split the string here.
     set init_contract_address (string split ' ' $init_contract_address)[-1]
     # This actually pads the address to 32 bytes with 12 zero bytes at the start
-    set init_contract_address (cast to-uint256 $init_contract_address)
-    # We discard the "0x"
-    set init_contract_address (string sub --start 3 $init_contract_address)
+    # And we discard the "0x"
+    set init_contract_address (cast to-uint256 $init_contract_address | sed 's/^0x//g' -)
 
     # Celo has a verification API but it currently doesn't work with `forge verify-contract`
     # We print the compiler input to a file instead for manual verification
