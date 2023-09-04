@@ -6,9 +6,8 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::{legacy::utils::LegacyAccount, sdk as core_bridge_sdk};
 use ruint::aliases::U256;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct TransferTokensWithPayloadWrapped<'info> {
@@ -43,7 +42,7 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump
     )]
-    wrapped_asset: Box<Account<'info, WrappedAsset>>,
+    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -92,6 +91,18 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<
+        'info,
+        TransferTokensWithPayloadArgs,
+    > for TransferTokensWithPayloadWrapped<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWithPayloadWrapped";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
+        transfer_tokens_with_payload_wrapped;
+}
+
 impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
     for TransferTokensWithPayloadWrapped<'info>
 {
@@ -134,7 +145,7 @@ impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info>
     }
 }
 
-pub fn transfer_tokens_with_payload_wrapped(
+fn transfer_tokens_with_payload_wrapped(
     ctx: Context<TransferTokensWithPayloadWrapped>,
     args: TransferTokensWithPayloadArgs,
 ) -> Result<()> {

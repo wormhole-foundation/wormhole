@@ -101,7 +101,7 @@ pub fn mock_legacy_post_message_unreliable(
 
     core_bridge_sdk::cpi::post_message_v1_unreliable_bytes(
         ctx.accounts,
-        core_bridge_sdk::cpi::PostMessageUnreliableArgs {
+        core_bridge_sdk::cpi::PostMessageArgs {
             nonce,
             payload,
             commitment: core_bridge_sdk::types::Commitment::Finalized,

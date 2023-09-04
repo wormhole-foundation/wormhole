@@ -6,7 +6,6 @@ use crate::{
     zero_copy::PostedMessageV1,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::utils;
 
 #[derive(Accounts)]
 pub struct ProcessMessageV1<'info> {
@@ -80,7 +79,7 @@ fn close_message_account(ctx: Context<ProcessMessageV1>) -> Result<()> {
                 );
             }
 
-            utils::close_account(
+            crate::utils::close_account(
                 ctx.accounts.draft_message.to_account_info(),
                 sol_destination.to_account_info(),
             )

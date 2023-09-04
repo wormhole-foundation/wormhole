@@ -7,11 +7,11 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::{metadata, token};
 use core_bridge_program::{
-    self, constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1,
+    self, constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    zero_copy::PostedVaaV1,
 };
 use mpl_token_metadata::state::DataV2;
 use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct CreateOrUpdateWrapped<'info> {
@@ -29,7 +29,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
+    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -53,7 +53,7 @@ pub struct CreateOrUpdateWrapped<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     /// CHECK: To avoid multiple borrows to the posted vaa account to generate seeds and other mint
     /// parameters, we perform these checks outside of this accounts context. The pubkey for this
@@ -80,7 +80,7 @@ pub struct CreateOrUpdateWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, WrappedAsset>>,
+    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
 
     /// CHECK: This account is managed by the MPL Token Metadata program. We verify this PDA to
     /// ensure that we deserialize the correct metadata before creating or updating.
@@ -113,6 +113,14 @@ pub struct CreateOrUpdateWrapped<'info> {
     system_program: Program<'info, System>,
     token_program: Program<'info, token::Token>,
     mpl_token_metadata_program: Program<'info, metadata::Metadata>,
+}
+
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for CreateOrUpdateWrapped<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyCreateOrUpdateWrapped";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = create_or_update_wrapped;
 }
 
 fn try_attestation_decimals(vaa_acc_data: &[u8]) -> Result<u8> {
@@ -166,10 +174,7 @@ impl<'info> CreateOrUpdateWrapped<'info> {
 }
 
 #[access_control(CreateOrUpdateWrapped::constraints(&ctx))]
-pub fn create_or_update_wrapped(
-    ctx: Context<CreateOrUpdateWrapped>,
-    _args: EmptyArgs,
-) -> Result<()> {
+fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
@@ -190,11 +195,14 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 
     // Set wrapped asset data.
     let wrapped_asset = &mut ctx.accounts.wrapped_asset;
-    wrapped_asset.set_inner(WrappedAsset {
-        token_chain: attestation.token_chain(),
-        token_address: attestation.token_address(),
-        native_decimals: attestation.decimals(),
-    });
+    wrapped_asset.set_inner(
+        WrappedAsset {
+            token_chain: attestation.token_chain(),
+            token_address: attestation.token_address(),
+            native_decimals: attestation.decimals(),
+        }
+        .into(),
+    );
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
     let uri = wrapped_asset.to_uri();

@@ -1,14 +1,13 @@
 use crate::{
     constants::SOLANA_CHAIN,
     error::CoreBridgeError,
-    legacy::instruction::EmptyArgs,
+    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
     state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
 use anchor_lang::prelude::*;
 use ruint::aliases::U256;
 use wormhole_raw_vaas::core::CoreBridgeGovPayload;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct SetMessageFee<'info> {
@@ -20,7 +19,7 @@ pub struct SetMessageFee<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -43,9 +42,17 @@ pub struct SetMessageFee<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for SetMessageFee<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacySetMessageFee";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = set_message_fee;
 }
 
 impl<'info> SetMessageFee<'info> {
@@ -73,7 +80,7 @@ impl<'info> SetMessageFee<'info> {
 }
 
 #[access_control(SetMessageFee::constraints(&ctx))]
-pub fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
+fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 

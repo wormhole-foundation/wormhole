@@ -1,22 +1,10 @@
-use crate::types::Commitment;
-use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
-
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct PostMessageUnreliableArgs {
-    pub nonce: u32,
-    pub payload: Vec<u8>,
-    pub commitment: Commitment,
-}
-
 #[cfg(feature = "no-entrypoint")]
 mod __no_entrypoint {
-    use crate::legacy::instruction::LegacyInstruction;
+    use crate::legacy::{cpi::PostMessageArgs, instruction::LegacyInstruction};
     use solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
     };
-
-    use super::*;
 
     pub struct PostMessageUnreliable {
         pub config: Pubkey,
@@ -36,7 +24,7 @@ mod __no_entrypoint {
     /// * The new message must be the same size as the existing message's payload.
     pub fn post_message_unreliable(
         accounts: PostMessageUnreliable,
-        args: PostMessageUnreliableArgs,
+        args: PostMessageArgs,
     ) -> Instruction {
         let fee_collector = match accounts.fee_collector {
             Some(fee_collector) => fee_collector,

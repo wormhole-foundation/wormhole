@@ -1,13 +1,12 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::EmptyArgs,
+    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
     state::{Claim, Config, GuardianSet},
     types::Timestamp,
     zero_copy::PostedVaaV1,
 };
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::core::CoreBridgeGovPayload;
-use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct GuardianSetUpdate<'info> {
@@ -19,7 +18,7 @@ pub struct GuardianSetUpdate<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -42,14 +41,14 @@ pub struct GuardianSetUpdate<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     #[account(
         mut,
         seeds = [GuardianSet::SEED_PREFIX, &config.guardian_set_index.to_be_bytes()],
         bump,
     )]
-    curr_guardian_set: Account<'info, GuardianSet>,
+    curr_guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
 
     #[account(
         init,
@@ -58,9 +57,17 @@ pub struct GuardianSetUpdate<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &(curr_guardian_set.index + 1).to_be_bytes()],
         bump,
     )]
-    new_guardian_set: Account<'info, GuardianSet>,
+    new_guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for GuardianSetUpdate<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyGuardianSetUpdate";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = guardian_set_update;
 }
 
 /// Read account info data assuming we are reading a guardian set update governance decree to
@@ -104,7 +111,7 @@ impl<'info> GuardianSetUpdate<'info> {
 }
 
 #[access_control(GuardianSetUpdate::constraints(&ctx))]
-pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
+fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 
@@ -120,10 +127,7 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
         .collect();
     for (i, guardian) in keys.iter().take(keys.len() - 1).enumerate() {
         // We disallow guardian pubkeys that have zero address.
-        require!(
-            utils::is_nonzero_array(guardian),
-            CoreBridgeError::GuardianZeroAddress
-        );
+        require!(*guardian != [0; 20], CoreBridgeError::GuardianZeroAddress);
 
         // Check if this pubkey is a duplicate of any others.
         for other in keys.iter().skip(i + 1) {
@@ -132,12 +136,15 @@ pub fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) ->
     }
 
     // Set new guardian set account fields.
-    ctx.accounts.new_guardian_set.set_inner(GuardianSet {
-        index: ctx.accounts.curr_guardian_set.index + 1,
-        creation_time: vaa.timestamp(),
-        keys,
-        expiration_time: Default::default(),
-    });
+    ctx.accounts.new_guardian_set.set_inner(
+        GuardianSet {
+            index: ctx.accounts.curr_guardian_set.index + 1,
+            creation_time: vaa.timestamp(),
+            keys,
+            expiration_time: Default::default(),
+        }
+        .into(),
+    );
 
     // Set the new index on the config program data.
     let config = &mut ctx.accounts.config;

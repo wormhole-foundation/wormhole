@@ -1,9 +1,9 @@
 use crate::{
+    legacy::utils::LegacyAccount,
     state::{PostedVaaV1Bytes, SignatureSet, VaaV1Account},
     types::MessageHash,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 #[instruction(message_hash: MessageHash)]
@@ -17,13 +17,13 @@ pub struct ClosePostedVaaV1<'info> {
         seeds = [PostedVaaV1Bytes::SEED_PREFIX, posted_vaa.try_message_hash()?.as_ref()],
         bump
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
 
     #[account(
         mut,
         close = sol_destination
     )]
-    signature_set: Option<Account<'info, SignatureSet>>,
+    signature_set: Option<Account<'info, LegacyAccount<0, SignatureSet>>>,
 }
 
 /// This directive acts as a placeholder in case we want to expand how posted VAAs are closed.

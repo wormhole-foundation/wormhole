@@ -2241,15 +2241,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-attribute-legacy-account"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "wormhole-core-bridge-solana"
 version = "0.1.0"
 dependencies = [
@@ -2259,7 +2250,6 @@ dependencies = [
  "solana-program",
  "wormhole-io",
  "wormhole-raw-vaas",
- "wormhole-solana-common",
 ]
 
 [[package]]
@@ -2290,15 +2280,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-solana-common"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anyhow",
- "wormhole-attribute-legacy-account",
-]
-
-[[package]]
 name = "wormhole-token-bridge-solana"
 version = "0.1.0"
 dependencies = [
@@ -2316,7 +2297,6 @@ dependencies = [
  "wormhole-core-bridge-solana",
  "wormhole-io",
  "wormhole-raw-vaas",
- "wormhole-solana-common",
 ]
 
 [[package]]

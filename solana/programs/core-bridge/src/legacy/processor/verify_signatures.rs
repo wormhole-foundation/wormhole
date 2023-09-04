@@ -1,11 +1,10 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::LegacyVerifySignaturesArgs,
+    legacy::{instruction::LegacyVerifySignaturesArgs, utils::LegacyAccount},
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
 use anchor_lang::{prelude::*, solana_program::sysvar};
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, InitSpace)]
 struct SigVerifyOffsets {
@@ -37,7 +36,7 @@ pub struct VerifySignatures<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, GuardianSet>,
+    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
 
     /// Stores signature validation from libsecp256k1 program.
     #[account(
@@ -45,7 +44,7 @@ pub struct VerifySignatures<'info> {
         payer = payer,
         space = SignatureSet::compute_size(guardian_set.keys.len())
     )]
-    signature_set: Account<'info, SignatureSet>,
+    signature_set: Account<'info, LegacyAccount<0, SignatureSet>>,
 
     /// CHECK: Instruction sysvar used to read libsecp256k1 instruction data.
     #[account(
@@ -57,6 +56,15 @@ pub struct VerifySignatures<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyVerifySignaturesArgs>
+    for VerifySignatures<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyVerifySignatures";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyVerifySignaturesArgs) -> Result<()> =
+        verify_signatures;
 }
 
 impl<'info> VerifySignatures<'info> {
@@ -80,7 +88,7 @@ impl<'info> VerifySignatures<'info> {
 }
 
 #[access_control(VerifySignatures::constraints(&ctx))]
-pub fn verify_signatures(
+fn verify_signatures(
     ctx: Context<VerifySignatures>,
     args: LegacyVerifySignaturesArgs,
 ) -> Result<()> {
@@ -161,11 +169,14 @@ pub fn verify_signatures(
         // So if the account data is all zeros, we're assuming that the account
         // is created at this instruction call. Save the guardian set index and
         // message hash.
-        signature_set.set_inner(SignatureSet {
-            sig_verify_successes: vec![false; guardians.len()],
-            message_hash,
-            guardian_set_index: guardian_set.index,
-        });
+        signature_set.set_inner(
+            SignatureSet {
+                sig_verify_successes: vec![false; guardians.len()],
+                message_hash,
+                guardian_set_index: guardian_set.index,
+            }
+            .into(),
+        );
     }
 
     // Attempt to write `true` to represent verified guardian eth pubkey.

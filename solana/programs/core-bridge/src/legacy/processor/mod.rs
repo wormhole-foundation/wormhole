@@ -16,21 +16,14 @@ pub use post_vaa::*;
 mod verify_signatures;
 pub use verify_signatures::*;
 
-use crate::{
-    legacy::instruction::{
-        EmptyArgs, LegacyInitializeArgs, LegacyPostVaaArgs, LegacyVerifySignaturesArgs,
-        PostMessageArgs, PostMessageUnreliableArgs,
-    },
-    ID,
-};
+use crate::{legacy::utils::ProcessLegacyInstruction, ID};
 use anchor_lang::prelude::*;
-use wormhole_solana_common::process_anchorized_legacy_instruction;
 
 use super::instruction::LegacyInstruction;
 
 pub fn process_legacy_instruction(
     program_id: &Pubkey,
-    mut account_infos: &[AccountInfo],
+    account_infos: &[AccountInfo],
     mut ix_data: &[u8],
 ) -> Result<()> {
     // TODO: This may not be necessary. Double-check in integration test.
@@ -40,103 +33,31 @@ pub fn process_legacy_instruction(
     // enum. Otherwise, we bail out.
     match LegacyInstruction::deserialize(&mut ix_data)? {
         LegacyInstruction::Initialize => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyInitialize",
-                Initialize,
-                account_infos,
-                ix_data,
-                initialize,
-                LegacyInitializeArgs
-            )
+            Initialize::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::PostMessage => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyPostMessage",
-                PostMessage,
-                account_infos,
-                ix_data,
-                post_message,
-                PostMessageArgs
-            )
+            PostMessage::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::PostVaa => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyPostVaa",
-                PostVaa,
-                account_infos,
-                ix_data,
-                post_vaa,
-                LegacyPostVaaArgs
-            )
+            PostVaa::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::SetMessageFee => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacySetMessageFee",
-                SetMessageFee,
-                account_infos,
-                ix_data,
-                set_message_fee,
-                EmptyArgs
-            )
+            SetMessageFee::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::TransferFees => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyTransferFees",
-                TransferFees,
-                account_infos,
-                ix_data,
-                transfer_fees,
-                EmptyArgs
-            )
+            TransferFees::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::UpgradeContract => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyUpgradeContract",
-                UpgradeContract,
-                account_infos,
-                ix_data,
-                upgrade_contract,
-                EmptyArgs
-            )
+            UpgradeContract::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::GuardianSetUpdate => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyGuardianSetUpdate",
-                GuardianSetUpdate,
-                account_infos,
-                ix_data,
-                guardian_set_update,
-                EmptyArgs
-            )
+            GuardianSetUpdate::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::VerifySignatures => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyVerifySignatures",
-                VerifySignatures,
-                account_infos,
-                ix_data,
-                verify_signatures,
-                LegacyVerifySignaturesArgs
-            )
+            VerifySignatures::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::PostMessageUnreliable => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyPostMessageUnreliable",
-                PostMessageUnreliable,
-                account_infos,
-                ix_data,
-                post_message_unreliable,
-                PostMessageUnreliableArgs
-            )
+            PostMessageUnreliable::process_instruction(program_id, account_infos, ix_data)
         }
     }
 }

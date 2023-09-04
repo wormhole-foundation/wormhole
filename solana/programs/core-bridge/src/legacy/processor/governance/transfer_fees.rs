@@ -1,7 +1,7 @@
 use crate::{
     constants::{FEE_COLLECTOR_SEED_PREFIX, SOLANA_CHAIN},
     error::CoreBridgeError,
-    legacy::instruction::EmptyArgs,
+    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
     state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
@@ -11,7 +11,6 @@ use anchor_lang::{
 };
 use ruint::aliases::U256;
 use wormhole_raw_vaas::core::CoreBridgeGovPayload;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct TransferFees<'info> {
@@ -23,7 +22,7 @@ pub struct TransferFees<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -46,7 +45,7 @@ pub struct TransferFees<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     /// CHECK: Fee collector.
     #[account(
@@ -64,6 +63,14 @@ pub struct TransferFees<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for TransferFees<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferFees";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = transfer_fees;
 }
 
 impl<'info> TransferFees<'info> {
@@ -112,7 +119,7 @@ impl<'info> TransferFees<'info> {
 }
 
 #[access_control(TransferFees::constraints(&ctx))]
-pub fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
+fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 

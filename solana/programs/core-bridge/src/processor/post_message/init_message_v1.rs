@@ -3,11 +3,11 @@ use std::io::{Read, Write};
 use crate::{
     constants::MAX_MESSAGE_PAYLOAD_SIZE,
     error::CoreBridgeError,
+    legacy::utils::LegacyDiscriminator,
     state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
     types::Commitment,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{utils, LegacyDiscriminator};
 
 use super::new_emitter;
 
@@ -52,7 +52,7 @@ impl<'info> InitMessageV1<'info> {
         let mut zeros = [0; PostedMessageV1::BYTES_START];
         reader.read_exact(&mut zeros).unwrap();
         require!(
-            !utils::is_nonzero_array(&zeros),
+            zeros == [0; PostedMessageV1::BYTES_START],
             CoreBridgeError::AccountNotZeroed
         );
 

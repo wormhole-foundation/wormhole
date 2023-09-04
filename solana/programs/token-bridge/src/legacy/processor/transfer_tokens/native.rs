@@ -90,6 +90,15 @@ pub struct TransferTokensNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, TransferTokensArgs>
+    for TransferTokensNative<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensNative";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensArgs) -> Result<()> =
+        transfer_tokens_native;
+}
+
 impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferTokensNative<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
@@ -147,7 +156,7 @@ impl<'info> TransferTokensNative<'info> {
 }
 
 #[access_control(TransferTokensNative::constraints(&ctx, &args))]
-pub fn transfer_tokens_native(
+fn transfer_tokens_native(
     ctx: Context<TransferTokensNative>,
     args: TransferTokensArgs,
 ) -> Result<()> {

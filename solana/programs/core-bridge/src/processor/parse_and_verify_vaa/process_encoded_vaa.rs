@@ -1,5 +1,6 @@
 use crate::{
     error::CoreBridgeError,
+    legacy::utils::LegacyAccount,
     state::{GuardianSet, Header, ProcessingStatus},
     types::VaaVersion,
     zero_copy::EncodedVaa,
@@ -7,7 +8,6 @@ use crate::{
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
 use wormhole_raw_vaas::GuardianSetSig;
-use wormhole_solana_common::{utils, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct ProcessEncodedVaa<'info> {
@@ -40,7 +40,7 @@ pub struct ProcessEncodedVaa<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Option<Account<'info, GuardianSet>>,
+    guardian_set: Option<Account<'info, LegacyAccount<0, GuardianSet>>>,
 }
 
 impl<'info> ProcessEncodedVaa<'info> {
@@ -103,7 +103,7 @@ pub fn process_encoded_vaa(
 fn close_vaa_account(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
     msg!("Directive: CloseVaaAccount");
 
-    utils::close_account(
+    crate::utils::close_account(
         ctx.accounts.encoded_vaa.to_account_info(),
         ctx.accounts.write_authority.to_account_info(),
     )

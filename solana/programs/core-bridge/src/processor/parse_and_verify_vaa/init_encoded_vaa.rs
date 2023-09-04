@@ -5,7 +5,6 @@ use crate::{
     state::{EncodedVaa, Header, ProcessingStatus},
 };
 use anchor_lang::{prelude::*, Discriminator};
-use wormhole_solana_common::utils;
 
 #[derive(Accounts)]
 pub struct InitEncodedVaa<'info> {
@@ -42,7 +41,7 @@ impl<'info> InitEncodedVaa<'info> {
         let mut zeros = [0; EncodedVaa::BYTES_START];
         reader.read_exact(&mut zeros)?;
         require!(
-            !utils::is_nonzero_array(&zeros),
+            zeros == [0; EncodedVaa::BYTES_START],
             CoreBridgeError::AccountNotZeroed
         );
 

@@ -1,19 +1,22 @@
 use anchor_lang::prelude::*;
-use wormhole_solana_common::legacy_account;
-use wormhole_solana_common::{LegacyDiscriminator, SeedPrefix};
 
-#[legacy_account]
-#[derive(Debug, PartialEq, Eq, InitSpace)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct EmitterSequence {
     pub value: u64,
 }
 
-impl LegacyDiscriminator<0> for EmitterSequence {
+impl Owner for EmitterSequence {
+    fn owner() -> Pubkey {
+        crate::ID
+    }
+}
+
+impl crate::legacy::utils::LegacyDiscriminator<0> for EmitterSequence {
     const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }
 
-impl SeedPrefix for EmitterSequence {
-    const SEED_PREFIX: &'static [u8] = b"Sequence";
+impl EmitterSequence {
+    pub const SEED_PREFIX: &'static [u8] = b"Sequence";
 }
 
 impl std::ops::Deref for EmitterSequence {

@@ -7,9 +7,11 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1};
+use core_bridge_program::{
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    zero_copy::PostedVaaV1,
+};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct CompleteTransferWithPayloadWrapped<'info> {
@@ -41,7 +43,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -51,7 +53,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
+    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
 
     /// CHECK: Destination token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
@@ -75,7 +77,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, WrappedAsset>>,
+    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -90,6 +92,15 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
     token_program: Program<'info, token::Token>,
+}
+
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for CompleteTransferWithPayloadWrapped<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacCompleteTransferWithPayloadWrapped";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> =
+        complete_transfer_with_payload_wrapped;
 }
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {
@@ -131,7 +142,7 @@ impl<'info> CompleteTransferWithPayloadWrapped<'info> {
 }
 
 #[access_control(CompleteTransferWithPayloadWrapped::constraints(&ctx))]
-pub fn complete_transfer_with_payload_wrapped(
+fn complete_transfer_with_payload_wrapped(
     ctx: Context<CompleteTransferWithPayloadWrapped>,
     _args: EmptyArgs,
 ) -> Result<()> {

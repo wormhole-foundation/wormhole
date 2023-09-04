@@ -14,7 +14,6 @@ use core_bridge_program::{
 };
 use ruint::aliases::U256;
 use solana_program::program_option::COption;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct TransferTokens<'info> {
