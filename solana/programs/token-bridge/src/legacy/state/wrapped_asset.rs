@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use serde::{Deserialize, Serialize};
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator, SeedPrefix};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,15 +9,26 @@ struct MetadataUri {
     native_decimals: u8,
 }
 
-#[legacy_account]
-#[derive(Debug, PartialEq, Eq, InitSpace)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct WrappedAsset {
     pub token_chain: u16,
     pub token_address: [u8; 32],
     pub native_decimals: u8,
 }
 
+impl Owner for WrappedAsset {
+    fn owner() -> Pubkey {
+        crate::ID
+    }
+}
+
+impl core_bridge_program::legacy::utils::LegacyDiscriminator<0> for WrappedAsset {
+    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
+}
+
 impl WrappedAsset {
+    pub const SEED_PREFIX: &'static [u8] = b"meta";
+
     pub fn to_uri(&self) -> String {
         let mut uri = serde_json::to_string_pretty(&MetadataUri {
             wormhole_chain_id: self.token_chain,
@@ -32,14 +42,6 @@ impl WrappedAsset {
 
         uri
     }
-}
-
-impl LegacyDiscriminator<0> for WrappedAsset {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
-}
-
-impl SeedPrefix for WrappedAsset {
-    const SEED_PREFIX: &'static [u8] = b"meta";
 }
 
 #[cfg(test)]

@@ -68,6 +68,15 @@ pub struct AttestToken<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, LegacyAttestTokenArgs>
+    for AttestToken<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyAttestToken";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyAttestTokenArgs) -> Result<()> = attest_token;
+}
+
 impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for AttestToken<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
@@ -115,7 +124,7 @@ impl<'info> AttestToken<'info> {
 }
 
 #[access_control(AttestToken::constraints(&ctx))]
-pub fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Result<()> {
+fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Result<()> {
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;

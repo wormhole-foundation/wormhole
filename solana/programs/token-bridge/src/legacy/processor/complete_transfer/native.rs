@@ -8,9 +8,11 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1};
+use core_bridge_program::{
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    zero_copy::PostedVaaV1,
+};
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
-use wormhole_solana_common::SeedPrefix;
 
 #[derive(Accounts)]
 pub struct CompleteTransferNative<'info> {
@@ -42,7 +44,7 @@ pub struct CompleteTransferNative<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -52,7 +54,7 @@ pub struct CompleteTransferNative<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, RegisteredEmitter>>,
+    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
     /// can be sure that this token account is the same mint since the Token Program transfer
@@ -106,6 +108,14 @@ pub struct CompleteTransferNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for CompleteTransferNative<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacCompleteTransferNative";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = complete_transfer_native;
+}
+
 impl<'info> CompleteTransferNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         require_keys_eq!(
@@ -150,10 +160,7 @@ impl<'info> CompleteTransferNative<'info> {
 }
 
 #[access_control(CompleteTransferNative::constraints(&ctx))]
-pub fn complete_transfer_native(
-    ctx: Context<CompleteTransferNative>,
-    _args: EmptyArgs,
-) -> Result<()> {
+fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 

@@ -1,14 +1,12 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::PostMessageArgs,
+    legacy::{instruction::PostMessageArgs, utils::LegacyAccount},
     state::{
         Config, EmitterSequence, MessageStatus, PostedMessageV1, PostedMessageV1Data,
         PostedMessageV1Info,
     },
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
-
 #[derive(Accounts)]
 #[instruction(args: PostMessageArgs)]
 pub struct PostMessage<'info> {
@@ -19,7 +17,7 @@ pub struct PostMessage<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// CHECK: Posted message account data.
     ///
@@ -57,7 +55,7 @@ pub struct PostMessage<'info> {
         ],
         bump
     )]
-    emitter_sequence: Account<'info, EmitterSequence>,
+    emitter_sequence: Account<'info, LegacyAccount<0, EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -79,7 +77,15 @@ pub struct PostMessage<'info> {
     _rent: UncheckedAccount<'info>,
 }
 
-pub fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>
+    for PostMessage<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyPostMessage";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, PostMessageArgs) -> Result<()> = post_message;
+}
+
+fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
     if ctx.accounts.message.data_is_empty() {
         handle_post_new_message(ctx, args)
     } else {
@@ -135,7 +141,7 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    PostedMessageV1 { data }.try_serialize(&mut writer)?;
+    LegacyAccount::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
 
     // Done.
     Ok(())
@@ -182,16 +188,16 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    PostedMessageV1 { data }.try_serialize(&mut writer)?;
+    LegacyAccount::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
 
     // Done.
     Ok(())
 }
 
 pub(in crate::legacy) fn new_posted_message_data(
-    config: &mut Account<Config>,
+    config: &mut Account<LegacyAccount<0, Config>>,
     fee_collector: &Option<AccountInfo>,
-    emitter_sequence: &mut Account<EmitterSequence>,
+    emitter_sequence: &mut Account<LegacyAccount<0, EmitterSequence>>,
     consistency_level: u8,
     nonce: u32,
     emitter: &Pubkey,
@@ -230,7 +236,7 @@ pub(in crate::legacy) fn new_posted_message_data(
 }
 
 fn handle_message_fee(
-    config: &mut Account<Config>,
+    config: &mut Account<LegacyAccount<0, Config>>,
     fee_collector: &Option<AccountInfo>,
 ) -> Result<()> {
     match (config.fee_lamports, fee_collector) {

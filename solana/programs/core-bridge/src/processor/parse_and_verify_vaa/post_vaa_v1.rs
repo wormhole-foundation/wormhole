@@ -1,11 +1,11 @@
 use crate::{
     error::CoreBridgeError,
+    legacy::utils::LegacyAccount,
     state::{EncodedVaa, PostedVaaV1Bytes, PostedVaaV1Metadata, ProcessingStatus},
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::Vaa;
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct PostVaaV1<'info> {
@@ -26,7 +26,7 @@ pub struct PostVaaV1<'info> {
         seeds = [PostedVaaV1Bytes::SEED_PREFIX, vaa.v1()?.body().digest().as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
 
     system_program: Program<'info, System>,
 }
@@ -78,19 +78,22 @@ fn try_once(ctx: Context<PostVaaV1>) -> Result<()> {
 
     let body = vaa.body();
 
-    ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
-        meta: PostedVaaV1Metadata {
-            consistency_level: body.consistency_level(),
-            timestamp: body.timestamp().into(),
-            signature_set: Default::default(),
-            guardian_set_index: vaa.guardian_set_index(),
-            nonce: body.nonce(),
-            sequence: body.sequence(),
-            emitter_chain: body.emitter_chain(),
-            emitter_address: body.emitter_address(),
-        },
-        payload: body.payload().as_ref().to_vec(),
-    });
+    ctx.accounts.posted_vaa.set_inner(
+        PostedVaaV1Bytes {
+            meta: PostedVaaV1Metadata {
+                consistency_level: body.consistency_level(),
+                timestamp: body.timestamp().into(),
+                signature_set: Default::default(),
+                guardian_set_index: vaa.guardian_set_index(),
+                nonce: body.nonce(),
+                sequence: body.sequence(),
+                emitter_chain: body.emitter_chain(),
+                emitter_address: body.emitter_address(),
+            },
+            payload: body.payload().as_ref().to_vec(),
+        }
+        .into(),
+    );
 
     // Done.
     Ok(())

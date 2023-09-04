@@ -1,4 +1,4 @@
-pub use crate::legacy::cpi::PostMessageUnreliableArgs;
+pub use crate::legacy::cpi::PostMessageArgs;
 
 use anchor_lang::prelude::*;
 
@@ -38,7 +38,7 @@ pub fn post_message_v1_unreliable<
 ) -> Result<()> {
     post_message_v1_unreliable_bytes(
         accounts,
-        PostMessageUnreliableArgs {
+        PostMessageArgs {
             nonce: args.nonce,
             payload: args.message.to_vec(),
             commitment: args.commitment,
@@ -50,7 +50,7 @@ pub fn post_message_v1_unreliable<
 
 pub fn post_message_v1_unreliable_bytes<'info, A: InvokePostMessageV1Unreliable<'info>>(
     accounts: &A,
-    args: crate::legacy::cpi::PostMessageUnreliableArgs,
+    args: crate::legacy::cpi::PostMessageArgs,
     emitter_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
 ) -> Result<()> {

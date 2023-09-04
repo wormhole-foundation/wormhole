@@ -1,5 +1,6 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
+use core_bridge_program::legacy::utils::LegacyAccount;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
@@ -32,7 +33,7 @@ pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
 pub fn require_valid_posted_token_bridge_vaa<'ctx>(
     vaa_acc_key: &Pubkey,
     vaa: &core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
-    registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
+    registered_emitter: &'ctx Account<'_, LegacyAccount<0, RegisteredEmitter>>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
     require_valid_posted_vaa_key(vaa_acc_key)?;
 

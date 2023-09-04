@@ -5,11 +5,13 @@ pub(crate) use processor::*;
 
 pub mod state;
 
+pub mod utils;
+
 pub use crate::ID;
 
 #[cfg(feature = "cpi")]
 pub mod cpi {
-    pub use instruction::{PostMessageArgs, PostMessageUnreliableArgs};
+    pub use instruction::PostMessageArgs;
 
     use anchor_lang::prelude::*;
     use solana_program::program::invoke_signed;
@@ -47,7 +49,7 @@ pub mod cpi {
     /// * The new message must be the same size as the existing message's payload.
     pub fn post_message_unreliable<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessageUnreliable<'info>>,
-        args: PostMessageUnreliableArgs,
+        args: PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message_unreliable(

@@ -34,8 +34,6 @@ pub mod utils;
 
 pub mod zero_copy;
 
-pub use wormhole_solana_common::SeedPrefix;
-
 #[program]
 pub mod wormhole_core_bridge_solana {
     use super::*;

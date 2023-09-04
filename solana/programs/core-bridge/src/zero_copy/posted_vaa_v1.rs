@@ -3,13 +3,13 @@ use anchor_lang::{
     prelude::{require, ErrorCode, Pubkey},
     solana_program::keccak,
 };
-use wormhole_solana_common::SeedPrefix;
 
 pub struct PostedVaaV1<'a>(&'a [u8]);
 
 impl<'a> PostedVaaV1<'a> {
     pub const DISCRIMINATOR: [u8; 4] = state::POSTED_VAA_V1_DISCRIMINATOR;
     pub const PAYLOAD_START: usize = 91;
+    pub const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
 
     const DISC_LEN: usize = Self::DISCRIMINATOR.len();
 
@@ -82,8 +82,4 @@ impl<'a> PostedVaaV1<'a> {
 
         Ok(Self(&span[Self::DISC_LEN..]))
     }
-}
-
-impl<'a> SeedPrefix for PostedVaaV1<'a> {
-    const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
 }

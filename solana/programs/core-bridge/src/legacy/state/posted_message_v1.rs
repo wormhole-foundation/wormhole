@@ -2,7 +2,6 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{constants::SOLANA_CHAIN, types::Timestamp};
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator, NewAccountSize};
 
 pub(crate) const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
@@ -84,8 +83,8 @@ impl DerefMut for PostedMessageV1Data {
     }
 }
 
-impl NewAccountSize for PostedMessageV1Data {
-    fn compute_size(payload_len: usize) -> usize {
+impl PostedMessageV1Data {
+    pub fn compute_size(payload_len: usize) -> usize {
         4
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
@@ -93,10 +92,15 @@ impl NewAccountSize for PostedMessageV1Data {
     }
 }
 
-#[legacy_account]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1 {
     pub data: PostedMessageV1Data,
+}
+
+impl Owner for PostedMessageV1 {
+    fn owner() -> Pubkey {
+        crate::ID
+    }
 }
 
 impl PostedMessageV1 {
@@ -104,16 +108,14 @@ impl PostedMessageV1 {
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
         ;
-}
 
-impl LegacyDiscriminator<4> for PostedMessageV1 {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
-}
-
-impl NewAccountSize for PostedMessageV1 {
-    fn compute_size(payload_len: usize) -> usize {
+    pub(crate) fn compute_size(payload_len: usize) -> usize {
         PostedMessageV1Data::compute_size(payload_len)
     }
+}
+
+impl crate::legacy::utils::LegacyDiscriminator<4> for PostedMessageV1 {
+    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
 }
 
 impl Deref for PostedMessageV1 {

@@ -3,9 +3,11 @@ use crate::{
     state::Claim,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{constants::SOLANA_CHAIN, sdk::cpi::CoreBridge, zero_copy::PostedVaaV1};
+use core_bridge_program::{
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    zero_copy::PostedVaaV1,
+};
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
-use wormhole_solana_common::{BpfLoaderUpgradeable, SeedPrefix};
 
 #[derive(Accounts)]
 pub struct UpgradeContract<'info> {
@@ -34,7 +36,7 @@ pub struct UpgradeContract<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
     /// upgrade this program's executable.
@@ -66,9 +68,22 @@ pub struct UpgradeContract<'info> {
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
-    bpf_loader_upgradeable_program: Program<'info, BpfLoaderUpgradeable>,
+    /// CHECK: BPF Loader Upgradeable program.
+    #[account(
+        address = solana_program::bpf_loader_upgradeable::id()
+    )]
+    bpf_loader_upgradeable_program: AccountInfo<'info>,
+
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
+}
+
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+    for UpgradeContract<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyUpgradeContract";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = upgrade_contract;
 }
 
 impl<'info> UpgradeContract<'info> {
@@ -101,7 +116,7 @@ impl<'info> UpgradeContract<'info> {
 }
 
 #[access_control(UpgradeContract::constraints(&ctx))]
-pub fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
+fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete.
     ctx.accounts.claim.is_complete = true;
 

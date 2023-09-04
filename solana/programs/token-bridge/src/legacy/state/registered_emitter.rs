@@ -1,13 +1,17 @@
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{legacy_account, LegacyDiscriminator};
 
-#[legacy_account]
-#[derive(Debug, Copy, PartialEq, Eq, InitSpace)]
+#[derive(Debug, AnchorDeserialize, AnchorSerialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub struct RegisteredEmitter {
     pub chain: u16,
     pub contract: [u8; 32],
 }
 
-impl LegacyDiscriminator<0> for RegisteredEmitter {
+impl Owner for RegisteredEmitter {
+    fn owner() -> Pubkey {
+        crate::ID
+    }
+}
+
+impl core_bridge_program::legacy::utils::LegacyDiscriminator<0> for RegisteredEmitter {
     const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }

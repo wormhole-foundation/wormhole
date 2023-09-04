@@ -6,13 +6,15 @@ pub use wrapped::*;
 
 use crate::{error::TokenBridgeError, legacy::state::RegisteredEmitter};
 use anchor_lang::prelude::*;
-use core_bridge_program::{constants::SOLANA_CHAIN, zero_copy::PostedVaaV1};
+use core_bridge_program::{
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, zero_copy::PostedVaaV1,
+};
 use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, TransferWithMessage};
 
 pub fn validate_posted_token_transfer_with_payload<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
     vaa_acc_data: &'ctx [u8],
-    registered_emitter: &'ctx Account<'_, RegisteredEmitter>,
+    registered_emitter: &'ctx Account<'_, LegacyAccount<0, RegisteredEmitter>>,
     redeemer_authority: &'ctx Signer<'_>,
     dst_token: &'ctx AccountInfo<'_>,
 ) -> Result<TransferWithMessage<'ctx>> {

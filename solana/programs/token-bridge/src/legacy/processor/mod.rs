@@ -8,6 +8,7 @@ mod complete_transfer_with_payload;
 pub use complete_transfer_with_payload::*;
 
 mod create_or_update_wrapped;
+use core_bridge_program::legacy::utils::ProcessLegacyInstruction;
 pub use create_or_update_wrapped::*;
 
 mod governance;
@@ -22,21 +23,14 @@ pub use transfer_tokens::*;
 mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
-use crate::{
-    legacy::instruction::{
-        EmptyArgs, LegacyAttestTokenArgs, LegacyInitializeArgs, TransferTokensArgs,
-        TransferTokensWithPayloadArgs,
-    },
-    ID,
-};
+use crate::ID;
 use anchor_lang::prelude::*;
-use wormhole_solana_common::process_anchorized_legacy_instruction;
 
 use super::instruction::LegacyInstruction;
 
 pub fn process_legacy_instruction(
     program_id: &Pubkey,
-    mut account_infos: &[AccountInfo],
+    account_infos: &[AccountInfo],
     mut ix_data: &[u8],
 ) -> Result<()> {
     // TODO: This may not be necessary. Double-check in integration test.
@@ -46,137 +40,53 @@ pub fn process_legacy_instruction(
     // enum. Otherwise, we bail out.
     match LegacyInstruction::deserialize(&mut ix_data)? {
         LegacyInstruction::Initialize => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyInitialize",
-                Initialize,
-                account_infos,
-                ix_data,
-                initialize,
-                LegacyInitializeArgs
-            )
+            Initialize::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::AttestToken => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyAttestToken",
-                AttestToken,
-                account_infos,
-                ix_data,
-                attest_token,
-                LegacyAttestTokenArgs
-            )
+            AttestToken::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::CompleteTransferNative => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyCompleteTransferNative",
-                CompleteTransferNative,
-                account_infos,
-                ix_data,
-                complete_transfer_native,
-                EmptyArgs
-            )
+            CompleteTransferNative::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::CompleteTransferWrapped => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyCompleteTransferWrapped",
-                CompleteTransferWrapped,
-                account_infos,
-                ix_data,
-                complete_transfer_wrapped,
-                EmptyArgs
-            )
+            CompleteTransferWrapped::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::TransferTokensWrapped => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "TransferTokensWrapped",
-                TransferTokensWrapped,
-                account_infos,
-                ix_data,
-                transfer_tokens_wrapped,
-                TransferTokensArgs
-            )
+            TransferTokensWrapped::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::TransferTokensNative => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "TransferTokensNative",
-                TransferTokensNative,
-                account_infos,
-                ix_data,
-                transfer_tokens_native,
-                TransferTokensArgs
-            )
+            TransferTokensNative::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::RegisterChain => err!(ErrorCode::Deprecated),
         LegacyInstruction::CreateOrUpdateWrapped => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyCreateOrUpdateWrapped",
-                CreateOrUpdateWrapped,
-                account_infos,
-                ix_data,
-                create_or_update_wrapped,
-                EmptyArgs
-            )
+            CreateOrUpdateWrapped::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::UpgradeContract => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyUpgradeContract",
-                UpgradeContract,
-                account_infos,
-                ix_data,
-                upgrade_contract,
-                EmptyArgs
-            )
+            UpgradeContract::process_instruction(program_id, account_infos, ix_data)
         }
         LegacyInstruction::CompleteTransferWithPayloadNative => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyCompleteTransferWithPayloadNative",
-                CompleteTransferWithPayloadNative,
+            CompleteTransferWithPayloadNative::process_instruction(
+                program_id,
                 account_infos,
                 ix_data,
-                complete_transfer_with_payload_native,
-                EmptyArgs
             )
         }
         LegacyInstruction::CompleteTransferWithPayloadWrapped => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyCompleteTransferWithPayloadWrapped",
-                CompleteTransferWithPayloadWrapped,
+            CompleteTransferWithPayloadWrapped::process_instruction(
+                program_id,
                 account_infos,
                 ix_data,
-                complete_transfer_with_payload_wrapped,
-                EmptyArgs
             )
         }
         LegacyInstruction::TransferTokensWithPayloadWrapped => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "LegacyTransferTokensWithPayloadWrapped",
-                TransferTokensWithPayloadWrapped,
+            TransferTokensWithPayloadWrapped::process_instruction(
+                program_id,
                 account_infos,
                 ix_data,
-                transfer_tokens_with_payload_wrapped,
-                TransferTokensWithPayloadArgs
             )
         }
         LegacyInstruction::TransferTokensWithPayloadNative => {
-            process_anchorized_legacy_instruction!(
-                ID,
-                "TransferTokensWithPayloadNative",
-                TransferTokensWithPayloadNative,
-                account_infos,
-                ix_data,
-                transfer_tokens_with_payload_native,
-                TransferTokensWithPayloadArgs
-            )
+            TransferTokensWithPayloadNative::process_instruction(program_id, account_infos, ix_data)
         }
     }
 }

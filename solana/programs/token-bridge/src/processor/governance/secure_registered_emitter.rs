@@ -1,5 +1,6 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
+use core_bridge_program::legacy::utils::LegacyAccount;
 
 #[derive(Accounts)]
 pub struct SecureRegisteredEmitter<'info> {
@@ -13,7 +14,7 @@ pub struct SecureRegisteredEmitter<'info> {
         seeds = [legacy_registered_emitter.chain.to_be_bytes().as_ref()],
         bump,
     )]
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
 
     /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
@@ -28,7 +29,7 @@ pub struct SecureRegisteredEmitter<'info> {
         ],
         bump,
     )]
-    legacy_registered_emitter: Account<'info, RegisteredEmitter>,
+    legacy_registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
 
     system_program: Program<'info, System>,
 }
@@ -59,10 +60,16 @@ fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
         TokenBridgeError::EmitterAlreadyRegistered
     );
 
+    let emitter = &ctx.accounts.legacy_registered_emitter;
+
     // Copy registered emitter account.
-    ctx.accounts
-        .registered_emitter
-        .set_inner(*ctx.accounts.legacy_registered_emitter.as_ref());
+    ctx.accounts.registered_emitter.set_inner(
+        RegisteredEmitter {
+            chain: emitter.chain,
+            contract: emitter.contract,
+        }
+        .into(),
+    );
 
     // Done.
     Ok(())

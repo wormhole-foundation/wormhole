@@ -1,6 +1,6 @@
 use crate::{legacy::instruction::LegacyInitializeArgs, state::Config};
 use anchor_lang::prelude::*;
-use wormhole_solana_common::SeedPrefix;
+use core_bridge_program::legacy::utils::LegacyAccount;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -14,7 +14,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,
@@ -22,11 +22,23 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-pub fn initialize(ctx: Context<Initialize>, _args: LegacyInitializeArgs) -> Result<()> {
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, LegacyInitializeArgs>
+    for Initialize<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyInitialize";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyInitializeArgs) -> Result<()> = initialize;
+}
+
+fn initialize(ctx: Context<Initialize>, _args: LegacyInitializeArgs) -> Result<()> {
     // NOTE: This config account is pointless and is never used in any of the instruction handlers.
-    ctx.accounts.config.set_inner(Config {
-        core_bridge_program: core_bridge_program::ID,
-    });
+    ctx.accounts.config.set_inner(
+        Config {
+            core_bridge_program: core_bridge_program::ID,
+        }
+        .into(),
+    );
 
     // Done.
     Ok(())

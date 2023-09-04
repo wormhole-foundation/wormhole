@@ -94,6 +94,18 @@ pub struct TransferTokensWithPayloadNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<
+        'info,
+        TransferTokensWithPayloadArgs,
+    > for TransferTokensWithPayloadNative<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWithPayloadNative";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
+        transfer_tokens_with_payload_native;
+}
+
 impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
     for TransferTokensWithPayloadNative<'info>
 {
@@ -145,7 +157,7 @@ impl<'info> TransferTokensWithPayloadNative<'info> {
 }
 
 #[access_control(TransferTokensWithPayloadNative::constraints(&ctx))]
-pub fn transfer_tokens_with_payload_native(
+fn transfer_tokens_with_payload_native(
     ctx: Context<TransferTokensWithPayloadNative>,
     args: TransferTokensWithPayloadArgs,
 ) -> Result<()> {

@@ -1,10 +1,9 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::LegacyInitializeArgs,
+    legacy::{instruction::LegacyInitializeArgs, utils::LegacyAccount},
     state::{Config, GuardianSet},
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{utils, NewAccountSize, SeedPrefix};
 
 const INDEX_ZERO: u32 = 0;
 
@@ -20,7 +19,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, Config>,
+    config: Account<'info, LegacyAccount<0, Config>>,
 
     /// New guardian set account, acting as the active guardian set.
     ///
@@ -35,7 +34,7 @@ pub struct Initialize<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &INDEX_ZERO.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, GuardianSet>,
+    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
 
     /// CHECK: System account that collects lamports for `post_message`.
     #[account(
@@ -60,7 +59,15 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-pub fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Result<()> {
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyInitializeArgs>
+    for Initialize<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyInitialize";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyInitializeArgs) -> Result<()> = initialize;
+}
+
+fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Result<()> {
     let LegacyInitializeArgs {
         guardian_set_ttl_seconds,
         fee_lamports,
@@ -77,10 +84,7 @@ pub fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Resul
     let mut keys = Vec::with_capacity(initial_guardians.len());
     for &guardian in initial_guardians.iter() {
         // We disallow guardian pubkeys that have zero address.
-        require!(
-            utils::is_nonzero_array(&guardian),
-            CoreBridgeError::GuardianZeroAddress
-        );
+        require!(guardian != [0; 20], CoreBridgeError::GuardianZeroAddress);
 
         // Check if this pubkey is a duplicate of any already added.
         require!(
@@ -91,20 +95,26 @@ pub fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Resul
     }
 
     // Set Bridge data account fields.
-    ctx.accounts.config.set_inner(Config {
-        guardian_set_index: INDEX_ZERO,
-        last_lamports: ctx.accounts.fee_collector.to_account_info().lamports(),
-        guardian_set_ttl: guardian_set_ttl_seconds.into(),
-        fee_lamports,
-    });
+    ctx.accounts.config.set_inner(
+        Config {
+            guardian_set_index: INDEX_ZERO,
+            last_lamports: ctx.accounts.fee_collector.to_account_info().lamports(),
+            guardian_set_ttl: guardian_set_ttl_seconds.into(),
+            fee_lamports,
+        }
+        .into(),
+    );
 
     // Set guardian set account fields.
-    ctx.accounts.guardian_set.set_inner(GuardianSet {
-        index: INDEX_ZERO,
-        creation_time: Clock::get().map(Into::into)?,
-        keys,
-        expiration_time: Default::default(),
-    });
+    ctx.accounts.guardian_set.set_inner(
+        GuardianSet {
+            index: INDEX_ZERO,
+            creation_time: Clock::get().map(Into::into)?,
+            keys,
+            expiration_time: Default::default(),
+        }
+        .into(),
+    );
 
     Ok(())
 }

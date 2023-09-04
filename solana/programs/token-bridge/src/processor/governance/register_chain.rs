@@ -3,7 +3,9 @@ use crate::{
     state::{Claim, RegisteredEmitter},
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{sdk::cpi::CoreBridge, zero_copy::EncodedVaa};
+use core_bridge_program::{
+    legacy::utils::LegacyAccount, sdk::cpi::CoreBridge, zero_copy::EncodedVaa,
+};
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
 #[derive(Accounts)]
@@ -29,7 +31,7 @@ pub struct RegisterChain<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, Claim>,
+    claim: Account<'info, LegacyAccount<0, Claim>>,
 
     #[account(
         init,
@@ -38,7 +40,7 @@ pub struct RegisterChain<'info> {
         seeds = [try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref()],
         bump,
     )]
-    registered_emitter: Account<'info, RegisteredEmitter>,
+    registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
 
     /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
@@ -56,7 +58,7 @@ pub struct RegisterChain<'info> {
         ],
         bump,
     )]
-    legacy_registered_emitter: Account<'info, RegisteredEmitter>,
+    legacy_registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
@@ -87,8 +89,10 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
             contract: decree.foreign_emitter(),
         };
 
-        ctx.accounts.registered_emitter.set_inner(registered);
-        ctx.accounts.legacy_registered_emitter.set_inner(registered);
+        ctx.accounts.registered_emitter.set_inner(registered.into());
+        ctx.accounts
+            .legacy_registered_emitter
+            .set_inner(registered.into());
     }
 
     // Determine if we can close the vaa account.

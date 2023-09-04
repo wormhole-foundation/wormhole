@@ -1,12 +1,11 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::instruction::LegacyPostVaaArgs,
+    legacy::{instruction::LegacyPostVaaArgs, utils::LegacyAccount},
     state::{GuardianSet, PostedVaaV1Bytes, PostedVaaV1Metadata, SignatureSet},
     types::MessageHash,
     utils,
 };
 use anchor_lang::prelude::*;
-use wormhole_solana_common::{NewAccountSize, SeedPrefix};
 
 /// Invalidated signature sets.
 ///
@@ -39,7 +38,7 @@ pub struct PostVaa<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, GuardianSet>,
+    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
 
     /// CHECK: Core Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
@@ -48,7 +47,7 @@ pub struct PostVaa<'info> {
     ///
     /// NOTE: We prefer to make this account mutable so we have the ability to close this account
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
-    signature_set: Account<'info, SignatureSet>,
+    signature_set: Account<'info, LegacyAccount<0, SignatureSet>>,
 
     /// Posted verified message. This account is created if it hasn't been created already.
     ///
@@ -61,7 +60,7 @@ pub struct PostVaa<'info> {
         seeds = [PostedVaaV1Bytes::SEED_PREFIX, signature_set.message_hash.as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, PostedVaaV1Bytes>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -73,6 +72,14 @@ pub struct PostVaa<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyPostVaaArgs>
+    for PostVaa<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyPostVaa";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyPostVaaArgs) -> Result<()> = post_vaa;
 }
 
 impl<'info> PostVaa<'info> {
@@ -110,7 +117,7 @@ impl<'info> PostVaa<'info> {
 }
 
 #[access_control(PostVaa::constraints(&ctx, &args))]
-pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
+fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
     let LegacyPostVaaArgs {
         _version,
         _guardian_set_index,
@@ -124,19 +131,22 @@ pub fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
     } = args;
 
     // Set the `message` account with this instruction data.
-    ctx.accounts.posted_vaa.set_inner(PostedVaaV1Bytes {
-        meta: PostedVaaV1Metadata {
-            consistency_level,
-            timestamp: timestamp.into(),
-            signature_set: ctx.accounts.signature_set.key(),
-            guardian_set_index: ctx.accounts.guardian_set.index,
-            nonce,
-            sequence,
-            emitter_chain,
-            emitter_address,
-        },
-        payload,
-    });
+    ctx.accounts.posted_vaa.set_inner(
+        PostedVaaV1Bytes {
+            meta: PostedVaaV1Metadata {
+                consistency_level,
+                timestamp: timestamp.into(),
+                signature_set: ctx.accounts.signature_set.key(),
+                guardian_set_index: ctx.accounts.guardian_set.index,
+                nonce,
+                sequence,
+                emitter_chain,
+                emitter_address,
+            },
+            payload,
+        }
+        .into(),
+    );
 
     // Done.
     Ok(())
