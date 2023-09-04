@@ -198,7 +198,7 @@ const MAINNET = {
   sui: {
     core: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c",
     token_bridge:
-      "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9",
+      "0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5",
     nft_bridge: undefined,
   },
   moonbeam: {
