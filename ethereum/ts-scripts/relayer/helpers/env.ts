@@ -42,17 +42,14 @@ export interface OperationDescriptor {
 const DEFAULT_ENV = "testnet";
 
 export let env = "";
-let lastRunOverride: boolean | undefined;
 
-export function init(overrides: { lastRunOverride?: boolean } = {}): string {
+export function init(): string {
   env = get_env_var("ENV");
   if (!env) {
-    console.log(
-      "No environment was specified, using default environment files",
+    throw new Error(
+      "ENV must be defined to the name of the deployment/network that you want to use.",
     );
-    env = DEFAULT_ENV;
   }
-  lastRunOverride = overrides?.lastRunOverride;
 
   require("dotenv").config({
     path: `./ts-scripts/relayer/.env${env != DEFAULT_ENV ? "." + env : ""}`,
@@ -204,7 +201,7 @@ export function loadGuardianSetIndex(): number {
 
 export function loadDeliveryProviders(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun || lastRunOverride) {
+  if (contracts.useLastRun) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`,
     );
@@ -224,7 +221,7 @@ export function loadDeliveryProviders(): Deployment[] {
 
 export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun || lastRunOverride) {
+  if (contracts.useLastRun) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`,
     );
@@ -240,7 +237,7 @@ export function loadWormholeRelayers(dev: boolean): Deployment[] {
 
 export function loadMockIntegrations(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun || lastRunOverride) {
+  if (contracts.useLastRun) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployMockIntegration/lastrun.json`,
     );
@@ -258,7 +255,7 @@ export function loadMockIntegrations(): Deployment[] {
 
 export function loadCreate2Factories(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun || lastRunOverride) {
+  if (contracts.useLastRun) {
     const lastRunFile = fs.readFileSync(
       `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`,
     );

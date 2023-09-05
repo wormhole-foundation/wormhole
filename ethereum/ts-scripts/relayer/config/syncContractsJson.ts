@@ -8,7 +8,7 @@ import {
   loadChains,
 } from "../helpers/env";
 
-const env = init({ lastRunOverride: true });
+const env = init();
 const chains = loadChains();
 
 interface Address {
