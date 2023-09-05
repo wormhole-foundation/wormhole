@@ -37,6 +37,8 @@ spec:
             - node/hack/query/querier.key
             - --listenAddr
             - "[::]:6069"
+            - --permFile
+            - "node/cmd/ccq/devnet.config.json"
             - --ethRPC
             - http://eth-devnet:8545
             - --ethContract
