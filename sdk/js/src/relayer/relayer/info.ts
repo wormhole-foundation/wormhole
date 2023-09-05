@@ -238,6 +238,8 @@ export function stringifyWormholeRelayerInfo(
             result += `(CCTP ${i}): `;
             result += `Transfer from cctp domain ${printChain(cctpKey.domain)}`;
             result += `, with nonce ${cctpKey.nonce}`;
+          } else {
+            result += `(Unknown key type${i}): ${msgKey.keyType}`;
           }
           return result;
         })
