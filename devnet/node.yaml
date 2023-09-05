@@ -56,10 +56,14 @@ spec:
             secretName: node-wormchain-key
             optional: false
             items:
-              - key: wormchainKey0
-                path: wormchainKey0
-              - key: wormchainKey1
-                path: wormchainKey1
+              - key: accountantKey0
+                path: accountantKey0
+              - key: accountantKey1
+                path: accountantKey1
+              - key: gwrelayerKey0
+                path: gwrelayerKey0
+              - key: gwrelayerKey1
+                path: gwrelayerKey1
       containers:
         - name: guardiand
           image: guardiand-image
@@ -107,9 +111,9 @@ spec:
             - ws://eth-devnet:8545
             # - --wormchainURL
             # - wormchain:9090
-            # - --wormchainKeyPath
-            # - /tmp/mounted-keys/wormchain/wormchainKey
-            # - --wormchainKeyPassPhrase
+            # - --accountantKeyPath
+            # - /tmp/mounted-keys/wormchain/accountantKey
+            # - --accountantKeyPassPhrase
             # - test0000
             # - --accountantWS
             # - http://wormchain:26657
@@ -198,5 +202,7 @@ metadata:
   name: node-wormchain-key
 type: Opaque
 data:
-  wormchainKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
-  wormchainKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  accountantKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  accountantKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  gwrelayerKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0KdHlwZTogc2VjcDI1NmsxCmtkZjogYmNyeXB0CnNhbHQ6IDc4OUYzRTBCMkVGNDcyNjAyQzNFMUE0OUI2OENFQzlBCgpGWHAvSllPS3E4WmZtOWxHZ3ZFNEM3NXFyUXFNZFp2RHNWRjhObTdMQU1oR2dHbXBnZnpoZjUrZ3IwZ1hjYjVWCmtSTXA2c0p0NkxCVzRPYWF2ckk3ay84Vml2NWhMVU1la1dPMHg5bz0KPUxrb1MKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  gwrelayerKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc5RDk3RDE2OTE0QkQ4QjlFNUUwQzkzMDA0RDA4RUEKdHlwZTogc2VjcDI1NmsxCgpvTEJ0aUkwT2pudXo5bHlzeVlZOFhQeEVkTnpwYUJOVWFkL0UySlJld2pFWFZNVVNTWll2QVZKbERiN3hEQjlSCmEvdm45SFNPM2hKOFc1QTBKOVFqUVZXRzVoZXBNZVpQUEI4M1FCUT0KPVJuTGEKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t

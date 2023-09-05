@@ -15,7 +15,7 @@ var knownDevnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDTerra:     "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d",
 	vaa.ChainIDBSC:       "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
 	vaa.ChainIDAlgorand:  "8ec299cb7f3efec28f542397e07f07118d74c875f85409ed8e6b93c17b60e992",
-	vaa.ChainIDWormchain: "f04a313a7349b120c55c99788f12f712176bb3e5926d012d0ea72fa2bbb85051",
+	vaa.ChainIDWormchain: "45dbea4617971d93188eda21530bc6503d153313b6f575048c2c35dbc6e4fb06",
 	vaa.ChainIDSui:       "be8d2e6809d4873bcf1d8be6af2b92500091ad6aa5dc76bc717af86a58d300ca",
 }
 
