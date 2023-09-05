@@ -38,10 +38,10 @@ type WormholeRelayerContractState = {
 };
 
 async function readState(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<WormholeRelayerContractState | null> {
   console.log(
-    "Gathering core relayer contract status for chain " + chain.chainId
+    "Gathering core relayer contract status for chain " + chain.chainId,
   );
 
   try {
@@ -62,7 +62,7 @@ async function readState(
         chainId: chainInfo.chainId,
         contract: (
           await coreRelayer.getRegisteredWormholeRelayerContract(
-            chainInfo.chainId
+            chainInfo.chainId,
           )
         ).toString(),
       });
