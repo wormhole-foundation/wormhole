@@ -118,8 +118,8 @@ export async function expectOkPostMessage(
   program: coreBridge.CoreBridgeProgram,
   signers: {
     payer: Keypair;
-    message: Keypair;
-    emitter: Keypair;
+    message: Keypair | null;
+    emitter: Keypair | null;
   },
   args: coreBridge.LegacyPostMessageArgs,
   sequence: BN,
@@ -127,8 +127,11 @@ export async function expectOkPostMessage(
     consistencyLevel: number;
     nonce: number;
     payload: Buffer;
+    message?: PublicKey;
+    emitter?: PublicKey;
   },
-  nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean }
+  nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean },
+  emitterSequence?: PublicKey
 ) {
   if (nullAccounts === undefined) {
     nullAccounts = { feeCollector: false, clock: false, rent: false };
@@ -140,19 +143,39 @@ export async function expectOkPostMessage(
     program.programId
   );
 
-  const { payer, message, emitter } = signers;
+  const { payer, message: messageSigner, emitter: emitterSigner } = signers;
+  const txSigners = [payer];
+
+  if (messageSigner !== null) {
+    txSigners.push(messageSigner);
+  }
+
+  if (emitterSigner !== null) {
+    txSigners.push(emitterSigner);
+  }
+
   const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
 
+  let { message, emitter } = expected;
+  if (message === undefined) {
+    message = messageSigner?.publicKey;
+  }
+  if (emitter === undefined) {
+    emitter = emitterSigner?.publicKey;
+  }
   const accounts = {
-    message: message.publicKey,
-    emitter: emitter.publicKey,
+    message,
+    emitter: emitterSigner === null ? null : emitter,
+    emitterSequence,
     payer: payer.publicKey,
   } as coreBridge.LegacyPostMessageContext;
   for (const [key, isNull] of Object.entries(nullAccounts)) {
     accounts[key] = isNull ? null : undefined;
   }
 
-  const ix = coreBridge.legacyPostMessageIx(program, accounts, args);
+  const ix = coreBridge.legacyPostMessageIx(program, accounts, args, {
+    message: messageSigner !== null,
+  });
 
   // If any accounts are null, confirm they are "null" in the instruction.
   if (nullAccounts.feeCollector) {
@@ -165,15 +188,11 @@ export async function expectOkPostMessage(
     expectDeepEqual(ix.keys[8].pubkey, program.programId);
   }
 
-  const txDetails = await expectIxOkDetails(
-    connection,
-    [transferFeeIx, ix],
-    [payer, emitter, message]
-  );
+  const txDetails = await expectIxOkDetails(connection, [transferFeeIx, ix], txSigners);
 
   const postedMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
     connection,
-    message.publicKey
+    message
   );
   const { nonce, consistencyLevel, payload } = expected;
   expectDeepEqual(postedMessageData, {
@@ -185,16 +204,16 @@ export async function expectOkPostMessage(
     nonce,
     sequence,
     solanaChainId: 1,
-    emitter: emitter.publicKey,
+    emitter: emitter,
     payload,
   });
 
-  const emitterSequence = await coreBridge.EmitterSequence.fromPda(
+  const emitterSequenceData = await coreBridge.EmitterSequence.fromPda(
     connection,
     program.programId,
-    emitter.publicKey
+    emitter
   );
-  expectDeepEqual(emitterSequence, { sequence: sequence.addn(1) });
+  expectDeepEqual(emitterSequenceData, { sequence: sequence.addn(1) });
 
   const config = await coreBridge.Config.fromPda(connection, program.programId);
   expectDeepEqual(lastLamportsBefore.add(feeLamports), config.lastLamports);

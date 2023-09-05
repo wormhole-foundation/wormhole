@@ -42,28 +42,29 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
     });
 
     it("Invoke Legacy `post_message` With Prepared Message", async () => {
-      const message = Buffer.alloc(5 * 1_024, "All your base are belong to us. ");
+      const payload = Buffer.alloc(5 * 1_024, "All your base are belong to us. ");
 
       const nonce = 420;
       const commitment = "confirmed";
 
-      const { draftMessage, emitterAuthority } = await everythingOk(
+      const { message, emitter } = await everythingOk(
         program,
         payer,
-        message,
+        payload,
         nonce,
         commitment,
         new anchor.BN(0)
       );
 
       // Save for next test.
-      localVariables.set("draftMessage", draftMessage);
-      localVariables.set("emitterAuthority", emitterAuthority);
+      localVariables.set("message", message);
+      localVariables.set("emitter", emitter);
     });
 
     it("Cannot Invoke Legacy `post_message` With Same Prepared Message", async () => {
-      const draftMessage = localVariables.get("draftMessage") as anchor.web3.Keypair;
-      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const message = localVariables.get("message") as anchor.web3.PublicKey;
+      const emitter = localVariables.get("emitter") as anchor.web3.PublicKey;
+      const emitterSequence = coreBridge.EmitterSequence.address(program.programId, emitter);
 
       // Intentionally different from how the message was prepared.
       const nonce = 0;
@@ -71,18 +72,15 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
       const ix = coreBridge.legacyPostMessageIx(
         program,
         {
-          message: draftMessage.publicKey,
-          emitter: emitterAuthority.publicKey,
+          message,
+          emitter: null,
+          emitterSequence,
           payer: payer.publicKey,
         },
-        { nonce, commitment, payload: Buffer.alloc(0) }
+        { nonce, commitment, payload: Buffer.alloc(0) },
+        { message: false }
       );
-      await expectIxErr(
-        connection,
-        [ix],
-        [payer, emitterAuthority, draftMessage],
-        "MessageAlreadyPublished"
-      );
+      await expectIxErr(connection, [ix], [payer], "MessageAlreadyPublished");
     });
   });
 });
@@ -90,7 +88,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
 async function everythingOk(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  message: Buffer,
+  payload: Buffer,
   nonce: number,
   commitment: anchor.web3.Commitment,
   sequence: anchor.BN,
@@ -103,29 +101,42 @@ async function everythingOk(
   const { draftMessage } = await initAndProcessMessageV1(
     program,
     payer,
-    message,
+    payload,
     nonce,
     commitment,
     emitterAuthority
   );
 
+  const emitterSequence = await coreBridge.PostedMessageV1.fromAccountAddress(
+    program.provider.connection,
+    draftMessage
+  ).then((msg) => coreBridge.EmitterSequence.address(program.programId, msg.emitter));
+
   await coreBridge.expectOkPostMessage(
     program,
-    { payer, message: draftMessage, emitter: emitterAuthority },
+    { payer, message: null, emitter: null },
     { nonce, commitment, payload: Buffer.alloc(0) },
     sequence,
-    { nonce, consistencyLevel: 1, payload: message }
+    {
+      nonce,
+      consistencyLevel: 1,
+      payload,
+      message: draftMessage,
+      emitter: emitterAuthority.publicKey,
+    },
+    undefined,
+    emitterSequence
   );
 
   sequence.iaddn(1);
 
-  return { draftMessage, emitterAuthority };
+  return { message: draftMessage, emitter: emitterAuthority.publicKey };
 }
 
 async function initAndProcessMessageV1(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
-  message: Buffer,
+  payload: Buffer,
   nonce: number,
   commitment: anchor.web3.Commitment,
   emitterAuthority?: anchor.web3.Keypair
@@ -134,7 +145,7 @@ async function initAndProcessMessageV1(
     emitterAuthority = anchor.web3.Keypair.generate();
   }
 
-  const messageLen = message.length;
+  const messageLen = payload.length;
 
   const connection = program.provider.connection;
 
@@ -144,7 +155,7 @@ async function initAndProcessMessageV1(
     program.programId,
     payer,
     draftMessage,
-    95 + message.length
+    95 + payload.length
   );
 
   const initIx = await coreBridge.initMessageV1Ix(
@@ -161,7 +172,7 @@ async function initAndProcessMessageV1(
       draftMessage: draftMessage.publicKey,
       closeAccountDestination: null,
     },
-    { write: { index: 0, data: message.subarray(0, endAfterInit) } }
+    { write: { index: 0, data: payload.subarray(0, endAfterInit) } }
   );
 
   if (messageLen > endAfterInit) {
@@ -182,7 +193,7 @@ async function initAndProcessMessageV1(
           draftMessage: draftMessage.publicKey,
           closeAccountDestination: null,
         },
-        { write: { index: start, data: message.subarray(start, end) } }
+        { write: { index: start, data: payload.subarray(start, end) } }
       );
 
       if (end == messageLen) {
@@ -218,5 +229,5 @@ async function initAndProcessMessageV1(
     );
   }
 
-  return { draftMessage, emitterAuthority };
+  return { draftMessage: draftMessage.publicKey, emitterAuthority };
 }

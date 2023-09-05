@@ -5,7 +5,6 @@ import {
   Connection,
   GetAccountInfoConfig,
   PublicKey,
-  PublicKeyInitData,
 } from "@solana/web3.js";
 
 export class EmitterSequence {
@@ -15,9 +14,9 @@ export class EmitterSequence {
     this.sequence = sequence;
   }
 
-  static address(programId: PublicKey, emitter: PublicKeyInitData): PublicKey {
+  static address(programId: PublicKey, emitter: PublicKey): PublicKey {
     return PublicKey.findProgramAddressSync(
-      [Buffer.from("Sequence"), new PublicKey(emitter).toBuffer()],
+      [Buffer.from("Sequence"), emitter.toBuffer()],
       programId
     )[0];
   }
@@ -41,7 +40,7 @@ export class EmitterSequence {
   static async fromPda(
     connection: Connection,
     programId: PublicKey,
-    emitter: PublicKeyInitData
+    emitter: PublicKey
   ): Promise<EmitterSequence> {
     return EmitterSequence.fromAccountAddress(
       connection,

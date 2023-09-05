@@ -29,7 +29,7 @@ export type LegacyCompleteTransferWrappedContext = {
   wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
   mintAuthority?: PublicKey;
-  recipient?: PublicKey;
+  recipient?: PublicKey | null;
   coreBridgeProgram?: PublicKey;
 };
 
