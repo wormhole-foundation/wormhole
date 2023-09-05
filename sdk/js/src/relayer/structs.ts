@@ -299,7 +299,7 @@ export function deliveryInstructionsPrintable(
     targetAddress: ix.targetAddress.toString("hex"),
     payload: ix.payload.toString("base64"),
     requestedReceiverValue: ix.requestedReceiverValue.toString(),
-    extraReceiverValue: ix.requestedReceiverValue.toString(),
+    extraReceiverValue: ix.extraReceiverValue.toString(),
     encodedExecutionInfo: executionInfoToString(ix.encodedExecutionInfo),
     refundChainId: ix.refundChainId.toString(),
     refundAddress: ix.refundAddress.toString("hex"),
