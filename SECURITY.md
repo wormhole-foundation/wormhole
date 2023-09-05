@@ -37,15 +37,10 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[February 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
 - **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
 - **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
-- **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
-- **Q4 2022 - Halborn (DRAFT)**: _Accounting_
 - **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
 - **Q4 2022 - Certik (DRAFT)**: _Solana Contracts_
-- **Q4 2022 - Certik (DRAFT)**: _Terra Contracts_
 - **Q4 2022 - Certik (DRAFT)**: _Guardian_
-- **Q4 2022 - Certik (DRAFT)**: _Solitaire_
 - **Q4 2022 - Coinspect (DRAFT)**: _Algorand Contracts_
-- **Q4 2022 - Hacken (DRAFT)**: _NEAR Contracts_
 - **Q2 2023 - Runtime Verification (IN PROGRESS)**: _Guardian_
 
 
