@@ -127,9 +127,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
     // ------------------------------------------- PRIVATE -------------------------------------------
 
-    error DeliveryProviderReverted(Gas gasUsed);
-    error DeliveryProviderPaymentFailed(Gas gasUsed);
-
     struct DeliveryVAAInfo {
         uint16 sourceChain;
         uint64 sourceSequence;
@@ -239,15 +236,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      *     vaaInfo.gasLimit and vaaInfo.totalReceiverValue, and `encodedVMs` as the input)
      *
      * - Calculates how much gas from `vaaInfo.gasLimit` is left
-     * - If the call succeeded and during execution of `receiveWormholeMessages` there were
-     *     forward(s), and (gas left from vaaInfo.gasLimit) * (vaaInfo.targetChainRefundPerGasUnused) is enough extra funds
-     *     to execute the forward(s), then the forward(s) are executed
-     * - else:
-     *     revert the delivery to trigger a receiver failure (or forward request failure if 
-     *     there were forward(s))
-     *     refund 'vaaInfo.targetChainRefundPerGasUnused'*(amount of vaaInfo.gasLimit unused) to vaaInfo.deliveryInstruction.refundAddress
-     *     if the call reverted, refund `vaaInfo.totalReceiverValue` to vaaInfo.deliveryInstruction.refundAddress
-     * - refund anything leftover to the relayer
+     * - Refund anything leftover to the relayer
      *
      * @param vaaInfo struct specifying:
      *    - sourceChain chain id that the delivery originated from
@@ -274,14 +263,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return;
         }
 
-        DeliveryResults memory results;
-
-        // Forces external call
-        // In order to catch reverts
-        // (Previously needed for reverts, but waiting to remove since this is sensitive code 
-        //  and would need a real audit to redeploy)
-        try 
-        this.executeInstruction(
+        DeliveryResults memory results = executeInstruction(
             EvmDeliveryInstruction({
                 sourceChain: vaaInfo.sourceChain,
                 targetAddress: vaaInfo.deliveryInstruction.targetAddress,
@@ -293,31 +275,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 deliveryHash: vaaInfo.deliveryVaaHash,
                 signedVaas: vaaInfo.encodedVMs
             }
-        )) returns (
-            uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated
-        ) {
-            results = DeliveryResults(
-                _gasUsed,
-                DeliveryStatus(_status),
-                targetRevertDataTruncated
-            );
-        } 
-        catch (bytes memory revertData) {
-            // Should never revert, but see above comment
-            // Decode returned error (into one of these three known types)
-            // obtaining the gas usage of targetAddress
-            bool knownError;
-            Gas gasUsed_;
-            (gasUsed_, knownError) = tryDecodeExecuteInstructionError(revertData);
-            results = DeliveryResults(
-                knownError? gasUsed_ : vaaInfo.gasLimit,
-                DeliveryStatus.RECEIVER_FAILURE,
-                revertData
-            );
-        }
+        ));
 
         setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
-
 
         RefundStatus refundStatus = payRefunds(
             vaaInfo.deliveryInstruction,
@@ -329,15 +289,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     }
 
     function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
-        external
-        returns (uint8 status, Gas gasUsed, bytes memory targetRevertDataTruncated)
+        internal
+        returns (DeliveryResults memory results)
     {
-        //  despite being external, we only allow ourselves to call this function (via CALL opcode)
-        //  used as a means to retroactively revert the call to the delivery target if the forwards
-        //  can't be funded
-        if (msg.sender != address(this)) {
-            revert RequesterNotWormholeRelayer();
-        }
 
         Gas gasLimit = evmInstruction.gasLimit;
         bool success;
@@ -357,7 +311,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             // Calls the `receiveWormholeMessages` endpoint on the contract `evmInstruction.targetAddress`
             // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
             // If it reverts, returns the first 132 bytes of the revert message
-            (success, targetRevertDataTruncated) = returnLengthBoundedCall(
+            (success, results.additionalStatusInfo) = returnLengthBoundedCall(
                 deliveryTarget,
                 callData,
                 gasLimit.unwrap(),
@@ -368,16 +322,16 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             Gas postGas = Gas.wrap(gasleft());
 
             unchecked {
-                gasUsed = (preGas - postGas).min(gasLimit);
+                results.gasUsed = (preGas - postGas).min(gasLimit);
             }
         }
 
         if (success) {
-            targetRevertDataTruncated = new bytes(0);
-            status = uint8(DeliveryStatus.SUCCESS);
+            results.additionalStatusInfo = new bytes(0);
+            results.status = DeliveryStatus.SUCCESS;
         } else {
             // Call to 'receiveWormholeMessages' on targetAddress reverted
-            status = uint8(DeliveryStatus.RECEIVER_FAILURE);
+            results.status = DeliveryStatus.RECEIVER_FAILURE;
         }
     }
 
@@ -526,24 +480,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return RefundStatus.CROSS_CHAIN_REFUND_SENT;
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
-        }
-    }
-
-    function tryDecodeExecuteInstructionError(
-        bytes memory revertData
-    ) private pure returns (Gas gasUsed, bool knownError) {
-        uint offset = 0;
-        bytes4 selector;
-        // Check to see if the following decode can be performed
-        if(revertData.length < 36) {
-            return (Gas.wrap(0), false);
-        }
-        (selector, offset) = revertData.asBytes4Unchecked(offset);
-        if(selector == DeliveryProviderReverted.selector || selector == DeliveryProviderPaymentFailed.selector) {
-            knownError = true;
-            uint256 _gasUsed;
-            (_gasUsed, offset) = revertData.asUint256Unchecked(offset);
-            gasUsed = Gas.wrap(_gasUsed);
         }
     }
 
