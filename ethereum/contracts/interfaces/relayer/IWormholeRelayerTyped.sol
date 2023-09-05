@@ -10,7 +10,7 @@ import "./TypedUnits.sol";
  * @notice This project allows developers to build cross-chain applications powered by Wormhole without needing to 
  * write and run their own relaying infrastructure
  * 
- * We implement the IWormholeRelayer interface that allows users to request a delivery provider to relay a payload (and/or additional VAAs) 
+ * We implement the IWormholeRelayer interface that allows users to request a delivery provider to relay a payload (and/or additional messages) 
  * to a chain and address of their choice.
  */
 
@@ -238,8 +238,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * This function must be called with `msg.value` equal to 
      * quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit, deliveryProviderAddress) + paymentForExtraReceiverValue
      *
-     * MessageKeys can specify wormhole messages (VaaKeys) or other types of messages (ex. USDC CCTP attestations). Ensure the selected 
-     * Note: DeliveryProvider supports all the MessageKey.keyType values specified or it will not be delivered!
+     * Note: MessageKeys can specify wormhole messages (VaaKeys) or other types of messages (ex. USDC CCTP attestations). Ensure the selected 
+     * DeliveryProvider supports all the MessageKey.keyType values specified or it will not be delivered!
      * 
      * @param targetChain in Wormhole Chain ID format
      * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
@@ -325,8 +325,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * This function must be called with `msg.value` equal to 
      * quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters, deliveryProviderAddress) + paymentForExtraReceiverValue  
      *
-     * MessageKeys can specify wormhole messages (VaaKeys) or other types of messages (ex. USDC CCTP attestations). Ensure the selected 
-     * Note: DeliveryProvider supports all the MessageKey.keyType values specified or it will not be delivered!
+     * Note: MessageKeys can specify wormhole messages (VaaKeys) or other types of messages (ex. USDC CCTP attestations). Ensure the selected 
+     * DeliveryProvider supports all the MessageKey.keyType values specified or it will not be delivered!
      * 
      * @param targetChain in Wormhole Chain ID format
      * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
@@ -530,16 +530,11 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      * @custom:member gasUsed - The amount of gas that was used to call your target contract 
      * @custom:member status:
      *   - RECEIVER_FAILURE, if the target contract reverts
-     *   - SUCCESS, if the target contract doesn't revert and no forwards were requested
-     *   - FORWARD_REQUEST_FAILURE, if the target contract doesn't revert, forwards were requested,
-     *       but provided/leftover funds were not sufficient to cover them all
-     *   - FORWARD_REQUEST_SUCCESS, if the target contract doesn't revert and all forwards are covered
+     *   - SUCCESS, if the target contract doesn't revert
      * @custom:member additionalStatusInfo:
-     *   - If status is SUCCESS or FORWARD_REQUEST_SUCCESS, then this is empty.
+     *   - If status is SUCCESS, then this is empty.
      *   - If status is RECEIVER_FAILURE, this is `RETURNDATA_TRUNCATION_THRESHOLD` bytes of the
      *       return data (i.e. potentially truncated revert reason information).
-     *   - If status is FORWARD_REQUEST_FAILURE, this is also the revert data - the reason the forward failed.
-     *     This will be either an encoded Cancelled, DeliveryProviderReverted, or DeliveryProviderPaymentFailed error
      * @custom:member refundStatus - Result of the refund. REFUND_SUCCESS or REFUND_FAIL are for
      *     refunds where targetChain=refundChain; the others are for targetChain!=refundChain,
      *     where a cross chain refund is necessary, or if the default code path is used where no refund is requested (NO_REFUND_REQUESTED)
@@ -631,7 +626,6 @@ error RequesterNotWormholeRelayer();
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);
-error ForwardNotSufficientlyFunded(LocalNative amountOfFunds, LocalNative amountOfFundsNeeded);
 //When a `DeliveryOverride` contains a gas limit that's less than the original
 error InvalidOverrideGasLimit();
 //When a `DeliveryOverride` contains a receiver value that's less than the original

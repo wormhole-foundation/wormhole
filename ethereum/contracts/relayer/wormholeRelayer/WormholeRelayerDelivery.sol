@@ -21,7 +21,6 @@ import {
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend,
-    ReentrantDelivery,
     RETURNDATA_TRUNCATION_THRESHOLD
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
@@ -128,7 +127,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
     // ------------------------------------------- PRIVATE -------------------------------------------
 
-    error Cancelled(Gas gasUsed, LocalNative available, LocalNative required);
     error DeliveryProviderReverted(Gas gasUsed);
     error DeliveryProviderPaymentFailed(Gas gasUsed);
 
@@ -271,7 +269,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         // If the targetAddress is the 0 address
         // Then emit event and return
         // (This is used for cross-chain refunds)
-        if (checkIfCrossChainRefund(vaaInfo)) {
+        if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
+            handleCrossChainRefund(vaaInfo);
             return;
         }
 
@@ -304,11 +303,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             );
         } 
         catch (bytes memory revertData) {
-            // Should only revert if 
-            // 1) forward(s) were requested but not enough funds were available from the refund
-            // 2) forward(s) were requested, but the delivery provider requested for the forward reverted during execution
-            // 3) forward(s) were requested, but the payment of the delivery provider for the forward failed
-
+            // Should never revert, but see above comment
             // Decode returned error (into one of these three known types)
             // obtaining the gas usage of targetAddress
             bool knownError;
@@ -323,51 +318,14 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
 
-        emitDeliveryEvent(vaaInfo, results);
-    }
 
-    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results) private {
-        emit Delivery(
-            fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
-            vaaInfo.sourceChain,
-            vaaInfo.sourceSequence,
-            vaaInfo.deliveryVaaHash,
-            results.status,
-            results.gasUsed,
-            payRefunds(
-                vaaInfo.deliveryInstruction,
-                vaaInfo.relayerRefundAddress,
-                (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
-                results.status
-            ),
-            results.additionalStatusInfo,
-            (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
+        RefundStatus refundStatus = payRefunds(
+            vaaInfo.deliveryInstruction,
+            vaaInfo.relayerRefundAddress,
+            (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
+            results.status
         );
-    }
-
-    function checkIfCrossChainRefund(DeliveryVAAInfo memory vaaInfo)
-        internal
-        returns (bool isCrossChainRefund)
-    {
-        if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
-            emit Delivery(
-                fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
-                vaaInfo.sourceChain,
-                vaaInfo.sourceSequence,
-                vaaInfo.deliveryVaaHash,
-                DeliveryStatus.SUCCESS,
-                Gas.wrap(0),
-                payRefunds(
-                    vaaInfo.deliveryInstruction,
-                    vaaInfo.relayerRefundAddress,
-                    LocalNative.wrap(0),
-                    DeliveryStatus.RECEIVER_FAILURE
-                ),
-                bytes(""),
-                (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
-            );
-            isCrossChainRefund = true;
-        }
+        emitDeliveryEvent(vaaInfo, results, refundStatus);
     }
 
     function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
@@ -421,6 +379,38 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             // Call to 'receiveWormholeMessages' on targetAddress reverted
             status = uint8(DeliveryStatus.RECEIVER_FAILURE);
         }
+    }
+
+    function handleCrossChainRefund(DeliveryVAAInfo memory vaaInfo) internal {
+        RefundStatus refundStatus = payRefunds(
+            vaaInfo.deliveryInstruction,
+            vaaInfo.relayerRefundAddress,
+            LocalNative.wrap(0),
+            DeliveryStatus.RECEIVER_FAILURE
+        );
+        emitDeliveryEvent(
+            vaaInfo, 
+            DeliveryResults(
+                Gas.wrap(0),
+                DeliveryStatus.SUCCESS,
+                bytes("")
+            ), 
+            refundStatus
+        );
+    }
+
+    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results, RefundStatus refundStatus) private {
+        emit Delivery(
+            fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
+            vaaInfo.sourceChain,
+            vaaInfo.sourceSequence,
+            vaaInfo.deliveryVaaHash,
+            results.status,
+            results.gasUsed,
+            refundStatus,
+            results.additionalStatusInfo,
+            (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
+        );
     }
 
     function payRefunds(
@@ -549,7 +539,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return (Gas.wrap(0), false);
         }
         (selector, offset) = revertData.asBytes4Unchecked(offset);
-        if((selector == Cancelled.selector) || (selector == DeliveryProviderReverted.selector) || (selector == DeliveryProviderPaymentFailed.selector)) {
+        if(selector == DeliveryProviderReverted.selector || selector == DeliveryProviderPaymentFailed.selector) {
             knownError = true;
             uint256 _gasUsed;
             (_gasUsed, offset) = revertData.asUint256Unchecked(offset);
@@ -565,7 +555,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert MessageKeysLengthDoesNotMatchMessagesLength(messageKeys.length, signedMessages.length);
         }
 
-        uint256 numVaas = 0;
         uint256 len = messageKeys.length;
         for (uint256 i = 0; i < len;) {
             if (messageKeys[i].keyType == VAA_KEY_TYPE) {
@@ -578,9 +567,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                         || vaaKey.sequence != parsedVaa.sequence
                 ) {
                     revert VaaKeysDoNotMatchVaas(uint8(i));
-                }
-                unchecked {
-                    ++numVaas;
                 }
             }
 
