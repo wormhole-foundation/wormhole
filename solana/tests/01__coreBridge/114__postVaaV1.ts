@@ -14,7 +14,7 @@ import * as coreBridge from "../helpers/coreBridge";
 import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { parseVaa } from "@certusone/wormhole-sdk";
 
-const GUARDIAN_SET_INDEX = 2;
+const GUARDIAN_SET_INDEX = 4;
 
 const dummyEmitter = new MockEmitter(Buffer.alloc(32, "deadbeef").toString("hex"), 69, -1);
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
@@ -122,7 +122,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
         consistencyLevel: 200,
         timestamp: 12345678,
         signatureSet: anchor.web3.PublicKey.default,
-        guardianSetIndex: 2,
+        guardianSetIndex: GUARDIAN_SET_INDEX,
         nonce: 420,
         sequence: new anchor.BN(3),
         emitterChain: 69,

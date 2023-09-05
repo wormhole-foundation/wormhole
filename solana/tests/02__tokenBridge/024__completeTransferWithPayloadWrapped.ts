@@ -27,7 +27,7 @@ import * as coreBridge from "../helpers/coreBridge";
 import { MockTokenBridge, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { expect } from "chai";
 
-const GUARDIAN_SET_INDEX = 2;
+const GUARDIAN_SET_INDEX = 4;
 const dummyTokenBridge = new MockTokenBridge(
   tryNativeToHexString(ETHEREUM_TOKEN_BRIDGE_ADDRESS, 2),
   2,

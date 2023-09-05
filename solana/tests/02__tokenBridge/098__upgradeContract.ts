@@ -28,7 +28,7 @@ import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_token_bridge_solana.so`;
 
 // Mock governance emitter and guardian.
-const GUARDIAN_SET_INDEX = 2;
+const GUARDIAN_SET_INDEX = 4;
 const GOVERNANCE_SEQUENCE = 2_098_000;
 const governance = new GovernanceEmitter(
   GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
