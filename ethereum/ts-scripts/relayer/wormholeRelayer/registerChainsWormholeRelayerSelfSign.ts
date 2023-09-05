@@ -23,6 +23,7 @@ const zeroBytes32 =
 async function run() {
   console.log("Start! " + processName);
 
+  // TODO: to send txs concurrently, the cross-registrations need to be separated out
   for (const operatingChain of operation.operatingChains) {
     await registerChainsWormholeRelayer(operatingChain);
     await registerOnExistingChainsWormholeRelayer(operatingChain);
