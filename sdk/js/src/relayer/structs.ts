@@ -25,6 +25,7 @@ export enum RefundStatus {
   CrossChainRefundSent = "Cross Chain Refund Sent",
   CrossChainRefundFailProviderNotSupported = "Cross Chain Refund Fail - Provider does not support the refund chain",
   CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund",
+  RefundAddressNotSpecified = "No refund was requested",
 }
 
 export function parseRefundStatus(index: number) {
@@ -38,6 +39,8 @@ export function parseRefundStatus(index: number) {
     ? RefundStatus.CrossChainRefundFailProviderNotSupported
     : index === 4
     ? RefundStatus.CrossChainRefundFailNotEnough
+    : index === 5
+    ? RefundStatus.RefundAddressNotSpecified
     : RefundStatus.CrossChainRefundFailProviderNotSupported;
 }
 

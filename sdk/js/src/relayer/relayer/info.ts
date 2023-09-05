@@ -239,7 +239,7 @@ export function stringifyWormholeRelayerInfo(
             result += `Transfer from cctp domain ${printChain(cctpKey.domain)}`;
             result += `, with nonce ${cctpKey.nonce}`;
           } else {
-            result += `(Unknown key type${i}): ${msgKey.keyType}`;
+            result += `(Unknown key type ${i}): ${msgKey.keyType}`;
           }
           return result;
         })
@@ -289,14 +289,15 @@ export function stringifyWormholeRelayerInfo(
     stringifiedInfo += `Gas limit: ${executionInfo.gasLimit} ${targetChainName} gas\n`;
 
     const refundAddressChosen =
-      instruction.refundAddress !== instruction.refundDeliveryProvider;
+      instruction.refundAddress.toString("hex") !==
+      "0x0000000000000000000000000000000000000000000000000000000000000000";
     if (refundAddressChosen) {
       stringifiedInfo += `Refund rate: ${ethers.utils.formatEther(
         executionInfo.targetChainRefundPerGasUnused
       )} of ${targetChainName} currency per unit of gas unused\n`;
       stringifiedInfo += `Refund address: ${instruction.refundAddress.toString(
         "hex"
-      )}\n`;
+      )} on ${printChain(instruction.refundChainId)}\n`;
     }
     stringifiedInfo += `\n`;
     stringifiedInfo += info.targetChainStatus.events
