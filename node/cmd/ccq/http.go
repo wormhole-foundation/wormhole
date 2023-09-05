@@ -12,10 +12,12 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gorilla/mux"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
 type queryRequest struct {
+	ApiKey    string `json:"api_key"`
 	Bytes     string `json:"bytes"`
 	Signature string `json:"signature"`
 }
@@ -27,6 +29,8 @@ type queryResponse struct {
 
 type httpServer struct {
 	topic            *pubsub.Topic
+	logger           *zap.Logger
+	permissions      Permissions
 	pendingResponses *PendingResponses
 }
 
@@ -38,16 +42,24 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// There should be one and only one API key in the header.
+	apiKey, exists := r.Header["X-Api-Key"]
+	if !exists || len(apiKey) != 1 {
+		s.logger.Debug("received a request without an api key", zap.Stringer("url", r.URL), zap.Error(err))
+		http.Error(w, "api key is missing", http.StatusBadRequest)
+		return
+	}
+
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
 	if err != nil {
+		s.logger.Debug("failed to decode request bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// TODO: check if request signer is authorized on Wormchain
-
 	signature, err := hex.DecodeString(q.Signature)
 	if err != nil {
+		s.logger.Debug("failed to decode signature bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -57,7 +69,11 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	// TODO: validate request before publishing
+	if err := validateRequest(s.logger, s.permissions, apiKey[0], signedQueryRequest); err != nil {
+		s.logger.Debug("invalid request", zap.String("api_key", apiKey[0]), zap.Error(err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	m := gossipv1.GossipMessage{
 		Message: &gossipv1.GossipMessage_SignedQueryRequest{
@@ -67,6 +83,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	b, err := proto.Marshal(&m)
 	if err != nil {
+		s.logger.Debug("failed to marshal gossip message", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -80,6 +97,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	err = s.topic.Publish(r.Context(), b)
 	if err != nil {
+		s.logger.Debug("failed to publish gossip message", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		s.pendingResponses.Remove(pendingResponse)
 		return
@@ -118,10 +136,12 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	s.pendingResponses.Remove(pendingResponse)
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, p *PendingResponses) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, p *PendingResponses, logger *zap.Logger) *http.Server {
 	s := &httpServer{
 		topic:            t,
+		permissions:      permissions,
 		pendingResponses: p,
+		logger:           logger,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT")
