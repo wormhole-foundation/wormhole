@@ -30,7 +30,7 @@ import {
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
-const GUARDIAN_SET_INDEX = 2;
+const GUARDIAN_SET_INDEX = 4;
 const ETHEREUM_TOKEN_BRIDGE_SEQ = 2_020_000;
 
 const ethereumTokenBridge = new MockTokenBridge(

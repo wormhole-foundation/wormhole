@@ -27,7 +27,7 @@ import {
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 
-const GUARDIAN_SET_INDEX = 2;
+const GUARDIAN_SET_INDEX = 4;
 const dummyTokenBridge = new MockTokenBridge(
   tryNativeToHexString(ETHEREUM_TOKEN_BRIDGE_ADDRESS, 2),
   2,

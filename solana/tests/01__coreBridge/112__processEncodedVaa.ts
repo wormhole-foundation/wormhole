@@ -1,4 +1,9 @@
-import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import {
+  GovernanceEmitter,
+  MockEmitter,
+  MockGuardians,
+} from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { GOVERNANCE_EMITTER_ADDRESS } from "../../old-tests/helpers";
 import * as anchor from "@coral-xyz/anchor";
 import { ComputeBudgetProgram } from "@solana/web3.js";
 import { expect } from "chai";
@@ -9,12 +14,18 @@ import {
   expectIxErr,
   expectIxOk,
   processVaa,
+  parallelPostVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
+import { parseVaa } from "@certusone/wormhole-sdk";
 
 const GUARDIAN_SET_INDEX = 2;
 
 const dummyEmitter = new MockEmitter(Buffer.alloc(32, "deadbeef").toString("hex"), 69, -1);
+const governance = new GovernanceEmitter(
+  GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
+  1_015_000 - 1
+);
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
 // Test variables.
@@ -27,6 +38,10 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
   const connection = provider.connection;
   const payer = (provider.wallet as anchor.Wallet).payer;
   const program = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
+
+  // We need to use the localnet program to keep the Wormhole programs in sync. This
+  // test suite updates the guardian set.
+  const localnetProgram = coreBridge.getAnchorProgram(connection, coreBridge.localnet());
 
   describe("Invalid Interaction", () => {
     // TODO
@@ -445,12 +460,55 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       await expectIxErr(connection, [computeIx, writeIx, verifyIx], [payer], "NoQuorum");
     });
 
-    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures with Invalid Signature", async () => {
-      // TODO
-    });
+    it("Cannot Invoke `process_encoded_vaa` to Verify Signatures with Mismatching Guardian Set", async () => {
+      // Sign a VAA with the current guardian set.
+      const encodedVaa = await processVaa(
+        program,
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX,
+        false // verify
+      );
 
-    it.skip("Cannot Invoke `process_encoded_vaa` to Verify Signatures with Mismatching Guardian Set", async () => {
-      // TODO
+      // Save the current guardian set.
+      const currentGuardianSet = guardians.getPublicKeys();
+      const newGuardianSet = guardians.setIndex + 1;
+
+      // Update the guardian set.
+      await updateGuardianSet(
+        program,
+        localnetProgram,
+        payer,
+        newGuardianSet,
+        currentGuardianSet.slice(0, 3),
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+      guardians.updateGuardianSetIndex(newGuardianSet);
+
+      // This directive requires more than the usual 200k.
+      const computeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
+
+      // Create the instruction using the newest guardian set.
+      const ix = await coreBridge.processEncodedVaaIx(
+        program,
+        {
+          writeAuthority: payer.publicKey,
+          encodedVaa,
+          guardianSet: coreBridge.GuardianSet.address(program.programId, newGuardianSet),
+        },
+        { verifySignaturesV1: {} }
+      );
+      await expectIxErr(connection, [computeIx, ix], [payer], "GuardianSetMismatch");
+
+      // Revert the guardian set by updating to the original set.
+      await updateGuardianSet(
+        program,
+        localnetProgram,
+        payer,
+        newGuardianSet + 1,
+        currentGuardianSet,
+        [0, 1, 2]
+      );
     });
   });
 });
@@ -514,4 +572,33 @@ function defaultVaa(args?: {
   const published = dummyEmitter.publishMessage(nonce, payload, consistencyLevel, timestamp);
 
   return guardians.addSignatures(published, guardianIndices);
+}
+
+async function updateGuardianSet(
+  program: coreBridge.CoreBridgeProgram,
+  localProgram: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  newIndex: number,
+  newKeys: Buffer[],
+  keyRange: number[]
+) {
+  const timestamp = 294967295;
+  const published = governance.publishWormholeGuardianSetUpgrade(timestamp, newIndex, newKeys);
+  const signedVaa = guardians.addSignatures(published, keyRange);
+
+  // Parse the signed VAA.
+  const parsedVaa = parseVaa(signedVaa);
+
+  // Verify and Post
+  await parallelPostVaa(program.provider.connection, payer, signedVaa);
+
+  // Update the guardian set for both the upgraded program and the localnet program.
+  const ix = coreBridge.legacyGuardianSetUpdateIx(program, { payer: payer.publicKey }, parsedVaa);
+  const localIx = coreBridge.legacyGuardianSetUpdateIx(
+    localProgram,
+    { payer: payer.publicKey },
+    parsedVaa
+  );
+
+  await expectIxOk(program.provider.connection, [ix, localIx], [payer]);
 }
