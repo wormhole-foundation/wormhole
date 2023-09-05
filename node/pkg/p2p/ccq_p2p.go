@@ -16,16 +16,10 @@ import (
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 
-	"github.com/libp2p/go-libp2p"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/core/routing"
-	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
-	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"go.uber.org/zap"
 )
 
@@ -45,7 +39,6 @@ var (
 type ccqP2p struct {
 	logger *zap.Logger
 
-	h            host.Host
 	th_req       *pubsub.Topic
 	th_resp      *pubsub.Topic
 	sub          *pubsub.Subscription
@@ -75,65 +68,22 @@ func (ccq *ccqP2p) run(
 	ctx context.Context,
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
+	h *host.Host,
 	networkID string,
-	bootstrapPeers string,
-	port uint,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
 	errC chan error,
 ) error {
 	var err error
-
-	components := DefaultComponents()
-	if components == nil {
-		return fmt.Errorf("components is not initialized")
-	}
-	components.Port = port
-
-	ccq.h, err = libp2p.New(
-		// Use the keypair we generated
-		libp2p.Identity(priv),
-
-		// Multiple listen addresses
-		libp2p.ListenAddrStrings(
-			components.ListeningAddresses()...,
-		),
-
-		// Enable TLS security as the only security protocol.
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-		// Enable QUIC transport as the only transport.
-		libp2p.Transport(libp2pquic.NewTransport),
-
-		// Let's prevent our peer from having too many
-		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(components.ConnMgr), // TODO: Can we use the same connection manager?
-
-		// Let this host use the DHT to find other hosts
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			ccq.logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
-
-			bootstrappers, _ := bootstrapAddrs(ccq.logger, bootstrapPeers, h.ID())
-
-			// TODO(leo): Persistent data store (i.e. address book)
-			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-				// This intentionally makes us incompatible with the global IPFS DHT
-				dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-				dht.BootstrapPeers(bootstrappers...),
-			)
-			return idht, err
-		}),
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to create p2p: %w", err)
+	if h == nil {
+		return fmt.Errorf("h is not initialized")
 	}
 
 	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
 	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
 	ccq.logger.Info("Creating pubsub topics", zap.String("request_topic", topic_req), zap.String("response_topic", topic_resp))
-	ps, err := pubsub.NewGossipSub(ctx, ccq.h,
+	ps, err := pubsub.NewGossipSub(ctx, *h,
 		// We only want to accept subscribes from peers in the allow list.
 		pubsub.WithPeerFilter(func(peerID peer.ID, topic string) bool {
 			if len(ccq.allowedPeers) == 0 {
@@ -205,10 +155,6 @@ func (ccq *ccqP2p) close() {
 	}
 
 	ccq.sub.Cancel()
-
-	if err := ccq.h.Close(); err != nil {
-		ccq.logger.Error("error closing the host", zap.Error(err))
-	}
 }
 
 func (ccq *ccqP2p) listener(ctx context.Context, signedQueryReqC chan<- *gossipv1.SignedQueryRequest) error {

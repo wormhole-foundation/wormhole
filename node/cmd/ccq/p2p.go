@@ -149,6 +149,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
+	logger.Info("Found peers")
 
 	// Fetch the initial current guardian set
 	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)

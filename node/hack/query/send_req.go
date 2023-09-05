@@ -58,7 +58,7 @@ func main() {
 
 	p2pNetworkID := "/wormhole/dev"
 	var p2pPort uint = 8998 // don't collide with spy so we can run from the same container in tilt
-	p2pBootstrap := "/dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"
+	p2pBootstrap := "/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"
 	nodeKeyPath := "./querier.key"
 
 	ctx := context.Background()
@@ -172,6 +172,7 @@ func main() {
 	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
+	logger.Info("Done listening for peers")
 
 	//
 	// END SETUP
