@@ -102,14 +102,13 @@ describe("eth call", () => {
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
-    const api_key = "my_secret_key";
     const response = await axios.put<QueryResponse>(
       QUERY_SERVER_URL,
       {
         signature,
         bytes: Buffer.from(serialized).toString("hex"),
       },
-      { headers: { "X-API-Key": api_key } }
+      { headers: { "X-API-Key": "my_secret_key" } }
     );
     expect(response.status).toBe(200);
     const queryResponse = QueryResponse.fromBytes(
@@ -117,5 +116,111 @@ describe("eth call", () => {
     );
     // TODO: verify signatures
     // TOOD: verify query response
+  });
+  test("missing api-key should fail", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      totalSupplyCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    await axios
+      .put<QueryResponse>(QUERY_SERVER_URL, {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      })
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe("api key is missing\n");
+      });
+    expect(err).toBe(true);
+  });
+  test("invalid api-key should fail", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      totalSupplyCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    await axios
+      .put<QueryResponse>(
+        QUERY_SERVER_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "some_junk" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe("invalid api key\n");
+      });
+    expect(err).toBe(true);
+  });
+  test("unauthorized call should fail", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      totalSupplyCallData, // API key "my_secret_key_2" is not authorized to do total supply.
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    await axios
+      .put<QueryResponse>(
+        QUERY_SERVER_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key_2" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `call "ethCall:2:000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e:18160ddd" not authorized\n`
+        );
+      });
+    expect(err).toBe(true);
   });
 });
