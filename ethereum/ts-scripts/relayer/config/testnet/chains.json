@@ -43,6 +43,27 @@
       "chainId": 30,
       "rpc": "https://goerli.base.org",
       "wormholeAddress": "0x23908A62110e21C04F3A4e011d24F901F911744A"
+    },
+    {
+      "description": "Optimism Goerli",
+      "evmNetworkId": 420,
+      "chainId": 24,
+      "rpc": "https://goerli.optimism.io",
+      "wormholeAddress": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"
+    },
+    {
+      "description": "Arbitrum Goerli",
+      "evmNetworkId": 421613,
+      "chainId": 23,
+      "rpc": "https://arbitrum-goerli.publicnode.com",
+      "wormholeAddress": "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"
+    },
+    {
+      "description": "Ethereum Goerli",
+      "evmNetworkId": 5,
+      "chainId": 2,
+      "rpc": "https://ethereum-goerli.publicnode.com",
+      "wormholeAddress": "0x706abc4E45D419950511e474C7B9Ed348A4a716c"
     }
   ]
 }
