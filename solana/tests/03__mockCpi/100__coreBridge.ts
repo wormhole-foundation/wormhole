@@ -247,11 +247,14 @@ describe("Mock CPI -- Core Bridge", () => {
         {
           payer: payer.publicKey,
           message,
-          emitter: program.programId,
+          emitter: null,
+          emitterSequence: coreBridge.EmitterSequence.address(
+            coreBridgeProgram.programId,
+            program.programId
+          ),
         },
         { nonce, commitment: "confirmed", payload: Buffer.alloc(0) },
         {
-          emitter: false,
           message: false,
         } // require other signers
       );

@@ -12,7 +12,7 @@ import { Config, EmitterSequence, feeCollectorPda } from "../state";
 export type LegacyPostMessageContext = {
   config?: PublicKey;
   message: PublicKey;
-  emitter: PublicKey;
+  emitter: PublicKey | null;
   emitterSequence?: PublicKey;
   payer: PublicKey;
   feeCollector?: PublicKey | null;
@@ -29,6 +29,13 @@ export function legacyPostMessageAccounts(
   let { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } = accounts;
   if (config === undefined) {
     config = Config.address(program.programId);
+  }
+
+  if (emitter === null) {
+    emitter = programId;
+    if (emitterSequence === undefined) {
+      throw new Error("emitterSequence must be defined if emitter is null");
+    }
   }
 
   if (emitterSequence === undefined) {
@@ -76,7 +83,6 @@ export function legacyPostMessageIx(
   accounts: LegacyPostMessageContext,
   args: LegacyPostMessageArgs,
   requireOtherSigners: {
-    emitter?: boolean;
     message?: boolean;
   } = {}
 ) {
@@ -90,18 +96,15 @@ export function handleLegacyPostMessageIx(
   args: LegacyPostMessageArgs,
   unreliable: boolean,
   requireOtherSigners: {
-    emitter?: boolean;
     message?: boolean;
   }
 ) {
   const { config, message, emitter, emitterSequence, payer, feeCollector, clock, rent } =
     legacyPostMessageAccounts(program, accounts);
 
-  let { emitter: emitterIsSigner, message: messageIsSigner } = requireOtherSigners;
+  let { message: messageIsSigner } = requireOtherSigners;
 
-  if (emitterIsSigner === undefined) {
-    emitterIsSigner = true;
-  }
+  const emitterIsSigner = emitter.equals(program.programId) ? false : true;
 
   if (messageIsSigner === undefined) {
     messageIsSigner = true;

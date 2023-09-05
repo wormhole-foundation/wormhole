@@ -37,7 +37,7 @@ pub struct PostMessage<'info> {
     /// CHECK: The emitter of the core bridge message. This account is typically an integrating
     /// program's PDA which signs for this instruction. This account must be a signer if the message
     /// is created in this instruction.
-    emitter: AccountInfo<'info>,
+    emitter: Option<AccountInfo<'info>>,
 
     /// Sequence tracker for given emitter. Every core bridge message is tagged with a unique
     /// sequence number.
@@ -129,7 +129,7 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
-        &ctx.accounts.emitter.key(),
+        &ctx.accounts.emitter.as_ref().unwrap().key(),
         payload,
     )?;
 
@@ -269,14 +269,18 @@ fn handle_message_fee(
 /// derived using the emitter, is assigned to the emitter signer (now called the emitter
 /// authority). Whereas with the new prepared message, this emitter can be taken from the
 /// message account to re-derive the emitter sequence PDA address.
-fn find_emitter_for_sequence(emitter: &AccountInfo, msg: &AccountInfo) -> Result<Pubkey> {
+fn find_emitter_for_sequence(emitter: &Option<AccountInfo>, msg: &AccountInfo) -> Result<Pubkey> {
     if msg.data_is_empty() {
         // Message must be a signer in order to be created.
         require!(msg.is_signer, ErrorCode::AccountNotSigner);
 
-        // Because this message will be newly created in this instruction, the emitter must be
-        // a signer to authorize posting this message.
+        // Because this message will be newly created in this instruction, the emitter is required
+        // and must be a signer to authorize posting this message.
+        let emitter = emitter
+            .as_ref()
+            .ok_or_else(|| error!(ErrorCode::AccountNotEnoughKeys))?;
         require!(emitter.is_signer, ErrorCode::AccountNotSigner);
+
         Ok(emitter.key())
     } else {
         let msg_acc_data = msg.data.borrow();
@@ -285,14 +289,7 @@ fn find_emitter_for_sequence(emitter: &AccountInfo, msg: &AccountInfo) -> Result
         match msg.status() {
             MessageStatus::Unset => err!(CoreBridgeError::MessageAlreadyPublished),
             MessageStatus::Writing => err!(CoreBridgeError::InWritingStatus),
-            MessageStatus::Finalized => {
-                require_eq!(
-                    emitter.key(),
-                    msg.emitter(),
-                    CoreBridgeError::EmitterMismatch
-                );
-                Ok(msg.emitter())
-            }
+            MessageStatus::Finalized => Ok(msg.emitter()),
         }
     }
 }
