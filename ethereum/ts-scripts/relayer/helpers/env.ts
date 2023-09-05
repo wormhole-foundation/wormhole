@@ -118,7 +118,7 @@ function getOperatingChainIds() {
   if (chains.operatingChains !== undefined) {
     operatingChains = chains.operatingChains;
   }
-  return operatingChains
+  return operatingChains;
 }
 
 export function getOperatingChains(): ChainInfo[] {
@@ -150,7 +150,10 @@ export function getOperationDescriptor(): OperationDescriptor {
     return { operatingChains: allChains, supportedChains: [] };
   }
 
-  const result: OperationDescriptor = { operatingChains: [], supportedChains: [] };
+  const result: OperationDescriptor = {
+    operatingChains: [],
+    supportedChains: [],
+  };
   for (const chain of allChains) {
     const item = operatingChains.find((y) => {
       return chain.chainId == y;
@@ -323,12 +326,14 @@ export function writeOutputFiles(output: unknown, processName: string) {
 
 export function loadLastRun(processName: string): any {
   try {
-    return JSON.parse(fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
-      "utf8",
-    ));
+    return JSON.parse(
+      fs.readFileSync(
+        `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
+        "utf8",
+      ),
+    );
   } catch (error: unknown) {
-    if (error instanceof Error && (error as any).code === 'ENOENT') {
+    if (error instanceof Error && (error as any).code === "ENOENT") {
       return undefined;
     } else {
       throw error;
@@ -402,7 +407,7 @@ export async function getWormholeRelayerAddress(
   } else {
     throw Error(
       "Failed to find a WormholeRelayer contract address on chain " +
-      chain.chainId,
+        chain.chainId,
     );
   }
 }
@@ -438,15 +443,14 @@ export async function getMockIntegration(
   const thisIntegration = getMockIntegrationAddress(chain);
   const contract = MockRelayerIntegration__factory.connect(
     thisIntegration,
-    provider || await getSigner(chain),
+    provider || (await getSigner(chain)),
   );
   return contract;
 }
 
 export function getCreate2FactoryAddress(chain: ChainInfo): string {
-  const address = loadCreate2Factories().find(
-    (x) => x.chainId == chain.chainId,
-  )?.address;
+  const address = loadCreate2Factories().find((x) => x.chainId == chain.chainId)
+    ?.address;
   if (!address) {
     throw new Error(
       "Failed to find a create2Factory contract address on chain " +
