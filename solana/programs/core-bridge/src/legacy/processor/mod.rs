@@ -16,7 +16,7 @@ pub use post_vaa::*;
 mod verify_signatures;
 pub use verify_signatures::*;
 
-use crate::{legacy::utils::ProcessLegacyInstruction, ID};
+use crate::legacy::utils::ProcessLegacyInstruction;
 use anchor_lang::prelude::*;
 
 use super::instruction::LegacyInstruction;
@@ -27,7 +27,10 @@ pub fn process_legacy_instruction(
     mut ix_data: &[u8],
 ) -> Result<()> {
     // TODO: This may not be necessary. Double-check in integration test.
-    require!(*program_id == ID, ErrorCode::DeclaredProgramIdMismatch);
+    require!(
+        *program_id == crate::ID,
+        ErrorCode::DeclaredProgramIdMismatch
+    );
 
     // Deserialize instruction data. The data should match the instruction
     // enum. Otherwise, we bail out.

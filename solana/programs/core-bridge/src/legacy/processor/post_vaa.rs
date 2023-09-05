@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::LegacyPostVaaArgs, utils::LegacyAccount},
-    state::{GuardianSet, PostedVaaV1Bytes, PostedVaaV1Metadata, SignatureSet},
+    legacy::{instruction::PostVaaArgs, utils::LegacyAccount},
+    state::{GuardianSet, PostedVaaV1, PostedVaaV1Info, SignatureSet},
     types::MessageHash,
     utils,
 };
@@ -31,7 +31,7 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 ];
 
 #[derive(Accounts)]
-#[instruction(args: LegacyPostVaaArgs)]
+#[instruction(args: PostVaaArgs)]
 pub struct PostVaa<'info> {
     /// Guardian set used for signature verification.
     #[account(
@@ -56,11 +56,11 @@ pub struct PostVaa<'info> {
     #[account(
         init,
         payer = payer,
-        space = PostedVaaV1Bytes::compute_size(args.payload.len()),
-        seeds = [PostedVaaV1Bytes::SEED_PREFIX, signature_set.message_hash.as_ref()],
+        space = PostedVaaV1::compute_size(args.payload.len()),
+        seeds = [PostedVaaV1::SEED_PREFIX, signature_set.message_hash.as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -74,16 +74,14 @@ pub struct PostVaa<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyPostVaaArgs>
-    for PostVaa<'info>
-{
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostVaaArgs> for PostVaa<'info> {
     const LOG_IX_NAME: &'static str = "LegacyPostVaa";
 
-    const ANCHOR_IX_FN: fn(Context<Self>, LegacyPostVaaArgs) -> Result<()> = post_vaa;
+    const ANCHOR_IX_FN: fn(Context<Self>, PostVaaArgs) -> Result<()> = post_vaa;
 }
 
 impl<'info> PostVaa<'info> {
-    pub fn constraints(ctx: &Context<Self>, args: &LegacyPostVaaArgs) -> Result<()> {
+    pub fn constraints(ctx: &Context<Self>, args: &PostVaaArgs) -> Result<()> {
         let signature_set = &ctx.accounts.signature_set;
         require!(
             !INVALID_SIGNATURE_SET_KEYS.contains(&signature_set.key().to_string().as_str()),
@@ -117,8 +115,8 @@ impl<'info> PostVaa<'info> {
 }
 
 #[access_control(PostVaa::constraints(&ctx, &args))]
-fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
-    let LegacyPostVaaArgs {
+fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
+    let PostVaaArgs {
         _version,
         _guardian_set_index,
         timestamp,
@@ -132,8 +130,8 @@ fn post_vaa(ctx: Context<PostVaa>, args: LegacyPostVaaArgs) -> Result<()> {
 
     // Set the `message` account with this instruction data.
     ctx.accounts.posted_vaa.set_inner(
-        PostedVaaV1Bytes {
-            meta: PostedVaaV1Metadata {
+        PostedVaaV1 {
+            info: PostedVaaV1Info {
                 consistency_level,
                 timestamp: timestamp.into(),
                 signature_set: ctx.accounts.signature_set.key(),

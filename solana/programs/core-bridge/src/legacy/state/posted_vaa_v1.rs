@@ -1,14 +1,18 @@
 use std::ops::Deref;
 
 use crate::types::Timestamp;
-use anchor_lang::prelude::*;
-use solana_program::keccak;
+use anchor_lang::{prelude::*, solana_program::keccak};
 
-pub(crate) const POSTED_VAA_V1_SEED_PREFIX: &[u8] = b"PostedVAA";
-pub(crate) const POSTED_VAA_V1_DISCRIMINATOR: [u8; 4] = *b"vaa\x01";
+/// A.K.A. "PostedVAA".
+pub const POSTED_VAA_V1_SEED_PREFIX: &[u8] = b"PostedVAA";
 
+/// A.K.A. "vaa\1".
+pub const POSTED_VAA_V1_DISCRIMINATOR: [u8; 4] = *b"vaa\x01";
+
+/// VAA metadata defining information about a Wormhole message attested for by an active guardian
+/// set.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
-pub struct PostedVaaV1Metadata {
+pub struct PostedVaaV1Info {
     /// Level of consistency requested by the emitter.
     pub consistency_level: u8,
 
@@ -33,68 +37,59 @@ pub struct PostedVaaV1Metadata {
     /// Sequence number of this message.
     pub sequence: u64,
 
-    /// Emitter of the message.
+    /// The Wormhole chain ID denoting the origin of this message.
     pub emitter_chain: u16,
 
     /// Emitter of the message.
     pub emitter_address: [u8; 32],
 }
 
-pub trait VaaV1Account {
-    /// Recompute the message hash, which can be used to derive the PostedVaa PDA address.
-    ///
-    /// NOTE: For a cheaper derivation, your instruction handler can take a message hash as an
-    /// argument. But at the end of the day, re-hashing isn't that expensive.
-    fn try_message_hash(&self) -> Result<keccak::Hash>;
-}
-
+/// Account used to store a verified VAA.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct PostedVaaV1Bytes {
-    pub meta: PostedVaaV1Metadata,
+pub struct PostedVaaV1 {
+    pub info: PostedVaaV1Info,
     pub payload: Vec<u8>,
 }
 
-impl Owner for PostedVaaV1Bytes {
+impl Owner for PostedVaaV1 {
     fn owner() -> Pubkey {
         crate::ID
     }
 }
 
-impl crate::legacy::utils::LegacyDiscriminator<4> for PostedVaaV1Bytes {
+impl crate::legacy::utils::LegacyDiscriminator<4> for PostedVaaV1 {
     const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_VAA_V1_DISCRIMINATOR;
 }
 
-impl PostedVaaV1Bytes {
+impl PostedVaaV1 {
+    /// A.K.A. "PostedVAA".
     pub const SEED_PREFIX: &'static [u8] = POSTED_VAA_V1_SEED_PREFIX;
+
+    /// Recompute the message hash, which is used derive the PostedVaaV1 PDA address.
+    pub fn message_hash(&self) -> keccak::Hash {
+        keccak::hashv(&[
+            &self.timestamp.to_be_bytes(),
+            &self.nonce.to_be_bytes(),
+            &self.emitter_chain.to_be_bytes(),
+            &self.emitter_address,
+            &self.sequence.to_be_bytes(),
+            &[self.consistency_level],
+            &self.payload,
+        ])
+    }
 
     pub(crate) fn compute_size(payload_len: usize) -> usize {
         4 // LEGACY_DISCRIMINATOR
-        + PostedVaaV1Metadata::INIT_SPACE
+        + PostedVaaV1Info::INIT_SPACE
         + 4 // payload.len()
         + payload_len
     }
 }
 
-impl<'info> VaaV1Account
-    for Account<'info, crate::legacy::utils::LegacyAccount<4, PostedVaaV1Bytes>>
-{
-    fn try_message_hash(&self) -> Result<keccak::Hash> {
-        Ok(keccak::hashv(&[
-            &self.timestamp.to_be_bytes(),     // timestamp
-            &self.nonce.to_be_bytes(),         // nonce
-            &self.emitter_chain.to_be_bytes(), // emitter_chain
-            &self.emitter_address,             // emitter_address
-            &self.sequence.to_be_bytes(),      // sequence
-            &[self.consistency_level],         // consistency_level
-            &self.payload,                     // payload
-        ]))
-    }
-}
-
-impl Deref for PostedVaaV1Bytes {
-    type Target = PostedVaaV1Metadata;
+impl Deref for PostedVaaV1 {
+    type Target = PostedVaaV1Info;
 
     fn deref(&self) -> &Self::Target {
-        &self.meta
+        &self.info
     }
 }

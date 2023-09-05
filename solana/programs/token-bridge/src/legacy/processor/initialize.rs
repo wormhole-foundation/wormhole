@@ -1,4 +1,4 @@
-use crate::{legacy::instruction::LegacyInitializeArgs, state::Config};
+use crate::{legacy::instruction::InitializeArgs, state::Config};
 use anchor_lang::prelude::*;
 use core_bridge_program::legacy::utils::LegacyAccount;
 
@@ -22,16 +22,15 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info>
-    core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, LegacyInitializeArgs>
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, InitializeArgs>
     for Initialize<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyInitialize";
 
-    const ANCHOR_IX_FN: fn(Context<Self>, LegacyInitializeArgs) -> Result<()> = initialize;
+    const ANCHOR_IX_FN: fn(Context<Self>, InitializeArgs) -> Result<()> = initialize;
 }
 
-fn initialize(ctx: Context<Initialize>, _args: LegacyInitializeArgs) -> Result<()> {
+fn initialize(ctx: Context<Initialize>, _args: InitializeArgs) -> Result<()> {
     // NOTE: This config account is pointless and is never used in any of the instruction handlers.
     ctx.accounts.config.set_inner(
         Config {

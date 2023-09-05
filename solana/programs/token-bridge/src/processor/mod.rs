@@ -32,9 +32,9 @@ pub fn post_token_bridge_message<
 ) -> Result<()> {
     core_bridge_sdk::cpi::post_new_message_v1(
         accounts,
-        core_bridge_sdk::cpi::PostNewMessageV1Args {
+        core_bridge_sdk::cpi::PostMessageV1Directive::Message {
             nonce,
-            message,
+            payload: message.to_vec(),
             commitment: Commitment::Finalized,
         },
         &[EMITTER_SEED_PREFIX, &[emitter_bump]],

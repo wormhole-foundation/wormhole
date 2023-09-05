@@ -1,6 +1,9 @@
 use crate::types::Duration;
 use anchor_lang::prelude::*;
 
+/// Account used to store the current configuration of the bridge, including tracking Wormhole fee
+/// payments. For governance decrees, the guardian set index is used to determine whether a decree
+/// was attested for using the latest guardian set.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct Config {
     /// The current guardian set index, used to decide which signature sets to accept.

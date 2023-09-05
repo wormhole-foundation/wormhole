@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::LegacyVerifySignaturesArgs, utils::LegacyAccount},
+    legacy::{instruction::VerifySignaturesArgs, utils::LegacyAccount},
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
@@ -58,13 +58,12 @@ pub struct VerifySignatures<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyVerifySignaturesArgs>
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, VerifySignaturesArgs>
     for VerifySignatures<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyVerifySignatures";
 
-    const ANCHOR_IX_FN: fn(Context<Self>, LegacyVerifySignaturesArgs) -> Result<()> =
-        verify_signatures;
+    const ANCHOR_IX_FN: fn(Context<Self>, VerifySignaturesArgs) -> Result<()> = verify_signatures;
 }
 
 impl<'info> VerifySignatures<'info> {
@@ -88,11 +87,8 @@ impl<'info> VerifySignatures<'info> {
 }
 
 #[access_control(VerifySignatures::constraints(&ctx))]
-fn verify_signatures(
-    ctx: Context<VerifySignatures>,
-    args: LegacyVerifySignaturesArgs,
-) -> Result<()> {
-    let LegacyVerifySignaturesArgs { signer_indices } = args;
+fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs) -> Result<()> {
+    let VerifySignaturesArgs { signer_indices } = args;
 
     // Collected guardian indices (to be used later).
     let guardian_indices: Vec<_> = signer_indices

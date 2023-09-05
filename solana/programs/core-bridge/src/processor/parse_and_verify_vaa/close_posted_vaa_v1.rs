@@ -1,6 +1,6 @@
 use crate::{
     legacy::utils::LegacyAccount,
-    state::{PostedVaaV1Bytes, SignatureSet, VaaV1Account},
+    state::{PostedVaaV1, SignatureSet},
     types::MessageHash,
 };
 use anchor_lang::prelude::*;
@@ -14,10 +14,10 @@ pub struct ClosePostedVaaV1<'info> {
     #[account(
         mut,
         close = sol_destination,
-        seeds = [PostedVaaV1Bytes::SEED_PREFIX, posted_vaa.try_message_hash()?.as_ref()],
+        seeds = [PostedVaaV1::SEED_PREFIX, posted_vaa.message_hash().as_ref()],
         bump
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
 
     #[account(
         mut,

@@ -1,3 +1,6 @@
+//! Utilities for the Core Bridge Program. These utilities are used to convert the legacy program to
+//! use the Anchor framework.
+
 use anchor_lang::prelude::*;
 
 pub trait LegacyDiscriminator<const N: usize>:

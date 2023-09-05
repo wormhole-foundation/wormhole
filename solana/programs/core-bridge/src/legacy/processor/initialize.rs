@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::LegacyInitializeArgs, utils::LegacyAccount},
+    legacy::{instruction::InitializeArgs, utils::LegacyAccount},
     state::{Config, GuardianSet},
 };
 use anchor_lang::prelude::*;
@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 const INDEX_ZERO: u32 = 0;
 
 #[derive(Accounts)]
-#[instruction(args: LegacyInitializeArgs)]
+#[instruction(args: InitializeArgs)]
 pub struct Initialize<'info> {
     /// Core Bridge data and config. This account is necessary to publish Wormhole messages and
     /// redeem governance VAAs.
@@ -59,16 +59,16 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, LegacyInitializeArgs>
+impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, InitializeArgs>
     for Initialize<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyInitialize";
 
-    const ANCHOR_IX_FN: fn(Context<Self>, LegacyInitializeArgs) -> Result<()> = initialize;
+    const ANCHOR_IX_FN: fn(Context<Self>, InitializeArgs) -> Result<()> = initialize;
 }
 
-fn initialize(ctx: Context<Initialize>, args: LegacyInitializeArgs) -> Result<()> {
-    let LegacyInitializeArgs {
+fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
+    let InitializeArgs {
         guardian_set_ttl_seconds,
         fee_lamports,
         initial_guardians,

@@ -1,3 +1,5 @@
+//! Utilities for the Core Bridge Program.
+
 mod vaa;
 pub use vaa::*;
 
