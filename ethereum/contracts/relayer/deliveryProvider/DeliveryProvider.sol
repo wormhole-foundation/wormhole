@@ -154,19 +154,19 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function assetConversion(
-        uint16 sourceChain,
-        Wei sourceAmount,
-        uint16 targetChain
+        uint16 fromChain,
+        Wei fromAmount,
+        uint16 toChain
     ) internal view returns (Wei targetAmount) {
-        if(nativeCurrencyPrice(sourceChain).unwrap() == 0) {
-            revert PriceIsZero(sourceChain);
+        if(nativeCurrencyPrice(fromChain).unwrap() == 0) {
+            revert PriceIsZero(fromChain);
         } 
-        if(nativeCurrencyPrice(targetChain).unwrap() == 0) {
-            revert PriceIsZero(targetChain);
+        if(nativeCurrencyPrice(toChain).unwrap() == 0) {
+            revert PriceIsZero(toChain);
         }
-        return sourceAmount.convertAsset(
-            nativeCurrencyPrice(sourceChain),
-            nativeCurrencyPrice(targetChain),
+        return fromAmount.convertAsset(
+            nativeCurrencyPrice(fromChain),
+            nativeCurrencyPrice(toChain),
             1,
             1,
             // round up
