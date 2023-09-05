@@ -327,23 +327,6 @@ func Run(
 		}
 		defer sub.Cancel()
 
-		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
-		// as peer discovery can take a long time).
-
-		successes := connectToPeers(ctx, logger, h, bootstrappers)
-
-		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
-			// If we fail to connect to any bootstrap peer, kill the service
-			// returning from this function will lead to rootCtxCancel() being called in the defer() above. The service will then be restarted by Tilt/kubernetes.
-			return fmt.Errorf("failed to connect to any bootstrap peer")
-		}
-		logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
-
-		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
-			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
-
-		bootTime := time.Now()
-
 		if ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
@@ -364,6 +347,23 @@ func Run(
 				}
 			}()
 		}
+
+		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
+		// as peer discovery can take a long time).
+
+		successes := connectToPeers(ctx, logger, h, bootstrappers)
+
+		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
+			// If we fail to connect to any bootstrap peer, kill the service
+			// returning from this function will lead to rootCtxCancel() being called in the defer() above. The service will then be restarted by Tilt/kubernetes.
+			return fmt.Errorf("failed to connect to any bootstrap peer")
+		}
+		logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+
+		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
+			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
+
+		bootTime := time.Now()
 
 		// Periodically run guardian state set cleanup.
 		go func() {
