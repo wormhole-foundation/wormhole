@@ -30,7 +30,7 @@ pub struct ProcessEncodedVaa<'info> {
     )]
     encoded_vaa: AccountInfo<'info>,
 
-    /// The guardian set account is optional because it is only needed for the signature verifcation
+    /// The guardian set account is optional because it is only needed for the signature verification
     /// instruction handler directive.
     ///
     /// NOTE: Because the vaa account is not deserialized as an Anchor Account, we cannot use the
