@@ -2,7 +2,7 @@ use crate::types::VaaVersion;
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyPostVaaArgs {
+pub struct PostVaaArgs {
     /// The VAA version passed into this instruction does not do anything functional because someone
     /// can just pass in the value '1' and it will be accepted.
     pub _version: VaaVersion,

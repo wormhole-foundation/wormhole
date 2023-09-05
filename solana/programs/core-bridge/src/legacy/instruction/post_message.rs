@@ -1,6 +1,7 @@
 use crate::types::Commitment;
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 
+/// Arguments used to post a new Wormhole (Core Bridge) message.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PostMessageArgs {
     pub nonce: u32,
@@ -11,33 +12,29 @@ pub struct PostMessageArgs {
 #[cfg(feature = "no-entrypoint")]
 mod __no_entrypoint {
     use crate::legacy::instruction::LegacyInstruction;
-    use solana_program::{
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-    };
+    use solana_program::instruction::{AccountMeta, Instruction};
 
     use super::*;
 
-    pub struct PostMessage {
-        pub config: Pubkey,
-        pub message: Pubkey,
-        pub emitter: Pubkey,
-        pub emitter_sequence: Pubkey,
-        pub payer: Pubkey,
-        pub fee_collector: Option<Pubkey>,
-        pub system_program: Pubkey,
-    }
-
-    pub fn post_message(accounts: PostMessage, args: PostMessageArgs) -> Instruction {
-        let fee_collector = match accounts.fee_collector {
-            Some(fee_collector) => fee_collector,
-            None => crate::ID,
+    pub fn post_message(
+        accounts: crate::legacy::accounts::PostMessage,
+        args: PostMessageArgs,
+    ) -> Instruction {
+        let fee_collector = accounts.fee_collector.unwrap_or(crate::ID);
+        let (emitter, emitter_is_signer) = match accounts.emitter {
+            Some(emitter) => (emitter, true),
+            None => (crate::ID, false),
         };
+
+        // This part is a hack. But to avoid having to return a result, we assume that if the
+        // payload provided is empty, then the message is already prepared (so the message does not
+        // have to be a signer).
+        let message_is_signer = !args.payload.is_empty();
 
         let accounts = vec![
             AccountMeta::new(accounts.config, false),
-            AccountMeta::new(accounts.message, true),
-            AccountMeta::new_readonly(accounts.emitter, true),
+            AccountMeta::new(accounts.message, message_is_signer),
+            AccountMeta::new_readonly(emitter, emitter_is_signer),
             AccountMeta::new(accounts.emitter_sequence, false),
             AccountMeta::new(accounts.payer, true),
             AccountMeta::new(fee_collector, false),

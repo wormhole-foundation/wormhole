@@ -1,3 +1,7 @@
+//! Zero-copy account structs for the Core Bridge Program. Wherever possible, it is recommended to
+//! use these structs instead of using Anchor's [anchor_lang::prelude::Account] to deserialize these
+//! accounts.
+
 mod config;
 pub use config::*;
 

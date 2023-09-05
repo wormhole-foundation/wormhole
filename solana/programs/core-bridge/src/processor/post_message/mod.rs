@@ -10,7 +10,10 @@ use anchor_lang::prelude::*;
 pub fn new_emitter(emitter_authority: &Signer, cpi_program_id: Option<Pubkey>) -> Result<Pubkey> {
     match cpi_program_id {
         Some(program_id) => {
-            let (expected_authority, _) = Pubkey::find_program_address(&[b"emitter"], &program_id);
+            let (expected_authority, _) = Pubkey::find_program_address(
+                &[crate::constants::PROGRAM_EMITTER_SEED_PREFIX],
+                &program_id,
+            );
             require_eq!(
                 emitter_authority.key(),
                 expected_authority,

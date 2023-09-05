@@ -1,3 +1,5 @@
+//! Various types used by the Core Bridge Program.
+
 use std::fmt;
 
 use anchor_lang::prelude::*;
@@ -222,5 +224,21 @@ impl From<MessageHash> for keccak::Hash {
 impl fmt::Display for MessageHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::encode(self.bytes))
+    }
+}
+
+/// This type is kind of silly. But because `PostedMessageV1` has the emitter chain ID as a field,
+/// which is unnecessary since it is always Solana's chain ID, we use this type to guarantee that
+/// the encoded chain ID is always `1`.
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+pub struct ChainIdSolanaOnly {
+    chain_id: u16,
+}
+
+impl Default for ChainIdSolanaOnly {
+    fn default() -> Self {
+        Self {
+            chain_id: crate::constants::SOLANA_CHAIN,
+        }
     }
 }

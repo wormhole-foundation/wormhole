@@ -18,7 +18,77 @@ describe("Mock CPI -- Core Bridge", () => {
   const payerSequenceValue = new anchor.BN(0);
 
   describe("Legacy", () => {
-    it("Invoke `mock_legacy_post_message`", async () => {
+    it("Invoke `mock_post_message` where Emitter == Program ID", async () => {
+      const message = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("my_message"),
+          payer.publicKey.toBuffer(),
+          payerSequenceValue.toBuffer("le", 16),
+        ],
+        program.programId
+      )[0];
+      const emitter = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("emitter")],
+        program.programId
+      )[0];
+      const payerSequence = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("seq"), payer.publicKey.toBuffer()],
+        program.programId
+      )[0];
+
+      const coreBridgeProgram = mockCpi.coreBridgeProgramId(program);
+      const emitterSequence = coreBridge.EmitterSequence.address(
+        coreBridgeProgram,
+        program.programId
+      );
+
+      const { config: coreBridgeConfig, feeCollector: coreFeeCollector } =
+        coreBridge.legacyPostMessageAccounts(mockCpi.getCoreBridgeProgram(program), {
+          message,
+          emitter: null,
+          emitterSequence,
+          payer: payer.publicKey,
+        });
+
+      const nonce = 420;
+      const payload = Buffer.from("Where's the beef?");
+
+      const ix = await program.methods
+        .mockPostMessage({ nonce, payload })
+        .accounts({
+          payer: payer.publicKey,
+          payerSequence,
+          coreProgramEmitter: emitter,
+          coreCustomEmitter: null,
+          coreBridgeConfig,
+          coreMessage: message,
+          coreEmitterSequence: emitterSequence,
+          coreFeeCollector,
+          coreBridgeProgram: mockCpi.coreBridgeProgramId(program),
+        })
+        .instruction();
+
+      const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
+
+      const messageData = await coreBridge.PostedMessageV1.fromAccountAddress(connection, message);
+      console.log("messageData", messageData);
+      expectDeepEqual(messageData, {
+        consistencyLevel: 32,
+        emitterAuthority: anchor.web3.PublicKey.default,
+        status: coreBridge.MessageStatus.Unset,
+        _gap0: Buffer.alloc(3),
+        postedTimestamp: txDetails.blockTime!,
+        nonce,
+        sequence: new anchor.BN(0),
+        solanaChainId: 1,
+        emitter: program.programId,
+        payload,
+      });
+
+      payerSequenceValue.iaddn(1);
+    });
+
+    it("Invoke `mock_post_message` where Emitter != Program ID", async () => {
       const message = anchor.web3.PublicKey.findProgramAddressSync(
         [
           Buffer.from("my_message"),
@@ -50,31 +120,40 @@ describe("Mock CPI -- Core Bridge", () => {
       const payload = Buffer.from("Where's the beef?");
 
       const ix = await program.methods
-        .mockLegacyPostMessage({ nonce, payload })
+        .mockPostMessage({ nonce, payload })
         .accounts({
           payer: payer.publicKey,
           payerSequence,
+          coreProgramEmitter: null,
+          coreCustomEmitter: emitter,
           coreBridgeConfig,
           coreMessage: message,
-          coreEmitter: emitter,
           coreEmitterSequence,
           coreFeeCollector,
           coreBridgeProgram: mockCpi.coreBridgeProgramId(program),
         })
         .instruction();
 
-      await expectIxOk(connection, [ix], [payer]);
+      const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
 
-      const published = await coreBridge.PostedMessageV1.fromAccountAddress(
-        connection,
-        message
-      ).then((msg) => msg.payload);
-      expectDeepEqual(published, payload);
+      const messageData = await coreBridge.PostedMessageV1.fromAccountAddress(connection, message);
+      expectDeepEqual(messageData, {
+        consistencyLevel: 32,
+        emitterAuthority: anchor.web3.PublicKey.default,
+        status: coreBridge.MessageStatus.Unset,
+        _gap0: Buffer.alloc(3),
+        postedTimestamp: txDetails.blockTime!,
+        nonce,
+        sequence: new anchor.BN(0),
+        solanaChainId: 1,
+        emitter,
+        payload,
+      });
 
       payerSequenceValue.iaddn(1);
     });
 
-    it("Invoke `mock_legacy_post_message_unreliable`", async () => {
+    it("Invoke `mock_post_message_unreliable`", async () => {
       const nonce = 420;
       const encodedNonce = Buffer.alloc(4);
       encodedNonce.writeUInt32LE(nonce, 0);
@@ -103,7 +182,7 @@ describe("Mock CPI -- Core Bridge", () => {
       payload.set(Buffer.from("Where's the beef?"));
 
       const ix = await program.methods
-        .mockLegacyPostMessageUnreliable({ nonce, payload })
+        .mockPostMessageUnreliable({ nonce, payload })
         .accounts({
           payer: payer.publicKey,
           coreBridgeConfig,
@@ -125,7 +204,7 @@ describe("Mock CPI -- Core Bridge", () => {
       expectDeepEqual(published, payload);
     });
 
-    it("Invoke `mock_legacy_post_message_unreliable` on Same Message", async () => {
+    it("Invoke `mock_post_message_unreliable` on Same Message", async () => {
       const nonce = localVariables.get("nonce") as number;
       const encodedNonce = Buffer.alloc(4);
       encodedNonce.writeUInt32LE(nonce, 0);
@@ -153,7 +232,7 @@ describe("Mock CPI -- Core Bridge", () => {
       payload.set(Buffer.from("Not here, m8."));
 
       const anotherIx = await program.methods
-        .mockLegacyPostMessageUnreliable({ nonce, payload })
+        .mockPostMessageUnreliable({ nonce, payload })
         .accounts({
           payer: payer.publicKey,
           coreBridgeConfig,
@@ -175,7 +254,7 @@ describe("Mock CPI -- Core Bridge", () => {
       }
     });
 
-    it("Invoke `mock_prepare_message_v1` where Redeemer == Program ID", async () => {
+    it("Invoke `mock_prepare_message_v1` where Emitter == Program ID", async () => {
       const payerSequence = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("seq"), payer.publicKey.toBuffer()],
         program.programId
@@ -268,7 +347,7 @@ describe("Mock CPI -- Core Bridge", () => {
         _gap0: Buffer.alloc(3),
         postedTimestamp: txDetails.blockTime!,
         nonce: 420,
-        sequence: new anchor.BN(0),
+        sequence: new anchor.BN(1),
         solanaChainId: 1,
         emitter: program.programId,
         payload: Buffer.from("What's on draft tonight?"),

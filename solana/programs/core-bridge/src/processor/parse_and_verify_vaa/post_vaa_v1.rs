@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::utils::LegacyAccount,
-    state::{EncodedVaa, PostedVaaV1Bytes, PostedVaaV1Metadata, ProcessingStatus},
+    state::{EncodedVaa, PostedVaaV1, PostedVaaV1Info, ProcessingStatus},
     types::VaaVersion,
 };
 use anchor_lang::prelude::*;
@@ -22,11 +22,11 @@ pub struct PostVaaV1<'info> {
     #[account(
         init,
         payer = write_authority,
-        space = PostedVaaV1Bytes::compute_size(vaa.v1()?.body().payload().as_ref().len()),
-        seeds = [PostedVaaV1Bytes::SEED_PREFIX, vaa.v1()?.body().digest().as_ref()],
+        space = PostedVaaV1::compute_size(vaa.v1()?.body().payload().as_ref().len()),
+        seeds = [PostedVaaV1::SEED_PREFIX, vaa.v1()?.body().digest().as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1Bytes>>,
+    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
 
     system_program: Program<'info, System>,
 }
@@ -79,8 +79,8 @@ fn try_once(ctx: Context<PostVaaV1>) -> Result<()> {
     let body = vaa.body();
 
     ctx.accounts.posted_vaa.set_inner(
-        PostedVaaV1Bytes {
-            meta: PostedVaaV1Metadata {
+        PostedVaaV1 {
+            info: PostedVaaV1Info {
                 consistency_level: body.consistency_level(),
                 timestamp: body.timestamp().into(),
                 signature_set: Default::default(),

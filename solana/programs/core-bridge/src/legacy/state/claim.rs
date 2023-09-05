@@ -1,8 +1,12 @@
 use anchor_lang::prelude::*;
 
+/// Account used to reflect a consumed VAA. This account is intended to be created once per VAA so
+/// it can provide a protection against replay attacks for instructions that redeem VAAs that are
+/// meant to only be consumed once.
+///
 /// NOTE: This account's PDA seeds are inconsistent with how other Core Bridges save consumed VAAs.
 /// This account uses a tuple of (emitter_chain, emitter_address, sequence) whereas other Core
-/// Bridge implementations use the message hash.
+/// Bridge implementations use the message digest (double keccak).
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct Claim {

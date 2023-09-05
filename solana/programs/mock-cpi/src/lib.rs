@@ -17,18 +17,18 @@ pub mod wormhole_mock_cpi_solana {
 
     // core bridge
 
-    pub fn mock_legacy_post_message(
-        ctx: Context<MockLegacyPostMessage>,
-        args: MockLegacyPostMessageArgs,
+    pub fn mock_post_message(
+        ctx: Context<MockPostMessage>,
+        args: MockPostMessageArgs,
     ) -> Result<()> {
-        processor::mock_legacy_post_message(ctx, args)
+        processor::mock_post_message(ctx, args)
     }
 
-    pub fn mock_legacy_post_message_unreliable(
-        ctx: Context<MockLegacyPostMessageUnreliable>,
-        args: MockLegacyPostMessageUnreliableArgs,
+    pub fn mock_post_message_unreliable(
+        ctx: Context<MockPostMessageUnreliable>,
+        args: MockPostMessageUnreliableArgs,
     ) -> Result<()> {
-        processor::mock_legacy_post_message_unreliable(ctx, args)
+        processor::mock_post_message_unreliable(ctx, args)
     }
 
     pub fn mock_prepare_message_v1(

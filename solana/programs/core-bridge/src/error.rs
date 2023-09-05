@@ -1,20 +1,22 @@
+//! Errors that may arise when interacting with the Core Bridge Program.
+
 use anchor_lang::prelude::error_code;
 
 /// Errors relevant to Core Bridge's malfunction.
 ///
-/// >= 0x0    -- General program related.
-/// >= 0x10   -- General Core Bridge.
-/// >= 0x20   -- General Core Bridge Governance.
-/// >= 0x100  -- Legacy Post Message.
-/// >= 0x200  -- Legacy Post VAA.
-/// >= 0x300  -- Legacy Set Message Fee.
-/// >= 0x400  -- Legacy Transfer Fees.
-/// >= 0x500  -- Legacy Upgrade Contract.
-/// >= 0x600  -- Legacy Guardian Set Update.
-/// >= 0x700  -- Legacy Verify Signatures.
-/// >= 0x800  -- Legacy Post Message Unreliable.
-/// >= 0x1000 -- Core Bridge Anchor Instruction.
-/// >= 0x2000 -- Core Bridge SDK.
+/// * \>= 0x0    -- General program related.
+/// * \>= 0x10   -- General Core Bridge.
+/// * \>= 0x20   -- General Core Bridge Governance.
+/// * \>= 0x100  -- Legacy Post Message.
+/// * \>= 0x200  -- Legacy Post VAA.
+/// * \>= 0x300  -- Legacy Set Message Fee.
+/// * \>= 0x400  -- Legacy Transfer Fees.
+/// * \>= 0x500  -- Legacy Upgrade Contract.
+/// * \>= 0x600  -- Legacy Guardian Set Update.
+/// * \>= 0x700  -- Legacy Verify Signatures.
+/// * \>= 0x800  -- Legacy Post Message Unreliable.
+/// * \>= 0x1000 -- Core Bridge Anchor Instruction.
+/// * \>= 0x2000 -- Core Bridge SDK.
 ///
 /// NOTE: All of these error codes when triggered are offset by `ERROR_CODE_OFFSET` (6000). So for
 /// example, `U64Overflow` will return as 6006.
@@ -172,4 +174,10 @@ pub enum CoreBridgeError {
 
     #[msg("WriteAuthorityMismatch")]
     WriteAuthorityMismatch = 0x10ba,
+
+    #[msg("EmitterRequired")]
+    EmitterRequired = 0x2000,
+
+    #[msg("EmitterAuthorityRequired")]
+    EmitterAuthorityRequired = 0x2002,
 }

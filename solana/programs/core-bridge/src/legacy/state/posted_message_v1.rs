@@ -1,10 +1,12 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{constants::SOLANA_CHAIN, types::Timestamp};
+use crate::types::{ChainIdSolanaOnly, Timestamp};
 use anchor_lang::prelude::*;
 
-pub(crate) const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
+/// A.K.A. "msg\0".
+pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
+/// Status of a message. When a message is posetd, its status is `Unset`.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
     Unset,
@@ -12,28 +14,14 @@ pub enum MessageStatus {
     Finalized,
 }
 
-/// This type is kind of silly. But because `PostedMessageV1` has the emitter chain ID as a field,
-/// which is unnecessary since it's always Solana's chain ID, we use this type to guarantee that the
-/// encoded chain ID is always `1`.
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
-pub struct ChainIdSolanaOnly {
-    chain_id: u16,
-}
-
-impl Default for ChainIdSolanaOnly {
-    fn default() -> Self {
-        Self {
-            chain_id: SOLANA_CHAIN,
-        }
-    }
-}
-
+/// Message metadata defining information about a published Wormhole message.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct PostedMessageV1Info {
     /// Level of consistency requested by the emitter.
     pub consistency_level: u8,
 
-    /// TODO: Fix comment.
+    /// Authority used to write the message. This field is set to default when the message is
+    /// posted.
     pub emitter_authority: Pubkey,
 
     /// If a large message is been written, this is the expected length of the message. When this
@@ -53,19 +41,24 @@ pub struct PostedMessageV1Info {
     /// Sequence number of this message.
     pub sequence: u64,
 
+    /// Always `1`.
+    ///
     /// NOTE: Saving this value is silly, but we are keeping it to be consistent with how the posted
-    /// message account is written. This should always equal Solana's chain ID (i.e. `1`).
+    /// message account is written.
     pub solana_chain_id: ChainIdSolanaOnly,
 
-    /// Emitter of the message.
+    /// Emitter of the message. This may either be the emitter authority or a program ID.
     pub emitter: Pubkey,
 }
 
+/// Underlying data for either [crate::legacy::state::PostedMessageV1] or
+/// [crate::legacy::state::PostedMessageV1Unreliable].
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1Data {
+    /// Message metadata.
     pub info: PostedMessageV1Info,
 
-    /// encoded message.
+    /// Encoded message.
     pub payload: Vec<u8>,
 }
 
@@ -84,7 +77,7 @@ impl DerefMut for PostedMessageV1Data {
 }
 
 impl PostedMessageV1Data {
-    pub fn compute_size(payload_len: usize) -> usize {
+    pub(crate) fn compute_size(payload_len: usize) -> usize {
         4
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
@@ -92,8 +85,13 @@ impl PostedMessageV1Data {
     }
 }
 
+/// Account used to store a published Wormhole message.
+///
+/// NOTE: If your integration requires reusable message accounts, please see
+/// [crate::legacy::state::PostedMessageV1Unreliable].
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1 {
+    /// Message data.
     pub data: PostedMessageV1Data,
 }
 
@@ -104,7 +102,7 @@ impl Owner for PostedMessageV1 {
 }
 
 impl PostedMessageV1 {
-    pub(crate) const BYTES_START: usize = 4 // LEGACY_DISCRIMINATOR
+    pub const BYTES_START: usize = 4 // LEGACY_DISCRIMINATOR
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
         ;

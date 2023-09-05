@@ -102,35 +102,37 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferTokensWrap
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for TransferTokensWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for TransferTokensWrapped<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
 
-    fn config(&self) -> AccountInfo<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for TransferTokensWrapped<'info> {
+    fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
 
-    fn message(&self) -> AccountInfo<'info> {
+    fn core_message(&self) -> AccountInfo<'info> {
         self.core_message.to_account_info()
     }
 
-    fn emitter(&self) -> AccountInfo<'info> {
-        self.core_emitter.to_account_info()
+    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
+        Some(self.core_emitter.to_account_info())
     }
 
-    fn emitter_sequence(&self) -> AccountInfo<'info> {
+    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
         self.core_emitter_sequence.to_account_info()
     }
 
-    fn fee_collector(&self) -> Option<AccountInfo<'info>> {
+    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
         self.core_fee_collector
             .as_ref()
             .map(|acc| acc.to_account_info())
-    }
-
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
     }
 }
 

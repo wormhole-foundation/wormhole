@@ -6,7 +6,7 @@ const MESSAGE_SEED_PREFIX: &[u8] = b"my_unreliable_message";
 
 #[derive(Accounts)]
 #[instruction(nonce: u32)]
-pub struct MockLegacyPostMessageUnreliable<'info> {
+pub struct MockPostMessageUnreliable<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
@@ -45,39 +45,13 @@ pub struct MockLegacyPostMessageUnreliable<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
-    for MockLegacyPostMessageUnreliable<'info>
-{
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPostMessageUnreliable<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1Unreliable<'info>
-    for MockLegacyPostMessageUnreliable<'info>
-{
-    fn config(&self) -> AccountInfo<'info> {
-        self.core_bridge_config.to_account_info()
-    }
-
-    fn emitter(&self) -> AccountInfo<'info> {
-        self.core_emitter.to_account_info()
-    }
-
-    fn emitter_sequence(&self) -> AccountInfo<'info> {
-        self.core_emitter_sequence.to_account_info()
-    }
-
-    fn fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
-    }
-
-    fn message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
+impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for MockPostMessageUnreliable<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -87,21 +61,45 @@ impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1Unreliable<'info>
     }
 }
 
+impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for MockPostMessageUnreliable<'info> {
+    fn core_bridge_config(&self) -> AccountInfo<'info> {
+        self.core_bridge_config.to_account_info()
+    }
+
+    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
+        Some(self.core_emitter.to_account_info())
+    }
+
+    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
+        self.core_emitter_sequence.to_account_info()
+    }
+
+    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
+        self.core_fee_collector
+            .as_ref()
+            .map(|acc| acc.to_account_info())
+    }
+
+    fn core_message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
+    }
+}
+
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct MockLegacyPostMessageUnreliableArgs {
+pub struct MockPostMessageUnreliableArgs {
     pub nonce: u32,
     pub payload: Vec<u8>,
 }
 
-pub fn mock_legacy_post_message_unreliable(
-    ctx: Context<MockLegacyPostMessageUnreliable>,
-    args: MockLegacyPostMessageUnreliableArgs,
+pub fn mock_post_message_unreliable(
+    ctx: Context<MockPostMessageUnreliable>,
+    args: MockPostMessageUnreliableArgs,
 ) -> Result<()> {
-    let MockLegacyPostMessageUnreliableArgs { nonce, payload } = args;
+    let MockPostMessageUnreliableArgs { nonce, payload } = args;
 
-    core_bridge_sdk::cpi::post_message_v1_unreliable_bytes(
+    core_bridge_sdk::cpi::post_new_message_v1(
         ctx.accounts,
-        core_bridge_sdk::cpi::PostMessageArgs {
+        core_bridge_sdk::cpi::PostMessageV1Directive::UnreliableMessage {
             nonce,
             payload,
             commitment: core_bridge_sdk::types::Commitment::Finalized,

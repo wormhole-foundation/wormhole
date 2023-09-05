@@ -52,11 +52,11 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPrepareMessage
 }
 
 impl<'info> core_bridge_sdk::cpi::InvokePrepareMessageV1<'info> for MockPrepareMessageV1<'info> {
-    fn emitter_authority(&self) -> AccountInfo<'info> {
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
         self.emitter_authority.to_account_info()
     }
 
-    fn message(&self) -> AccountInfo<'info> {
+    fn core_message(&self) -> AccountInfo<'info> {
         self.message.to_account_info()
     }
 }
@@ -73,14 +73,14 @@ pub fn mock_prepare_message_v1(
 ) -> Result<()> {
     let MockPrepareMessageV1Args { nonce, data } = args;
 
-    core_bridge_sdk::cpi::prepare_message_v1_bytes(
+    core_bridge_sdk::cpi::prepare_message_v1(
         ctx.accounts,
-        data,
         core_bridge_sdk::cpi::InitMessageV1Args {
             nonce,
             cpi_program_id: Some(crate::ID),
             commitment: core_bridge_sdk::types::Commitment::Finalized,
         },
+        data,
         &[
             EMITTER_AUTHORITY_SEED_PREFIX,
             &[ctx.bumps["emitter_authority"]],

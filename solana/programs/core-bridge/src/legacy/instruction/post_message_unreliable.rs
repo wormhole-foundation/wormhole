@@ -1,20 +1,7 @@
 #[cfg(feature = "no-entrypoint")]
 mod __no_entrypoint {
     use crate::legacy::{cpi::PostMessageArgs, instruction::LegacyInstruction};
-    use solana_program::{
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-    };
-
-    pub struct PostMessageUnreliable {
-        pub config: Pubkey,
-        pub message: Pubkey,
-        pub emitter: Pubkey,
-        pub emitter_sequence: Pubkey,
-        pub payer: Pubkey,
-        pub fee_collector: Option<Pubkey>,
-        pub system_program: Pubkey,
-    }
+    use solana_program::instruction::{AccountMeta, Instruction};
 
     /// This instruction handler is used to post a new message to the core bridge using an existing
     /// message account.
@@ -23,13 +10,10 @@ mod __no_entrypoint {
     /// * Emitter must be the same as the message account's emitter.
     /// * The new message must be the same size as the existing message's payload.
     pub fn post_message_unreliable(
-        accounts: PostMessageUnreliable,
+        accounts: crate::legacy::accounts::PostMessageUnreliable,
         args: PostMessageArgs,
     ) -> Instruction {
-        let fee_collector = match accounts.fee_collector {
-            Some(fee_collector) => fee_collector,
-            None => Pubkey::default(),
-        };
+        let fee_collector = accounts.fee_collector.unwrap_or(crate::ID);
 
         let accounts = vec![
             AccountMeta::new(accounts.config, false),
