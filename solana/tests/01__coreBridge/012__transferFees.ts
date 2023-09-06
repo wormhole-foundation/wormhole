@@ -8,6 +8,7 @@ import {
   GUARDIAN_KEYS,
   InvalidAccountConfig,
   createIfNeeded,
+  createInvalidCoreGovernanceVaaFromEth,
   expectIxErr,
   expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
@@ -168,7 +169,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and transfer fees.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -197,7 +198,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and transfer fees.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -210,6 +211,35 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
     });
 
+    it("Cannot Invoke `transfer_fees` with Invalid Governance Vaa", async () => {
+      const signedVaa = createInvalidCoreGovernanceVaaFromEth(
+        guardians,
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        GOVERNANCE_SEQUENCE + 200,
+        {
+          governanceModule: Buffer.from(
+            "00000000000000000000000000000000000000000000000000000000deadbeef",
+            "hex"
+          ),
+        }
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyTransferFeesIx(
+        program,
+        { payer: payer.publicKey, recipient: payer.publicKey },
+        parsedVaa
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceVaa");
+    });
+
     it("Cannot Invoke `transfer_fees` with Invalid Target Chain", async () => {
       // Fetch the default VAA.
       const invalidTargetChain = 69;
@@ -218,7 +248,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and transfer fees.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -241,7 +271,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and transfer fees.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -265,7 +295,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and transfer fees.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.

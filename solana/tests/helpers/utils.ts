@@ -1,7 +1,12 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  parseVaa,
+  tryNativeToUint8Array,
+} from "@certusone/wormhole-sdk";
 import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { BN } from "@coral-xyz/anchor";
-import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { MockGuardians, MockEmitter } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
   createAssociatedTokenAccountInstruction,
   getAccount,
@@ -29,6 +34,7 @@ import { ethers } from "ethers";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
 import { createSecp256k1Instruction } from "./";
+import { GOVERNANCE_EMITTER_ADDRESS } from "../../old-tests/helpers";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -542,4 +548,53 @@ export async function transferLamports(
     [SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: other, lamports })],
     [payer]
   );
+}
+
+export function createInvalidCoreGovernanceVaaFromEth(
+  guardians: MockGuardians,
+  signatureIndices: number[],
+  sequence: number,
+  args: {
+    targetChain?: number;
+    governanceModule?: Buffer;
+    governanceAction?: number;
+  }
+): Buffer {
+  let { targetChain, governanceModule, governanceAction } = args;
+
+  // Create mock governance emitter.
+  const mockEmitter = new MockEmitter(
+    GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
+    CHAIN_ID_SOLANA,
+    sequence
+  );
+
+  if (targetChain === undefined) {
+    targetChain = CHAIN_ID_ETH;
+  }
+
+  if (governanceModule === undefined) {
+    governanceModule = Buffer.from(
+      "0x000000000000000000000000000000000000000000546f6b656e427269646765",
+      "hex"
+    );
+  }
+
+  if (governanceAction === undefined) {
+    governanceAction = 1;
+  }
+
+  // Mock payload.
+  let payload = Buffer.alloc(35);
+  payload.set(governanceModule, 0);
+  payload.writeUint8(governanceAction, 32);
+  payload.writeUint16BE(0, 33);
+
+  // Vaa info.
+  const published = mockEmitter.publishMessage(
+    69, // Nonce.
+    payload,
+    1 // Finality.
+  );
+  return guardians.addSignatures(published, signatureIndices);
 }

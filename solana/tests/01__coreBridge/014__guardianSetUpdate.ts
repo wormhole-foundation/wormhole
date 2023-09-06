@@ -12,6 +12,7 @@ import {
   InvalidAccountConfig,
   SignatureSets,
   createIfNeeded,
+  createInvalidCoreGovernanceVaaFromEth,
   createSigVerifyIx,
   expectIxErr,
   expectIxOkDetails,
@@ -246,6 +247,32 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
       );
 
       await expectIxErr(connection, [ix], [payer], "InvalidGovernanceAction");
+    });
+
+    it("Cannot Invoke `guardian_set_update` with Invalid Governance Vaa", async () => {
+      const signedVaa = createInvalidCoreGovernanceVaaFromEth(
+        guardians,
+        currSetRange,
+        GOVERNANCE_SEQUENCE + 200,
+        {
+          governanceModule: Buffer.from(
+            "00000000000000000000000000000000000000000000000000000000deadbeef",
+            "hex"
+          ),
+        }
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacyGuardianSetUpdateIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceVaa");
     });
 
     it("Cannot Invoke `verify_signatures` on Expired Guardian Set", async () => {
