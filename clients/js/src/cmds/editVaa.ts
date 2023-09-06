@@ -52,11 +52,11 @@ export const builder = (y: typeof yargs) =>
       describe: "url to wormscan entry for the vaa that includes signatures",
       type: "string",
     })
-    .option("wormscanfile", {
-      alias: "wsf",
+    .option("wormscan", {
+      alias: "ws",
       describe:
-        "json file containing wormscan entry for the vaa that includes signatures",
-      type: "string",
+        "if specified, will query the wormscan entry for the vaa to get the signatures",
+      type: "boolean",
     })
     .option("emitter-chain-id", {
       alias: "ec",
@@ -110,7 +110,7 @@ export const handler = async (
     numSigs += 1;
   }
 
-  if (argv.wormscanfile) {
+  if (argv.wormscan) {
     numSigs += 1;
   }
 
@@ -124,7 +124,7 @@ export const handler = async (
 
   if (numSigs > 1) {
     throw new Error(
-      `may only specify one of "--signatures", "--wormscanfile", "--wormscanurl" or "--guardian-secret"`
+      `may only specify one of "--signatures", "--wormscan", "--wormscanurl" or "--guardian-secret"`
     );
   }
 
@@ -170,10 +170,20 @@ export const handler = async (
       signature: s,
       guardianSetIndex: i,
     }));
-  } else if (argv.wormscanfile) {
-    const wormscanData = require(argv.wormscanfile);
+  } else if (argv.wormscan) {
+    const wormscanurl =
+      "https://api.wormscan.io/api/v1/observations/" +
+      vaa.emitterChain.toString() +
+      "/" +
+      vaa.emitterAddress.replace(/^(0x)/, "") +
+      "/" +
+      vaa.sequence.toString();
+    const wormscanData = await axios.get(wormscanurl);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
-    vaa.signatures = await getSigsFromWormscanData(wormscanData, guardianSet);
+    vaa.signatures = await getSigsFromWormscanData(
+      wormscanData.data,
+      guardianSet
+    );
   } else if (argv.wormscanurl) {
     const wormscanData = await axios.get(argv.wormscanurl);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
