@@ -30,7 +30,7 @@ pub struct Header {
 ///
 /// NOTE: This account should not be used by an external application unless the header's status is
 /// `Verified`. It is encouraged to use the `EncodedVaa` zero-copy account struct instead. See
-/// [mod@crate::zero_copy] for more info.
+/// [zero_copy](mod@crate::zero_copy) for more info.
 #[account]
 #[derive(Debug, PartialEq, Eq)]
 pub struct EncodedVaa {

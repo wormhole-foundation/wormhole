@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::utils::LegacyAccount,
+    legacy::utils::LegacyAnchorized,
     state::{GuardianSet, Header, ProcessingStatus},
     types::VaaVersion,
     zero_copy::EncodedVaa,
@@ -40,7 +40,7 @@ pub struct ProcessEncodedVaa<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Option<Account<'info, LegacyAccount<0, GuardianSet>>>,
+    guardian_set: Option<Account<'info, LegacyAnchorized<0, GuardianSet>>>,
 }
 
 impl<'info> ProcessEncodedVaa<'info> {

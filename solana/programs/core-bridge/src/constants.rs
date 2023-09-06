@@ -1,5 +1,5 @@
 //! Constants used by the Core Bridge Program. For integrators, necessary constants are re-exported
-//! in the [mod@crate::sdk] module.
+//! in the [sdk](mod@crate::sdk) module.
 
 use anchor_lang::prelude::constant;
 
@@ -7,15 +7,15 @@ use anchor_lang::prelude::constant;
 #[constant]
 pub const SOLANA_CHAIN: u16 = 1;
 
-/// Seed for fee collector (A.K.A. “fee_collector”).
+/// Seed for fee collector (Core Bridge's system account).
 #[constant]
 pub const FEE_COLLECTOR_SEED_PREFIX: &[u8] = b"fee_collector";
 
 #[constant]
-/// Seed for upgrade authority (A.K.A. "upgrade").
+/// Seed for upgrade authority.
 pub const UPGRADE_SEED_PREFIX: &[u8] = b"upgrade";
 
-/// Seed for program emitters (A.K.A. "emitter").
+/// Seed for program emitters.
 #[constant]
 pub const PROGRAM_EMITTER_SEED_PREFIX: &[u8] = b"emitter";
 

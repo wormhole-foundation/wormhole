@@ -16,14 +16,12 @@ pub struct WrappedAsset {
     pub native_decimals: u8,
 }
 
-impl Owner for WrappedAsset {
-    fn owner() -> Pubkey {
+impl core_bridge_program::legacy::utils::LegacyAccount<0> for WrappedAsset {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl core_bridge_program::legacy::utils::LegacyDiscriminator<0> for WrappedAsset {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }
 
 impl WrappedAsset {

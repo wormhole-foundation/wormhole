@@ -1,16 +1,12 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::PostVaaArgs, utils::LegacyAccount},
+    legacy::{instruction::PostVaaArgs, utils::LegacyAnchorized},
     state::{GuardianSet, PostedVaaV1, PostedVaaV1Info, SignatureSet},
     types::MessageHash,
     utils,
 };
 use anchor_lang::prelude::*;
 
-/// Invalidated signature sets.
-///
-/// NOTE: When `post_vaa` is deprecated, we can remove these because `SignatureSet` will not be used
-/// any longer.
 const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
     "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ",
     "2g6NCUUPaD6AxdHPQMVLpjpAvBfKMek6dDiGUe2A6T33",
@@ -33,23 +29,24 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 #[derive(Accounts)]
 #[instruction(args: PostVaaArgs)]
 pub struct PostVaa<'info> {
-    /// Guardian set used for signature verification.
+    /// Guardian set used for signature verification. This PDA is derived using the one found in the
+    /// signature set account.
     #[account(
         seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
+    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     /// CHECK: Core Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// Signature set, which stores signature validation from libsecp256k1 program.
+    /// Signature set, which stores signature validation from Sig Verify native program.
     ///
     /// NOTE: We prefer to make this account mutable so we have the ability to close this account
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
-    signature_set: Account<'info, LegacyAccount<0, SignatureSet>>,
+    signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
 
-    /// Posted verified message. This account is created if it hasn't been created already.
+    /// Posted verified message.
     ///
     /// NOTE: This instruction handler previously handled the case where this account was created
     /// already, where the handler would bail out with success.
@@ -60,7 +57,7 @@ pub struct PostVaa<'info> {
         seeds = [PostedVaaV1::SEED_PREFIX, signature_set.message_hash.as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -117,8 +114,7 @@ impl<'info> PostVaa<'info> {
 #[access_control(PostVaa::constraints(&ctx, &args))]
 fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
     let PostVaaArgs {
-        _version,
-        _guardian_set_index,
+        _gap_0,
         timestamp,
         nonce,
         emitter_chain,

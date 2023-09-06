@@ -7,14 +7,14 @@ pub use wrapped::*;
 use crate::{error::TokenBridgeError, state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, zero_copy::PostedVaaV1,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
 use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, Transfer};
 
 pub fn validate_posted_token_transfer<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
     vaa_acc_data: &'ctx [u8],
-    registered_emitter: &'ctx Account<'_, LegacyAccount<0, RegisteredEmitter>>,
+    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
     recipient_token: &'ctx AccountInfo<'_>,
     recipient: &'ctx Option<AccountInfo>,
 ) -> Result<Transfer<'ctx>> {

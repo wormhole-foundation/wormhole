@@ -9,7 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
     zero_copy::PostedVaaV1,
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
@@ -44,7 +44,7 @@ pub struct CompleteTransferNative<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -54,7 +54,7 @@ pub struct CompleteTransferNative<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
+    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
     /// can be sure that this token account is the same mint since the Token Program transfer
@@ -161,7 +161,8 @@ impl<'info> CompleteTransferNative<'info> {
 
 #[access_control(CompleteTransferNative::constraints(&ctx))]
 fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     let acc_data = ctx.accounts.posted_vaa.data.borrow();

@@ -1,4 +1,4 @@
-//! Account schemas for the Core Bridge Program. This re-exports [mod@crate::legacy::state].
+//! Account schemas for the Core Bridge Program.
 
 pub use crate::legacy::state::*;
 

@@ -13,8 +13,8 @@ pub mod state;
 
 pub mod utils;
 
-/// **Integrators: Please use [mod@crate::sdk] instead of this module.** Methods used to interact
-/// with the Core Bridge Program via CPI.
+/// **Integrators: Please use [sdk](mod@crate::sdk) instead of this module.** Methods used to
+/// interact with the Core Bridge Program via CPI.
 #[cfg(feature = "cpi")]
 pub mod cpi {
     pub use instruction::PostMessageArgs;

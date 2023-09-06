@@ -21,14 +21,12 @@ pub struct Config {
     pub fee_lamports: u64,
 }
 
-impl Owner for Config {
-    fn owner() -> Pubkey {
+impl crate::legacy::utils::LegacyAccount<0> for Config {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl crate::legacy::utils::LegacyDiscriminator<0> for Config {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }
 
 impl Config {

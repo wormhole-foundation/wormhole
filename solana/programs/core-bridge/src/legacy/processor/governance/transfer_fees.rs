@@ -1,7 +1,7 @@
 use crate::{
     constants::{FEE_COLLECTOR_SEED_PREFIX, SOLANA_CHAIN},
     error::CoreBridgeError,
-    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
+    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
     state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
@@ -22,7 +22,7 @@ pub struct TransferFees<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -45,7 +45,7 @@ pub struct TransferFees<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// CHECK: Fee collector.
     #[account(
@@ -120,7 +120,8 @@ impl<'info> TransferFees<'info> {
 
 #[access_control(TransferFees::constraints(&ctx))]
 fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     let acc_data = ctx.accounts.posted_vaa.data.borrow();

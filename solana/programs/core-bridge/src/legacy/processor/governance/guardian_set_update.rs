@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
+    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
     state::{Claim, Config, GuardianSet},
     types::Timestamp,
     zero_copy::PostedVaaV1,
@@ -18,9 +18,10 @@ pub struct GuardianSetUpdate<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler.
     #[account(
         seeds = [
             PostedVaaV1::SEED_PREFIX,
@@ -30,6 +31,7 @@ pub struct GuardianSetUpdate<'info> {
     )]
     posted_vaa: AccountInfo<'info>,
 
+    /// Account representing that a VAA has been consumed.
     #[account(
         init,
         payer = payer,
@@ -41,15 +43,18 @@ pub struct GuardianSetUpdate<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
+    /// Existing guardian set, whose guardian set index is the same one found in the [Config].
     #[account(
         mut,
         seeds = [GuardianSet::SEED_PREFIX, &config.guardian_set_index.to_be_bytes()],
         bump,
     )]
-    curr_guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
+    curr_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
+    /// New guardian set created from the encoded guardians in the posted governance VAA. This
+    /// account's guardian set index must be the next value after the current guardian set index.
     #[account(
         init,
         payer = payer,
@@ -57,7 +62,7 @@ pub struct GuardianSetUpdate<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &(curr_guardian_set.index + 1).to_be_bytes()],
         bump,
     )]
-    new_guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
+    new_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     system_program: Program<'info, System>,
 }
@@ -110,9 +115,13 @@ impl<'info> GuardianSetUpdate<'info> {
     }
 }
 
+/// Processor for guardian set update governance decrees. This will update the guardian set index in
+/// the Core Bridge [Config] account and create a new [GuardianSet] account with the new guardians
+/// encoded in the governance VAA.
 #[access_control(GuardianSetUpdate::constraints(&ctx))]
 fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     let acc_data = ctx.accounts.posted_vaa.data.borrow();

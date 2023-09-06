@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::VerifySignaturesArgs, utils::LegacyAccount},
+    legacy::{instruction::VerifySignaturesArgs, utils::LegacyAnchorized},
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
@@ -36,7 +36,7 @@ pub struct VerifySignatures<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
+    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     /// Stores signature validation from libsecp256k1 program.
     #[account(
@@ -44,7 +44,7 @@ pub struct VerifySignatures<'info> {
         payer = payer,
         space = SignatureSet::compute_size(guardian_set.keys.len())
     )]
-    signature_set: Account<'info, LegacyAccount<0, SignatureSet>>,
+    signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
 
     /// CHECK: Instruction sysvar used to read libsecp256k1 instruction data.
     #[account(
