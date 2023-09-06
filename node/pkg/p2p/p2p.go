@@ -14,7 +14,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/query"
-	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
@@ -56,11 +55,11 @@ var (
 			Name: "wormhole_p2p_heartbeats_sent_total",
 			Help: "Total number of p2p heartbeats sent",
 		})
-	p2pMessagesSent = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_p2p_broadcast_messages_sent_total",
-			Help: "Total number of p2p pubsub broadcast messages sent",
-		})
+	// p2pMessagesSent = promauto.NewCounter(
+	// 	prometheus.CounterOpts{
+	// 		Name: "wormhole_p2p_broadcast_messages_sent_total",
+	// 		Help: "Total number of p2p pubsub broadcast messages sent",
+	// 	})
 	p2pMessagesReceived = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_received_total",
@@ -291,10 +290,10 @@ func Run(
 			}
 		}()
 
-		nodeIdBytes, err := h.ID().Marshal()
-		if err != nil {
-			panic(err)
-		}
+		// nodeIdBytes, err := h.ID().Marshal()
+		// if err != nil {
+		// 	panic(err)
+		// }
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
@@ -352,7 +351,7 @@ func Run(
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
-		bootTime := time.Now()
+		// bootTime := time.Now()
 
 		if ccqEnabled {
 			ccqErrC := make(chan error)
@@ -394,7 +393,7 @@ func Run(
 			if nodeName == "" {
 				return
 			}
-			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+			// ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 
 			ctr := int64(0)
 			// Guardians should send out their first heartbeat immediately to speed up test runs.
@@ -410,77 +409,77 @@ func Run(
 					timer.Reset(15 * time.Second)
 
 					// create a heartbeat
-					b := func() []byte {
-						DefaultRegistry.mu.Lock()
-						defer DefaultRegistry.mu.Unlock()
-						networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
-						for _, v := range DefaultRegistry.networkStats {
-							errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
-							v.ErrorCount = errCtr
-							networks = append(networks, v)
-						}
+					// b := func() []byte {
+					// 	DefaultRegistry.mu.Lock()
+					// 	defer DefaultRegistry.mu.Unlock()
+					// 	networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
+					// 	for _, v := range DefaultRegistry.networkStats {
+					// 		errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+					// 		v.ErrorCount = errCtr
+					// 		networks = append(networks, v)
+					// 	}
 
-						features := make([]string, 0)
-						if gov != nil {
-							features = append(features, "governor")
-						}
-						if acct != nil {
-							features = append(features, acct.FeatureString())
-						}
-						if ibcFeaturesFunc != nil {
-							ibcFlags := ibcFeaturesFunc()
-							if ibcFlags != "" {
-								features = append(features, ibcFlags)
-							}
-						}
-						if gatewayRelayerEnabled {
-							features = append(features, "gwrelayer")
-						}
-						if ccqEnabled {
-							features = append(features, "ccq")
-						}
+					// 	features := make([]string, 0)
+					// 	if gov != nil {
+					// 		features = append(features, "governor")
+					// 	}
+					// 	if acct != nil {
+					// 		features = append(features, acct.FeatureString())
+					// 	}
+					// 	if ibcFeaturesFunc != nil {
+					// 		ibcFlags := ibcFeaturesFunc()
+					// 		if ibcFlags != "" {
+					// 			features = append(features, ibcFlags)
+					// 		}
+					// 	}
+					// 	if gatewayRelayerEnabled {
+					// 		features = append(features, "gwrelayer")
+					// 	}
+					// 	if ccqEnabled {
+					// 		features = append(features, "ccq")
+					// 	}
 
-						heartbeat := &gossipv1.Heartbeat{
-							NodeName:      nodeName,
-							Counter:       ctr,
-							Timestamp:     time.Now().UnixNano(),
-							Networks:      networks,
-							Version:       version.Version(),
-							GuardianAddr:  ourAddr.String(),
-							BootTimestamp: bootTime.UnixNano(),
-							Features:      features,
-						}
+					// 	heartbeat := &gossipv1.Heartbeat{
+					// 		NodeName:      nodeName,
+					// 		Counter:       ctr,
+					// 		Timestamp:     time.Now().UnixNano(),
+					// 		Networks:      networks,
+					// 		Version:       version.Version(),
+					// 		GuardianAddr:  ourAddr.String(),
+					// 		BootTimestamp: bootTime.UnixNano(),
+					// 		Features:      features,
+					// 	}
 
-						if components.P2PIDInHeartbeat {
-							heartbeat.P2PNodeId = nodeIdBytes
-						}
+					// 	if components.P2PIDInHeartbeat {
+					// 		heartbeat.P2PNodeId = nodeIdBytes
+					// 	}
 
-						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
-							panic(err)
-						}
-						collectNodeMetrics(ourAddr, h.ID(), heartbeat)
+					// 	if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
+					// 		panic(err)
+					// 	}
+					// 	collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
-						if gov != nil {
-							gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
-						}
+					// 	if gov != nil {
+					// 		gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
+					// 	}
 
-						msg := gossipv1.GossipMessage{
-							Message: &gossipv1.GossipMessage_SignedHeartbeat{
-								SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
-							},
-						}
+					// 	msg := gossipv1.GossipMessage{
+					// 		Message: &gossipv1.GossipMessage_SignedHeartbeat{
+					// 			SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
+					// 		},
+					// 	}
 
-						b, err := proto.Marshal(&msg)
-						if err != nil {
-							panic(err)
-						}
-						return b
-					}()
+					// 	b, err := proto.Marshal(&msg)
+					// 	if err != nil {
+					// 		panic(err)
+					// 	}
+					// 	return b
+					// }()
 
-					err = th.Publish(ctx, b)
-					if err != nil {
-						logger.Warn("failed to publish heartbeat message", zap.Error(err))
-					}
+					// err = th.Publish(ctx, b)
+					// if err != nil {
+					// 	logger.Warn("failed to publish heartbeat message", zap.Error(err))
+					// }
 
 					p2pHeartbeatsSent.Inc()
 					ctr += 1
@@ -493,12 +492,12 @@ func Run(
 				select {
 				case <-ctx.Done():
 					return
-				case msg := <-gossipSendC:
-					err := th.Publish(ctx, msg)
-					p2pMessagesSent.Inc()
-					if err != nil {
-						logger.Error("failed to publish message from queue", zap.Error(err))
-					}
+				case <-gossipSendC:
+					// err := th.Publish(ctx, msg)
+					// p2pMessagesSent.Inc()
+					// if err != nil {
+					// 	logger.Error("failed to publish message from queue", zap.Error(err))
+					// }
 				case msg := <-obsvReqSendC:
 					b, err := proto.Marshal(msg)
 					if err != nil {
@@ -522,7 +521,7 @@ func Run(
 						Message: &gossipv1.GossipMessage_SignedObservationRequest{
 							SignedObservationRequest: sReq}}
 
-					b, err = proto.Marshal(envelope)
+					_, err = proto.Marshal(envelope)
 					if err != nil {
 						panic(err)
 					}
@@ -530,13 +529,13 @@ func Run(
 					// Send to local observation request queue (the loopback message is ignored)
 					obsvReqC <- msg
 
-					err = th.Publish(ctx, b)
-					p2pMessagesSent.Inc()
-					if err != nil {
-						logger.Error("failed to publish observation request", zap.Error(err))
-					} else {
-						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
-					}
+					// err = th.Publish(ctx, b)
+					// p2pMessagesSent.Inc()
+					// if err != nil {
+					// 	logger.Error("failed to publish observation request", zap.Error(err))
+					// } else {
+					// 	logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
+					// }
 				}
 			}
 		}()
