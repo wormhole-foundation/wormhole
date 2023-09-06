@@ -8,7 +8,6 @@ mod complete_transfer_with_payload;
 pub use complete_transfer_with_payload::*;
 
 mod create_or_update_wrapped;
-use core_bridge_program::legacy::utils::ProcessLegacyInstruction;
 pub use create_or_update_wrapped::*;
 
 mod governance;
@@ -23,8 +22,8 @@ pub use transfer_tokens::*;
 mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
-use crate::ID;
 use anchor_lang::prelude::*;
+use core_bridge_program::legacy::utils::ProcessLegacyInstruction;
 
 use super::instruction::LegacyInstruction;
 
@@ -34,7 +33,10 @@ pub fn process_legacy_instruction(
     mut ix_data: &[u8],
 ) -> Result<()> {
     // TODO: This may not be necessary. Double-check in integration test.
-    require!(*program_id == ID, ErrorCode::DeclaredProgramIdMismatch);
+    require!(
+        *program_id == crate::ID,
+        ErrorCode::DeclaredProgramIdMismatch
+    );
 
     // Deserialize instruction data. The data should match the instruction
     // enum. Otherwise, we bail out.
