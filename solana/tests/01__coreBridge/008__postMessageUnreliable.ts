@@ -9,15 +9,9 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
-  const program = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-  );
+  const program = coreBridge.getAnchorProgram(connection, coreBridge.localnet());
   const payer = (provider.wallet as anchor.Wallet).payer;
-  const forkedProgram = coreBridge.getAnchorProgram(
-    connection,
-    coreBridge.getProgramId("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
-  );
+  const forkedProgram = coreBridge.getAnchorProgram(connection, coreBridge.mainnet());
 
   const commonEmitterSequence = new anchor.BN(0);
   const commonEmitter = anchor.web3.Keypair.generate();
