@@ -11,6 +11,7 @@ import {
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
+  createInvalidCoreGovernanceVaaFromEth,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
@@ -78,7 +79,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // New fee amount.
       const amount = new anchor.BN(6969);
 
-      // Fetch the bridge data before executing the instruciton to verify that the
+      // Fetch the bridge data before executing the instruction to verify that the
       // new fee amount is different than the current fee amount.
       const bridgeDataBefore = await coreBridge.Config.fromPda(connection, program.programId);
       expect(bridgeDataBefore.feeLamports.toString()).to.not.equal(amount.toString());
@@ -141,7 +142,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and update the message fee.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -171,7 +172,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and update the message fee.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -188,13 +189,38 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and update the message fee.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
       const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
 
       await expectIxErr(connection, [ix], [payer], "GovernanceForAnotherChain");
+    });
+
+    it("Cannot Invoke `set_message_fee` with Invalid Governance Vaa", async () => {
+      const signedVaa = createInvalidCoreGovernanceVaaFromEth(
+        guardians,
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        GOVERNANCE_SEQUENCE + 200,
+        {
+          governanceModule: Buffer.from(
+            "00000000000000000000000000000000000000000000000000000000deadbeef",
+            "hex"
+          ),
+        }
+      );
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the message fee.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(program, { payer: payer.publicKey }, parsedVaa);
+
+      await expectIxErr(connection, [ix], [payer], "InvalidGovernanceVaa");
     });
 
     it("Cannot Invoke `set_message_fee` with Fee Larger than Max(u64)", async () => {
@@ -204,7 +230,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-      // Parse the vaa and update the guardian set index.
+      // Parse the vaa and update the message fee.
       const parsedVaa = parseVaa(signedVaa);
 
       // Create the instruction.
@@ -214,7 +240,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
     });
 
     it("Invoke `post_message` with a Null Fee Collector (fee == 0)", async () => {
-      // Fetch the intialial fee state.
+      // Fetch the initial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
         program.programId
@@ -246,7 +272,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
     });
 
     it("Invoke `post_message_unreliable` with a Null Fee Collector (fee == 0)", async () => {
-      // Fetch the intialial fee state.
+      // Fetch the initial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
         program.programId
@@ -278,7 +304,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
     });
 
     it("Cannot Invoke `post_message` with a Null Fee Collector (Fee > 0)", async () => {
-      // Fetch the intialial fee state.
+      // Fetch the initial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
         program.programId
@@ -305,7 +331,7 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
     });
 
     it("Cannot Invoke `post_message_unreliable` with a Null Fee Collector (Fee > 0)", async () => {
-      // Fetch the intialial fee state.
+      // Fetch the initial fee state.
       const startingFeeLamports = await coreBridge.Config.fromPda(
         connection,
         program.programId
@@ -364,7 +390,7 @@ async function updateMessageFee(
   // Post the VAA.
   await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
 
-  // Parse the vaa and update the guardian set index.
+  // Parse the vaa and update the message fee.
   const parsedVaa = parseVaa(signedVaa);
 
   // Create the instruction.
