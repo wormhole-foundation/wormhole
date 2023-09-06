@@ -89,11 +89,11 @@ where
 {
     fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
         if buf.len() < N {
-            return err!(ErrorCode::AccountDiscriminatorNotFound);
+            return err!(ErrorCode::AccountDidNotDeserialize);
         };
         let given_disc = &buf[..N];
         if T::DISCRIMINATOR != *given_disc {
-            return err!(ErrorCode::AccountDiscriminatorMismatch);
+            return err!(ErrorCode::AccountDidNotDeserialize);
         }
         Self::try_deserialize_unchecked(buf)
     }

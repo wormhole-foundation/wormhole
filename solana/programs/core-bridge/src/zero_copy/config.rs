@@ -4,6 +4,9 @@ use anchor_lang::{
     Space,
 };
 
+/// Account used to store the current configuration of the bridge, including tracking Wormhole fee
+/// payments. For governance decrees, the guardian set index is used to determine whether a decree
+/// was attested for using the latest guardian set.
 pub struct Config<'a>(&'a [u8]);
 
 impl<'a> Config<'a> {

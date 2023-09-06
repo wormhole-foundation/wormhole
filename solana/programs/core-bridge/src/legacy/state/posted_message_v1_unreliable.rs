@@ -3,8 +3,9 @@ use std::ops::{Deref, DerefMut};
 use crate::state::PostedMessageV1Data;
 use anchor_lang::prelude::*;
 
-pub(crate) const POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR: [u8; 4] = *b"msu\x00";
+pub const POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR: [u8; 4] = *b"msu\x00";
 
+/// Account used to store a published (reusable) Wormhole message.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1Unreliable {
     pub data: PostedMessageV1Data,

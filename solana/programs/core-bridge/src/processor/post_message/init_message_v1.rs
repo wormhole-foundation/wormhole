@@ -13,6 +13,7 @@ use super::new_emitter;
 
 #[derive(Accounts)]
 pub struct InitMessageV1<'info> {
+    /// This authority is the only one who can write to the draft message account.
     emitter_authority: Signer<'info>,
 
     /// CHECK: This account will have been created using the system program outside of the Core
@@ -61,7 +62,8 @@ impl<'info> InitMessageV1<'info> {
     }
 }
 
-/// Arguments to initialize a new [PostedMessageV1](crate::state::PostedMessageV1) account for writing.
+/// Arguments to initialize a new [PostedMessageV1](crate::state::PostedMessageV1) account for
+/// writing.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitMessageV1Args {
     pub nonce: u32,
