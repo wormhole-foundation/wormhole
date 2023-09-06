@@ -10,14 +10,12 @@ pub struct PostedMessageV1Unreliable {
     pub data: PostedMessageV1Data,
 }
 
-impl Owner for PostedMessageV1Unreliable {
-    fn owner() -> Pubkey {
+impl crate::legacy::utils::LegacyAccount<4> for PostedMessageV1Unreliable {
+    const DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl crate::legacy::utils::LegacyDiscriminator<4> for PostedMessageV1Unreliable {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
 }
 
 impl PostedMessageV1Unreliable {

@@ -7,7 +7,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use core_bridge_program::{legacy::utils::LegacyAccount, sdk as core_bridge_sdk};
+use core_bridge_program::{legacy::utils::LegacyAnchorized, sdk as core_bridge_sdk};
 use ruint::aliases::U256;
 
 #[derive(Accounts)]
@@ -43,7 +43,7 @@ pub struct TransferTokensWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump
     )]
-    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
+    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.

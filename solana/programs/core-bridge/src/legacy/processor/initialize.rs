@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::InitializeArgs, utils::LegacyAccount},
+    legacy::{instruction::InitializeArgs, utils::LegacyAnchorized},
     state::{Config, GuardianSet},
 };
 use anchor_lang::prelude::*;
@@ -19,7 +19,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// New guardian set account, acting as the active guardian set.
     ///
@@ -34,7 +34,7 @@ pub struct Initialize<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &INDEX_ZERO.to_be_bytes()],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAccount<0, GuardianSet>>,
+    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     /// CHECK: System account that collects lamports for `post_message`.
     #[account(

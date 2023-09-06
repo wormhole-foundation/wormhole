@@ -6,12 +6,10 @@ pub struct RegisteredEmitter {
     pub contract: [u8; 32],
 }
 
-impl Owner for RegisteredEmitter {
-    fn owner() -> Pubkey {
+impl core_bridge_program::legacy::utils::LegacyAccount<0> for RegisteredEmitter {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl core_bridge_program::legacy::utils::LegacyDiscriminator<0> for RegisteredEmitter {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }

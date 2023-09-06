@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::PostMessageArgs, utils::LegacyAccount},
+    legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
     state::{Config, EmitterSequence, PostedMessageV1Unreliable},
 };
 use anchor_lang::prelude::*;
@@ -15,7 +15,7 @@ pub struct PostMessageUnreliable<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// CHECK: Posted message account data.
     ///
@@ -26,7 +26,7 @@ pub struct PostMessageUnreliable<'info> {
         payer = payer,
         space = try_compute_size(message, payload_len)?,
     )]
-    message: Account<'info, LegacyAccount<4, PostedMessageV1Unreliable>>,
+    message: Account<'info, LegacyAnchorized<4, PostedMessageV1Unreliable>>,
 
     /// The emitter of the core bridge message. This account is typically an integrating program's
     /// PDA which signs for this instruction.
@@ -41,7 +41,7 @@ pub struct PostMessageUnreliable<'info> {
         seeds = [EmitterSequence::SEED_PREFIX, emitter.key().as_ref()],
         bump,
     )]
-    emitter_sequence: Account<'info, LegacyAccount<0, EmitterSequence>>,
+    emitter_sequence: Account<'info, LegacyAnchorized<0, EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,

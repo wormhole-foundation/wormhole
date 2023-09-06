@@ -1,37 +1,42 @@
 use anchor_lang::prelude::constant;
 
+/// Seed for upgrade authority.
 #[constant]
-/// Seed for upgrade authority (A.K.A. "upgrade").
 pub const UPGRADE_SEED_PREFIX: &[u8] = b"upgrade";
 
+/// Seed for Core Bridge emitter.
 #[constant]
-/// Seed for Core Bridge emitter (A.K.A. "emitter").
 pub const EMITTER_SEED_PREFIX: &[u8] = b"emitter";
 
+/// Seed for token transfer authority, who is delegated authority to transfer (or burn) tokens from
+/// another (for outbound transfers).
 #[constant]
-/// Seed for token transfer authority (A.K.A. "authority_signer").
 pub const TRANSFER_AUTHORITY_SEED_PREFIX: &[u8] = b"authority_signer";
 
+/// Seed for token custody authority, who is the owner of the Token Bridge's token accounts
+/// warehousing native (not minted by Token Bridge) assets.
 #[constant]
-/// Seed for token custody authority (A.K.A. "custody_signer").
 pub const CUSTODY_AUTHORITY_SEED_PREFIX: &[u8] = b"custody_signer";
 
+/// Seed for mint authority, who mints the Token Bridge's wrapped assets.
 #[constant]
-/// Seed for mint authority (A.K.A. "mint_signer").
 pub const MINT_AUTHORITY_SEED_PREFIX: &[u8] = b"mint_signer";
 
+/// Seed for Token Bridge's wrapped assets (mints).
 #[constant]
-/// Seed for wrapped mint (A.K.A. "wrapped").
 pub const WRAPPED_MINT_SEED_PREFIX: &[u8] = b"wrapped";
 
+/// Seed for program sender if an integrator wants to use his program ID as the from address.
 #[constant]
-/// Seed for program sender (A.K.A. "sender").
 pub const PROGRAM_SENDER_SEED_PREFIX: &[u8] = b"sender";
 
+/// Seed for program redeemer if an integrator redeems a token transfer using his program ID as the
+/// redeemer address.
 #[constant]
-/// Seed for program redeemer (A.K.A. "redeemer").
 pub const PROGRAM_REDEEMER_SEED_PREFIX: &[u8] = b"redeemer";
 
+/// Maximum decimals allowed for a wrapped asset. This constant is also used to convert >8 native
+/// asset amounts to a normalized amount to be encoded in Token Bridge transfers.
 #[constant]
 pub const MAX_DECIMALS: u8 = 8;
 

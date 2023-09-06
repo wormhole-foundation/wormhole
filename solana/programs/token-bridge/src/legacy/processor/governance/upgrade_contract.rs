@@ -4,7 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
     zero_copy::PostedVaaV1,
 };
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
@@ -36,7 +36,7 @@ pub struct UpgradeContract<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
     /// upgrade this program's executable.
@@ -117,7 +117,8 @@ impl<'info> UpgradeContract<'info> {
 
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     // Finally upgrade.

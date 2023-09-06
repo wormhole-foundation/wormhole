@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::utils::LegacyAccount,
+    legacy::utils::LegacyAnchorized,
     state::{EncodedVaa, PostedVaaV1, PostedVaaV1Info, ProcessingStatus},
     types::VaaVersion,
 };
@@ -26,7 +26,7 @@ pub struct PostVaaV1<'info> {
         seeds = [PostedVaaV1::SEED_PREFIX, vaa.v1()?.body().digest().as_ref()],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     system_program: Program<'info, System>,
 }

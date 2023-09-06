@@ -25,7 +25,8 @@ use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 /// Legacy instruction selector.
 ///
 /// NOTE: No more instructions should be added to this enum. Instead, add them as Anchor instruction
-/// handlers, which will inevitably live in [crate::wormhole_core_bridge_solana].
+/// handlers, which will inevitably live in
+/// [wormhole_core_bridge_solana](crate::wormhole_core_bridge_solana).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum LegacyInstruction {
     /// Initialize the program.
@@ -48,6 +49,6 @@ pub enum LegacyInstruction {
     PostMessageUnreliable,
 }
 
-/// Unit struct used to represent an empty instruction argument for redeeming VAAs.
+/// Unit struct used to represent an empty instruction argument.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct EmptyArgs {}

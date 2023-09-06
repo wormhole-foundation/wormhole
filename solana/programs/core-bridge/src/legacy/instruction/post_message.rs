@@ -1,7 +1,9 @@
 use crate::types::Commitment;
 use anchor_lang::prelude::{borsh, AnchorDeserialize, AnchorSerialize};
 
-/// Arguments used to post a new Wormhole (Core Bridge) message.
+/// Arguments used to post a new Wormhole (Core Bridge) message either using
+/// [post_message](crate::legacy::instruction::post_message) or
+/// [post_message_unreliable](crate::legacy::instruction::post_message_unreliable).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PostMessageArgs {
     pub nonce: u32,

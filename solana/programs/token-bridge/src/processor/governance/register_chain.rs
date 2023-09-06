@@ -4,7 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    legacy::utils::LegacyAccount, sdk::cpi::CoreBridge, zero_copy::EncodedVaa,
+    legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge, zero_copy::EncodedVaa,
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
@@ -31,7 +31,7 @@ pub struct RegisterChain<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     #[account(
         init,
@@ -40,7 +40,7 @@ pub struct RegisterChain<'info> {
         seeds = [try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref()],
         bump,
     )]
-    registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
@@ -58,7 +58,7 @@ pub struct RegisterChain<'info> {
         ],
         bump,
     )]
-    legacy_registered_emitter: Account<'info, LegacyAccount<0, RegisteredEmitter>>,
+    legacy_registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, CoreBridge>,
@@ -72,7 +72,8 @@ impl<'info> RegisterChain<'info> {
 
 #[access_control(RegisterChain::constraints(&ctx))]
 pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     // Deserialize and set data in registered emitter accounts.

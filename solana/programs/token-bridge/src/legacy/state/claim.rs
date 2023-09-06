@@ -11,12 +11,10 @@ pub struct Claim {
     pub is_complete: bool,
 }
 
-impl Owner for Claim {
-    fn owner() -> Pubkey {
+impl core_bridge_program::legacy::utils::LegacyAccount<0> for Claim {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl core_bridge_program::legacy::utils::LegacyDiscriminator<0> for Claim {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }

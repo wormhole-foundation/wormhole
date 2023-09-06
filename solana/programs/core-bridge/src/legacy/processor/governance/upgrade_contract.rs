@@ -1,7 +1,7 @@
 use crate::{
     constants::{SOLANA_CHAIN, UPGRADE_SEED_PREFIX},
     error::CoreBridgeError,
-    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
+    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
     state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
@@ -18,7 +18,7 @@ pub struct UpgradeContract<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -41,7 +41,7 @@ pub struct UpgradeContract<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
     /// upgrade this program's executable.
@@ -120,7 +120,8 @@ impl<'info> UpgradeContract<'info> {
 
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     // Finally upgrade.

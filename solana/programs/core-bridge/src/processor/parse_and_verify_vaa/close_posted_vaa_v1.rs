@@ -1,5 +1,5 @@
 use crate::{
-    legacy::utils::LegacyAccount,
+    legacy::utils::LegacyAnchorized,
     state::{PostedVaaV1, SignatureSet},
     types::MessageHash,
 };
@@ -17,13 +17,13 @@ pub struct ClosePostedVaaV1<'info> {
         seeds = [PostedVaaV1::SEED_PREFIX, posted_vaa.message_hash().as_ref()],
         bump
     )]
-    posted_vaa: Account<'info, LegacyAccount<4, PostedVaaV1>>,
+    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
     #[account(
         mut,
         close = sol_destination
     )]
-    signature_set: Option<Account<'info, LegacyAccount<0, SignatureSet>>>,
+    signature_set: Option<Account<'info, LegacyAnchorized<0, SignatureSet>>>,
 }
 
 /// This directive acts as a placeholder in case we want to expand how posted VAAs are closed.

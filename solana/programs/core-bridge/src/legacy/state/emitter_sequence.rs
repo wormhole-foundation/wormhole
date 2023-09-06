@@ -7,18 +7,15 @@ pub struct EmitterSequence {
     pub value: u64,
 }
 
-impl Owner for EmitterSequence {
-    fn owner() -> Pubkey {
+impl crate::legacy::utils::LegacyAccount<0> for EmitterSequence {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
 }
 
-impl crate::legacy::utils::LegacyDiscriminator<0> for EmitterSequence {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
-}
-
 impl EmitterSequence {
-    /// A.K.A. "Sequence".
     pub const SEED_PREFIX: &'static [u8] = b"Sequence";
 }
 

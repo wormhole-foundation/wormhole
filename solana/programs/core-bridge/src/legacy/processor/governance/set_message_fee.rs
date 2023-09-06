@@ -1,7 +1,7 @@
 use crate::{
     constants::SOLANA_CHAIN,
     error::CoreBridgeError,
-    legacy::{instruction::EmptyArgs, utils::LegacyAccount},
+    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
     state::{Claim, Config},
     zero_copy::PostedVaaV1,
 };
@@ -14,14 +14,17 @@ pub struct SetMessageFee<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
+    /// For governance VAAs, we need to make sure that the current guardian set was used to attest
+    /// for this governance decree.
     #[account(
         mut,
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAccount<0, Config>>,
+    config: Account<'info, LegacyAnchorized<0, Config>>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler.
     #[account(
         seeds = [
             PostedVaaV1::SEED_PREFIX,
@@ -31,6 +34,7 @@ pub struct SetMessageFee<'info> {
     )]
     posted_vaa: AccountInfo<'info>,
 
+    /// Account representing that a VAA has been consumed.
     #[account(
         init,
         payer = payer,
@@ -42,7 +46,7 @@ pub struct SetMessageFee<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     system_program: Program<'info, System>,
 }
@@ -81,7 +85,8 @@ impl<'info> SetMessageFee<'info> {
 
 #[access_control(SetMessageFee::constraints(&ctx))]
 fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     let acc_data = ctx.accounts.posted_vaa.data.borrow();

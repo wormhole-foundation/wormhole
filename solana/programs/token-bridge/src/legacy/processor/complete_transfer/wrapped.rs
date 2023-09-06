@@ -8,7 +8,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
     zero_copy::PostedVaaV1,
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
@@ -43,7 +43,7 @@ pub struct CompleteTransferWrapped<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -53,7 +53,7 @@ pub struct CompleteTransferWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
+    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
 
     /// CHECK: Recipient token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
@@ -78,7 +78,7 @@ pub struct CompleteTransferWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
+    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -158,7 +158,8 @@ fn complete_transfer_wrapped(
     ctx: Context<CompleteTransferWrapped>,
     _args: EmptyArgs,
 ) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     let acc_data = ctx.accounts.posted_vaa.data.borrow();

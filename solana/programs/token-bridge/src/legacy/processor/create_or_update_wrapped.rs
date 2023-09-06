@@ -7,7 +7,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::{metadata, token};
 use core_bridge_program::{
-    self, constants::SOLANA_CHAIN, legacy::utils::LegacyAccount, sdk::cpi::CoreBridge,
+    self, constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
     zero_copy::PostedVaaV1,
 };
 use mpl_token_metadata::state::DataV2;
@@ -29,7 +29,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAccount<0, RegisteredEmitter>>>,
+    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
 
     /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
     #[account(
@@ -53,7 +53,7 @@ pub struct CreateOrUpdateWrapped<'info> {
         ],
         bump,
     )]
-    claim: Account<'info, LegacyAccount<0, Claim>>,
+    claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// CHECK: To avoid multiple borrows to the posted vaa account to generate seeds and other mint
     /// parameters, we perform these checks outside of this accounts context. The pubkey for this
@@ -80,7 +80,7 @@ pub struct CreateOrUpdateWrapped<'info> {
         seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAccount<0, WrappedAsset>>>,
+    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
 
     /// CHECK: This account is managed by the MPL Token Metadata program. We verify this PDA to
     /// ensure that we deserialize the correct metadata before creating or updating.
@@ -175,7 +175,8 @@ impl<'info> CreateOrUpdateWrapped<'info> {
 
 #[access_control(CreateOrUpdateWrapped::constraints(&ctx))]
 fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete.
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
     // Check if token metadata has been created yet. If it isn't, we must create this account and

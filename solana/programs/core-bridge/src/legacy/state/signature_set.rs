@@ -1,6 +1,11 @@
 use crate::types::MessageHash;
 use anchor_lang::prelude::*;
 
+/// Account used to store information about a guardian set used to sign a VAA. There is only one
+/// signature set for each verified VAA (associated with a
+/// [PostedVaaV1](crate::legacy::state::PostedVaaV1) account).
+///
+/// This account is created using the verify signatures legacy instruction.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct SignatureSet {
     /// Signatures of validators
@@ -13,14 +18,12 @@ pub struct SignatureSet {
     pub guardian_set_index: u32,
 }
 
-impl Owner for SignatureSet {
-    fn owner() -> Pubkey {
+impl crate::legacy::utils::LegacyAccount<0> for SignatureSet {
+    const DISCRIMINATOR: [u8; 0] = [];
+
+    fn program_id() -> Pubkey {
         crate::ID
     }
-}
-
-impl crate::legacy::utils::LegacyDiscriminator<0> for SignatureSet {
-    const LEGACY_DISCRIMINATOR: [u8; 0] = [];
 }
 
 impl SignatureSet {

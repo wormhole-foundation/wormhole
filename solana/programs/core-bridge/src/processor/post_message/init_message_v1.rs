@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use crate::{
     constants::MAX_MESSAGE_PAYLOAD_SIZE,
     error::CoreBridgeError,
-    legacy::utils::LegacyDiscriminator,
+    legacy::utils::LegacyAccount,
     state::{MessageStatus, PostedMessageV1, PostedMessageV1Info},
     types::Commitment,
 };
@@ -61,6 +61,7 @@ impl<'info> InitMessageV1<'info> {
     }
 }
 
+/// Arguments to initialize a new [PostedMessageV1](crate::state::PostedMessageV1) account for writing.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitMessageV1Args {
     pub nonce: u32,
@@ -95,7 +96,7 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
 
     // Finally initialize the draft message account by serializing the discriminator, header and
     // payload length.
-    writer.write_all(&PostedMessageV1::LEGACY_DISCRIMINATOR)?;
+    writer.write_all(&PostedMessageV1::DISCRIMINATOR)?;
     PostedMessageV1Info {
         consistency_level: commitment.into(),
         emitter_authority: ctx.accounts.emitter_authority.key(),

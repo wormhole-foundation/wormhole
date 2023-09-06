@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use crate::types::{ChainIdSolanaOnly, Timestamp};
 use anchor_lang::prelude::*;
 
-/// A.K.A. "msg\0".
 pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
 /// Status of a message. When a message is posetd, its status is `Unset`.
@@ -51,8 +50,8 @@ pub struct PostedMessageV1Info {
     pub emitter: Pubkey,
 }
 
-/// Underlying data for either [crate::legacy::state::PostedMessageV1] or
-/// [crate::legacy::state::PostedMessageV1Unreliable].
+/// Underlying data for either [PostedMessageV1](crate::legacy::state::PostedMessageV1) or
+/// [PostedMessageV1Unreliable](crate::legacy::state::PostedMessageV1Unreliable).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1Data {
     /// Message metadata.
@@ -88,21 +87,16 @@ impl PostedMessageV1Data {
 /// Account used to store a published Wormhole message.
 ///
 /// NOTE: If your integration requires reusable message accounts, please see
-/// [crate::legacy::state::PostedMessageV1Unreliable].
+/// [PostedMessageV1Unreliable](crate::legacy::state::PostedMessageV1Unreliable).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedMessageV1 {
     /// Message data.
     pub data: PostedMessageV1Data,
 }
 
-impl Owner for PostedMessageV1 {
-    fn owner() -> Pubkey {
-        crate::ID
-    }
-}
-
 impl PostedMessageV1 {
-    pub const BYTES_START: usize = 4 // LEGACY_DISCRIMINATOR
+    ///
+    pub const BYTES_START: usize = 4 // DISCRIMINATOR
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
         ;
@@ -112,8 +106,12 @@ impl PostedMessageV1 {
     }
 }
 
-impl crate::legacy::utils::LegacyDiscriminator<4> for PostedMessageV1 {
-    const LEGACY_DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
+impl crate::legacy::utils::LegacyAccount<4> for PostedMessageV1 {
+    const DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
+
+    fn program_id() -> Pubkey {
+        crate::ID
+    }
 }
 
 impl Deref for PostedMessageV1 {
