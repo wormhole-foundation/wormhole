@@ -185,7 +185,7 @@ fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
         // Generate the same message hash (using keccak) that the Guardians used to generate their
         // signatures. This message hash will be hashed again to produce the digest for
         // `secp256k1_recover`.
-        let digest = vaa.body().double_digest();
+        let digest = keccak::hash(keccak::hash(vaa.body().as_ref()).as_ref());
 
         // Only verify as many as we need (up to quorum).
         let mut last_guardian_index = None;

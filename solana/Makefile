@@ -30,7 +30,7 @@ test: node_modules
 	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	mkdir -p tests/artifacts && cp target/deploy/*.so tests/artifacts/
-	anchor test --arch sbf
+	anchor test --arch sbf -- --features localnet -- --no-default-features
 
 lint:
 	cargo fmt --check

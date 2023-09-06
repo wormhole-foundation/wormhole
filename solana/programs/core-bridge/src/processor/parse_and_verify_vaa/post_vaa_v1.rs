@@ -23,7 +23,10 @@ pub struct PostVaaV1<'info> {
         init,
         payer = write_authority,
         space = PostedVaaV1::compute_size(vaa.v1()?.body().payload().as_ref().len()),
-        seeds = [PostedVaaV1::SEED_PREFIX, vaa.v1()?.body().digest().as_ref()],
+        seeds = [
+            PostedVaaV1::SEED_PREFIX,
+            solana_program::keccak::hash(vaa.v1()?.body().as_ref()).as_ref(),
+        ],
         bump,
     )]
     posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
