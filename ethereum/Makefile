@@ -83,7 +83,7 @@ test-identifiers: dependencies
 
 .PHONY:
 test-forge: dependencies
-	forge test
+	forge test --no-match-test .*_KEVM # ignore KEVM tests (see PROOFS.md)
 
 clean:
 	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
