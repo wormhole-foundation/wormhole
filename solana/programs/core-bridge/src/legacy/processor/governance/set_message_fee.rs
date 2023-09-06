@@ -69,12 +69,15 @@ impl<'info> SetMessageFee<'info> {
             .set_message_fee()
             .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
 
+        // Make sure that setting the message fee is intended for this network.
         require_eq!(
             decree.chain(),
             SOLANA_CHAIN,
             CoreBridgeError::GovernanceForAnotherChain
         );
 
+        // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
+        // lamports are u64).
         let fee = U256::from_be_bytes(decree.fee());
         require_gte!(U256::from(u64::MAX), fee, CoreBridgeError::U64Overflow);
 
@@ -83,6 +86,8 @@ impl<'info> SetMessageFee<'info> {
     }
 }
 
+/// Processor for setting Wormhole message fee governance decrees. This instruction handler changes
+/// the message fee in the [Config] account.
 #[access_control(SetMessageFee::constraints(&ctx))]
 fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,

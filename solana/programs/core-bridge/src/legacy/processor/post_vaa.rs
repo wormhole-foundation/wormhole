@@ -29,8 +29,8 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 #[derive(Accounts)]
 #[instruction(args: PostVaaArgs)]
 pub struct PostVaa<'info> {
-    /// Guardian set used for signature verification. This PDA is derived using the one found in the
-    /// signature set account.
+    /// Guardian set used for signature verification. This PDA address is derived using the guardian
+    /// set index found in the signature set account.
     #[account(
         seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
         bump,
@@ -46,7 +46,7 @@ pub struct PostVaa<'info> {
     /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
     signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
 
-    /// Posted verified message.
+    /// Posted VAA created by this instruction handler.
     ///
     /// NOTE: This instruction handler previously handled the case where this account was created
     /// already, where the handler would bail out with success.
@@ -85,21 +85,24 @@ impl<'info> PostVaa<'info> {
             CoreBridgeError::InvalidSignatureSet
         );
 
+        // Number of verified signatures in the signature set account must be at least quorum with
+        // the guardian set.
         require_gte!(
             signature_set.num_verified(),
             utils::quorum(ctx.accounts.guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 
-        let recomputed = utils::compute_message_hash(
-            args.timestamp.into(),
-            args.nonce,
-            args.emitter_chain,
+        // Recompute the message hash and compare it to the one in the signature set account.
+        let recomputed = solana_program::keccak::hashv(&[
+            &args.timestamp.to_be_bytes(),
+            &args.nonce.to_be_bytes(),
+            &args.emitter_chain.to_be_bytes(),
             &args.emitter_address,
-            args.sequence,
-            args.consistency_level,
+            &args.sequence.to_be_bytes(),
+            &[args.consistency_level],
             &args.payload,
-        );
+        ]);
         require_eq!(
             MessageHash::from(recomputed),
             signature_set.message_hash,
@@ -111,6 +114,14 @@ impl<'info> PostVaa<'info> {
     }
 }
 
+/// Processor to write a validated VAA to a [PostedVaaV1] account. This instruction handler requires
+/// that the number of verified signers in the [SignatureSet] account is at least the quorum using
+/// the guardian set, whose index is encoded in this account. And the message hash in this account
+/// must agree with the recomputed one using this instruction handler's arguments.
+///
+/// NOTE: It is recommended that VAAs be verified using the new Anchor instructions
+/// `init_encoded_vaa` and `process_encoded_vaa`, which does not rely on the Sig Verify native
+/// program to verify elliptic curve signatures.
 #[access_control(PostVaa::constraints(&ctx, &args))]
 fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
     let PostVaaArgs {
@@ -124,7 +135,7 @@ fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
         payload,
     } = args;
 
-    // Set the `message` account with this instruction data.
+    // Set the posted VAA account with this instruction data.
     ctx.accounts.posted_vaa.set_inner(
         PostedVaaV1 {
             info: PostedVaaV1Info {

@@ -1,6 +1,7 @@
 use crate::types::Timestamp;
 use anchor_lang::solana_program::keccak;
 
+/// Compute quorum based on the number of guardians in a guardian set.
 #[inline]
 pub fn quorum(num_guardians: usize) -> usize {
     (2 * num_guardians) / 3 + 1

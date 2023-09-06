@@ -38,9 +38,20 @@ use anchor_lang::prelude::*;
 pub mod wormhole_core_bridge_solana {
     use super::*;
 
-    /// Processor used to initialize a created account as
-    /// [PostedMessageV1](crate::state::PostedMessageV1). An authority (the emitter authority) is
-    /// established with this instruction.
+    /// Processor for initializing a new draft [PostedMessageV1](crate::state::PostedMessageV1)
+    /// account for writing. The emitter authority is established at this point and the payload size
+    /// is inferred from the size of the created account. This instruction handler also allows an
+    /// integrator to publish Wormhole messages using his program's ID as the emitter address
+    /// (by passing `Some(crate::ID)` to the `cpi_program_id` argument). **Be aware that the emitter
+    /// authority's seeds must only be [b"emitter"] in this case.**
+    ///
+    /// This instruction should be followed up with `process_message_v1` to write and finalize the
+    /// message account (to prepare it for publishing via the
+    /// [post message instruction](crate::legacy::instruction::LegacyInstruction)).
+    ///
+    /// NOTE: If you wish to publish a small message (one where the data does not overflow the
+    /// Solana transaction size), it is recommended that you use an [sdk](crate::sdk::cpi) method to
+    /// either prepare your message or post a message as a program ID emitter.
     pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> Result<()> {
         processor::init_message_v1(ctx, args)
     }

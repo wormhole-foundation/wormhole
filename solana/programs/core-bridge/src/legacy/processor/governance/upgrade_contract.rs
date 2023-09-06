@@ -13,6 +13,8 @@ pub struct UpgradeContract<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
+    /// For governance VAAs, we need to make sure that the current guardian set was used to attest
+    /// for this governance decree.
     #[account(
         mut,
         seeds = [Config::SEED_PREFIX],
@@ -20,7 +22,8 @@ pub struct UpgradeContract<'info> {
     )]
     config: Account<'info, LegacyAnchorized<0, Config>>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler.
     #[account(
         seeds = [
             PostedVaaV1::SEED_PREFIX,
@@ -30,6 +33,7 @@ pub struct UpgradeContract<'info> {
     )]
     posted_vaa: AccountInfo<'info>,
 
+    /// Account representing that a VAA has been consumed.
     #[account(
         init,
         payer = payer,
@@ -44,7 +48,8 @@ pub struct UpgradeContract<'info> {
     claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
-    /// upgrade this program's executable.
+    /// upgrade this program's executable. We verify this PDA address here out of convenience to get
+    /// the PDA bump seed to invoke the upgrade.
     #[account(
         seeds = [UPGRADE_SEED_PREFIX],
         bump,
@@ -55,11 +60,9 @@ pub struct UpgradeContract<'info> {
     #[account(mut)]
     spill: UncheckedAccount<'info>,
 
-    /// CHECK: This account is needed for the BPF Loader Upgradeable program.
-    ///
-    /// NOTE: This account's pubkey is what is encoded in the governance VAA. We check this in the
-    /// instruction handler.
-    buffer: UncheckedAccount<'info>,
+    /// CHECK: Deployed implementation. The pubkey of this account is checked in access control
+    /// against the one encoded in the governance VAA.
+    buffer: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the BPF Loader Upgradeable program.
     program_data: UncheckedAccount<'info>,
@@ -74,9 +77,7 @@ pub struct UpgradeContract<'info> {
     _clock: UncheckedAccount<'info>,
 
     /// CHECK: BPF Loader Upgradeable program.
-    #[account(
-        address = solana_program::bpf_loader_upgradeable::id()
-    )]
+    #[account(address = solana_program::bpf_loader_upgradeable::id())]
     bpf_loader_upgradeable_program: AccountInfo<'info>,
 
     system_program: Program<'info, System>,
@@ -100,6 +101,7 @@ impl<'info> UpgradeContract<'info> {
             .contract_upgrade()
             .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
 
+        // Make sure that the contract upgrade is intended for this network.
         require_eq!(
             decree.chain(),
             SOLANA_CHAIN,
@@ -118,6 +120,8 @@ impl<'info> UpgradeContract<'info> {
     }
 }
 
+/// Processor for contract upgrade governance decrees. This instruction handler invokes the BPF
+/// Loader Upgradeable program to upgrade this program's executable to the provided buffer.
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,

@@ -13,6 +13,8 @@ pub struct GuardianSetUpdate<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
+    /// For governance VAAs, we need to make sure that the current guardian set was used to attest
+    /// for this governance decree.
     #[account(
         mut,
         seeds = [Config::SEED_PREFIX],
@@ -75,25 +77,6 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = guardian_set_update;
 }
 
-/// Read account info data assuming we are reading a guardian set update governance decree to
-/// determine how large the new guardian set account needs to be given how many guardians there are
-/// in the new set.
-///
-/// NOTE: This step does not have to fail because if this VAA is not what we expect, the access
-/// control following the account context checks will fail.
-fn try_compute_size(posted_vaa: &AccountInfo<'_>) -> Result<usize> {
-    let acc_data = posted_vaa.try_borrow_data()?;
-    let vaa = PostedVaaV1::parse(&acc_data)?;
-    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload())
-        .map(|msg| msg.decree())
-        .map_err(|_| error!(CoreBridgeError::InvalidGovernanceVaa))?;
-
-    gov_payload
-        .guardian_set_update()
-        .map(|decree| GuardianSet::compute_size(decree.num_guardians().into()))
-        .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))
-}
-
 impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let config = &ctx.accounts.config;
@@ -115,9 +98,9 @@ impl<'info> GuardianSetUpdate<'info> {
     }
 }
 
-/// Processor for guardian set update governance decrees. This will update the guardian set index in
-/// the Core Bridge [Config] account and create a new [GuardianSet] account with the new guardians
-/// encoded in the governance VAA.
+/// Processor for guardian set update governance decrees. This instruction handler updates the
+/// guardian set index in the Core Bridge [Config] account and creates a new [GuardianSet] account
+/// with the new guardians encoded in the governance VAA.
 #[access_control(GuardianSetUpdate::constraints(&ctx))]
 fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
@@ -165,4 +148,24 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
 
     // Done.
     Ok(())
+}
+
+/// Read account info data assuming we are reading a guardian set update governance decree. The
+/// governance decree determines the size of the guardian set account based on how many guardian
+/// pubkeys are encoded in the governance VAA.
+///
+/// NOTE: We check the validity of the governance VAA in access control. If the posted VAA happens
+/// to deserialize as a guardian set update decree but anything else is invalid about this message,
+/// this instruction handler will revert (just not at this step when determining the account size).
+fn try_compute_size(posted_vaa: &AccountInfo<'_>) -> Result<usize> {
+    let acc_data = posted_vaa.try_borrow_data()?;
+    let vaa = PostedVaaV1::parse(&acc_data)?;
+    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload())
+        .map(|msg| msg.decree())
+        .map_err(|_| error!(CoreBridgeError::InvalidGovernanceVaa))?;
+
+    gov_payload
+        .guardian_set_update()
+        .map(|decree| GuardianSet::compute_size(decree.num_guardians().into()))
+        .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))
 }

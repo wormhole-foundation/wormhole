@@ -7,9 +7,6 @@ pub use initialize::*;
 mod post_message;
 pub use post_message::*;
 
-mod post_message_unreliable;
-pub use post_message_unreliable::*;
-
 mod post_vaa;
 pub use post_vaa::*;
 

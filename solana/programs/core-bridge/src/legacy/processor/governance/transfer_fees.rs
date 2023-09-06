@@ -17,6 +17,8 @@ pub struct TransferFees<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
+    /// For governance VAAs, we need to make sure that the current guardian set was used to attest
+    /// for this governance decree.
     #[account(
         mut,
         seeds = [Config::SEED_PREFIX],
@@ -24,7 +26,8 @@ pub struct TransferFees<'info> {
     )]
     config: Account<'info, LegacyAnchorized<0, Config>>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler.
     #[account(
         seeds = [
             PostedVaaV1::SEED_PREFIX,
@@ -34,6 +37,7 @@ pub struct TransferFees<'info> {
     )]
     posted_vaa: AccountInfo<'info>,
 
+    /// Account representing that a VAA has been consumed.
     #[account(
         init,
         payer = payer,
@@ -47,7 +51,8 @@ pub struct TransferFees<'info> {
     )]
     claim: Account<'info, LegacyAnchorized<0, Claim>>,
 
-    /// CHECK: Fee collector.
+    /// CHECK: Fee collector. Fees will be collected by transferring lamports from this account to
+    /// the recipient.
     #[account(
         mut,
         seeds = [FEE_COLLECTOR_SEED_PREFIX],
@@ -83,35 +88,41 @@ impl<'info> TransferFees<'info> {
             .transfer_fees()
             .ok_or(error!(CoreBridgeError::InvalidGovernanceAction))?;
 
+        // Make sure that transferring fees is intended for this network.
         require_eq!(
             decree.chain(),
             SOLANA_CHAIN,
             CoreBridgeError::GovernanceForAnotherChain
         );
 
+        // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
+        // lamports are u64).
         let amount = U256::from_be_bytes(decree.amount());
         require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
 
+        // The recipient provided in the account context must be the same as the one encoded in the
+        // governance VAA.
         require_keys_eq!(
             ctx.accounts.recipient.key(),
             Pubkey::from(decree.recipient()),
             CoreBridgeError::InvalidFeeRecipient
         );
 
-        let (data_len, lamports) = {
-            let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
-            (fee_collector.data_len(), fee_collector.lamports())
-        };
-
-        // We cannot remove more than what is required to be rent exempt. We prefer to abort
-        // here rather than abort when we attempt the transfer (since the transfer will fail if
-        // the lamports in the fee collector account drops below being rent exempt).
-        let required_rent = Rent::get().map(|rent| rent.minimum_balance(data_len))?;
-        require_gte!(
-            lamports.saturating_sub(to_u64_unchecked(&amount)),
-            required_rent,
-            CoreBridgeError::NotEnoughLamports
-        );
+        // We cannot remove more than what is required to be rent exempt. We prefer to abort here
+        // with an explicit Core Bridge error rather than abort when we attempt the transfer (since
+        // the transfer will fail if the lamports in the fee collector account drops below being
+        // rent exempt).
+        {
+            let (data_len, lamports) = {
+                let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
+                (fee_collector.data_len(), fee_collector.lamports())
+            };
+            require_gte!(
+                lamports.saturating_sub(to_u64_unchecked(&amount)),
+                Rent::get().map(|rent| rent.minimum_balance(data_len))?,
+                CoreBridgeError::NotEnoughLamports
+            );
+        }
 
         // Done.
         Ok(())
@@ -133,9 +144,6 @@ fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
     let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
 
     // Finally transfer collected fees to recipient.
-    //
-    // NOTE: This transfer will not allow us to remove more than what is
-    // required to be rent exempt.
     system_program::transfer(
         CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),

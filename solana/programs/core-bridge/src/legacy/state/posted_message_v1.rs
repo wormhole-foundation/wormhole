@@ -25,7 +25,6 @@ pub struct PostedMessageV1Info {
 
     /// If a large message is been written, this is the expected length of the message. When this
     /// message is posted, this value will be overwritten as zero.
-    //pub expected_msg_length: u16,
     pub status: MessageStatus,
 
     /// No data is stored here.
@@ -95,7 +94,6 @@ pub struct PostedMessageV1 {
 }
 
 impl PostedMessageV1 {
-    ///
     pub const BYTES_START: usize = 4 // DISCRIMINATOR
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()

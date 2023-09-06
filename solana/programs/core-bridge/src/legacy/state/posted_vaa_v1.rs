@@ -61,7 +61,7 @@ impl crate::legacy::utils::LegacyAccount<4> for PostedVaaV1 {
 impl PostedVaaV1 {
     pub const SEED_PREFIX: &'static [u8] = POSTED_VAA_V1_SEED_PREFIX;
 
-    /// Recompute the message hash, which is used derive the PostedVaaV1 PDA address.
+    /// Recompute the message hash, which is used derive the [PostedVaaV1] PDA address.
     pub fn message_hash(&self) -> keccak::Hash {
         keccak::hashv(&[
             &self.timestamp.to_be_bytes(),
@@ -72,6 +72,11 @@ impl PostedVaaV1 {
             &[self.consistency_level],
             &self.payload,
         ])
+    }
+
+    /// Compute digest (hash of [message_hash](Self::message_hash)).
+    pub fn digest(&self) -> keccak::Hash {
+        keccak::hash(self.message_hash().as_ref())
     }
 
     pub(crate) fn compute_size(payload_len: usize) -> usize {

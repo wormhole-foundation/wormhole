@@ -6,9 +6,12 @@ use anchor_lang::prelude::*;
 use solana_program::keccak;
 use wormhole_io::{Readable, Writeable};
 
+/// Representation of VAA versions numbers, where [Unset](VaaVersion::Unset) represents unverified
+/// VAAs in various VAA accounts.
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
 )]
+#[non_exhaustive]
 pub enum VaaVersion {
     #[default]
     Unset,
@@ -57,9 +60,15 @@ impl Writeable for VaaVersion {
     }
 }
 
+/// Representation of Solana's commitment levels. This enum is not exhaustive because Wormhole only
+/// considers these two commitment levels in its Guardian observation.
+///
+/// See <https://docs.solana.com/cluster/commitments> for more info.
 #[derive(Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum Commitment {
+    /// One confirmation.
     Confirmed,
+    /// 32 confirmations.
     Finalized,
 }
 
@@ -72,9 +81,9 @@ impl From<Commitment> for u8 {
     }
 }
 
-/// This struct defines unix timestamp as u32 (as opposed to more modern systems
-/// that have adopted i64). Methods for this struct are meant to convert
-/// Solana's clock type to this type assuming we are far from year 2038.
+/// This struct defines unix timestamp as u32 (as opposed to more modern systems that have adopted
+/// i64). Methods for this struct are meant to convert Solana's clock type to this type assuming we
+/// are far from year 2038.
 #[derive(
     Default,
     Copy,
@@ -100,6 +109,8 @@ impl Timestamp {
         }
     }
 
+    /// Return the memory representation of this integer as a byte array in big-endian (network)
+    /// byte order.
     pub fn to_be_bytes(self) -> [u8; 4] {
         self.value.to_be_bytes()
     }
@@ -144,6 +155,7 @@ impl Readable for Timestamp {
     }
 }
 
+/// To be used with the [Timestamp] type, this struct defines a duration in seconds.
 #[derive(
     Debug,
     Copy,
@@ -190,6 +202,7 @@ impl Readable for Duration {
     }
 }
 
+/// This type is used to represent a message hash (keccak).
 #[derive(
     Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
 )]

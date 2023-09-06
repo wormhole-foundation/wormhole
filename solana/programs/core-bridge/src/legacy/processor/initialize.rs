@@ -10,8 +10,9 @@ const INDEX_ZERO: u32 = 0;
 #[derive(Accounts)]
 #[instruction(args: InitializeArgs)]
 pub struct Initialize<'info> {
-    /// Core Bridge data and config. This account is necessary to publish Wormhole messages and
-    /// redeem governance VAAs.
+    /// Account to warehouse Core Bridge program info. This account is especially important for
+    /// redeeming governance VAAs, where the guardian set attesting for a governance decree must be
+    /// the one encoded in this account.
     #[account(
         init,
         payer = payer,
@@ -21,7 +22,7 @@ pub struct Initialize<'info> {
     )]
     config: Account<'info, LegacyAnchorized<0, Config>>,
 
-    /// New guardian set account, acting as the active guardian set.
+    /// New guardian set account acting as the active guardian set.
     ///
     /// NOTE: There are other Core Bridge smart contracts that take an additional guardian set index
     /// parameter to initialize a present-day guardian set at initialization. But because the Core
@@ -36,7 +37,7 @@ pub struct Initialize<'info> {
     )]
     guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
-    /// CHECK: System account that collects lamports for `post_message`.
+    /// CHECK: System account that collects lamports whenever a new message is posted (published).
     #[account(
         init,
         payer = payer,
@@ -67,6 +68,14 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, InitializeArgs
     const ANCHOR_IX_FN: fn(Context<Self>, InitializeArgs) -> Result<()> = initialize;
 }
 
+/// Processor to initialize the program.
+///
+/// NOTE: This instruction handler does not set the upgrade authority to the Core Bridge's upgrade
+/// authority PDA. Because this instruction is from the legacy program's implementation, we do not
+/// want to disturb the peace by implementing a new instruction to replace this one. Practically,
+/// the Core Bridge is already deployed on Solana's mainnet-beta and devnet, so would never need to
+/// initialize again. And for local validator testing (in most cases) the program is simply loaded
+/// in the validator and cannot be upgraded.
 fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     let InitializeArgs {
         guardian_set_ttl_seconds,

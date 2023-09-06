@@ -6,17 +6,26 @@ use crate::{
 };
 use anchor_lang::{prelude::*, solana_program::sysvar};
 
+/// Offset schema used by the Sig Verify native program.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, InitSpace)]
 struct SigVerifyOffsets {
-    signature_offset: u16, // offset to [signature,recovery_id,etherum_address] of 64+1+20 bytes
-    signature_ix_index: u8, // instruction index to find data
-    eth_pubkey_offset: u16, // offset to [signature,recovery_id] of 64+1 bytes
-    eth_pubkey_ix_index: u8, // instruction index to find data
-    message_offset: u16,   // offset to start of message data
-    message_size: u16,     // size of message data
-    message_ix_index: u8,  // index of instruction data to get message data
+    /// Offset to \[signature,recovery_id,etherum_address\] of 64 + 1 + 20 bytes.
+    signature_offset: u16,
+    /// Instruction index to find signature data.
+    signature_ix_index: u8,
+    /// Offset to \[signature,recovery_id\] of 64 + 1 bytes.
+    eth_pubkey_offset: u16,
+    // Instruction index to find eth pubkey data.
+    eth_pubkey_ix_index: u8,
+    // Offset to start of message data.
+    message_offset: u16,
+    // Size of message data.
+    message_size: u16,
+    // Index of instruction data to get message data.
+    message_ix_index: u8,
 }
 
+/// Result of parsing Sig Verify instruction data.
 struct SigVerifyParameters {
     eth_pubkey: [u8; 20],
     message: [u8; 32],
@@ -27,18 +36,15 @@ pub struct VerifySignatures<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// Guardian set used for signature verification. The legacy instruction does not check if the
-    /// guardian set is allowed or has not expired yet.
-    ///
-    /// Currently signatures from a past guardian set can be verified, which is a waste of compute
-    /// units since the post_vaa instruction will fail if the guardian set is not active.
+    /// Guardian set used for signature verification. These pubkeys were passed into the Sig Verify
+    /// native program to do its signature verification.
     #[account(
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
     guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
-    /// Stores signature validation from libsecp256k1 program.
+    /// Stores signature validation from Sig Verify native program.
     #[account(
         init_if_needed,
         payer = payer,
@@ -46,7 +52,7 @@ pub struct VerifySignatures<'info> {
     )]
     signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
 
-    /// CHECK: Instruction sysvar used to read libsecp256k1 instruction data.
+    /// CHECK: Instruction sysvar used to read Sig Verify native program instruction data.
     #[account(
         address = sysvar::instructions::id() @ ErrorCode::AccountSysvarMismatch
     )]
@@ -67,25 +73,33 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, VerifySignatur
 }
 
 impl<'info> VerifySignatures<'info> {
-    /// This method performs an additional context constraint where we use the Clock sysvar to
-    /// determine whether the guardian set is still active.
-    ///
-    /// NOTE: The previous implementation required the Clock sysvar to be defined as a part of the
-    /// accounts context in order to perform this check. By performing this check here, we can fail
-    /// earlier (as opposed to failing at the `post_vaa` step after verifying all the signatures
-    /// with a potentially expired guardian set).
     fn constraints(ctx: &Context<Self>) -> Result<()> {
+        // Check that the guardian set is still active.
+        //
+        // NOTE: The legacy implementation was not able to perform this check on the guardian
+        // set. We can now short-circuit VAA verification failure by checking whether a guardian
+        // set is expired here instead of having to wait for the invoking the post VAA instruction
+        // handler.
         let timestamp = Clock::get().map(Into::into)?;
-        let guardian_set = &ctx.accounts.guardian_set;
         require!(
-            guardian_set.is_active(&timestamp),
+            ctx.accounts.guardian_set.is_active(&timestamp),
             CoreBridgeError::PostVaaGuardianSetExpired
         );
 
+        // Done.
         Ok(())
     }
 }
 
+/// Processor to verify guardian signatures leveraging the Sig Verify native program to perform the
+/// elliptic curve signature verification. This instruction is scary because it relies on checking
+/// Sig Verify instruction data to make sure that the correct signatures are being verified.
+///
+/// NOTE: It is recommended that VAAs be verified using the new Anchor instructions
+/// `init_encoded_vaa` and `process_encoded_vaa`, which does not rely on the Sig Verify native
+/// program to verify elliptic curve signatures. Also, using this instruction is inefficient because
+/// it requires additional data encoded in a transaction: the Sig Verify native program requires
+/// guardian pubkeys to be provided in order to perform its signature verification.
 #[access_control(VerifySignatures::constraints(&ctx))]
 fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs) -> Result<()> {
     let VerifySignaturesArgs { signer_indices } = args;
@@ -105,7 +119,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    // NOTE: It would have been nice to be able to perform this check in `access_control`, but there
+    // It would have been nice to be able to perform this check in `access_control`, but there
     // is no data from the instruction sysvar loaded by that point. We have to load it and perform
     // the safety checks in this instruction handler.
     let instruction_sysvar_data = ctx.accounts.instructions.data.borrow();
@@ -122,8 +136,10 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     )
     .ok_or(CoreBridgeError::InstructionAtWrongIndex)?;
 
-    // And here we verify that the previous instruction is actually the `secp256k1_program`. To
-    // avoid a redundant Instructions sysvar check, we allow this deprecated method.
+    // And here we verify that the previous instruction is actually the Sig Verify native program.
+    //
+    // NOTE: To avoid a redundant instructions sysvar check, we allow the deprecated method to
+    // load the instruction data.
     #[allow(deprecated)]
     let sig_verify_params = sysvar::instructions::load_instruction_at(
         usize::from(sig_verify_index),
@@ -132,15 +148,15 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     .map_err(|_| ProgramError::InvalidInstructionData.into())
     .and_then(|ix| deserialize_secp256k1_ix(sig_verify_index, &ix))?;
 
-    // Number of specified `signers` must equal the number of signatures verified in the sig verify
-    // program instruction.
+    // Number of specified signers must equal the number of signatures verified in the Sig Verify
+    // native program instruction.
     require_eq!(
         sig_verify_params.len(),
         guardian_indices.len(),
         CoreBridgeError::SignerIndicesMismatch
     );
 
-    // We're going to use this message data later on.
+    // We use this message hash later on.
     let message_hash = MessageHash::from(sig_verify_params[0].message);
     let signature_set = &mut ctx.accounts.signature_set;
 
@@ -155,9 +171,11 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
             CoreBridgeError::GuardianSetMismatch
         );
 
-        // And verify that the message hash is the same.
-        require!(
-            signature_set.message_hash == message_hash,
+        // And verify that the message hash is the same as the one already encoded in the signature
+        // set.
+        require_eq!(
+            message_hash,
+            signature_set.message_hash,
             CoreBridgeError::MessageMismatch
         );
     } else {
@@ -191,6 +209,8 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     Ok(())
 }
 
+/// This method performs the Sig Verify native program instruction deserialization and validates
+/// this data.
 fn deserialize_secp256k1_ix(
     sig_verify_index: u16,
     ix: &solana_program::instruction::Instruction,
@@ -264,5 +284,6 @@ fn deserialize_secp256k1_ix(
         expected_message_offset = Some(message_offset);
     }
 
+    // Done.
     Ok(params)
 }

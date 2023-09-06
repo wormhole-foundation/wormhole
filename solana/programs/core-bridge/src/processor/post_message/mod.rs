@@ -7,6 +7,9 @@ pub use process_message_v1::*;
 use crate::error::CoreBridgeError;
 use anchor_lang::prelude::*;
 
+/// Generate an emitter address depending on whether the integrator provided a program ID or not. If
+/// he did, the emitter address will be the program ID only if the authority's seeds are validated
+/// as [b"emitter"]. Otherwise the emitter address will be the authority's key.
 pub fn new_emitter(emitter_authority: &Signer, cpi_program_id: Option<Pubkey>) -> Result<Pubkey> {
     match cpi_program_id {
         Some(program_id) => {
