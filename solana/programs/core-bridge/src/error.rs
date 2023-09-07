@@ -91,6 +91,9 @@ pub enum CoreBridgeError {
     #[msg("InstructionAtWrongIndex")]
     InstructionAtWrongIndex = 0x702,
 
+    #[msg("EmptySigVerifyInstruction")]
+    EmptySigVerifyInstruction = 0x703,
+
     #[msg("InvalidSigVerifyInstruction")]
     InvalidSigVerifyInstruction = 0x704,
 
