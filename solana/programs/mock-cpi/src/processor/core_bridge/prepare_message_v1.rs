@@ -51,7 +51,7 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPrepareMessage
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePrepareMessageV1<'info> for MockPrepareMessageV1<'info> {
+impl<'info> core_bridge_sdk::cpi::PrepareMessageV1<'info> for MockPrepareMessageV1<'info> {
     fn core_emitter_authority(&self) -> AccountInfo<'info> {
         self.emitter_authority.to_account_info()
     }

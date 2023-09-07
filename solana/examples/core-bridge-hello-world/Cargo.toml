@@ -1,0 +1,26 @@
+[package]
+name = "core-bridge-hello-world"
+description = "Core Bridge Hello World"
+version = "0.0.0"
+edition = "2021"
+authors = ["W7"]
+license = "Apache-2.0"
+homepage = "https://docs.rs/wormhole-core-bridge-solana"
+repository = "https://github.com/wormhole-foundation/wormhole"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["localnet"]
+localnet = ["wormhole-core-bridge-solana/localnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+wormhole-core-bridge-solana = { path = "../../programs/core-bridge", features = ["cpi"], default-features = false }
+
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"

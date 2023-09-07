@@ -3,7 +3,7 @@ pub use crate::legacy::cpi::PostMessageArgs;
 use crate::{error::CoreBridgeError, types::Commitment};
 use anchor_lang::{prelude::*, system_program};
 
-use super::{AnchorInit, InvokeCoreBridge};
+use super::{CreateAccount, InvokeCoreBridge};
 
 /// Trait for invoking the Core Bridge program's `post_message` instruction. Using this trait will
 /// make posting (publishing) a Wormhole (Core Bridge) message easier.
@@ -17,7 +17,7 @@ use super::{AnchorInit, InvokeCoreBridge};
 /// `core_emitter_authority`, which is the program's authority to draft a new message to prepare it
 /// for posting. By default, `core_emitter_authority` returns None, so you must override it if the
 /// emitter address is a program ID.
-pub trait InvokePostMessageV1<'info>: InvokeCoreBridge<'info> + AnchorInit<'info> {
+pub trait PublishMessage<'info>: InvokeCoreBridge<'info> + CreateAccount<'info> {
     /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
     fn core_bridge_config(&self) -> AccountInfo<'info>;
 
@@ -45,11 +45,11 @@ pub trait InvokePostMessageV1<'info>: InvokeCoreBridge<'info> + AnchorInit<'info
 }
 
 /// Directive used to determine how to post a Core Bridge message.
-pub enum PostMessageV1Directive {
+pub enum PublishMessageDirective {
     /// Ordinary message, which creates a new account for the Core Bridge message. The emitter
     /// address is the pubkey of the emitter signer.
     ///
-    /// NOTE: The core_emitter in InvokePostMessageV1 must return Some, which will be the account
+    /// NOTE: The core_emitter in PublishMessage must return Some, which will be the account
     /// info for the emitter signer. See legacy `post_message` for more info.
     Message {
         nonce: u32,
@@ -59,7 +59,7 @@ pub enum PostMessageV1Directive {
     /// Ordinary message, which creates a new account for the Core Bridge message. The emitter
     /// address is the program ID specified in this directive.
     ///
-    /// NOTE: The core_emitter_authority in InvokePostMessageV1 must return Some, which will be the
+    /// NOTE: The core_emitter_authority in PublishMessage must return Some, which will be the
     /// account info for the authority used to prepare a new draft message. See `init_message_v1`
     /// and `process_message_v1` for more details.
     ProgramMessage {
@@ -72,7 +72,7 @@ pub enum PostMessageV1Directive {
     /// Core Bridge message account. The emitter address is the pubkey of the emitter signer. If a
     /// message account is reused, the payload length must be the same as the existing message's.
     ///
-    /// NOTE: The core_emitter in InvokePostMessageV1 must return Some, which will be the account
+    /// NOTE: The core_emitter in PublishMessage must return Some, which will be the account
     /// info for the emitter signer. See legacy `post_message` for more info.
     UnreliableMessage {
         nonce: u32,
@@ -87,7 +87,7 @@ pub enum PostMessageV1Directive {
 /// * Post a new message with an emitter address that is a program ID.
 /// * Post an unreliable message, which can reuse a message account with a new payload.
 ///
-/// The accounts must implement `InvokePostMessage`.
+/// The accounts must implement `InvokePublishMessage`.
 ///
 /// Emitter seeds are needed to act as a signer for the post message instructions. These seeds are
 /// either the seeds of a program's PDA or specifically seeds = \["emitter"\] if the program ID is the
@@ -95,9 +95,9 @@ pub enum PostMessageV1Directive {
 ///
 /// Message seeds are optional and are only needed if the integrating program is using a PDA for
 /// this account. Otherwise, a keypair can be used and message seeds can be None.
-pub fn post_new_message_v1<'info, A: InvokePostMessageV1<'info>>(
+pub fn publish_message<'info, A: PublishMessage<'info>>(
     accounts: &A,
-    directive: PostMessageV1Directive,
+    directive: PublishMessageDirective,
     emitter_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
 ) -> Result<()> {
@@ -123,7 +123,7 @@ pub fn post_new_message_v1<'info, A: InvokePostMessageV1<'info>>(
     }
 
     match directive {
-        PostMessageV1Directive::Message {
+        PublishMessageDirective::Message {
             nonce,
             payload,
             commitment,
@@ -137,7 +137,7 @@ pub fn post_new_message_v1<'info, A: InvokePostMessageV1<'info>>(
             emitter_seeds,
             message_seeds,
         ),
-        PostMessageV1Directive::ProgramMessage {
+        PublishMessageDirective::ProgramMessage {
             program_id,
             nonce,
             payload,
@@ -151,7 +151,7 @@ pub fn post_new_message_v1<'info, A: InvokePostMessageV1<'info>>(
             emitter_seeds,
             message_seeds,
         ),
-        PostMessageV1Directive::UnreliableMessage {
+        PublishMessageDirective::UnreliableMessage {
             nonce,
             payload,
             commitment,
@@ -168,7 +168,7 @@ pub fn post_new_message_v1<'info, A: InvokePostMessageV1<'info>>(
     }
 }
 
-fn handle_post_message_v1<'info, A: InvokePostMessageV1<'info>>(
+fn handle_post_message_v1<'info, A: PublishMessage<'info>>(
     accounts: &A,
     args: PostMessageArgs,
     emitter_seeds: &[&[u8]],
@@ -210,7 +210,7 @@ fn handle_post_message_v1<'info, A: InvokePostMessageV1<'info>>(
     }
 }
 
-fn handle_post_program_message_v1<'info, A: InvokePostMessageV1<'info>>(
+fn handle_post_program_message_v1<'info, A: PublishMessage<'info>>(
     accounts: &A,
     program_id: Pubkey,
     nonce: u32,
@@ -293,7 +293,7 @@ fn handle_post_program_message_v1<'info, A: InvokePostMessageV1<'info>>(
     )
 }
 
-fn handle_post_unreliable_message_v1<'info, A: InvokePostMessageV1<'info>>(
+fn handle_post_unreliable_message_v1<'info, A: PublishMessage<'info>>(
     accounts: &A,
     args: PostMessageArgs,
     emitter_seeds: &[&[u8]],

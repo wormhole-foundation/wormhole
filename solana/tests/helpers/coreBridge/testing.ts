@@ -95,7 +95,7 @@ export async function expectLegacyPostMessageAfterEffects(
   expect(messageNonce).equals(nonce);
   expect(messageSequence.eq(expectedSequence)).is.true;
   expect(solanaChainId).equals(1);
-  expect(emitterAddress.equals(emitter)).is.true;
+  expect(emitterAddress.equals(emitter!)).is.true;
 
   if (actualPayload.equals(payload)) {
     expect(payload).has.length.greaterThan(0);
@@ -109,7 +109,7 @@ export async function expectLegacyPostMessageAfterEffects(
   const emitterSequenceValue = await coreBridge.EmitterSequence.fromPda(
     connection,
     program.programId,
-    emitter
+    emitter!
   ).then((tracker) => tracker.sequence);
   expect(emitterSequenceValue.eq(expectedSequence.addn(1))).is.true;
 }
@@ -192,7 +192,7 @@ export async function expectOkPostMessage(
 
   const postedMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
     connection,
-    message
+    message!
   );
   const { nonce, consistencyLevel, payload } = expected;
   expectDeepEqual(postedMessageData, {
@@ -200,18 +200,18 @@ export async function expectOkPostMessage(
     emitterAuthority: PublicKey.default,
     status: coreBridge.MessageStatus.Unset,
     _gap0: Buffer.alloc(3),
-    postedTimestamp: txDetails.blockTime!,
+    postedTimestamp: txDetails!.blockTime!,
     nonce,
     sequence,
     solanaChainId: 1,
-    emitter: emitter,
+    emitter,
     payload,
   });
 
   const emitterSequenceData = await coreBridge.EmitterSequence.fromPda(
     connection,
     program.programId,
-    emitter
+    emitter!
   );
   expectDeepEqual(emitterSequenceData, { sequence: sequence.addn(1) });
 

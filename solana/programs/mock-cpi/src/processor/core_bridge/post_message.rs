@@ -68,7 +68,7 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPostMessage<'i
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for MockPostMessage<'info> {
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockPostMessage<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -78,7 +78,7 @@ impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for MockPostMessage<'info> {
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for MockPostMessage<'info> {
+impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessage<'info> {
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -121,9 +121,9 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
         &ctx.accounts.core_program_emitter,
         &ctx.accounts.core_custom_emitter,
     ) {
-        (Some(_), _) => core_bridge_sdk::cpi::post_new_message_v1(
+        (Some(_), _) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
-            core_bridge_sdk::cpi::PostMessageV1Directive::ProgramMessage {
+            core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,
                 payload,
@@ -140,9 +140,9 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
                 &[ctx.bumps["core_message"]],
             ]),
         ),
-        (None, Some(_emitter_authority)) => core_bridge_sdk::cpi::post_new_message_v1(
+        (None, Some(_emitter_authority)) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
-            core_bridge_sdk::cpi::PostMessageV1Directive::Message {
+            core_bridge_sdk::cpi::PublishMessageDirective::Message {
                 nonce,
                 payload,
                 commitment: core_bridge_sdk::types::Commitment::Finalized,

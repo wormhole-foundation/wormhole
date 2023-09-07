@@ -105,7 +105,7 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferTokensNati
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for TransferTokensNative<'info> {
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensNative<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -115,7 +115,7 @@ impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for TransferTokensNative<'in
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for TransferTokensNative<'info> {
+impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensNative<'info> {
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }

@@ -104,7 +104,7 @@ export function handleLegacyPostMessageIx(
 
   let { message: messageIsSigner } = requireOtherSigners;
 
-  const emitterIsSigner = emitter.equals(program.programId) ? false : true;
+  const emitterIsSigner = emitter!.equals(program.programId) ? false : true;
 
   if (messageIsSigner === undefined) {
     messageIsSigner = true;
@@ -112,22 +112,22 @@ export function handleLegacyPostMessageIx(
 
   const keys: AccountMeta[] = [
     {
-      pubkey: config,
+      pubkey: config!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: message,
+      pubkey: message!,
       isWritable: true,
       isSigner: messageIsSigner,
     },
     {
-      pubkey: emitter,
+      pubkey: emitter!,
       isWritable: false,
       isSigner: emitterIsSigner,
     },
     {
-      pubkey: emitterSequence,
+      pubkey: emitterSequence!,
       isWritable: true,
       isSigner: false,
     },
@@ -137,12 +137,12 @@ export function handleLegacyPostMessageIx(
       isSigner: true,
     },
     {
-      pubkey: feeCollector,
+      pubkey: feeCollector!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: clock,
+      pubkey: clock!,
       isWritable: false,
       isSigner: false,
     },
@@ -152,7 +152,7 @@ export function handleLegacyPostMessageIx(
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: rent!,
       isWritable: false,
       isSigner: false,
     },

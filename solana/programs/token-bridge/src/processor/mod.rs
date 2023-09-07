@@ -22,7 +22,7 @@ use wormhole_io::Writeable;
 
 pub fn post_token_bridge_message<
     'info,
-    I: core_bridge_sdk::cpi::InvokePostMessageV1<'info>,
+    I: core_bridge_sdk::cpi::PublishMessage<'info>,
     W: Writeable,
 >(
     accounts: &I,
@@ -30,9 +30,9 @@ pub fn post_token_bridge_message<
     nonce: u32,
     message: W,
 ) -> Result<()> {
-    core_bridge_sdk::cpi::post_new_message_v1(
+    core_bridge_sdk::cpi::publish_message(
         accounts,
-        core_bridge_sdk::cpi::PostMessageV1Directive::Message {
+        core_bridge_sdk::cpi::PublishMessageDirective::Message {
             nonce,
             payload: message.to_vec(),
             commitment: Commitment::Finalized,
