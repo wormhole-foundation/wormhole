@@ -3,12 +3,18 @@ package gwrelayer
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"go.uber.org/zap"
 )
 
 func Test_convertBech32AddressToWormhole(t *testing.T) {
@@ -29,7 +35,7 @@ func Test_convertBech32AddressToWormhole(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func Test_shouldPublish(t *testing.T) {
+func Test_shouldPublishToIbcTranslator(t *testing.T) {
 	type Test struct {
 		label   string
 		payload []byte
@@ -52,11 +58,61 @@ func Test_shouldPublish(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(string(tc.label), func(t *testing.T) {
-			result, err := shouldPublish(tc.payload, vaa.ChainIDWormchain, targetAddress)
+			result, err := shouldPublishToIbcTranslator(tc.payload, vaa.ChainIDWormchain, targetAddress)
 			assert.Equal(t, tc.err, err != nil)
 			assert.Equal(t, tc.result, result)
 		})
 	}
+}
+
+func Test_shouldPublishToTokenBridge(t *testing.T) {
+	type Test struct {
+		label   string
+		chain   vaa.ChainID
+		address vaa.Address
+		payload []byte
+		result  bool
+	}
+
+	logger := zap.NewNop()
+
+	tokenBridges, tokenBridgeAddress, err := buildTokenBridgeMap(logger, common.MainNet)
+	require.NoError(t, err)
+	require.NotNil(t, tokenBridges)
+	require.Equal(t, tokenBridgeAddress, "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
+
+	tests := []Test{
+		{label: "unknown chain", chain: vaa.ChainIDUnset, address: addr("0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"), payload: []byte{}, result: false},
+		{label: "unknown emitter", chain: vaa.ChainIDEthereum, address: addr("0000000000000000000000000000000000000000000000000000000000000000"), payload: []byte{}, result: false},
+		{label: "wormchain", chain: vaa.ChainIDWormchain, address: addr("aeb534c45c3049d380b9d9b966f9895f53abd4301bfaff407fa09dea8ae7a924"), payload: []byte{}, result: false},
+		{label: "empty payload", chain: vaa.ChainIDEthereum, address: addr("0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"), payload: []byte{}, result: false},
+		{label: "not an attest", chain: vaa.ChainIDEthereum, address: addr("0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"), payload: []byte{0x1}, result: false},
+		{label: "should publish", chain: vaa.ChainIDEthereum, address: addr("0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"), payload: []byte{0x2}, result: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			v := &vaa.VAA{
+				Version:          uint8(1),
+				GuardianSetIndex: uint32(1),
+				Signatures:       []*vaa.Signature{},
+				Timestamp:        time.Unix(0, 0),
+				Nonce:            uint32(1),
+				Sequence:         uint64(1),
+				ConsistencyLevel: uint8(32),
+				EmitterChain:     tc.chain,
+				EmitterAddress:   tc.address,
+				Payload:          tc.payload,
+			}
+
+			result := shouldPublishToTokenBridge(tokenBridges, v)
+			assert.Equal(t, tc.result, result)
+		})
+	}
+
+	addr, err := sdktypes.Bech32ifyAddressBytes("wormhole", decodeBytes("aeb534c45c3049d380b9d9b966f9895f53abd4301bfaff407fa09dea8ae7a924"))
+	require.NoError(t, err)
+	fmt.Println(addr)
 }
 
 func decodeBytes(s string) []byte {
@@ -65,4 +121,12 @@ func decodeBytes(s string) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func addr(str string) vaa.Address {
+	a, err := vaa.StringToAddress(str)
+	if err != nil {
+		panic("failed to convert address")
+	}
+	return a
 }

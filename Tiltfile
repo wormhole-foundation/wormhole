@@ -276,7 +276,7 @@ def build_node_yaml():
                     "--accountantContract",
                     "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
                     "--accountantKeyPath",
-                    "/tmp/mounted-keys/wormchain/wormchainKey",
+                    "/tmp/mounted-keys/wormchain/accountantKey",
                     "--accountantKeyPassPhrase",
                     "test0000",
                     "--accountantWS",
@@ -294,7 +294,7 @@ def build_node_yaml():
                     "--gatewayRelayerContract",
                     "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
                     "--gatewayRelayerKeyPath",
-                    "/tmp/mounted-keys/wormchain/wormchainKey",
+                    "/tmp/mounted-keys/wormchain/gwrelayerKey",
                     "--gatewayRelayerKeyPassPhrase",
                     "test0000",
 
