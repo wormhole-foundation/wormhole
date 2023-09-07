@@ -94,8 +94,8 @@ Options:
       --signatures, --sigs         comma separated list of signatures   [string]
       --wormscanurl, --wsu         url to wormscan entry for the vaa that
                                    includes signatures                  [string]
-      --wormscanfile, --wsf        json file containing wormscan entry for the
-                                   vaa that includes signatures         [string]
+      --wormscan, --ws             if specified, will query the wormscan entry
+                                   for the vaa to get the signatures   [boolean]
       --emitter-chain-id, --ec     emitter chain id to be used in the vaa
                                                                         [number]
       --emitter-address, --ea      emitter address to be used in the vaa[string]
