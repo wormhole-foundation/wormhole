@@ -33,15 +33,15 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
 - **[October 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
 - **[October 2022 - Hacken](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
+- **[October 2022 - Coinspect](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-10_Coinspect_Wormhole_Algorand.pdf)**: _Algorand Contracts_
 - **[November 2022 - Zellic](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
 - **[February 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
+- **[March 2023 - CertiK](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-03-08_CertiK_Wormhole_EVM.pdf)**: _EVM Contracts_
 - **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
 - **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
-- **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
+- **[May 2023 - Runtime Verification](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-05_Runtime_Verification_Wormhole_EVM.pdf)**: _Formal Verification of EVM contracts_
 - **Q4 2022 - Certik (DRAFT)**: _Solana Contracts_
 - **Q4 2022 - Certik (DRAFT)**: _Guardian_
-- **Q4 2022 - Coinspect (DRAFT)**: _Algorand Contracts_
-- **Q2 2023 - Runtime Verification (IN PROGRESS)**: _Guardian_
 
 
 ## Bug Bounty Program
