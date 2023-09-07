@@ -7,6 +7,7 @@ import {
   parseVaa,
   tryHexToNativeString,
   tryNativeToHexString,
+  tryNativeToUint8Array,
 } from "@certusone/wormhole-sdk";
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
@@ -25,8 +26,10 @@ import {
   ETHEREUM_TOKEN_ADDRESS_MAX_TWO,
   WRAPPED_MINT_INFO_8,
   WRAPPED_MINT_INFO_7,
+  MINT_INFO_9,
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
+  expectIxOkDetails,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -242,6 +245,43 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
       );
 
       await expectIxErr(connection, [ix], [payer], "InvalidTokenBridgeVaa");
+    });
+
+    it("Cannot Invoke `create_or_update_wrapped` for Native Asset", async () => {
+      // Create signed transfer Vaa.
+      let published = ethereumTokenBridge.publishAttestMeta(
+        tryNativeToHexString(MINT_INFO_9.mint.toString(), CHAIN_ID_SOLANA),
+        8, // Decimals.
+        "STEAK", // Symbol.
+        "Medium Rare", // Name.
+        1342314, // Nonce.
+        1234567 // Timestamp
+      );
+
+      // Change the 84th byte (the chain ID) to 0x01 (Solana). The mock emitter
+      // encodes the pre-configured chain ID in the message by default. Changing
+      // the MockTokenBridge implementation could cause this test to fail.
+      published.writeUint16BE(1, 84);
+
+      const signedVaa = guardians.addSignatures(
+        published,
+        [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
+      );
+
+      await invokeVerifySignaturesAndPostVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa
+      );
+
+      // Create the instruction.
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "NativeAsset");
     });
   });
 });
