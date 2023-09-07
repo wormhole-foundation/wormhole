@@ -1,5 +1,5 @@
 //! Constants used by the Core Bridge Program. For integrators, necessary constants are re-exported
-//! in the [sdk](mod@crate::sdk) module.
+//! in the [sdk](crate::sdk) module.
 
 use anchor_lang::prelude::constant;
 
@@ -23,6 +23,8 @@ pub const PROGRAM_EMITTER_SEED_PREFIX: &[u8] = b"emitter";
 /// this size will be disallowed.
 #[constant]
 pub const MAX_MESSAGE_PAYLOAD_SIZE: usize = 30 * 1_024;
+
+pub(crate) const GOVERNANCE_CHAIN: u16 = 1;
 
 pub(crate) const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,

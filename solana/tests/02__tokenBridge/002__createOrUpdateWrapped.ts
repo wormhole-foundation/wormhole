@@ -30,6 +30,8 @@ import {
   expectIxErr,
   invokeVerifySignaturesAndPostVaa,
   expectIxOkDetails,
+  ETHEREUM_TOKEN_ALREADY_CREATED,
+  processVaa,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -43,6 +45,8 @@ const ethereumTokenBridge = new MockTokenBridge(
   ETHEREUM_TOKEN_BRIDGE_SEQ - 1
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+const localVariables = new Map<string, any>();
 
 describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -85,14 +89,23 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         wrappedAsset,
         dataV1,
         decomposedMetadata: metadata,
-      } = await expectCorrectData(program, parsed);
+      } = await expectCorrectData(
+        program,
+        parsed,
+        false // fork
+      );
       const {
         wrappedAsset: forkWrappedAsset,
         dataV1: forkDataV1,
         decomposedMetadata: forkMetadata,
-      } = await expectCorrectData(forkedProgram, parsed);
+      } = await expectCorrectData(
+        forkedProgram,
+        parsed,
+        true // fork
+      );
 
-      expectDeepEqual(wrappedAsset, forkWrappedAsset);
+      const { lastUpdatedSequence, ...prunedWrappedAsset } = wrappedAsset;
+      expectDeepEqual(prunedWrappedAsset, forkWrappedAsset);
       expectDeepEqual(metadata, forkMetadata);
 
       expect(dataV1.symbol).equals(forkDataV1.symbol);
@@ -110,6 +123,8 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         canonicalAddress: "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
         nativeDecimals: 18,
       });
+
+      localVariables.set("signedVaa", signedVaa);
     });
 
     it("Invoke `create_or_update_wrapped` to Update Asset", async () => {
@@ -143,8 +158,16 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
       );
 
       // Check metadata.
-      const { dataV1 } = await expectCorrectData(program, parsed);
-      const { dataV1: forkDataV1 } = await expectCorrectData(forkedProgram, parsed);
+      const { dataV1 } = await expectCorrectData(
+        program,
+        parsed,
+        false // fork
+      );
+      const { dataV1: forkDataV1 } = await expectCorrectData(
+        forkedProgram,
+        parsed,
+        true // fork
+      );
 
       expect(dataV1.symbol).equals(forkDataV1.symbol);
 
@@ -174,14 +197,23 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         wrappedAsset,
         dataV1,
         decomposedMetadata: metadata,
-      } = await expectCorrectData(program, parsed);
+      } = await expectCorrectData(
+        program,
+        parsed,
+        false // fork
+      );
       const {
         wrappedAsset: forkWrappedAsset,
         dataV1: forkDataV1,
         decomposedMetadata: forkMetadata,
-      } = await expectCorrectData(forkedProgram, parsed);
+      } = await expectCorrectData(
+        forkedProgram,
+        parsed,
+        true // fork
+      );
 
-      expectDeepEqual(wrappedAsset, forkWrappedAsset);
+      const { lastUpdatedSequence, ...prunedWrappedAsset } = wrappedAsset;
+      expectDeepEqual(prunedWrappedAsset, forkWrappedAsset);
       expectDeepEqual(metadata, forkMetadata);
 
       expect(dataV1.symbol).equals(forkDataV1.symbol);
@@ -216,6 +248,152 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
   });
 
   describe("New Implementation", () => {
+    it("Cannot Invoke `create_or_update_wrapped` on Same Posted VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
+
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Cannot Invoke `create_or_update_wrapped` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Invoke `create_or_update_wrapped` to Update Previously Created Wrapped Asset", async () => {
+      // Make sure metadata has already been created.
+      {
+        const mint = tokenBridge.wrappedMintPda(
+          program.programId,
+          2,
+          Array.from(ETHEREUM_TOKEN_ALREADY_CREATED)
+        );
+        const metadata = tokenBridge.tokenMetadataPda(mint);
+        const info = await connection.getAccountInfo(metadata);
+        expect(info).is.not.null;
+      }
+
+      {
+        const mint = tokenBridge.wrappedMintPda(
+          forkedProgram.programId,
+          2,
+          Array.from(ETHEREUM_TOKEN_ALREADY_CREATED)
+        );
+        const metadata = tokenBridge.tokenMetadataPda(mint);
+        const info = await connection.getAccountInfo(metadata);
+        expect(info).is.not.null;
+      }
+
+      // Check that wrapped asset accounts have the old schema and have the same data.
+      {
+        const [wrappedAsset, forkedWrappedAsset] = await Promise.all(
+          [program, forkedProgram].map(async (prog) => {
+            return tokenBridge.WrappedAsset.fromPda(
+              connection,
+              prog.programId,
+              tokenBridge.wrappedMintPda(
+                prog.programId,
+                2,
+                Array.from(ETHEREUM_TOKEN_ALREADY_CREATED)
+              )
+            );
+          })
+        );
+
+        expect(wrappedAsset.lastUpdatedSequence).is.undefined;
+        expectDeepEqual(wrappedAsset, forkedWrappedAsset);
+      }
+
+      // Generate an out-of-sequence VAA for the next test.
+      const oosSignedVaa = defaultVaa({
+        symbol: `OOS`,
+        name: `Out of Sequence`,
+        address: ETHEREUM_TOKEN_ALREADY_CREATED,
+      });
+
+      localVariables.set("oosSignedVaa", oosSignedVaa);
+
+      // Now update the wrapped asset account on the new implementation.
+      const signedVaa = defaultVaa({
+        symbol: "FRESH",
+        name: "So fresh and so clean clean.",
+        address: ETHEREUM_TOKEN_ALREADY_CREATED,
+      });
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      // Create the instruction.
+      const parsed = parseVaa(signedVaa);
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa },
+        parsed
+      );
+
+      await expectIxOk(connection, [ix], [payer]);
+
+      // Check account realloc'ed.
+      const mint = tokenBridge.wrappedMintPda(
+        program.programId,
+        2,
+        Array.from(ETHEREUM_TOKEN_ALREADY_CREATED)
+      );
+      const wrappedAsset = await tokenBridge.WrappedAsset.fromPda(
+        connection,
+        program.programId,
+        mint
+      );
+      expectDeepEqual(wrappedAsset, {
+        tokenChain: 2,
+        tokenAddress: Array.from(ETHEREUM_TOKEN_ALREADY_CREATED),
+        nativeDecimals: 18,
+        lastUpdatedSequence: new anchor.BN(parsed.sequence.toString()),
+      });
+    });
+
+    it("Cannot Invoke `create_or_update_wrapped` on Out-of-Sequence VAA", async () => {
+      const oosSignedVaa = localVariables.get("oosSignedVaa") as Buffer;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        oosSignedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa },
+        parseVaa(oosSignedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "AttestationOutOfSequence");
+    });
+
     it("Cannot Invoke `create_or_update_wrapped` (Invalid Token Bridge VAA)", async () => {
       // Create a bogus token transfer VAA.
       const published = ethereumTokenBridge.publishTransferTokens(
@@ -343,7 +521,11 @@ async function parallelTxOk(
   return parsed;
 }
 
-async function expectCorrectData(program: tokenBridge.TokenBridgeProgram, parsed: ParsedVaa) {
+async function expectCorrectData(
+  program: tokenBridge.TokenBridgeProgram,
+  parsed: ParsedVaa,
+  fork: boolean
+) {
   const programId = program.programId;
   const connection = program.provider.connection;
 
@@ -365,11 +547,20 @@ async function expectCorrectData(program: tokenBridge.TokenBridgeProgram, parsed
 
   // Check wrapped asset.
   const wrappedAsset = await tokenBridge.WrappedAsset.fromPda(connection, programId, mint);
-  expectDeepEqual(wrappedAsset, {
-    tokenChain,
-    tokenAddress: Array.from(tokenAddress),
-    nativeDecimals,
-  });
+  if (fork) {
+    expectDeepEqual(wrappedAsset, {
+      tokenChain,
+      tokenAddress: Array.from(tokenAddress),
+      nativeDecimals,
+    });
+  } else {
+    expectDeepEqual(wrappedAsset, {
+      tokenChain,
+      tokenAddress: Array.from(tokenAddress),
+      nativeDecimals,
+      lastUpdatedSequence: new anchor.BN(parsed.sequence.toString()),
+    });
+  }
 
   // Check Token Metadata.
   const metadata = await Metadata.fromAccountAddress(
@@ -389,9 +580,9 @@ async function expectCorrectData(program: tokenBridge.TokenBridgeProgram, parsed
   const { symbol: expectedSymbol } = dataV1;
 
   if (symbol.length >= 10) {
-    expect(symbol.substring(0, 10)).to.equal(expectedSymbol);
+    expect(symbol.substring(0, 10)).equals(expectedSymbol);
   } else {
-    expect(symbol.padEnd(10, "\x00")).to.equal(expectedSymbol);
+    expect(symbol.padEnd(10, "\x00")).equals(expectedSymbol);
   }
 
   return { wrappedAsset, decomposedMetadata, dataV1 };

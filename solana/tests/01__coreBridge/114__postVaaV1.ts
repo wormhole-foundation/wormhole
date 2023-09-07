@@ -35,83 +35,49 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
   });
 
   describe("Ok", () => {
-    it("Cannot Invoke `post_vaa_v1` without Correct Write Authority", async () => {
-      const signedVaa = defaultVaa();
-
-      const vaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
-
-      const someoneElse = anchor.web3.Keypair.generate();
-      await transferLamports(connection, payer, someoneElse.publicKey);
-
-      const ix = await coreBridge.postVaaV1Ix(
-        program,
-        {
-          writeAuthority: someoneElse.publicKey,
-          vaa,
-        },
-        { tryOnce: {} }
-      );
-      await expectIxErr(connection, [ix], [someoneElse], "ConstraintHasOne");
-    });
-
     it("Cannot Invoke `post_vaa_v1` with Incorrect Post VAA PDA", async () => {
       const signedVaa = defaultVaa();
 
-      const vaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
+      const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
-      const ix = await coreBridge.postVaaV1Ix(
-        program,
-        {
-          writeAuthority: payer.publicKey,
-          vaa,
-          postedVaa: coreBridge.PostedVaaV1.address(program.programId, new Array(32)),
-        },
-        { tryOnce: {} }
-      );
+      const ix = await coreBridge.postVaaV1Ix(program, {
+        writeAuthority: payer.publicKey,
+        encodedVaa,
+        postedVaa: coreBridge.PostedVaaV1.address(program.programId, new Array(32)),
+      });
       await expectIxErr(connection, [ix], [payer], "ConstraintSeeds");
     });
 
     it("Cannot Invoke `post_vaa_v1` with Unverified VAA", async () => {
       const signedVaa = defaultVaa();
 
-      const vaa = await processVaa(
+      const encodedVaa = await processVaa(
         program,
         payer,
         signedVaa,
         GUARDIAN_SET_INDEX,
         false // verify
       );
-      const vaaData = await coreBridge.EncodedVaa.fetch(program, vaa);
+      const vaaData = await coreBridge.EncodedVaa.fetch(program, encodedVaa);
       expect(vaaData.status).not.equals(coreBridge.ProcessingStatus.Verified);
 
-      const ix = await coreBridge.postVaaV1Ix(
-        program,
-        {
-          writeAuthority: payer.publicKey,
-          vaa,
-        },
-        { tryOnce: {} }
-      );
-      await expectIxErr(connection, [ix], [payer], "InvalidVaaVersion");
+      const ix = await coreBridge.postVaaV1Ix(program, {
+        writeAuthority: payer.publicKey,
+        encodedVaa,
+      });
+      await expectIxErr(connection, [ix], [payer], "UnverifiedVaa");
     });
 
     it("Invoke `post_vaa_v1`", async () => {
       const signedVaa = defaultVaa();
 
-      const vaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
+      const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
-      const ix = await coreBridge.postVaaV1Ix(
-        program,
-        {
-          writeAuthority: payer.publicKey,
-          vaa,
-        },
-        { tryOnce: {} }
-      );
+      const ix = await coreBridge.postVaaV1Ix(program, {
+        writeAuthority: payer.publicKey,
+        encodedVaa,
+      });
       await expectIxOk(connection, [ix], [payer]);
-
-      const vaaAccount = await connection.getAccountInfo(vaa);
-      expect(vaaAccount).is.null;
 
       const postedVaaData = await coreBridge.PostedVaaV1.fromPda(
         connection,
@@ -124,7 +90,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
         signatureSet: anchor.web3.PublicKey.default,
         guardianSetIndex: GUARDIAN_SET_INDEX,
         nonce: 420,
-        sequence: new anchor.BN(3),
+        sequence: new anchor.BN(2),
         emitterChain: 69,
         emitterAddress: Array.from(Buffer.alloc(32, "deadbeef")),
         payload: Buffer.alloc(2 * 1_024, "Somebody set us up the bomb. "),
@@ -136,16 +102,12 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
     it("Cannot Invoke `post_vaa_v1` with Same VAA", async () => {
       const signedVaa = localVariables.get("signedVaa") as Buffer;
 
-      const vaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
+      const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
-      const ix = await coreBridge.postVaaV1Ix(
-        program,
-        {
-          writeAuthority: payer.publicKey,
-          vaa,
-        },
-        { tryOnce: {} }
-      );
+      const ix = await coreBridge.postVaaV1Ix(program, {
+        writeAuthority: payer.publicKey,
+        encodedVaa,
+      });
       await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });

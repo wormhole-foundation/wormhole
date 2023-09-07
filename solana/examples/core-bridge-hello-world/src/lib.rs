@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use anchor_lang::prelude::*;
 use wormhole_core_bridge_solana::sdk as core_bridge_sdk;
 
@@ -30,19 +32,15 @@ pub struct PublishHelloWorld<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: Option<UncheckedAccount<'info>>,
+    core_fee_collector: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for PublishHelloWorld<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for PublishHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -53,16 +51,16 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'in
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        None
-    }
-
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_program_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_program_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {
@@ -70,13 +68,7 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
     }
 
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
-    }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
+        Some(self.core_fee_collector.to_account_info())
     }
 }
 
@@ -90,17 +82,17 @@ pub mod core_bridge_hello_world {
 
         core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
+            &ctx.accounts.core_message,
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,
                 payload,
                 commitment: core_bridge_sdk::types::Commitment::Finalized,
             },
-            &[
+            Some(&[&[
                 core_bridge_sdk::PROGRAM_EMITTER_SEED_PREFIX,
                 &[ctx.bumps["core_program_emitter"]],
-            ],
-            None,
+            ]]),
         )
     }
 }

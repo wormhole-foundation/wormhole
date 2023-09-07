@@ -1,4 +1,4 @@
-use crate::{error::TokenBridgeError, state::RegisteredEmitter};
+use crate::state::RegisteredEmitter;
 use anchor_lang::prelude::*;
 use core_bridge_program::legacy::utils::LegacyAnchorized;
 
@@ -8,7 +8,7 @@ pub struct SecureRegisteredEmitter<'info> {
     payer: Signer<'info>,
 
     #[account(
-        init_if_needed,
+        init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [legacy_registered_emitter.chain.to_be_bytes().as_ref()],
@@ -34,32 +34,7 @@ pub struct SecureRegisteredEmitter<'info> {
     system_program: Program<'info, System>,
 }
 
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub enum SecureRegisteredEmitterDirective {
-    Init,
-    CloseLegacy,
-}
-
-pub fn secure_registered_emitter(
-    ctx: Context<SecureRegisteredEmitter>,
-    directive: SecureRegisteredEmitterDirective,
-) -> Result<()> {
-    match directive {
-        SecureRegisteredEmitterDirective::Init => init(ctx),
-        SecureRegisteredEmitterDirective::CloseLegacy => close_legacy(ctx),
-    }
-}
-
-fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
-    msg!("Directive: Init");
-
-    let registered = &mut ctx.accounts.registered_emitter;
-    require_eq!(
-        registered.chain,
-        0,
-        TokenBridgeError::EmitterAlreadyRegistered
-    );
-
+pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
     let emitter = &ctx.accounts.legacy_registered_emitter;
 
     // Copy registered emitter account.
@@ -73,18 +48,4 @@ fn init(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
 
     // Done.
     Ok(())
-}
-
-fn close_legacy(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
-    msg!("Directive: CloseLegacy");
-
-    require_eq!(
-        ctx.accounts.legacy_registered_emitter.chain,
-        ctx.accounts.registered_emitter.chain,
-        TokenBridgeError::RegisteredEmitterMismatch
-    );
-
-    err!(TokenBridgeError::UnsupportedInstructionDirective)
-
-    //ctx.accounts.legacy_registered_emitter.close(ctx.accounts.payer.to_account_info())
 }

@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
@@ -15,6 +16,9 @@ import {
   expectIxErr,
   airdrop,
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  expectDeepEqual,
+  expectIxOk,
+  processVaa,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -38,6 +42,8 @@ const dummyTokenBridge = new MockTokenBridge(
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 
+const localVariables = new Map<string, any>();
+
 describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
@@ -52,6 +58,84 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
   const mints: MintInfo[] = [MINT_INFO_8, MINT_INFO_9];
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 12,
+      },
+      { name: "Token", pubkey: TOKEN_PROGRAM_ID, forkPubkey: TOKEN_PROGRAM_ID, idx: 13 },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 14,
+      },
+    ];
+
+    const possibleIndices = [11, 12, 13, 14];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`complete_transfer_with_payload_native\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const { mint } = MINT_INFO_8;
+          const dstToken = await getOrCreateAssociatedTokenAccount(
+            connection,
+            payer,
+            mint,
+            payer.publicKey
+          );
+
+          const amount = new anchor.BN(10);
+          const signedVaa = getSignedTransferVaa(mint, BigInt(amount.toString()), payer.publicKey);
+
+          // Process the VAA for the new implementation.
+          const encodedVaa = await processVaa(
+            tokenBridge.getCoreBridgeProgram(program),
+            payer,
+            signedVaa,
+            GUARDIAN_SET_INDEX
+          );
+
+          // And post the VAA.
+          const parsed = await parallelPostVaa(connection, payer, signedVaa);
+          const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+            program,
+            {
+              payer: payer.publicKey,
+              vaa: encodedVaa,
+              dstToken: dstToken.address,
+              mint,
+            },
+            parsed
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkedIx = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              dstToken: dstToken.address,
+              mint,
+            },
+            parsed
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await expectIxOk(connection, [ix, forkedIx], [payer]);
+        });
+      }
+    }
+
     for (const { mint, decimals } of mints) {
       it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Redeemer == Redeemer Authority)`, async () => {
         // Create recipient token account.
@@ -61,7 +145,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         const amount = BigInt(699999);
 
         // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(mint, amount, payer.publicKey, "0xdeadbeef");
+        const signedVaa = getSignedTransferVaa(mint, amount, payer.publicKey);
 
         // Fetch balances before.
         const recipientBalancesBefore = await getTokenBalances(program, forkedProgram, payerToken);
@@ -86,6 +170,11 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           recipientBalancesBefore,
           tokenBridge.TransferDirection.In
         );
+
+        // Save for later
+        localVariables.set(`signedVaa${decimals}`, signedVaa);
+        localVariables.set(`dstToken${decimals}`, payerToken);
+        localVariables.set(`mint${decimals}`, mint);
       });
 
       it(`Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Redeemer != Redeemer Authority)`, async () => {
@@ -102,7 +191,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         const amount = BigInt(699999);
 
         // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(mint, amount, recipient.publicKey, "0xdeadbeef");
+        const signedVaa = getSignedTransferVaa(mint, amount, recipient.publicKey);
 
         // Fetch balances before.
         const recipientBalancesBefore = await getTokenBalances(
@@ -138,6 +227,41 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
   });
 
   describe("New Implementation", () => {
+    it("Cannot Invoke `complete_transfer_with_payload_native` on Same VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa9") as Buffer;
+      const dstToken = localVariables.get("dstToken9") as anchor.web3.PublicKey;
+      const mint = localVariables.get("mint9") as anchor.web3.PublicKey;
+
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        { payer: payer.publicKey, dstToken, mint },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Cannot Invoke `complete_transfer_with_payload_native` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa9") as Buffer;
+      const dstToken = localVariables.get("dstToken9") as anchor.web3.PublicKey;
+      const mint = localVariables.get("mint9") as anchor.web3.PublicKey;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadNativeIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa, dstToken, mint },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
     for (const { mint, decimals } of mints) {
       it(`Cannot Invoke \`complete_transfer_with_payload_native\` (${decimals} Decimals, Invalid Mint)`, async () => {
         // Create recipient token account.
@@ -155,8 +279,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         const signedVaa = getSignedTransferVaa(
           anchor.web3.Keypair.generate().publicKey, // Pass bogus mint
           amount,
-          payer.publicKey,
-          "0xdeadbeef"
+          payer.publicKey
         );
 
         // Post the VAA.
@@ -193,7 +316,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
           mint,
           amount,
           payer.publicKey,
-          "0xdeadbeef",
+          undefined,
           CHAIN_ID_ETH // Pass invalid target chain.
         );
 
@@ -234,7 +357,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
         mint,
         amount,
         payer.publicKey,
-        "0xdeadbeef",
+        undefined,
         undefined,
         CHAIN_ID_ETH // Specify a token chain that is not Solana.
       );
@@ -274,8 +397,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
       const signedVaa = getSignedTransferVaa(
         mint,
         amount,
-        anchor.web3.Keypair.generate().publicKey, // Create random redeemer.
-        "0xdeadbeef"
+        anchor.web3.Keypair.generate().publicKey // Create random redeemer.
       );
 
       // Post the VAA.
@@ -311,7 +433,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
       const amount = BigInt(699999);
 
       // Create the signed transfer VAA with random "to" (redeemer).
-      const signedVaa = getSignedTransferVaa(mint, amount, payer.publicKey, "0xdeadbeef");
+      const signedVaa = getSignedTransferVaa(mint, amount, payer.publicKey);
 
       // Post the VAA.
       await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
@@ -379,8 +501,8 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Na
 function getSignedTransferVaa(
   mint: anchor.web3.PublicKey,
   amount: bigint,
-  recipient: anchor.web3.PublicKey,
-  payload: string,
+  redeemer: anchor.web3.PublicKey,
+  payload?: Buffer,
   targetChain?: number,
   tokenChain?: number
 ): Buffer {
@@ -389,9 +511,9 @@ function getSignedTransferVaa(
     tokenChain ?? CHAIN_ID_SOLANA,
     amount,
     targetChain ?? CHAIN_ID_SOLANA,
-    recipient.toBuffer().toString("hex"), // TARGET CONTRACT (redeemer)
+    redeemer.toBuffer().toString("hex"), // TARGET CONTRACT (redeemer)
     Buffer.from(tryNativeToUint8Array(ETHEREUM_TOKEN_BRIDGE_ADDRESS, 2)),
-    Buffer.from(payload.substring(2), "hex"),
+    payload ?? Buffer.from("deadbeef", "hex"),
     0 // Batch ID
   );
   return guardians.addSignatures(vaaBytes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);

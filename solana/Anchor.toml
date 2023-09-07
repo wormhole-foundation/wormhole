@@ -79,3 +79,33 @@ filename = "tests/accounts/registered_emitter_2.json"
 [[test.validator.account]]
 address = "DujfLgMKW71CT2W8pxknf42FT86VbcK5PjQ6LsutjWKC"
 filename = "tests/accounts/fork.registered_emitter_2.json"
+
+### Token Bridge Wrapped Mint (Ethereum)
+[[test.validator.account]]
+address = "ATdV7cKoJnw3s6kaoY2jrQAnoc3wg3PmGpHFdUuHYK67"
+filename = "tests/accounts/wrapped_mint_2.json"
+
+### Token Bridge Wrapped Asset (Ethereum)
+[[test.validator.account]]
+address = "CfBrfpS7cCNU5m5FtHvV7mPoURa71kT34Mf9XP8dpjmb"
+filename = "tests/accounts/wrapped_asset_2.json"
+
+### Token Bridge Wrapped Mint (Ethereum) Metadata
+[[test.validator.account]]
+address = "6XqcNZL4yn8X8saab9fMuJRxZFEtNyp96DCeDTkqxduY"
+filename = "tests/accounts/wrapped_mint_2_metadata.json"
+
+### Token Bridge Wrapped Mint (Ethereum) for Fork
+[[test.validator.account]]
+address = "CAjoti21mmQZxtdTdmrfUL7oCzA1Yqa3u6NdWvFkmqej"
+filename = "tests/accounts/fork.wrapped_mint_2.json"
+
+### Token Bridge Wrapped Asset (Ethereum) for Fork
+[[test.validator.account]]
+address = "CQn6Ts4su6V7upffbEthe2xsVnSxMdTC42yZWKRveXkU"
+filename = "tests/accounts/fork.wrapped_asset_2.json"
+
+### Token Bridge Wrapped Mint (Ethereum) Metadata for Fork
+[[test.validator.account]]
+address = "BR9RYXcjBzyKYVfze3K2SbFFS5DG78UUfUf1Peh16uPz"
+filename = "tests/accounts/fork.wrapped_mint_2_metadata.json"

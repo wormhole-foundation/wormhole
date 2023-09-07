@@ -1,8 +1,14 @@
+mod finalize_message_v1;
+pub use finalize_message_v1::*;
+
 mod init_message_v1;
 pub use init_message_v1::*;
 
-mod process_message_v1;
-pub use process_message_v1::*;
+mod close_message_v1;
+pub use close_message_v1::*;
+
+mod write_message_v1;
+pub use write_message_v1::*;
 
 use crate::error::CoreBridgeError;
 use anchor_lang::prelude::*;

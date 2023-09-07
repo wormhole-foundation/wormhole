@@ -1,11 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  createAccountIx,
-  expectDeepEqual,
-  expectIxErr,
-  expectIxOk,
-  expectIxOkDetails,
-} from "../helpers";
+import { createAccountIx, expectIxErr, expectIxOk } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 
 // Test variables.
@@ -82,6 +76,46 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
       );
       await expectIxErr(connection, [ix], [payer], "MessageAlreadyPublished");
     });
+
+    it("Invoke `post_message` With 30Kb Payload", async () => {
+      const { draftMessage, createIx, initIx } = await createAndInitMessageV1Ixes(
+        program,
+        payer,
+        30 * 1_024,
+        payer,
+        420, // nonce
+        "confirmed"
+      );
+
+      const finalizeIx = await coreBridge.finalizeMessageV1Ix(program, {
+        emitterAuthority: payer.publicKey,
+        draftMessage: draftMessage.publicKey,
+      });
+
+      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
+
+      const emitterSequence = coreBridge.EmitterSequence.address(
+        program.programId,
+        payer.publicKey
+      );
+
+      const postIx = coreBridge.legacyPostMessageIx(
+        program,
+        {
+          message: draftMessage.publicKey,
+          emitter: null,
+          emitterSequence,
+          payer: payer.publicKey,
+        },
+        { nonce: 0, commitment: "confirmed", payload: Buffer.alloc(0) },
+        { message: false }
+      );
+      await expectIxOk(
+        connection,
+        [createIx, initIx, finalizeIx, transferFeeIx, postIx],
+        [payer, draftMessage]
+      );
+    });
   });
 });
 
@@ -133,6 +167,32 @@ async function everythingOk(
   return { message: draftMessage, emitter: emitterAuthority.publicKey };
 }
 
+async function createAndInitMessageV1Ixes(
+  program: coreBridge.CoreBridgeProgram,
+  payer: anchor.web3.Keypair,
+  messageLen: number,
+  emitterAuthority: anchor.web3.Keypair,
+  nonce: number,
+  commitment: anchor.web3.Commitment
+) {
+  const draftMessage = anchor.web3.Keypair.generate();
+  const createIx = await createAccountIx(
+    program.provider.connection,
+    program.programId,
+    payer,
+    draftMessage,
+    95 + messageLen
+  );
+
+  const initIx = await coreBridge.initMessageV1Ix(
+    program,
+    { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
+    { nonce, commitment, cpiProgramId: null }
+  );
+
+  return { draftMessage, createIx, initIx };
+}
+
 async function initAndProcessMessageV1(
   program: coreBridge.CoreBridgeProgram,
   payer: anchor.web3.Keypair,
@@ -147,32 +207,25 @@ async function initAndProcessMessageV1(
 
   const messageLen = payload.length;
 
+  const { draftMessage, createIx, initIx } = await createAndInitMessageV1Ixes(
+    program,
+    payer,
+    messageLen,
+    emitterAuthority,
+    nonce,
+    commitment
+  );
+
   const connection = program.provider.connection;
 
-  const draftMessage = anchor.web3.Keypair.generate();
-  const createIx = await createAccountIx(
-    program.provider.connection,
-    program.programId,
-    payer,
-    draftMessage,
-    95 + payload.length
-  );
-
-  const initIx = await coreBridge.initMessageV1Ix(
-    program,
-    { emitterAuthority: emitterAuthority.publicKey, draftMessage: draftMessage.publicKey },
-    { nonce, commitment, cpiProgramId: null }
-  );
-
   const endAfterInit = 740;
-  const firstProcessIx = await coreBridge.processMessageV1Ix(
+  const firstProcessIx = await coreBridge.writeMessageV1Ix(
     program,
     {
       emitterAuthority: emitterAuthority.publicKey,
       draftMessage: draftMessage.publicKey,
-      closeAccountDestination: null,
     },
-    { write: { index: 0, data: payload.subarray(0, endAfterInit) } }
+    { index: 0, data: payload.subarray(0, endAfterInit) }
   );
 
   if (messageLen > endAfterInit) {
@@ -186,41 +239,30 @@ async function initAndProcessMessageV1(
     for (let start = endAfterInit; start < messageLen; start += chunkSize) {
       const end = Math.min(start + chunkSize, messageLen);
 
-      const writeIx = await coreBridge.processMessageV1Ix(
+      const writeIx = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage: draftMessage.publicKey,
-          closeAccountDestination: null,
         },
-        { write: { index: start, data: payload.subarray(start, end) } }
+        { index: start, data: payload.subarray(start, end) }
       );
 
       if (end == messageLen) {
-        const finalizeIx = await coreBridge.processMessageV1Ix(
-          program,
-          {
-            emitterAuthority: emitterAuthority.publicKey,
-            draftMessage: draftMessage.publicKey,
-            closeAccountDestination: null,
-          },
-          { finalize: {} }
-        );
+        const finalizeIx = await coreBridge.finalizeMessageV1Ix(program, {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage: draftMessage.publicKey,
+        });
         await expectIxOk(connection, [writeIx, finalizeIx], [payer, emitterAuthority]);
       } else {
         await expectIxOk(connection, [writeIx], [payer, emitterAuthority]);
       }
     }
   } else {
-    const finalizeIx = await coreBridge.processMessageV1Ix(
-      program,
-      {
-        emitterAuthority: emitterAuthority.publicKey,
-        draftMessage: draftMessage.publicKey,
-        closeAccountDestination: null,
-      },
-      { finalize: {} }
-    );
+    const finalizeIx = await coreBridge.finalizeMessageV1Ix(program, {
+      emitterAuthority: emitterAuthority.publicKey,
+      draftMessage: draftMessage.publicKey,
+    });
 
     await expectIxOk(
       connection,

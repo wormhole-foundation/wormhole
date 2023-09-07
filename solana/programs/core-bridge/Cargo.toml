@@ -1,7 +1,7 @@
 [package]
 name = "wormhole-core-bridge-solana"
 description = "Wormhole Core Bridge Program for Solana"
-version = "0.0.0-alpha.4"
+version = "0.0.0-alpha.6"
 edition = "2021"
 authors = ["W7"]
 license = "Apache-2.0"
@@ -26,7 +26,7 @@ testnet = []
 
 [dependencies]
 wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "=0.0.0-alpha.7", features = ["ruint", "on-chain"], default-features = false }
+wormhole-raw-vaas = { version = "=0.0.0-alpha.9", features = ["ruint", "on-chain"], default-features = false }
 
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 solana-program = "1.14"

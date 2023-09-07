@@ -5,8 +5,10 @@ import {
   createIfNeeded,
   expectDeepEqual,
   expectIxErr,
+  expectIxOk,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
+import { expect } from "chai";
 
 describe("Core Bridge -- Legacy Instruction: Post Message", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -100,6 +102,76 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         { payer, emitter },
         defaultArgs(),
         new anchor.BN(0)
+      );
+    });
+
+    it("Invoke `post_message` with System program at Index == 8", async () => {
+      const emitter = anchor.web3.Keypair.generate();
+      const message = anchor.web3.Keypair.generate();
+      const forkMessage = anchor.web3.Keypair.generate();
+
+      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
+      const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
+        forkedProgram,
+        payer.publicKey
+      );
+
+      const ix = coreBridge.legacyPostMessageIx(
+        program,
+        { payer: payer.publicKey, message: message.publicKey, emitter: emitter.publicKey },
+        defaultArgs()
+      );
+      expectDeepEqual(ix.keys[7].pubkey, anchor.web3.SystemProgram.programId);
+      ix.keys[7].pubkey = ix.keys[8].pubkey;
+      ix.keys[8].pubkey = anchor.web3.SystemProgram.programId;
+
+      const forkIx = coreBridge.legacyPostMessageIx(
+        forkedProgram,
+        { payer: payer.publicKey, message: forkMessage.publicKey, emitter: emitter.publicKey },
+        defaultArgs()
+      );
+      expectDeepEqual(forkIx.keys[7].pubkey, anchor.web3.SystemProgram.programId);
+      forkIx.keys[7].pubkey = forkIx.keys[8].pubkey;
+      forkIx.keys[8].pubkey = anchor.web3.SystemProgram.programId;
+
+      await expectIxOk(
+        connection,
+        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [payer, emitter, message, forkMessage]
+      );
+    });
+
+    it("Invoke `post_message` with Num Accounts == 8", async () => {
+      const emitter = anchor.web3.Keypair.generate();
+      const message = anchor.web3.Keypair.generate();
+      const forkMessage = anchor.web3.Keypair.generate();
+
+      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
+      const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
+        forkedProgram,
+        payer.publicKey
+      );
+
+      const ix = coreBridge.legacyPostMessageIx(
+        program,
+        { payer: payer.publicKey, message: message.publicKey, emitter: emitter.publicKey },
+        defaultArgs()
+      );
+      expect(ix.keys).has.length(9);
+      ix.keys.pop();
+
+      const forkIx = coreBridge.legacyPostMessageIx(
+        forkedProgram,
+        { payer: payer.publicKey, message: forkMessage.publicKey, emitter: emitter.publicKey },
+        defaultArgs()
+      );
+      expect(forkIx.keys).has.length(9);
+      forkIx.keys.pop();
+
+      await expectIxOk(
+        connection,
+        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [payer, emitter, message, forkMessage]
       );
     });
   });

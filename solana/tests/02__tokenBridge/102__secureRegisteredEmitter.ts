@@ -36,14 +36,10 @@ describe("Token Bridge -- Instruction: Secure Registered Emitter", () => {
         foreignEmitter
       );
 
-      const ix = await tokenBridge.secureRegisteredEmitterIx(
-        program,
-        {
-          payer: payer.publicKey,
-          legacyRegisteredEmitter: legacyRegistered,
-        },
-        { init: {} }
-      );
+      const ix = await tokenBridge.secureRegisteredEmitterIx(program, {
+        payer: payer.publicKey,
+        legacyRegisteredEmitter: legacyRegistered,
+      });
       await expectIxOk(connection, [ix], [payer]);
 
       const registered = tokenBridge.RegisteredEmitter.address(program.programId, CHAIN_ID_ETH);
@@ -66,15 +62,11 @@ describe("Token Bridge -- Instruction: Secure Registered Emitter", () => {
     it("Cannot Invoke `secure_registered_emitter` with Same Registered Emitter", async () => {
       const legacyRegistered = localVariables.get("legacyRegistered") as anchor.web3.PublicKey;
 
-      const ix = await tokenBridge.secureRegisteredEmitterIx(
-        program,
-        {
-          payer: payer.publicKey,
-          legacyRegisteredEmitter: legacyRegistered,
-        },
-        { init: {} }
-      );
-      await expectIxErr(connection, [ix], [payer], "EmitterAlreadyRegistered");
+      const ix = await tokenBridge.secureRegisteredEmitterIx(program, {
+        payer: payer.publicKey,
+        legacyRegisteredEmitter: legacyRegistered,
+      });
+      await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });
 });

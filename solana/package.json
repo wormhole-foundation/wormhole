@@ -10,6 +10,7 @@
     "@solana/spl-token": "^0.3.8",
     "@solana/web3.js": "^1.77.3",
     "ethers": "^5.7.2",
+    "ts-node": "^10.9.1",
     "ts-results": "^3.3.0"
   },
   "devDependencies": {

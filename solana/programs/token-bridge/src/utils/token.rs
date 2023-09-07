@@ -1,36 +1,22 @@
 use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX},
-    error::TokenBridgeError,
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 
-/// With an account meant to be a Token Program mint account, make sure it is not a mint that the
-/// Token Bridge program controls.
-pub fn require_native_mint(mint: &AccountInfo) -> Result<()> {
-    // This may be redundant because this mint account being owned by the Token Program is
-    // associated with either a transfer between two token accounts (which requires that this
-    // account be a valid mint) and deriving metadata PDA to create and update token metadata.
-    require_eq!(
-        *mint.owner,
-        anchor_spl::token::ID,
-        ErrorCode::ConstraintMintTokenProgram
-    );
-
-    // If there is a mint authority, make sure it is not the Token Bridge's mint authority, which
-    // controls burn and mint for its wrapped assets.
-    if let Some(mint_authority) = Mint::parse(&mint.try_borrow_data()?)?.mint_authority() {
+/// Basically check whether the mint authority is the Token Bridge's mint authority.
+///
+/// NOTE: This method does not guarantee that the mint is a mint created by the Token Bridge program
+/// via `create_or_update_wrapped` instruction because someone can transfer mint authority for
+/// another mint to the Token Bridge's mint authority.
+pub fn is_wrapped_mint(mint: &Mint) -> bool {
+    if let Some(mint_authority) = mint.mint_authority() {
         let (token_bridge_mint_authority, _) =
             Pubkey::find_program_address(&[MINT_AUTHORITY_SEED_PREFIX], &crate::ID);
-        require_keys_neq!(
-            mint_authority,
-            token_bridge_mint_authority,
-            TokenBridgeError::WrappedAsset
-        );
+        mint_authority == token_bridge_mint_authority
+    } else {
+        false
     }
-
-    // Done.
-    Ok(())
 }
 
 /// Convenient trait to determine amount truncation for encoded token transfer amounts.

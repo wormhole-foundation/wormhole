@@ -6,60 +6,6 @@ use anchor_lang::prelude::*;
 use solana_program::keccak;
 use wormhole_io::{Readable, Writeable};
 
-/// Representation of VAA versions numbers, where [Unset](VaaVersion::Unset) represents unverified
-/// VAAs in various VAA accounts.
-#[derive(
-    Default, Copy, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace,
-)]
-#[non_exhaustive]
-pub enum VaaVersion {
-    #[default]
-    Unset,
-    V1,
-}
-
-impl VaaVersion {
-    const UNSET: u8 = 0;
-    const V_1: u8 = 1;
-}
-
-impl From<VaaVersion> for u8 {
-    fn from(value: VaaVersion) -> Self {
-        match value {
-            VaaVersion::Unset => VaaVersion::UNSET,
-            VaaVersion::V1 => VaaVersion::V_1,
-        }
-    }
-}
-
-impl Readable for VaaVersion {
-    const SIZE: Option<usize> = Some(VaaVersion::INIT_SPACE);
-
-    fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
-        match u8::read(reader)? {
-            VaaVersion::UNSET => Ok(VaaVersion::Unset),
-            VaaVersion::V_1 => Ok(VaaVersion::V1),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid vaa version",
-            )),
-        }
-    }
-}
-
-impl Writeable for VaaVersion {
-    fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        match self {
-            VaaVersion::Unset => VaaVersion::UNSET.write(writer),
-            VaaVersion::V1 => VaaVersion::V_1.write(writer),
-        }
-    }
-
-    fn written_size(&self) -> usize {
-        VaaVersion::INIT_SPACE
-    }
-}
-
 /// Representation of Solana's commitment levels. This enum is not exhaustive because Wormhole only
 /// considers these two commitment levels in its Guardian observation.
 ///
@@ -240,9 +186,9 @@ impl fmt::Display for MessageHash {
     }
 }
 
-/// This type is kind of silly. But because `PostedMessageV1` has the emitter chain ID as a field,
-/// which is unnecessary since it is always Solana's chain ID, we use this type to guarantee that
-/// the encoded chain ID is always `1`.
+/// This type is kind of silly. But because [PostedMessageV1](crate::state::PostedMessageV1) has the
+/// emitter chain ID as a field, which is unnecessary since it is always Solana's chain ID, we use
+/// this type to guarantee that the encoded chain ID is always `1`.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct ChainIdSolanaOnly {
     chain_id: u16,

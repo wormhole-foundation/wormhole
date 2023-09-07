@@ -15,7 +15,7 @@ import { Config, RegisteredEmitter, custodyAuthorityPda, custodyTokenPda } from 
 export type LegacyCompleteTransferWithPayloadNativeContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  postedVaa?: PublicKey;
+  vaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
   dstToken: PublicKey;
@@ -39,7 +39,7 @@ export function legacyCompleteTransferWithPayloadNativeAccounts(
   let {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -59,8 +59,8 @@ export function legacyCompleteTransferWithPayloadNativeAccounts(
     config = Config.address(programId);
   }
 
-  if (postedVaa === undefined) {
-    postedVaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
+  if (vaa === undefined) {
+    vaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -99,7 +99,7 @@ export function legacyCompleteTransferWithPayloadNativeAccounts(
   return {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -121,7 +121,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
   const {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -145,22 +145,22 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: true,
     },
     {
-      pubkey: config,
+      pubkey: config!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: postedVaa,
+      pubkey: vaa!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: claim,
+      pubkey: claim!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: registeredEmitter,
+      pubkey: registeredEmitter!,
       isWritable: false,
       isSigner: false,
     },
@@ -170,7 +170,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: redeemerAuthority,
+      pubkey: redeemerAuthority!,
       isWritable: false,
       isSigner: true,
     },
@@ -180,7 +180,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyToken,
+      pubkey: custodyToken!,
       isWritable: true,
       isSigner: false,
     },
@@ -190,12 +190,12 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyAuthority,
+      pubkey: custodyAuthority!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: rent!,
       isWritable: false,
       isSigner: false,
     },
@@ -205,12 +205,12 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

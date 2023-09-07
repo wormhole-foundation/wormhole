@@ -1,7 +1,7 @@
 [package]
 name = "wormhole-token-bridge-solana"
 description = "Wormhole Token Bridge Program for Solana"
-version = "0.0.0-alpha.1"
+version = "0.0.0-alpha.2"
 edition = "2021"
 authors = ["W7"]
 license = "Apache-2.0"
@@ -27,7 +27,7 @@ cpi = ["no-entrypoint"]
 
 [dependencies]
 wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "=0.0.0-alpha.7", features = ["on-chain", "ruint"], default-features = false }
+wormhole-raw-vaas = { version = "=0.0.0-alpha.9", features = ["on-chain", "ruint"], default-features = false }
 
 core-bridge-program = { version = "0.0.0-alpha.1", path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }

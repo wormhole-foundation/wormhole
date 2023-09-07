@@ -1,31 +1,15 @@
 import { PublicKey } from "@solana/web3.js";
 import { CoreBridgeProgram } from "../..";
 
-export type ProcessEncodedVaaContext = {
+export type VerifyEncodedVaaV1 = {
   writeAuthority: PublicKey;
   encodedVaa: PublicKey;
-  guardianSet: PublicKey | null;
+  guardianSet: PublicKey;
 };
 
-export type ProcessEncodedVaaDirective =
-  | {
-      closeVaaAccount: {};
-    }
-  | {
-      write: {
-        index: number;
-        data: Buffer;
-      };
-    }
-  | { verifySignaturesV1: {} };
-
-export async function processEncodedVaaIx(
+export async function verifyEncodedVaaV1Ix(
   program: CoreBridgeProgram,
-  accounts: ProcessEncodedVaaContext,
-  directive: ProcessEncodedVaaDirective
+  accounts: VerifyEncodedVaaV1
 ) {
-  return program.methods
-    .processEncodedVaa(directive)
-    .accounts(accounts)
-    .instruction();
+  return program.methods.verifyEncodedVaaV1().accounts(accounts).instruction();
 }

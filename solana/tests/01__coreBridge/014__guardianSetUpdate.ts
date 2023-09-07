@@ -20,9 +20,9 @@ import {
   parallelPostVaa,
   range,
   sleep,
+  GOVERNANCE_EMITTER_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
@@ -59,8 +59,6 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
         label: "claim",
         contextName: "claim",
         errorMsg: "ConstraintSeeds",
-        dataLength: 1,
-        owner: program.programId,
       },
     ];
 
@@ -317,7 +315,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
         connection,
         [sigVerifyIx, verifyIx],
         [payer, signatureSet],
-        "PostVaaGuardianSetExpired"
+        "GuardianSetExpired"
       );
     });
 

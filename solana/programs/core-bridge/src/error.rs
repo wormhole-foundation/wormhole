@@ -53,7 +53,7 @@ pub enum CoreBridgeError {
     GovernanceForAnotherChain = 0x26,
 
     #[msg("InvalidGovernanceVaa")]
-    InvalidGovernanceVaa,
+    InvalidGovernanceVaa = 0x28,
 
     #[msg("InsufficientFees")]
     InsufficientFees = 0x100,
@@ -97,8 +97,8 @@ pub enum CoreBridgeError {
     #[msg("InvalidSigVerifyInstruction")]
     InvalidSigVerifyInstruction = 0x704,
 
-    #[msg("PostVaaGuardianSetExpired")]
-    PostVaaGuardianSetExpired = 0x706,
+    #[msg("GuardianSetExpired")]
+    GuardianSetExpired = 0x706,
 
     #[msg("InvalidGuardianKeyRecovery")]
     InvalidGuardianKeyRecovery = 0x708,
@@ -132,9 +132,6 @@ pub enum CoreBridgeError {
 
     #[msg("InvalidSignature")]
     InvalidSignature = 0x1080,
-
-    #[msg("GuardianSetExpired")]
-    GuardianSetExpired = 0x1090,
 
     #[msg("UnverifiedVaa")]
     UnverifiedVaa = 0x10a0,
@@ -177,6 +174,9 @@ pub enum CoreBridgeError {
 
     #[msg("WriteAuthorityMismatch")]
     WriteAuthorityMismatch = 0x10ba,
+
+    #[msg("PostedVaaPayloadTooLarge")]
+    PostedVaaPayloadTooLarge = 0x10bc,
 
     #[msg("EmitterRequired")]
     EmitterRequired = 0x2000,

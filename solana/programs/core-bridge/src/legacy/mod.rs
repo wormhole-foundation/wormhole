@@ -13,20 +13,27 @@ pub mod state;
 
 pub mod utils;
 
-/// **Integrators: Please use [sdk](mod@crate::sdk) instead of this module.** Methods used to
-/// interact with the Core Bridge Program via CPI.
+/// Collection of methods to interact with the Core Bridge program via CPI. The structs defined in
+/// this module mirror the structs deriving [Accounts](anchor_lang::prelude::Accounts), where each
+/// field is an [AccountInfo]. **Integrators: Please use [sdk](crate::sdk) instead of this module.**
+///
+/// NOTE: This is similar to how [cpi](mod@crate::cpi) is generated via Anchor's
+/// [program][anchor_lang::prelude::program] macro.
 #[cfg(feature = "cpi")]
 pub mod cpi {
-    pub use instruction::PostMessageArgs;
-
     use anchor_lang::prelude::*;
     use solana_program::program::invoke_signed;
 
     use super::*;
 
+    /// Processor to post (publish) a Wormhole message by setting up the message account for
+    /// Guardian observation.
+    ///
+    /// A message is either created beforehand using the new Anchor instruction to process a message
+    /// or is created at this point.
     pub fn post_message<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
-        args: PostMessageArgs,
+        args: instruction::PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message(
@@ -47,15 +54,15 @@ pub mod cpi {
         .map_err(Into::into)
     }
 
-    /// This instruction handler is used to post a new message to the core bridge using an existing
-    /// message account.
+    /// Processor to post (publish) a Wormhole message by setting up the message account for
+    /// Guardian observation. This message account has either been created already or is created in
+    /// this call.
     ///
-    /// The constraints for posting a message using this instruction handler are:
-    /// * Emitter must be the same as the message account's emitter.
-    /// * The new message must be the same size as the existing message's payload.
+    /// If this message account already exists, the emitter must be the same as the one encoded in
+    /// the message and the payload must be the same size.
     pub fn post_message_unreliable<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessageUnreliable<'info>>,
-        args: PostMessageArgs,
+        args: instruction::PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message_unreliable(
@@ -89,7 +96,7 @@ pub mod cpi {
         pub emitter_sequence: AccountInfo<'info>,
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+        /// CHECK: Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
         pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
@@ -108,7 +115,7 @@ pub mod cpi {
         pub emitter_sequence: AccountInfo<'info>,
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+        /// CHECK: Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
         pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,

@@ -21,7 +21,7 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 export type LegacyCompleteTransferWithPayloadWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  postedVaa?: PublicKey;
+  vaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
   dstToken: PublicKey;
@@ -50,7 +50,7 @@ export function legacyCompleteTransferWithPayloadWrappedAccounts(
   let {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -70,8 +70,8 @@ export function legacyCompleteTransferWithPayloadWrappedAccounts(
     config = Config.address(programId);
   }
 
-  if (postedVaa === undefined) {
-    postedVaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
+  if (vaa === undefined) {
+    vaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -118,7 +118,7 @@ export function legacyCompleteTransferWithPayloadWrappedAccounts(
   return {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -146,7 +146,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
   const {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     dstToken,
@@ -177,7 +177,7 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: postedVaa,
+      pubkey: vaa,
       isWritable: false,
       isSigner: false,
     },
@@ -232,12 +232,12 @@ export function legacyCompleteTransferWithPayloadWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

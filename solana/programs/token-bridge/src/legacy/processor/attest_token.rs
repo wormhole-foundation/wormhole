@@ -1,10 +1,9 @@
 use crate::{
-    constants::EMITTER_SEED_PREFIX, legacy::LegacyAttestTokenArgs,
-    processor::post_token_bridge_message, zero_copy::Mint,
+    error::TokenBridgeError, legacy::instruction::LegacyAttestTokenArgs, utils, zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -33,7 +32,7 @@ pub struct AttestToken<'info> {
         bump,
         seeds::program = metadata::Metadata::id()
     )]
-    token_metadata: Box<Account<'info, metadata::MetadataAccount>>,
+    token_metadata: Account<'info, metadata::MetadataAccount>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -44,10 +43,7 @@ pub struct AttestToken<'info> {
     core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
-    #[account(
-        seeds = [EMITTER_SEED_PREFIX],
-        bump,
-    )]
+    /// This PDA address is checked in `post_token_bridge_message`.
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -68,22 +64,7 @@ pub struct AttestToken<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info>
-    core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, LegacyAttestTokenArgs>
-    for AttestToken<'info>
-{
-    const LOG_IX_NAME: &'static str = "LegacyAttestToken";
-
-    const ANCHOR_IX_FN: fn(Context<Self>, LegacyAttestTokenArgs) -> Result<()> = attest_token;
-}
-
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for AttestToken<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for AttestToken<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for AttestToken<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -94,16 +75,16 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for AttestToken<'info> {
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for AttestToken<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {
@@ -117,11 +98,65 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for AttestToken<'info> {
     }
 }
 
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, LegacyAttestTokenArgs>
+    for AttestToken<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyAttestToken";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, LegacyAttestTokenArgs) -> Result<()> = attest_token;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        const NUM_ACCOUNTS: usize = 14;
+        const CORE_BRIDGE_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;
+        const SYSTEM_PROGRAM_IDX: usize = CORE_BRIDGE_PROGRAM_IDX - 1;
+
+        let mut infos = account_infos.to_vec();
+
+        // This check is inclusive because Core Bridge program, System program and Token program can
+        // be in any order.
+        if infos.len() >= NUM_ACCOUNTS {
+            // System program needs to exist in these account infos.
+            let system_program_idx = infos
+                .iter()
+                .position(|info| info.key() == anchor_lang::system_program::ID)
+                .ok_or(error!(ErrorCode::InvalidProgramId))?;
+
+            // Make sure System program is in the right index.
+            if system_program_idx != SYSTEM_PROGRAM_IDX {
+                infos.swap(SYSTEM_PROGRAM_IDX, system_program_idx);
+            }
+
+            // Core Bridge program needs to exist in these account infos.
+            let core_bridge_program_idx = infos
+                .iter()
+                .position(|info| info.key() == core_bridge_program::ID)
+                .ok_or(error!(ErrorCode::InvalidProgramId))?;
+
+            // Make sure Token program is in the right index.
+            if core_bridge_program_idx != CORE_BRIDGE_PROGRAM_IDX {
+                infos.swap(CORE_BRIDGE_PROGRAM_IDX, core_bridge_program_idx);
+            }
+        }
+
+        // Done.
+        Ok(infos)
+    }
+}
+
 impl<'info> AttestToken<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
+
+        Ok(())
     }
 }
 
@@ -130,14 +165,12 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;
-    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
-        .unwrap()
-        .decimals();
+    let decimals = Mint::load(&ctx.accounts.mint).unwrap().decimals();
 
     // Finally post Wormhole message via Core Bridge.
-    post_token_bridge_message(
+    utils::cpi::post_token_bridge_message(
         ctx.accounts,
-        ctx.bumps["core_emitter"],
+        &ctx.accounts.core_message,
         nonce,
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),

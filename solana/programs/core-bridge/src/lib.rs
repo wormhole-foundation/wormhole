@@ -19,10 +19,6 @@ pub mod legacy;
 
 mod processor;
 pub(crate) use processor::*;
-pub use processor::{
-    ClosePostedVaaV1Directive, InitMessageV1Args, PostVaaV1Directive, ProcessEncodedVaaDirective,
-    ProcessMessageV1Directive,
-};
 
 pub mod sdk;
 
@@ -30,9 +26,9 @@ pub mod state;
 
 pub mod types;
 
-pub mod utils;
+pub(crate) mod utils;
 
-pub mod zero_copy;
+pub(crate) mod zero_copy;
 
 use anchor_lang::prelude::*;
 
@@ -44,8 +40,9 @@ pub mod wormhole_core_bridge_solana {
     /// account for writing. The emitter authority is established at this point and the payload size
     /// is inferred from the size of the created account. This instruction handler also allows an
     /// integrator to publish Wormhole messages using his program's ID as the emitter address
-    /// (by passing `Some(crate::ID)` to the `cpi_program_id` argument). **Be aware that the emitter
-    /// authority's seeds must only be [b"emitter"] in this case.**
+    /// (by passing `Some(crate::ID)` to the [cpi_program_id](InitMessageV1Args::cpi_program_id)
+    /// argument). **Be aware that the emitter authority's seeds must only be \[b"emitter"\] in this
+    /// case.**
     ///
     /// This instruction should be followed up with `process_message_v1` to write and finalize the
     /// message account (to prepare it for publishing via the
@@ -58,14 +55,27 @@ pub mod wormhole_core_bridge_solana {
         processor::init_message_v1(ctx, args)
     }
 
+    /// Processor used to write to a draft [PostedMessageV1](crate::state::PostedMessageV1) account.
+    /// This instruction requires an authority (the emitter authority) to interact with the message
+    /// account.
+    pub fn write_message_v1(ctx: Context<WriteMessageV1>, args: WriteMessageV1Args) -> Result<()> {
+        processor::write_message_v1(ctx, args)
+    }
+
+    /// Processor used to finalize a draft [PostedMessageV1](crate::state::PostedMessageV1) account.
+    /// Once finalized, this message account cannot be written to again. A finalized message is the
+    /// only state the legacy post message instruction can accept before publishing. This
+    /// instruction requires an authority (the emitter authority) to interact with the message
+    /// account.
+    pub fn finalize_message_v1(ctx: Context<FinalizeMessageV1>) -> Result<()> {
+        processor::finalize_message_v1(ctx)
+    }
+
     /// Processor used to process a draft [PostedMessageV1](crate::state::PostedMessageV1) account.
     /// This instruction requires an authority (the emitter authority) to interact with the message
     /// account.
-    pub fn process_message_v1(
-        ctx: Context<ProcessMessageV1>,
-        directive: ProcessMessageV1Directive,
-    ) -> Result<()> {
-        processor::process_message_v1(ctx, directive)
+    pub fn close_message_v1(ctx: Context<CloseMessageV1>) -> Result<()> {
+        processor::close_message_v1(ctx)
     }
 
     /// Processor used to intialize a created account as [EncodedVaa](crate::state::EncodedVaa). An
@@ -74,14 +84,27 @@ pub mod wormhole_core_bridge_solana {
         processor::init_encoded_vaa(ctx)
     }
 
-    /// Processor used to process an [EncodedVaa](crate::state::EncodedVaa) account. This
+    /// Processor used to close an [EncodedVaa](crate::state::EncodedVaa). This instruction requires
+    /// an authority (the write authority) to interact witht he encoded VAA account.
+    pub fn close_encoded_vaa(ctx: Context<CloseEncodedVaa>) -> Result<()> {
+        processor::close_encoded_vaa(ctx)
+    }
+
+    /// Processor used to write to an [EncodedVaa](crate::state::EncodedVaa) account. This
     /// instruction requires an authority (the write authority) to interact with the encoded VAA
     /// account.
-    pub fn process_encoded_vaa(
-        ctx: Context<ProcessEncodedVaa>,
-        directive: ProcessEncodedVaaDirective,
+    pub fn write_encoded_vaa(
+        ctx: Context<WriteEncodedVaa>,
+        args: WriteEncodedVaaArgs,
     ) -> Result<()> {
-        processor::process_encoded_vaa(ctx, directive)
+        processor::write_encoded_vaa(ctx, args)
+    }
+
+    /// Processor used to verify an [EncodedVaa](crate::state::EncodedVaa) account as a version 1
+    /// VAA (guardian signatures attesting to this observation). This instruction requires an
+    /// authority (the write authority) to interact with the encoded VAA account.
+    pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
+        processor::verify_encoded_vaa_v1(ctx)
     }
 
     /// Processor used to close an [EncodedVaa](crate::state::EncodedVaa) account to create a
@@ -90,18 +113,15 @@ pub mod wormhole_core_bridge_solana {
     /// NOTE: Because the legacy verify signatures instruction was not required for the Posted VAA
     /// account to exist, the encoded [SignatureSet](crate::state::SignatureSet) is the default
     /// [Pubkey].
-    pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Result<()> {
-        processor::post_vaa_v1(ctx, directive)
+    pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
+        processor::post_vaa_v1(ctx)
     }
 
     /// Processor used to close a [PostedMessageV1](crate::state::PostedMessageV1) account. If a
     /// [SignatureSet](crate::state::SignatureSet) were used to verify the VAA, that account will be
     /// closed, too.
-    pub fn close_posted_vaa_v1(
-        ctx: Context<ClosePostedVaaV1>,
-        directive: ClosePostedVaaV1Directive,
-    ) -> Result<()> {
-        processor::close_posted_vaa_v1(ctx, directive)
+    pub fn close_posted_vaa_v1(ctx: Context<ClosePostedVaaV1>) -> Result<()> {
+        processor::close_posted_vaa_v1(ctx)
     }
 
     /// Process legacy Core Bridge instructions. See [legacy](crate::legacy) for more info.

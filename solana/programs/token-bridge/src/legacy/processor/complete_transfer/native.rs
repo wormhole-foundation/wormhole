@@ -1,16 +1,11 @@
 use crate::{
-    constants::CUSTODY_AUTHORITY_SEED_PREFIX,
-    error::TokenBridgeError,
-    legacy::EmptyArgs,
-    processor::withdraw_native_tokens,
-    state::{Claim, RegisteredEmitter},
-    zero_copy::Mint,
+    constants::CUSTODY_AUTHORITY_SEED_PREFIX, error::TokenBridgeError,
+    legacy::instruction::EmptyArgs, state::RegisteredEmitter, utils, zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
-    zero_copy::PostedVaaV1,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, LoadZeroCopy},
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
@@ -22,29 +17,15 @@ pub struct CompleteTransferNative<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program
-    )]
-    posted_vaa: AccountInfo<'info>,
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    vaa: AccountInfo<'info>,
 
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -53,8 +34,8 @@ pub struct CompleteTransferNative<'info> {
     /// allows registering multiple emitter addresses for the same chain ID. These seeds are not
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
-    /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
+    /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
     /// can be sure that this token account is the same mint since the Token Program transfer
@@ -104,37 +85,68 @@ pub struct CompleteTransferNative<'info> {
     recipient: Option<AccountInfo<'info>>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for CompleteTransferNative<'info>
+{
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+}
+
+impl<'info> utils::cpi::Transfer<'info> for CompleteTransferNative<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
+    fn from(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_token.to_account_info())
+    }
+
+    fn authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_authority.to_account_info())
+    }
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     for CompleteTransferNative<'info>
 {
-    const LOG_IX_NAME: &'static str = "LegacCompleteTransferNative";
+    const LOG_IX_NAME: &'static str = "LegacyCompleteTransferNative";
 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = complete_transfer_native;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_complete_transfer_account_infos(account_infos)
+    }
 }
 
 impl<'info> CompleteTransferNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
+        let payer_token_account = crate::zero_copy::TokenAccount::load(&ctx.accounts.payer_token)?;
         require_keys_eq!(
-            crate::zero_copy::TokenAccount::parse(&ctx.accounts.payer_token.try_borrow_data()?)?
-                .owner(),
+            payer_token_account.owner(),
             ctx.accounts.payer.key(),
             ErrorCode::ConstraintTokenOwner
         );
 
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)?;
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
 
-        let vaa = &ctx.accounts.posted_vaa;
-        let vaa_key = vaa.key();
-        let acc_data = vaa.try_borrow_data()?;
-        let transfer = super::validate_posted_token_transfer(
-            &vaa_key,
-            &acc_data,
+        let (token_chain, token_address) = super::validate_token_transfer_vaa(
+            &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
             &ctx.accounts.recipient,
@@ -142,15 +154,15 @@ impl<'info> CompleteTransferNative<'info> {
 
         // For native transfers, this mint must have been created on Solana.
         require_eq!(
-            transfer.token_chain(),
-            SOLANA_CHAIN,
+            token_chain,
+            core_bridge_sdk::SOLANA_CHAIN,
             TokenBridgeError::WrappedAsset
         );
 
         // Mint account must agree with the encoded token address.
-        require_eq!(
+        require_keys_eq!(
             ctx.accounts.mint.key(),
-            Pubkey::from(transfer.token_address()),
+            Pubkey::from(token_address),
             TokenBridgeError::InvalidMint
         );
 
@@ -161,18 +173,17 @@ impl<'info> CompleteTransferNative<'info> {
 
 #[access_control(CompleteTransferNative::constraints(&ctx))]
 fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
-    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let transfer = msg.transfer().unwrap();
 
-    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
-        .unwrap()
-        .decimals();
+    let decimals = Mint::load(&ctx.accounts.mint).unwrap().decimals();
 
     // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these
@@ -189,14 +200,14 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
         .unwrap();
 
     // Save references to these accounts to be used later.
-    let token_program = &ctx.accounts.token_program;
-    let custody_token = &ctx.accounts.custody_token;
-    let custody_authority = &ctx.accounts.custody_authority;
     let recipient_token = &ctx.accounts.recipient_token;
     let payer_token = &ctx.accounts.payer_token;
 
     // Custody authority is who has the authority to transfer tokens from the custody account.
-    let custody_authority_bump = ctx.bumps["custody_authority"];
+    let custody_authority_seeds = &[
+        CUSTODY_AUTHORITY_SEED_PREFIX,
+        &[ctx.bumps["custody_authority"]],
+    ];
 
     // If there is a payout to the relayer and the relayer's token account differs from the transfer
     // recipient's, we have to make an extra transfer.
@@ -205,23 +216,19 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
         // total outbound transfer transfer_amount.
         transfer_amount -= relayer_payout;
 
-        withdraw_native_tokens(
-            token_program,
-            custody_token,
+        utils::cpi::transfer(
+            ctx.accounts,
             payer_token,
-            custody_authority,
-            custody_authority_bump,
             relayer_payout,
+            Some(&[custody_authority_seeds]),
         )?;
     }
 
     // Finally transfer remaining transfer_amount to recipient.
-    withdraw_native_tokens(
-        token_program,
-        custody_token,
+    utils::cpi::transfer(
+        ctx.accounts,
         recipient_token,
-        custody_authority,
-        custody_authority_bump,
         transfer_amount,
+        Some(&[custody_authority_seeds]),
     )
 }

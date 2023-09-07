@@ -521,7 +521,6 @@ name = "core-bridge-hello-world"
 version = "0.0.0"
 dependencies = [
  "anchor-lang",
- "anchor-spl",
  "wormhole-core-bridge-solana",
 ]
 
@@ -1998,6 +1997,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "token-bridge-hello-world"
+version = "0.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "wormhole-token-bridge-solana",
+]
+
+[[package]]
 name = "toml"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2251,7 +2259,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-core-bridge-solana"
-version = "0.0.0-alpha.4"
+version = "0.0.0-alpha.6"
 dependencies = [
  "anchor-lang",
  "cfg-if",
@@ -2280,9 +2288,9 @@ dependencies = [
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.0-alpha.7"
+version = "0.0.0-alpha.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1a069e2dd4b3db0899b5e2284d866ada874952c9c64cede1011d11dc839231d"
+checksum = "0dc5314e1f430f0a77fedb578fdb1cd6dfe830673f2b51497a5cf77902883c00"
 dependencies = [
  "ruint",
  "ruint-macro",
@@ -2290,7 +2298,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-token-bridge-solana"
-version = "0.0.0-alpha.1"
+version = "0.0.0-alpha.2"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

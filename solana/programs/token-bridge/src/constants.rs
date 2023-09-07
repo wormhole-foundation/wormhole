@@ -1,3 +1,6 @@
+//! Constants used by the Token Bridge Program. For integrators, necessary constants are re-exported
+//! in the [sdk](crate::sdk) module.
+
 use anchor_lang::prelude::constant;
 
 /// Seed for upgrade authority.
@@ -39,6 +42,8 @@ pub const PROGRAM_REDEEMER_SEED_PREFIX: &[u8] = b"redeemer";
 /// asset amounts to a normalized amount to be encoded in Token Bridge transfers.
 #[constant]
 pub const MAX_DECIMALS: u8 = 8;
+
+pub(crate) const GOVERNANCE_CHAIN: u16 = 1;
 
 pub(crate) const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,

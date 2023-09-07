@@ -1,12 +1,11 @@
 use crate::{
-    constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
+    constants::{TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
-    legacy::TransferTokensArgs,
-    processor::{burn_wrapped_tokens, post_token_bridge_message},
-    state::WrappedAsset,
+    legacy::instruction::TransferTokensArgs,
+    state::LegacyWrappedAsset,
+    utils,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{legacy::utils::LegacyAnchorized, sdk as core_bridge_sdk};
 use ruint::aliases::U256;
 
@@ -39,11 +38,15 @@ pub struct TransferTokensWrapped<'info> {
     )]
     wrapped_mint: AccountInfo<'info>,
 
+    /// Wrapped asset account, which is deserialized as its legacy representation. The latest
+    /// version has an additional field (sequence number), which may not deserialize if wrapped
+    /// metadata were not attested again to realloc this account. So we must deserialize this as the
+    /// legacy representation.
     #[account(
-        seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
-        bump
+        seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
+        bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
+    wrapped_asset: Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -62,10 +65,7 @@ pub struct TransferTokensWrapped<'info> {
     core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
-    #[account(
-        seeds = [EMITTER_SEED_PREFIX],
-        bump,
-    )]
+    /// This PDA address is checked in `post_token_bridge_message`.
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -83,26 +83,31 @@ pub struct TransferTokensWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+    token_program: Program<'info, anchor_spl::token::Token>,
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
-    token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, TransferTokensArgs>
-    for TransferTokensWrapped<'info>
-{
-    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWrapped";
+impl<'info> utils::cpi::Burn<'info> for TransferTokensWrapped<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
 
-    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensArgs) -> Result<()> =
-        transfer_tokens_wrapped;
-}
+    fn mint(&self) -> AccountInfo<'info> {
+        self.wrapped_mint.to_account_info()
+    }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferTokensWrapped<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
+    fn from(&self) -> Option<AccountInfo<'info>> {
+        Some(self.src_token.to_account_info())
+    }
+
+    fn authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.transfer_authority.to_account_info())
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for TransferTokensWrapped<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -113,16 +118,16 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWrapped
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWrapped<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {
@@ -136,12 +141,26 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWrappe
     }
 }
 
+impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, TransferTokensArgs>
+    for TransferTokensWrapped<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWrapped";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensArgs) -> Result<()> =
+        transfer_tokens_wrapped;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_transfer_tokens_account_infos(account_infos)
+    }
+}
+
 impl<'info> TransferTokensWrapped<'info> {
     fn constraints(args: &TransferTokensArgs) -> Result<()> {
         // Cannot configure a fee greater than the total transfer amount.
-        require_gte!(
-            args.amount,
-            args.relayer_fee,
+        require!(
+            args.relayer_fee <= args.amount,
             TokenBridgeError::InvalidRelayerFee
         );
 
@@ -164,13 +183,13 @@ fn transfer_tokens_wrapped(
     } = args;
 
     // Burn wrapped assets from the sender's account.
-    burn_wrapped_tokens(
-        &ctx.accounts.token_program,
-        &ctx.accounts.wrapped_mint,
-        &ctx.accounts.src_token,
-        &ctx.accounts.transfer_authority,
-        ctx.bumps["transfer_authority"],
+    utils::cpi::burn(
+        ctx.accounts,
         amount,
+        Some(&[&[
+            TRANSFER_AUTHORITY_SEED_PREFIX,
+            &[ctx.bumps["transfer_authority"]],
+        ]]),
     )?;
 
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
@@ -186,9 +205,9 @@ fn transfer_tokens_wrapped(
     };
 
     // Finally publish Wormhole message using the Core Bridge.
-    post_token_bridge_message(
+    utils::cpi::post_token_bridge_message(
         ctx.accounts,
-        ctx.bumps["core_emitter"],
+        &ctx.accounts.core_message,
         nonce,
         token_transfer,
     )

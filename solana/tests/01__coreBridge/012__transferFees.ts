@@ -2,7 +2,6 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { expectIxOk } from "../../old-tests/helpers";
 import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
@@ -13,9 +12,10 @@ import {
   expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
+  expectIxOk,
+  GOVERNANCE_EMITTER_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;
@@ -51,8 +51,6 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
         label: "claim",
         contextName: "claim",
         errorMsg: "ConstraintSeeds",
-        dataLength: 1,
-        owner: program.programId,
       },
     ];
 
@@ -94,7 +92,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
         forkedProgram,
         {
           payer: payer.publicKey,
-          recipient: recipient,
+          recipient,
         },
         new anchor.BN(amount),
         payer
@@ -122,20 +120,32 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
 
       // Save the signed VAA for later.
+      localVariables.set("amount", amount);
       localVariables.set("signedVaa", signedVaa);
+      localVariables.set("recipient", recipient);
     });
   });
 
   describe("New implementation", () => {
     it("Cannot Invoke `transfer_fees` with Same VAA", async () => {
+      const amount = localVariables.get("amount") as number;
       const signedVaa = localVariables.get("signedVaa") as Buffer;
+      const recipient = localVariables.get("recipient") as anchor.web3.PublicKey;
+
+      const transferIx = anchor.web3.SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: coreBridge.feeCollectorPda(program.programId),
+        lamports: amount,
+      });
+      //await expectIxOk(connection, [transferIx], [payer]);
 
       await expectIxErr(
         connection,
         [
+          transferIx,
           coreBridge.legacyTransferFeesIx(
             program,
-            { payer: payer.publicKey, recipient: anchor.web3.Keypair.generate().publicKey },
+            { payer: payer.publicKey, recipient },
             parseVaa(signedVaa)
           ),
         ],

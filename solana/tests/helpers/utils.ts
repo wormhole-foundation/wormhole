@@ -33,8 +33,7 @@ import { Err, Ok } from "ts-results";
 import { ethers } from "ethers";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
-import { createSecp256k1Instruction } from "./";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../../old-tests/helpers";
+import { createSecp256k1Instruction, GOVERNANCE_EMITTER_ADDRESS } from "./";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -450,14 +449,13 @@ export async function processVaa(
   });
 
   const endAfterInit = 840;
-  const firstProcessIx = await coreBridge.processEncodedVaaIx(
+  const firstProcessIx = await coreBridge.writeEncodedVaaIx(
     program,
     {
       writeAuthority: payer.publicKey,
       encodedVaa: encodedVaa.publicKey,
-      guardianSet: null,
     },
-    { write: { index: 0, data: signedVaa.subarray(0, endAfterInit) } }
+    { index: 0, data: signedVaa.subarray(0, endAfterInit) }
   );
 
   if (vaaLen > endAfterInit) {
@@ -471,27 +469,22 @@ export async function processVaa(
     for (let start = endAfterInit; start < vaaLen; start += chunkSize) {
       const end = Math.min(start + chunkSize, vaaLen);
 
-      const writeIx = await coreBridge.processEncodedVaaIx(
+      const writeIx = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: payer.publicKey,
           encodedVaa: encodedVaa.publicKey,
-          guardianSet: null,
         },
-        { write: { index: start, data: signedVaa.subarray(start, end) } }
+        { index: start, data: signedVaa.subarray(start, end) }
       );
 
       if (verify && end === vaaLen) {
         const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
-        const verifyIx = await coreBridge.processEncodedVaaIx(
-          program,
-          {
-            writeAuthority: payer.publicKey,
-            encodedVaa: encodedVaa.publicKey,
-            guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
-          },
-          { verifySignaturesV1: {} }
-        );
+        const verifyIx = await coreBridge.verifyEncodedVaaV1Ix(program, {
+          writeAuthority: payer.publicKey,
+          encodedVaa: encodedVaa.publicKey,
+          guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
+        });
         await expectIxOk(connection, [computeIx, writeIx, verifyIx], [payer]);
       } else {
         await expectIxOk(connection, [writeIx], [payer]);
@@ -499,15 +492,11 @@ export async function processVaa(
     }
   } else if (verify) {
     const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 420_000 });
-    const verifyIx = await coreBridge.processEncodedVaaIx(
-      program,
-      {
-        writeAuthority: payer.publicKey,
-        encodedVaa: encodedVaa.publicKey,
-        guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
-      },
-      { verifySignaturesV1: {} }
-    );
+    const verifyIx = await coreBridge.verifyEncodedVaaV1Ix(program, {
+      writeAuthority: payer.publicKey,
+      encodedVaa: encodedVaa.publicKey,
+      guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
+    });
 
     await expectIxOk(
       program.provider.connection,

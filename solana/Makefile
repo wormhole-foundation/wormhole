@@ -5,9 +5,12 @@ out_mainnet=artifacts-mainnet
 out_testnet=artifacts-testnet
 out_localnet=artifacts-localnet
 
-.PHONY: all clean check build test lint
+.PHONY: all clean check build test lint prune_idl ci
 
 all: check
+
+check:
+	cargo check --all-features
 
 clean:
 	anchor clean
@@ -16,6 +19,9 @@ clean:
 node_modules:
 	npm ci
 
+prune_idl: scripts/prune_idl_types.ts
+	cd scripts && npx ts-node prune_idl_types.ts
+
 build: $(out_$(NETWORK))
 $(out_$(NETWORK)):
 ifdef out_$(NETWORK)
@@ -23,18 +29,21 @@ ifdef out_$(NETWORK)
 	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features "$(NETWORK)" -- --no-default-features
 	mkdir -p $(out_$(NETWORK))
 	cp target/deploy/*.so $(out_$(NETWORK))/
+	$(MAKE) prune_idl
 endif
 
 test: node_modules
-	cargo test
+	cargo test --all-features
 	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	mkdir -p tests/artifacts && cp target/deploy/*.so tests/artifacts/
-	anchor test --arch sbf -- --features localnet -- --no-default-features
+	anchor build --arch sbf -- --features localnet -- --no-default-features
+	$(MAKE) prune_idl
+	anchor test --skip-build
 
 lint:
 	cargo fmt --check
-	cargo clippy --no-deps --all-targets -- -D warnings
+	cargo clippy --no-deps --all-targets --all-features -- -D warnings
 
 ci:
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile.ci \

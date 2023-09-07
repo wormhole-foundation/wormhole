@@ -71,7 +71,6 @@ describe("Mock CPI -- Core Bridge", () => {
       const txDetails = await expectIxOkDetails(connection, [ix], [payer]);
 
       const messageData = await coreBridge.PostedMessageV1.fromAccountAddress(connection, message);
-      console.log("messageData", messageData);
       expectDeepEqual(messageData, {
         consistencyLevel: 32,
         emitterAuthority: anchor.web3.PublicKey.default,

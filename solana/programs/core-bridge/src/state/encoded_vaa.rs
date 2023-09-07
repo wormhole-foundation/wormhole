@@ -1,8 +1,9 @@
 use std::ops::Deref;
 
-use crate::{error::CoreBridgeError, types::VaaVersion};
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::Vaa;
+
+use crate::error::CoreBridgeError;
 
 /// Encoded VAA's processing status.
 #[derive(
@@ -26,16 +27,36 @@ pub struct Header {
     pub status: ProcessingStatus,
     /// The authority that has write privilege to this account.
     pub write_authority: Pubkey,
-    /// VAA version. Only when the VAA is verified is this version set to something that is not
-    /// [Unset](VaaVersion::Unset).
-    pub version: VaaVersion,
+    /// VAA version. Only when the VAA is verified is this version set to a value.
+    pub version: u8,
+}
+
+/// Representation of VAA versions.
+#[non_exhaustive]
+pub enum VaaVersion<'a> {
+    V1(Vaa<'a>),
+}
+
+impl<'a> VaaVersion<'a> {
+    pub fn v1(&'a self) -> Option<&'a Vaa<'a>> {
+        match self {
+            Self::V1(inner) => Some(inner),
+        }
+    }
+}
+
+impl<'a> AsRef<[u8]> for VaaVersion<'a> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            Self::V1(inner) => inner.as_ref(),
+        }
+    }
 }
 
 /// Account used to warehouse VAA buffer.
 ///
 /// NOTE: This account should not be used by an external application unless the header's status is
-/// `Verified`. It is encouraged to use the `EncodedVaa` zero-copy account struct instead. See
-/// [zero_copy](mod@crate::zero_copy) for more info.
+/// `Verified`. It is encouraged to use the `EncodedVaa` zero-copy account struct instead.
 #[account]
 #[derive(Debug, PartialEq, Eq)]
 pub struct EncodedVaa {
@@ -47,18 +68,17 @@ pub struct EncodedVaa {
 
 impl EncodedVaa {
     /// Index of the first byte of the VAA buffer.
-    pub(crate) const BYTES_START: usize = 8 // DISCRIMINATOR
+    pub(crate) const VAA_START: usize = 8 // DISCRIMINATOR
         + crate::state::Header::INIT_SPACE
         + 4 // bytes.len()
     ;
 
-    /// Return VAA as zero-copy reader.
-    pub fn v1(&self) -> Result<Vaa> {
-        require!(
-            self.header.version == VaaVersion::V1,
-            CoreBridgeError::InvalidVaaVersion
-        );
-        Ok(Vaa::parse(&self.buf).unwrap())
+    /// Return as [VaaVersion] if the version number is valid.
+    pub fn as_vaa(&self) -> Result<VaaVersion> {
+        match self.version {
+            1 => Ok(VaaVersion::V1(Vaa::parse(&self.buf).unwrap())),
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
     }
 }
 

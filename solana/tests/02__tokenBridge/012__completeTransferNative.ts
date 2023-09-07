@@ -7,6 +7,7 @@ import {
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import {
+  TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
@@ -19,11 +20,14 @@ import {
   MINT_INFO_9,
   MintInfo,
   createAssociatedTokenAccountOffCurve,
+  expectDeepEqual,
   expectIxErr,
+  expectIxOk,
   expectIxOkDetails,
   getTokenBalances,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
+  processVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
@@ -35,6 +39,8 @@ const dummyTokenBridge = new MockTokenBridge(
   0
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+const localVariables = new Map<string, any>();
 
 describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -50,6 +56,90 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
   const mints: MintInfo[] = [MINT_INFO_8, MINT_INFO_9];
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 11,
+      },
+      { name: "Token", pubkey: TOKEN_PROGRAM_ID, forkPubkey: TOKEN_PROGRAM_ID, idx: 12 },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 13,
+      },
+    ];
+
+    const possibleIndices = [10, 11, 12, 13];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`complete_transfer_native\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const { mint } = MINT_INFO_8;
+          const recipient = anchor.web3.Keypair.generate();
+          const recipientToken = await getOrCreateAssociatedTokenAccount(
+            connection,
+            payer,
+            mint,
+            recipient.publicKey
+          );
+
+          const amount = new anchor.BN(10);
+          const signedVaa = getSignedTransferVaa(
+            mint,
+            BigInt(amount.toString()),
+            BigInt(0),
+            recipientToken.address
+          );
+
+          // Process the VAA for the new implementation.
+          const encodedVaa = await processVaa(
+            tokenBridge.getCoreBridgeProgram(program),
+            payer,
+            signedVaa,
+            GUARDIAN_SET_INDEX
+          );
+
+          // And post the VAA.
+          const parsed = await parallelPostVaa(connection, payer, signedVaa);
+          const ix = tokenBridge.legacyCompleteTransferNativeIx(
+            program,
+            {
+              payer: payer.publicKey,
+              vaa: encodedVaa,
+              recipientToken: recipientToken.address,
+              mint,
+            },
+            parsed
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkedIx = tokenBridge.legacyCompleteTransferNativeIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              recipientToken: recipientToken.address,
+              mint,
+            },
+            parsed
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await expectIxOk(connection, [ix, forkedIx], [payer]);
+        });
+      }
+    }
+
     for (const { mint, decimals } of mints) {
       it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, No Fee)`, async () => {
         // Create recipient token account.
@@ -104,6 +194,11 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
             fee * BigInt(10 ** (decimals - 8))
           ),
         ]);
+
+        // Save for later
+        localVariables.set(`signedVaa${decimals}`, signedVaa);
+        localVariables.set(`recipientToken${decimals}`, recipientToken.address);
+        localVariables.set(`mint${decimals}`, mint);
       });
 
       it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, With Fee)`, async () => {
@@ -250,6 +345,41 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
   });
 
   describe("New Implementation", () => {
+    it("Cannot Invoke `complete_transfer_native` on Same VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa9") as Buffer;
+      const recipientToken = localVariables.get("recipientToken9") as anchor.web3.PublicKey;
+      const mint = localVariables.get("mint9") as anchor.web3.PublicKey;
+
+      const ix = tokenBridge.legacyCompleteTransferNativeIx(
+        program,
+        { payer: payer.publicKey, recipientToken, mint },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Cannot Invoke `complete_transfer_native` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa9") as Buffer;
+      const recipientToken = localVariables.get("recipientToken9") as anchor.web3.PublicKey;
+      const mint = localVariables.get("mint9") as anchor.web3.PublicKey;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCompleteTransferNativeIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa, recipientToken, mint },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
     for (const { mint, decimals } of mints) {
       it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address with Rent Sysvar)`, async () => {
         // Create recipient token account.

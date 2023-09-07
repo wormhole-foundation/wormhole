@@ -1,7 +1,8 @@
 use crate::{
     error::CoreBridgeError,
     legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
-    state::{Config, EmitterSequence, PostedMessageV1Unreliable},
+    state::{Config, EmitterSequence, PostedMessageV1Data, PostedMessageV1Unreliable},
+    zero_copy::LoadZeroCopy,
 };
 use anchor_lang::prelude::*;
 
@@ -51,7 +52,6 @@ pub struct PostMessageUnreliable<'info> {
     /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
     /// last lamports on this account.
     #[account(
-        mut,
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
@@ -61,9 +61,6 @@ pub struct PostMessageUnreliable<'info> {
     _clock: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-
-    /// CHECK: Previously needed sysvar.
-    _rent: UncheckedAccount<'info>,
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>
@@ -72,7 +69,14 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
     const LOG_IX_NAME: &'static str = "LegacyPostMessageUnreliable";
 
     const ANCHOR_IX_FN: fn(Context<Self>, PostMessageArgs) -> Result<()> = post_message_unreliable;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_post_message_account_infos(account_infos)
+    }
 }
+
 impl<'info> PostMessageUnreliable<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let msg = &ctx.accounts.message;
@@ -92,10 +96,12 @@ impl<'info> PostMessageUnreliable<'info> {
     }
 }
 
-/// Processor to post (publish) a Wormhole message by setting up the message account for Guardian
-/// observation. This message account has either been created already or is created in this call. If
-/// this message was already created, the emitter must be the same as the one encoded in the message
-/// and the payload must be the same size.
+/// Processor to post (publish) a Wormhole message by setting up the message account for
+/// Guardian observation. This message account has either been created already or is created in
+/// this call.
+///
+/// If this message account already exists, the emitter must be the same as the one encoded in
+/// the message and the payload must be the same size.
 #[access_control(PostMessageUnreliable::constraints(&ctx))]
 fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,
@@ -113,24 +119,23 @@ fn post_message_unreliable(
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let data = super::new_posted_message_data(
+    let info = super::new_posted_message_info(
         &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
         &ctx.accounts.emitter.key(),
-        payload,
     )?;
 
     // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
     // able to remove this to save on compute units.
-    msg!("Sequence: {}", data.sequence);
+    msg!("Sequence: {}", info.sequence);
 
     // Finally set the `message` account with posted data.
     ctx.accounts
         .message
-        .set_inner(PostedMessageV1Unreliable { data }.into());
+        .set_inner(PostedMessageV1Unreliable::from(PostedMessageV1Data { info, payload }).into());
 
     // Done.
     Ok(())
@@ -142,18 +147,22 @@ fn post_message_unreliable(
 /// payload. Instead of reverting with `ConstraintSpace`, we revert with a custom Core Bridge error
 /// saying that the payload size does not match the existing one (which is a requirement to reuse
 /// this message account).
-fn try_compute_size(message: &AccountInfo, payload_size: u32) -> Result<usize> {
+fn try_compute_size(msg_acc_info: &AccountInfo, payload_size: u32) -> Result<usize> {
     let payload_size = usize::try_from(payload_size).unwrap();
 
-    if !message.data_is_empty() {
-        let expected_size =
-            crate::zero_copy::PostedMessageV1Unreliable::parse(&message.data.borrow())?
-                .payload_size();
-        require_eq!(
-            payload_size,
-            expected_size,
-            CoreBridgeError::PayloadSizeMismatch
-        );
+    if !msg_acc_info.data_is_empty() {
+        let msg = crate::zero_copy::MessageAccount::load(msg_acc_info)?;
+
+        match msg.v1_unreliable() {
+            Some(inner) => {
+                require_eq!(
+                    payload_size,
+                    inner.payload_size(),
+                    CoreBridgeError::PayloadSizeMismatch
+                )
+            }
+            _ => return err!(ErrorCode::AccountDidNotDeserialize),
+        }
     }
 
     Ok(PostedMessageV1Unreliable::compute_size(payload_size))

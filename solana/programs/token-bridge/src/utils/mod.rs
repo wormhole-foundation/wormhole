@@ -1,3 +1,5 @@
+pub(crate) mod cpi;
+
 mod token;
 pub use token::*;
 
@@ -19,7 +21,11 @@ pub fn new_sender_address(
                 &[crate::constants::PROGRAM_SENDER_SEED_PREFIX],
                 &program_id,
             );
-            require_eq!(sender_authority.key(), expected_authority);
+            require_eq!(
+                sender_authority.key(),
+                expected_authority,
+                crate::error::TokenBridgeError::InvalidProgramSender
+            );
             Ok(program_id)
         }
         None => Ok(sender_authority.key()),

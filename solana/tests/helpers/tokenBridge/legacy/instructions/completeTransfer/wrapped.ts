@@ -21,7 +21,7 @@ import {
 export type LegacyCompleteTransferWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  postedVaa?: PublicKey;
+  vaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
   recipientToken: PublicKey;
@@ -58,7 +58,7 @@ export function legacyCompleteTransferWrappedAccounts(
   let {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -78,8 +78,8 @@ export function legacyCompleteTransferWrappedAccounts(
     config = Config.address(programId);
   }
 
-  if (postedVaa === undefined) {
-    postedVaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
+  if (vaa === undefined) {
+    vaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -128,7 +128,7 @@ export function legacyCompleteTransferWrappedAccounts(
   return {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -160,7 +160,7 @@ export function legacyCompleteTransferWrappedIx(
   const {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -187,7 +187,7 @@ export function legacyCompleteTransferWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: postedVaa,
+      pubkey: vaa,
       isWritable: false,
       isSigner: false,
     },
@@ -237,12 +237,12 @@ export function legacyCompleteTransferWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

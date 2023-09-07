@@ -7,39 +7,38 @@ pub use wrapped::*;
 use crate::{error::TokenBridgeError, legacy::state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, LoadZeroCopy},
 };
-use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, TransferWithMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
-pub fn validate_posted_token_transfer_with_payload<'ctx>(
-    vaa_acc_key: &'ctx Pubkey,
-    vaa_acc_data: &'ctx [u8],
-    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
-    redeemer_authority: &'ctx Signer<'_>,
-    dst_token: &'ctx AccountInfo<'_>,
-) -> Result<TransferWithMessage<'ctx>> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
-    let msg =
-        crate::utils::require_valid_posted_token_bridge_vaa(vaa_acc_key, &vaa, registered_emitter)?;
+pub fn validate_token_transfer_with_payload_vaa(
+    vaa_acc_info: &AccountInfo,
+    registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
+    redeemer_authority: &Signer,
+    dst_token: &AccountInfo,
+) -> Result<(u16, [u8; 32])> {
+    let vaa_key = vaa_acc_info.key();
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let msg = crate::utils::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
-    let transfer = match msg {
-        TokenBridgeMessage::TransferWithMessage(inner) => inner,
-        _ => return err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    let transfer = if let TokenBridgeMessage::TransferWithMessage(inner) = msg {
+        inner
+    } else {
+        return err!(TokenBridgeError::InvalidTokenBridgeVaa);
     };
 
     // This token bridge transfer must be intended to be redeemed on Solana.
     require_eq!(
         transfer.redeemer_chain(),
-        SOLANA_CHAIN,
+        core_bridge_sdk::SOLANA_CHAIN,
         TokenBridgeError::RedeemerChainNotSolana
     );
 
     // The encoded transfer recipient can either be the signer of this instruction or a
     // program whose signer is a PDA using the seeds [b"redeemer"] (and the encoded redeemer
-    // is the program ID). If the latter, the transfer redeemer can be any PDA that signs
+    // is the program ID). If the former, the transfer redeemer can be any PDA that signs
     // for this instruction.
-    //
-    // NOTE: Requiring that the transfer redeemer be a signer is a patch.
     let redeemer = Pubkey::from(transfer.redeemer());
     let redeemer_authority = redeemer_authority.key();
     if redeemer != redeemer_authority {
@@ -56,13 +55,68 @@ pub fn validate_posted_token_transfer_with_payload<'ctx>(
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.
-        require_keys_eq!(
-            redeemer,
-            crate::zero_copy::TokenAccount::parse(&dst_token.try_borrow_data()?)?.owner(),
-            ErrorCode::ConstraintTokenOwner
-        );
+        let token = crate::zero_copy::TokenAccount::load(dst_token)?;
+        require_keys_eq!(redeemer, token.owner(), ErrorCode::ConstraintTokenOwner);
     }
 
     // Done.
-    Ok(transfer)
+    Ok((transfer.token_chain(), transfer.token_address()))
+}
+
+/// The Anchor context orders the accounts as:
+///
+/// 1.  `payer`
+/// 2.  `_config`
+/// 3.  `vaa`
+/// 4.  `claim`
+/// 5.  `registered_emitter`
+/// 6.  `dst_token`
+/// 7.  `redeemer_authority`
+/// 8.  `_relayer_fee_token`
+/// 9.  `custody_token`     OR `wrapped_mint`
+/// 10.  `mint`             OR `wrapped_asset`
+/// 11. `custody_authority` OR `mint_aurhority`
+/// 12. `_rent`              <-- order unspecified
+/// 13. `system_program`     <-- order unspecified
+/// 14. `token_program`      <-- order unspecified
+///
+/// Because the legacy implementation did not require specifying where the Rent sysvar, System
+/// program and SPL token program should be, we ensure that these accounts are 12, 13 and 14
+/// respectively because the Anchor account context requires them to be in these positions.
+pub fn order_complete_transfer_with_payload_account_infos<'info>(
+    account_infos: &[AccountInfo<'info>],
+) -> Result<Vec<AccountInfo<'info>>> {
+    const NUM_ACCOUNTS: usize = 14;
+    const TOKEN_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;
+    const SYSTEM_PROGRAM_IDX: usize = TOKEN_PROGRAM_IDX - 1;
+
+    let mut infos = account_infos.to_vec();
+
+    // This check is inclusive because System program and Token program can be in any order.
+    if infos.len() >= NUM_ACCOUNTS {
+        // System program needs to exist in these account infos.
+        let system_program_idx = infos
+            .iter()
+            .position(|info| info.key() == anchor_lang::system_program::ID)
+            .ok_or(error!(ErrorCode::InvalidProgramId))?;
+
+        // Make sure System program is in the right index.
+        if system_program_idx != SYSTEM_PROGRAM_IDX {
+            infos.swap(SYSTEM_PROGRAM_IDX, system_program_idx);
+        }
+
+        // Token program needs to exist in these account infos.
+        let token_program_idx = infos
+            .iter()
+            .position(|info| info.key() == anchor_spl::token::ID)
+            .ok_or(error!(ErrorCode::InvalidProgramId))?;
+
+        // Make sure Token program is in the right index.
+        if token_program_idx != TOKEN_PROGRAM_IDX {
+            infos.swap(TOKEN_PROGRAM_IDX, token_program_idx);
+        }
+    }
+
+    // Done.
+    Ok(infos)
 }

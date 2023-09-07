@@ -54,7 +54,10 @@ pub struct PostVaa<'info> {
         init,
         payer = payer,
         space = PostedVaaV1::compute_size(args.payload.len()),
-        seeds = [PostedVaaV1::SEED_PREFIX, signature_set.message_hash.as_ref()],
+        seeds = [
+            PostedVaaV1::SEED_PREFIX,
+            signature_set.message_hash.as_ref()
+        ],
         bump,
     )]
     posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
@@ -79,6 +82,13 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostVaaArgs> f
 
 impl<'info> PostVaa<'info> {
     pub fn constraints(ctx: &Context<Self>, args: &PostVaaArgs) -> Result<()> {
+        // Check that the guardian set is still active.
+        let timestamp = Clock::get().map(Into::into)?;
+        require!(
+            ctx.accounts.guardian_set.is_active(&timestamp),
+            CoreBridgeError::GuardianSetExpired
+        );
+
         let signature_set = &ctx.accounts.signature_set;
         require!(
             !INVALID_SIGNATURE_SET_KEYS.contains(&signature_set.key().to_string().as_str()),
@@ -87,9 +97,8 @@ impl<'info> PostVaa<'info> {
 
         // Number of verified signatures in the signature set account must be at least quorum with
         // the guardian set.
-        require_gte!(
-            signature_set.num_verified(),
-            utils::quorum(ctx.accounts.guardian_set.keys.len()),
+        require!(
+            signature_set.num_verified() >= utils::quorum(ctx.accounts.guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 
@@ -114,7 +123,7 @@ impl<'info> PostVaa<'info> {
     }
 }
 
-/// Processor to write a validated VAA to a [PostedVaaV1] account. This instruction handler requires
+/// Processor to write a verified VAA to a `PostedVaaV1` account. This instruction handler requires
 /// that the number of verified signers in the [SignatureSet] account is at least the quorum using
 /// the guardian set, whose index is encoded in this account. And the message hash in this account
 /// must agree with the recomputed one using this instruction handler's arguments.

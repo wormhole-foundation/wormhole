@@ -1,6 +1,9 @@
 //! Utilities for the Core Bridge Program.
+pub mod cpi;
 
-use anchor_lang::{prelude::AccountInfo, Result};
+pub mod vaa;
+
+use anchor_lang::prelude::*;
 
 /// Compute quorum based on the number of guardians in a guardian set.
 #[inline]
@@ -9,10 +12,7 @@ pub fn quorum(num_guardians: usize) -> usize {
 }
 
 /// Close an account by transferring all its lamports to another account.
-pub fn close_account<'info>(
-    info: AccountInfo<'info>,
-    sol_destination: AccountInfo<'info>,
-) -> Result<()> {
+pub fn close_account(info: &AccountInfo, sol_destination: &AccountInfo) -> Result<()> {
     // Transfer tokens from the account to the sol_destination.
     let dest_starting_lamports = sol_destination.lamports();
     **sol_destination.lamports.borrow_mut() =

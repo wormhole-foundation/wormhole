@@ -2,8 +2,8 @@ use crate::{
     constants::{FEE_COLLECTOR_SEED_PREFIX, SOLANA_CHAIN},
     error::CoreBridgeError,
     legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
-    state::{Claim, Config},
-    zero_copy::PostedVaaV1,
+    state::Config,
+    zero_copy::{LoadZeroCopy, VaaAccount},
 };
 use anchor_lang::{
     prelude::*,
@@ -27,29 +27,14 @@ pub struct TransferFees<'info> {
     config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump
-    )]
-    posted_vaa: AccountInfo<'info>,
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    vaa: AccountInfo<'info>,
 
-    /// Account representing that a VAA has been consumed.
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](crate::utils::vaa::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// CHECK: Fee collector. Fees will be collected by transferring lamports from this account to
     /// the recipient.
@@ -70,6 +55,16 @@ pub struct TransferFees<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> crate::utils::cpi::CreateAccount<'info> for TransferFees<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+}
+
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     for TransferFees<'info>
 {
@@ -80,9 +75,8 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 
 impl<'info> TransferFees<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
-        let gov_payload =
-            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
+        let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
+        let gov_payload = super::require_valid_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .transfer_fees()
@@ -98,7 +92,7 @@ impl<'info> TransferFees<'info> {
         // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
         // lamports are u64).
         let amount = U256::from_be_bytes(decree.amount());
-        require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
+        require!(amount <= U256::from(u64::MAX), CoreBridgeError::U64Overflow);
 
         // The recipient provided in the account context must be the same as the one encoded in the
         // governance VAA.
@@ -117,9 +111,9 @@ impl<'info> TransferFees<'info> {
                 let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
                 (fee_collector.data_len(), fee_collector.lamports())
             };
-            require_gte!(
-                lamports.saturating_sub(to_u64_unchecked(&amount)),
-                Rent::get().map(|rent| rent.minimum_balance(data_len))?,
+            let min_required = Rent::get().map(|rent| rent.minimum_balance(data_len))?;
+            require!(
+                lamports.saturating_sub(to_u64_unchecked(&amount)) >= min_required,
                 CoreBridgeError::NotEnoughLamports
             );
         }
@@ -131,14 +125,16 @@ impl<'info> TransferFees<'info> {
 
 #[access_control(TransferFees::constraints(&ctx))]
 fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    let vaa = VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    crate::utils::vaa::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
-    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
+    let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload().unwrap())
+        .unwrap()
+        .decree();
     let decree = gov_payload.transfer_fees().unwrap();
 
     let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);

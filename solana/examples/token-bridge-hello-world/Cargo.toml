@@ -1,0 +1,26 @@
+[package]
+name = "token-bridge-hello-world"
+description = "Token Bridge Hello World"
+version = "0.0.0"
+edition = "2021"
+authors = ["W7"]
+license = "Apache-2.0"
+homepage = "https://docs.rs/wormhole-token-bridge-solana"
+repository = "https://github.com/wormhole-foundation/wormhole"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["localnet"]
+localnet = ["wormhole-token-bridge-solana/localnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+wormhole-token-bridge-solana = { path = "../../programs/token-bridge", features = ["cpi"], default-features = false }
+
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"

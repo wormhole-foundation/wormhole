@@ -153,7 +153,7 @@ export function legacyTransferTokensNativeIx(
       isSigner: true,
     },
     {
-      pubkey: config,
+      pubkey: config!,
       isWritable: false,
       isSigner: false,
     },
@@ -168,22 +168,22 @@ export function legacyTransferTokensNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyToken,
+      pubkey: custodyToken!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: transferAuthority,
+      pubkey: transferAuthority!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: custodyAuthority,
+      pubkey: custodyAuthority!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: coreBridgeConfig,
+      pubkey: coreBridgeConfig!,
       isWritable: true,
       isSigner: false,
     },
@@ -193,27 +193,27 @@ export function legacyTransferTokensNativeIx(
       isSigner: true,
     },
     {
-      pubkey: coreEmitter,
+      pubkey: coreEmitter!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: coreEmitterSequence,
+      pubkey: coreEmitterSequence!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: coreFeeCollector,
+      pubkey: coreFeeCollector!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: clock,
+      pubkey: clock!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: rent!,
       isWritable: false,
       isSigner: false,
     },
@@ -223,12 +223,12 @@ export function legacyTransferTokensNativeIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

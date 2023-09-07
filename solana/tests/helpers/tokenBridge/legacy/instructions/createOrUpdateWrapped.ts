@@ -25,7 +25,7 @@ export type LegacyCreateOrUpdateWrappedContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
   registeredEmitter?: PublicKey;
-  postedVaa?: PublicKey;
+  vaa?: PublicKey;
   claim?: PublicKey;
   wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
@@ -51,7 +51,7 @@ export function legacyCreateOrUpdateWrappedIx(
     payer,
     config,
     registeredEmitter,
-    postedVaa,
+    vaa,
     claim,
     wrappedMint,
     wrappedAsset,
@@ -78,8 +78,8 @@ export function legacyCreateOrUpdateWrappedIx(
     );
   }
 
-  if (postedVaa === undefined) {
-    postedVaa = coreBridge.PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
+  if (vaa === undefined) {
+    vaa = coreBridge.PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -132,7 +132,7 @@ export function legacyCreateOrUpdateWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: postedVaa,
+      pubkey: vaa,
       isWritable: false,
       isSigner: false,
     },
@@ -167,11 +167,6 @@ export function legacyCreateOrUpdateWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
-      isWritable: false,
-      isSigner: false,
-    },
-    {
       pubkey: SystemProgram.programId,
       isWritable: false,
       isSigner: false,
@@ -183,6 +178,11 @@ export function legacyCreateOrUpdateWrappedIx(
     },
     {
       pubkey: mplTokenMetadataProgram,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: coreBridgeProgram,
       isWritable: false,
       isSigner: false,
     },

@@ -4,17 +4,15 @@ import * as anchor from "@coral-xyz/anchor";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import {
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  GOVERNANCE_EMITTER_ADDRESS,
   GUARDIAN_KEYS,
   expectIxErr,
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
-  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
-  createAccountIx,
-  BPF_LOADER_UPGRADEABLE_PROGRAM_ID,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_core_bridge_solana.so`;
 
@@ -73,6 +71,18 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
       const signedVaa = defaultVaa(implementation);
 
       await sendTx(program, payer, signedVaa);
+    });
+
+    it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
+      const implementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
+
+      // Create the signed VAA.
+      const signedVaa = defaultVaa(implementation);
+
+      await sendTx(program, payer, signedVaa);
 
       // Save for later.
       localVariables.set("signedVaa", signedVaa);
@@ -94,18 +104,6 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
         [payer],
         "already in use"
       );
-    });
-
-    it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
-      const implementation = loadProgramBpf(
-        ARTIFACTS_PATH,
-        coreBridge.upgradeAuthorityPda(program.programId)
-      );
-
-      // Create the signed VAA.
-      const signedVaa = defaultVaa(implementation);
-
-      await sendTx(program, payer, signedVaa);
     });
 
     it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {

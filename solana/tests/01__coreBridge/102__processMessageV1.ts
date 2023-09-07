@@ -17,79 +17,60 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
   describe("Invalid Interaction", () => {
     const messageSize = 69;
 
-    it("Cannot Invoke `process_message_v1` with Different Emitter Authority", async () => {
+    it("Cannot Invoke `write_message_v1` with Different Emitter Authority", async () => {
       const someoneElse = anchor.web3.Keypair.generate();
 
       const { draftMessage } = await initMessageV1(program, payer, messageSize);
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const ix = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: someoneElse.publicKey,
           draftMessage,
-          closeAccountDestination: null,
         },
-        { write: { index: 0, data: Buffer.from("Nope.") } }
+        { index: 0, data: Buffer.from("Nope.") }
       );
       await expectIxErr(connection, [ix], [payer, someoneElse], "EmitterAuthorityMismatch");
     });
 
-    it("Cannot Invoke `process_message_v1` to Close Draft Message without `close_account_destination`", async () => {
+    it("Cannot Invoke `write_message_v1` with Nonsensical Index", async () => {
       const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, messageSize);
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const ix = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage,
-          closeAccountDestination: null,
         },
-        { closeMessageAccount: {} }
-      );
-      await expectIxErr(connection, [ix], [payer, emitterAuthority], "AccountNotEnoughKeys");
-    });
-
-    it("Cannot Invoke `process_message_v1` with Nonsensical Index", async () => {
-      const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, messageSize);
-
-      const ix = await coreBridge.processMessageV1Ix(
-        program,
-        {
-          emitterAuthority: emitterAuthority.publicKey,
-          draftMessage,
-          closeAccountDestination: null,
-        },
-        { write: { index: messageSize, data: Buffer.from("Nope.") } }
+        { index: messageSize, data: Buffer.from("Nope.") }
       );
       await expectIxErr(connection, [ix], [payer, emitterAuthority], "DataOverflow");
     });
 
-    it("Cannot Invoke `process_message_v1` with Too Much Data", async () => {
+    it("Cannot Invoke `write_message_v1` with Too Much Data", async () => {
       const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, messageSize);
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const ix = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage,
-          closeAccountDestination: null,
         },
-        { write: { index: 0, data: Buffer.alloc(messageSize + 1, "Nope.") } }
+        { index: 0, data: Buffer.alloc(messageSize + 1, "Nope.") }
       );
       await expectIxErr(connection, [ix], [payer, emitterAuthority], "DataOverflow");
     });
 
-    it("Cannot Invoke `process_message_v1` with No Data", async () => {
+    it("Cannot Invoke `write_message_v1` with No Data", async () => {
       const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, messageSize);
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const ix = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage,
-          closeAccountDestination: null,
         },
-        { write: { index: 0, data: Buffer.alloc(0) } }
+        { index: 0, data: Buffer.alloc(0) }
       );
       await expectIxErr(connection, [ix], [payer, emitterAuthority], "InvalidInstructionArgument");
     });
@@ -110,18 +91,17 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
     for (let start = 0; start < messageSize; start += chunkSize) {
       const end = Math.min(start + chunkSize, messageSize);
 
-      it(`Invoke \`process_message_v1\` to Write (Range: ${start}..${end})`, async () => {
+      it(`Invoke \`write_message_v1\` to Write (Range: ${start}..${end})`, async () => {
         const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
         const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
-        const ix = await coreBridge.processMessageV1Ix(
+        const ix = await coreBridge.writeMessageV1Ix(
           program,
           {
             emitterAuthority: emitterAuthority.publicKey,
             draftMessage,
-            closeAccountDestination: null,
           },
-          { write: { index: start, data: message.subarray(start, end) } }
+          { index: start, data: message.subarray(start, end) }
         );
         await expectIxOk(connection, [ix], [payer, emitterAuthority]);
 
@@ -147,55 +127,44 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
       });
     }
 
-    it("Invoke `process_message_v1` to Finalize", async () => {
+    it("Invoke `finalize_message_v1` to Finalize", async () => {
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
-      const ix = await coreBridge.processMessageV1Ix(
-        program,
-        {
-          emitterAuthority: emitterAuthority.publicKey,
-          draftMessage,
-          closeAccountDestination: null,
-        },
-        { finalize: {} }
-      );
+      const ix = await coreBridge.finalizeMessageV1Ix(program, {
+        emitterAuthority: emitterAuthority.publicKey,
+        draftMessage,
+      });
       await expectIxOk(connection, [ix], [payer, emitterAuthority]);
     });
 
-    it("Cannot Invoke `process_message_v1` to Finalize Again", async () => {
+    it("Cannot Invoke `finalize_message_v1` to Finalize Again", async () => {
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
-      const ix = await coreBridge.processMessageV1Ix(
+      const ix = await coreBridge.finalizeMessageV1Ix(program, {
+        emitterAuthority: emitterAuthority.publicKey,
+        draftMessage,
+      });
+      await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
+    });
+
+    it("Cannot Invoke `write_message_v1` to Write After Finalize", async () => {
+      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
+      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
+
+      const ix = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage,
-          closeAccountDestination: null,
         },
-        { finalize: {} }
+        { index: 0, data: Buffer.from("Nope.") }
       );
       await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
     });
 
-    it("Cannot Invoke `process_message_v1` to Write After Finalize", async () => {
-      const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
-      const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
-
-      const ix = await coreBridge.processMessageV1Ix(
-        program,
-        {
-          emitterAuthority: emitterAuthority.publicKey,
-          draftMessage,
-          closeAccountDestination: null,
-        },
-        { finalize: {} }
-      );
-      await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
-    });
-
-    it("Invoke `process_message_v1` to Close Message", async () => {
+    it("Invoke `close_message_v1` to Close Message", async () => {
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
@@ -206,15 +175,11 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
         .getAccountInfo(draftMessage)
         .then((acct) => acct.lamports);
 
-      const ix = await coreBridge.processMessageV1Ix(
-        program,
-        {
-          emitterAuthority: emitterAuthority.publicKey,
-          draftMessage,
-          closeAccountDestination,
-        },
-        { closeMessageAccount: {} }
-      );
+      const ix = await coreBridge.closeMessageV1Ix(program, {
+        emitterAuthority: emitterAuthority.publicKey,
+        draftMessage,
+        closeAccountDestination,
+      });
       await expectIxOk(connection, [ix], [payer, emitterAuthority]);
 
       const balanceAfter = await connection.getBalance(closeAccountDestination);

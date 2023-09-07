@@ -22,5 +22,4 @@ cpi = ["no-entrypoint"]
 [dependencies]
 wormhole-core-bridge-solana = { path = "../../programs/core-bridge", features = ["cpi"], default-features = false }
 
-anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
-anchor-spl = "0.28.0"
+anchor-lang = "0.28.0"
