@@ -231,41 +231,49 @@ fn deserialize_secp256k1_ix(
     let mut expected_message_offset = None;
     for i in 0..params.capacity() {
         let offsets_idx = 1 + i * SigVerifyOffsets::INIT_SPACE;
-        let offsets = SigVerifyOffsets::deserialize(
+        let SigVerifyOffsets {
+            signature_offset: _,
+            signature_ix_index,
+            eth_pubkey_offset,
+            eth_pubkey_ix_index,
+            message_offset,
+            message_size,
+            message_ix_index,
+        } = SigVerifyOffsets::deserialize(
             &mut &ix_data[offsets_idx..(offsets_idx + SigVerifyOffsets::INIT_SPACE)],
         )?;
         // Because guardians sign the hash of the message body hash, this verified message must be
         // 32 bytes.
         require_eq!(
-            offsets.message_size,
+            message_size,
             32,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
 
         // The instruction index must be the same for signature, eth pubkey and message.
         require_eq!(
-            u16::from(offsets.signature_ix_index),
+            u16::from(signature_ix_index),
             sig_verify_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
         require_eq!(
-            u16::from(offsets.eth_pubkey_ix_index),
+            u16::from(eth_pubkey_ix_index),
             sig_verify_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
         require_eq!(
-            u16::from(offsets.message_ix_index),
+            u16::from(message_ix_index),
             sig_verify_index,
             CoreBridgeError::InvalidSigVerifyInstruction
         );
 
-        let eth_pubkey_offset = usize::from(offsets.eth_pubkey_offset);
+        let eth_pubkey_offset = usize::from(eth_pubkey_offset);
         let mut eth_pubkey = [0; 20];
         eth_pubkey.copy_from_slice(&ix_data[eth_pubkey_offset..(eth_pubkey_offset + 20)]);
 
         // The message offset should be the same for each sig verify offsets since each signature is
         // for the same message.
-        let message_offset = usize::from(offsets.message_offset);
+        let message_offset = usize::from(message_offset);
         if let Some(expected_message_offset) = expected_message_offset {
             require_eq!(
                 message_offset,
