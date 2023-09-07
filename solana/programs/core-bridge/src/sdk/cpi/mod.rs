@@ -1,5 +1,5 @@
-mod post_message_v1;
-pub use post_message_v1::*;
+mod publish_message;
+pub use publish_message::*;
 
 mod prepare_message_v1;
 pub use prepare_message_v1::*;
@@ -13,7 +13,7 @@ pub trait InvokeCoreBridge<'info> {
 }
 
 /// Trait for invoking any program instruction that requires account creation.
-pub trait AnchorInit<'info> {
+pub trait CreateAccount<'info> {
     fn payer(&self) -> AccountInfo<'info>;
 
     fn system_program(&self) -> AccountInfo<'info>;

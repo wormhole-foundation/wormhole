@@ -51,7 +51,7 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPostMessageUnr
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for MockPostMessageUnreliable<'info> {
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockPostMessageUnreliable<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -61,7 +61,7 @@ impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for MockPostMessageUnreliabl
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info> for MockPostMessageUnreliable<'info> {
+impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessageUnreliable<'info> {
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -97,9 +97,9 @@ pub fn mock_post_message_unreliable(
 ) -> Result<()> {
     let MockPostMessageUnreliableArgs { nonce, payload } = args;
 
-    core_bridge_sdk::cpi::post_new_message_v1(
+    core_bridge_sdk::cpi::publish_message(
         ctx.accounts,
-        core_bridge_sdk::cpi::PostMessageV1Directive::UnreliableMessage {
+        core_bridge_sdk::cpi::PublishMessageDirective::UnreliableMessage {
             nonce,
             payload,
             commitment: core_bridge_sdk::types::Commitment::Finalized,

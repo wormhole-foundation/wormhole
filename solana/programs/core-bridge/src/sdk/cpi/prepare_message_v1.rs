@@ -8,7 +8,7 @@ use super::InvokeCoreBridge;
 /// instructions. These instructions are used in concert with each other to prepare a message, which
 /// can be posted either within a program via CPI or within the same transaction block as an
 /// instruction following your program's instruction.
-pub trait InvokePrepareMessageV1<'info>: InvokeCoreBridge<'info> {
+pub trait PrepareMessageV1<'info>: InvokeCoreBridge<'info> {
     /// Core Bridge Emitter Authority (read-only signer). This emitter authority acts as the signer
     /// for preparing a message before it is posted.
     fn core_emitter_authority(&self) -> AccountInfo<'info>;
@@ -24,7 +24,7 @@ pub trait InvokePrepareMessageV1<'info>: InvokeCoreBridge<'info> {
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
 /// invoke `system_program::create_account` before calling this method either using Anchor's `init`
 /// macro directive or via System Program CPI.
-pub fn prepare_message_v1<'info, A: InvokePrepareMessageV1<'info>>(
+pub fn prepare_message_v1<'info, A: PrepareMessageV1<'info>>(
     accounts: &A,
     init_args: InitMessageV1Args,
     data: Vec<u8>,

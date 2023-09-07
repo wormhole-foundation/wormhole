@@ -22,5 +22,6 @@ cpi = ["no-entrypoint"]
 [dependencies]
 core-bridge-program = { path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
 token-bridge-program = { path = "../token-bridge", package = "wormhole-token-bridge-solana", features = ["cpi"], default-features = false }
+
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
 anchor-spl = "0.28.0"

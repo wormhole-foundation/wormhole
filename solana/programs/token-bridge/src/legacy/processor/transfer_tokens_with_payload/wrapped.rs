@@ -111,7 +111,7 @@ impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for TransferTokensWithPayloadWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWithPayloadWrapped<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -121,7 +121,7 @@ impl<'info> core_bridge_sdk::cpi::AnchorInit<'info> for TransferTokensWithPayloa
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokePostMessageV1<'info>
+impl<'info> core_bridge_sdk::cpi::PublishMessage<'info>
     for TransferTokensWithPayloadWrapped<'info>
 {
     fn core_bridge_config(&self) -> AccountInfo<'info> {

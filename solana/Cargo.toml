@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "programs/*"
+    "programs/*",
+    "examples/*",
 ]
 
 ### cargo-build-sbf does not support workspace inheritance yet... Soon.
