@@ -27,7 +27,7 @@ struct SigVerifyOffsets {
 
 /// Result of parsing Sig Verify instruction data.
 struct SigVerifyParameters {
-    eth_pubkey: [u8; 20],
+    eth_pubkeys: Vec<[u8; 20]>,
     message: [u8; 32],
 }
 
@@ -141,7 +141,10 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // NOTE: To avoid a redundant instructions sysvar check, we allow the deprecated method to
     // load the instruction data.
     #[allow(deprecated)]
-    let sig_verify_params = sysvar::instructions::load_instruction_at(
+    let SigVerifyParameters {
+        eth_pubkeys: signers,
+        message,
+    } = sysvar::instructions::load_instruction_at(
         usize::from(sig_verify_index),
         &instruction_sysvar_data,
     )
@@ -151,13 +154,13 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // Number of specified signers must equal the number of signatures verified in the Sig Verify
     // native program instruction.
     require_eq!(
-        sig_verify_params.len(),
+        signers.len(),
         guardian_indices.len(),
         CoreBridgeError::SignerIndicesMismatch
     );
 
     // We use this message hash later on.
-    let message_hash = MessageHash::from(sig_verify_params[0].message);
+    let message_hash = MessageHash::from(message);
     let signature_set = &mut ctx.accounts.signature_set;
 
     // If the signature set account has not been initialized yet, establish the expected account
@@ -196,7 +199,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // Attempt to write `true` to represent verified guardian eth pubkey.
     for (i, &signer_index) in guardian_indices.iter().enumerate() {
         require!(
-            sig_verify_params[i].eth_pubkey == guardians[signer_index],
+            signers[i] == guardians[signer_index],
             CoreBridgeError::InvalidGuardianKeyRecovery
         );
 
@@ -214,7 +217,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
 fn deserialize_secp256k1_ix(
     sig_verify_index: u16,
     ix: &solana_program::instruction::Instruction,
-) -> Result<Vec<SigVerifyParameters>> {
+) -> Result<SigVerifyParameters> {
     // Check that the program invoked is the secp256k1 program.
     require_keys_eq!(
         ix.program_id,
@@ -224,12 +227,14 @@ fn deserialize_secp256k1_ix(
 
     let ix_data = &ix.data;
 
-    // First byte encodes the number of signatures.
-    let mut params = Vec::with_capacity(ix_data[0].into());
+    // The first byte encodes the number of signatures.
+    let num_signatures: usize = ix_data[0].into();
+
+    let mut eth_pubkeys = Vec::with_capacity(num_signatures);
 
     // For each offset encoded, grab each SigVerify parameter (signature, eth pubkey, message).
     let mut expected_message_offset = None;
-    for i in 0..params.capacity() {
+    for i in 0..num_signatures {
         let offsets_idx = 1 + i * SigVerifyOffsets::INIT_SPACE;
         let SigVerifyOffsets {
             signature_offset: _,
@@ -282,16 +287,19 @@ fn deserialize_secp256k1_ix(
             );
         }
 
-        let mut message = [0; 32];
-        message.copy_from_slice(&ix_data[message_offset..(message_offset + 32)]);
-
-        params.push(SigVerifyParameters {
-            eth_pubkey,
-            message,
-        });
+        eth_pubkeys.push(eth_pubkey);
         expected_message_offset = Some(message_offset);
     }
 
-    // Done.
-    Ok(params)
+    if let Some(message_offset) = expected_message_offset {
+        let mut message = [0; 32];
+        message.copy_from_slice(&ix_data[message_offset..(message_offset + 32)]);
+
+        Ok(SigVerifyParameters {
+            eth_pubkeys,
+            message,
+        })
+    } else {
+        Err(CoreBridgeError::EmptySigVerifyInstruction.into())
+    }
 }
