@@ -129,15 +129,17 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
                 payload,
                 commitment: core_bridge_sdk::types::Commitment::Finalized,
             },
-            &[
-                PROGRAM_EMITTER_SEED_PREFIX,
-                &[ctx.bumps["core_program_emitter"]],
-            ],
             Some(&[
-                MESSAGE_SEED_PREFIX,
-                ctx.accounts.payer.key().as_ref(),
-                sequence.as_ref(),
-                &[ctx.bumps["core_message"]],
+                &[
+                    PROGRAM_EMITTER_SEED_PREFIX,
+                    &[ctx.bumps["core_program_emitter"]],
+                ],
+                &[
+                    MESSAGE_SEED_PREFIX,
+                    ctx.accounts.payer.key().as_ref(),
+                    sequence.as_ref(),
+                    &[ctx.bumps["core_message"]],
+                ],
             ]),
         ),
         (None, Some(_emitter_authority)) => core_bridge_sdk::cpi::publish_message(
@@ -147,15 +149,17 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
                 payload,
                 commitment: core_bridge_sdk::types::Commitment::Finalized,
             },
-            &[
-                LEGACY_EMITTER_SEED_PREFIX,
-                &[ctx.bumps["core_custom_emitter"]],
-            ],
             Some(&[
-                MESSAGE_SEED_PREFIX,
-                ctx.accounts.payer.key().as_ref(),
-                sequence.as_ref(),
-                &[ctx.bumps["core_message"]],
+                &[
+                    LEGACY_EMITTER_SEED_PREFIX,
+                    &[ctx.bumps["core_custom_emitter"]],
+                ],
+                &[
+                    MESSAGE_SEED_PREFIX,
+                    ctx.accounts.payer.key().as_ref(),
+                    sequence.as_ref(),
+                    &[ctx.bumps["core_message"]],
+                ],
             ]),
         ),
         (None, None) => err!(ErrorCode::AccountNotEnoughKeys),

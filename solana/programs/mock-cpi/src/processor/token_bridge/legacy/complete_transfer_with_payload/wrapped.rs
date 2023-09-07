@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use token_bridge_program::{self, constants::PROGRAM_REDEEMER_SEED_PREFIX, TokenBridge};
+use token_bridge_program::{self, constants::PROGRAM_REDEEMER_SEED_PREFIX, sdk::cpi::TokenBridge};
 
 use crate::constants::CUSTOM_REDEEMER_SEED_PREFIX;
 

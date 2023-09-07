@@ -96,11 +96,10 @@ pub mod core_bridge_hello_world {
                 payload,
                 commitment: core_bridge_sdk::types::Commitment::Finalized,
             },
-            &[
+            Some(&[&[
                 core_bridge_sdk::PROGRAM_EMITTER_SEED_PREFIX,
                 &[ctx.bumps["core_program_emitter"]],
-            ],
-            None,
+            ]]),
         )
     }
 }

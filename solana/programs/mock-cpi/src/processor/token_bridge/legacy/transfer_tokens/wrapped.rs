@@ -1,7 +1,7 @@
 use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use token_bridge_program::{self, TokenBridge};
+use token_bridge_program::{self, sdk::cpi::TokenBridge};
 
 use super::MockLegacyTransferTokensArgs;
 

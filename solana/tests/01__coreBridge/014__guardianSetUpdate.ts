@@ -317,7 +317,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
         connection,
         [sigVerifyIx, verifyIx],
         [payer, signatureSet],
-        "PostVaaGuardianSetExpired"
+        "GuardianSetExpired"
       );
     });
 

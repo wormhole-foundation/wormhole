@@ -17,8 +17,6 @@ pub mod utils;
 /// interact with the Core Bridge Program via CPI.
 #[cfg(feature = "cpi")]
 pub mod cpi {
-    pub use instruction::PostMessageArgs;
-
     use anchor_lang::prelude::*;
     use solana_program::program::invoke_signed;
 
@@ -31,7 +29,7 @@ pub mod cpi {
     /// and `process_message_v1` or is created at this point.
     pub fn post_message<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
-        args: PostMessageArgs,
+        args: instruction::PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message(
@@ -60,7 +58,7 @@ pub mod cpi {
     /// the message and the payload must be the same size.
     pub fn post_message_unreliable<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessageUnreliable<'info>>,
-        args: PostMessageArgs,
+        args: instruction::PostMessageArgs,
     ) -> Result<()> {
         invoke_signed(
             &instruction::post_message_unreliable(

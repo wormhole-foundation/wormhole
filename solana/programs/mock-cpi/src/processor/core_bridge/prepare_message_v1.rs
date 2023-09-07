@@ -81,9 +81,9 @@ pub fn mock_prepare_message_v1(
             commitment: core_bridge_sdk::types::Commitment::Finalized,
         },
         data,
-        &[
+        Some(&[&[
             EMITTER_AUTHORITY_SEED_PREFIX,
             &[ctx.bumps["emitter_authority"]],
-        ],
+        ]]),
     )
 }

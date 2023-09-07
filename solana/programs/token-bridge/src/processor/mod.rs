@@ -37,8 +37,7 @@ pub fn post_token_bridge_message<
             payload: message.to_vec(),
             commitment: Commitment::Finalized,
         },
-        &[EMITTER_SEED_PREFIX, &[emitter_bump]],
-        None,
+        Some(&[&[EMITTER_SEED_PREFIX, &[emitter_bump]]]),
     )
 }
 

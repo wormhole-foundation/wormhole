@@ -104,12 +104,14 @@ pub fn mock_post_message_unreliable(
             payload,
             commitment: core_bridge_sdk::types::Commitment::Finalized,
         },
-        &[LEGACY_EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]],
         Some(&[
-            MESSAGE_SEED_PREFIX,
-            ctx.accounts.payer.key().as_ref(),
-            nonce.to_le_bytes().as_ref(),
-            &[ctx.bumps["core_message"]],
+            &[LEGACY_EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]],
+            &[
+                MESSAGE_SEED_PREFIX,
+                ctx.accounts.payer.key().as_ref(),
+                nonce.to_le_bytes().as_ref(),
+                &[ctx.bumps["core_message"]],
+            ],
         ]),
     )
 }

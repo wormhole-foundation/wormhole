@@ -31,15 +31,6 @@ pub mod utils;
 
 pub mod zero_copy;
 
-#[derive(Clone)]
-pub struct TokenBridge;
-
-impl Id for TokenBridge {
-    fn id() -> Pubkey {
-        ID
-    }
-}
-
 #[program]
 pub mod wormhole_token_bridge_solana {
     use super::*;

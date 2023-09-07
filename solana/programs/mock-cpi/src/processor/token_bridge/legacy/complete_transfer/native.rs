@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token, token};
-use token_bridge_program::{self, TokenBridge};
+use token_bridge_program::{self, sdk::cpi::TokenBridge};
 
 #[derive(Accounts)]
 pub struct MockLegacyCompleteTransferNative<'info> {
