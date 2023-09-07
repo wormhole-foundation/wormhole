@@ -1,7 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::state::PostedMessageV1Data;
 use anchor_lang::prelude::*;
+
+use super::PostedMessageV1Data;
 
 pub const POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR: [u8; 4] = *b"msu\x00";
 

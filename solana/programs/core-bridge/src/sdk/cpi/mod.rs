@@ -1,3 +1,6 @@
+mod close_encoded_vaa;
+pub use close_encoded_vaa::*;
+
 mod publish_message;
 pub use publish_message::*;
 

@@ -25,7 +25,10 @@ pub struct ClosePostedVaaV1<'info> {
     signature_set: Option<Account<'info, LegacyAnchorized<0, SignatureSet>>>,
 }
 
-/// This directive acts as a placeholder in case we want to expand how posted VAAs are closed.
+/// Directive for the [close_posted_vaa_v1](crate::wormhole_core_bridge_solana::close_posted_vaa_v1)
+/// instruction.
+///
+/// NOTE: This directive acts as a placeholder in case we want to expand how VAAs are closed.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum ClosePostedVaaV1Directive {
     TryOnce,

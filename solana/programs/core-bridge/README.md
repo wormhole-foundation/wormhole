@@ -61,12 +61,14 @@ pub struct PublishHelloWorld<'info> {
 This account context must have all of the accounts required by the Core Bridge program in order to
 publish a Wormhole message:
 
-- Core Bridge config (seeds: ["Bridge"]).
-- Core Message (which in this example is just a keypair generated off-chain).
-- Core Emitter Sequence (seeds: ["Sequence", your_program_id]).
-  - **NOTE** Your program ID is the emitter in this case, which is why the emitter sequence PDA
-    address is derived using this pubkey.
-- Core Fee Collector (seeds ["fee_collector"]).
+- `core_emitter_authority` (seeds: ["emitter"]).
+  - **NOTE: Your program ID is the emitter in this case, so `core_emitter` will be `None`.**
+- `core_bridge_config` (seeds: ["Bridge"]).
+- `core_message` (which in this example is just a keypair generated off-chain).
+- `core_emitter_sequence` (seeds: ["Sequence", your_program_id]).
+  - **NOTE: Your program ID is the emitter in this case, which is why the emitter sequence PDA
+    address is derived using this pubkey.**
+- `core_fee_collector` (seeds ["fee_collector"]).
 
 **You are not required to re-derive these PDA addresses in your program's account context because
 the Core Bridge program already does these derivations. Doing so is a waste of compute units.**
@@ -104,8 +106,8 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'in
 
 Finally implement the `PublishMessage` trait by providing the necessary Core Bridge accounts.
 
-**NOTE: For messages where the emitter addresses is your program ID, the `core_emitter` in this case
-is `None` and `core_emitter_authority` is `Some(emitter authority)`, which is your program's PDA
+**NOTE: For messages where the emitter address is your program ID, the `core_emitter` in this case
+is `None` and `core_emitter_authority` is `Some(emitter_authority)`, which is your program's PDA
 address derived using `[b"emitter"]` as its seeds. This seed prefix is provided for you as `PROGRAM_EMITTER_SEED_PREFIX` and is used in your account context to validate the correct emitter
 authority is provided.**
 

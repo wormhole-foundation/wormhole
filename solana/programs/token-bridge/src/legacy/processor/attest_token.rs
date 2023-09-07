@@ -1,5 +1,5 @@
 use crate::{
-    constants::EMITTER_SEED_PREFIX, legacy::LegacyAttestTokenArgs,
+    constants::EMITTER_SEED_PREFIX, legacy::instruction::LegacyAttestTokenArgs,
     processor::post_token_bridge_message, zero_copy::Mint,
 };
 use anchor_lang::prelude::*;

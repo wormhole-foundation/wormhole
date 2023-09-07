@@ -1,7 +1,7 @@
 use crate::{
     constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
-    legacy::TransferTokensArgs,
+    legacy::instruction::TransferTokensArgs,
     processor::{burn_wrapped_tokens, post_token_bridge_message},
     state::WrappedAsset,
 };

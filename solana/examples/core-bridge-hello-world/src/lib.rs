@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use anchor_lang::prelude::*;
 use wormhole_core_bridge_solana::sdk as core_bridge_sdk;
 
@@ -30,7 +32,7 @@ pub struct PublishHelloWorld<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: Option<UncheckedAccount<'info>>,
+    core_fee_collector: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
@@ -70,9 +72,7 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
     }
 
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
+        Some(self.core_fee_collector.to_account_info())
     }
 
     fn core_message(&self) -> AccountInfo<'info> {

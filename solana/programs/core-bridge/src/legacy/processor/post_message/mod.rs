@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use anchor_lang::prelude::*;
+
 #[derive(Accounts)]
 #[instruction(args: PostMessageArgs)]
 pub struct PostMessage<'info> {
@@ -127,11 +128,11 @@ pub(super) fn new_posted_message_data(
     Ok(data)
 }
 
-/// Processor to post (publish) a Wormhole message by setting up the message account for Guardian
-/// observation.
+/// Processor to post (publish) a Wormhole message by setting up the message account for
+/// Guardian observation.
 ///
-/// A message is either created beforehand using the new Anchor instructions `init_message_v1` and
-/// `process_message_v1` or is created at this point.
+/// A message is either created beforehand using the new Anchor instructions `init_message_v1`
+/// and `process_message_v1` or is created at this point.
 fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
     if ctx.accounts.message.data_is_empty() {
         handle_post_new_message(ctx, args)

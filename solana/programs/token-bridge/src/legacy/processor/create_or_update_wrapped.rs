@@ -1,7 +1,7 @@
 use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
-    legacy::EmptyArgs,
+    legacy::instruction::EmptyArgs,
     state::{Claim, RegisteredEmitter, WrappedAsset},
 };
 use anchor_lang::prelude::*;

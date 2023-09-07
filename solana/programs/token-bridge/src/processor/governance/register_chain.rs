@@ -4,7 +4,8 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge, zero_copy::EncodedVaa,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, zero_copy::EncodedVaa},
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
 
@@ -61,7 +62,23 @@ pub struct RegisterChain<'info> {
     legacy_registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
+}
+
+impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for RegisterChain<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+}
+
+impl<'info> core_bridge_sdk::cpi::CloseEncodedVaa<'info> for RegisterChain<'info> {
+    fn write_authority(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+
+    fn encoded_vaa(&self) -> AccountInfo<'info> {
+        self.vaa.to_account_info()
+    }
 }
 
 impl<'info> RegisterChain<'info> {
@@ -96,26 +113,10 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
             .set_inner(registered.into());
     }
 
-    // Determine if we can close the vaa account.
-    let payer = &ctx.accounts.payer;
-    let write_authority = EncodedVaa::parse(&ctx.accounts.vaa.data.borrow())
-        .unwrap()
-        .write_authority();
-    if payer.key() == write_authority {
-        core_bridge_program::cpi::process_encoded_vaa(
-            CpiContext::new(
-                ctx.accounts.core_bridge_program.to_account_info(),
-                core_bridge_program::cpi::accounts::ProcessEncodedVaa {
-                    write_authority: payer.to_account_info(),
-                    encoded_vaa: ctx.accounts.vaa.to_account_info(),
-                    guardian_set: None,
-                },
-            ),
-            core_bridge_program::ProcessEncodedVaaDirective::CloseVaaAccount,
-        )
-    } else {
-        Ok(())
-    }
+    // Finally attempt to close the Encoded VAA account. If the write authority is not the same one
+    // in the account (in this case the payer), then closing this account will have to be handled
+    // outside of this instruction handler. This will exit with success regardless.
+    core_bridge_sdk::cpi::maybe_close_encoded_vaa(ctx.accounts)
 }
 
 fn try_decree_foreign_chain(vaa_acc_data: &[u8]) -> Result<u16> {

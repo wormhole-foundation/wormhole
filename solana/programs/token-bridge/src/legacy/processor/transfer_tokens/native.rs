@@ -3,7 +3,7 @@ use crate::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
     },
     error::TokenBridgeError,
-    legacy::TransferTokensArgs,
+    legacy::instruction::TransferTokensArgs,
     processor::{deposit_native_tokens, post_token_bridge_message},
     zero_copy::Mint,
 };

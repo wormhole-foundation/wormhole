@@ -2,7 +2,7 @@ use crate::{
     constants::{
         CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
     },
-    legacy::TransferTokensWithPayloadArgs,
+    legacy::instruction::TransferTokensWithPayloadArgs,
     processor::{deposit_native_tokens, post_token_bridge_message},
     zero_copy::Mint,
 };

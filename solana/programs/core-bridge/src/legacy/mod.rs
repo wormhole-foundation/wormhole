@@ -24,6 +24,11 @@ pub mod cpi {
 
     use super::*;
 
+    /// Processor to post (publish) a Wormhole message by setting up the message account for
+    /// Guardian observation.
+    ///
+    /// A message is either created beforehand using the new Anchor instructions `init_message_v1`
+    /// and `process_message_v1` or is created at this point.
     pub fn post_message<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
         args: PostMessageArgs,
@@ -47,12 +52,12 @@ pub mod cpi {
         .map_err(Into::into)
     }
 
-    /// This instruction handler is used to post a new message to the core bridge using an existing
-    /// message account.
+    /// Processor to post (publish) a Wormhole message by setting up the message account for
+    /// Guardian observation. This message account has either been created already or is created in
+    /// this call.
     ///
-    /// The constraints for posting a message using this instruction handler are:
-    /// * Emitter must be the same as the message account's emitter.
-    /// * The new message must be the same size as the existing message's payload.
+    /// If this message account already exists, the emitter must be the same as the one encoded in
+    /// the message and the payload must be the same size.
     pub fn post_message_unreliable<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessageUnreliable<'info>>,
         args: PostMessageArgs,

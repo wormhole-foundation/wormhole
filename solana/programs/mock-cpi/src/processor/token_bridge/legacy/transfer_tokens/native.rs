@@ -124,7 +124,7 @@ pub fn mock_legacy_transfer_tokens_native(
                 &[ctx.bumps["core_message"]],
             ]],
         ),
-        token_bridge_program::legacy::cpi::TransferTokensArgs {
+        token_bridge_program::legacy::instruction::TransferTokensArgs {
             nonce,
             amount,
             relayer_fee,

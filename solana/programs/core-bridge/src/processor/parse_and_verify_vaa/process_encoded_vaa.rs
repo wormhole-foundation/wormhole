@@ -68,23 +68,25 @@ impl<'info> ProcessEncodedVaa<'info> {
     }
 }
 
+/// Directive for the [process_encoded_vaa](crate::wormhole_core_bridge_solana::process_encoded_vaa)
+/// instruction.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum ProcessEncodedVaaDirective {
-    /// Close the VAA processing accounts. Either someone decides to close the VAA account before it
-    /// has been verified, or the VAA has been verified by an integrating app and is no longer
-    /// needed.
+    /// Close the [EncodedVaa] account. Either someone decides to close this account before it has
+    /// been verified, or the VAA has been verified by an integrating app and is no longer needed.
     CloseVaaAccount,
-    /// Write input data from VAA, indicated by the index of the encoded VAA.
+    /// Write data to the [EncodedVaa] account indicated by the index of the VAA buffer.
     Write {
-        /// Index of encoded VAA.
+        /// Index of VAA buffer.
         index: u32,
-        /// Data representing the encoded VAA starting at specified index.
+        /// Data representing subset of VAA buffer starting at specified index.
         data: Vec<u8>,
     },
-    /// When the whole VAA is written to the vaa account, its message hash is computed and guardian
-    /// signatures are verified. Invoking this directive will mark the VAA as verified.
+    /// When the whole VAA buffer is written to the [EncodedVaa] account, its message hash is
+    /// computed and guardian signatures are verified. This directive will disable writing to the
+    /// [EncodedVaa] account by setting its status to [ProcessingStatus::Verified].
     ///
-    /// NOTE: The guardian set is a required account in order to perform this method.
+    /// NOTE: The [GuardianSet] account is required in order to perform this method.
     VerifySignaturesV1,
 }
 

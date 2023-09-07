@@ -19,10 +19,6 @@ pub mod legacy;
 
 mod processor;
 pub(crate) use processor::*;
-pub use processor::{
-    ClosePostedVaaV1Directive, InitMessageV1Args, PostVaaV1Directive, ProcessEncodedVaaDirective,
-    ProcessMessageV1Directive,
-};
 
 pub mod sdk;
 

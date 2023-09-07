@@ -23,6 +23,8 @@ pub(crate) mod messages;
 mod processor;
 pub(crate) use processor::*;
 
+pub mod sdk;
+
 pub mod state;
 
 pub mod utils;

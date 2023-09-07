@@ -1,7 +1,7 @@
 use crate::{
     constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
-    legacy::EmptyArgs,
+    legacy::instruction::EmptyArgs,
     processor::mint_wrapped_tokens,
     state::{Claim, RegisteredEmitter, WrappedAsset},
 };

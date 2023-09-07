@@ -62,12 +62,17 @@ impl<'info> InitMessageV1<'info> {
     }
 }
 
-/// Arguments to initialize a new [PostedMessageV1](crate::state::PostedMessageV1) account for
-/// writing.
+/// Arguments for the [init_message_v1](crate::wormhole_core_bridge_solana::init_message_v1)
+/// instruction.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitMessageV1Args {
+    /// Unique id for this message.
     pub nonce: u32,
+    /// Solana commitment level for Guardian observation.
     pub commitment: Commitment,
+    /// Optional program ID if the emitter address will be your program ID.
+    ///
+    /// NOTE: If `Some(program_id)`, your emitter authority seeds to be \[b"emitter\].
     pub cpi_program_id: Option<Pubkey>,
 }
 

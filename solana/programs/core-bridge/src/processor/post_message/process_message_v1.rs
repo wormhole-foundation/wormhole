@@ -30,10 +30,6 @@ impl<'info> ProcessMessageV1<'info> {
         let acc_data = ctx.accounts.draft_message.try_borrow_data()?;
         let message = PostedMessageV1::parse(&acc_data)?;
 
-        // require!(
-        //     info.status == MessageStatus::Writing,
-        //     CoreBridgeError::MessageAlreadyPublished
-        // );
         require_keys_eq!(
             ctx.accounts.emitter_authority.key(),
             message.emitter_authority(),
@@ -45,10 +41,22 @@ impl<'info> ProcessMessageV1<'info> {
     }
 }
 
+/// Directive for the [process_message_v1](crate::wormhole_core_bridge_solana::process_message_v1)
+/// instruction.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub enum ProcessMessageV1Directive {
+    /// Close the [PostedMessageV1] account. This account can be closed at any point if it has not
+    /// been published.
     CloseMessageAccount,
-    Write { index: u32, data: Vec<u8> },
+    /// Write data to the [PostedMessageV1] account indicated by the index of the message buffer.
+    Write {
+        /// Index of message buffer.
+        index: u32,
+        /// Data representing subset of message buffer starting at specified index.
+        data: Vec<u8>,
+    },
+    /// Disable writing to the [PostedMessageV1] account by setting its status to
+    /// [MessageStatus::Finalized].
     Finalize,
 }
 

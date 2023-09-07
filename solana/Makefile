@@ -9,6 +9,9 @@ out_localnet=artifacts-localnet
 
 all: check
 
+check:
+	cargo check --all-features
+
 clean:
 	anchor clean
 	rm -rf node_modules artifacts-mainnet artifacts-testnet artifacts-localnet tests/artifacts
@@ -26,7 +29,7 @@ ifdef out_$(NETWORK)
 endif
 
 test: node_modules
-	cargo test
+	cargo test --all-features
 	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features mainnet -- --no-default-features
 	mkdir -p tests/artifacts && cp target/deploy/*.so tests/artifacts/
@@ -34,7 +37,7 @@ test: node_modules
 
 lint:
 	cargo fmt --check
-	cargo clippy --no-deps --all-targets -- -D warnings
+	cargo clippy --no-deps --all-targets --all-features -- -D warnings
 
 ci:
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile.ci \

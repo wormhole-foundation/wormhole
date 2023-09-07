@@ -24,12 +24,15 @@ pub trait PrepareMessageV1<'info>: InvokeCoreBridge<'info> {
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
 /// invoke `system_program::create_account` before calling this method either using Anchor's `init`
 /// macro directive or via System Program CPI.
-pub fn prepare_message_v1<'info, A: PrepareMessageV1<'info>>(
+pub fn prepare_message_v1<'info, A>(
     accounts: &A,
     init_args: InitMessageV1Args,
     data: Vec<u8>,
     emitter_authority_seeds: &[&[u8]],
-) -> Result<()> {
+) -> Result<()>
+where
+    A: PrepareMessageV1<'info>,
+{
     handle_prepare_message_v1(
         accounts.core_bridge_program(),
         accounts.core_message(),
@@ -37,6 +40,88 @@ pub fn prepare_message_v1<'info, A: PrepareMessageV1<'info>>(
         init_args,
         data,
         emitter_authority_seeds,
+    )
+}
+
+/// SDK method for initializing a new Core Bridge message by starting to write data to a message
+/// account. If the message requires multiple calls, using this method may be convenient to begin
+/// writing and then following this call with a subsequent [write_message_v1] or
+/// [write_and_finalize_message_v1] call.
+pub fn init_and_write_message_v1<'info, A>(
+    accounts: &A,
+    args: InitMessageV1Args,
+    index: u32,
+    data: Vec<u8>,
+    emitter_authority_seeds: &[&[u8]],
+) -> Result<()>
+where
+    A: PrepareMessageV1<'info>,
+{
+    crate::cpi::init_message_v1(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::cpi::accounts::InitMessageV1 {
+                emitter_authority: accounts.core_emitter_authority(),
+                draft_message: accounts.core_message(),
+            },
+            &[emitter_authority_seeds],
+        ),
+        args,
+    )?;
+
+    write_message_v1(accounts, index, data, emitter_authority_seeds)
+}
+
+/// SDK method for writing to an existing Core Bridge message if it is still in
+/// [Writing](crate::state::MessageStatus::Writing) status.
+pub fn write_message_v1<'info, A>(
+    accounts: &A,
+    index: u32,
+    data: Vec<u8>,
+    emitter_authority_seeds: &[&[u8]],
+) -> Result<()>
+where
+    A: PrepareMessageV1<'info>,
+{
+    crate::cpi::process_message_v1(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::cpi::accounts::ProcessMessageV1 {
+                emitter_authority: accounts.core_emitter_authority(),
+                draft_message: accounts.core_message(),
+                close_account_destination: None,
+            },
+            &[emitter_authority_seeds],
+        ),
+        crate::processor::ProcessMessageV1Directive::Write { index, data },
+    )
+}
+
+/// SDK method for writing and then finalizing an existing Core Bridge message if it is still in
+/// [Writing](crate::state::MessageStatus::Writing) status. This method may be convenient to wrap up
+/// writing data when it follows either [init_and_write_message_v1] or [write_message_v1].
+pub fn write_and_finalize_message_v1<'info, A>(
+    accounts: &A,
+    index: u32,
+    data: Vec<u8>,
+    emitter_authority_seeds: &[&[u8]],
+) -> Result<()>
+where
+    A: PrepareMessageV1<'info>,
+{
+    write_message_v1(accounts, index, data, emitter_authority_seeds)?;
+
+    crate::cpi::process_message_v1(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::cpi::accounts::ProcessMessageV1 {
+                emitter_authority: accounts.core_emitter_authority(),
+                draft_message: accounts.core_message(),
+                close_account_destination: None,
+            },
+            &[emitter_authority_seeds],
+        ),
+        crate::processor::ProcessMessageV1Directive::Finalize,
     )
 }
 

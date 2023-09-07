@@ -1,7 +1,7 @@
 use crate::{
     constants::CUSTODY_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
-    legacy::EmptyArgs,
+    legacy::instruction::EmptyArgs,
     processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
     zero_copy::Mint,

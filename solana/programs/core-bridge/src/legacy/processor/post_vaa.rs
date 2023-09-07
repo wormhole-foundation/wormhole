@@ -79,6 +79,13 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostVaaArgs> f
 
 impl<'info> PostVaa<'info> {
     pub fn constraints(ctx: &Context<Self>, args: &PostVaaArgs) -> Result<()> {
+        // Check that the guardian set is still active.
+        let timestamp = Clock::get().map(Into::into)?;
+        require!(
+            ctx.accounts.guardian_set.is_active(&timestamp),
+            CoreBridgeError::GuardianSetExpired
+        );
+
         let signature_set = &ctx.accounts.signature_set;
         require!(
             !INVALID_SIGNATURE_SET_KEYS.contains(&signature_set.key().to_string().as_str()),

@@ -83,7 +83,7 @@ impl<'info> VerifySignatures<'info> {
         let timestamp = Clock::get().map(Into::into)?;
         require!(
             ctx.accounts.guardian_set.is_active(&timestamp),
-            CoreBridgeError::PostVaaGuardianSetExpired
+            CoreBridgeError::GuardianSetExpired
         );
 
         // Done.

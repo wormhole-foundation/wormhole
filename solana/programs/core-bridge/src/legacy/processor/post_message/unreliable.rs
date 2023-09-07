@@ -92,10 +92,12 @@ impl<'info> PostMessageUnreliable<'info> {
     }
 }
 
-/// Processor to post (publish) a Wormhole message by setting up the message account for Guardian
-/// observation. This message account has either been created already or is created in this call. If
-/// this message was already created, the emitter must be the same as the one encoded in the message
-/// and the payload must be the same size.
+/// Processor to post (publish) a Wormhole message by setting up the message account for
+/// Guardian observation. This message account has either been created already or is created in
+/// this call.
+///
+/// If this message account already exists, the emitter must be the same as the one encoded in
+/// the message and the payload must be the same size.
 #[access_control(PostMessageUnreliable::constraints(&ctx))]
 fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,

@@ -95,12 +95,15 @@ pub enum PublishMessageDirective {
 ///
 /// Message seeds are optional and are only needed if the integrating program is using a PDA for
 /// this account. Otherwise, a keypair can be used and message seeds can be None.
-pub fn publish_message<'info, A: PublishMessage<'info>>(
+pub fn publish_message<'info, A>(
     accounts: &A,
     directive: PublishMessageDirective,
     emitter_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
-) -> Result<()> {
+) -> Result<()>
+where
+    A: PublishMessage<'info>,
+{
     // If there is a fee, transfer it. But only try if the fee collector is provided because the
     // post message instruction will fail if there is actually a fee but no fee collector.
     if let Some(fee_collector) = accounts.core_fee_collector() {
@@ -168,12 +171,15 @@ pub fn publish_message<'info, A: PublishMessage<'info>>(
     }
 }
 
-fn handle_post_message_v1<'info, A: PublishMessage<'info>>(
+fn handle_post_message_v1<'info, A>(
     accounts: &A,
     args: PostMessageArgs,
     emitter_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
-) -> Result<()> {
+) -> Result<()>
+where
+    A: PublishMessage<'info>,
+{
     match message_seeds {
         Some(message_seeds) => crate::legacy::cpi::post_message(
             CpiContext::new_with_signer(
@@ -210,7 +216,7 @@ fn handle_post_message_v1<'info, A: PublishMessage<'info>>(
     }
 }
 
-fn handle_post_program_message_v1<'info, A: PublishMessage<'info>>(
+fn handle_post_program_message_v1<'info, A>(
     accounts: &A,
     program_id: Pubkey,
     nonce: u32,
@@ -218,7 +224,10 @@ fn handle_post_program_message_v1<'info, A: PublishMessage<'info>>(
     commitment: Commitment,
     emitter_authority_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
-) -> Result<()> {
+) -> Result<()>
+where
+    A: PublishMessage<'info>,
+{
     let emitter_authority = accounts
         .core_emitter_authority()
         .ok_or(CoreBridgeError::EmitterAuthorityRequired)?;
@@ -293,12 +302,15 @@ fn handle_post_program_message_v1<'info, A: PublishMessage<'info>>(
     )
 }
 
-fn handle_post_unreliable_message_v1<'info, A: PublishMessage<'info>>(
+fn handle_post_unreliable_message_v1<'info, A>(
     accounts: &A,
     args: PostMessageArgs,
     emitter_seeds: &[&[u8]],
     message_seeds: Option<&[&[u8]]>,
-) -> Result<()> {
+) -> Result<()>
+where
+    A: PublishMessage<'info>,
+{
     let emitter = accounts
         .core_emitter()
         .ok_or(CoreBridgeError::EmitterRequired)?;

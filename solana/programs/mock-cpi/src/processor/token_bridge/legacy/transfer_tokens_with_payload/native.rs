@@ -160,7 +160,7 @@ pub fn mock_legacy_transfer_tokens_with_payload_native(
                 &[sender_seed_prefix, &[sender_bump]],
             ],
         ),
-        token_bridge_program::legacy::cpi::TransferTokensWithPayloadArgs {
+        token_bridge_program::legacy::instruction::TransferTokensWithPayloadArgs {
             nonce,
             amount,
             redeemer,
