@@ -17,7 +17,7 @@ contract Messages is Getters {
         bytes calldata guardianSet, 
         uint32 guardianSetIndex
     ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
-        // Verify that the specified guardian set is the current guardian set. 
+        // Verify that the specified guardian set is a valid. 
         require(
             getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet), 
             "invalid guardian set"
