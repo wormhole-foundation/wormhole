@@ -136,6 +136,10 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	s.pendingResponses.Remove(pendingResponse)
 }
 
+func (s *httpServer) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.logger.Debug("health check")
+}
+
 func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, p *PendingResponses, logger *zap.Logger) *http.Server {
 	s := &httpServer{
 		topic:            t,
@@ -145,6 +149,7 @@ func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, p *Pen
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT")
+	r.HandleFunc("/v1/health", s.handleHealth).Methods("GET")
 	return &http.Server{
 		Addr:              addr,
 		Handler:           r,
