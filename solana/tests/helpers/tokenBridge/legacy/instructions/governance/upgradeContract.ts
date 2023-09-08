@@ -30,7 +30,6 @@ export type LegacyUpgradeContractContext = {
   rent?: PublicKey;
   clock?: PublicKey;
   bpfLoaderUpgradeableProgram?: PublicKey;
-  coreBridgeProgram?: PublicKey;
 };
 
 export function legacyUpgradeContractIx(
@@ -53,12 +52,9 @@ export function legacyUpgradeContractIx(
     rent,
     clock,
     bpfLoaderUpgradeableProgram,
-    coreBridgeProgram,
   } = accounts;
 
-  if (coreBridgeProgram === undefined) {
-    coreBridgeProgram = coreBridgeProgramId(program);
-  }
+  const coreBridgeProgram = coreBridgeProgramId(program);
 
   if (postedVaa === undefined) {
     postedVaa = coreBridge.PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
@@ -163,11 +159,6 @@ export function legacyUpgradeContractIx(
     },
     {
       pubkey: SystemProgram.programId,
-      isWritable: false,
-      isSigner: false,
-    },
-    {
-      pubkey: coreBridgeProgram,
       isWritable: false,
       isSigner: false,
     },

@@ -4,8 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
-    zero_copy::PostedVaaV1,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 
@@ -22,7 +21,7 @@ pub struct UpgradeContract<'info> {
             PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
-        seeds::program = core_bridge_program,
+        seeds::program = core_bridge_program::ID,
     )]
     posted_vaa: AccountInfo<'info>,
 
@@ -74,7 +73,6 @@ pub struct UpgradeContract<'info> {
     bpf_loader_upgradeable_program: AccountInfo<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
