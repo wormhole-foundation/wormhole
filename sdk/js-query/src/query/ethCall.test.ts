@@ -24,7 +24,9 @@ const CI = false;
 const ENV = "DEVNET";
 const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-const QUERY_SERVER_URL = "http://localhost:6069/v1/query";
+const CCQ_SERVER_URL = "http://localhost:6069/v1";
+const QUERY_URL = CCQ_SERVER_URL + "/query";
+const HEALTH_URL = CCQ_SERVER_URL + "/health";
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
@@ -83,7 +85,7 @@ describe("eth call", () => {
       "0100000001010005010000004600000009307832386439363330020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd"
     );
   });
-  test("parse response", async () => {
+  test("successful query", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
     const totalSupplyCallData = createTestEthCallData(
       WETH_ADDRESS,
@@ -103,7 +105,7 @@ describe("eth call", () => {
     const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
     const response = await axios.put<QueryResponse>(
-      QUERY_SERVER_URL,
+      QUERY_URL,
       {
         signature,
         bytes: Buffer.from(serialized).toString("hex"),
@@ -138,7 +140,7 @@ describe("eth call", () => {
     const signature = sign(PRIVATE_KEY, digest);
     let err = false;
     await axios
-      .put<QueryResponse>(QUERY_SERVER_URL, {
+      .put<QueryResponse>(QUERY_URL, {
         signature,
         bytes: Buffer.from(serialized).toString("hex"),
       })
@@ -171,7 +173,7 @@ describe("eth call", () => {
     let err = false;
     await axios
       .put<QueryResponse>(
-        QUERY_SERVER_URL,
+        QUERY_URL,
         {
           signature,
           bytes: Buffer.from(serialized).toString("hex"),
@@ -207,7 +209,7 @@ describe("eth call", () => {
     let err = false;
     await axios
       .put<QueryResponse>(
-        QUERY_SERVER_URL,
+        QUERY_URL,
         {
           signature,
           bytes: Buffer.from(serialized).toString("hex"),
@@ -222,5 +224,9 @@ describe("eth call", () => {
         );
       });
     expect(err).toBe(true);
+  });
+  test("health check", async () => {
+    const response = await axios.get(HEALTH_URL);
+    expect(response.status).toBe(200);
   });
 });
