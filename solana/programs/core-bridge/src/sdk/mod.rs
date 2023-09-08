@@ -1,7 +1,7 @@
 //! **ATTENTION INTEGRATORS!** Core Bridge Program developer kit. It is recommended to use
-//! [sdk::cpi](mod@crate::sdk::cpi) for invoking Core Bridge instructions as opposed to the
-//! code-generated Anchor CPI (found in [cpi](mod@crate::cpi)) and legacy CPI (found in
-//! [legacy::cpi](mod@crate::legacy::cpi)).
+//! [sdk::cpi](crate::sdk::cpi) for invoking Core Bridge instructions as opposed to the
+//! code-generated Anchor CPI (found in [cpi](crate::cpi)) and legacy CPI (found in
+//! [legacy::cpi](crate::legacy::cpi)).
 
 pub use crate::{
     constants::{PROGRAM_EMITTER_SEED_PREFIX, SOLANA_CHAIN},

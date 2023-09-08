@@ -4,8 +4,8 @@ pub use close_encoded_vaa::*;
 mod publish_message;
 pub use publish_message::*;
 
-mod prepare_message_v1;
-pub use prepare_message_v1::*;
+mod prepare_message;
+pub use prepare_message::*;
 
 use anchor_lang::prelude::*;
 

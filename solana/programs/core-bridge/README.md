@@ -144,7 +144,7 @@ CPI SDK with the `PublishMessageDirective::ProgramMessage` with your program ID.
 program will verify that your emitter authority can be derived the same way using the provided
 program ID (this validates the correct emitter address will be used for your Wormhole message).
 
-This directive with the other message arguments (nonce, Solana commitment level and message payload)
+This directive with the other message arguments (`nonce`, Solana `commitment` and message `payload`)
 will invoke the Core Bridge to create a message account observed by the Guardians. When the Wormhole
 Guardians sign this message attesting to its observation, you may redeem this attested message (VAA)
 on any network where a Core Bridge smart contract is deployed.

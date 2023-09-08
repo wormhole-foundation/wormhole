@@ -142,7 +142,7 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
                 ],
             ]),
         ),
-        (None, Some(_emitter_authority)) => core_bridge_sdk::cpi::publish_message(
+        (None, Some(_)) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
             core_bridge_sdk::cpi::PublishMessageDirective::Message {
                 nonce,

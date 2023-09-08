@@ -266,22 +266,22 @@ pub mod cpi {
         /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
-        /// CHECK: Registered Emitter Account (mut, seeds = [emitter_chain], seeds::program =
+        /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
         ///
         /// NOTE: If the above PDA does not exist, there is a legacy account whose address is
-        /// derived using seeds = [emitter_chain, emitter_address].
+        /// derived using seeds = \[emitter_chain, emitter_address\].
         pub registered_emitter: AccountInfo<'info>,
         /// CHECK: Recipient Token Account (mut).
         pub recipient_token: AccountInfo<'info>,
         /// CHECK: Payer (Relayer) Token Account (mut).
         pub payer_token: AccountInfo<'info>,
-        /// CHECK: Transfer Authority (mut, seeds = [mint.key], seeds::program =
+        /// CHECK: Custody Token Account (mut, seeds = \[mint.key\], seeds::program =
         /// token_bridge_program).
         pub custody_token: AccountInfo<'info>,
         /// CHECK: Mint (read-only).
         pub mint: AccountInfo<'info>,
-        /// CHECK: Custody Authority (read-only, seeds = ["custody_signer"], seeds::program =
+        /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
         /// CHECK: Recipient, which should be the account owner of recipient token (read-only).
@@ -302,29 +302,29 @@ pub mod cpi {
     pub struct CompleteTransferWrapped<'info> {
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = ["PostedVAA", message_hash],
+        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
         pub posted_vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
+        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
-        /// CHECK: Registered Emitter Account (mut, seeds = [emitter_chain], seeds::program =
+        /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
         ///
         /// NOTE: If the above PDA does not exist, there is a legacy account whose address is
-        /// derived using seeds = [emitter_chain, emitter_address].
+        /// derived using seeds = \[emitter_chain, emitter_address\].
         pub registered_emitter: AccountInfo<'info>,
         /// CHECK: Recipient Token Account (mut).
         pub recipient_token: AccountInfo<'info>,
         /// CHECK: Payer (Relayer) Token Account (mut).
         pub payer_token: AccountInfo<'info>,
-        /// CHECK: Wrapped Mint (mut, seeds = ["wrapped", token_chain, token_address],
+        /// CHECK: Wrapped Mint (mut, seeds = \["wrapped", token_chain, token_address\],
         /// seeds::program = token_bridge_program).
         pub wrapped_mint: AccountInfo<'info>,
-        /// CHECK: Wrapped Asset (read-only, seeds = [wrapped_mint.key], seeds::program =
+        /// CHECK: Wrapped Asset (read-only, seeds = \["meta", wrapped_mint.key\], seeds::program =
         /// token_bridge_program).
         pub wrapped_asset: AccountInfo<'info>,
-        /// CHECK: Mint Authority (read-only, seeds = ["mint_signer"], seeds::program =
+        /// CHECK: Mint Authority (read-only, seeds = \["mint_signer"\], seeds::program =
         /// token_bridge_program).
         pub mint_authority: AccountInfo<'info>,
         /// CHECK: Recipient, which should be the account owner of recipient token (read-only).
@@ -345,31 +345,31 @@ pub mod cpi {
     pub struct CompleteTransferWithPayloadNative<'info> {
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = ["PostedVAA", message_hash],
+        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
         pub posted_vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
+        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
-        /// CHECK: Registered Emitter Account (mut, seeds = [emitter_chain], seeds::program =
+        /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
         ///
         /// NOTE: If the above PDA does not exist, there is a legacy account whose address is
-        /// derived using seeds = [emitter_chain, emitter_address].
+        /// derived using seeds = \[emitter_chain, emitter_address\].
         pub registered_emitter: AccountInfo<'info>,
         /// CHECK: Destination Token Account (mut).
         pub dst_token: AccountInfo<'info>,
         /// CHECK: Redeemer Authority (read-only signer).
         ///
         /// NOTE: In order to redeem a transfer sent to an address matching your program ID, use
-        /// seeds = ["redeemer"].
+        /// seeds = \["redeemer"\].
         pub redeemer_authority: AccountInfo<'info>,
-        /// CHECK: Transfer Authority (mut, seeds = [mint.key], seeds::program =
+        /// CHECK: Custody Token Account (mut, seeds = \[mint.key\], seeds::program =
         /// token_bridge_program).
         pub custody_token: AccountInfo<'info>,
         /// CHECK: Mint (read-only).
         pub mint: AccountInfo<'info>,
-        /// CHECK: Custody Authority (read-only, seeds = ["custody_signer"], seeds::program =
+        /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
         /// CHECK: System Program.
@@ -384,17 +384,17 @@ pub mod cpi {
     pub struct CompleteTransferWithPayloadWrapped<'info> {
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = ["PostedVAA", message_hash],
+        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
         pub posted_vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
+        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
-        /// CHECK: Registered Emitter Account (mut, seeds = [emitter_chain], seeds::program =
+        /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
         ///
         /// NOTE: If the above PDA does not exist, there is a legacy account whose address is
-        /// derived using seeds = [emitter_chain, emitter_address].
+        /// derived using seeds = \[emitter_chain, emitter_address\].
         pub registered_emitter: AccountInfo<'info>,
         /// CHECK: Destination Token Account (mut).
         pub dst_token: AccountInfo<'info>,
@@ -403,13 +403,13 @@ pub mod cpi {
         /// NOTE: In order to redeem a transfer sent to an address matching your program ID, use
         /// seeds = ["redeemer"].
         pub redeemer_authority: AccountInfo<'info>,
-        /// CHECK: Wrapped Mint (mut, seeds = ["wrapped", token_chain, token_address],
+        /// CHECK: Wrapped Mint (mut, seeds = \["wrapped", token_chain, token_address\],
         /// seeds::program = token_bridge_program).
         pub wrapped_mint: AccountInfo<'info>,
-        /// CHECK: Wrapped Asset (read-only, seeds = [wrapped_mint.key], seeds::program =
+        /// CHECK: Wrapped Asset (read-only, seeds = \["meta", wrapped_mint.key\], seeds::program =
         /// token_bridge_program).
         pub wrapped_asset: AccountInfo<'info>,
-        /// CHECK: Mint Authority (read-only, seeds = ["mint_signer"], seeds::program =
+        /// CHECK: Mint Authority (read-only, seeds = \["mint_signer"\], seeds::program =
         /// token_bridge_program).
         pub mint_authority: AccountInfo<'info>,
         /// CHECK: System Program.
@@ -427,7 +427,7 @@ pub mod cpi {
         pub src_token: AccountInfo<'info>,
         /// CHECK: Mint (read-only).
         pub mint: AccountInfo<'info>,
-        /// CHECK: Transfer Authority (mut, seeds = \[mint.key\], seeds::program =
+        /// CHECK: Custody Token Account (mut, seeds = \[mint.key\], seeds::program =
         /// token_bridge_program).
         pub custody_token: AccountInfo<'info>,
         /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
@@ -454,7 +454,7 @@ pub mod cpi {
         pub system_program: AccountInfo<'info>,
         /// CHECK: Core Bridge Program.
         pub core_bridge_program: AccountInfo<'info>,
-        /// CHECK: Token Program.
+        /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
     }
 
@@ -467,7 +467,7 @@ pub mod cpi {
         /// CHECK: Wrapped Mint (mut, seeds = \["wrapped", token_chain, token_address\],
         /// seeds::program = token_bridge_program).
         pub wrapped_mint: AccountInfo<'info>,
-        /// CHECK: Wrapped Asset (read-only, seeds = \[wrapped_mint.key\], seeds::program =
+        /// CHECK: Wrapped Asset (read-only, seeds = ["meta", wrapped_mint.key], seeds::program =
         /// token_bridge_program).
         pub wrapped_asset: AccountInfo<'info>,
         /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
@@ -491,7 +491,7 @@ pub mod cpi {
         pub system_program: AccountInfo<'info>,
         /// CHECK: Core Bridge Program.
         pub core_bridge_program: AccountInfo<'info>,
-        /// CHECK: Token Program.
+        /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
     }
 
@@ -503,7 +503,7 @@ pub mod cpi {
         pub src_token: AccountInfo<'info>,
         /// CHECK: Mint (read-only).
         pub mint: AccountInfo<'info>,
-        /// CHECK: Transfer Authority (mut, seeds = [mint.key], seeds::program =
+        /// CHECK: Custody Token Account (mut, seeds = \[mint.key\], seeds::program =
         /// token_bridge_program).
         pub custody_token: AccountInfo<'info>,
         /// CHECK: Transfer Authority (read-only, seeds = ["authority_signer"], seeds::program =
@@ -548,7 +548,7 @@ pub mod cpi {
         /// CHECK: Wrapped Mint (mut, seeds = ["wrapped", token_chain, token_address],
         /// seeds::program = token_bridge_program).
         pub wrapped_mint: AccountInfo<'info>,
-        /// CHECK: Wrapped Asset (read-only, seeds = [wrapped_mint.key], seeds::program =
+        /// CHECK: Wrapped Asset (read-only, seeds = ["meta", wrapped_mint.key], seeds::program =
         /// token_bridge_program).
         pub wrapped_asset: AccountInfo<'info>,
         /// CHECK: Transfer Authority (read-only, seeds = ["authority_signer"], seeds::program =

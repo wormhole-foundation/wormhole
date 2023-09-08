@@ -21,7 +21,8 @@ use anchor_lang::prelude::error_code;
 /// >= 0x1000 -- Legacy Complete Transfer with Payload Wrapped.
 /// >= 0x1100 -- Legacy Transfer Tokens with Payload Wrapped.
 /// >= 0x1200 -- Legacy Transfer Tokens with Payload Native.
-/// >= 0x2000 -- Token Bridge Anchor Instruction.
+/// >= 0x1600 -- Token Bridge Anchor Instruction.
+/// >= 0x2000 -- Token Bridge SDK.
 ///
 /// NOTE: All of these error codes when triggered are offset by `ERROR_CODE_OFFSET` (6000). So for
 /// example, `U64Overflow` will return as 6006.
@@ -93,11 +94,23 @@ pub enum TokenBridgeError {
     ImplementationMismatch = 0x800,
 
     #[msg("UnsupportedInstructionDirective")]
-    UnsupportedInstructionDirective = 0x2000,
+    UnsupportedInstructionDirective = 0x1600,
 
     #[msg("EmitterAlreadyRegistered")]
-    EmitterAlreadyRegistered = 0x2002,
+    EmitterAlreadyRegistered = 0x1602,
 
     #[msg("RegisteredEmitterMismatch")]
-    RegisteredEmitterMismatch = 0x2004,
+    RegisteredEmitterMismatch = 0x1604,
+
+    #[msg("CustodyTokenAccountRequired")]
+    CustodyTokenAccountRequired = 0x2002,
+
+    #[msg("CustodyAuthorityRequired")]
+    CustodyAuthorityRequired = 0x2004,
+
+    #[msg("WrappedAssetRequired")]
+    WrappedAssetRequired = 0x2006,
+
+    #[msg("SenderAuthorityRequired")]
+    SenderAuthorityRequired = 0x2008,
 }

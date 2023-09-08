@@ -1,5 +1,5 @@
 //! Constants used by the Core Bridge Program. For integrators, necessary constants are re-exported
-//! in the [sdk](mod@crate::sdk) module.
+//! in the [sdk](crate::sdk) module.
 
 use anchor_lang::prelude::constant;
 

@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![allow(clippy::result_large_err)]
 
 use anchor_lang::prelude::*;
@@ -39,8 +40,8 @@ pub mod wormhole_token_bridge_solana {
     /// legacy register chain instruction (which is now deprecated). This instruction handler
     /// creates two [RegisteredEmitter](crate::legacy::state::RegisteredEmitter) accounts: one with
     /// a PDA address derived using the old way of [emitter_chain, emitter_address] and the more
-    /// secure way of [emitter_chain]. By creating both of these accounts, we can consider migrating
-    /// to the newly derived account and closing the legacy account in the future.
+    /// secure way of \[emitter_chain\]. By creating both of these accounts, we can consider
+    /// migrating to the newly derived account and closing the legacy account in the future.
     pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
         processor::register_chain(ctx)
     }
@@ -48,7 +49,7 @@ pub mod wormhole_token_bridge_solana {
     /// Processor for securing an existing (legacy)
     /// [RegisteredEmitter](crate::legacy::state::RegisteredEmitter) by creating a new
     /// [RegisteredEmitter](crate::legacy::state::RegisteredEmitter) account with a PDA address with
-    /// seeds [emitter_chain]. We can consider migrating to the newly derived account and closing
+    /// seeds \[emitter_chain\]. We can consider migrating to the newly derived account and closing
     /// the legacy account in the future.
     pub fn secure_registered_emitter(
         ctx: Context<SecureRegisteredEmitter>,

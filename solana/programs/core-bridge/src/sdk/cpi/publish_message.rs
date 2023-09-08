@@ -42,6 +42,18 @@ pub trait PublishMessage<'info>:
     fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
         None
     }
+
+    /// Try unwrapping [core_emitter](PublishMessage::core_emitter).
+    fn try_core_emitter(&self) -> Result<AccountInfo<'info>> {
+        self.core_emitter()
+            .ok_or(error!(CoreBridgeError::EmitterRequired))
+    }
+
+    /// Try unwrapping [core_emitter_authority](PublishMessage::core_emitter_authority).
+    fn try_core_emitter_authority(&self) -> Result<AccountInfo<'info>> {
+        self.core_emitter_authority()
+            .ok_or(error!(CoreBridgeError::EmitterAuthorityRequired))
+    }
 }
 
 /// Directive used to determine how to post a Core Bridge message.
@@ -79,6 +91,11 @@ pub enum PublishMessageDirective {
         payload: Vec<u8>,
         commitment: Commitment,
     },
+    /// Prepared message, which was already written to a message account. Usually this operation
+    /// would be executed within a transaction block following a program's instruction(s) preparing
+    /// a Wormhole message. But if there are other operations your program needs to perform in
+    /// concert with publishing a prepared message, use this directive.
+    PreparedMessage,
 }
 
 /// SDK method for posting a new message with the Core Bridge program. This method will handle any
@@ -164,6 +181,9 @@ where
             },
             signer_seeds,
         ),
+        PublishMessageDirective::PreparedMessage => {
+            handle_prepared_message_v1(accounts, signer_seeds)
+        }
     }
 }
 
@@ -221,10 +241,6 @@ fn handle_post_program_message_v1<'info, A>(
 where
     A: PublishMessage<'info>,
 {
-    let emitter_authority = accounts
-        .core_emitter_authority()
-        .ok_or(CoreBridgeError::EmitterAuthorityRequired)?;
-
     // Create message account.
     {
         let data_len = crate::sdk::compute_init_message_v1_space(payload.len());
@@ -263,7 +279,7 @@ where
     crate::sdk::cpi::handle_prepare_message_v1(
         accounts.core_bridge_program(),
         accounts.core_message(),
-        emitter_authority,
+        accounts.try_core_emitter_authority()?,
         crate::sdk::cpi::InitMessageV1Args {
             nonce,
             cpi_program_id: Some(program_id),
@@ -303,10 +319,6 @@ fn handle_post_unreliable_message_v1<'info, A>(
 where
     A: PublishMessage<'info>,
 {
-    let emitter = accounts
-        .core_emitter()
-        .ok_or(CoreBridgeError::EmitterRequired)?;
-
     match signer_seeds {
         Some(signer_seeds) => crate::legacy::cpi::post_message_unreliable(
             CpiContext::new_with_signer(
@@ -314,7 +326,7 @@ where
                 crate::legacy::cpi::PostMessageUnreliable {
                     config: accounts.core_bridge_config(),
                     message: accounts.core_message(),
-                    emitter,
+                    emitter: accounts.try_core_emitter()?,
                     emitter_sequence: accounts.core_emitter_sequence(),
                     payer: accounts.payer(),
                     fee_collector: accounts.core_fee_collector(),
@@ -330,7 +342,7 @@ where
                 crate::legacy::cpi::PostMessageUnreliable {
                     config: accounts.core_bridge_config(),
                     message: accounts.core_message(),
-                    emitter,
+                    emitter: accounts.try_core_emitter()?,
                     emitter_sequence: accounts.core_emitter_sequence(),
                     payer: accounts.payer(),
                     fee_collector: accounts.core_fee_collector(),
@@ -338,6 +350,56 @@ where
                 },
             ),
             args,
+        ),
+    }
+}
+
+fn handle_prepared_message_v1<'info, A>(
+    accounts: &A,
+    signer_seeds: Option<&[&[&[u8]]]>,
+) -> Result<()>
+where
+    A: PublishMessage<'info>,
+{
+    match signer_seeds {
+        Some(signer_seeds) => crate::legacy::cpi::post_message(
+            CpiContext::new_with_signer(
+                accounts.core_bridge_program(),
+                crate::legacy::cpi::PostMessage {
+                    config: accounts.core_bridge_config(),
+                    message: accounts.core_message(),
+                    emitter: None,
+                    emitter_sequence: accounts.core_emitter_sequence(),
+                    payer: accounts.payer(),
+                    fee_collector: accounts.core_fee_collector(),
+                    system_program: accounts.system_program(),
+                },
+                signer_seeds,
+            ),
+            PostMessageArgs {
+                nonce: 420, // not checked
+                payload: Vec::new(),
+                commitment: Commitment::Finalized, // not checked
+            },
+        ),
+        None => crate::legacy::cpi::post_message(
+            CpiContext::new(
+                accounts.core_bridge_program(),
+                crate::legacy::cpi::PostMessage {
+                    config: accounts.core_bridge_config(),
+                    message: accounts.core_message(),
+                    emitter: None,
+                    emitter_sequence: accounts.core_emitter_sequence(),
+                    payer: accounts.payer(),
+                    fee_collector: accounts.core_fee_collector(),
+                    system_program: accounts.system_program(),
+                },
+            ),
+            PostMessageArgs {
+                nonce: 420, // not checked
+                payload: Vec::new(),
+                commitment: Commitment::Finalized, // not checked
+            },
         ),
     }
 }
