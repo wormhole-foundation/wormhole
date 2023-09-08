@@ -12,15 +12,23 @@ import "./libraries/external/BytesLib.sol";
 contract Messages is Getters {
     using BytesLib for bytes;
 
-    function parseAndVerifyVMOptimized(bytes calldata encodedVM, bytes calldata guardianSet) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
+    function parseAndVerifyVMOptimized(
+        bytes calldata encodedVM, 
+        bytes calldata guardianSet, 
+        uint32 guardianSetIndex
+    ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         // Verify that the specified guardian set is the current guardian set. 
         require(
-            getGuardianSetHash(getCurrentGuardianSetIndex()) == keccak256(guardianSet), 
+            getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet), 
             "invalid guardian set"
         );
 
         // TODO: Optimize parsing function. 
         vm = parseVM(encodedVM);
+
+        // Verify that the VM is signed with the same guardian set that was specified.
+        require(vm.guardianSetIndex == guardianSetIndex, "mismatched guardian set index");
+
         (valid, reason) = verifyVMInternal(vm, parseGuardianSetOptimized(guardianSet), false);
     }
 
