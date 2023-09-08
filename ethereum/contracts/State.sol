@@ -44,6 +44,9 @@ contract Storage {
 
         // EIP-155 Chain ID
         uint256 evmChainId;
+
+        // Guardian set hashes. 
+        mapping(uint32 => bytes32) guardianSetHashes;
     }
 }
 

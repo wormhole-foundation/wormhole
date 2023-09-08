@@ -53,4 +53,8 @@ contract Getters is State {
     function nextSequence(address emitter) public view returns (uint64) {
         return _state.sequences[emitter];
     }
+
+    function getGuardianSetHash(uint32 index) public view returns (bytes32) {
+        return _state.guardianSetHashes[index];
+    }
 }

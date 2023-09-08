@@ -12,11 +12,41 @@ import "./libraries/external/BytesLib.sol";
 contract Messages is Getters {
     using BytesLib for bytes;
 
+    function parseAndVerifyVMOptimized(bytes calldata encodedVM, bytes calldata guardianSet) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
+        // Verify that the specified guardian set is the current guardian set. 
+        require(
+            getGuardianSetHash(getCurrentGuardianSetIndex()) == keccak256(guardianSet), 
+            "invalid guardian set"
+        );
+
+        // TODO: Optimize parsing function. 
+        vm = parseVM(encodedVM);
+        (valid, reason) = verifyVMInternal(vm, parseGuardianSetOptimized(guardianSet), false);
+    }
+
+    function parseGuardianSetOptimized(bytes calldata guardianSetData) public pure returns (Structs.GuardianSet memory guardianSet) {
+        // Fetch the guardian set length.
+        uint256 endGuardianKeyIndex = guardianSetData.length - 4; 
+        uint256 guardianCount = endGuardianKeyIndex / 20; 
+
+        guardianSet = Structs.GuardianSet({
+            keys : new address[](guardianCount),
+            expirationTime : guardianSetData.toUint32(endGuardianKeyIndex)
+        });
+
+        for(uint256 i = 0; i < guardianCount;) {
+            unchecked { 
+                guardianSet.keys[i] = guardianSetData.toAddress(i * 20);
+                i += 1; 
+            } 
+        }
+    } 
+
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
         /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
-        (valid, reason) = verifyVMInternal(vm, false);
+        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), false);
     }
 
    /**
@@ -28,7 +58,7 @@ contract Messages is Getters {
     *  - it aims to verify the hash field provided against the contents of the vm
     */
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
-        (valid, reason) = verifyVMInternal(vm, true);    
+        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), true);    
     }
 
     /**
@@ -37,10 +67,7 @@ contract Messages is Getters {
     * in the case that the vm is securely parsed and the hash field can be trusted, checkHash can be set to false
     * as the check would be redundant
     */
-    function verifyVMInternal(Structs.VM memory vm, bool checkHash) internal view returns (bool valid, string memory reason) {
-        /// @dev Obtain the current guardianSet for the guardianSetIndex provided
-        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
-
+    function verifyVMInternal(Structs.VM memory vm, Structs.GuardianSet memory guardianSet, bool checkHash) internal view returns (bool valid, string memory reason) {
         /**
          * Verify that the hash field in the vm matches with the hash of the contents of the vm if checkHash is set
          * WARNING: This hash check is critical to ensure that the vm.hash provided matches with the hash of the body.
@@ -65,6 +92,8 @@ contract Messages is Getters {
             }
         }
 
+        uint256 guardianCount = guardianSet.keys.length;
+
        /**
         * @dev Checks whether the guardianSet has zero keys
         * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
@@ -72,7 +101,7 @@ contract Messages is Getters {
         * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
         * signature verification.
         */
-        if(guardianSet.keys.length == 0){
+        if(guardianCount == 0){
             return (false, "invalid guardian set");
         }
 
@@ -87,7 +116,7 @@ contract Messages is Getters {
         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
-        if (vm.signatures.length < quorum(guardianSet.keys.length)){
+        if (vm.signatures.length < quorum(guardianCount)){
             return (false, "no quorum");
         }
 
@@ -110,8 +139,9 @@ contract Messages is Getters {
      */
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
         uint8 lastIndex = 0;
+        uint256 sigCount = signatures.length;
         uint256 guardianCount = guardianSet.keys.length;
-        for (uint i = 0; i < signatures.length; i++) {
+        for (uint i = 0; i < sigCount;) {
             Structs.Signature memory sig = signatures[i];
             address signatory = ecrecover(hash, sig.v, sig.r, sig.s);
             // ecrecover returns 0 for invalid signatures. We explicitly require valid signatures to avoid unexpected
@@ -134,6 +164,8 @@ contract Messages is Getters {
             if(signatory != guardianSet.keys[sig.guardianIndex]){
                 return (false, "VM signature invalid");
             }
+
+            unchecked { i += 1; }
         }
 
         /// If we are here, we've validated that the provided signatures are valid for the provided guardianSet

@@ -16,10 +16,11 @@ contract Setters is State {
 
     function storeGuardianSet(Structs.GuardianSet memory set, uint32 index) internal {
         uint setLength = set.keys.length;
-        for (uint i = 0; i < setLength; i++) {
+        for (uint i = 0; i < setLength;) {
             require(set.keys[i] != address(0), "Invalid key");
+            unchecked { i += 1; }
         }
-        _state.guardianSets[index] = set;
+        _state.guardianSets[index] = set;    
     }
 
     function setInitialized(address implementatiom) internal {
@@ -53,5 +54,9 @@ contract Setters is State {
     function setEvmChainId(uint256 evmChainId) internal {
         require(evmChainId == block.chainid, "invalid evmChainId");
         _state.evmChainId = evmChainId;
+    }
+
+    function setGuardianSetHash(uint32 index, bytes32 hash) internal {
+        _state.guardianSetHashes[index] = hash;
     }
 }

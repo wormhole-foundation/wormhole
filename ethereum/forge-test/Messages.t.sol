@@ -25,15 +25,50 @@ contract TestMessages is Test {
   ExportedMessages messages;
 
   Structs.GuardianSet guardianSet;
+  Structs.GuardianSet guardianSetOpt;
 
-  function setUp() public {
-    messages = new ExportedMessages();
-
+  function setupSingleGuardian() internal {
     // initialize guardian set with one guardian
     address[] memory keys = new address[](1);
     keys[0] = vm.addr(testGuardian);
     guardianSet = Structs.GuardianSet(keys, 0);
     require(messages.quorum(guardianSet.keys.length) == 1, "Quorum should be 1");
+  }
+
+  function setupMultiGuardian() internal {
+    // initialize guardian set with 19 guardians 
+    address[] memory keys = new address[](19);
+    for (uint256 i = 0; i < 19; ++i) {
+      keys[i] = makeAddr(string(abi.encodePacked("guarian", i)));
+    }
+    guardianSetOpt = Structs.GuardianSet(keys, 0); 
+    require(messages.quorum(guardianSetOpt.keys.length) == 13, "Quorum should be 13");
+  }
+
+  function setUp() public {
+    messages = new ExportedMessages();
+    setupSingleGuardian();
+    setupMultiGuardian();
+  }
+
+  function testParseGuardianSetOptimized(uint8 guardianCount) public view {
+    vm.assume(guardianCount > 0 && guardianCount <= 19);
+
+    // Encode the guardian set.
+    bytes memory encodedGuardianSet;
+    for (uint256 i = 0; i < guardianCount; ++i) {
+      encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSetOpt.keys[i]);
+    }
+    encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSetOpt.expirationTime);
+
+    // Parse the guardian set. 
+    Structs.GuardianSet memory parsedSet = messages.parseGuardianSetOptimized(encodedGuardianSet);
+
+    // Validate the results by comparing the parsed set to the original set.
+    for (uint256 i = 0; i < guardianCount; ++i) {
+      assert(parsedSet.keys[i] == guardianSetOpt.keys[i]);
+    } 
+    assert(parsedSet.expirationTime == guardianSetOpt.expirationTime);
   }
 
   function testQuorum() public {
