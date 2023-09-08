@@ -154,7 +154,7 @@ contract TestUtils is Test, KEVMCheats {
         uint8 consistencyLevel,
         bytes memory payload,
         uint256 pk)
-        internal
+        internal pure
             returns (bytes memory _vm, bytes32 hash)
     {
         bytes memory header = validVmHeader(guardianSetIndex);
@@ -176,7 +176,7 @@ contract TestUtils is Test, KEVMCheats {
         _vm = bytes.concat(header, signature, body);
     }
 
-    function validSignature(uint256 pk, bytes32 hash) public returns (bytes memory signature) {
+    function validSignature(uint256 pk, bytes32 hash) public pure returns (bytes memory signature) {
         uint8 v;
         bytes32 r;
         bytes32 s;
