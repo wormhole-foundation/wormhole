@@ -107,6 +107,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         // Add the new guardianSet to guardianSets
         storeGuardianSet(upgrade.newGuardianSet, upgrade.newGuardianSetIndex);
 
+        // Store the guardian set hash 
+        setGuardianSetHash(upgrade.newGuardianSetIndex, upgrade.newGuardianSetHash);
+
         // Makes the new guardianSet effective
         updateGuardianSetIndex(upgrade.newGuardianSetIndex);
     }

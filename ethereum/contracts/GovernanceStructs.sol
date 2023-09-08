@@ -31,7 +31,8 @@ contract GovernanceStructs {
         uint8 action;
         uint16 chain;
 
-        Structs.GuardianSet newGuardianSet;
+        bytes32 newGuardianSetHash;
+        Structs.GuardianSet newGuardianSet; 
         uint32 newGuardianSetIndex;
     }
 
@@ -101,6 +102,9 @@ contract GovernanceStructs {
 
         uint8 guardianLength = encodedUpgrade.toUint8(index);
         index += 1;
+
+        // Guardian set hash. 
+        gsu.newGuardianSetHash = keccak256(encodedUpgrade.slice(index, guardianLength * 20 + 4));
 
         gsu.newGuardianSet = Structs.GuardianSet({
             keys : new address[](guardianLength),
