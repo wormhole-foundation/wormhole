@@ -51,7 +51,6 @@ pub struct PostMessageUnreliable<'info> {
     /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
     /// last lamports on this account.
     #[account(
-        mut,
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]

@@ -34,6 +34,9 @@ pub trait PublishMessage<'info>:
     fn core_emitter_sequence(&self) -> AccountInfo<'info>;
 
     /// Core Bridge Fee Collector (mut, seeds = \["fee_collector"\]).
+    ///
+    /// NOTE: This account is mutable because the SDK method that publishes messages pays the
+    /// Wormhole fee, which requires a lamport transfer from the payer to the fee collector.
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>>;
 
     /// Core Bridge Emitter Authority (read-only signer). This account should return Some if the

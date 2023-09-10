@@ -92,7 +92,7 @@ pub mod cpi {
         pub emitter_sequence: AccountInfo<'info>,
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+        /// CHECK: Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
         pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
@@ -111,7 +111,7 @@ pub mod cpi {
         pub emitter_sequence: AccountInfo<'info>,
         /// CHECK: Transaction payer (mut signer).
         pub payer: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+        /// CHECK: Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
         pub fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,

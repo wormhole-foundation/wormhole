@@ -60,7 +60,6 @@ pub struct PostMessage<'info> {
     /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
     /// last lamports on this account.
     #[account(
-        mut,
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
@@ -253,24 +252,24 @@ fn handle_message_fee(
     config: &mut Account<LegacyAnchorized<0, Config>>,
     fee_collector: &Option<AccountInfo>,
 ) -> Result<()> {
-    match (config.fee_lamports, fee_collector) {
-        (0, _) => Ok(()), // Nothing to do.
-        (lamports, Some(fee_collector)) => {
-            let collector_lamports = fee_collector.to_account_info().lamports();
-            require_eq!(
-                collector_lamports,
-                config.last_lamports.saturating_add(lamports),
-                CoreBridgeError::InsufficientFees
-            );
+    if config.fee_lamports > 0 {
+        let fee_collector = fee_collector
+            .as_ref()
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?;
 
-            // Update core bridge config to reflect paid fees.
-            config.last_lamports = collector_lamports;
+        let collector_lamports = fee_collector.lamports();
+        require_eq!(
+            collector_lamports,
+            config.last_lamports.saturating_add(config.fee_lamports),
+            CoreBridgeError::InsufficientFees
+        );
 
-            // Done.
-            Ok(())
-        }
-        _ => err!(ErrorCode::AccountNotEnoughKeys),
+        // Update core bridge config to reflect paid fees.
+        config.last_lamports = collector_lamports;
     }
+
+    // Done.
+    Ok(())
 }
 
 /// For posting a message, either a message has been prepared beforehand or this account is created

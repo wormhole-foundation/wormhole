@@ -16,7 +16,7 @@ pub struct PostMessage {
     pub emitter_sequence: Pubkey,
     /// Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+    /// Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
     pub fee_collector: Option<Pubkey>,
     /// System Program.
     pub system_program: Pubkey,
@@ -41,7 +41,7 @@ impl ToAccountMetas for PostMessage {
             AccountMeta::new_readonly(emitter, emitter_is_signer),
             AccountMeta::new(self.emitter_sequence, false),
             AccountMeta::new(self.payer, true),
-            AccountMeta::new(self.fee_collector.unwrap_or(crate::ID), false),
+            AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
             AccountMeta::new_readonly(crate::ID, false), // _rent
@@ -61,7 +61,7 @@ pub struct PostMessageUnreliable {
     pub emitter_sequence: Pubkey,
     /// Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// Core Bridge Fee Collector (optional, mut, seeds = \["fee_collector"\]).
+    /// Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
     pub fee_collector: Option<Pubkey>,
     /// System Program.
     pub system_program: Pubkey,
@@ -75,7 +75,7 @@ impl ToAccountMetas for PostMessageUnreliable {
             AccountMeta::new_readonly(self.emitter, true),
             AccountMeta::new(self.emitter_sequence, false),
             AccountMeta::new(self.payer, true),
-            AccountMeta::new(self.fee_collector.unwrap_or(crate::ID), false),
+            AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
             AccountMeta::new_readonly(crate::ID, false), // _rent
