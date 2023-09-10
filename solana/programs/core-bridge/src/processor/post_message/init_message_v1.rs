@@ -80,13 +80,6 @@ pub struct InitMessageV1Args {
 pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> Result<()> {
     let expected_msg_length = ctx.accounts.draft_message.data_len() - PostedMessageV1::BYTES_START;
 
-    // This message length cannot exceed the maximum message length.
-    require_gte!(
-        MAX_MESSAGE_PAYLOAD_SIZE,
-        expected_msg_length,
-        CoreBridgeError::ExceedsMaxPayloadSize
-    );
-
     let InitMessageV1Args {
         nonce,
         commitment,
