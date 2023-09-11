@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3
+
+### Changes
+
+Fix the ordering of the last two accounts for the Solana core bridge Post Message instruction.
+
 ## 0.10.2
 
 ### Added
