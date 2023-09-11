@@ -604,8 +604,6 @@ error DeliveryProviderDoesNotSupportMessageKeyType(uint8 keyType);
 
 //When calling `delivery()` a second time even though a delivery is already in progress
 error ReentrantDelivery(address msgSender, address lockedBy);
-//When calling `delivery()` a second time even though a successful delivery has already been executed
-error DeliveryAlreadyExecuted(bytes32 deliveryHash);
 
 error InvalidPayloadId(uint8 parsed, uint8 expected);
 error InvalidPayloadLength(uint256 received, uint256 expected);
