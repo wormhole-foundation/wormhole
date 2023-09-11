@@ -517,7 +517,7 @@ contract TestGovernance is TestUtils {
         for(uint8 i = 0; i < newGuardianSet.length; i++) {
             vm.assume(newGuardianSet[i] != address(0));
             // New GuardianSet key array elements should be initialized from zero to non-zero
-            vm.assume(storageSlot != bytes32(uint256(keccak256(abi.encodePacked(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0)))) + i));
+            vm.assume(storageSlot != arrayElementLocation(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0), i));
         }
 
         vm.chainId(EVMCHAINID);
@@ -769,7 +769,7 @@ contract TestGovernance is TestUtils {
         for(uint8 i = 0; i < newGuardianSet.length; i++) {
             vm.assume(newGuardianSet[i] != address(0));
             // New GuardianSet key array elements should be initialized from zero to non-zero
-            vm.assume(storageSlot != bytes32(uint256(keccak256(abi.encodePacked(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0)))) + i));
+            vm.assume(storageSlot != arrayElementLocation(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0), i));
         }
 
         vm.chainId(EVMCHAINID);

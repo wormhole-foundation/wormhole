@@ -184,4 +184,10 @@ contract TestUtils is Test, KEVMCheats {
 
         signature = abi.encodePacked(r, s,(v - 27));
     }
+
+    // @dev compute the storage slot of an array based on its key and offset
+    // @dev `keyHash` is generally from `hashedLocationOffset()`
+    function arrayElementLocation(bytes32 keyHash, uint8 arrayOffset) public pure returns (bytes32) {
+        return bytes32(uint256(keccak256(abi.encodePacked(keyHash))) + arrayOffset);
+    }
 }
