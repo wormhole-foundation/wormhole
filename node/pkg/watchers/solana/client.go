@@ -158,11 +158,11 @@ func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 }
 
 const (
-	postMessageInstructionNumAccounts  = 9
-	postMessageInstructionID           = 0x01
-	postMessageUnreliableInstructionID = 0x08
-	accountPrefixReliable              = "msg"
-	accountPrefixUnreliable            = "msu"
+	postMessageInstructionMinNumAccounts = 8
+	postMessageInstructionID             = 0x01
+	postMessageUnreliableInstructionID   = 0x08
+	accountPrefixReliable                = "msg"
+	accountPrefixUnreliable              = "msu"
 )
 
 // PostMessageData represents the user-supplied, untrusted instruction data
@@ -609,9 +609,9 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, nil
 	}
 
-	if len(inst.Accounts) != postMessageInstructionNumAccounts {
-		return false, fmt.Errorf("invalid number of accounts: %d instead of %d",
-			len(inst.Accounts), postMessageInstructionNumAccounts)
+	if len(inst.Accounts) < postMessageInstructionMinNumAccounts {
+		return false, fmt.Errorf("invalid number of accounts: %d, must be at least %d",
+			len(inst.Accounts), postMessageInstructionMinNumAccounts)
 	}
 
 	// Decode instruction data (UNTRUSTED)
