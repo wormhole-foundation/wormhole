@@ -69,6 +69,9 @@ pub struct PostMessage<'info> {
     _clock: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
+
+    /// CHECK: TODO: Remove when guardian is fixed.
+    _rent: UncheckedAccount<'info>,
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>

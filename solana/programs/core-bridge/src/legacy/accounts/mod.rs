@@ -44,6 +44,7 @@ impl ToAccountMetas for PostMessage {
             AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
+            AccountMeta::new_readonly(crate::ID, false), // TODO: Remove when guardian is fixed.
         ]
     }
 }
@@ -77,6 +78,7 @@ impl ToAccountMetas for PostMessageUnreliable {
             AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
+            AccountMeta::new_readonly(crate::ID, false), // TODO: Remove when guardian is fixed.
         ]
     }
 }
