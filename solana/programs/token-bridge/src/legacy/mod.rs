@@ -34,7 +34,6 @@ pub mod cpi {
                 custody_authority: *ctx.accounts.custody_authority.key,
                 recipient: ctx.accounts.recipient.as_ref().map(|info| *info.key),
                 system_program: *ctx.accounts.system_program.key,
-                core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 token_program: *ctx.accounts.token_program.key,
             }),
             &ctx.to_account_infos(),
@@ -59,7 +58,6 @@ pub mod cpi {
                 mint_authority: *ctx.accounts.mint_authority.key,
                 recipient: ctx.accounts.recipient.as_ref().map(|info| *info.key),
                 system_program: *ctx.accounts.system_program.key,
-                core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 token_program: *ctx.accounts.token_program.key,
             }),
             &ctx.to_account_infos(),
@@ -84,7 +82,6 @@ pub mod cpi {
                     mint: *ctx.accounts.mint.key,
                     custody_authority: *ctx.accounts.custody_authority.key,
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
                 },
             ),
@@ -110,7 +107,6 @@ pub mod cpi {
                     wrapped_asset: *ctx.accounts.wrapped_asset.key,
                     mint_authority: *ctx.accounts.mint_authority.key,
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
                 },
             ),
@@ -143,8 +139,8 @@ pub mod cpi {
                         .as_ref()
                         .map(|info| *info.key),
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
+                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 },
                 args,
             ),
@@ -176,8 +172,8 @@ pub mod cpi {
                         .as_ref()
                         .map(|info| *info.key),
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
+                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 },
                 args,
             ),
@@ -211,8 +207,8 @@ pub mod cpi {
                         .map(|info| *info.key),
                     sender_authority: *ctx.accounts.sender_authority.key,
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
+                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 },
                 args,
             ),
@@ -245,8 +241,8 @@ pub mod cpi {
                         .map(|info| *info.key),
                     sender_authority: *ctx.accounts.sender_authority.key,
                     system_program: *ctx.accounts.system_program.key,
-                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                     token_program: *ctx.accounts.token_program.key,
+                    core_bridge_program: *ctx.accounts.core_bridge_program.key,
                 },
                 args,
             ),
@@ -292,8 +288,6 @@ pub mod cpi {
         pub recipient: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
     }
@@ -335,8 +329,6 @@ pub mod cpi {
         pub recipient: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
     }
@@ -374,8 +366,6 @@ pub mod cpi {
         pub custody_authority: AccountInfo<'info>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
     }
@@ -414,8 +404,6 @@ pub mod cpi {
         pub mint_authority: AccountInfo<'info>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
     }
@@ -452,10 +440,10 @@ pub mod cpi {
         pub core_fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program.
+        pub core_bridge_program: AccountInfo<'info>,
     }
 
     #[derive(Accounts)]
@@ -489,10 +477,10 @@ pub mod cpi {
         pub core_fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program.
+        pub core_bridge_program: AccountInfo<'info>,
     }
 
     #[derive(Accounts)]
@@ -533,10 +521,10 @@ pub mod cpi {
         pub sender_authority: AccountInfo<'info>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program.
+        pub core_bridge_program: AccountInfo<'info>,
     }
 
     #[derive(Accounts)]
@@ -575,9 +563,9 @@ pub mod cpi {
         pub sender_authority: AccountInfo<'info>,
         /// CHECK: System Program.
         pub system_program: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program.
-        pub core_bridge_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
+        /// CHECK: Core Bridge Program.
+        pub core_bridge_program: AccountInfo<'info>,
     }
 }

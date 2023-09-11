@@ -145,22 +145,22 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: true,
     },
     {
-      pubkey: config,
+      pubkey: config!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: postedVaa,
+      pubkey: postedVaa!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: claim,
+      pubkey: claim!,
       isWritable: true,
       isSigner: false,
     },
     {
-      pubkey: registeredEmitter,
+      pubkey: registeredEmitter!,
       isWritable: false,
       isSigner: false,
     },
@@ -170,7 +170,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: redeemerAuthority,
+      pubkey: redeemerAuthority!,
       isWritable: false,
       isSigner: true,
     },
@@ -180,7 +180,7 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyToken,
+      pubkey: custodyToken!,
       isWritable: true,
       isSigner: false,
     },
@@ -190,12 +190,12 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: custodyAuthority,
+      pubkey: custodyAuthority!,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: rent,
+      pubkey: rent!,
       isWritable: false,
       isSigner: false,
     },
@@ -205,12 +205,12 @@ export function legacyCompleteTransferWithPayloadNativeIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

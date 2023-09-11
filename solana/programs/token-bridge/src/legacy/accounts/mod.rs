@@ -16,7 +16,6 @@ pub struct CompleteTransferNative {
     pub custody_authority: Pubkey,
     pub recipient: Option<Pubkey>,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
 }
 
@@ -35,7 +34,6 @@ impl ToAccountMetas for CompleteTransferNative {
             AccountMeta::new_readonly(self.custody_authority, false),
             AccountMeta::new_readonly(self.recipient.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]
     }
@@ -53,7 +51,6 @@ pub struct CompleteTransferWrapped {
     pub mint_authority: Pubkey,
     pub recipient: Option<Pubkey>,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
 }
 
@@ -72,7 +69,6 @@ impl ToAccountMetas for CompleteTransferWrapped {
             AccountMeta::new_readonly(self.mint_authority, false),
             AccountMeta::new_readonly(self.recipient.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]
     }
@@ -89,7 +85,6 @@ pub struct CompleteTransferWithPayloadNative {
     pub mint: Pubkey,
     pub custody_authority: Pubkey,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
 }
 
@@ -109,7 +104,6 @@ impl ToAccountMetas for CompleteTransferWithPayloadNative {
             AccountMeta::new_readonly(self.custody_authority, false),
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]
     }
@@ -126,7 +120,6 @@ pub struct CompleteTransferWithPayloadWrapped {
     pub wrapped_asset: Pubkey,
     pub mint_authority: Pubkey,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
 }
 
@@ -146,7 +139,6 @@ impl ToAccountMetas for CompleteTransferWithPayloadWrapped {
             AccountMeta::new_readonly(self.mint_authority, false),
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]
     }
@@ -184,10 +176,10 @@ pub struct TransferTokensNative {
     pub core_fee_collector: Option<Pubkey>,
     /// CHECK: System Program.
     pub system_program: Pubkey,
-    /// CHECK: Core Bridge Program.
-    pub core_bridge_program: Pubkey,
     /// CHECK: Token Program.
     pub token_program: Pubkey,
+    /// CHECK: Core Bridge Program.
+    pub core_bridge_program: Pubkey,
 }
 
 impl ToAccountMetas for TransferTokensNative {
@@ -208,8 +200,8 @@ impl ToAccountMetas for TransferTokensNative {
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
+            AccountMeta::new_readonly(self.core_bridge_program, false),
         ]
     }
 }
@@ -244,10 +236,10 @@ pub struct TransferTokensWrapped {
     pub core_fee_collector: Option<Pubkey>,
     /// CHECK: System Program.
     pub system_program: Pubkey,
-    /// CHECK: Core Bridge Program.
-    pub core_bridge_program: Pubkey,
     /// CHECK: Token Program.
     pub token_program: Pubkey,
+    /// CHECK: Core Bridge Program.
+    pub core_bridge_program: Pubkey,
 }
 
 impl ToAccountMetas for TransferTokensWrapped {
@@ -271,8 +263,8 @@ impl ToAccountMetas for TransferTokensWrapped {
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
+            AccountMeta::new_readonly(self.core_bridge_program, false),
         ]
     }
 }
@@ -291,8 +283,8 @@ pub struct TransferTokensWithPayloadNative {
     pub core_fee_collector: Option<Pubkey>,
     pub sender_authority: Pubkey,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
+    pub core_bridge_program: Pubkey,
 }
 
 impl ToAccountMetas for TransferTokensWithPayloadNative {
@@ -314,8 +306,8 @@ impl ToAccountMetas for TransferTokensWithPayloadNative {
             AccountMeta::new_readonly(self.sender_authority, true),
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
+            AccountMeta::new_readonly(self.core_bridge_program, false),
         ]
     }
 }
@@ -333,8 +325,8 @@ pub struct TransferTokensWithPayloadWrapped {
     pub core_fee_collector: Option<Pubkey>,
     pub sender_authority: Pubkey,
     pub system_program: Pubkey,
-    pub core_bridge_program: Pubkey,
     pub token_program: Pubkey,
+    pub core_bridge_program: Pubkey,
 }
 
 impl ToAccountMetas for TransferTokensWithPayloadWrapped {
@@ -356,8 +348,8 @@ impl ToAccountMetas for TransferTokensWithPayloadWrapped {
             AccountMeta::new_readonly(self.sender_authority, true),
             AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
-            AccountMeta::new_readonly(self.core_bridge_program, false),
             AccountMeta::new_readonly(self.token_program, false),
+            AccountMeta::new_readonly(self.core_bridge_program, false),
         ]
     }
 }

@@ -97,7 +97,6 @@ pub fn mock_legacy_complete_transfer_with_payload_native(
                     .token_bridge_custody_authority
                     .to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                core_bridge_program: ctx.accounts.core_bridge_program.to_account_info(),
                 token_program: ctx.accounts.token_program.to_account_info(),
             },
             &[&[redeemer_seed_prefix, &[redeemer_bump]]],

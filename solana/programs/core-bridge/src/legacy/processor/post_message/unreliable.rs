@@ -60,9 +60,6 @@ pub struct PostMessageUnreliable<'info> {
     _clock: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-
-    /// CHECK: Previously needed sysvar.
-    _rent: UncheckedAccount<'info>,
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>

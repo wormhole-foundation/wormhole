@@ -167,11 +167,6 @@ export function legacyCreateOrUpdateWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
-      isWritable: false,
-      isSigner: false,
-    },
-    {
       pubkey: SystemProgram.programId,
       isWritable: false,
       isSigner: false,
@@ -183,6 +178,11 @@ export function legacyCreateOrUpdateWrappedIx(
     },
     {
       pubkey: mplTokenMetadataProgram,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: coreBridgeProgram,
       isWritable: false,
       isSigner: false,
     },

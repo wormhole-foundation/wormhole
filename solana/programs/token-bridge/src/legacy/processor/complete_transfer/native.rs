@@ -9,8 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::token;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
-    zero_copy::PostedVaaV1,
+    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
@@ -29,7 +28,7 @@ pub struct CompleteTransferNative<'info> {
             PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
-        seeds::program = core_bridge_program
+        seeds::program = core_bridge_program::ID
     )]
     posted_vaa: AccountInfo<'info>,
 
@@ -104,14 +103,13 @@ pub struct CompleteTransferNative<'info> {
     recipient: Option<AccountInfo<'info>>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, CoreBridge>,
     token_program: Program<'info, token::Token>,
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     for CompleteTransferNative<'info>
 {
-    const LOG_IX_NAME: &'static str = "LegacCompleteTransferNative";
+    const LOG_IX_NAME: &'static str = "LegacyCompleteTransferNative";
 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = complete_transfer_native;
 }

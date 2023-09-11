@@ -237,12 +237,12 @@ export function legacyCompleteTransferWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: coreBridgeProgram,
+      pubkey: TOKEN_PROGRAM_ID,
       isWritable: false,
       isSigner: false,
     },
     {
-      pubkey: TOKEN_PROGRAM_ID,
+      pubkey: coreBridgeProgram!,
       isWritable: false,
       isSigner: false,
     },

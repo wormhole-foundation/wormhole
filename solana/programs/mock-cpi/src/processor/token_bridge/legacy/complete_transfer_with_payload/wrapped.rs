@@ -94,7 +94,6 @@ pub fn mock_legacy_complete_transfer_with_payload_wrapped(
                 wrapped_asset: ctx.accounts.token_bridge_wrapped_asset.to_account_info(),
                 mint_authority: ctx.accounts.token_bridge_mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                core_bridge_program: ctx.accounts.core_bridge_program.to_account_info(),
                 token_program: ctx.accounts.token_program.to_account_info(),
             },
             &[&[redeemer_seed_prefix, &[redeemer_bump]]],

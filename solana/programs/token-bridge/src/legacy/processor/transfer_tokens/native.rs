@@ -86,8 +86,8 @@ pub struct TransferTokensNative<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
     token_program: Program<'info, token::Token>,
+    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, TransferTokensArgs>

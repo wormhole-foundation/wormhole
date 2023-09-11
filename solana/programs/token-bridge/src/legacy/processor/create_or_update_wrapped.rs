@@ -7,8 +7,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::{metadata, token};
 use core_bridge_program::{
-    self, constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, sdk::cpi::CoreBridge,
-    zero_copy::PostedVaaV1,
+    self, constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
 use mpl_token_metadata::state::DataV2;
 use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
@@ -38,7 +37,7 @@ pub struct CreateOrUpdateWrapped<'info> {
             PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
         ],
         bump,
-        seeds::program = core_bridge_program
+        seeds::program = core_bridge_program::ID
     )]
     posted_vaa: AccountInfo<'info>,
 
@@ -109,7 +108,6 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// CHECK: Rent is needed for the MPL Token Metadata program.
     rent: UncheckedAccount<'info>,
 
-    core_bridge_program: Program<'info, CoreBridge>,
     system_program: Program<'info, System>,
     token_program: Program<'info, token::Token>,
     mpl_token_metadata_program: Program<'info, metadata::Metadata>,
