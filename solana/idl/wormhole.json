@@ -102,12 +102,12 @@
                     "isSigner": false
                 },
                 {
-                    "name": "rent",
+                    "name": "systemProgram",
                     "isMut": false,
                     "isSigner": false
                 },
                 {
-                    "name": "systemProgram",
+                    "name": "rent",
                     "isMut": false,
                     "isSigner": false
                 }
