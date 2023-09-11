@@ -13,10 +13,9 @@ pub use crate::{
     state, types, zero_copy,
 };
 
+/// Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
+/// is useful for specifying accounts for a client.
 pub mod accounts {
-    //! Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
-    //! is useful for specifying accounts for a client.
-
     pub use crate::{accounts::*, legacy::accounts::*};
 }
 
@@ -24,14 +23,11 @@ pub mod accounts {
 #[cfg(feature = "cpi")]
 pub mod cpi;
 
+/// Instruction builders. These should be used directly when one wants to serialize instruction
+/// data when speciying instructions on a client.
 pub mod instruction {
-    //! Instruction builders. These should be used directly when one wants to serialize instruction
-    //! data when speciying instructions on a client.
-    pub use crate::{accounts, instruction::*, legacy::instruction as legacy};
+    pub use crate::{instruction::*, legacy::instruction as legacy};
 }
-
-/// The program ID of the Core Bridge program.
-pub static PROGRAM_ID: anchor_lang::prelude::Pubkey = crate::ID;
 
 /// Convenient method to determine the space required for a [PostedMessageV1](state::PostedVaaV1)
 /// account when it is being prepared via

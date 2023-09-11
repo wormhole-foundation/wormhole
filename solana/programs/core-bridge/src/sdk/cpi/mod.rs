@@ -7,7 +7,7 @@ pub use publish_message::*;
 mod prepare_message;
 pub use prepare_message::*;
 
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::AccountInfo;
 
 /// Trait for invoking any Core Bridge instruction via CPI. This trait is used for preparing and
 /// posting Core Bridge messages specifically.

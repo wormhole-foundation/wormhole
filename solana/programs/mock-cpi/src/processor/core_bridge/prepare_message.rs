@@ -30,7 +30,7 @@ pub struct MockPrepareMessageV1<'info> {
             payer_sequence.to_le_bytes().as_ref()
         ],
         bump,
-        owner = core_bridge_sdk::PROGRAM_ID,
+        owner = core_bridge_program::ID,
     )]
     message: AccountInfo<'info>,
 
