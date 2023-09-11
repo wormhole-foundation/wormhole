@@ -1,6 +1,6 @@
 use crate::{
-    constants::EMITTER_SEED_PREFIX, legacy::instruction::LegacyAttestTokenArgs,
-    processor::post_token_bridge_message, zero_copy::Mint,
+    legacy::instruction::LegacyAttestTokenArgs, processor::post_token_bridge_message,
+    zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
@@ -33,7 +33,7 @@ pub struct AttestToken<'info> {
         bump,
         seeds::program = metadata::Metadata::id()
     )]
-    token_metadata: Box<Account<'info, metadata::MetadataAccount>>,
+    token_metadata: Account<'info, metadata::MetadataAccount>,
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
@@ -44,10 +44,7 @@ pub struct AttestToken<'info> {
     core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
-    #[account(
-        seeds = [EMITTER_SEED_PREFIX],
-        bump,
-    )]
+    /// This PDA address is checked in `post_token_bridge_message`.
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -137,7 +134,6 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     // Finally post Wormhole message via Core Bridge.
     post_token_bridge_message(
         ctx.accounts,
-        ctx.bumps["core_emitter"],
         nonce,
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),

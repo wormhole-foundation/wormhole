@@ -22,25 +22,37 @@ export async function expectEqualMessageAccounts(
   program: CoreBridgeProgram,
   messageSigner: Keypair,
   forkedMessageSigner: Keypair,
-  unreliable: boolean
+  unreliable: boolean,
+  sameEmitter: boolean = true
 ) {
   const connection = program.provider.connection;
 
-  if (unreliable) {
-    const [messageData, forkedMessageData] = await Promise.all([
-      coreBridge.PostedMessageV1Unreliable.fromAccountAddress(connection, messageSigner.publicKey),
-      coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
-        connection,
-        forkedMessageSigner.publicKey
-      ),
-    ]);
+  const [messageData, forkedMessageData] = await (async () => {
+    if (unreliable) {
+      return Promise.all([
+        coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+          connection,
+          messageSigner.publicKey
+        ),
+        coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+          connection,
+          forkedMessageSigner.publicKey
+        ),
+      ]);
+    } else {
+      return Promise.all([
+        coreBridge.PostedMessageV1.fromAccountAddress(connection, messageSigner.publicKey),
+        coreBridge.PostedMessageV1.fromAccountAddress(connection, forkedMessageSigner.publicKey),
+      ]);
+    }
+  })();
+
+  if (sameEmitter) {
     expectDeepEqual(messageData, forkedMessageData);
   } else {
-    const [messageData, forkedMessageData] = await Promise.all([
-      coreBridge.PostedMessageV1.fromAccountAddress(connection, messageSigner.publicKey),
-      coreBridge.PostedMessageV1.fromAccountAddress(connection, forkedMessageSigner.publicKey),
-    ]);
-    expectDeepEqual(messageData, forkedMessageData);
+    const { emitter: _a, ...other } = messageData;
+    const { emitter: _b, ...forkedOther } = forkedMessageData;
+    expectDeepEqual(other, forkedOther);
   }
 }
 

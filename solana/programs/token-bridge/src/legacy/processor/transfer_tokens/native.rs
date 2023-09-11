@@ -1,7 +1,5 @@
 use crate::{
-    constants::{
-        CUSTODY_AUTHORITY_SEED_PREFIX, EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX,
-    },
+    constants::{CUSTODY_AUTHORITY_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::instruction::TransferTokensArgs,
     processor::{deposit_native_tokens, post_token_bridge_message},
@@ -65,10 +63,7 @@ pub struct TransferTokensNative<'info> {
     core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
-    #[account(
-        seeds = [EMITTER_SEED_PREFIX],
-        bump,
-    )]
+    /// This PDA address is checked in `post_token_bridge_message`.
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -197,10 +192,5 @@ fn transfer_tokens_native(
     };
 
     // Finally publish Wormhole message using the Core Bridge.
-    post_token_bridge_message(
-        ctx.accounts,
-        ctx.bumps["core_emitter"],
-        nonce,
-        token_transfer,
-    )
+    post_token_bridge_message(ctx.accounts, nonce, token_transfer)
 }

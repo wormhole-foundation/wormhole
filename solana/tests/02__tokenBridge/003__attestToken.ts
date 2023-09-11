@@ -1,9 +1,16 @@
 import * as anchor from "@coral-xyz/anchor";
-import { NATIVE_MINT } from "@solana/spl-token";
+import { NATIVE_MINT, createMint } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
-import { expectIxOk, WrappedMintInfo, WRAPPED_MINT_INFO_MAX_ONE, expectIxErr } from "../helpers";
+import {
+  expectIxOk,
+  WrappedMintInfo,
+  WRAPPED_MINT_INFO_MAX_ONE,
+  expectIxErr,
+  expectDeepEqual,
+} from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
+import { parseAttestMetaPayload } from "@certusone/wormhole-sdk";
 
 describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -18,7 +25,7 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
   const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_ONE;
 
   describe("Ok", () => {
-    it("Invoke `attest_token`", async () => {
+    it("Invoke `attest_token` for Mint with Metadata", async () => {
       const [coreMessage, forkedCoreMessage] = await parallelTxOk(
         program,
         forkedProgram,
@@ -28,10 +35,16 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
       );
 
       // Verify message payload.
-      coreBridge.expectEqualMessageAccounts(wormholeProgram, coreMessage, forkedCoreMessage, false);
+      await coreBridge.expectEqualMessageAccounts(
+        wormholeProgram,
+        coreMessage,
+        forkedCoreMessage,
+        false,
+        false // sameEmitter
+      );
     });
 
-    it("Invoke `attest_token` Again", async () => {
+    it("Invoke `attest_token` Again with Same Mint", async () => {
       const [coreMessage, forkedCoreMessage] = await parallelTxOk(
         program,
         forkedProgram,
@@ -41,7 +54,13 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
       );
 
       // Verify message payload.
-      coreBridge.expectEqualMessageAccounts(wormholeProgram, coreMessage, forkedCoreMessage, false);
+      await coreBridge.expectEqualMessageAccounts(
+        wormholeProgram,
+        coreMessage,
+        forkedCoreMessage,
+        false,
+        false // sameEmitter
+      );
     });
   });
 
@@ -67,6 +86,25 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
 
       // Send the transaction.
       await expectIxErr(connection, [ix], [payer, coreMessage], "WrappedAsset");
+    });
+
+    it("Cannot Invoke `attest_token` with Mint without Metadata", async () => {
+      const mint = await createMint(connection, payer, payer.publicKey, null, 9);
+
+      // Create the instruction.
+      const coreMessage = anchor.web3.Keypair.generate();
+      const ix = tokenBridge.legacyAttestTokenIx(
+        program,
+        {
+          coreMessage: coreMessage.publicKey,
+          payer: payer.publicKey,
+          mint,
+        },
+        defaultArgs()
+      );
+
+      // Send the transaction.
+      await expectIxErr(connection, [ix], [payer, coreMessage], "AccountNotInitialized");
     });
   });
 });

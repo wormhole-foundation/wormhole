@@ -26,10 +26,18 @@ pub fn post_token_bridge_message<
     W: Writeable,
 >(
     accounts: &I,
-    emitter_bump: u8,
     nonce: u32,
     message: W,
 ) -> Result<()> {
+    // Validate core emitter pubkey.
+    let (expected_core_emitter, emitter_bump) =
+        Pubkey::find_program_address(&[EMITTER_SEED_PREFIX], &crate::ID);
+    require_keys_eq!(
+        accounts.core_emitter().unwrap().key(),
+        expected_core_emitter,
+        ErrorCode::ConstraintSeeds,
+    );
+
     core_bridge_sdk::cpi::publish_message(
         accounts,
         core_bridge_sdk::cpi::PublishMessageDirective::Message {
