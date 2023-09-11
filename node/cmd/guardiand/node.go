@@ -159,7 +159,8 @@ var (
 	suiWS            *string
 	suiMoveEventType *string
 
-	solanaRPC *string
+	solanaRPC       *string
+	solanaStartSlot *uint64
 
 	pythnetContract *string
 	pythnetRPC      *string
@@ -322,6 +323,7 @@ func init() {
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "sui move event type for publish_message")
 
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required)")
+	solanaStartSlot = NodeCmd.Flags().Uint64("solanaStartSlot", 0, "Slot to start the solana watcher")
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
 	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required)")
@@ -1336,6 +1338,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:      *solanaContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
+			StartSlot:     *solanaStartSlot,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1349,6 +1352,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:      *solanaContract,
 			ReceiveObsReq: true,
 			Commitment:    rpc.CommitmentFinalized,
+			StartSlot:     *solanaStartSlot,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,8 +18,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/gagliardetto/solana-go"
+	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
+
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
 	"github.com/near/borsh-go"
@@ -181,7 +184,7 @@ func NewSolanaWatcher(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
-	chainID vaa.ChainID) *SolanaWatcher {
+	chainID vaa.ChainID, startSlot uint64) *SolanaWatcher {
 	return &SolanaWatcher{
 		rpcUrl:        rpcUrl,
 		wsUrl:         wsUrl,
@@ -194,10 +197,11 @@ func NewSolanaWatcher(
 		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:       chainID,
 		networkName:   chainID.String(),
+		lastSlot:      startSlot,
 	}
 }
 
-func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocket.Conn) {
+func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (*websocket.Conn, error) {
 	logger := supervisor.Logger(ctx)
 
 	logger.Info("Solana watcher connecting to WS node ", zap.String("url", *s.wsUrl))
@@ -205,7 +209,7 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 	ws, _, err := websocket.Dial(ctx, *s.wsUrl, nil)
 
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	s.subId = uuid.New().String()
@@ -219,9 +223,9 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 
 	if err := ws.Write(ctx, websocket.MessageText, []byte(p)); err != nil {
 		logger.Error(fmt.Sprintf("write: %s", err.Error()))
-		return err, nil
+		return nil, err
 	}
-	return nil, ws
+	return ws, nil
 }
 
 func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
@@ -231,7 +235,7 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	err, ws := s.SetupSubscription(ctx)
+	ws, err := s.SetupSubscription(ctx)
 	if err != nil {
 		return err
 	}
@@ -292,7 +296,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	s.pumpData = make(chan []byte)
 
 	useWs := false
-	if s.wsUrl != nil && *s.wsUrl != "" {
+	if wsUrl != "" {
 		useWs = true
 		err := s.SetupWebSocket(ctx)
 		if err != nil {
@@ -371,6 +375,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							s.retryFetchBlock(ctx, logger, _slot, 0)
 							return nil
 						})
+						logger.Info("Fetching Solana slot", zap.String("slot", strconv.Itoa(int(_slot))))
+						time.Sleep(100 * time.Millisecond)
 					}
 				}
 
@@ -389,6 +395,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint) {
 	ok := s.fetchBlock(ctx, logger, slot, 0)
+
+	logger.Info(fmt.Sprintf("Trying to retry fetch block %d (%d): %t", slot, retry, ok))
 
 	if !ok {
 		if retry >= maxRetries {
@@ -414,7 +422,7 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 }
 
 func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint) (ok bool) {
-	logger.Debug("requesting block",
+	logger.Info("requesting block",
 		zap.Uint64("slot", slot),
 		zap.String("commitment", string(s.commitment)),
 		zap.Uint("empty_retry", emptyRetry))
@@ -436,7 +444,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	if err != nil {
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
-			logger.Debug("empty slot", zap.Uint64("slot", slot),
+			logger.Info("empty slot", zap.Uint64("slot", slot),
 				zap.Int("code", rpcErr.Code),
 				zap.String("commitment", string(s.commitment)))
 
@@ -459,7 +467,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			}
 			return true
 		} else {
-			logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
+			logger.Info("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)))
 			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
@@ -473,18 +481,18 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		return false
 	}
 
-	logger.Debug("fetched block",
+	logger.Info("fetched block",
 		zap.Uint64("slot", slot),
 		zap.Int("num_tx", len(out.Transactions)),
 		zap.Duration("took", time.Since(start)),
 		zap.String("commitment", string(s.commitment)))
 
-	s.updateLatestBlock(slot)
+	//s.updateLatestBlock(slot)
 
 OUTER:
 	for txNum, txRpc := range out.Transactions {
 		if txRpc.Meta.Err != nil {
-			logger.Debug("Transaction failed, skipping it",
+			logger.Info("Transaction failed, skipping it",
 				zap.Uint64("slot", slot),
 				zap.Int("txNum", txNum),
 				zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
@@ -493,7 +501,7 @@ OUTER:
 		}
 		tx, err := txRpc.GetTransaction()
 		if err != nil {
-			logger.Error("failed to unmarshal transaction",
+			logger.Info("failed to unmarshal transaction",
 				zap.Uint64("slot", slot),
 				zap.Int("txNum", txNum),
 				zap.Int("dataLen", len(txRpc.Transaction.GetBinary())),
@@ -501,6 +509,12 @@ OUTER:
 			)
 			continue
 		}
+		txx, err := processTransactionWithAddressLookups(*tx, s.rpcClient)
+		if err != nil {
+			logger.Info(fmt.Sprintf("FAIL: %+v", err))
+		}
+		tx = &txx
+
 		signature := tx.Signatures[0]
 		var programIndex uint16
 		for n, key := range tx.Message.AccountKeys {
@@ -508,19 +522,25 @@ OUTER:
 				programIndex = uint16(n)
 			}
 		}
+		if slot == 242637719 {
+			logger.Info(fmt.Sprintf("%+v", tx.Message.GetAddressTableLookups()))
+			logger.Info(fmt.Sprintf("%+v", tx.Message.AccountKeys))
+			logger.Info(fmt.Sprintf("ASFASF: %d", programIndex))
+		}
+
 		if programIndex == 0 {
 			continue
 		}
 
 		if txRpc.Meta.Err != nil {
-			logger.Debug("skipping failed Wormhole transaction",
+			logger.Info("skipping failed Wormhole transaction",
 				zap.Stringer("signature", signature),
 				zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)))
 			continue
 		}
 
-		logger.Debug("found Wormhole transaction",
+		logger.Info("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -565,7 +585,7 @@ OUTER:
 			return false
 		}
 
-		logger.Debug("fetched transaction",
+		logger.Info("fetched transaction",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("signature", signature),
@@ -863,4 +883,49 @@ func ParseMessagePublicationAccount(data []byte) (*MessagePublicationAccount, er
 	}
 
 	return prop, nil
+}
+
+func processTransactionWithAddressLookups(txx solana.Transaction, rpcClient *rpc.Client) (solana.Transaction, error) {
+	if !txx.Message.IsVersioned() {
+		return txx, nil
+	}
+
+	tblKeys := txx.Message.GetAddressTableLookups().GetTableIDs()
+	if len(tblKeys) == 0 {
+		return txx, nil
+	}
+
+	numLookups := txx.Message.GetAddressTableLookups().NumLookups()
+	if numLookups == 0 {
+		return txx, nil
+	}
+
+	resolutions := make(map[solana.PublicKey]solana.PublicKeySlice)
+	for _, key := range tblKeys {
+		info, err := rpcClient.GetAccountInfo(
+			context.Background(),
+			key,
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		tableContent, err := lookup.DecodeAddressLookupTableState(info.GetBinary())
+		if err != nil {
+			panic(err)
+		}
+
+		resolutions[key] = tableContent.Addresses
+	}
+
+	err := txx.Message.SetAddressTables(resolutions)
+	if err != nil {
+		return txx, err
+	}
+
+	err = txx.Message.ResolveLookups()
+	if err != nil {
+		return txx, err
+	}
+	return txx, nil
 }

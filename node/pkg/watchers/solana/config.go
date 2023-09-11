@@ -19,6 +19,7 @@ type WatcherConfig struct {
 	Websocket     string             // Websocket URL
 	Contract      string             // hex representation of the contract address
 	Commitment    solana_rpc.CommitmentType
+	StartSlot     uint64 // slot to start watching from
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -52,7 +53,7 @@ func (wc *WatcherConfig) Create(
 		obsvReqC = nil
 	}
 
-	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID)
+	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, wc.StartSlot)
 
 	return watcher, watcher.Run, nil
 }
