@@ -240,9 +240,9 @@ impl fmt::Display for MessageHash {
     }
 }
 
-/// This type is kind of silly. But because `PostedMessageV1` has the emitter chain ID as a field,
-/// which is unnecessary since it is always Solana's chain ID, we use this type to guarantee that
-/// the encoded chain ID is always `1`.
+/// This type is kind of silly. But because [PostedMessageV1](crate::state::PostedMessageV1) has the
+/// emitter chain ID as a field, which is unnecessary since it is always Solana's chain ID, we use
+/// this type to guarantee that the encoded chain ID is always `1`.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub struct ChainIdSolanaOnly {
     chain_id: u16,

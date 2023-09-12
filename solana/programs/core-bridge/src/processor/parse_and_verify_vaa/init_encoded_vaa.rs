@@ -59,10 +59,6 @@ pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
 
     // Finally initialize the encoded VAA account by serializing the discriminator, header and
     // expected VAA length.
-    //
-    // NOTE: This account layout does not match any account found in the state directory. Only the
-    // discriminator and header will match the `VaaV1` account (which is how this account will be
-    // serialized once the encoded VAA has finished processing).
     EncodedVaa::DISCRIMINATOR.serialize(&mut writer)?;
     Header {
         status: ProcessingStatus::Writing,

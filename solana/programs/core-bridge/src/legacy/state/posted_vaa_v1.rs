@@ -16,12 +16,13 @@ pub struct PostedVaaV1Info {
     /// Time the message was submitted.
     pub timestamp: Timestamp,
 
-    /// Pubkey of `SignatureSet` account that represent this VAA's signature verification.
+    /// Pubkey of [SignatureSet](crate::state::SignatureSet) account that represents this VAA's
+    /// signature verification.
     pub signature_set: Pubkey,
 
-    /// Guardian set index used to verify signatures for `SignatureSet`.
+    /// Guardian set index used to verify signatures for [SignatureSet](crate::state::SignatureSet).
     ///
-    /// NOTE: In the previous implementation, this member was referred to as the `posted_timestamp`,
+    /// NOTE: In the previous implementation, this member was referred to as the "posted timestamp",
     /// which is zero for VAA data (posted messages and VAAs resemble the same account schema). By
     /// changing this to the guardian set index, we patch a bug with verifying governance VAAs for
     /// the Core Bridge (other Core Bridge implementations require that the guardian set that

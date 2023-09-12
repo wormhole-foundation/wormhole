@@ -11,9 +11,8 @@ use anchor_lang::prelude::*;
 pub struct ProcessMessageV1<'info> {
     emitter_authority: Signer<'info>,
 
-    /// CHECK: We do not deserialize this account as `PostedMessageV1` because allocating heap
-    /// memory in its deserialization uses significant compute units with every call to this
-    /// instruction handler. For large messages, this can be a significant cost.
+    /// CHECK: Message account. The payload will be written to and then finalized. This message can
+    /// only be published when the message is finalized.
     #[account(
         mut,
         owner = crate::ID

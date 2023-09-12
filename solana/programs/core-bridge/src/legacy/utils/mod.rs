@@ -141,7 +141,7 @@ pub trait ProcessLegacyInstruction<'info, T: AnchorDeserialize>:
         )?;
 
         // Create new context of these accounts.
-        let ctx = Context::new(program_id, &mut accounts, &[], bumps);
+        let ctx = Context::new(program_id, &mut accounts, account_infos, bumps);
 
         // Execute method that takes this context with specified instruction arguments.
         Self::ANCHOR_IX_FN(ctx, T::deserialize(&mut ix_data)?)?;

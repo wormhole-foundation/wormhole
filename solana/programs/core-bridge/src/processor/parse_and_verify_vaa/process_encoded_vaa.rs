@@ -17,25 +17,15 @@ pub struct ProcessEncodedVaa<'info> {
     #[account(mut)]
     write_authority: Signer<'info>,
 
-    /// CHECK: We do not deserialize this account as `VaaV1` because allocating heap memory in its
-    /// deserialization uses significant compute units with every call to this instruction handler.
-    /// For large VAAs, this can be a significant cost.
-    ///
-    /// This instruction handler performs the same checks Anchor performs:
-    /// - Discriminator check (found in `AccountDeserialize`).
-    /// - Write authority check (via `has_one`).
+    /// CHECK: The encoded VAA account, which stores the VAA buffer. This buffer must first be
+    /// written to and then verified.
     #[account(
         mut,
         owner = crate::ID
     )]
     encoded_vaa: AccountInfo<'info>,
 
-    /// The guardian set account is optional because it is only needed for the signature verification
-    /// instruction handler directive.
-    ///
-    /// NOTE: Because the vaa account is not deserialized as an Anchor Account, we cannot use the
-    /// guardian_set_index in `VaaV1` here easily. Instead we check that the guardian set index
-    /// matches once the VAA is verified via the `VerifySignaturesV1` directive.
+    /// Guardian set account, which is only needed for signature verification.
     #[account(
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,

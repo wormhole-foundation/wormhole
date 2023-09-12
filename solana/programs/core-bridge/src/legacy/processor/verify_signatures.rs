@@ -164,7 +164,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     let signature_set = &mut ctx.accounts.signature_set;
 
     // If the signature set account has not been initialized yet, establish the expected account
-    // data (guardian set index used, hash and which indices have been validated).
+    // data (guardian set index used, hash and which indices have been verified).
     if signature_set.is_initialized() {
         // Otherwise, verify that the guardian set index is what we expect from
         // the last time we wrote to the signature set account.

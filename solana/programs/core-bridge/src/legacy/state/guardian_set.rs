@@ -3,7 +3,8 @@ use anchor_lang::prelude::*;
 
 /// Account used to store a guardian set. The keys encoded in this account are Ethereum pubkeys.
 /// Its expiration time is determined at the time a guardian set is updated to a new set, where the
-/// current network clock time is used with the Core Bridge's config `guardian_set_ttl`.
+/// current network clock time is used with
+/// [guardian_set_ttl](crate::state::Config::guardian_set_ttl).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct GuardianSet {
     /// Index representing an incrementing version number for this guardian set.

@@ -16,7 +16,7 @@ pub enum LegacyInstruction {
     Initialize,
     /// Publish a Wormhole message by creating a message account reflecting the message.
     PostMessage,
-    /// Write an account reflecting a validated VAA (Version 1).
+    /// Write an account reflecting a verified VAA (Version 1).
     PostVaa,
     /// **Governance.** Set the fee for posting a message.
     SetMessageFee,
@@ -102,8 +102,8 @@ mod __no_entrypoint {
     /// Processor to post (publish) a Wormhole message by setting up the message account for
     /// Guardian observation.
     ///
-    /// A message is either created beforehand using the new Anchor instructions `init_message_v1`
-    /// and `process_message_v1` or is created at this point.
+    /// A message is either created beforehand using the new Anchor instruction to process a message
+    /// or is created at this point.
     pub fn post_message(
         accounts: crate::legacy::accounts::PostMessage,
         args: PostMessageArgs,

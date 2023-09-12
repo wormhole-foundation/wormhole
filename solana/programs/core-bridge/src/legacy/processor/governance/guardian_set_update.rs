@@ -23,14 +23,9 @@ pub struct GuardianSetUpdate<'info> {
     config: Account<'info, LegacyAnchorized<0, Config>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump
-    )]
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = crate::ID)]
     posted_vaa: AccountInfo<'info>,
 
     /// Account representing that a VAA has been consumed.

@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 
 pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
-/// Status of a message. When a message is posetd, its status is `Unset`.
+/// Status of a message. When a message is posetd, its status is [Unset](MessageStatus::Unset).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
     Unset,

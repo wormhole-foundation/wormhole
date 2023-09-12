@@ -25,8 +25,8 @@ pub mod cpi {
     /// Processor to post (publish) a Wormhole message by setting up the message account for
     /// Guardian observation.
     ///
-    /// A message is either created beforehand using the new Anchor instructions `init_message_v1`
-    /// and `process_message_v1` or is created at this point.
+    /// A message is either created beforehand using the new Anchor instruction to process a message
+    /// or is created at this point.
     pub fn post_message<'info>(
         ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
         args: instruction::PostMessageArgs,

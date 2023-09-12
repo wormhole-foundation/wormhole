@@ -54,7 +54,10 @@ pub struct PostVaa<'info> {
         init,
         payer = payer,
         space = PostedVaaV1::compute_size(args.payload.len()),
-        seeds = [PostedVaaV1::SEED_PREFIX, signature_set.message_hash.as_ref()],
+        seeds = [
+            PostedVaaV1::SEED_PREFIX,
+            signature_set.message_hash.as_ref()
+        ],
         bump,
     )]
     posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
@@ -121,7 +124,7 @@ impl<'info> PostVaa<'info> {
     }
 }
 
-/// Processor to write a validated VAA to a [PostedVaaV1] account. This instruction handler requires
+/// Processor to write a verified VAA to a `PostedVaaV1` account. This instruction handler requires
 /// that the number of verified signers in the [SignatureSet] account is at least the quorum using
 /// the guardian set, whose index is encoded in this account. And the message hash in this account
 /// must agree with the recomputed one using this instruction handler's arguments.

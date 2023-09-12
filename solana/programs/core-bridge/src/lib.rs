@@ -40,8 +40,9 @@ pub mod wormhole_core_bridge_solana {
     /// account for writing. The emitter authority is established at this point and the payload size
     /// is inferred from the size of the created account. This instruction handler also allows an
     /// integrator to publish Wormhole messages using his program's ID as the emitter address
-    /// (by passing `Some(crate::ID)` to the `cpi_program_id` argument). **Be aware that the emitter
-    /// authority's seeds must only be [b"emitter"] in this case.**
+    /// (by passing `Some(crate::ID)` to the [cpi_program_id](InitMessageV1Args::cpi_program_id)
+    /// argument). **Be aware that the emitter authority's seeds must only be \[b"emitter"\] in this
+    /// case.**
     ///
     /// This instruction should be followed up with `process_message_v1` to write and finalize the
     /// message account (to prepare it for publishing via the
