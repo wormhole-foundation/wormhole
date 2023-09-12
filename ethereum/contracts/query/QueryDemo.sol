@@ -13,8 +13,6 @@ import "../../contracts/query/QueryResponse.sol";
 contract QueryDemo is Context {
     using BytesLib for bytes;
 
-    const EthWormholeCore = ""
-
     struct ChainEntry {
         uint16 chainID;
         address contractAddress;
@@ -31,7 +29,7 @@ contract QueryDemo is Context {
 
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
-    constructor(address _owner, address _wormhole, uint16 _myChainID, address _myContractAddress) {
+    function setup(address _owner, address _wormhole, uint16 _myChainID, address _myContractAddress) public {
         owner = _owner;
         wormhole = _wormhole;  
         myChainID = _myChainID;
