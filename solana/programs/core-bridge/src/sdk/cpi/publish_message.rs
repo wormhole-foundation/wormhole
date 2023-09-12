@@ -1,20 +1,22 @@
 pub use crate::legacy::instruction::PostMessageArgs;
 
 use crate::{error::CoreBridgeError, types::Commitment};
-use anchor_lang::{prelude::*, system_program};
+use anchor_lang::prelude::*;
 
-/// Trait for invoking the Core Bridge program's `post_message` instruction. Using this trait will
-/// make posting (publishing) a Wormhole (Core Bridge) message easier.
+/// Trait for invoking one of the ways you can publish a Wormhole message using the Core Bridge
+/// program.
 ///
 /// A message's emitter address can either based on a program's ID or a custom address (determined
 /// by either a keypair or program's PDA). Depending on which emitter address is used, the
-/// `core_emitter` or `core_emitter_authority` account must be provided.
+/// [core_emitter](PublishMessage::core_emitter) or
+/// [core_emitter_authority](PublishMessage::core_emitter_authority) account must be provided.
 ///
-/// When the emitter itself is a signer for the post message instruction, you must specify Some for
-/// `core_emitter`. Otherwise, if the emitter is a program ID, you must specify Some for
-/// `core_emitter_authority`, which is the program's authority to draft a new message to prepare it
-/// for posting. By default, `core_emitter_authority` returns None, so you must override it if the
-/// emitter address is a program ID.
+/// When the emitter itself is a signer for the post message instruction, you must specify `Some`
+/// for [core_emitter](PublishMessage::core_emitter). Otherwise, if the emitter is a program ID, you
+/// must specify Some for [core_emitter_authority](PublishMessage::core_emitter_authority), which is
+/// the program's authority to draft a new message to prepare it for posting. By default,
+/// [core_emitter_authority](PublishMessage::core_emitter_authority) returns `None`, so you must
+/// override it if the emitter address is a program ID.
 pub trait PublishMessage<'info>:
     super::InvokeCoreBridge<'info> + super::CreateAccount<'info>
 {
@@ -65,7 +67,8 @@ pub enum PublishMessageDirective {
     /// address is the pubkey of the emitter signer.
     ///
     /// NOTE: The core_emitter in [PublishMessage] must return `Some`, which will be the account
-    /// info for the emitter signer. See legacy `post_message` for more info.
+    /// info for the emitter signer. See [post_message](crate::legacy::cpi::post_message) for more
+    /// info.
     Message {
         nonce: u32,
         payload: Vec<u8>,
@@ -75,8 +78,9 @@ pub enum PublishMessageDirective {
     /// address is the program ID specified in this directive.
     ///
     /// NOTE: The core_emitter_authority in [PublishMessage] must return `Some`, which will be the
-    /// account info for the authority used to prepare a new draft message. See `init_message_v1`
-    /// and `process_message_v1` for more details.
+    /// account info for the authority used to prepare a new draft message. See
+    /// [init_message_v1](crate::cpi::init_message_v1) and
+    /// [process_message_v1](crate::cpi::process_message_v1) for more details.
     ProgramMessage {
         program_id: Pubkey,
         nonce: u32,
@@ -88,7 +92,8 @@ pub enum PublishMessageDirective {
     /// message account is reused, the payload length must be the same as the existing message's.
     ///
     /// NOTE: The core_emitter in [PublishMessage] must return `Some`, which will be the account
-    /// info for the emitter signer. See legacy `post_message` for more info.
+    /// info for the emitter signer. See [post_message](crate::legacy::cpi::post_message) for more
+    /// info.
     UnreliableMessage {
         nonce: u32,
         payload: Vec<u8>,
@@ -245,38 +250,13 @@ where
     A: PublishMessage<'info>,
 {
     // Create message account.
-    {
-        let data_len = crate::sdk::compute_init_message_v1_space(payload.len());
-        let lamports = Rent::get().map(|rent| rent.minimum_balance(data_len))?;
-
-        match signer_seeds {
-            Some(signer_seeds) => system_program::create_account(
-                CpiContext::new_with_signer(
-                    accounts.system_program(),
-                    system_program::CreateAccount {
-                        from: accounts.payer(),
-                        to: accounts.core_message(),
-                    },
-                    signer_seeds,
-                ),
-                lamports,
-                data_len.try_into().unwrap(),
-                &crate::ID,
-            ),
-            None => system_program::create_account(
-                CpiContext::new(
-                    accounts.system_program(),
-                    system_program::CreateAccount {
-                        from: accounts.payer(),
-                        to: accounts.core_message(),
-                    },
-                ),
-                lamports,
-                data_len.try_into().unwrap(),
-                &crate::ID,
-            ),
-        }?;
-    }
+    crate::utils::create_account(
+        accounts,
+        accounts.core_message(),
+        crate::sdk::compute_init_message_v1_space(payload.len()),
+        &crate::ID,
+        signer_seeds,
+    )?;
 
     // Prepare (calling init and process instructions).
     crate::sdk::cpi::handle_prepare_message_v1(

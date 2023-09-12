@@ -14,6 +14,7 @@ pub struct WrappedAsset {
     pub token_chain: u16,
     pub token_address: [u8; 32],
     pub native_decimals: u8,
+    pub last_updated_sequence: u64,
 }
 
 impl core_bridge_program::legacy::utils::LegacyAccount<0> for WrappedAsset {
@@ -55,6 +56,7 @@ mod test {
                 222, 173, 190, 239, 222, 173, 190, 239, 222, 173, 190, 239, 222, 173, 190, 239,
             ],
             native_decimals: 18,
+            last_updated_sequence: 69,
         };
 
         let expected = r#"{

@@ -1,3 +1,4 @@
+import { BN } from "@coral-xyz/anchor";
 import {
   AccountInfo,
   Commitment,
@@ -10,11 +11,18 @@ export class WrappedAsset {
   tokenChain: number;
   tokenAddress: number[];
   nativeDecimals: number;
+  lastUpdatedSequence?: BN;
 
-  private constructor(tokenChain: number, tokenAddress: number[], nativeDecimals: number) {
+  private constructor(
+    tokenChain: number,
+    tokenAddress: number[],
+    nativeDecimals: number,
+    lastUpdatedSequence?: BN
+  ) {
     this.tokenChain = tokenChain;
     this.tokenAddress = tokenAddress;
     this.nativeDecimals = nativeDecimals;
+    this.lastUpdatedSequence = lastUpdatedSequence;
   }
 
   static address(programId: PublicKey, mint: PublicKey): PublicKey {
@@ -46,12 +54,17 @@ export class WrappedAsset {
   }
 
   static deserialize(data: Buffer): WrappedAsset {
-    if (data.length != 35) {
-      throw new Error("data.length != 35");
-    }
     const tokenChain = data.readUInt16LE(0);
     const tokenAddress = Array.from(data.subarray(2, 34));
     const nativeDecimals = data.readUInt8(34);
-    return new WrappedAsset(tokenChain, tokenAddress, nativeDecimals);
+
+    if (data.length === 43) {
+      const lastUpdatedSequence = new BN(data.subarray(35, 43), "le");
+      return new WrappedAsset(tokenChain, tokenAddress, nativeDecimals, lastUpdatedSequence);
+    } else if (data.length == 35) {
+      return new WrappedAsset(tokenChain, tokenAddress, nativeDecimals);
+    } else {
+      throw new Error("data.length != 35 or != 37");
+    }
   }
 }

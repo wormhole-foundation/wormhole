@@ -4,10 +4,10 @@ use anchor_lang::prelude::*;
 
 use super::InvokeCoreBridge;
 
-/// Trait for invoking the Core Bridge program's `init_message_v1` and `process_message_v1`
-/// instructions. These instructions are used in concert with each other to prepare a message, which
-/// can be posted either within a program via CPI or within the same transaction block as an
-/// instruction following your program's instruction.
+/// Trait for invoking the Core Bridge program's [init_message_v1](crate::cpi::init_message_v1) and
+/// [process_message_v1](crate::cpi::process_message_v1) instructions. These instructions are used
+/// in concert with each other to prepare a message, which can be posted either within a program via
+/// CPI or within the same transaction block as an instruction following your program's instruction.
 pub trait PrepareMessage<'info>: InvokeCoreBridge<'info> {
     /// Core Bridge Emitter Authority (read-only signer). This emitter authority acts as the signer
     /// for preparing a message before it is posted.
@@ -22,8 +22,8 @@ pub trait PrepareMessage<'info>: InvokeCoreBridge<'info> {
 /// Program instructions.
 ///
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
-/// invoke `system_program::create_account` before calling this method either using Anchor's `init`
-/// macro directive or via System Program CPI.
+/// either invoke [create_account](crate::utils::create_account) or use Anchor's `init` macro
+/// directive before calling this method.
 pub fn prepare_message<'info, A>(
     accounts: &A,
     init_args: InitMessageV1Args,

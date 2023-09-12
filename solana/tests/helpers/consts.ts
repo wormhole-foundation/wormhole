@@ -54,6 +54,10 @@ export const ETHEREUM_TOKEN_ADDRESS_MAX_TWO = tryNativeToUint8Array(
   "0x0000000000000000000000000000000000000002",
   "ethereum"
 );
+export const ETHEREUM_TOKEN_ALREADY_CREATED = tryNativeToUint8Array(
+  "0x00000badc0debadc0debadc0debadc0debadc0de",
+  "ethereum"
+);
 
 export const OPTIMISM_TOKEN_BRIDGE_ADDRESS = "0x1D68124e65faFC907325e3EDbF8c4d84499DAa8b";
 

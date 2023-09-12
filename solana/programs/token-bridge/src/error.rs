@@ -87,6 +87,9 @@ pub enum TokenBridgeError {
     #[msg("CannotSerializeJson")]
     CannotSerializeJson = 0x700,
 
+    #[msg("AttestationOutOfSequence")]
+    AttestationOutOfSequence = 0x702,
+
     #[msg("InvalidRelayerFee")]
     InvalidRelayerFee = 0x60,
 

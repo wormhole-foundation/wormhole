@@ -1,3 +1,5 @@
+pub use crate::utils::{create_account, CreateAccount};
+
 mod close_encoded_vaa;
 pub use close_encoded_vaa::*;
 
@@ -13,13 +15,6 @@ use anchor_lang::prelude::AccountInfo;
 /// posting Core Bridge messages specifically.
 pub trait InvokeCoreBridge<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info>;
-}
-
-/// Trait for invoking any program instruction that requires account creation.
-pub trait CreateAccount<'info> {
-    fn payer(&self) -> AccountInfo<'info>;
-
-    fn system_program(&self) -> AccountInfo<'info>;
 }
 
 /// Wormhole Core Bridge Program.
