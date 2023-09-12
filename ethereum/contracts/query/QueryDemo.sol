@@ -13,6 +13,8 @@ import "../../contracts/query/QueryResponse.sol";
 contract QueryDemo is Context {
     using BytesLib for bytes;
 
+    const EthWormholeCore = ""
+
     struct ChainEntry {
         uint16 chainID;
         address contractAddress;
@@ -27,7 +29,7 @@ contract QueryDemo is Context {
     mapping(uint16 => ChainEntry) counters;
     uint16[] chainIDs;
 
-    bytes GetMyCounter = bytes("916d5743");
+    bytes4 GetMyCounter = bytes4(hex"916d5743");
 
     constructor(address _owner, address _wormhole, uint16 _myChainID, address _myContractAddress) {
         owner = _owner;
@@ -64,14 +66,25 @@ contract QueryDemo is Context {
     // updateCounters takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
         QueryResponse.ParsedQueryResponse memory r = QueryResponse.parseAndVerifyQueryResponse(address(wormhole), response, signatures);
+        require(r.responses.length == chainIDs.length - 1, "unexpected number of results");
         for (uint idx=0; idx<r.responses.length; idx++) {
+            require(counters[r.responses[idx].chainId].chainID != myChainID, "cannot update self");
             require(counters[r.responses[idx].chainId].chainID != 0, "invalid chainID");
             QueryResponse.EthCallQueryResponse memory eqr = QueryResponse.parseEthCallQueryResponse(r.responses[idx]);
             require(eqr.blockNum > counters[r.responses[idx].chainId].blockNum, "update is obsolete");
+            require(eqr.blockNum == counters[r.responses[idx].chainId].blockNum, "update is redundant"); // This also prevents multiple entries for the same chain.
             require(eqr.blockTime > block.timestamp - 300, "update is stale");
             require(eqr.result.length == 1, "result mismatch");
             require(eqr.result[0].contractAddress == counters[r.responses[idx].chainId].contractAddress, "contract address is wrong");
-            //require(eqr.result[0].callData == GetMyCounter, "call data is wrong"); ////////////////////////////////////// TODO: How do I just compare the first four bytes?
+
+            // TODO: Is there an easier way to verify that the call data is correct!
+            bytes memory callData = eqr.result[0].callData;
+            bytes4 result;
+            assembly {
+                    result := mload(add(callData, 32))
+                }
+            require(result == GetMyCounter, "unexpected callData");
+
             require(eqr.result[0].result.length == 32, "result is not a uint256");
             counters[r.responses[idx].chainId].blockNum = eqr.blockNum;
             counters[r.responses[idx].chainId].blockTime = eqr.blockTime;
