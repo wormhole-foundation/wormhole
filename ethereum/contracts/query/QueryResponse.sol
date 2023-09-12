@@ -7,7 +7,7 @@ import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
 
 /// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
-library QueryResponse {
+abstract contract QueryResponse {
     using BytesLib for bytes;
        
     /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
