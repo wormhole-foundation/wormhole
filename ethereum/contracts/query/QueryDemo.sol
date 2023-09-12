@@ -7,10 +7,10 @@ import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
-import "../../contracts/query/QueryResponse.sol";
+import "./QueryResponse.sol";
 
 /// @dev QueryDemo is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
-contract QueryDemo is Context {
+contract QueryDemo is Context, QueryResponse {
     using BytesLib for bytes;
 
     struct ChainEntry {
@@ -25,22 +25,21 @@ contract QueryDemo is Context {
     address wormhole;
     uint16 myChainID;
     mapping(uint16 => ChainEntry) counters;
-    uint16[] chainIDs;
+    uint16[] foreignChainIDs;
 
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
-    function setup(address _owner, address _wormhole, uint16 _myChainID, address _myContractAddress) public {
+    constructor(address _owner, address _wormhole, uint16 _myChainID) {
         owner = _owner;
         wormhole = _wormhole;  
         myChainID = _myChainID;
-        counters[myChainID] = ChainEntry(myChainID, _myContractAddress, 0, 0, 0);
-        chainIDs.push(myChainID);
+        counters[myChainID] = ChainEntry(myChainID, address(this), 0, 0, 0);
     }
 
     // updateRegistration should be used to add the other chains and to set / update contract addresses.
     function updateRegistration(uint16 _chainID, address _contractAddress) public onlyOwner {
         if (counters[_chainID].chainID == 0) {
-            chainIDs.push(_chainID);
+            foreignChainIDs.push(_chainID);
             counters[_chainID].chainID = _chainID;
         }
 
@@ -54,23 +53,24 @@ contract QueryDemo is Context {
 
     // getState() returns this chain's view of all the counters. It is meant to be used in the front end.
     function getState() public view returns (ChainEntry[] memory) {
-        ChainEntry[] memory ret = new ChainEntry[](chainIDs.length);
-        for (uint idx=0; idx<chainIDs.length; idx++) {
-            ret[idx] = counters[chainIDs[idx]];
-        }        
+        ChainEntry[] memory ret = new ChainEntry[](foreignChainIDs.length + 1);
+        ret[0] = counters[myChainID];
+        for (uint idx=0; idx<foreignChainIDs.length; idx++) {
+            ret[idx+1] = counters[foreignChainIDs[idx]];
+        }      
+
         return ret;
     }
 
     // updateCounters takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
-        QueryResponse.ParsedQueryResponse memory r = QueryResponse.parseAndVerifyQueryResponse(address(wormhole), response, signatures);
-        require(r.responses.length == chainIDs.length - 1, "unexpected number of results");
+        ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
+        require(r.responses.length == foreignChainIDs.length, "unexpected number of results");
         for (uint idx=0; idx<r.responses.length; idx++) {
-            require(counters[r.responses[idx].chainId].chainID != myChainID, "cannot update self");
-            require(counters[r.responses[idx].chainId].chainID != 0, "invalid chainID");
-            QueryResponse.EthCallQueryResponse memory eqr = QueryResponse.parseEthCallQueryResponse(r.responses[idx]);
+            require(counters[r.responses[idx].chainId].chainID == foreignChainIDs[idx], "unexpected foreign chain ID");
+            EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[idx]);
             require(eqr.blockNum > counters[r.responses[idx].chainId].blockNum, "update is obsolete");
-            require(eqr.blockNum == counters[r.responses[idx].chainId].blockNum, "update is redundant"); // This also prevents multiple entries for the same chain.
+            require(eqr.blockNum == counters[r.responses[idx].chainId].blockNum, "update is redundant");
             require(eqr.blockTime > block.timestamp - 300, "update is stale");
             require(eqr.result.length == 1, "result mismatch");
             require(eqr.result[0].contractAddress == counters[r.responses[idx].chainId].contractAddress, "contract address is wrong");
