@@ -1,6 +1,7 @@
 package ccq
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -31,6 +32,7 @@ type httpServer struct {
 	topic            *pubsub.Topic
 	logger           *zap.Logger
 	permissions      Permissions
+	signerKey        *ecdsa.PrivateKey
 	pendingResponses *PendingResponses
 }
 
@@ -69,7 +71,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	if err := validateRequest(s.logger, s.permissions, apiKey[0], signedQueryRequest); err != nil {
+	if err := validateRequest(s.logger, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
 		s.logger.Debug("invalid request", zap.String("api_key", apiKey[0]), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -140,10 +142,11 @@ func (s *httpServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("health check")
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, p *PendingResponses, logger *zap.Logger) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger) *http.Server {
 	s := &httpServer{
 		topic:            t,
 		permissions:      permissions,
+		signerKey:        signerKey,
 		pendingResponses: p,
 		logger:           logger,
 	}

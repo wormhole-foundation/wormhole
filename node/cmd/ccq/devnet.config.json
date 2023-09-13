@@ -41,6 +41,7 @@
     {
       "userName": "Test User Two",
       "apiKey": "my_secret_key_2",
+      "allowUnsigned": true,
       "allowedCalls": [
         {
           "ethCall": {

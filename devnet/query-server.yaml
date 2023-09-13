@@ -35,6 +35,8 @@ spec:
             - query-server
             - --nodeKey
             - node/hack/query/querier.key
+            - --signerKey
+            - node/cmd/ccq/ccq.signing.key
             - --listenAddr
             - "[::]:6069"
             - --permFile

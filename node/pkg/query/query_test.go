@@ -306,7 +306,7 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	md := mockData{}
 	var err error
 
-	md.sk, err = loadGuardianKey("../../hack/query/dev.guardian.key")
+	md.sk, err = common.LoadGuardianKey("../../hack/query/dev.guardian.key", true)
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 

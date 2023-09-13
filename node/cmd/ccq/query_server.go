@@ -1,7 +1,11 @@
+// Note: To generate a signer key file do: guardiand keygen --block-type "CCQ SERVER SIGNING KEY" /path/to/key/file
+// You will need to add this key to ccqAllowedRequesters in the guardian configs.
+
 package ccq
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,12 +19,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const CCQ_SERVER_SIGNING_KEY = "CCQ SERVER SIGNING KEY"
+
 var (
 	p2pNetworkID      *string
 	p2pPort           *uint
 	p2pBootstrap      *string
 	listenAddr        *string
 	nodeKeyPath       *string
+	signerKeyPath     *string
 	permFile          *string
 	ethRPC            *string
 	ethContract       *string
@@ -34,6 +41,7 @@ func init() {
 	p2pPort = QueryServerCmd.Flags().Uint("port", 8995, "P2P UDP listener port")
 	p2pBootstrap = QueryServerCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 	nodeKeyPath = QueryServerCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	signerKeyPath = QueryServerCmd.Flags().String("signerKey", "", "Path to key used to sign unsigned queries")
 	listenAddr = QueryServerCmd.Flags().String("listenAddr", "[::]:6069", "Listen address for query server (disabled if blank)")
 	permFile = QueryServerCmd.Flags().String("permFile", "", "JSON file containing permissions configuration")
 	ethRPC = QueryServerCmd.Flags().String("ethRPC", "", "Ethereum RPC for fetching current guardian set")
@@ -111,6 +119,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Failed to load node key", zap.Error(err))
 	}
 
+	var signerKey *ecdsa.PrivateKey
+	if *signerKeyPath != "" {
+		signerKey, err = common.LoadArmoredKey(*signerKeyPath, CCQ_SERVER_SIGNING_KEY, false)
+		if err != nil {
+			logger.Fatal("Failed to loader signer key", zap.Error(err))
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -123,7 +139,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, pendingResponses, logger)
+		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
