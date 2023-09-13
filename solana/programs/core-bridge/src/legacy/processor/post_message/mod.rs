@@ -8,7 +8,7 @@ use crate::{
         Config, EmitterSequence, MessageStatus, PostedMessageV1, PostedMessageV1Data,
         PostedMessageV1Info,
     },
-    utils::CreateAccount,
+    utils,
 };
 use anchor_lang::prelude::*;
 
@@ -37,21 +37,23 @@ pub struct PostMessage<'info> {
     /// using `init_message_v1` and `process_message_v1`, then this account is not checked.
     emitter: Option<AccountInfo<'info>>,
 
-    /// CHECK: Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
+    /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
     /// sequence number.
     ///
     /// NOTE: Because the emitter can either be the emitter defined in this account context (for new
     /// messages) or written to the message account when it was prepared beforehand, we use a custom
     /// function to help determine this PDA's seeds.
     #[account(
-        mut,
+        init_if_needed,
+        payer = payer,
+        space = EmitterSequence::INIT_SPACE,
         seeds = [
             EmitterSequence::SEED_PREFIX,
             find_emitter_for_sequence(&emitter, &message)?.as_ref()
         ],
         bump
     )]
-    emitter_sequence: AccountInfo<'info>,
+    emitter_sequence: Account<'info, LegacyAnchorized<0, EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -67,53 +69,16 @@ pub struct PostMessage<'info> {
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
-    // Below there be dragons....
-    //
-    // Current integrators of the legacy implementation could have interchanged the System program
-    // and Rent sysvar accounts when passing AccountMetas for this instruction. So we need to check
-    // which account is the actual System program.
-    //
-    // ...
-    //
-    /// CHECK: This might be the System program.
-    maybe_system_program_1: AccountInfo<'info>,
-
-    /// CHECK: Or this might be, who knows?
-    maybe_system_program_2: AccountInfo<'info>,
+    system_program: Program<'info, System>,
 }
 
-impl<'info> crate::utils::CreateAccount<'info> for PostMessage<'info> {
+impl<'info> crate::utils::cpi::CreateAccount<'info> for PostMessage<'info> {
     fn system_program(&self) -> AccountInfo<'info> {
-        // Don't look here for any safeties. We will guarantee that one of these account infos is
-        // the system program in access control.
-        if self.maybe_system_program_1.key() == anchor_lang::system_program::ID {
-            self.maybe_system_program_1.to_account_info()
-        } else {
-            self.maybe_system_program_2.to_account_info()
-        }
+        self.system_program.to_account_info()
     }
 
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
-    }
-}
-
-impl<'info> PostMessage<'info> {
-    fn constraints(ctx: &Context<Self>) -> Result<()> {
-        // One of these account infos must be the system account.
-        if ctx.accounts.maybe_system_program_1.key() == anchor_lang::system_program::ID {
-            // We're good.
-        } else {
-            // We revert with a specific error if the last account info is not the system program.
-            require_keys_eq!(
-                ctx.accounts.maybe_system_program_2.key(),
-                anchor_lang::system_program::ID,
-                ErrorCode::InvalidProgramId
-            );
-        }
-
-        // Done.
-        Ok(())
     }
 }
 
@@ -123,6 +88,37 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
     const LOG_IX_NAME: &'static str = "LegacyPostMessage";
 
     const ANCHOR_IX_FN: fn(Context<Self>, PostMessageArgs) -> Result<()> = post_message;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        order_post_message_account_infos(account_infos)
+    }
+}
+
+pub(super) fn order_post_message_account_infos<'a, 'info>(
+    account_infos: &'a [AccountInfo<'info>],
+) -> Result<Vec<AccountInfo<'info>>> {
+    const NUM_ACCOUNTS: usize = 8;
+    const SYSTEM_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;
+
+    let mut infos = account_infos.to_vec();
+
+    // We only need to order the account infos if there are more than 8 accounts.
+    if infos.len() > NUM_ACCOUNTS {
+        // System program needs to exist in these account infos.
+        let system_program_idx = infos
+            .iter()
+            .position(|info| info.key() == anchor_lang::system_program::ID)
+            .ok_or(error!(ErrorCode::InvalidProgramId))?;
+
+        // Make sure System program is in the right index.
+        if system_program_idx != SYSTEM_PROGRAM_IDX {
+            infos.swap(SYSTEM_PROGRAM_IDX, system_program_idx);
+        }
+    }
+
+    Ok(infos)
 }
 
 /// This method is used by both `post_message` and `post_message_unreliable` instruction handlers.
@@ -132,7 +128,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
 pub(super) fn new_posted_message_data(
     config: &mut Account<LegacyAnchorized<0, Config>>,
     fee_collector: &Option<AccountInfo>,
-    emitter_sequence: &mut AccountInfo,
+    emitter_sequence: &mut Account<LegacyAnchorized<0, EmitterSequence>>,
     consistency_level: u8,
     nonce: u32,
     emitter: &Pubkey,
@@ -145,7 +141,7 @@ pub(super) fn new_posted_message_data(
     handle_message_fee(config, fee_collector)?;
 
     // Sequence number will be used later on.
-    let sequence = take_and_uptick_sequence(emitter_sequence)?;
+    let sequence = emitter_sequence.value;
 
     // Finally set the `message` account with posted data.
     let data = PostedMessageV1Data {
@@ -163,55 +159,19 @@ pub(super) fn new_posted_message_data(
         payload,
     };
 
+    // Increment emitter sequence value.
+    emitter_sequence.value += 1;
+
     // Done.
     Ok(data)
-}
-
-pub(super) fn create_emitter_sequence<'info, A>(
-    accounts: &A,
-    seq_acc_info: AccountInfo<'info>,
-    emitter: &Pubkey,
-    emitter_bump: u8,
-) -> Result<()>
-where
-    A: CreateAccount<'info>,
-{
-    crate::utils::create_account(
-        accounts,
-        seq_acc_info.to_account_info(),
-        EmitterSequence::INIT_SPACE,
-        &crate::ID,
-        Some(&[&[
-            EmitterSequence::SEED_PREFIX,
-            emitter.as_ref(),
-            &[emitter_bump],
-        ]]),
-    )?;
-
-    let acc_data: &mut [u8] = &mut seq_acc_info.data.borrow_mut();
-    let mut writer = std::io::Cursor::new(acc_data);
-    LegacyAnchorized::from(EmitterSequence { value: 0 })
-        .try_serialize(&mut writer)
-        .map_err(Into::into)
 }
 
 /// Processor to post (publish) a Wormhole message by setting up the message account for
 /// Guardian observation.
 ///
-/// A message is either created beforehand using the new Anchor instruction to process a message
-/// or is created at this point.
-#[access_control(PostMessage::constraints(&ctx))]
+/// A message is either created beforehand using the new Anchor instructions `init_message_v1`
+/// and `process_message_v1` or is created at this point.
 fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
-    // Create the emitter sequence account if it doesn't exist.
-    if ctx.accounts.emitter_sequence.data_is_empty() {
-        create_emitter_sequence(
-            ctx.accounts,
-            ctx.accounts.emitter_sequence.to_account_info(),
-            &find_emitter_for_sequence(&ctx.accounts.emitter, &ctx.accounts.message).unwrap(),
-            ctx.bumps["emitter_sequence"],
-        )?;
-    }
-
     if ctx.accounts.message.data_is_empty() {
         handle_post_new_message(ctx, args)
     } else {
@@ -234,9 +194,17 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let payload_size = payload.len();
+    // Create the account.
+    {
+        utils::cpi::create_account(
+            ctx.accounts,
+            ctx.accounts.message.to_account_info(),
+            PostedMessageV1::compute_size(payload.len()),
+            &crate::ID,
+            None,
+        )?;
+    }
 
-    // Generate message data.
     let data = new_posted_message_data(
         &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
@@ -251,22 +219,14 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     // able to remove this to save on compute units.
     msg!("Sequence: {}", data.sequence);
 
-    // Finally create account and set the message data.
-    crate::utils::create_account(
-        ctx.accounts,
-        ctx.accounts.message.to_account_info(),
-        PostedMessageV1::compute_size(payload_size),
-        &crate::ID,
-        None,
-    )?;
-
     let msg_acc_data: &mut [u8] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1 { data })
-        .try_serialize(&mut writer)
-        .map_err(Into::into)
+    LegacyAnchorized::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
+
+    // Done.
+    Ok(())
 }
 
 /// When posting a prepared message, the `MessageStatus` must be in a `Finalized` state (indicating
@@ -314,9 +274,10 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1 { data })
-        .try_serialize(&mut writer)
-        .map_err(Into::into)
+    LegacyAnchorized::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
+
+    // Done.
+    Ok(())
 }
 
 /// If there is a fee, check the fee collector account to ensure that the fee has been paid.
@@ -377,26 +338,4 @@ fn find_emitter_for_sequence(emitter: &Option<AccountInfo>, msg: &AccountInfo) -
             MessageStatus::Finalized => Ok(msg.emitter()),
         }
     }
-}
-
-fn take_and_uptick_sequence(seq_acc_info: &mut AccountInfo) -> Result<u64> {
-    // Take.
-    let sequence = {
-        let acc_data = seq_acc_info.data.borrow();
-        let emitter_sequence =
-            LegacyAnchorized::<0, EmitterSequence>::try_deserialize(&mut acc_data.as_ref())?;
-
-        emitter_sequence.value
-    };
-
-    // And uptick.
-    let acc_data: &mut [u8] = &mut seq_acc_info.data.borrow_mut();
-    let mut writer = std::io::Cursor::new(acc_data);
-    LegacyAnchorized::from(EmitterSequence {
-        value: sequence + 1,
-    })
-    .try_serialize(&mut writer)?;
-
-    // Done.
-    Ok(sequence)
 }

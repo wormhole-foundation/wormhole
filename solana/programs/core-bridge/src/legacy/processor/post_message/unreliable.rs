@@ -21,28 +21,29 @@ pub struct PostMessageUnreliable<'info> {
     /// NOTE: This space requirement enforces that the payload length is the same for every call to
     /// this instruction handler.
     #[account(
-        mut
-        // init_if_needed,
-        // payer = payer,
-        // space = try_compute_size(message, payload_len)?,
+        init_if_needed,
+        payer = payer,
+        space = try_compute_size(message, payload_len)?,
     )]
-    message: AccountInfo<'info>,
+    message: Account<'info, LegacyAnchorized<4, PostedMessageV1Unreliable>>,
 
     /// The emitter of the Core Bridge message. This account is typically an integrating program's
     /// PDA which signs for this instruction.
     emitter: Signer<'info>,
 
-    /// CHECK: Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
+    /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
     /// sequence number.
     #[account(
-        mut,
+        init_if_needed,
+        payer = payer,
+        space = EmitterSequence::INIT_SPACE,
         seeds = [
             EmitterSequence::SEED_PREFIX,
             emitter.key().as_ref()
         ],
         bump,
     )]
-    emitter_sequence: AccountInfo<'info>,
+    emitter_sequence: Account<'info, LegacyAnchorized<0, EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -58,35 +59,7 @@ pub struct PostMessageUnreliable<'info> {
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
 
-    // Below there be dragons....
-    //
-    // Current integrators of the legacy implementation could have interchanged the System program
-    // and Rent sysvar accounts when passing AccountMetas for this instruction. So we need to check
-    // which account is the actual System program.
-    //
-    // ... and here we go!
-    //
-    /// CHECK: This might be the System program.
-    maybe_system_program_1: AccountInfo<'info>,
-
-    /// CHECK: Or this might be, who knows?
-    maybe_system_program_2: AccountInfo<'info>,
-}
-
-impl<'info> crate::utils::CreateAccount<'info> for PostMessageUnreliable<'info> {
-    fn system_program(&self) -> AccountInfo<'info> {
-        // Don't look here for any safeties. We will guarantee that one of these account infos is
-        // the system program in access control.
-        if self.maybe_system_program_1.key() == anchor_lang::system_program::ID {
-            self.maybe_system_program_1.to_account_info()
-        } else {
-            self.maybe_system_program_2.to_account_info()
-        }
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
+    system_program: Program<'info, System>,
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>
@@ -95,38 +68,24 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
     const LOG_IX_NAME: &'static str = "LegacyPostMessageUnreliable";
 
     const ANCHOR_IX_FN: fn(Context<Self>, PostMessageArgs) -> Result<()> = post_message_unreliable;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_post_message_account_infos(account_infos)
+    }
 }
 
 impl<'info> PostMessageUnreliable<'info> {
-    fn constraints(ctx: &Context<Self>, args: &PostMessageArgs) -> Result<()> {
-        // One of these account infos must be the system account.
-        if ctx.accounts.maybe_system_program_1.key() == anchor_lang::system_program::ID {
-            // We're good.
-        } else {
-            // We revert with a specific error if the last account info is not the system program.
-            require_keys_eq!(
-                ctx.accounts.maybe_system_program_2.key(),
-                anchor_lang::system_program::ID,
-                ErrorCode::InvalidProgramId
-            );
-        }
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        let msg = &ctx.accounts.message;
 
-        if !ctx.accounts.message.data_is_empty() {
-            let acc_data = ctx.accounts.message.data.borrow();
-            let msg = crate::zero_copy::PostedMessageV1Unreliable::parse(&acc_data)?;
-
-            // The new payload must be the same size as the existing one.
-            require_eq!(
-                args.payload.len(),
-                msg.payload_size(),
-                CoreBridgeError::PayloadSizeMismatch
-            );
-
-            // The emitter signing for this instruction must be the same one encoded in this
-            // account.
+        // If the message account already exists, the emitter signing for this instruction must be
+        // the same one encoded in this account.
+        if !msg.payload.is_empty() {
             require_keys_eq!(
                 ctx.accounts.emitter.key(),
-                msg.emitter(),
+                msg.emitter,
                 CoreBridgeError::EmitterMismatch
             );
         }
@@ -142,20 +101,11 @@ impl<'info> PostMessageUnreliable<'info> {
 ///
 /// If this message account already exists, the emitter must be the same as the one encoded in
 /// the message and the payload must be the same size.
-#[access_control(PostMessageUnreliable::constraints(&ctx, &args))]
+#[access_control(PostMessageUnreliable::constraints(&ctx))]
 fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,
     args: PostMessageArgs,
 ) -> Result<()> {
-    // Create the emitter sequence account if it doesn't exist.
-    if ctx.accounts.emitter_sequence.data_is_empty() {
-        super::create_emitter_sequence(
-            ctx.accounts,
-            ctx.accounts.emitter_sequence.to_account_info(),
-            &ctx.accounts.emitter.key(),
-            ctx.bumps["emitter_sequence"],
-        )?;
-    }
     let PostMessageArgs {
         nonce,
         payload,
@@ -167,9 +117,6 @@ fn post_message_unreliable(
         !payload.is_empty(),
         CoreBridgeError::InvalidInstructionArgument
     );
-
-    // Save for later.
-    let payload_size = payload.len();
 
     let data = super::new_posted_message_data(
         &mut ctx.accounts.config,
@@ -185,22 +132,34 @@ fn post_message_unreliable(
     // able to remove this to save on compute units.
     msg!("Sequence: {}", data.sequence);
 
-    // Create the message account if it doesn't exist.
-    if ctx.accounts.message.data_is_empty() {
-        crate::utils::create_account(
-            ctx.accounts,
-            ctx.accounts.message.to_account_info(),
-            PostedMessageV1Unreliable::compute_size(payload_size),
-            &crate::ID,
-            None,
-        )?;
+    // Finally set the `message` account with posted data.
+    ctx.accounts
+        .message
+        .set_inner(PostedMessageV1Unreliable { data }.into());
+
+    // Done.
+    Ok(())
+}
+
+/// This method is used to compute the size of the message account. Because Anchor's
+/// `init_if_needed` checks the size of this account whether it has been created or not, we need to
+/// yield either the size determined by the posted message's payload size or the size of the new
+/// payload. Instead of reverting with `ConstraintSpace`, we revert with a custom Core Bridge error
+/// saying that the payload size does not match the existing one (which is a requirement to reuse
+/// this message account).
+fn try_compute_size(message: &AccountInfo, payload_size: u32) -> Result<usize> {
+    let payload_size = usize::try_from(payload_size).unwrap();
+
+    if !message.data_is_empty() {
+        let expected_size =
+            crate::zero_copy::PostedMessageV1Unreliable::parse(&message.data.borrow())?
+                .payload_size();
+        require_eq!(
+            payload_size,
+            expected_size,
+            CoreBridgeError::PayloadSizeMismatch
+        );
     }
 
-    let msg_acc_data: &mut [u8] = &mut ctx.accounts.message.data.borrow_mut();
-    let mut writer = std::io::Cursor::new(msg_acc_data);
-
-    // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1Unreliable { data })
-        .try_serialize(&mut writer)
-        .map_err(Into::into)
+    Ok(PostedMessageV1Unreliable::compute_size(payload_size))
 }

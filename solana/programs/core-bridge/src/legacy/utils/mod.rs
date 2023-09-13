@@ -117,19 +117,27 @@ pub trait ProcessLegacyInstruction<'info, T: AnchorDeserialize>:
     /// program. This method gets invoked in the process instruction method.
     const ANCHOR_IX_FN: fn(Context<Self>, T) -> Result<()>;
 
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        Ok(account_infos.to_vec())
+    }
+
     /// This method implements the same procedure Anchor performs in its codegen, where it creates
     /// a Context using the account context and invokes the instruction handler with the handler's
     /// arguments. It then performs clean up at the end by writing the account data back into the
     /// borrowed account data via exit.
     fn process_instruction(
         program_id: &Pubkey,
-        mut account_infos: &[AccountInfo<'info>],
+        account_infos: &[AccountInfo<'info>],
         mut ix_data: &[u8],
     ) -> Result<()> {
         #[cfg(not(feature = "no-log-ix-name"))]
         msg!("Instruction: {}", Self::LOG_IX_NAME);
 
         let mut bumps = std::collections::BTreeMap::new();
+
+        let mut account_infos: &[_] = &Self::order_account_infos(account_infos)?;
 
         // Generate accounts struct. This checks account constraints, including PDAs.
         let mut accounts = Self::try_accounts(

@@ -250,7 +250,7 @@ where
     A: PublishMessage<'info>,
 {
     // Create message account.
-    crate::utils::create_account(
+    crate::utils::cpi::create_account(
         accounts,
         accounts.core_message(),
         crate::sdk::compute_init_message_v1_space(payload.len()),
