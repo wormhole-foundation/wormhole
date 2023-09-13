@@ -58,7 +58,7 @@ The token configurations are in [manual_tokens.go](https://github.com/wormhole-f
 If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hardcoded floor price instead.
 
 ### Visibility
-Each Guardian publishes its Governor configuration and status on the Wormhole gossip network, which anyone can subscribe to [instructions](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/relayer/spy_relayer/README.md). Some Guardians also make the Governor status available through a public API, which can be visualized on the [Wormhole Dashboard](https://wormhole-foundation.github.io/wormhole-dashboard/). A more feature-rich [Wormhole Explorer](https://github.com/wormhole-foundation/wormhole-explorer) that will aggregate Governor status across all Guardians is work-in-progress.
+Each Guardian publishes its Governor configuration and status on the Wormhole gossip network, which anyone can subscribe to via a guardian spy ([instructions](https://github.com/wormhole-foundation/wormhole/blob/main/docs/operations.md)). Some Guardians also make the Governor status available through a public API, which can be visualized on the [Wormhole Dashboard](https://wormhole-foundation.github.io/wormhole-dashboard/). A more feature-rich [Wormhole Explorer](https://github.com/wormhole-foundation/wormhole-explorer) that will aggregate Governor status across all Guardians is work-in-progress.
 
 ### Security Considerations
 * The Governor can only reduce the impact of an exploit, but not prevent it.
