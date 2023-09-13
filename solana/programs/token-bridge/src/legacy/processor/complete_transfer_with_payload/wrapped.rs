@@ -107,6 +107,12 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> =
         complete_transfer_with_payload_wrapped;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_complete_transfer_with_payload_account_infos(account_infos)
+    }
 }
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {

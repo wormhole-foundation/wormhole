@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
+} from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import {
   WrappedMintInfo,
@@ -8,6 +12,8 @@ import {
   WRAPPED_MINT_INFO_MAX_TWO,
   expectIxOkDetails,
   getTokenBalances,
+  expectDeepEqual,
+  expectIxOk,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -25,6 +31,95 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens with Payload (Wrap
   const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_TWO;
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 15,
+      },
+      { name: "Token", pubkey: TOKEN_PROGRAM_ID, forkPubkey: TOKEN_PROGRAM_ID, idx: 16 },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 17,
+      },
+    ];
+
+    const possibleIndices = [14, 15, 16, 17];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`transfer_tokens_with_payload_wrapped\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const { chain, address } = WRAPPED_MINT_INFO_8;
+
+          const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+          const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
+
+          const forkMint = tokenBridge.wrappedMintPda(
+            forkedProgram.programId,
+            chain,
+            Array.from(address)
+          );
+          const forkSrcToken = getAssociatedTokenAddressSync(forkMint, payer.publicKey);
+
+          const amount = new anchor.BN(10);
+          const approveIx = tokenBridge.approveTransferAuthorityIx(
+            program,
+            srcToken,
+            payer.publicKey,
+            amount
+          );
+
+          const args = defaultArgs(amount);
+          const coreMessage = anchor.web3.Keypair.generate();
+          const ix = tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
+            program,
+            {
+              payer: payer.publicKey,
+              srcToken,
+              wrappedMint: mint,
+              coreMessage: coreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkCoreMessage = anchor.web3.Keypair.generate();
+          const forkedApproveIx = tokenBridge.approveTransferAuthorityIx(
+            forkedProgram,
+            forkSrcToken,
+            payer.publicKey,
+            amount
+          );
+          const forkedIx = tokenBridge.legacyTransferTokensWithPayloadWrappedIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              srcToken: forkSrcToken,
+              wrappedMint: forkMint,
+              coreMessage: forkCoreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await Promise.all([
+            expectIxOk(connection, [approveIx, ix], [payer, coreMessage]),
+            expectIxOk(connection, [forkedApproveIx, forkedIx], [payer, forkCoreMessage]),
+          ]);
+        });
+      }
+    }
     const transferAuthority = anchor.web3.Keypair.generate();
 
     for (const { chain, decimals, address } of wrappedMints) {

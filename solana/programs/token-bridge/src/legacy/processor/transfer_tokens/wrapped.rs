@@ -146,6 +146,12 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
     const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensArgs) -> Result<()> =
         transfer_tokens_wrapped;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_transfer_tokens_account_infos(account_infos)
+    }
 }
 
 impl<'info> TransferTokensWrapped<'info> {

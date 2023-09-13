@@ -6,7 +6,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
-import { Account, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Account, TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { expect } from "chai";
 import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
@@ -18,7 +18,9 @@ import {
   WRAPPED_MINT_INFO_MAX_ONE,
   WrappedMintInfo,
   createAssociatedTokenAccountOffCurve,
+  expectDeepEqual,
   expectIxErr,
+  expectIxOk,
   expectIxOkDetails,
   getTokenBalances,
   invokeVerifySignaturesAndPostVaa,
@@ -51,6 +53,102 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
   const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_ONE;
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 11,
+      },
+      { name: "Token", pubkey: TOKEN_PROGRAM_ID, forkPubkey: TOKEN_PROGRAM_ID, idx: 12 },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 13,
+      },
+    ];
+
+    const possibleIndices = [10, 11, 12, 13];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`complete_transfer_wrapped\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const { chain, address } = WRAPPED_MINT_INFO_8;
+          const recipient = anchor.web3.Keypair.generate();
+
+          const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
+          const recipientToken = await getOrCreateAssociatedTokenAccount(
+            connection,
+            payer,
+            mint,
+            recipient.publicKey
+          );
+
+          const forkMint = tokenBridge.wrappedMintPda(
+            forkedProgram.programId,
+            chain,
+            Array.from(address)
+          );
+          const forkRecipientToken = await getOrCreateAssociatedTokenAccount(
+            connection,
+            payer,
+            forkMint,
+            recipient.publicKey
+          );
+
+          const amount = new anchor.BN(10);
+          const signedVaa = getSignedTransferVaa(
+            address,
+            BigInt(amount.toString()),
+            BigInt(0),
+            recipientToken.address
+          );
+          const forkSignedVaa = getSignedTransferVaa(
+            address,
+            BigInt(amount.toString()),
+            BigInt(0),
+            forkRecipientToken.address
+          );
+
+          // Post the VAA.
+          const parsed = await parallelPostVaa(connection, payer, signedVaa);
+          const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+            program,
+            {
+              payer: payer.publicKey,
+              recipientToken: recipientToken.address,
+              wrappedMint: mint,
+            },
+            parsed
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkParsed = await parallelPostVaa(connection, payer, forkSignedVaa);
+          const forkedIx = tokenBridge.legacyCompleteTransferWrappedIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              recipientToken: forkRecipientToken.address,
+              wrappedMint: forkMint,
+            },
+            forkParsed
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await expectIxOk(connection, [ix, forkedIx], [payer]);
+        });
+      }
+    }
+
     for (const { chain, decimals, address } of wrappedMints) {
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, No Fee)`, async () => {
         const [mint, forkMint] = [program, forkedProgram].map((program) =>

@@ -120,6 +120,12 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
     const LOG_IX_NAME: &'static str = "LegacyCompleteTransferNative";
 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = complete_transfer_native;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_complete_transfer_account_infos(account_infos)
+    }
 }
 
 impl<'info> CompleteTransferNative<'info> {

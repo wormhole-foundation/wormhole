@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  TOKEN_PROGRAM_ID,
   createAssociatedTokenAccount,
   getAssociatedTokenAddressSync,
   mintTo,
@@ -9,7 +10,9 @@ import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
+  expectDeepEqual,
   expectIxErr,
+  expectIxOk,
   expectIxOkDetails,
   getTokenBalances,
 } from "../helpers";
@@ -37,6 +40,87 @@ describe("Token Bridge -- Legacy Instruction: Transfer Tokens (Native)", () => {
   });
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 14,
+      },
+      { name: "Token", pubkey: TOKEN_PROGRAM_ID, forkPubkey: TOKEN_PROGRAM_ID, idx: 15 },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 16,
+      },
+    ];
+
+    const possibleIndices = [13, 14, 15, 16];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`transfer_tokens_native\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const { mint } = MINT_INFO_8;
+          const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
+
+          const amount = new anchor.BN(10);
+          const approveIx = tokenBridge.approveTransferAuthorityIx(
+            program,
+            srcToken,
+            payer.publicKey,
+            amount
+          );
+
+          const args = defaultArgs(amount, new anchor.BN(0));
+          const coreMessage = anchor.web3.Keypair.generate();
+          const ix = tokenBridge.legacyTransferTokensNativeIx(
+            program,
+            {
+              payer: payer.publicKey,
+              srcToken,
+              mint,
+              coreMessage: coreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkCoreMessage = anchor.web3.Keypair.generate();
+          const forkedApproveIx = tokenBridge.approveTransferAuthorityIx(
+            forkedProgram,
+            srcToken,
+            payer.publicKey,
+            amount
+          );
+          const forkedIx = tokenBridge.legacyTransferTokensNativeIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              srcToken,
+              mint,
+              coreMessage: forkCoreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await Promise.all([
+            expectIxOk(connection, [approveIx, ix], [payer, coreMessage]),
+            expectIxOk(connection, [forkedApproveIx, forkedIx], [payer, forkCoreMessage]),
+          ]);
+        });
+      }
+    }
+
     for (const { mint, decimals } of mints) {
       const srcToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 

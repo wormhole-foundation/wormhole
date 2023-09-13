@@ -7,6 +7,7 @@ import {
   WRAPPED_MINT_INFO_MAX_ONE,
   expectIxErr,
   expectDeepEqual,
+  MINT_INFO_8,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
@@ -25,6 +26,67 @@ describe("Token Bridge -- Legacy Instruction: Attest Token", () => {
   const wrappedMaxMint: WrappedMintInfo = WRAPPED_MINT_INFO_MAX_ONE;
 
   describe("Ok", () => {
+    const unorderedPrograms = [
+      {
+        name: "System",
+        pubkey: anchor.web3.SystemProgram.programId,
+        forkPubkey: anchor.web3.SystemProgram.programId,
+        idx: 12,
+      },
+      {
+        name: "Core Bridge",
+        pubkey: tokenBridge.coreBridgeProgramId(program),
+        forkPubkey: tokenBridge.coreBridgeProgramId(forkedProgram),
+        idx: 13,
+      },
+    ];
+
+    const possibleIndices = [11, 12, 13];
+
+    for (const { name, pubkey, forkPubkey, idx } of unorderedPrograms) {
+      for (const possibleIdx of possibleIndices) {
+        if (possibleIdx == idx) {
+          continue;
+        }
+
+        it(`Invoke \`attest_token\` with ${name} Program at Index == ${possibleIdx}`, async () => {
+          const args = defaultArgs();
+          const coreMessage = anchor.web3.Keypair.generate();
+          const ix = tokenBridge.legacyAttestTokenIx(
+            program,
+            {
+              payer: payer.publicKey,
+              mint: NATIVE_MINT,
+              coreMessage: coreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(ix.keys[idx].pubkey, pubkey);
+          ix.keys[idx].pubkey = ix.keys[possibleIdx].pubkey;
+          ix.keys[possibleIdx].pubkey = pubkey;
+
+          const forkCoreMessage = anchor.web3.Keypair.generate();
+          const forkedIx = tokenBridge.legacyAttestTokenIx(
+            forkedProgram,
+            {
+              payer: payer.publicKey,
+              mint: NATIVE_MINT,
+              coreMessage: forkCoreMessage.publicKey,
+            },
+            args
+          );
+          expectDeepEqual(forkedIx.keys[idx].pubkey, forkPubkey);
+          forkedIx.keys[idx].pubkey = forkedIx.keys[possibleIdx].pubkey;
+          forkedIx.keys[possibleIdx].pubkey = forkPubkey;
+
+          await Promise.all([
+            expectIxOk(connection, [ix], [payer, coreMessage]),
+            expectIxOk(connection, [forkedIx], [payer, forkCoreMessage]),
+          ]);
+        });
+      }
+    }
+
     it("Invoke `attest_token` for Mint with Metadata", async () => {
       const [coreMessage, forkedCoreMessage] = await parallelTxOk(
         program,

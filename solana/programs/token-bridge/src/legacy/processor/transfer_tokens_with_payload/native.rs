@@ -150,6 +150,12 @@ impl<'info>
 
     const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
         transfer_tokens_with_payload_native;
+
+    fn order_account_infos<'a>(
+        account_infos: &'a [AccountInfo<'info>],
+    ) -> Result<Vec<AccountInfo<'info>>> {
+        super::order_transfer_tokens_with_payload_account_infos(account_infos)
+    }
 }
 
 impl<'info> TransferTokensWithPayloadNative<'info> {
