@@ -64,7 +64,6 @@ config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
-config.define_bool("spy_relayer", False, "Enable spy relayer")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
@@ -90,7 +89,6 @@ pythnet = cfg.get("pythnet", False)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
-spy_relayer = cfg.get("spy_relayer", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
@@ -466,7 +464,7 @@ docker_build(
     ],
 )
 
-if spy_relayer or redis or generic_relayer:
+if redis or generic_relayer:
     docker_build(
         ref = "redis",
         context = ".",
@@ -474,7 +472,7 @@ if spy_relayer or redis or generic_relayer:
         dockerfile = "third_party/redis/Dockerfile",
     )
 
-if spy_relayer or redis:
+if redis:
     k8s_resource(
         "redis",
         port_forwards = [
@@ -518,53 +516,6 @@ if generic_relayer:
         build_args = {"dev": str(not ci)}
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
-
-if spy_relayer:
-
-    docker_build(
-        ref = "spy-relay-image",
-        context = "relayer/spy_relayer",
-        dockerfile = "relayer/spy_relayer/Dockerfile",
-        live_update = []
-    )
-
-    k8s_yaml_with_ns("devnet/spy-listener.yaml")
-
-    k8s_resource(
-        "spy-listener",
-        resource_deps = ["guardian", "redis", "spy"],
-        port_forwards = [
-            port_forward(6062, container_port = 6060, name = "Debug/Status Server [:6062]", host = webHost),
-            port_forward(4201, name = "REST [:4201]", host = webHost),
-            port_forward(8082, name = "Prometheus [:8082]", host = webHost),
-        ],
-        labels = ["spy-relayer"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/spy-relayer.yaml")
-
-    k8s_resource(
-        "spy-relayer",
-        resource_deps = ["guardian", "redis"],
-        port_forwards = [
-            port_forward(8083, name = "Prometheus [:8083]", host = webHost),
-        ],
-        labels = ["spy-relayer"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/spy-wallet-monitor.yaml")
-
-    k8s_resource(
-        "spy-wallet-monitor",
-        resource_deps = ["guardian", "redis"],
-        port_forwards = [
-            port_forward(8084, name = "Prometheus [:8084]", host = webHost),
-        ],
-        labels = ["spy-relayer"],
-        trigger_mode = trigger_mode,
-    )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
