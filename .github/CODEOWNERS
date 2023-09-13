@@ -23,7 +23,6 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/spy_relayer @evan-gray @kev1n-peters
 /relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth
 /scripts/ @evan-gray @kcsongor
 /sdk/ @bruce-riley @evan-gray
