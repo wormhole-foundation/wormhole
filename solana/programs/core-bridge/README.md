@@ -12,8 +12,6 @@ address, there are a few traits that you the integrator will have to implement:
   - Ensures that all Core Bridge accounts are included in your [account context].
 - `CreateAccount<'info>`
   - Requires payer and system program account infos.
-- `InvokeCoreBridge<'info>`
-  - Requires Core Bridge program account info.
 
 These traits are found in the SDK submodule of the Core Bridge program crate.
 
@@ -77,16 +75,7 @@ The traits above would be implemented by calling `to_account_info` on the approp
 your context.
 
 By making sure that the `core_bridge_program` account is the correct program, your context will use
-the [Program] account wrapper with the `CoreBridge` type. Implementing the `InvokeCoreBridge` trait
-is required for the `PublishMessage` trait and is as simple as:
-
-```rust,ignore
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for PublishHelloWorld<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-```
+the [Program] account wrapper with the `CoreBridge` type.
 
 Because publishing a Wormhole message requires creating account(s), the `PublishMessage` trait
 requires the `CreateAccount` trait, which defines a `payer` account, who has the lamports to send to
@@ -113,6 +102,10 @@ authority is provided.**
 
 ```rust,ignore
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -212,12 +205,6 @@ pub struct PublishHelloWorld<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for PublishHelloWorld<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
@@ -229,6 +216,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'in
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }

@@ -1,29 +1,28 @@
 import {
-  parseVaa,
-  CHAIN_ID_SOLANA,
   CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  parseVaa,
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import {
   GovernanceEmitter,
-  MockGuardians,
   MockEmitter,
+  MockGuardians,
 } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import {
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  GOVERNANCE_EMITTER_ADDRESS,
   GUARDIAN_KEYS,
+  TOKEN_BRIDGE_GOVERNANCE_MODULE,
   expectIxErr,
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
-  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
-  TOKEN_BRIDGE_GOVERNANCE_MODULE,
-  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_token_bridge_solana.so`;
 

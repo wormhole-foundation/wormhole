@@ -33,8 +33,7 @@ import { Err, Ok } from "ts-results";
 import { ethers } from "ethers";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
-import { createSecp256k1Instruction } from "./";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../../old-tests/helpers";
+import { createSecp256k1Instruction, GOVERNANCE_EMITTER_ADDRESS } from "./";
 
 export type InvalidAccountConfig = {
   label: string;

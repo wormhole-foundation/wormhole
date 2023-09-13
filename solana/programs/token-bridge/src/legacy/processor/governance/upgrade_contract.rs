@@ -14,15 +14,9 @@ pub struct UpgradeContract<'info> {
     payer: Signer<'info>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program::ID,
-    )]
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = core_bridge_program::ID)]
     posted_vaa: AccountInfo<'info>,
 
     /// Account representing that a VAA has been consumed.

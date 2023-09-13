@@ -3,7 +3,6 @@ import {
   MockEmitter,
   MockGuardians,
 } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../../old-tests/helpers";
 import * as anchor from "@coral-xyz/anchor";
 import { ComputeBudgetProgram } from "@solana/web3.js";
 import { expect } from "chai";
@@ -15,6 +14,7 @@ import {
   expectIxOk,
   processVaa,
   parallelPostVaa,
+  GOVERNANCE_EMITTER_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import { parseVaa } from "@certusone/wormhole-sdk";

@@ -2,7 +2,6 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { GovernanceEmitter, MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { expectIxOk } from "../../old-tests/helpers";
 import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   GUARDIAN_KEYS,
@@ -13,9 +12,10 @@ import {
   expectIxOkDetails,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
+  expectIxOk,
+  GOVERNANCE_EMITTER_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;

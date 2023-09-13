@@ -17,9 +17,9 @@ use anchor_lang::prelude::*;
 /// the program's authority to draft a new message to prepare it for posting. By default,
 /// [core_emitter_authority](PublishMessage::core_emitter_authority) returns `None`, so you must
 /// override it if the emitter address is a program ID.
-pub trait PublishMessage<'info>:
-    super::InvokeCoreBridge<'info> + super::CreateAccount<'info>
-{
+pub trait PublishMessage<'info>: super::CreateAccount<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info>;
+
     /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
     fn core_bridge_config(&self) -> AccountInfo<'info>;
 

@@ -1,3 +1,5 @@
+pub(crate) mod cpi;
+
 mod token;
 pub use token::*;
 

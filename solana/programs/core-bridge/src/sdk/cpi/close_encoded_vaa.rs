@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 
-use super::InvokeCoreBridge;
+pub trait CloseEncodedVaa<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info>;
 
-pub trait CloseEncodedVaa<'info>: InvokeCoreBridge<'info> {
     fn write_authority(&self) -> AccountInfo<'info>;
 
     fn encoded_vaa(&self) -> AccountInfo<'info>;

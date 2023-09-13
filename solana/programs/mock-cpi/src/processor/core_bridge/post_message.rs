@@ -62,12 +62,6 @@ pub struct MockPostMessage<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPostMessage<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockPostMessage<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
@@ -79,6 +73,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockPostMessage<'info
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessage<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }

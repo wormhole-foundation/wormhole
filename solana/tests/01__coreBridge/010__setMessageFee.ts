@@ -12,9 +12,9 @@ import {
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
   createInvalidCoreGovernanceVaaFromEth,
+  GOVERNANCE_EMITTER_ADDRESS,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 // Mock governance emitter and guardian.
 const GUARDIAN_SET_INDEX = 0;

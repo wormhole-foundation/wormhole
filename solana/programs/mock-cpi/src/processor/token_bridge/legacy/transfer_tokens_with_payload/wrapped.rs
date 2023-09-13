@@ -84,14 +84,6 @@ pub struct MockLegacyTransferTokensWithPayloadWrapped<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
-    for MockLegacyTransferTokensWithPayloadWrapped<'info>
-{
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
     for MockLegacyTransferTokensWithPayloadWrapped<'info>
 {
@@ -107,6 +99,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info>
     for MockLegacyTransferTokensWithPayloadWrapped<'info>
 {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -129,18 +125,13 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info>
         self.core_message.to_account_info()
     }
 }
-
-impl<'info> token_bridge_sdk::cpi::InvokeTokenBridge<'info>
+impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
     for MockLegacyTransferTokensWithPayloadWrapped<'info>
 {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
     }
-}
 
-impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
-    for MockLegacyTransferTokensWithPayloadWrapped<'info>
-{
     fn mint(&self) -> AccountInfo<'info> {
         self.token_bridge_wrapped_mint.to_account_info()
     }

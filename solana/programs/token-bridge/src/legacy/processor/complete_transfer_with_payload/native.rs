@@ -2,12 +2,11 @@ use crate::{
     constants::CUSTODY_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
+    utils,
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
@@ -21,15 +20,10 @@ pub struct CompleteTransferWithPayloadNative<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program::ID
-    )]
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = core_bridge_program::ID)]
     posted_vaa: AccountInfo<'info>,
 
     #[account(
@@ -92,7 +86,21 @@ pub struct CompleteTransferWithPayloadNative<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+impl<'info> utils::cpi::Transfer<'info> for CompleteTransferWithPayloadNative<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
+    fn from(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_token.to_account_info())
+    }
+
+    fn authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_authority.to_account_info())
+    }
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -167,12 +175,13 @@ fn complete_transfer_with_payload_native(
         .expect("Solana token amounts are u64");
 
     // Finally transfer encoded amount.
-    withdraw_native_tokens(
-        &ctx.accounts.token_program,
-        &ctx.accounts.custody_token,
-        &ctx.accounts.dst_token,
-        &ctx.accounts.custody_authority,
-        ctx.bumps["custody_authority"],
+    utils::cpi::transfer(
+        ctx.accounts,
+        ctx.accounts.dst_token.to_account_info(),
         transfer_amount,
+        Some(&[&[
+            CUSTODY_AUTHORITY_SEED_PREFIX,
+            &[ctx.bumps["custody_authority"]],
+        ]]),
     )
 }

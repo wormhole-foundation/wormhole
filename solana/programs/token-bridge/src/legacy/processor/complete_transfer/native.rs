@@ -2,12 +2,11 @@ use crate::{
     constants::CUSTODY_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    processor::withdraw_native_tokens,
     state::{Claim, RegisteredEmitter},
+    utils,
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
@@ -21,15 +20,10 @@ pub struct CompleteTransferNative<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program::ID
-    )]
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = core_bridge_program::ID)]
     posted_vaa: AccountInfo<'info>,
 
     #[account(
@@ -103,7 +97,21 @@ pub struct CompleteTransferNative<'info> {
     recipient: Option<AccountInfo<'info>>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+impl<'info> utils::cpi::Transfer<'info> for CompleteTransferNative<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
+    fn from(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_token.to_account_info())
+    }
+
+    fn authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.custody_authority.to_account_info())
+    }
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -187,14 +195,14 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
         .unwrap();
 
     // Save references to these accounts to be used later.
-    let token_program = &ctx.accounts.token_program;
-    let custody_token = &ctx.accounts.custody_token;
-    let custody_authority = &ctx.accounts.custody_authority;
     let recipient_token = &ctx.accounts.recipient_token;
     let payer_token = &ctx.accounts.payer_token;
 
     // Custody authority is who has the authority to transfer tokens from the custody account.
-    let custody_authority_bump = ctx.bumps["custody_authority"];
+    let custody_authority_seeds = &[
+        CUSTODY_AUTHORITY_SEED_PREFIX,
+        &[ctx.bumps["custody_authority"]],
+    ];
 
     // If there is a payout to the relayer and the relayer's token account differs from the transfer
     // recipient's, we have to make an extra transfer.
@@ -203,23 +211,19 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
         // total outbound transfer transfer_amount.
         transfer_amount -= relayer_payout;
 
-        withdraw_native_tokens(
-            token_program,
-            custody_token,
-            payer_token,
-            custody_authority,
-            custody_authority_bump,
+        utils::cpi::transfer(
+            ctx.accounts,
+            ctx.accounts.payer_token.to_account_info(),
             relayer_payout,
+            Some(&[custody_authority_seeds]),
         )?;
     }
 
     // Finally transfer remaining transfer_amount to recipient.
-    withdraw_native_tokens(
-        token_program,
-        custody_token,
-        recipient_token,
-        custody_authority,
-        custody_authority_bump,
+    utils::cpi::transfer(
+        ctx.accounts,
+        ctx.accounts.recipient_token.to_account_info(),
         transfer_amount,
+        Some(&[custody_authority_seeds]),
     )
 }

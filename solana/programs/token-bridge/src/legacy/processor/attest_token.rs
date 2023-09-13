@@ -1,7 +1,4 @@
-use crate::{
-    legacy::instruction::LegacyAttestTokenArgs, processor::post_token_bridge_message,
-    zero_copy::Mint,
-};
+use crate::{legacy::instruction::LegacyAttestTokenArgs, utils, zero_copy::Mint};
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
 use core_bridge_program::sdk as core_bridge_sdk;
@@ -74,12 +71,6 @@ impl<'info>
     const ANCHOR_IX_FN: fn(Context<Self>, LegacyAttestTokenArgs) -> Result<()> = attest_token;
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for AttestToken<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for AttestToken<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
@@ -91,6 +82,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for AttestToken<'info> {
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for AttestToken<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -132,7 +127,7 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
         .decimals();
 
     // Finally post Wormhole message via Core Bridge.
-    post_token_bridge_message(
+    utils::cpi::post_token_bridge_message(
         ctx.accounts,
         nonce,
         crate::messages::Attestation {

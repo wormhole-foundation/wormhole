@@ -87,14 +87,6 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
-    for MockLegacyTransferTokensWithPayloadNative<'info>
-{
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
     for MockLegacyTransferTokensWithPayloadNative<'info>
 {
@@ -110,6 +102,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info>
     for MockLegacyTransferTokensWithPayloadNative<'info>
 {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -133,17 +129,13 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info>
     }
 }
 
-impl<'info> token_bridge_sdk::cpi::InvokeTokenBridge<'info>
+impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
     for MockLegacyTransferTokensWithPayloadNative<'info>
 {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
     }
-}
 
-impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
-    for MockLegacyTransferTokensWithPayloadNative<'info>
-{
     fn mint(&self) -> AccountInfo<'info> {
         self.mint.to_account_info()
     }

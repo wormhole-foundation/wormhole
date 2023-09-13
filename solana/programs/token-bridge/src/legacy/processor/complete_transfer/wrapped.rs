@@ -2,11 +2,10 @@ use crate::{
     constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    processor::mint_wrapped_tokens,
     state::{Claim, RegisteredEmitter, WrappedAsset},
+    utils,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
@@ -20,15 +19,10 @@ pub struct CompleteTransferWrapped<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program::ID
-    )]
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = core_bridge_program::ID)]
     posted_vaa: AccountInfo<'info>,
 
     #[account(
@@ -98,7 +92,21 @@ pub struct CompleteTransferWrapped<'info> {
     recipient: Option<AccountInfo<'info>>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+impl<'info> utils::cpi::MintTo<'info> for CompleteTransferWrapped<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
+    fn mint(&self) -> AccountInfo<'info> {
+        self.wrapped_mint.to_account_info()
+    }
+
+    fn mint_authority(&self) -> AccountInfo<'info> {
+        self.mint_authority.to_account_info()
+    }
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -175,14 +183,11 @@ fn complete_transfer_wrapped(
     let relayer_payout = transfer.encoded_relayer_fee().0.try_into().unwrap();
 
     // Save references to the token accounts to be used later.
-    let token_program = &ctx.accounts.token_program;
-    let wrapped_mint = &ctx.accounts.wrapped_mint;
-    let mint_authority = &ctx.accounts.mint_authority;
     let recipient_token = &ctx.accounts.recipient_token;
     let payer_token = &ctx.accounts.payer_token;
 
     // Mint authority is who has the authority to mint.
-    let mint_authority_bump = ctx.bumps["mint_authority"];
+    let mint_authority_seeds = &[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]];
 
     // If there is a payout to the relayer and the relayer's token account differs from the transfer
     // recipient's, we have to make an extra mint.
@@ -191,23 +196,19 @@ fn complete_transfer_wrapped(
         // total outbound transfer amount.
         mint_amount -= relayer_payout;
 
-        mint_wrapped_tokens(
-            token_program,
-            wrapped_mint,
-            payer_token,
-            mint_authority,
-            mint_authority_bump,
+        utils::cpi::mint_to(
+            ctx.accounts,
+            payer_token.to_account_info(),
             relayer_payout,
+            Some(&[mint_authority_seeds]),
         )?;
     }
 
     // If there is any amount left after the relayer payout, finally mint remaining.
-    mint_wrapped_tokens(
-        token_program,
-        wrapped_mint,
-        recipient_token,
-        mint_authority,
-        mint_authority_bump,
+    utils::cpi::mint_to(
+        ctx.accounts,
+        recipient_token.to_account_info(),
         mint_amount,
+        Some(&[mint_authority_seeds]),
     )
 }

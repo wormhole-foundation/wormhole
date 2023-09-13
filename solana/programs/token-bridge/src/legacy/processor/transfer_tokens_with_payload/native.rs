@@ -1,11 +1,10 @@
 use crate::{
     constants::{CUSTODY_AUTHORITY_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX},
     legacy::instruction::TransferTokensWithPayloadArgs,
-    processor::{deposit_native_tokens, post_token_bridge_message},
+    utils::{self, TruncateAmount},
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::sdk as core_bridge_sdk;
 use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
@@ -32,11 +31,11 @@ pub struct TransferTokensWithPayloadNative<'info> {
         init_if_needed,
         payer = payer,
         token::mint = mint,
-        token::authority = custody_authority,
+        token::authority = custody_authority, //find_custody_authority(),
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, token::TokenAccount>>,
+    custody_token: Box<Account<'info, anchor_spl::token::TokenAccount>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -85,27 +84,21 @@ pub struct TransferTokensWithPayloadNative<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info>
-    core_bridge_program::legacy::utils::ProcessLegacyInstruction<
-        'info,
-        TransferTokensWithPayloadArgs,
-    > for TransferTokensWithPayloadNative<'info>
-{
-    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWithPayloadNative";
+impl<'info> utils::cpi::Transfer<'info> for TransferTokensWithPayloadNative<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
 
-    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
-        transfer_tokens_with_payload_native;
-}
+    fn from(&self) -> Option<AccountInfo<'info>> {
+        Some(self.src_token.to_account_info())
+    }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info>
-    for TransferTokensWithPayloadNative<'info>
-{
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
+    fn authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.transfer_authority.to_account_info())
     }
 }
 
@@ -120,6 +113,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWithPay
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWithPayloadNative<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -141,6 +138,18 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWithPa
             .as_ref()
             .map(|acc| acc.to_account_info())
     }
+}
+
+impl<'info>
+    core_bridge_program::legacy::utils::ProcessLegacyInstruction<
+        'info,
+        TransferTokensWithPayloadArgs,
+    > for TransferTokensWithPayloadNative<'info>
+{
+    const LOG_IX_NAME: &'static str = "LegacyTransferTokensWithPayloadNative";
+
+    const ANCHOR_IX_FN: fn(Context<Self>, TransferTokensWithPayloadArgs) -> Result<()> =
+        transfer_tokens_with_payload_native;
 }
 
 impl<'info> TransferTokensWithPayloadNative<'info> {
@@ -171,15 +180,19 @@ fn transfer_tokens_with_payload_native(
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
     let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
+    let truncated_amount = Mint::parse(&ctx.accounts.mint.data.borrow())
+        .unwrap()
+        .truncate_amount(amount);
+
     // Deposit native assets from the source token account into the custody account.
-    let amount = deposit_native_tokens(
-        &ctx.accounts.token_program,
-        &ctx.accounts.mint,
-        &ctx.accounts.src_token,
-        &ctx.accounts.custody_token,
-        &ctx.accounts.transfer_authority,
-        ctx.bumps["transfer_authority"],
-        amount,
+    utils::cpi::transfer(
+        ctx.accounts,
+        ctx.accounts.custody_token.to_account_info(),
+        truncated_amount,
+        Some(&[&[
+            TRANSFER_AUTHORITY_SEED_PREFIX,
+            &[ctx.bumps["transfer_authority"]],
+        ]]),
     )?;
 
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
@@ -199,5 +212,5 @@ fn transfer_tokens_with_payload_native(
     };
 
     // Finally publish Wormhole message using the Core Bridge.
-    post_token_bridge_message(ctx.accounts, nonce, token_transfer)
+    utils::cpi::post_token_bridge_message(ctx.accounts, nonce, token_transfer)
 }

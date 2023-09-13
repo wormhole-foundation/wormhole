@@ -4,17 +4,15 @@ import * as anchor from "@coral-xyz/anchor";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import {
+  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
+  GOVERNANCE_EMITTER_ADDRESS,
   GUARDIAN_KEYS,
   expectIxErr,
   expectIxOk,
   invokeVerifySignaturesAndPostVaa,
   loadProgramBpf,
-  ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
-  createAccountIx,
-  BPF_LOADER_UPGRADEABLE_PROGRAM_ID,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 
 const ARTIFACTS_PATH = `${__dirname}/../artifacts/wormhole_core_bridge_solana.so`;
 

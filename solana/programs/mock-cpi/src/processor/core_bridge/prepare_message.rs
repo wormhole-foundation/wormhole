@@ -45,13 +45,11 @@ pub struct MockPrepareMessageV1<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for MockPrepareMessageV1<'info> {
+impl<'info> core_bridge_sdk::cpi::PrepareMessage<'info> for MockPrepareMessageV1<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
     }
-}
 
-impl<'info> core_bridge_sdk::cpi::PrepareMessage<'info> for MockPrepareMessageV1<'info> {
     fn core_emitter_authority(&self) -> AccountInfo<'info> {
         self.emitter_authority.to_account_info()
     }

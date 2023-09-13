@@ -2,11 +2,10 @@ use crate::{
     constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    processor::mint_wrapped_tokens,
     state::{Claim, RegisteredEmitter, WrappedAsset},
+    utils,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
@@ -20,15 +19,10 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// CHECK: Token Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
-    #[account(
-        seeds = [
-            PostedVaaV1::SEED_PREFIX,
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.message_hash().as_ref()
-        ],
-        bump,
-        seeds::program = core_bridge_program::ID
-    )]
+    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
+    /// instruction handler, which also checks this account discriminator (so there is no need to
+    /// check PDA seeds here).
+    #[account(owner = core_bridge_program::ID)]
     posted_vaa: AccountInfo<'info>,
 
     #[account(
@@ -89,7 +83,21 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, token::Token>,
+    token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+impl<'info> utils::cpi::MintTo<'info> for CompleteTransferWithPayloadWrapped<'info> {
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
+    fn mint(&self) -> AccountInfo<'info> {
+        self.wrapped_mint.to_account_info()
+    }
+
+    fn mint_authority(&self) -> AccountInfo<'info> {
+        self.mint_authority.to_account_info()
+    }
 }
 
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -162,12 +170,10 @@ fn complete_transfer_with_payload_wrapped(
         .map_err(|_| TokenBridgeError::U64Overflow)?;
 
     // Finally transfer encoded amount by minting to the redeemer's token account.
-    mint_wrapped_tokens(
-        &ctx.accounts.token_program,
-        &ctx.accounts.wrapped_mint,
-        &ctx.accounts.dst_token,
-        &ctx.accounts.mint_authority,
-        ctx.bumps["mint_authority"],
+    utils::cpi::mint_to(
+        ctx.accounts,
+        ctx.accounts.dst_token.to_account_info(),
         mint_amount,
+        Some(&[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]]),
     )
 }

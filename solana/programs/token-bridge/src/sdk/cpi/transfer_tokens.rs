@@ -3,9 +3,9 @@ pub use crate::legacy::instruction::{TransferTokensArgs, TransferTokensWithPaylo
 use crate::{error::TokenBridgeError, zero_copy};
 use anchor_lang::prelude::*;
 
-pub trait TransferTokens<'info>:
-    super::InvokeTokenBridge<'info> + core_bridge_program::sdk::cpi::PublishMessage<'info>
-{
+pub trait TransferTokens<'info>: core_bridge_program::sdk::cpi::PublishMessage<'info> {
+    fn token_bridge_program(&self) -> AccountInfo<'info>;
+
     /// SPL Token Program.
     fn token_program(&self) -> AccountInfo<'info>;
 

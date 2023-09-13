@@ -72,12 +72,6 @@ pub struct TransferHelloWorld<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferHelloWorld<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
@@ -89,6 +83,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'i
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -110,13 +108,11 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'
     }
 }
 
-impl<'info> token_bridge_sdk::cpi::InvokeTokenBridge<'info> for TransferHelloWorld<'info> {
+impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
     }
-}
 
-impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
     fn token_program(&self) -> AccountInfo<'info> {
         self.token_program.to_account_info()
     }

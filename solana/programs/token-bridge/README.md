@@ -10,8 +10,6 @@ traits that you the integrator will have to implement:
 
 - `TransferTokens<'info>`
   - TODO
-- `InvokeTokenBridge<'info>`
-  - Requires Token Bridge program account info.
 - `PublishMessage<'info>`
   - Ensures that all Core Bridge accounts are included in your [account context].
   - **NOTE: This includes having to implement `CreateAccount<'info>` and
@@ -97,6 +95,7 @@ pub struct TransferHelloWorld<'info> {
 This account context must have all of the accounts required by the Token Bridge program in order to
 transfer assets out:
 
+- `token_bridge_program`
 - `token_program` (SPL Token program pubkey).
 - `src_token_account` (where the assets will be bridged from).
 - `mint` (SPL Mint, which should be the same mint of your token account).
@@ -114,20 +113,11 @@ The traits above would be implemented by calling `to_account_info` on the approp
 your context.
 
 By making sure that the `token_bridge_program` account is the correct program, your context will use
-the [Program] account wrapper with the `TokenBridge` type. Implementing the `InvokeTokenBridge`
-trait required for the `TransferTokens` trait and is as simple as:
-
-```rust,ignore
-impl<'info> token_bridge_sdk::cpi::InvokeTokenBridge<'info> for TransferHelloWorld<'info> {
-    fn token_bridge_program(&self) -> AccountInfo<'info> {
-        self.token_bridge_program.to_account_info()
-    }
-}
-```
+the [Program] account wrapper with the `TokenBridge` type.
 
 Because transferring assets out message requires publishing a Wormhole message, you must implement
-the `PublishMessage` trait and the other traits it depends on (`CreateAccount` and
-`InvokeCoreBridge`). Please see the [Core Bridge program documentation] for more details.
+the `PublishMessage` trait and the other traits it depends on (`CreateAccount`). Please see the
+[Core Bridge program documentation] for more details.
 
 Finally implement the `PublishMessage` trait by providing the necessary Core Bridge accounts.
 
@@ -138,6 +128,10 @@ authority is provided.**
 
 ```rust,ignore
 impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
+    fn token_bridge_program(&self) -> AccountInfo<'info> {
+        self.token_bridge_program.to_account_info()
+    }
+
     fn token_program(&self) -> AccountInfo<'info> {
         self.token_program.to_account_info()
     }
@@ -291,12 +285,6 @@ pub struct TransferHelloWorld<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for TransferHelloWorld<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-}
-
 impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
@@ -308,6 +296,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'i
 }
 
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'info> {
+    fn core_bridge_program(&self) -> AccountInfo<'info> {
+        self.core_bridge_program.to_account_info()
+    }
+
     fn core_bridge_config(&self) -> AccountInfo<'info> {
         self.core_bridge_config.to_account_info()
     }
@@ -329,13 +321,11 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'
     }
 }
 
-impl<'info> token_bridge_sdk::cpi::InvokeTokenBridge<'info> for TransferHelloWorld<'info> {
+impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
     }
-}
 
-impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
     fn token_program(&self) -> AccountInfo<'info> {
         self.token_program.to_account_info()
     }

@@ -65,13 +65,11 @@ pub struct RegisterChain<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::InvokeCoreBridge<'info> for RegisterChain<'info> {
+impl<'info> core_bridge_sdk::cpi::CloseEncodedVaa<'info> for RegisterChain<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info> {
         self.core_bridge_program.to_account_info()
     }
-}
 
-impl<'info> core_bridge_sdk::cpi::CloseEncodedVaa<'info> for RegisterChain<'info> {
     fn write_authority(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }

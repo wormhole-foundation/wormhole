@@ -13,16 +13,16 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import {
+  GOVERNANCE_EMITTER_ADDRESS,
   GUARDIAN_KEYS,
   OPTIMISM_TOKEN_BRIDGE_ADDRESS,
+  TOKEN_BRIDGE_GOVERNANCE_MODULE,
   expectDeepEqual,
   expectIxErr,
   expectIxOk,
   processVaa,
-  TOKEN_BRIDGE_GOVERNANCE_MODULE,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
-import { GOVERNANCE_EMITTER_ADDRESS } from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
 
 // Mock governance emitter and guardian.
