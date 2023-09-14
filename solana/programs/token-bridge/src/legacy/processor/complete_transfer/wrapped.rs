@@ -30,9 +30,15 @@ pub struct CompleteTransferWrapped<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -130,16 +136,12 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 impl<'info> CompleteTransferWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         crate::zero_copy::Mint::require_mint_authority(
-            &ctx.accounts.wrapped_mint.try_borrow_data()?,
+            &ctx.accounts.wrapped_mint,
             Some(&ctx.accounts.mint_authority.key()),
         )?;
 
-        let vaa = &ctx.accounts.posted_vaa;
-        let vaa_key = vaa.key();
-        let acc_data = vaa.try_borrow_data()?;
-        let transfer = super::validate_posted_token_transfer(
-            &vaa_key,
-            &acc_data,
+        let (token_chain, token_address) = super::validate_posted_token_transfer(
+            &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
             &ctx.accounts.recipient,
@@ -150,17 +152,12 @@ impl<'info> CompleteTransferWrapped<'info> {
         // NOTE: This check may be redundant because our wrapped mint PDA should only exist for wrapped assets (i.e.
         // chain ID != 1. But there may be accounts that exist where the chain ID == 1, so we do perform this check as a
         // precaution).
-        require_neq!(
-            transfer.token_chain(),
-            SOLANA_CHAIN,
-            TokenBridgeError::NativeAsset
-        );
+        require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
 
         // Wrapped asset account must agree with the encoded token info.
         let asset = &ctx.accounts.wrapped_asset;
         require!(
-            transfer.token_chain() == asset.token_chain
-                && transfer.token_address() == asset.token_address,
+            token_chain == asset.token_chain && token_address == asset.token_address,
             TokenBridgeError::InvalidMint
         );
 
@@ -178,8 +175,7 @@ fn complete_transfer_wrapped(
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let transfer = msg.transfer().unwrap();
 

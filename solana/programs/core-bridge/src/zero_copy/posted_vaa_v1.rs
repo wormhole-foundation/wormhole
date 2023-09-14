@@ -1,33 +1,39 @@
+use std::cell::Ref;
+
 use crate::{state, types::Timestamp};
 use anchor_lang::{
-    prelude::{error, require, require_eq, require_gte, ErrorCode, Pubkey},
+    prelude::{
+        error, require, require_eq, require_gte, require_keys_eq, AccountInfo, ErrorCode, Pubkey,
+        Result,
+    },
     solana_program::keccak,
 };
 
 /// Account used to store a verified VAA.
-pub struct PostedVaaV1<'a>(&'a [u8]);
+pub struct PostedVaaV1<'a>(Ref<'a, &'a mut [u8]>);
 
 impl<'a> PostedVaaV1<'a> {
-    pub const DISCRIMINATOR: [u8; 4] = state::POSTED_VAA_V1_DISCRIMINATOR;
-    pub const PAYLOAD_START: usize = 91;
+    pub const DISC: [u8; 4] = state::POSTED_VAA_V1_DISCRIMINATOR;
+    pub const PAYLOAD_START: usize = 95;
     pub const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
 
-    const DISC_LEN: usize = Self::DISCRIMINATOR.len();
-    const DATA_START: usize = 4 + Self::PAYLOAD_START;
+    pub fn discriminator(&self) -> [u8; 4] {
+        self.0[..4].try_into().unwrap()
+    }
 
     /// Level of consistency requested by the emitter.
     pub fn consistency_level(&self) -> u8 {
-        self.0[0]
+        self.0[4]
     }
 
     /// Time the message was submitted.
     pub fn timestamp(&self) -> Timestamp {
-        u32::from_le_bytes(self.0[1..5].try_into().unwrap()).into()
+        u32::from_le_bytes(self.0[5..9].try_into().unwrap()).into()
     }
 
     /// Pubkey of `SignatureSet` account that represent this VAA's signature verification.
     pub fn signature_set(&self) -> Pubkey {
-        Pubkey::try_from(&self.0[5..37]).unwrap()
+        Pubkey::try_from(&self.0[9..41]).unwrap()
     }
 
     /// Guardian set index used to verify signatures for `SignatureSet`.
@@ -38,37 +44,37 @@ impl<'a> PostedVaaV1<'a> {
     /// the Core Bridge (other Core Bridge implementations require that the guardian set that
     /// attested for the governance VAA is the current one).
     pub fn guardian_set_index(&self) -> u32 {
-        u32::from_le_bytes(self.0[37..41].try_into().unwrap())
+        u32::from_le_bytes(self.0[41..45].try_into().unwrap())
     }
 
     /// Unique ID for this message.
     pub fn nonce(&self) -> u32 {
-        u32::from_le_bytes(self.0[41..45].try_into().unwrap())
+        u32::from_le_bytes(self.0[45..49].try_into().unwrap())
     }
 
     /// Sequence number of this message.
     pub fn sequence(&self) -> u64 {
-        u64::from_le_bytes(self.0[45..53].try_into().unwrap())
+        u64::from_le_bytes(self.0[49..57].try_into().unwrap())
     }
 
     /// The Wormhole chain ID denoting the origin of this message.
     pub fn emitter_chain(&self) -> u16 {
-        u16::from_le_bytes(self.0[53..55].try_into().unwrap())
+        u16::from_le_bytes(self.0[57..59].try_into().unwrap())
     }
 
     /// Emitter of the message.
     pub fn emitter_address(&self) -> [u8; 32] {
-        self.0[55..87].try_into().unwrap()
+        self.0[59..91].try_into().unwrap()
     }
 
     pub fn payload_size(&self) -> usize {
-        u32::from_le_bytes(self.0[87..Self::PAYLOAD_START].try_into().unwrap())
+        u32::from_le_bytes(self.0[91..Self::PAYLOAD_START].try_into().unwrap())
             .try_into()
             .unwrap()
     }
 
     /// Message payload.
-    pub fn payload(&self) -> &'a [u8] {
+    pub fn payload(&self) -> &[u8] {
         &self.0[Self::PAYLOAD_START..]
     }
 
@@ -94,24 +100,31 @@ impl<'a> PostedVaaV1<'a> {
     ///
     /// NOTE: There is no ownership check because [AccountInfo](anchor_lang::prelude::AccountInfo)
     /// is not passed into this method.
-    pub fn parse(span: &'a [u8]) -> anchor_lang::Result<Self> {
+    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        let data = acc_info.try_borrow_data()?;
         require_gte!(
-            span.len(),
-            Self::DATA_START,
-            ErrorCode::AccountDidNotDeserialize
-        );
-        require!(
-            span[..Self::DISC_LEN] == Self::DISCRIMINATOR,
+            data.len(),
+            Self::PAYLOAD_START,
             ErrorCode::AccountDidNotDeserialize
         );
 
-        let parsed = Self(&span[Self::DISC_LEN..]);
+        let parsed = Self(data);
         require_eq!(
-            span.len(),
-            Self::DATA_START + parsed.payload_size(),
+            parsed.0.len(),
+            Self::PAYLOAD_START + parsed.payload_size(),
+            ErrorCode::AccountDidNotDeserialize
+        );
+        require!(
+            parsed.discriminator() == Self::DISC,
             ErrorCode::AccountDidNotDeserialize
         );
 
         Ok(parsed)
+    }
+
+    pub(crate) fn parse_unchecked<'info>(acc_info: &'a AccountInfo<'info>) -> Self {
+        Self(acc_info.data.borrow())
     }
 }

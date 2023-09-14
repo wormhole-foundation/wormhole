@@ -8,26 +8,16 @@ use anchor_lang::prelude::*;
 /// With an account meant to be a Token Program mint account, make sure it is not a mint that the
 /// Token Bridge program controls.
 pub fn require_native_mint(acc_info: &AccountInfo) -> Result<()> {
-    // This may be redundant because this mint account being owned by the Token Program is
-    // associated with either a transfer between two token accounts (which requires that this
-    // account be a valid mint) and deriving metadata PDA to create and update token metadata.
-    require_eq!(
-        *acc_info.owner,
-        anchor_spl::token::ID,
-        ErrorCode::ConstraintMintTokenProgram
-    );
-
     // If there is a mint authority, make sure it is not the Token Bridge's mint authority, which
     // controls burn and mint for its wrapped assets.
-    let acc_data = acc_info.try_borrow_data()?;
-    let mint = Mint::parse(&acc_data)?;
+    let mint = Mint::parse(acc_info)?;
     require!(is_native_mint(&mint), TokenBridgeError::WrappedAsset);
 
     // Done.
     Ok(())
 }
 
-pub fn is_native_mint(mint: &Mint<'_>) -> bool {
+pub fn is_native_mint(mint: &Mint) -> bool {
     if let Some(mint_authority) = mint.mint_authority() {
         let (token_bridge_mint_authority, _) =
             Pubkey::find_program_address(&[MINT_AUTHORITY_SEED_PREFIX], &crate::ID);

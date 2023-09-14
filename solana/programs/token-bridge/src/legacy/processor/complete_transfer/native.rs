@@ -31,9 +31,15 @@ pub struct CompleteTransferNative<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -130,39 +136,29 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> CompleteTransferNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        require_keys_eq!(
-            crate::zero_copy::TokenAccount::parse(&ctx.accounts.payer_token.try_borrow_data()?)?
-                .owner(),
-            ctx.accounts.payer.key(),
-            ErrorCode::ConstraintTokenOwner
-        );
+        crate::zero_copy::TokenAccount::require_owner(
+            &ctx.accounts.payer_token,
+            &ctx.accounts.payer.key(),
+        )?;
 
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
-        let vaa = &ctx.accounts.posted_vaa;
-        let vaa_key = vaa.key();
-        let acc_data = vaa.try_borrow_data()?;
-        let transfer = super::validate_posted_token_transfer(
-            &vaa_key,
-            &acc_data,
+        let (token_chain, token_address) = super::validate_posted_token_transfer(
+            &ctx.accounts.posted_vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
             &ctx.accounts.recipient,
         )?;
 
         // For native transfers, this mint must have been created on Solana.
-        require_eq!(
-            transfer.token_chain(),
-            SOLANA_CHAIN,
-            TokenBridgeError::WrappedAsset
-        );
+        require_eq!(token_chain, SOLANA_CHAIN, TokenBridgeError::WrappedAsset);
 
         // Mint account must agree with the encoded token address.
-        require_eq!(
+        require_keys_eq!(
             ctx.accounts.mint.key(),
-            Pubkey::from(transfer.token_address()),
+            Pubkey::from(token_address),
             TokenBridgeError::InvalidMint
         );
 
@@ -177,14 +173,11 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let transfer = msg.transfer().unwrap();
 
-    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
-        .unwrap()
-        .decimals();
+    let decimals = Mint::parse(&ctx.accounts.mint).unwrap().decimals();
 
     // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these

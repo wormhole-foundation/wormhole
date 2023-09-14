@@ -34,9 +34,15 @@ pub struct GuardianSetUpdate<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -45,7 +51,10 @@ pub struct GuardianSetUpdate<'info> {
     /// Existing guardian set, whose guardian set index is the same one found in the [Config].
     #[account(
         mut,
-        seeds = [GuardianSet::SEED_PREFIX, &config.guardian_set_index.to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            &config.guardian_set_index.to_be_bytes()
+        ],
         bump,
     )]
     curr_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
@@ -56,7 +65,10 @@ pub struct GuardianSetUpdate<'info> {
         init,
         payer = payer,
         space = try_compute_size(&posted_vaa)?,
-        seeds = [GuardianSet::SEED_PREFIX, &(curr_guardian_set.index + 1).to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            &curr_guardian_set.index.saturating_add(1).to_be_bytes()
+        ],
         bump,
     )]
     new_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
@@ -75,8 +87,8 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let config = &ctx.accounts.config;
-        let acc_data = ctx.accounts.posted_vaa.data.borrow();
-        let gov_payload = super::require_valid_posted_governance_vaa(&acc_data, config)?;
+        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let gov_payload = super::require_valid_posted_governance_vaa(config, &vaa)?;
 
         // Encoded guardian set must be the next value after the current guardian set index.
         //
@@ -102,9 +114,7 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
-
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
     let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
     let decree = gov_payload.guardian_set_update().unwrap();
 
@@ -152,9 +162,8 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
 /// NOTE: We check the validity of the governance VAA in access control. If the posted VAA happens
 /// to deserialize as a guardian set update decree but anything else is invalid about this message,
 /// this instruction handler will revert (just not at this step when determining the account size).
-fn try_compute_size(posted_vaa: &AccountInfo<'_>) -> Result<usize> {
-    let acc_data = posted_vaa.try_borrow_data()?;
-    let vaa = PostedVaaV1::parse(&acc_data)?;
+fn try_compute_size(posted_vaa: &AccountInfo) -> Result<usize> {
+    let vaa = PostedVaaV1::parse(posted_vaa)?;
     let gov_payload = CoreBridgeGovPayload::parse(vaa.payload())
         .map(|msg| msg.decree())
         .map_err(|_| error!(CoreBridgeError::InvalidGovernanceVaa))?;

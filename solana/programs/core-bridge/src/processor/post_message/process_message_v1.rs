@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use crate::{
     error::CoreBridgeError,
     state::{MessageStatus, PostedMessageV1Info},
@@ -26,8 +24,7 @@ pub struct ProcessMessageV1<'info> {
 
 impl<'info> ProcessMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let acc_data = ctx.accounts.draft_message.try_borrow_data()?;
-        let message = PostedMessageV1::parse(&acc_data)?;
+        let message = PostedMessageV1::parse_reliable(&ctx.accounts.draft_message)?;
 
         require_keys_eq!(
             ctx.accounts.emitter_authority.key(),
@@ -77,8 +74,7 @@ fn close_message_account(ctx: Context<ProcessMessageV1>) -> Result<()> {
     match &ctx.accounts.close_account_destination {
         Some(sol_destination) => {
             {
-                let acc_data = ctx.accounts.draft_message.data.borrow();
-                let message = PostedMessageV1::parse(&acc_data)?;
+                let message = PostedMessageV1::parse_unchecked(&ctx.accounts.draft_message);
 
                 require!(
                     message.status() != MessageStatus::Unset,
@@ -104,8 +100,7 @@ fn write(ctx: Context<ProcessMessageV1>, index: u32, data: Vec<u8>) -> Result<()
     );
 
     let msg_length = {
-        let acc_data = ctx.accounts.draft_message.data.borrow();
-        let message = PostedMessageV1::parse(&acc_data)?;
+        let message = PostedMessageV1::parse_unchecked(&ctx.accounts.draft_message);
 
         require!(
             message.status() == MessageStatus::Writing,
@@ -119,9 +114,9 @@ fn write(ctx: Context<ProcessMessageV1>, index: u32, data: Vec<u8>) -> Result<()
     let end = index.saturating_add(data.len());
     require_gte!(msg_length, end, CoreBridgeError::DataOverflow);
 
-    const START: usize = 4 + PostedMessageV1::PAYLOAD_START;
     let acc_data = &mut ctx.accounts.draft_message.data.borrow_mut();
-    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
+    acc_data[(PostedMessageV1::PAYLOAD_START + index)..(PostedMessageV1::PAYLOAD_START + end)]
+        .copy_from_slice(&data);
 
     // Done.
     Ok(())
@@ -131,8 +126,7 @@ fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
     msg!("Directive: Finalize");
 
     let (nonce, consistency_level, emitter) = {
-        let acc_data = ctx.accounts.draft_message.data.borrow();
-        let message = PostedMessageV1::parse(&acc_data)?;
+        let message = PostedMessageV1::parse_unchecked(&ctx.accounts.draft_message);
 
         require!(
             message.status() == MessageStatus::Writing,
@@ -146,23 +140,24 @@ fn finalize(ctx: Context<ProcessMessageV1>) -> Result<()> {
         )
     };
 
-    // Skip the discriminator.
-    let acc_data: &mut [u8] = &mut ctx.accounts.draft_message.data.borrow_mut();
+    let acc_data: &mut [_] = &mut ctx.accounts.draft_message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acc_data);
 
     // Serialize all info for simplicity.
-    writer.write_all(&PostedMessageV1::DISCRIMINATOR)?;
-    PostedMessageV1Info {
-        consistency_level,
-        emitter_authority: ctx.accounts.emitter_authority.key(),
-        status: MessageStatus::Finalized,
-        _gap_0: Default::default(),
-        posted_timestamp: Default::default(),
-        nonce,
-        sequence: Default::default(),
-        solana_chain_id: Default::default(),
-        emitter,
-    }
-    .serialize(&mut writer)
-    .map_err(Into::into)
+    (
+        PostedMessageV1::RELIABLE_DISC,
+        PostedMessageV1Info {
+            consistency_level,
+            emitter_authority: ctx.accounts.emitter_authority.key(),
+            status: MessageStatus::Finalized,
+            _gap_0: Default::default(),
+            posted_timestamp: Default::default(),
+            nonce,
+            sequence: Default::default(),
+            solana_chain_id: Default::default(),
+            emitter,
+        },
+    )
+        .serialize(&mut writer)
+        .map_err(Into::into)
 }

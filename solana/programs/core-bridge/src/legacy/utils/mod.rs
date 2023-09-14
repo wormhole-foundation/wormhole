@@ -72,14 +72,10 @@ where
     T: LegacyAccount<N>,
 {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
-        if writer.write_all(&T::DISCRIMINATOR).is_err() {
-            return err!(ErrorCode::AccountDidNotSerialize);
-        }
-
-        if AnchorSerialize::serialize(&self.0, writer).is_err() {
-            return err!(ErrorCode::AccountDidNotSerialize);
-        }
-        Ok(())
+        writer
+            .write_all(&T::DISCRIMINATOR)
+            .and_then(|_| self.0.serialize(writer))
+            .map_err(|_| error!(ErrorCode::AccountDidNotSerialize))
     }
 }
 
@@ -99,7 +95,7 @@ where
     }
 
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        let mut data: &[u8] = &buf[N..];
+        let mut data = &buf[N..];
         Ok(Self(T::deserialize(&mut data)?))
     }
 }

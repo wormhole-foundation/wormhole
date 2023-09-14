@@ -45,8 +45,7 @@ impl<'info> ProcessEncodedVaa<'info> {
         }
 
         // Check write authority.
-        let acc_data = ctx.accounts.encoded_vaa.try_borrow_data()?;
-        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
+        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa)?;
         require_keys_eq!(
             ctx.accounts.write_authority.key(),
             vaa.write_authority(),
@@ -108,8 +107,7 @@ fn write(ctx: Context<ProcessEncodedVaa>, index: u32, data: Vec<u8>) -> Result<(
     );
 
     let vaa_size: usize = {
-        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
-        let vaa = EncodedVaa::parse_unverified(&acc_data)?;
+        let vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);
         require!(
             vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus
@@ -122,9 +120,8 @@ fn write(ctx: Context<ProcessEncodedVaa>, index: u32, data: Vec<u8>) -> Result<(
     let end = index.saturating_add(data.len());
     require_gte!(vaa_size, end, CoreBridgeError::DataOverflow);
 
-    const START: usize = 8 + EncodedVaa::VAA_START;
-    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
-    acc_data[(START + index)..(START + end)].copy_from_slice(&data);
+    let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
+    acc_data[(EncodedVaa::VAA_START + index)..(EncodedVaa::VAA_START + end)].copy_from_slice(&data);
 
     // Done.
     Ok(())
@@ -141,15 +138,14 @@ fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
     let guardian_set = ctx.accounts.guardian_set.as_ref().unwrap();
 
     let write_authority = {
-        let acc_data = ctx.accounts.encoded_vaa.data.borrow();
-        let encoded_vaa = EncodedVaa::parse_unverified(&acc_data)?;
+        let encoded_vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);
         require!(
             encoded_vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::VaaAlreadyVerified
         );
 
         // Parse and verify.
-        let vaa = encoded_vaa.v1_unverified()?;
+        let vaa = encoded_vaa.as_v1()?;
 
         // Must be V1.
         require_eq!(
@@ -209,16 +205,18 @@ fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
         encoded_vaa.write_authority()
     };
 
-    // Skip discriminator.
-    let acc_data: &mut [u8] = &mut ctx.accounts.encoded_vaa.data.borrow_mut()[8..];
+    let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acc_data);
-    Header {
-        status: ProcessingStatus::Verified,
-        write_authority,
-        version: VaaVersion::V1,
-    }
-    .serialize(&mut writer)
-    .map_err(Into::into)
+    (
+        EncodedVaa::DISC,
+        Header {
+            status: ProcessingStatus::Verified,
+            write_authority,
+            version: VaaVersion::V1,
+        },
+    )
+        .serialize(&mut writer)
+        .map_err(Into::into)
 }
 
 fn verify_guardian_signature(

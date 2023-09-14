@@ -25,9 +25,15 @@ pub struct UpgradeContract<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -79,10 +85,10 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = &ctx.accounts.posted_vaa;
-        let vaa_key = vaa.key();
-        let acc_data: &[u8] = &vaa.try_borrow_data()?;
-        let gov_payload = super::require_valid_posted_governance_vaa(&vaa_key, acc_data)?;
+        let vaa_acc_info = &ctx.accounts.posted_vaa;
+        let vaa_key = vaa_acc_info.key();
+        let vaa = PostedVaaV1::parse(vaa_acc_info)?;
+        let gov_payload = super::require_valid_posted_governance_vaa(&vaa_key, &vaa)?;
 
         let decree = gov_payload
             .contract_upgrade()

@@ -147,16 +147,14 @@ fn post_message_unreliable(
 /// payload. Instead of reverting with `ConstraintSpace`, we revert with a custom Core Bridge error
 /// saying that the payload size does not match the existing one (which is a requirement to reuse
 /// this message account).
-fn try_compute_size(message: &AccountInfo, payload_size: u32) -> Result<usize> {
+fn try_compute_size(msg_acc_info: &AccountInfo, payload_size: u32) -> Result<usize> {
     let payload_size = usize::try_from(payload_size).unwrap();
 
-    if !message.data_is_empty() {
-        let expected_size =
-            crate::zero_copy::PostedMessageV1Unreliable::parse(&message.data.borrow())?
-                .payload_size();
+    if !msg_acc_info.data_is_empty() {
+        let msg = crate::zero_copy::PostedMessageV1::parse_unreliable(msg_acc_info)?;
         require_eq!(
             payload_size,
-            expected_size,
+            msg.payload_size(),
             CoreBridgeError::PayloadSizeMismatch
         );
     }

@@ -31,8 +31,8 @@ pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
 /// - Attestation (Payload ID == 2)
 /// - Transfer with Message (Payload ID == 3)
 pub fn require_valid_posted_token_bridge_vaa<'ctx>(
-    vaa_acc_key: &Pubkey,
-    vaa: &core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
+    vaa_acc_key: &'ctx Pubkey,
+    vaa: &'ctx core_bridge_program::zero_copy::PostedVaaV1<'ctx>,
     registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
     require_valid_posted_vaa_key(vaa_acc_key)?;

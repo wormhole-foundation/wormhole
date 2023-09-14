@@ -9,18 +9,18 @@ use anchor_lang::prelude::*;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
-use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, Transfer};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
-pub fn validate_posted_token_transfer<'ctx>(
-    vaa_acc_key: &'ctx Pubkey,
-    vaa_acc_data: &'ctx [u8],
-    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
-    recipient_token: &'ctx AccountInfo<'_>,
-    recipient: &'ctx Option<AccountInfo>,
-) -> Result<Transfer<'ctx>> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+pub fn validate_posted_token_transfer(
+    vaa_acc_info: &AccountInfo,
+    registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
+    recipient_token: &AccountInfo,
+    recipient: &Option<AccountInfo>,
+) -> Result<(u16, [u8; 32])> {
+    let vaa_key = vaa_acc_info.key();
+    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
     let msg =
-        crate::utils::require_valid_posted_token_bridge_vaa(vaa_acc_key, &vaa, registered_emitter)?;
+        crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = match msg {
         TokenBridgeMessage::Transfer(inner) => inner,
@@ -68,14 +68,11 @@ pub fn validate_posted_token_transfer<'ctx>(
         );
 
         // Finally check that the owner of the recipient token account is the encoded recipient.
-        crate::zero_copy::TokenAccount::require_owner(
-            &recipient_token.try_borrow_data()?,
-            &expected_recipient,
-        )?;
+        crate::zero_copy::TokenAccount::require_owner(recipient_token, &expected_recipient)?;
     }
 
     // Done.
-    Ok(transfer)
+    Ok((transfer.token_chain(), transfer.token_address()))
 }
 
 pub fn order_complete_transfer_account_infos<'info>(

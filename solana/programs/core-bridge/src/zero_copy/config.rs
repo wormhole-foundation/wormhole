@@ -1,13 +1,15 @@
+use std::cell::Ref;
+
 use crate::state;
 use anchor_lang::{
-    prelude::{error, require_eq, ErrorCode, Result},
+    prelude::{error, require_eq, require_keys_eq, AccountInfo, ErrorCode, Result},
     Space,
 };
 
 /// Account used to store the current configuration of the bridge, including tracking Wormhole fee
 /// payments. For governance decrees, the guardian set index is used to determine whether a decree
 /// was attested for using the latest guardian set.
-pub struct Config<'a>(&'a [u8]);
+pub struct Config<'a>(Ref<'a, &'a mut [u8]>);
 
 impl<'a> Config<'a> {
     /// The current guardian set index, used to decide which signature sets to accept.
@@ -32,12 +34,15 @@ impl<'a> Config<'a> {
         u64::from_le_bytes(self.0[16..24].try_into().unwrap())
     }
 
-    pub fn parse(span: &'a [u8]) -> Result<Self> {
+    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        let data = acc_info.try_borrow_data()?;
         require_eq!(
-            span.len(),
+            data.len(),
             state::Config::INIT_SPACE,
             ErrorCode::AccountDidNotDeserialize
         );
-        Ok(Self(span))
+        Ok(Self(data))
     }
 }

@@ -219,7 +219,7 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     // able to remove this to save on compute units.
     msg!("Sequence: {}", data.sequence);
 
-    let msg_acc_data: &mut [u8] = &mut ctx.accounts.message.data.borrow_mut();
+    let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
@@ -249,8 +249,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     );
 
     let (consistency_level, nonce, emitter, payload) = {
-        let acc_data = ctx.accounts.message.data.borrow();
-        let msg = crate::zero_copy::PostedMessageV1::parse(&acc_data).unwrap();
+        let msg = crate::zero_copy::PostedMessageV1::parse_unchecked(&ctx.accounts.message);
 
         (
             msg.consistency_level(),
@@ -270,7 +269,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
         payload,
     )?;
 
-    let msg_acc_data: &mut [u8] = &mut ctx.accounts.message.data.borrow_mut();
+    let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
@@ -315,10 +314,13 @@ fn handle_message_fee(
 /// PDA address is derived using the emitter, is assigned to the emitter signer (now called the
 /// emitter authority). Whereas with the new prepared message, this emitter can be taken from the
 /// message account to re-derive the emitter sequence PDA address.
-fn find_emitter_for_sequence(emitter: &Option<AccountInfo>, msg: &AccountInfo) -> Result<Pubkey> {
-    if msg.data_is_empty() {
+fn find_emitter_for_sequence(
+    emitter: &Option<AccountInfo>,
+    msg_acc_info: &AccountInfo,
+) -> Result<Pubkey> {
+    if msg_acc_info.data_is_empty() {
         // Message must be a signer in order to be created.
-        require!(msg.is_signer, ErrorCode::AccountNotSigner);
+        require!(msg_acc_info.is_signer, ErrorCode::AccountNotSigner);
 
         // Because this message will be newly created in this instruction, the emitter is required
         // and must be a signer to authorize posting this message.
@@ -329,8 +331,7 @@ fn find_emitter_for_sequence(emitter: &Option<AccountInfo>, msg: &AccountInfo) -
 
         Ok(emitter.key())
     } else {
-        let msg_acc_data = msg.data.borrow();
-        let msg = crate::zero_copy::PostedMessageV1::parse(&msg_acc_data)?;
+        let msg = crate::zero_copy::PostedMessageV1::parse_reliable(msg_acc_info)?;
 
         match msg.status() {
             MessageStatus::Unset => err!(CoreBridgeError::MessageAlreadyPublished),

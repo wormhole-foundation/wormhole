@@ -1,12 +1,14 @@
+use std::cell::Ref;
+
 use anchor_lang::prelude::{
-    error, require, require_eq, require_keys_eq, ErrorCode, Pubkey, Result,
+    error, require, require_eq, require_keys_eq, AccountInfo, ErrorCode, Pubkey, Result,
 };
 use anchor_spl::token::spl_token::state;
 use solana_program::program_pack::Pack;
 
 /// This implements a zero-copy deserialization for the Token Program's token account. All struct
 /// field doc strings are shamelessly copied from the SPL Token docs.
-pub struct TokenAccount<'a>(&'a [u8]);
+pub struct TokenAccount<'a>(Ref<'a, &'a mut [u8]>);
 
 impl<'a> TokenAccount<'a> {
     /// The mint associated with this account
@@ -14,8 +16,8 @@ impl<'a> TokenAccount<'a> {
         Pubkey::try_from(&self.0[0..32]).unwrap()
     }
 
-    pub fn require_mint(acc_data: &'a [u8], mint: &Pubkey) -> Result<()> {
-        let token = Self::parse(acc_data)?;
+    pub fn require_mint(acc_info: &'a AccountInfo, mint: &Pubkey) -> Result<()> {
+        let token = Self::parse(acc_info)?;
         require_keys_eq!(token.mint(), *mint, ErrorCode::ConstraintTokenMint);
 
         Ok(())
@@ -26,8 +28,8 @@ impl<'a> TokenAccount<'a> {
         Pubkey::try_from(&self.0[32..64]).unwrap()
     }
 
-    pub fn require_owner(acc_data: &'a [u8], owner: &Pubkey) -> Result<()> {
-        let token = Self::parse(acc_data)?;
+    pub fn require_owner(acc_info: &'a AccountInfo, owner: &Pubkey) -> Result<()> {
+        let token = Self::parse(acc_info)?;
         require_keys_eq!(token.owner(), *owner, ErrorCode::ConstraintTokenOwner);
 
         Ok(())
@@ -41,8 +43,8 @@ impl<'a> TokenAccount<'a> {
     /// If `delegate` is `Some` then `delegated_amount` represents
     /// the amount authorized by the delegate
     pub fn delegate(&self) -> Option<Pubkey> {
-        match u32::from_le_bytes(self.0[72..76].try_into().unwrap()) {
-            0 => None,
+        match self.0[72..76] {
+            [0, 0, 0, 0] => None,
             _ => Some(Pubkey::try_from(&self.0[76..108]).unwrap()),
         }
     }
@@ -80,19 +82,30 @@ impl<'a> TokenAccount<'a> {
         }
     }
 
-    pub fn parse(span: &'a [u8]) -> Result<Self> {
+    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(
+            *acc_info.owner,
+            anchor_spl::token::ID,
+            ErrorCode::ConstraintTokenTokenProgram
+        );
+
+        let data = acc_info.try_borrow_data()?;
         require_eq!(
-            span.len(),
+            data.len(),
             state::Account::LEN,
             ErrorCode::AccountDidNotDeserialize
         );
 
-        let token = Self(span);
+        let token = Self(data);
         require!(
             token.state() != state::AccountState::Uninitialized,
             ErrorCode::AccountNotInitialized
         );
 
         Ok(token)
+    }
+
+    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
+        Self(acc_info.data.borrow())
     }
 }

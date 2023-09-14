@@ -35,9 +35,15 @@ pub struct SetMessageFee<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -56,9 +62,8 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 
 impl<'info> SetMessageFee<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
-        let gov_payload =
-            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
+        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .set_message_fee()
@@ -89,8 +94,7 @@ fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> 
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
     let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
 
     // Uint encodes limbs in little endian, so we will take the first u64 value.

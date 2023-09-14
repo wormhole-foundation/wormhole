@@ -115,12 +115,8 @@ where
 {
     // If whether this mint is wrapped is unspecified, we derive the mint authority, which will cost
     // some compute units.
-    let is_wrapped_asset = {
-        let mint = accounts.mint();
-        let acc_data = mint.try_borrow_data()?;
-        let mint = zero_copy::Mint::parse(&acc_data)?;
-        crate::utils::is_native_mint(&mint)
-    };
+    let is_wrapped_asset =
+        !crate::utils::is_native_mint(&zero_copy::Mint::parse_unchecked(&accounts.mint()));
 
     transfer_tokens_specified(accounts, directive, is_wrapped_asset, signer_seeds)
 }

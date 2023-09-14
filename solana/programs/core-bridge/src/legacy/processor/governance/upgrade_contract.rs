@@ -34,9 +34,15 @@ pub struct UpgradeContract<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -88,9 +94,8 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let acc_data = ctx.accounts.posted_vaa.try_borrow_data()?;
-        let gov_payload =
-            super::require_valid_posted_governance_vaa(&acc_data, &ctx.accounts.config)?;
+        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .contract_upgrade()

@@ -9,18 +9,18 @@ use anchor_lang::prelude::*;
 use core_bridge_program::{
     constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
 };
-use wormhole_raw_vaas::token_bridge::{TokenBridgeMessage, TransferWithMessage};
+use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
-pub fn validate_posted_token_transfer_with_payload<'ctx>(
-    vaa_acc_key: &'ctx Pubkey,
-    vaa_acc_data: &'ctx [u8],
-    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
-    redeemer_authority: &'ctx Signer<'_>,
-    dst_token: &'ctx AccountInfo<'_>,
-) -> Result<TransferWithMessage<'ctx>> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+pub fn validate_posted_token_transfer_with_payload(
+    vaa_acc_info: &AccountInfo,
+    registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
+    redeemer_authority: &Signer,
+    dst_token: &AccountInfo,
+) -> Result<(u16, [u8; 32])> {
+    let vaa_key = vaa_acc_info.key();
+    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
     let msg =
-        crate::utils::require_valid_posted_token_bridge_vaa(vaa_acc_key, &vaa, registered_emitter)?;
+        crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = match msg {
         TokenBridgeMessage::TransferWithMessage(inner) => inner,
@@ -56,15 +56,12 @@ pub fn validate_posted_token_transfer_with_payload<'ctx>(
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.
-        require_keys_eq!(
-            redeemer,
-            crate::zero_copy::TokenAccount::parse(&dst_token.try_borrow_data()?)?.owner(),
-            ErrorCode::ConstraintTokenOwner
-        );
+        let token = crate::zero_copy::TokenAccount::parse(dst_token)?;
+        require_keys_eq!(redeemer, token.owner(), ErrorCode::ConstraintTokenOwner);
     }
 
     // Done.
-    Ok(transfer)
+    Ok((transfer.token_chain(), transfer.token_address()))
 }
 
 pub fn order_complete_transfer_with_payload_account_infos<'info>(

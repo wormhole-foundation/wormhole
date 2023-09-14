@@ -157,9 +157,7 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;
-    let decimals = Mint::parse(&ctx.accounts.mint.data.borrow())
-        .unwrap()
-        .decimals();
+    let decimals = Mint::parse(&ctx.accounts.mint).unwrap().decimals();
 
     // Finally post Wormhole message via Core Bridge.
     utils::cpi::post_token_bridge_message(

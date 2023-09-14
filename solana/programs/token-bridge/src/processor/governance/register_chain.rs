@@ -7,7 +7,7 @@ use core_bridge_program::{
     legacy::utils::LegacyAnchorized,
     sdk::{self as core_bridge_sdk, zero_copy::EncodedVaa},
 };
-use wormhole_raw_vaas::token_bridge::TokenBridgeGovPayload;
+use wormhole_raw_vaas::{token_bridge::TokenBridgeGovPayload, Vaa};
 
 #[derive(Accounts)]
 pub struct RegisterChain<'info> {
@@ -26,9 +26,17 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_address().as_ref(),
-            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().emitter_chain().to_be_bytes(),
-            &EncodedVaa::try_v1(&vaa.try_borrow_data()?)?.body().sequence().to_be_bytes(),
+            EncodedVaa::parse(&vaa)
+                .and_then(|vaa| vaa.try_emitter_address())?
+                .as_ref(),
+            EncodedVaa::parse(&vaa)
+                .and_then(|vaa| vaa.try_emitter_chain())
+                .map(|chain| chain.to_be_bytes())?
+                .as_ref(),
+            EncodedVaa::parse(&vaa)
+                .and_then(|vaa| vaa.try_sequence())
+                .map(|sequence| sequence.to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -38,7 +46,7 @@ pub struct RegisterChain<'info> {
         init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
-        seeds = [try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref()],
+        seeds = [try_decree_foreign_chain_bytes(&vaa)?.as_ref()],
         bump,
     )]
     registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
@@ -54,8 +62,8 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [
-            try_decree_foreign_chain(&vaa.try_borrow_data()?)?.to_be_bytes().as_ref(),
-            try_decree_foreign_emitter(&vaa.try_borrow_data()?)?.as_ref(),
+            try_decree_foreign_chain_bytes(&vaa)?.as_ref(),
+            try_decree_foreign_emitter(&vaa)?.as_ref(),
         ],
         bump,
     )]
@@ -81,7 +89,7 @@ impl<'info> core_bridge_sdk::cpi::CloseEncodedVaa<'info> for RegisterChain<'info
 
 impl<'info> RegisterChain<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        super::require_valid_governance_encoded_vaa(&ctx.accounts.vaa.data.borrow()).map(|_| ())
+        super::require_valid_governance_encoded_vaa(&ctx.accounts.vaa)
     }
 }
 
@@ -93,9 +101,9 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
 
     // Deserialize and set data in registered emitter accounts.
     {
-        let acc_data = ctx.accounts.vaa.data.borrow();
-        let encoded_vaa = EncodedVaa::parse(&acc_data).unwrap();
-        let gov_payload = TokenBridgeGovPayload::try_from(encoded_vaa.v1().unwrap().payload())
+        let encoded_vaa = EncodedVaa::parse(&ctx.accounts.vaa).unwrap();
+        let v1 = Vaa::parse(encoded_vaa.buf()).unwrap();
+        let gov_payload = TokenBridgeGovPayload::try_from(v1.body().payload())
             .unwrap()
             .decree();
         let decree = gov_payload.register_chain().unwrap();
@@ -117,20 +125,22 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     core_bridge_sdk::cpi::maybe_close_encoded_vaa(ctx.accounts)
 }
 
-fn try_decree_foreign_chain(vaa_acc_data: &[u8]) -> Result<u16> {
-    let vaa = EncodedVaa::try_v1(vaa_acc_data)?;
-    let gov_payload = TokenBridgeGovPayload::try_from(vaa.body().payload())
+fn try_decree_foreign_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 2]> {
+    let encoded_vaa = EncodedVaa::parse(vaa_acc_info)?;
+    let v1 = encoded_vaa.as_v1()?;
+    let gov_payload = TokenBridgeGovPayload::try_from(v1.body().payload())
         .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
     gov_payload
         .decree()
         .register_chain()
-        .map(|decree| decree.foreign_chain())
+        .map(|decree| decree.foreign_chain().to_be_bytes())
         .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
 }
 
-fn try_decree_foreign_emitter(vaa_acc_data: &[u8]) -> Result<[u8; 32]> {
-    let vaa = EncodedVaa::try_v1(vaa_acc_data)?;
-    let gov_payload = TokenBridgeGovPayload::try_from(vaa.body().payload())
+fn try_decree_foreign_emitter(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]> {
+    let encoded_vaa = EncodedVaa::parse(vaa_acc_info)?;
+    let v1 = encoded_vaa.as_v1()?;
+    let gov_payload = TokenBridgeGovPayload::try_from(v1.body().payload())
         .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
     gov_payload
         .decree()

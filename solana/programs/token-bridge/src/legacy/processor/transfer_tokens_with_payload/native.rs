@@ -182,15 +182,13 @@ fn transfer_tokens_with_payload_native(
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
     let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
-    let truncated_amount = Mint::parse(&ctx.accounts.mint.data.borrow())
-        .unwrap()
-        .truncate_amount(amount);
+    let mint = Mint::parse_unchecked(&ctx.accounts.mint);
 
     // Deposit native assets from the source token account into the custody account.
     utils::cpi::transfer(
         ctx.accounts,
         ctx.accounts.custody_token.to_account_info(),
-        truncated_amount,
+        mint.truncate_amount(amount),
         Some(&[&[
             TRANSFER_AUTHORITY_SEED_PREFIX,
             &[ctx.bumps["transfer_authority"]],
@@ -199,13 +197,9 @@ fn transfer_tokens_with_payload_native(
 
     // Prepare Wormhole message. We need to normalize these amounts because we are working with
     // native assets.
-    let mint = &ctx.accounts.mint;
-    let token_address = mint.key().to_bytes();
-
-    let decimals = Mint::parse(&mint.data.borrow()).unwrap().decimals();
     let token_transfer = crate::messages::TransferWithMessage {
-        norm_amount: EncodedAmount::norm(U256::from(amount), decimals).0,
-        token_address,
+        norm_amount: EncodedAmount::norm(U256::from(amount), mint.decimals()).0,
+        token_address: ctx.accounts.mint.key().to_bytes(),
         token_chain: core_bridge_sdk::SOLANA_CHAIN,
         redeemer,
         redeemer_chain,

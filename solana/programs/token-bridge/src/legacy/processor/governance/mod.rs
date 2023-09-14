@@ -8,11 +8,9 @@ use wormhole_raw_vaas::token_bridge::{TokenBridgeDecree, TokenBridgeGovPayload};
 
 pub fn require_valid_posted_governance_vaa<'ctx>(
     vaa_key: &'ctx Pubkey,
-    vaa_acc_data: &'ctx [u8],
+    vaa: &'ctx PostedVaaV1<'ctx>,
 ) -> Result<TokenBridgeDecree<'ctx>> {
     crate::utils::require_valid_posted_vaa_key(vaa_key)?;
-
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
 
     require!(
         vaa.emitter_chain() == SOLANA_CHAIN

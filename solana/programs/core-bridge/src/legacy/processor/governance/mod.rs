@@ -18,11 +18,9 @@ use wormhole_raw_vaas::core::{CoreBridgeDecree, CoreBridgeGovPayload};
 /// guardian set used to attest for this governance decree must be the latest guardian set (found in
 /// the [Config] account).
 pub fn require_valid_posted_governance_vaa<'ctx>(
-    vaa_acc_data: &'ctx [u8],
     config: &'ctx Config,
+    vaa: &'ctx PostedVaaV1<'ctx>,
 ) -> Result<CoreBridgeDecree<'ctx>> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
-
     // Make sure the VAA was attested for by the latest guardian set.
     require_eq!(
         config.guardian_set_index,

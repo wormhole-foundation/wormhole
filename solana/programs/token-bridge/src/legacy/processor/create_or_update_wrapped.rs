@@ -41,9 +41,15 @@ pub struct CreateOrUpdateWrapped<'info> {
         payer = payer,
         space = Claim::INIT_SPACE,
         seeds = [
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_address().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.emitter_chain().to_be_bytes().as_ref(),
-            PostedVaaV1::parse(&posted_vaa.try_borrow_data()?)?.sequence().to_be_bytes().as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_address())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
+                .as_ref(),
+            PostedVaaV1::parse(&posted_vaa)
+                .map(|vaa| vaa.sequence().to_be_bytes())?
+                .as_ref(),
         ],
         bump,
     )]
@@ -56,12 +62,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        mint::decimals = try_attestation_decimals(&posted_vaa.try_borrow_data()?)?,
+        mint::decimals = try_attestation_decimals(&posted_vaa)?,
         mint::authority = mint_authority,
         seeds = [
             WRAPPED_MINT_SEED_PREFIX,
-            &try_attestation_token_chain(&posted_vaa.try_borrow_data()?)?.to_be_bytes(),
-            try_attestation_token_address(&posted_vaa.try_borrow_data()?)?.as_ref(),
+            try_attestation_token_chain_bytes(&posted_vaa)?.as_ref(),
+            try_attestation_token_address(&posted_vaa)?.as_ref(),
         ],
         bump,
     )]
@@ -134,8 +140,8 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = create_or_update_wrapped;
 }
 
-fn try_attestation_decimals(vaa_acc_data: &[u8]) -> Result<u8> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+fn try_attestation_decimals(vaa_acc_info: &AccountInfo) -> Result<u8> {
+    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
     let msg = TokenBridgeMessage::parse(vaa.payload())
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
     msg.attestation()
@@ -143,8 +149,8 @@ fn try_attestation_decimals(vaa_acc_data: &[u8]) -> Result<u8> {
         .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
 
-fn try_attestation_token_chain(vaa_acc_data: &[u8]) -> Result<u16> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+fn try_attestation_token_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 2]> {
+    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
     let msg = TokenBridgeMessage::parse(vaa.payload())
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
 
@@ -161,11 +167,11 @@ fn try_attestation_token_chain(vaa_acc_data: &[u8]) -> Result<u16> {
     );
 
     // Done.
-    Ok(token_chain)
+    Ok(token_chain.to_be_bytes())
 }
 
-fn try_attestation_token_address(vaa_acc_data: &[u8]) -> Result<[u8; 32]> {
-    let vaa = PostedVaaV1::parse(vaa_acc_data)?;
+fn try_attestation_token_address(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]> {
+    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
     let msg = TokenBridgeMessage::parse(vaa.payload())
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
     msg.attestation()
@@ -181,10 +187,12 @@ impl<'info> CreateOrUpdateWrapped<'info> {
         // which were used in the accounts context.
         crate::utils::require_valid_posted_token_bridge_vaa(
             &vaa.key(),
-            &PostedVaaV1::parse(&vaa.data.borrow()).unwrap(),
+            &PostedVaaV1::parse(vaa).unwrap(),
             &ctx.accounts.registered_emitter,
-        )
-        .map(|_| ())
+        )?;
+
+        // Done.
+        Ok(())
     }
 }
 
@@ -204,8 +212,7 @@ fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArg
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
@@ -235,7 +242,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
             ]]),
         )?;
 
-        let acc_data: &mut [u8] = &mut ctx.accounts.wrapped_asset.data.borrow_mut();
+        let acc_data: &mut [_] = &mut ctx.accounts.wrapped_asset.data.borrow_mut();
         let mut writer = std::io::Cursor::new(acc_data);
         LegacyAnchorized::from(wrapped_asset).try_serialize(&mut writer)?;
     }
@@ -272,8 +279,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let acc_data = ctx.accounts.posted_vaa.data.borrow();
-    let vaa = PostedVaaV1::parse(&acc_data).unwrap();
+    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
@@ -326,7 +332,7 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 
     // Update wrapped asset.
     {
-        let acc_data: &mut [u8] = &mut ctx.accounts.wrapped_asset.data.borrow_mut();
+        let acc_data: &mut [_] = &mut ctx.accounts.wrapped_asset.data.borrow_mut();
         let mut writer = std::io::Cursor::new(acc_data);
         wrapped_asset.try_serialize(&mut writer)?;
     }
@@ -334,8 +340,10 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     // Deserialize token metadata so we can check whether the name or symbol have changed in
     // this asset metadata VAA.
     let data = {
-        let mut acc_data: &[u8] = &ctx.accounts.token_metadata.try_borrow_data()?;
-        metadata::MetadataAccount::try_deserialize(&mut acc_data).map(|acct| acct.data.clone())?
+        metadata::MetadataAccount::try_deserialize(
+            &mut ctx.accounts.token_metadata.data.borrow().as_ref(),
+        )
+        .map(|meta| meta.data.clone())?
     };
 
     let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
