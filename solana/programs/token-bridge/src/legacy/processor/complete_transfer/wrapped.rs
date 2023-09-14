@@ -2,7 +2,7 @@ use crate::{
     constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, RegisteredEmitter, WrappedAsset},
+    state::{Claim, LegacyWrappedAsset, RegisteredEmitter},
     utils,
 };
 use anchor_lang::prelude::*;
@@ -67,11 +67,15 @@ pub struct CompleteTransferWrapped<'info> {
     #[account(mut)]
     wrapped_mint: AccountInfo<'info>,
 
+    /// Wrapped asset account, which is deserialized as its legacy representation. The latest
+    /// version has an additional field (sequence number), which may not deserialize if wrapped
+    /// metadata were not attested again to realloc this account. So we must deserialize this as the
+    /// legacy representation.
     #[account(
-        seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
+        seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
+    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(

@@ -2,7 +2,7 @@ use crate::{
     constants::{TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::instruction::TransferTokensArgs,
-    state::WrappedAsset,
+    state::LegacyWrappedAsset,
     utils,
 };
 use anchor_lang::prelude::*;
@@ -38,11 +38,15 @@ pub struct TransferTokensWrapped<'info> {
     )]
     wrapped_mint: AccountInfo<'info>,
 
+    /// Wrapped asset account, which is deserialized as its legacy representation. The latest
+    /// version has an additional field (sequence number), which may not deserialize if wrapped
+    /// metadata were not attested again to realloc this account. So we must deserialize this as the
+    /// legacy representation.
     #[account(
-        seeds = [WrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
-        bump
+        seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
+        bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, WrappedAsset>>>,
+    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.

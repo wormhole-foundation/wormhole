@@ -2,7 +2,7 @@ use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, RegisteredEmitter, WrappedAsset},
+    state::{Claim, LegacyWrappedAsset, RegisteredEmitter, WrappedAsset},
 };
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{metadata, token};
@@ -210,9 +210,11 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let attestation = msg.attestation().unwrap();
 
     let wrapped_asset = WrappedAsset {
-        token_chain: attestation.token_chain(),
-        token_address: attestation.token_address(),
-        native_decimals: attestation.decimals(),
+        legacy: LegacyWrappedAsset {
+            token_chain: attestation.token_chain(),
+            token_address: attestation.token_address(),
+            native_decimals: attestation.decimals(),
+        },
         last_updated_sequence: vaa.sequence(),
     };
 
