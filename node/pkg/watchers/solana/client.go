@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
-
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
 	"github.com/near/borsh-go"
@@ -493,6 +493,20 @@ OUTER:
 			)
 			continue
 		}
+
+		// If the logs don't contain the contract address, skip the transaction.
+		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
+		var (
+			possiblyWormhole bool
+			whLogPrefix      = fmt.Sprintf("Program %s", s.rawContract)
+		)
+		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
+			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], whLogPrefix)
+		}
+		if !possiblyWormhole {
+			continue
+		}
+
 		tx, err := txRpc.GetTransaction()
 		if err != nil {
 			logger.Error("failed to unmarshal transaction",
@@ -521,14 +535,6 @@ OUTER:
 			}
 		}
 		if programIndex == 0 {
-			continue
-		}
-
-		if txRpc.Meta.Err != nil {
-			logger.Debug("skipping failed Wormhole transaction",
-				zap.Stringer("signature", signature),
-				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)))
 			continue
 		}
 
