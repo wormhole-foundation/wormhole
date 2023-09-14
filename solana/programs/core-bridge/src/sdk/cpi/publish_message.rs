@@ -23,9 +23,6 @@ pub trait PublishMessage<'info>: super::CreateAccount<'info> {
     /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
     fn core_bridge_config(&self) -> AccountInfo<'info>;
 
-    /// Core Bridge Message (mut).
-    fn core_message(&self) -> AccountInfo<'info>;
-
     /// Core Bridge Emitter (read-only signer).
     ///
     /// NOTE: This account isn't checked if the message's emitter address is a program ID, so
@@ -122,6 +119,7 @@ pub enum PublishMessageDirective {
 /// this account. Otherwise, a keypair can be used and message seeds can be None.
 pub fn publish_message<'info, A>(
     accounts: &A,
+    new_message: AccountInfo<'info>,
     directive: PublishMessageDirective,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -156,6 +154,7 @@ where
             commitment,
         } => handle_post_message_v1(
             accounts,
+            new_message,
             PostMessageArgs {
                 nonce,
                 payload,
@@ -170,6 +169,7 @@ where
             commitment,
         } => handle_post_program_message_v1(
             accounts,
+            new_message,
             program_id,
             nonce,
             payload,
@@ -182,6 +182,7 @@ where
             commitment,
         } => handle_post_unreliable_message_v1(
             accounts,
+            new_message,
             PostMessageArgs {
                 nonce,
                 payload,
@@ -190,56 +191,41 @@ where
             signer_seeds,
         ),
         PublishMessageDirective::PreparedMessage => {
-            handle_prepared_message_v1(accounts, signer_seeds)
+            handle_prepared_message_v1(accounts, new_message, signer_seeds)
         }
     }
 }
 
 fn handle_post_message_v1<'info, A>(
     accounts: &A,
+    new_message: AccountInfo<'info>,
     args: PostMessageArgs,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
 where
     A: PublishMessage<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => crate::legacy::cpi::post_message(
-            CpiContext::new_with_signer(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessage {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: accounts.core_emitter(),
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-                signer_seeds,
-            ),
-            args,
+    crate::legacy::cpi::post_message(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::legacy::cpi::PostMessage {
+                config: accounts.core_bridge_config(),
+                message: new_message,
+                emitter: accounts.core_emitter(),
+                emitter_sequence: accounts.core_emitter_sequence(),
+                payer: accounts.payer(),
+                fee_collector: accounts.core_fee_collector(),
+                system_program: accounts.system_program(),
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => crate::legacy::cpi::post_message(
-            CpiContext::new(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessage {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: accounts.core_emitter(),
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-            ),
-            args,
-        ),
-    }
+        args,
+    )
 }
 
 fn handle_post_program_message_v1<'info, A>(
     accounts: &A,
+    new_message: AccountInfo<'info>,
     program_id: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
@@ -252,7 +238,7 @@ where
     // Create message account.
     crate::utils::cpi::create_account(
         accounts,
-        accounts.core_message(),
+        new_message.to_account_info(),
         crate::sdk::compute_init_message_v1_space(payload.len()),
         &crate::ID,
         signer_seeds,
@@ -261,7 +247,7 @@ where
     // Prepare (calling init and process instructions).
     crate::sdk::cpi::handle_prepare_message_v1(
         accounts.core_bridge_program(),
-        accounts.core_message(),
+        new_message.to_account_info(),
         accounts.try_core_emitter_authority()?,
         crate::sdk::cpi::InitMessageV1Args {
             nonce,
@@ -278,7 +264,7 @@ where
             accounts.core_bridge_program(),
             crate::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config(),
-                message: accounts.core_message(),
+                message: new_message,
                 emitter: None,
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
@@ -296,93 +282,57 @@ where
 
 fn handle_post_unreliable_message_v1<'info, A>(
     accounts: &A,
+    new_message: AccountInfo<'info>,
     args: PostMessageArgs,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
 where
     A: PublishMessage<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => crate::legacy::cpi::post_message_unreliable(
-            CpiContext::new_with_signer(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessageUnreliable {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: accounts.try_core_emitter()?,
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-                signer_seeds,
-            ),
-            args,
+    crate::legacy::cpi::post_message_unreliable(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::legacy::cpi::PostMessageUnreliable {
+                config: accounts.core_bridge_config(),
+                message: new_message,
+                emitter: accounts.try_core_emitter()?,
+                emitter_sequence: accounts.core_emitter_sequence(),
+                payer: accounts.payer(),
+                fee_collector: accounts.core_fee_collector(),
+                system_program: accounts.system_program(),
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => crate::legacy::cpi::post_message_unreliable(
-            CpiContext::new(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessageUnreliable {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: accounts.try_core_emitter()?,
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-            ),
-            args,
-        ),
-    }
+        args,
+    )
 }
 
 fn handle_prepared_message_v1<'info, A>(
     accounts: &A,
+    new_message: AccountInfo<'info>,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
 where
     A: PublishMessage<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => crate::legacy::cpi::post_message(
-            CpiContext::new_with_signer(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessage {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: None,
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-                signer_seeds,
-            ),
-            PostMessageArgs {
-                nonce: 420, // not checked
-                payload: Vec::new(),
-                commitment: Commitment::Finalized, // not checked
+    crate::legacy::cpi::post_message(
+        CpiContext::new_with_signer(
+            accounts.core_bridge_program(),
+            crate::legacy::cpi::PostMessage {
+                config: accounts.core_bridge_config(),
+                message: new_message,
+                emitter: None,
+                emitter_sequence: accounts.core_emitter_sequence(),
+                payer: accounts.payer(),
+                fee_collector: accounts.core_fee_collector(),
+                system_program: accounts.system_program(),
             },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => crate::legacy::cpi::post_message(
-            CpiContext::new(
-                accounts.core_bridge_program(),
-                crate::legacy::cpi::PostMessage {
-                    config: accounts.core_bridge_config(),
-                    message: accounts.core_message(),
-                    emitter: None,
-                    emitter_sequence: accounts.core_emitter_sequence(),
-                    payer: accounts.payer(),
-                    fee_collector: accounts.core_fee_collector(),
-                    system_program: accounts.system_program(),
-                },
-            ),
-            PostMessageArgs {
-                nonce: 420, // not checked
-                payload: Vec::new(),
-                commitment: Commitment::Finalized, // not checked
-            },
-        ),
-    }
+        PostMessageArgs {
+            nonce: 420, // not checked
+            payload: Vec::new(),
+            commitment: Commitment::Finalized, // not checked
+        },
+    )
 }

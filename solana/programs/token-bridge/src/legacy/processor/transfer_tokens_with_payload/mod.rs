@@ -6,8 +6,8 @@ pub use wrapped::*;
 
 use anchor_lang::prelude::*;
 
-pub(super) fn order_transfer_tokens_with_payload_account_infos<'a, 'info>(
-    account_infos: &'a [AccountInfo<'info>],
+pub(super) fn order_transfer_tokens_with_payload_account_infos<'info>(
+    account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
     const NUM_ACCOUNTS: usize = 18;
     const CORE_BRIDGE_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;

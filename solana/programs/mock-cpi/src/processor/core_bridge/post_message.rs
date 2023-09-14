@@ -98,10 +98,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessage<'inf
             .as_ref()
             .map(|acc| acc.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
@@ -121,6 +117,7 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
     ) {
         (Some(_), _) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
+            ctx.accounts.core_message.to_account_info(),
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,
@@ -142,6 +139,7 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
         ),
         (None, Some(_)) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
+            ctx.accounts.core_message.to_account_info(),
             core_bridge_sdk::cpi::PublishMessageDirective::Message {
                 nonce,
                 payload,

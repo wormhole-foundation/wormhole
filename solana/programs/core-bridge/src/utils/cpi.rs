@@ -18,31 +18,17 @@ pub fn create_account<'info, A>(
 where
     A: CreateAccount<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => system_program::create_account(
-            CpiContext::new_with_signer(
-                accounts.system_program(),
-                system_program::CreateAccount {
-                    from: accounts.payer(),
-                    to: new_account,
-                },
-                signer_seeds,
-            ),
-            Rent::get().map(|rent| rent.minimum_balance(data_len))?,
-            data_len.try_into().unwrap(),
-            owner,
+    system_program::create_account(
+        CpiContext::new_with_signer(
+            accounts.system_program(),
+            system_program::CreateAccount {
+                from: accounts.payer(),
+                to: new_account,
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => system_program::create_account(
-            CpiContext::new(
-                accounts.system_program(),
-                system_program::CreateAccount {
-                    from: accounts.payer(),
-                    to: new_account,
-                },
-            ),
-            Rent::get().map(|rent| rent.minimum_balance(data_len))?,
-            data_len.try_into().unwrap(),
-            owner,
-        ),
-    }
+        Rent::get().map(|rent| rent.minimum_balance(data_len))?,
+        data_len.try_into().unwrap(),
+        owner,
+    )
 }

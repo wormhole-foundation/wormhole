@@ -72,10 +72,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_fee_collector.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 #[program]
@@ -88,6 +84,7 @@ pub mod core_bridge_hello_world {
 
         core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
+            ctx.accounts.core_message.to_account_info(),
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,

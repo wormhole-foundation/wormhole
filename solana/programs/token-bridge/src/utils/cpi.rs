@@ -21,31 +21,18 @@ pub fn mint_to<'info, A>(
 where
     A: MintTo<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => token::mint_to(
-            CpiContext::new_with_signer(
-                accounts.token_program(),
-                token::MintTo {
-                    mint: accounts.mint(),
-                    to,
-                    authority: accounts.mint_authority(),
-                },
-                signer_seeds,
-            ),
-            mint_amount,
+    token::mint_to(
+        CpiContext::new_with_signer(
+            accounts.token_program(),
+            token::MintTo {
+                mint: accounts.mint(),
+                to,
+                authority: accounts.mint_authority(),
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => token::mint_to(
-            CpiContext::new(
-                accounts.token_program(),
-                token::MintTo {
-                    mint: accounts.mint(),
-                    to,
-                    authority: accounts.mint_authority(),
-                },
-            ),
-            mint_amount,
-        ),
-    }
+        mint_amount,
+    )
 }
 
 pub trait Burn<'info> {
@@ -98,31 +85,18 @@ fn burn_from<'info, A>(
 where
     A: Burn<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => token::burn(
-            CpiContext::new_with_signer(
-                accounts.token_program(),
-                token::Burn {
-                    mint: accounts.mint(),
-                    from,
-                    authority,
-                },
-                signer_seeds,
-            ),
-            burn_amount,
+    token::burn(
+        CpiContext::new_with_signer(
+            accounts.token_program(),
+            token::Burn {
+                mint: accounts.mint(),
+                from,
+                authority,
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => token::burn(
-            CpiContext::new(
-                accounts.token_program(),
-                token::Burn {
-                    mint: accounts.mint(),
-                    from,
-                    authority,
-                },
-            ),
-            burn_amount,
-        ),
-    }
+        burn_amount,
+    )
 }
 
 pub trait Transfer<'info> {
@@ -176,34 +150,26 @@ pub fn transfer_from<'info, A>(
 where
     A: Transfer<'info>,
 {
-    match signer_seeds {
-        Some(signer_seeds) => token::transfer(
-            CpiContext::new_with_signer(
-                accounts.token_program(),
-                token::Transfer {
-                    from,
-                    to,
-                    authority,
-                },
-                signer_seeds,
-            ),
-            transfer_amount,
+    token::transfer(
+        CpiContext::new_with_signer(
+            accounts.token_program(),
+            token::Transfer {
+                from,
+                to,
+                authority,
+            },
+            signer_seeds.unwrap_or_default(),
         ),
-        None => token::transfer(
-            CpiContext::new(
-                accounts.token_program(),
-                token::Transfer {
-                    from,
-                    to,
-                    authority,
-                },
-            ),
-            transfer_amount,
-        ),
-    }
+        transfer_amount,
+    )
 }
 
-pub fn post_token_bridge_message<'info, A, W>(accounts: &A, nonce: u32, message: W) -> Result<()>
+pub fn post_token_bridge_message<'info, A, W>(
+    accounts: &A,
+    core_message: AccountInfo<'info>,
+    nonce: u32,
+    message: W,
+) -> Result<()>
 where
     A: core_bridge_sdk::cpi::PublishMessage<'info>,
     W: Writeable,
@@ -219,6 +185,7 @@ where
 
     core_bridge_sdk::cpi::publish_message(
         accounts,
+        core_message,
         core_bridge_sdk::cpi::PublishMessageDirective::Message {
             nonce,
             payload: message.to_vec(),

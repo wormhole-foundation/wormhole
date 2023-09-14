@@ -102,10 +102,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockLegacyTransferTo
             .as_ref()
             .map(|acc| acc.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
@@ -113,6 +109,10 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
 {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
+    }
+
+    fn core_message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
     }
 
     fn mint(&self) -> AccountInfo<'info> {

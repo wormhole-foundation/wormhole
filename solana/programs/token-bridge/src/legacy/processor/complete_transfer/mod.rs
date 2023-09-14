@@ -78,8 +78,8 @@ pub fn validate_posted_token_transfer<'ctx>(
     Ok(transfer)
 }
 
-pub fn order_complete_transfer_account_infos<'a, 'info>(
-    account_infos: &'a [AccountInfo<'info>],
+pub fn order_complete_transfer_account_infos<'info>(
+    account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
     const NUM_ACCOUNTS: usize = 13;
     const TOKEN_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;

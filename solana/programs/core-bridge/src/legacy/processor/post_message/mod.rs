@@ -96,8 +96,8 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
     }
 }
 
-pub(super) fn order_post_message_account_infos<'a, 'info>(
-    account_infos: &'a [AccountInfo<'info>],
+pub(super) fn order_post_message_account_infos<'info>(
+    account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
     const NUM_ACCOUNTS: usize = 8;
     const SYSTEM_PROGRAM_IDX: usize = NUM_ACCOUNTS - 1;

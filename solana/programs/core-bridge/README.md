@@ -59,10 +59,10 @@ pub struct PublishHelloWorld<'info> {
 This account context must have all of the accounts required by the Core Bridge program in order to
 publish a Wormhole message:
 
+- `core_message` (which in this example is just a keypair generated off-chain).
 - `core_emitter_authority` (seeds: ["emitter"]).
   - **NOTE: Your program ID is the emitter in this case, so `core_emitter` will be `None`.**
 - `core_bridge_config` (seeds: ["Bridge"]).
-- `core_message` (which in this example is just a keypair generated off-chain).
 - `core_emitter_sequence` (seeds: ["Sequence", your_program_id]).
   - **NOTE: Your program ID is the emitter in this case, which is why the emitter sequence PDA
     address is derived using this pubkey.**
@@ -125,10 +125,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_fee_collector.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 ```
 
@@ -149,6 +145,7 @@ pub fn publish_hello_world(ctx: Context<PublishHelloWorld>) -> Result<()> {
 
     core_bridge_sdk::cpi::publish_message(
         ctx.accounts,
+        ctx.accounts.core_message.to_account_info(),
         core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
             program_id: crate::ID,
             nonce,
@@ -239,10 +236,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_fee_collector.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 #[program]
@@ -255,6 +248,7 @@ pub mod core_bridge_hello_world {
 
         core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
+            ctx.accounts.core_message.to_account_info(),
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,

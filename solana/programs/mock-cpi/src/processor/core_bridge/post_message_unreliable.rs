@@ -77,10 +77,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessageUnrel
             .as_ref()
             .map(|acc| acc.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
@@ -97,6 +93,7 @@ pub fn mock_post_message_unreliable(
 
     core_bridge_sdk::cpi::publish_message(
         ctx.accounts,
+        ctx.accounts.core_message.to_account_info(),
         core_bridge_sdk::cpi::PublishMessageDirective::UnreliableMessage {
             nonce,
             payload,

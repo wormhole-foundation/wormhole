@@ -1,6 +1,6 @@
 use crate::{state, types::Timestamp};
 use anchor_lang::{
-    prelude::{require, ErrorCode, Pubkey},
+    prelude::{error, require, require_eq, require_gte, ErrorCode, Pubkey},
     solana_program::keccak,
 };
 
@@ -13,6 +13,7 @@ impl<'a> PostedVaaV1<'a> {
     pub const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
 
     const DISC_LEN: usize = Self::DISCRIMINATOR.len();
+    const DATA_START: usize = 4 + Self::PAYLOAD_START;
 
     /// Level of consistency requested by the emitter.
     pub fn consistency_level(&self) -> u8 {
@@ -94,8 +95,9 @@ impl<'a> PostedVaaV1<'a> {
     /// NOTE: There is no ownership check because [AccountInfo](anchor_lang::prelude::AccountInfo)
     /// is not passed into this method.
     pub fn parse(span: &'a [u8]) -> anchor_lang::Result<Self> {
-        require!(
-            span.len() > Self::DISC_LEN,
+        require_gte!(
+            span.len(),
+            Self::DATA_START,
             ErrorCode::AccountDidNotDeserialize
         );
         require!(
@@ -103,6 +105,13 @@ impl<'a> PostedVaaV1<'a> {
             ErrorCode::AccountDidNotDeserialize
         );
 
-        Ok(Self(&span[Self::DISC_LEN..]))
+        let parsed = Self(&span[Self::DISC_LEN..]);
+        require_eq!(
+            span.len(),
+            Self::DATA_START + parsed.payload_size(),
+            ErrorCode::AccountDidNotDeserialize
+        );
+
+        Ok(parsed)
     }
 }

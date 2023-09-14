@@ -81,10 +81,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for AttestToken<'info> {
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
     fn core_emitter(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_emitter.to_account_info())
     }
@@ -168,6 +164,7 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     // Finally post Wormhole message via Core Bridge.
     utils::cpi::post_token_bridge_message(
         ctx.accounts,
+        ctx.accounts.core_message.to_account_info(),
         nonce,
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),

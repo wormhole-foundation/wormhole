@@ -6,6 +6,10 @@ use anchor_lang::prelude::*;
 pub trait TransferTokens<'info>: core_bridge_program::sdk::cpi::PublishMessage<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info>;
 
+    /// Core Bridge message account, which the Token Bridge program needs to publish its messages
+    /// via Wormhole.
+    fn core_message(&self) -> AccountInfo<'info>;
+
     /// SPL Token Program.
     fn token_program(&self) -> AccountInfo<'info>;
 
@@ -201,99 +205,52 @@ where
     A: TransferTokens<'info>,
 {
     if is_wrapped_asset {
-        match signer_seeds {
-            Some(signer_seeds) => crate::legacy::cpi::transfer_tokens_wrapped(
-                CpiContext::new_with_signer(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWrapped {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        wrapped_mint: accounts.mint(),
-                        wrapped_asset: accounts.try_wrapped_asset()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                    signer_seeds,
-                ),
-                args,
+        crate::legacy::cpi::transfer_tokens_wrapped(
+            CpiContext::new_with_signer(
+                accounts.token_bridge_program(),
+                crate::legacy::cpi::TransferTokensWrapped {
+                    payer: accounts.payer(),
+                    src_token: accounts.src_token_account(),
+                    wrapped_mint: accounts.mint(),
+                    wrapped_asset: accounts.try_wrapped_asset()?,
+                    transfer_authority: accounts.token_bridge_transfer_authority(),
+                    core_bridge_config: accounts.core_bridge_config(),
+                    core_message: accounts.core_message(),
+                    core_emitter: accounts.try_core_emitter()?,
+                    core_emitter_sequence: accounts.core_emitter_sequence(),
+                    core_fee_collector: accounts.core_fee_collector(),
+                    system_program: accounts.system_program(),
+                    token_program: accounts.token_program(),
+                    core_bridge_program: accounts.core_bridge_program(),
+                },
+                signer_seeds.unwrap_or_default(),
             ),
-            None => crate::legacy::cpi::transfer_tokens_wrapped(
-                CpiContext::new(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWrapped {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        wrapped_mint: accounts.mint(),
-                        wrapped_asset: accounts.try_wrapped_asset()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                ),
-                args,
-            ),
-        }
+            args,
+        )
     } else {
-        match signer_seeds {
-            Some(signer_seeds) => crate::legacy::cpi::transfer_tokens_native(
-                CpiContext::new_with_signer(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensNative {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        mint: accounts.mint(),
-                        custody_token: accounts.try_custody_token_account()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        custody_authority: accounts.try_custody_authority()?,
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                    signer_seeds,
-                ),
-                args,
+        crate::legacy::cpi::transfer_tokens_native(
+            CpiContext::new_with_signer(
+                accounts.token_bridge_program(),
+                crate::legacy::cpi::TransferTokensNative {
+                    payer: accounts.payer(),
+                    src_token: accounts.src_token_account(),
+                    mint: accounts.mint(),
+                    custody_token: accounts.try_custody_token_account()?,
+                    transfer_authority: accounts.token_bridge_transfer_authority(),
+                    custody_authority: accounts.try_custody_authority()?,
+                    core_bridge_config: accounts.core_bridge_config(),
+                    core_message: accounts.core_message(),
+                    core_emitter: accounts.try_core_emitter()?,
+                    core_emitter_sequence: accounts.core_emitter_sequence(),
+                    core_fee_collector: accounts.core_fee_collector(),
+                    system_program: accounts.system_program(),
+                    token_program: accounts.token_program(),
+                    core_bridge_program: accounts.core_bridge_program(),
+                },
+                signer_seeds.unwrap_or_default(),
             ),
-            None => crate::legacy::cpi::transfer_tokens_native(
-                CpiContext::new(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensNative {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        mint: accounts.mint(),
-                        custody_token: accounts.try_custody_token_account()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        custody_authority: accounts.try_custody_authority()?,
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                ),
-                args,
-            ),
-        }
+            args,
+        )
     }
 }
 
@@ -307,102 +264,53 @@ where
     A: TransferTokens<'info>,
 {
     if is_wrapped_asset {
-        match signer_seeds {
-            Some(signer_seeds) => crate::legacy::cpi::transfer_tokens_with_payload_wrapped(
-                CpiContext::new_with_signer(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWithPayloadWrapped {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        wrapped_mint: accounts.mint(),
-                        wrapped_asset: accounts.try_wrapped_asset()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        sender_authority: accounts.try_sender_authority()?,
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                    signer_seeds,
-                ),
-                args,
+        crate::legacy::cpi::transfer_tokens_with_payload_wrapped(
+            CpiContext::new_with_signer(
+                accounts.token_bridge_program(),
+                crate::legacy::cpi::TransferTokensWithPayloadWrapped {
+                    payer: accounts.payer(),
+                    src_token: accounts.src_token_account(),
+                    wrapped_mint: accounts.mint(),
+                    wrapped_asset: accounts.try_wrapped_asset()?,
+                    transfer_authority: accounts.token_bridge_transfer_authority(),
+                    core_bridge_config: accounts.core_bridge_config(),
+                    core_message: accounts.core_message(),
+                    core_emitter: accounts.try_core_emitter()?,
+                    core_emitter_sequence: accounts.core_emitter_sequence(),
+                    core_fee_collector: accounts.core_fee_collector(),
+                    sender_authority: accounts.try_sender_authority()?,
+                    system_program: accounts.system_program(),
+                    token_program: accounts.token_program(),
+                    core_bridge_program: accounts.core_bridge_program(),
+                },
+                signer_seeds.unwrap_or_default(),
             ),
-            None => crate::legacy::cpi::transfer_tokens_with_payload_wrapped(
-                CpiContext::new(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWithPayloadWrapped {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        wrapped_mint: accounts.mint(),
-                        wrapped_asset: accounts.try_wrapped_asset()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        sender_authority: accounts.try_sender_authority()?,
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                ),
-                args,
-            ),
-        }
+            args,
+        )
     } else {
-        match signer_seeds {
-            Some(signer_seeds) => crate::legacy::cpi::transfer_tokens_with_payload_native(
-                CpiContext::new_with_signer(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWithPayloadNative {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        mint: accounts.mint(),
-                        custody_token: accounts.try_custody_token_account()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        custody_authority: accounts.try_custody_authority()?,
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        sender_authority: accounts.try_sender_authority()?,
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                    signer_seeds,
-                ),
-                args,
+        crate::legacy::cpi::transfer_tokens_with_payload_native(
+            CpiContext::new_with_signer(
+                accounts.token_bridge_program(),
+                crate::legacy::cpi::TransferTokensWithPayloadNative {
+                    payer: accounts.payer(),
+                    src_token: accounts.src_token_account(),
+                    mint: accounts.mint(),
+                    custody_token: accounts.try_custody_token_account()?,
+                    transfer_authority: accounts.token_bridge_transfer_authority(),
+                    custody_authority: accounts.try_custody_authority()?,
+                    core_bridge_config: accounts.core_bridge_config(),
+                    core_message: accounts.core_message(),
+                    core_emitter: accounts.try_core_emitter()?,
+                    core_emitter_sequence: accounts.core_emitter_sequence(),
+                    core_fee_collector: accounts.core_fee_collector(),
+                    sender_authority: accounts.try_sender_authority()?,
+                    system_program: accounts.system_program(),
+                    token_program: accounts.token_program(),
+                    core_bridge_program: accounts.core_bridge_program(),
+                },
+                signer_seeds.unwrap_or_default(),
             ),
-            None => crate::legacy::cpi::transfer_tokens_with_payload_native(
-                CpiContext::new(
-                    accounts.token_bridge_program(),
-                    crate::legacy::cpi::TransferTokensWithPayloadNative {
-                        payer: accounts.payer(),
-                        src_token: accounts.src_token_account(),
-                        mint: accounts.mint(),
-                        custody_token: accounts.try_custody_token_account()?,
-                        transfer_authority: accounts.token_bridge_transfer_authority(),
-                        custody_authority: accounts.try_custody_authority()?,
-                        core_bridge_config: accounts.core_bridge_config(),
-                        core_message: accounts.core_message(),
-                        core_emitter: accounts.try_core_emitter()?,
-                        core_emitter_sequence: accounts.core_emitter_sequence(),
-                        core_fee_collector: accounts.core_fee_collector(),
-                        sender_authority: accounts.try_sender_authority()?,
-                        system_program: accounts.system_program(),
-                        token_program: accounts.token_program(),
-                        core_bridge_program: accounts.core_bridge_program(),
-                    },
-                ),
-                args,
-            ),
-        }
+            args,
+        )
     }
 }

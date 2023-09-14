@@ -121,10 +121,6 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWithPa
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
     fn core_emitter(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_emitter.to_account_info())
     }
@@ -218,5 +214,10 @@ fn transfer_tokens_with_payload_native(
     };
 
     // Finally publish Wormhole message using the Core Bridge.
-    utils::cpi::post_token_bridge_message(ctx.accounts, nonce, token_transfer)
+    utils::cpi::post_token_bridge_message(
+        ctx.accounts,
+        ctx.accounts.core_message.to_account_info(),
+        nonce,
+        token_transfer,
+    )
 }
