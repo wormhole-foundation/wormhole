@@ -70,7 +70,6 @@ contract QueryDemo is Context, QueryResponse {
             require(counters[r.responses[idx].chainId].chainID == foreignChainIDs[idx], "unexpected foreign chain ID");
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[idx]);
             require(eqr.blockNum > counters[r.responses[idx].chainId].blockNum, "update is obsolete");
-            require(eqr.blockNum == counters[r.responses[idx].chainId].blockNum, "update is redundant");
             require(eqr.blockTime > block.timestamp - 300, "update is stale");
             require(eqr.result.length == 1, "result mismatch");
             require(eqr.result[0].contractAddress == counters[r.responses[idx].chainId].contractAddress, "contract address is wrong");
@@ -90,6 +89,7 @@ contract QueryDemo is Context, QueryResponse {
         }
 
         counters[myChainID].counter += 1;
+        // TODO: set block number and time
     }
 
     modifier onlyOwner() {
