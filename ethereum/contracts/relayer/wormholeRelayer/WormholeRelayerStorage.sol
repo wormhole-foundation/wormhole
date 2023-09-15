@@ -31,7 +31,7 @@ struct DefaultDeliveryProviderState {
     address defaultDeliveryProvider;
 }
 
-//keccak256("DefaultDeliveryProviderState") - 1
+//keccak256("DefaultRelayProviderState") - 1
 bytes32 constant DEFAULT_RELAY_PROVIDER_STORAGE_SLOT =
     0xebc28a1927f62765bfb7ada566eeab2d31a98c65dbd1e8cad64acae2a3ae45d4;
 
@@ -49,7 +49,7 @@ struct RegisteredWormholeRelayersState {
     mapping(uint16 => bytes32) registeredWormholeRelayers;
 }
 
-//keccak256("RegisteredWormholeRelayersState") - 1
+//keccak256("RegisteredCoreRelayersState") - 1
 bytes32 constant REGISTERED_CORE_RELAYERS_STORAGE_SLOT =
     0x9e4e57806ba004485cfae8ca22fb13380f01c10b1b0ccf48c20464961643cf6d;
 
