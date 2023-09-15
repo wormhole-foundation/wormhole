@@ -165,14 +165,13 @@ async function initAndProcessMessageV1(
   );
 
   const endAfterInit = 740;
-  const firstProcessIx = await coreBridge.processMessageV1Ix(
+  const firstProcessIx = await coreBridge.writeMessageV1Ix(
     program,
     {
       emitterAuthority: emitterAuthority.publicKey,
       draftMessage: draftMessage.publicKey,
-      closeAccountDestination: null,
     },
-    { write: { index: 0, data: payload.subarray(0, endAfterInit) } }
+    { index: 0, data: payload.subarray(0, endAfterInit) }
   );
 
   if (messageLen > endAfterInit) {
@@ -186,41 +185,30 @@ async function initAndProcessMessageV1(
     for (let start = endAfterInit; start < messageLen; start += chunkSize) {
       const end = Math.min(start + chunkSize, messageLen);
 
-      const writeIx = await coreBridge.processMessageV1Ix(
+      const writeIx = await coreBridge.writeMessageV1Ix(
         program,
         {
           emitterAuthority: emitterAuthority.publicKey,
           draftMessage: draftMessage.publicKey,
-          closeAccountDestination: null,
         },
-        { write: { index: start, data: payload.subarray(start, end) } }
+        { index: start, data: payload.subarray(start, end) }
       );
 
       if (end == messageLen) {
-        const finalizeIx = await coreBridge.processMessageV1Ix(
-          program,
-          {
-            emitterAuthority: emitterAuthority.publicKey,
-            draftMessage: draftMessage.publicKey,
-            closeAccountDestination: null,
-          },
-          { finalize: {} }
-        );
+        const finalizeIx = await coreBridge.finalizeMessageV1Ix(program, {
+          emitterAuthority: emitterAuthority.publicKey,
+          draftMessage: draftMessage.publicKey,
+        });
         await expectIxOk(connection, [writeIx, finalizeIx], [payer, emitterAuthority]);
       } else {
         await expectIxOk(connection, [writeIx], [payer, emitterAuthority]);
       }
     }
   } else {
-    const finalizeIx = await coreBridge.processMessageV1Ix(
-      program,
-      {
-        emitterAuthority: emitterAuthority.publicKey,
-        draftMessage: draftMessage.publicKey,
-        closeAccountDestination: null,
-      },
-      { finalize: {} }
-    );
+    const finalizeIx = await coreBridge.finalizeMessageV1Ix(program, {
+      emitterAuthority: emitterAuthority.publicKey,
+      draftMessage: draftMessage.publicKey,
+    });
 
     await expectIxOk(
       connection,

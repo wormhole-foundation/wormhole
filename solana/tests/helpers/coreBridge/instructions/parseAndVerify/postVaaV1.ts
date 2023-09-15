@@ -9,13 +9,7 @@ export type PostVaaV1Context = {
   postedVaa?: PublicKey;
 };
 
-export type PostVaaV1Directive = { tryOnce: {} };
-
-export async function postVaaV1Ix(
-  program: CoreBridgeProgram,
-  accounts: PostVaaV1Context,
-  directive: PostVaaV1Directive
-) {
+export async function postVaaV1Ix(program: CoreBridgeProgram, accounts: PostVaaV1Context) {
   let { writeAuthority, vaa, postedVaa } = accounts;
 
   if (postedVaa === undefined) {
@@ -29,8 +23,5 @@ export async function postVaaV1Ix(
     );
   }
 
-  return program.methods
-    .postVaaV1(directive)
-    .accounts({ writeAuthority, vaa, postedVaa })
-    .instruction();
+  return program.methods.postVaaV1().accounts({ writeAuthority, vaa, postedVaa }).instruction();
 }

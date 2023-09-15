@@ -91,7 +91,7 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // Finally initialize the draft message account by serializing the discriminator, header and
     // payload length.
     (
-        PostedMessageV1::RELIABLE_DISC,
+        PostedMessageV1::DISC,
         PostedMessageV1Info {
             consistency_level: commitment.into(),
             emitter_authority: ctx.accounts.emitter_authority.key(),

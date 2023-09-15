@@ -14,17 +14,13 @@ pub fn close_encoded_vaa<'info, A>(accounts: &A) -> Result<()>
 where
     A: CloseEncodedVaa<'info>,
 {
-    crate::cpi::process_encoded_vaa(
-        CpiContext::new(
-            accounts.core_bridge_program(),
-            crate::cpi::accounts::ProcessEncodedVaa {
-                write_authority: accounts.write_authority(),
-                encoded_vaa: accounts.encoded_vaa(),
-                guardian_set: None,
-            },
-        ),
-        crate::processor::ProcessEncodedVaaDirective::CloseVaaAccount,
-    )
+    crate::cpi::close_encoded_vaa(CpiContext::new(
+        accounts.core_bridge_program(),
+        crate::cpi::accounts::CloseEncodedVaa {
+            write_authority: accounts.write_authority(),
+            encoded_vaa: accounts.encoded_vaa(),
+        },
+    ))
 }
 
 /// SDK method to close an EncodedVaa account. If the write authority is not the same one found on

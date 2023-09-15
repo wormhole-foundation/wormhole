@@ -10,19 +10,12 @@ use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
 use wormhole_raw_vaas::GuardianSetSig;
 
 #[derive(Accounts)]
-pub struct ProcessEncodedVaa<'info> {
-    /// This account is only required to be mutable for the `CloseVaaAccount` directive. This
-    /// authority is the same signer that originally created the VAA accounts, so he is the one that
-    /// will receive the lamports back for the closed accounts.
-    #[account(mut)]
+pub struct VerifyEncodedVaaV1<'info> {
     write_authority: Signer<'info>,
 
     /// CHECK: The encoded VAA account, which stores the VAA buffer. This buffer must first be
     /// written to and then verified.
-    #[account(
-        mut,
-        owner = crate::ID
-    )]
+    #[account(mut)]
     encoded_vaa: AccountInfo<'info>,
 
     /// Guardian set account, which is only needed for signature verification.
@@ -30,19 +23,17 @@ pub struct ProcessEncodedVaa<'info> {
         seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
         bump,
     )]
-    guardian_set: Option<Account<'info, LegacyAnchorized<0, GuardianSet>>>,
+    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 }
 
-impl<'info> ProcessEncodedVaa<'info> {
+impl<'info> VerifyEncodedVaaV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        if let Some(guardian_set) = &ctx.accounts.guardian_set {
-            // Guardian set must be active.
-            let timestamp = Clock::get().map(Into::into)?;
-            require!(
-                guardian_set.is_active(&timestamp),
-                CoreBridgeError::GuardianSetExpired
-            );
-        }
+        // Guardian set must be active.
+        let timestamp = Clock::get().map(Into::into)?;
+        require!(
+            ctx.accounts.guardian_set.is_active(&timestamp),
+            CoreBridgeError::GuardianSetExpired
+        );
 
         // Check write authority.
         let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa)?;
@@ -57,85 +48,9 @@ impl<'info> ProcessEncodedVaa<'info> {
     }
 }
 
-/// Directive for the [process_encoded_vaa](crate::wormhole_core_bridge_solana::process_encoded_vaa)
-/// instruction.
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub enum ProcessEncodedVaaDirective {
-    /// Close the [EncodedVaa] account. Either someone decides to close this account before it has
-    /// been verified, or the VAA has been verified by an integrating app and is no longer needed.
-    CloseVaaAccount,
-    /// Write data to the [EncodedVaa] account indicated by the index of the VAA buffer.
-    Write {
-        /// Index of VAA buffer.
-        index: u32,
-        /// Data representing subset of VAA buffer starting at specified index.
-        data: Vec<u8>,
-    },
-    /// When the whole VAA buffer is written to the [EncodedVaa] account, its message hash is
-    /// computed and guardian signatures are verified. This directive will disable writing to the
-    /// [EncodedVaa] account by setting its status to [ProcessingStatus::Verified].
-    ///
-    /// NOTE: The [GuardianSet] account is required in order to perform this method.
-    VerifySignaturesV1,
-}
-
-#[access_control(ProcessEncodedVaa::constraints(&ctx))]
-pub fn process_encoded_vaa(
-    ctx: Context<ProcessEncodedVaa>,
-    directive: ProcessEncodedVaaDirective,
-) -> Result<()> {
-    match directive {
-        ProcessEncodedVaaDirective::CloseVaaAccount => close_vaa_account(ctx),
-        ProcessEncodedVaaDirective::Write { index, data } => write(ctx, index, data),
-        ProcessEncodedVaaDirective::VerifySignaturesV1 => verify_signatures_v1(ctx),
-    }
-}
-
-fn close_vaa_account(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
-    msg!("Directive: CloseVaaAccount");
-
-    crate::utils::close_account(
-        ctx.accounts.encoded_vaa.to_account_info(),
-        ctx.accounts.write_authority.to_account_info(),
-    )
-}
-
-fn write(ctx: Context<ProcessEncodedVaa>, index: u32, data: Vec<u8>) -> Result<()> {
-    require!(
-        !data.is_empty(),
-        CoreBridgeError::InvalidInstructionArgument
-    );
-
-    let vaa_size: usize = {
-        let vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);
-        require!(
-            vaa.status() == ProcessingStatus::Writing,
-            CoreBridgeError::NotInWritingStatus
-        );
-
-        vaa.vaa_size()
-    };
-
-    let index = usize::try_from(index).unwrap();
-    let end = index.saturating_add(data.len());
-    require_gte!(vaa_size, end, CoreBridgeError::DataOverflow);
-
-    let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
-    acc_data[(EncodedVaa::VAA_START + index)..(EncodedVaa::VAA_START + end)].copy_from_slice(&data);
-
-    // Done.
-    Ok(())
-}
-
-fn verify_signatures_v1(ctx: Context<ProcessEncodedVaa>) -> Result<()> {
-    msg!("Directive: VerifySignaturesV1");
-
-    require!(
-        ctx.accounts.guardian_set.is_some(),
-        ErrorCode::AccountNotEnoughKeys
-    );
-
-    let guardian_set = ctx.accounts.guardian_set.as_ref().unwrap();
+#[access_control(VerifyEncodedVaaV1::constraints(&ctx))]
+pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
+    let guardian_set = &ctx.accounts.guardian_set;
 
     let write_authority = {
         let encoded_vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);

@@ -51,24 +51,8 @@ impl<'info> PostVaaV1<'info> {
     }
 }
 
-/// Directive for the [post_vaa_v1](crate::wormhole_core_bridge_solana::post_vaa_v1) instruction.
-///
-/// NOTE: This directive acts as a placeholder in case we want to expand how VAAs are posted.
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub enum PostVaaV1Directive {
-    TryOnce,
-}
-
 #[access_control(PostVaaV1::constraints(&ctx))]
-pub fn post_vaa_v1(ctx: Context<PostVaaV1>, directive: PostVaaV1Directive) -> Result<()> {
-    match directive {
-        PostVaaV1Directive::TryOnce => try_once(ctx),
-    }
-}
-
-fn try_once(ctx: Context<PostVaaV1>) -> Result<()> {
-    msg!("Directive: TryOnce");
-
+pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
     let encoded_vaa = &ctx.accounts.vaa;
 
     // This is safe because the VAA integrity has already been verified.

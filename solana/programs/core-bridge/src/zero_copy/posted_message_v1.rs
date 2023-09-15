@@ -12,7 +12,7 @@ use anchor_lang::prelude::{
 pub struct PostedMessageV1<'a>(Ref<'a, &'a mut [u8]>);
 
 impl<'a> PostedMessageV1<'a> {
-    pub const RELIABLE_DISC: [u8; 4] = state::POSTED_MESSAGE_V1_DISCRIMINATOR;
+    pub const DISC: [u8; 4] = state::POSTED_MESSAGE_V1_DISCRIMINATOR;
     pub const UNRELIABLE_DISC: [u8; 4] = state::POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
     pub const PAYLOAD_START: usize = 95;
 
@@ -21,7 +21,7 @@ impl<'a> PostedMessageV1<'a> {
     }
 
     pub fn reliable(&self) -> bool {
-        self.discriminator() == Self::RELIABLE_DISC
+        self.discriminator() == Self::DISC
     }
 
     pub fn unreliable(&self) -> bool {
@@ -83,7 +83,7 @@ impl<'a> PostedMessageV1<'a> {
     pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
         let parsed = Self::parse_any(acc_info)?;
         require!(
-            parsed.discriminator() == Self::RELIABLE_DISC,
+            parsed.discriminator() == Self::DISC,
             ErrorCode::AccountDidNotDeserialize
         );
 

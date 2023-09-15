@@ -173,17 +173,16 @@ fn handle_write_message_v1<'info>(
     data: Vec<u8>,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
-    crate::cpi::process_message_v1(
+    crate::cpi::write_message_v1(
         CpiContext::new_with_signer(
             core_bridge_program.clone(),
-            crate::cpi::accounts::ProcessMessageV1 {
+            crate::cpi::accounts::WriteMessageV1 {
                 emitter_authority: core_emitter_authority.clone(),
                 draft_message: core_message.clone(),
-                close_account_destination: None,
             },
             signer_seeds.unwrap_or_default(),
         ),
-        crate::processor::ProcessMessageV1Directive::Write { index, data },
+        crate::processor::WriteMessageV1Args { index, data },
     )
 }
 
@@ -193,16 +192,12 @@ fn handle_finalize_message_v1<'info>(
     core_emitter_authority: AccountInfo<'info>,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
-    crate::cpi::process_message_v1(
-        CpiContext::new_with_signer(
-            core_bridge_program.clone(),
-            crate::cpi::accounts::ProcessMessageV1 {
-                emitter_authority: core_emitter_authority.clone(),
-                draft_message: core_message.clone(),
-                close_account_destination: None,
-            },
-            signer_seeds.unwrap_or_default(),
-        ),
-        crate::processor::ProcessMessageV1Directive::Finalize,
-    )
+    crate::cpi::finalize_message_v1(CpiContext::new_with_signer(
+        core_bridge_program.clone(),
+        crate::cpi::accounts::FinalizeMessageV1 {
+            emitter_authority: core_emitter_authority.clone(),
+            draft_message: core_message.clone(),
+        },
+        signer_seeds.unwrap_or_default(),
+    ))
 }

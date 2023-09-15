@@ -51,11 +51,8 @@ pub mod wormhole_token_bridge_solana {
     /// [RegisteredEmitter](crate::legacy::state::RegisteredEmitter) account with a PDA address with
     /// seeds \[emitter_chain\]. We can consider migrating to the newly derived account and closing
     /// the legacy account in the future.
-    pub fn secure_registered_emitter(
-        ctx: Context<SecureRegisteredEmitter>,
-        directive: SecureRegisteredEmitterDirective,
-    ) -> Result<()> {
-        processor::secure_registered_emitter(ctx, directive)
+    pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
+        processor::secure_registered_emitter(ctx)
     }
 
     /// Process legacy Token Bridge instructions. See [legacy](crate::legacy) for more info.

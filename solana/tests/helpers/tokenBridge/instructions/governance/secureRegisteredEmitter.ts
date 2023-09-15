@@ -8,18 +8,9 @@ export type SecureRegisteredEmitterContext = {
   legacyRegisteredEmitter: PublicKey;
 };
 
-export type SecureRegisteredEmitterDirective =
-  | {
-      init: {};
-    }
-  | {
-      closeLegacy: {};
-    };
-
 export async function secureRegisteredEmitterIx(
   program: TokenBridgeProgram,
-  accounts: SecureRegisteredEmitterContext,
-  directive: SecureRegisteredEmitterDirective
+  accounts: SecureRegisteredEmitterContext
 ) {
   const programId = program.programId;
 
@@ -34,7 +25,7 @@ export async function secureRegisteredEmitterIx(
   }
 
   return program.methods
-    .secureRegisteredEmitter(directive)
+    .secureRegisteredEmitter()
     .accounts({ payer, registeredEmitter, legacyRegisteredEmitter })
     .instruction();
 }

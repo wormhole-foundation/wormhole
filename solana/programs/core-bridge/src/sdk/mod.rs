@@ -6,10 +6,7 @@
 pub use crate::{
     constants::{PROGRAM_EMITTER_SEED_PREFIX, SOLANA_CHAIN},
     legacy::instruction::PostMessageArgs,
-    processor::{
-        ClosePostedVaaV1Directive, InitMessageV1Args, PostVaaV1Directive,
-        ProcessEncodedVaaDirective, ProcessMessageV1Directive,
-    },
+    processor::{InitMessageV1Args, WriteEncodedVaaArgs, WriteMessageV1Args},
     state, types, zero_copy,
 };
 
