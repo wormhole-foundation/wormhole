@@ -80,8 +80,8 @@ impl<'a> PostedMessageV1<'a> {
     ///
     /// NOTE: There is no ownership check because [AccountInfo](anchor_lang::prelude::AccountInfo)
     /// is not passed into this method.
-    pub fn parse_reliable(acc_info: &'a AccountInfo) -> Result<Self> {
-        let parsed = Self::parse(acc_info)?;
+    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+        let parsed = Self::parse_any(acc_info)?;
         require!(
             parsed.discriminator() == Self::RELIABLE_DISC,
             ErrorCode::AccountDidNotDeserialize
@@ -96,7 +96,7 @@ impl<'a> PostedMessageV1<'a> {
     /// NOTE: There is no ownership check because [AccountInfo](anchor_lang::prelude::AccountInfo)
     /// is not passed into this method.
     pub fn parse_unreliable(acc_info: &'a AccountInfo) -> Result<Self> {
-        let parsed = Self::parse(acc_info)?;
+        let parsed = Self::parse_any(acc_info)?;
         require!(
             parsed.discriminator() == Self::UNRELIABLE_DISC,
             ErrorCode::AccountDidNotDeserialize
@@ -105,11 +105,13 @@ impl<'a> PostedMessageV1<'a> {
         Ok(parsed)
     }
 
-    pub(crate) fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
+    /// Be careful with using this method. This method does not check the owner of the account or
+    /// check for the size of borrowed account data.
+    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
         Self(acc_info.data.borrow())
     }
 
-    fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+    fn parse_any(acc_info: &'a AccountInfo) -> Result<Self> {
         require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
 
         let data = acc_info.try_borrow_data()?;

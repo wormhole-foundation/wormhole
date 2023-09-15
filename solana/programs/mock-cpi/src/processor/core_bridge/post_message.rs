@@ -81,12 +81,11 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessage<'inf
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        self.core_custom_emitter.clone()
-    }
-
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        self.core_program_emitter.clone()
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        match &self.core_program_emitter {
+            Some(program_emitter) => program_emitter.to_account_info(),
+            None => self.core_custom_emitter.as_ref().unwrap().to_account_info(),
+        }
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {

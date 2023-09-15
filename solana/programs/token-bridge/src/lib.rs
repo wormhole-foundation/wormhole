@@ -28,7 +28,7 @@ pub mod sdk;
 
 pub mod state;
 
-pub mod utils;
+pub(crate) mod utils;
 
 pub mod zero_copy;
 

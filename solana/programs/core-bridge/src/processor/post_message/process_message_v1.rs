@@ -24,7 +24,7 @@ pub struct ProcessMessageV1<'info> {
 
 impl<'info> ProcessMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let message = PostedMessageV1::parse_reliable(&ctx.accounts.draft_message)?;
+        let message = PostedMessageV1::parse(&ctx.accounts.draft_message)?;
 
         require_keys_eq!(
             ctx.accounts.emitter_authority.key(),

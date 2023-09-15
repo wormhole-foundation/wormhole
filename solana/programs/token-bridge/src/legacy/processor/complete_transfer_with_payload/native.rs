@@ -161,7 +161,7 @@ fn complete_transfer_with_payload_native(
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
 
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.

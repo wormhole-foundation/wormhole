@@ -57,12 +57,8 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        None
-    }
-
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_program_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_program_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {

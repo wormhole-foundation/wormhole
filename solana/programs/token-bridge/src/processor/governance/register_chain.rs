@@ -101,7 +101,7 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
 
     // Deserialize and set data in registered emitter accounts.
     {
-        let encoded_vaa = EncodedVaa::parse(&ctx.accounts.vaa).unwrap();
+        let encoded_vaa = EncodedVaa::parse_unchecked(&ctx.accounts.vaa);
         let v1 = Vaa::parse(encoded_vaa.buf()).unwrap();
         let gov_payload = TokenBridgeGovPayload::try_from(v1.body().payload())
             .unwrap()

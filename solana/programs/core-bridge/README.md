@@ -61,7 +61,7 @@ publish a Wormhole message:
 
 - `core_message` (which in this example is just a keypair generated off-chain).
 - `core_emitter_authority` (seeds: ["emitter"]).
-  - **NOTE: Your program ID is the emitter in this case, so `core_emitter` will be `None`.**
+  - **NOTE: Your program ID is the emitter in this case, which requires these specific seeds.**
 - `core_bridge_config` (seeds: ["Bridge"]).
 - `core_emitter_sequence` (seeds: ["Sequence", your_program_id]).
   - **NOTE: Your program ID is the emitter in this case, which is why the emitter sequence PDA
@@ -95,10 +95,10 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'in
 
 Finally implement the `PublishMessage` trait by providing the necessary Core Bridge accounts.
 
-**NOTE: For messages where the emitter address is your program ID, the `core_emitter` in this case
-is `None` and `core_emitter_authority` is `Some(emitter_authority)`, which is your program's PDA
-address derived using `[b"emitter"]` as its seeds. This seed prefix is provided for you as `PROGRAM_EMITTER_SEED_PREFIX` and is used in your account context to validate the correct emitter
-authority is provided.**
+**NOTE: For messages where the emitter address is your program ID, the `core_emitter_authority` is
+your program's PDA address derived using `[b"emitter"]` as its seeds. This seed prefix is provided
+for you as `PROGRAM_EMITTER_SEED_PREFIX` and is used in your account context to validate the correct
+emitter authority is provided.**
 
 ```rust,ignore
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'info> {
@@ -110,12 +110,8 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        None
-    }
-
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_program_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_program_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {
@@ -221,12 +217,8 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'i
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        None
-    }
-
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.core_program_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.core_program_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {

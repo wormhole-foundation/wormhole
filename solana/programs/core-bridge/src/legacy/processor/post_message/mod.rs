@@ -331,7 +331,7 @@ fn find_emitter_for_sequence(
 
         Ok(emitter.key())
     } else {
-        let msg = crate::zero_copy::PostedMessageV1::parse_reliable(msg_acc_info)?;
+        let msg = crate::zero_copy::PostedMessageV1::parse(msg_acc_info)?;
 
         match msg.status() {
             MessageStatus::Unset => err!(CoreBridgeError::MessageAlreadyPublished),

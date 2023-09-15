@@ -304,8 +304,8 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'
         self.core_bridge_config.to_account_info()
     }
 
-    fn core_emitter(&self) -> Option<AccountInfo<'info>> {
-        Some(self.token_bridge_core_emitter.to_account_info())
+    fn core_emitter_authority(&self) -> AccountInfo<'info> {
+        self.token_bridge_core_emitter.to_account_info()
     }
 
     fn core_emitter_sequence(&self) -> AccountInfo<'info> {

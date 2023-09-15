@@ -1,33 +1,25 @@
 pub use crate::legacy::instruction::PostMessageArgs;
 
-use crate::{error::CoreBridgeError, types::Commitment};
+use crate::types::Commitment;
 use anchor_lang::prelude::*;
 
 /// Trait for invoking one of the ways you can publish a Wormhole message using the Core Bridge
 /// program.
 ///
-/// A message's emitter address can either based on a program's ID or a custom address (determined
-/// by either a keypair or program's PDA). Depending on which emitter address is used, the
-/// [core_emitter](PublishMessage::core_emitter) or
-/// [core_emitter_authority](PublishMessage::core_emitter_authority) account must be provided.
-///
-/// When the emitter itself is a signer for the post message instruction, you must specify `Some`
-/// for [core_emitter](PublishMessage::core_emitter). Otherwise, if the emitter is a program ID, you
-/// must specify Some for [core_emitter_authority](PublishMessage::core_emitter_authority), which is
-/// the program's authority to draft a new message to prepare it for posting. By default,
-/// [core_emitter_authority](PublishMessage::core_emitter_authority) returns `None`, so you must
-/// override it if the emitter address is a program ID.
+/// NOTE: A message's emitter address can either based on a program's ID or a custom address
+/// (determined by either a keypair or program's PDA). If the emitter address is a program ID, then
+/// the seeds for the emitter authority must be \["emitter"\].
 pub trait PublishMessage<'info>: super::CreateAccount<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info>;
 
+    /// Core Bridge Emitter Authority (read-only signer). This account should return either the
+    /// account that will act as the emitter address or the signer for a program emitter, where the
+    /// emitter address is a program ID. This emitter also acts as the authority for preparing a
+    /// message before it is posted.
+    fn core_emitter_authority(&self) -> AccountInfo<'info>;
+
     /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
     fn core_bridge_config(&self) -> AccountInfo<'info>;
-
-    /// Core Bridge Emitter (read-only signer).
-    ///
-    /// NOTE: This account isn't checked if the message's emitter address is a program ID, so
-    /// in this case it can return None.
-    fn core_emitter(&self) -> Option<AccountInfo<'info>>;
 
     /// Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\]).
     fn core_emitter_sequence(&self) -> AccountInfo<'info>;
@@ -37,25 +29,6 @@ pub trait PublishMessage<'info>: super::CreateAccount<'info> {
     /// NOTE: This account is mutable because the SDK method that publishes messages pays the
     /// Wormhole fee, which requires a lamport transfer from the payer to the fee collector.
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>>;
-
-    /// Core Bridge Emitter Authority (read-only signer). This account should return Some if the
-    /// emitter address is a program ID. This emitter authority acts as the signer for preparing a
-    /// message before it is posted.
-    fn core_emitter_authority(&self) -> Option<AccountInfo<'info>> {
-        None
-    }
-
-    /// Try unwrapping [core_emitter](PublishMessage::core_emitter).
-    fn try_core_emitter(&self) -> Result<AccountInfo<'info>> {
-        self.core_emitter()
-            .ok_or(error!(CoreBridgeError::EmitterRequired))
-    }
-
-    /// Try unwrapping [core_emitter_authority](PublishMessage::core_emitter_authority).
-    fn try_core_emitter_authority(&self) -> Result<AccountInfo<'info>> {
-        self.core_emitter_authority()
-            .ok_or(error!(CoreBridgeError::EmitterAuthorityRequired))
-    }
 }
 
 /// Directive used to determine how to post a Core Bridge message.
@@ -210,7 +183,7 @@ where
             crate::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config(),
                 message: new_message,
-                emitter: accounts.core_emitter(),
+                emitter: Some(accounts.core_emitter_authority()),
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
                 fee_collector: accounts.core_fee_collector(),
@@ -247,7 +220,7 @@ where
     crate::sdk::cpi::handle_prepare_message_v1(
         accounts.core_bridge_program(),
         new_message.to_account_info(),
-        accounts.try_core_emitter_authority()?,
+        accounts.core_emitter_authority(),
         crate::sdk::cpi::InitMessageV1Args {
             nonce,
             cpi_program_id: Some(program_id),
@@ -294,7 +267,7 @@ where
             crate::legacy::cpi::PostMessageUnreliable {
                 config: accounts.core_bridge_config(),
                 message: new_message,
-                emitter: accounts.try_core_emitter()?,
+                emitter: accounts.core_emitter_authority(),
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
                 fee_collector: accounts.core_fee_collector(),

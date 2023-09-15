@@ -124,7 +124,9 @@ impl<'a> PostedVaaV1<'a> {
         Ok(parsed)
     }
 
-    pub(crate) fn parse_unchecked<'info>(acc_info: &'a AccountInfo<'info>) -> Self {
+    /// Be careful with using this method. This method does not check the owner of the account or
+    /// check for the size of borrowed account data.
+    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
         Self(acc_info.data.borrow())
     }
 }

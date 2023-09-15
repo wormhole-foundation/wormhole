@@ -178,7 +178,7 @@ where
     let (expected_core_emitter, emitter_bump) =
         Pubkey::find_program_address(&[EMITTER_SEED_PREFIX], &crate::ID);
     require_keys_eq!(
-        accounts.core_emitter().unwrap().key(),
+        accounts.core_emitter_authority().key(),
         expected_core_emitter,
         ErrorCode::ConstraintSeeds,
     );

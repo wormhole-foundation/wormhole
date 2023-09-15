@@ -84,6 +84,12 @@ impl<'a> EncodedVaa<'a> {
         parse_v1(self.buf())
     }
 
+    /// Be careful with using this method. This method does not check the owner of the account or
+    /// check for the size of borrowed account data.
+    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
+        Self(acc_info.data.borrow())
+    }
+
     pub(crate) fn parse_unverified(acc_info: &'a AccountInfo) -> Result<Self> {
         require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
 
@@ -106,10 +112,6 @@ impl<'a> EncodedVaa<'a> {
         );
 
         Ok(parsed)
-    }
-
-    pub(crate) fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
-        Self(acc_info.data.borrow())
     }
 }
 

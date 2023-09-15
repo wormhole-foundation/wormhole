@@ -212,7 +212,7 @@ fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArg
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 
@@ -279,7 +279,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
     let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
     let attestation = msg.attestation().unwrap();
 

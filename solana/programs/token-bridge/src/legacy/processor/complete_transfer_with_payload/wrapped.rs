@@ -163,7 +163,7 @@ fn complete_transfer_with_payload_wrapped(
     // so this value does not matter. But the legacy program set this data to true.
     ctx.accounts.claim.is_complete = true;
 
-    let vaa = PostedVaaV1::parse(&ctx.accounts.posted_vaa).unwrap();
+    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
 
     // Take transfer amount as-is.
     let mint_amount = TokenBridgeMessage::parse(vaa.payload())
