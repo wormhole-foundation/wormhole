@@ -116,4 +116,13 @@ pub enum TokenBridgeError {
 
     #[msg("SenderAuthorityRequired")]
     SenderAuthorityRequired = 0x2008,
+
+    #[msg("PayerTokenRequired")]
+    PayerTokenRequired = 0x200a,
+
+    #[msg("MintAuthorityRequired")]
+    MintAuthorityRequired = 0x200c,
+
+    #[msg("RedeemerAuthorityRequired")]
+    RedeemerAuthorityRequired = 0x200e,
 }

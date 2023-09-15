@@ -152,7 +152,7 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
         Some(self.token_bridge_wrapped_asset.to_account_info())
     }
 
-    fn token_bridge_sender_authority(&self) -> Option<AccountInfo<'info>> {
+    fn sender_authority(&self) -> Option<AccountInfo<'info>> {
         match (
             &self.token_bridge_program_sender_authority,
             &self.token_bridge_custom_sender_authority,

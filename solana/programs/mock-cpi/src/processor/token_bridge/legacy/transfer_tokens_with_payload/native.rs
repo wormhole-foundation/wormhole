@@ -160,13 +160,13 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info>
         Some(self.token_bridge_custody_token.to_account_info())
     }
 
-    fn token_bridge_sender_authority(&self) -> Option<AccountInfo<'info>> {
+    fn sender_authority(&self) -> Option<AccountInfo<'info>> {
         match (
             &self.token_bridge_program_sender_authority,
             &self.token_bridge_custom_sender_authority,
         ) {
-            (Some(sender_authority), _) => Some(sender_authority.to_account_info()),
-            (None, Some(sender_authority)) => Some(sender_authority.to_account_info()),
+            (Some(authority), _) => Some(authority.to_account_info()),
+            (None, Some(authority)) => Some(authority.to_account_info()),
             (None, None) => None,
         }
     }

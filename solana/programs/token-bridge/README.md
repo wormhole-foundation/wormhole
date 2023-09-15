@@ -3,6 +3,18 @@
 This package implements Wormhole's Token Bridge specification on Solana with some modifications (due
 to the nature of how Solana works). The program itself is written using the [Anchor] framework.
 
+## Example Integration (Inbound Transfer)
+
+In order to bridge assets into Solana with a program integrating with Token Bridge, there are a
+couple of traits that you the integrator will have to implement:
+
+- `CompleteTransfer<'info>`
+  - TODO
+- `CreateAccount<'info>`
+  - TODO
+
+These traits are found in the SDK submodule of the Token Bridge program crate.
+
 ## Example Integration (Outbound Transfer)
 
 In order to bridge assets from Solana with a program integrating with Token Bridge, there are a few
@@ -12,8 +24,8 @@ traits that you the integrator will have to implement:
   - TODO
 - `PublishMessage<'info>`
   - Ensures that all Core Bridge accounts are included in your [account context].
-  - **NOTE: This includes having to implement `CreateAccount<'info>` and
-    `InvokeCoreBridge<'info>`. See [Core Bridge program documentation] for more details.**
+  - **NOTE: This includes having to implement `CreateAccount<'info>`. See
+    [Core Bridge program documentation] for more details.**
 
 These traits are found in the SDK submodule of the Token Bridge program crate.
 
@@ -213,11 +225,133 @@ simple Anchor program looks like the following:
 ```rust,ignore
 #![allow(clippy::result_large_err)]
 
+
 use anchor_lang::prelude::*;
 use anchor_spl::token;
 use wormhole_token_bridge_solana::sdk::{self as token_bridge_sdk, core_bridge_sdk};
 
 declare_id!("TokenBridgeHe11oWor1d1111111111111111111111");
+
+#[derive(Accounts)]
+pub struct RedeemHelloWorld<'info> {
+    #[account(mut)]
+    payer: Signer<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = payer,
+    )]
+    payer_token: Account<'info, token::TokenAccount>,
+
+    /// CHECK: Mint of our token account. This account is mutable in case the transferred asset is
+    /// Token Bridge wrapped, which requires the Token Bridge program to mint to a token account.
+    #[account(
+        mut,
+        owner = token::ID
+    )]
+    mint: AccountInfo<'info>,
+
+    /// CHECK: This account acts as the signer for our Token Bridge complete transfer with payload.
+    /// This PDA validates the redeemer address as this program's ID.
+    #[account(
+        seeds = [token_bridge_sdk::PROGRAM_REDEEMER_SEED_PREFIX],
+        bump,
+    )]
+    redeemer_authority: AccountInfo<'info>,
+
+    /// CHECK: This account is needed for the Token Bridge program. This account warehouses the
+    /// VAA of the token transfer from another chain.
+    posted_vaa: UncheckedAccount<'info>,
+
+    /// CHECK: This account is needed for the Token Bridge program.
+    #[account(mut)]
+    token_bridge_claim: UncheckedAccount<'info>,
+
+    /// CHECK: This account is needed for the Token Bridge program.
+    token_bridge_registered_emitter: UncheckedAccount<'info>,
+
+    /// CHECK: This account is needed for the Token Bridge program. This should not be None for
+    /// native tokens.
+    #[account(mut)]
+    token_bridge_custody_token_account: Option<AccountInfo<'info>>,
+
+    /// CHECK: This account is needed for the Token Bridge program. This should not be None for
+    /// native tokens.
+    token_bridge_custody_authority: Option<AccountInfo<'info>>,
+
+    /// CHECK: This account is needed for the Token Bridge program. This should not be None for
+    /// wrapped tokens.
+    token_bridge_wrapped_asset: Option<AccountInfo<'info>>,
+
+    /// CHECK: This account is needed for the Token Bridge program. This should not be None for
+    /// wrapped tokens.
+    token_bridge_mint_authority: Option<AccountInfo<'info>>,
+
+    system_program: Program<'info, System>,
+    token_bridge_program: Program<'info, token_bridge_sdk::cpi::TokenBridge>,
+    token_program: Program<'info, token::Token>,
+}
+
+impl<'info> token_bridge_sdk::cpi::CreateAccount<'info> for RedeemHelloWorld<'info> {
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+}
+
+impl<'info> token_bridge_sdk::cpi::CompleteTransfer<'info> for RedeemHelloWorld<'info> {
+    fn token_bridge_program(&self) -> AccountInfo<'info> {
+        self.token_bridge_program.to_account_info()
+    }
+
+    fn vaa(&self) -> AccountInfo<'info> {
+        self.posted_vaa.to_account_info()
+    }
+
+    fn token_bridge_claim(&self) -> AccountInfo<'info> {
+        self.token_bridge_claim.to_account_info()
+    }
+
+    fn token_bridge_registered_emitter(&self) -> AccountInfo<'info> {
+        self.token_bridge_registered_emitter.to_account_info()
+    }
+
+    fn dst_token_account(&self) -> AccountInfo<'info> {
+        self.payer_token.to_account_info()
+    }
+
+    fn mint(&self) -> AccountInfo<'info> {
+        self.mint.to_account_info()
+    }
+
+    fn redeemer_authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.redeemer_authority.to_account_info())
+    }
+
+    fn token_bridge_custody_authority(&self) -> Option<AccountInfo<'info>> {
+        self.token_bridge_custody_authority.clone()
+    }
+
+    fn token_bridge_custody_token_account(&self) -> Option<AccountInfo<'info>> {
+        self.token_bridge_custody_token_account.clone()
+    }
+
+    fn token_bridge_mint_authority(&self) -> Option<AccountInfo<'info>> {
+        self.token_bridge_mint_authority.clone()
+    }
+
+    fn token_bridge_wrapped_asset(&self) -> Option<AccountInfo<'info>> {
+        self.token_bridge_wrapped_asset.clone()
+    }
+
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+}
 
 #[derive(Accounts)]
 pub struct TransferHelloWorld<'info> {
@@ -231,8 +365,13 @@ pub struct TransferHelloWorld<'info> {
     )]
     payer_token: Account<'info, token::TokenAccount>,
 
-    /// CHECK: Mint of our token account.
-    #[account(owner = token::ID)]
+    /// CHECK: Mint of our token account. This account is mutable in case the transferred asset is
+    /// Token Bridge wrapped, which requires the Token Bridge program to burn from a token
+    /// account.
+    #[account(
+        mut,
+        owner = token::ID
+    )]
     mint: AccountInfo<'info>,
 
     /// CHECK: This account acts as the signer for our Token Bridge transfer with payload. This PDA
@@ -248,6 +387,7 @@ pub struct TransferHelloWorld<'info> {
 
     /// CHECK: This account is needed for the Token Bridge program. This should not be None for
     /// native tokens.
+    #[account(mut)]
     token_bridge_custody_token_account: Option<AccountInfo<'info>>,
 
     /// CHECK: This account is needed for the Token Bridge program. This should not be None for
@@ -285,7 +425,7 @@ pub struct TransferHelloWorld<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'info> {
+impl<'info> token_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -315,15 +455,15 @@ impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferHelloWorld<'
     fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
         Some(self.core_fee_collector.to_account_info())
     }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
 }
 
 impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info> {
         self.token_bridge_program.to_account_info()
+    }
+
+    fn core_message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
     }
 
     fn token_program(&self) -> AccountInfo<'info> {
@@ -354,7 +494,7 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<
         self.token_bridge_wrapped_asset.clone()
     }
 
-    fn token_bridge_sender_authority(&self) -> Option<AccountInfo<'info>> {
+    fn sender_authority(&self) -> Option<AccountInfo<'info>> {
         Some(self.sender_authority.to_account_info())
     }
 }
@@ -362,6 +502,16 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<
 #[program]
 pub mod token_bridge_hello_world {
     use super::*;
+
+    pub fn redeem_hello_world(ctx: Context<RedeemHelloWorld>) -> Result<()> {
+        token_bridge_sdk::cpi::complete_transfer(
+            ctx.accounts,
+            Some(&[&[
+                token_bridge_sdk::PROGRAM_REDEEMER_SEED_PREFIX,
+                &[ctx.bumps["redeemer_authority"]],
+            ]]),
+        )
+    }
 
     pub fn transfer_hello_world(ctx: Context<TransferHelloWorld>, amount: u64) -> Result<()> {
         let nonce = 420;

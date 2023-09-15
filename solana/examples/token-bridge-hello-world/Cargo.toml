@@ -22,5 +22,5 @@ cpi = ["no-entrypoint"]
 [dependencies]
 wormhole-token-bridge-solana = { path = "../../programs/token-bridge", features = ["cpi"], default-features = false }
 
-anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"

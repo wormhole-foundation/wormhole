@@ -20,14 +20,6 @@ impl<'a> PostedMessageV1<'a> {
         self.0[..4].try_into().unwrap()
     }
 
-    pub fn reliable(&self) -> bool {
-        self.discriminator() == Self::DISC
-    }
-
-    pub fn unreliable(&self) -> bool {
-        self.discriminator() == Self::UNRELIABLE_DISC
-    }
-
     /// Level of consistency requested by the emitter.
     pub fn consistency_level(&self) -> u8 {
         self.0[4]

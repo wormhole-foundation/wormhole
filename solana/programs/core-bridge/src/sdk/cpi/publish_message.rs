@@ -1,13 +1,11 @@
-pub use crate::legacy::instruction::PostMessageArgs;
-
-use crate::types::Commitment;
+use crate::{legacy::instruction::PostMessageArgs, types::Commitment};
 use anchor_lang::prelude::*;
 
 /// Trait for invoking one of the ways you can publish a Wormhole message using the Core Bridge
 /// program.
 ///
-/// NOTE: A message's emitter address can either based on a program's ID or a custom address
-/// (determined by either a keypair or program's PDA). If the emitter address is a program ID, then
+/// NOTE: A message's emitter address can either be a program's ID or a custom address (determined
+/// by either a keypair or program's PDA). If the emitter address is a program ID, then
 /// the seeds for the emitter authority must be \["emitter"\].
 pub trait PublishMessage<'info>: super::CreateAccount<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info>;
@@ -35,10 +33,6 @@ pub trait PublishMessage<'info>: super::CreateAccount<'info> {
 pub enum PublishMessageDirective {
     /// Ordinary message, which creates a new account for the Core Bridge message. The emitter
     /// address is the pubkey of the emitter signer.
-    ///
-    /// NOTE: The core_emitter in [PublishMessage] must return `Some`, which will be the account
-    /// info for the emitter signer. See [post_message](crate::legacy::cpi::post_message) for more
-    /// info.
     Message {
         nonce: u32,
         payload: Vec<u8>,
@@ -47,10 +41,8 @@ pub enum PublishMessageDirective {
     /// Ordinary message, which creates a new account for the Core Bridge message. The emitter
     /// address is the program ID specified in this directive.
     ///
-    /// NOTE: The core_emitter_authority in [PublishMessage] must return `Some`, which will be the
-    /// account info for the authority used to prepare a new draft message. See
-    /// [init_message_v1](crate::cpi::init_message_v1) and
-    /// [process_message_v1](crate::cpi::process_message_v1) for more details.
+    /// NOTE: [core_emitter_authority](PublishMessage::core_emitter_authority) must use seeds =
+    /// \["emitter"\].
     ProgramMessage {
         program_id: Pubkey,
         nonce: u32,
@@ -60,10 +52,6 @@ pub enum PublishMessageDirective {
     /// Unreliable (reusable) message, which will either create a new account or reuse an existing
     /// Core Bridge message account. The emitter address is the pubkey of the emitter signer. If a
     /// message account is reused, the payload length must be the same as the existing message's.
-    ///
-    /// NOTE: The core_emitter in [PublishMessage] must return `Some`, which will be the account
-    /// info for the emitter signer. See [post_message](crate::legacy::cpi::post_message) for more
-    /// info.
     UnreliableMessage {
         nonce: u32,
         payload: Vec<u8>,
@@ -78,18 +66,19 @@ pub enum PublishMessageDirective {
 
 /// SDK method for posting a new message with the Core Bridge program. This method will handle any
 /// of the following directives:
-/// * Post a new message with an emitter address determined by either a keypair or program PDA.
+/// * Post a new message with an emitter address determined by either a keypair pubkey or PDA
+///   address.
 /// * Post a new message with an emitter address that is a program ID.
 /// * Post an unreliable message, which can reuse a message account with a new payload.
 ///
 /// The accounts must implement [PublishMessage].
 ///
 /// Emitter seeds are needed to act as a signer for the post message instructions. These seeds are
-/// either the seeds of a program's PDA or specifically seeds = \["emitter"\] if the program ID is the
+/// either the seeds of a PDA or specifically seeds = \["emitter"\] if the program ID is the
 /// emitter address.
 ///
 /// Message seeds are optional and are only needed if the integrating program is using a PDA for
-/// this account. Otherwise, a keypair can be used and message seeds can be None.
+/// this account. Otherwise, a keypair can be used.
 pub fn publish_message<'info, A>(
     accounts: &A,
     new_message: AccountInfo<'info>,

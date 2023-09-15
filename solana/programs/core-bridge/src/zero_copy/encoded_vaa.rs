@@ -17,6 +17,10 @@ impl<'a> EncodedVaa<'a> {
     pub const DISC: [u8; 8] = state::EncodedVaa::DISCRIMINATOR;
     pub const VAA_START: usize = state::EncodedVaa::VAA_START;
 
+    pub fn discriminator(&self) -> [u8; 8] {
+        self.0[..8].try_into().unwrap()
+    }
+
     /// Processing status. **This encoded VAA is only considered usable when this status is set
     /// to [Verified](state::ProcessingStatus::Verified).**
     pub fn status(&self) -> state::ProcessingStatus {
