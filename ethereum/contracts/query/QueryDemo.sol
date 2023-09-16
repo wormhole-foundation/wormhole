@@ -17,8 +17,8 @@ contract QueryDemo is Context, QueryResponse {
         uint16 chainID;
         address contractAddress;
         uint256 counter;
-        uint64 blockNum;
-        uint64 blockTime;
+        uint256 blockNum;
+        uint256 blockTime;
     }
 
     address owner;
@@ -64,13 +64,16 @@ contract QueryDemo is Context, QueryResponse {
 
     // updateCounters takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
+        uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
         require(r.responses.length == foreignChainIDs.length, "unexpected number of results");
         for (uint idx=0; idx<r.responses.length; idx++) {
             require(counters[r.responses[idx].chainId].chainID == foreignChainIDs[idx], "unexpected foreign chain ID");
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[idx]);
             require(eqr.blockNum > counters[r.responses[idx].chainId].blockNum, "update is obsolete");
-            require(eqr.blockTime > block.timestamp - 300, "update is stale");
+            // wormhole time is in microseconds, timestamp is in seconds
+            adjustedBlockTime = eqr.blockTime / 1_000_000;
+            require(adjustedBlockTime > block.timestamp - 300, "update is stale");
             require(eqr.result.length == 1, "result mismatch");
             require(eqr.result[0].contractAddress == counters[r.responses[idx].chainId].contractAddress, "contract address is wrong");
 
@@ -84,12 +87,13 @@ contract QueryDemo is Context, QueryResponse {
 
             require(eqr.result[0].result.length == 32, "result is not a uint256");
             counters[r.responses[idx].chainId].blockNum = eqr.blockNum;
-            counters[r.responses[idx].chainId].blockTime = eqr.blockTime;
+            counters[r.responses[idx].chainId].blockTime = adjustedBlockTime;
             counters[r.responses[idx].chainId].counter = abi.decode(eqr.result[0].result, (uint256));
         }
 
+        counters[myChainID].blockNum = block.number;
+        counters[myChainID].blockTime = block.timestamp;
         counters[myChainID].counter += 1;
-        // TODO: set block number and time
     }
 
     modifier onlyOwner() {

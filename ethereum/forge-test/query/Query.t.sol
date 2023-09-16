@@ -114,4 +114,33 @@ contract TestQueryResponse is Test, QueryResponse {
         assertEq(eqr.result[1].callData, hex"18160ddd");
         assertEq(eqr.result[1].result, hex"0000000000000000000000000000000000000000007ae5649beabeddf889364a");
     }
+
+    function test_parseEthCallQueryResponseComparison() public {
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 23,
+            queryType: 1,
+            request: hex"00000009307832376433333433013ce792601c936b1c81f73ea2fa77208c0a478bae00000004916d5743",
+            response: hex"00000000027d3343b9848f128b3658a0b9b50aa174e3ddc15ac4e54c84ee534b6d247adbdfc300c90006056cda47a84001000000200000000000000000000000000000000000000000000000000000000000000004"
+            });
+
+        EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r);
+        assertEq(eqr.requestBlockId, "0x27d3343");
+        assertEq(eqr.blockNum, 0x27d3343);
+        assertEq(eqr.blockHash, hex"b9848f128b3658a0b9b50aa174e3ddc15ac4e54c84ee534b6d247adbdfc300c9");
+        vm.warp(1694814937);
+        assertEq(eqr.blockTime / 1_000_000, block.timestamp);
+        assertEq(eqr.result.length, 1);
+
+        assertEq(eqr.result[0].contractAddress, address(0x3ce792601c936b1c81f73Ea2fa77208C0A478BaE));
+        assertEq(eqr.result[0].callData, hex"916d5743");
+        bytes memory callData = eqr.result[0].callData;
+        bytes4 callSignature;
+        assembly {
+                callSignature := mload(add(callData, 32))
+            }
+        assertEq(callSignature, bytes4(keccak256("getMyCounter()")));
+        assertEq(eqr.result[0].result, hex"0000000000000000000000000000000000000000000000000000000000000004");
+        assertEq(abi.decode(eqr.result[0].result, (uint256)), 4);
+
+    }
 }

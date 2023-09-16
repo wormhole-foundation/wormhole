@@ -3,7 +3,7 @@ module.exports = async function(callback) {
   const accounts = await web3.eth.getAccounts();
   try {
     // const ccqDemo = await QueryDemo.new(
-    //   accounts[0]
+    //   accounts[0],
     //   "0x0CBE91CF822c73C2315FB05100C2F714765d5c20",
     //   5
     // );
