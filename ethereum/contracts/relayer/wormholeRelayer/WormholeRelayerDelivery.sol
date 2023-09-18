@@ -57,7 +57,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes memory encodedDeliveryVAA,
         address payable relayerRefundAddress,
         bytes memory deliveryOverrides
-    ) public payable {
+    ) public payable nonReentrant {
 
         // Parse and verify VAA containing delivery instructions, revert if invalid
         (IWormhole.VM memory vm, bool valid, string memory reason) =
@@ -74,10 +74,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
 
-        // Lock the contract (and store some information about the delivery in temporary storage)
-        startDelivery(
-            fromWormholeFormat(instruction.targetAddress),
-            fromWormholeFormat(instruction.refundDeliveryProvider),
+        // Record information about the delivery's refund in temporary storage
+        recordRefundInformation(
             instruction.refundChain,
             instruction.refundAddress
         );
@@ -126,8 +124,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         executeDelivery(deliveryVaaInfo);
 
-        // Unlock contract
-        finishDelivery();
+        // Clear temporary storage of refund information
+        clearRefundInformation();
     }
 
     // ------------------------------------------- PRIVATE -------------------------------------------
