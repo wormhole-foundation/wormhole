@@ -470,8 +470,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         TargetNative receiverValue,
         Gas gasLimit
     ) external payable {
-        (address deliveryProvider,) =
-            getOriginalOrDefaultDeliveryProvider(targetChain);
         forward(
             targetChain,
             toWormholeFormat(targetAddress),
@@ -481,7 +479,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             getCurrentRefundChain(),
             getCurrentRefundAddress(),
-            deliveryProvider,
+            getDefaultDeliveryProvider(),
             new VaaKey[](0),
             CONSISTENCY_LEVEL_FINALIZED
         );
@@ -495,8 +493,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable {
-        (address deliveryProvider,) =
-            getOriginalOrDefaultDeliveryProvider(targetChain);
         forward(
             targetChain,
             toWormholeFormat(targetAddress),
@@ -506,7 +502,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             getCurrentRefundChain(),
             getCurrentRefundAddress(),
-            deliveryProvider,
+            getDefaultDeliveryProvider(),
             vaaKeys,
             CONSISTENCY_LEVEL_FINALIZED
         );
@@ -568,22 +564,4 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             consistencyLevel
         );
     }
-
-    function getOriginalOrDefaultDeliveryProvider(uint16 targetChain)
-        public
-        view
-        returns (address deliveryProvider, address deliveryProviderOnTarget)
-    {
-        deliveryProvider = getOriginalDeliveryProvider();
-        if (
-            deliveryProvider == address(0)
-                || !IDeliveryProvider(deliveryProvider).isChainSupported(targetChain)
-        ) {
-            deliveryProvider = getDefaultDeliveryProvider();
-        }
-        deliveryProviderOnTarget = fromWormholeFormat(
-            IDeliveryProvider(deliveryProvider).getTargetChainAddress(targetChain)
-        );
-    }
-
 }
