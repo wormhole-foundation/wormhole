@@ -14,9 +14,9 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {DeliveryInstruction} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {
-    ReentrancyGuardState,
+    DeliveryTmpState,
+    getDeliveryTmpState,
     getDeliverySuccessState,
-    getReentrancyGuardState,
     getDeliveryFailureState,
     getRegisteredWormholeRelayersState
 } from "./WormholeRelayerStorage.sol";
@@ -111,15 +111,39 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
     }
 
-    modifier nonReentrant() {
-        // Reentrancy guard
-        if (getReentrancyGuardState().lockedBy != address(0)) {
-            revert ReentrantDelivery(msg.sender, getReentrancyGuardState().lockedBy);
+     // ----------------------- delivery transaction temorary storage functions -----------------------
+
+    function startDelivery(address targetAddress, address deliveryProvider, uint16 refundChain, bytes32 refundAddress) internal {
+        DeliveryTmpState storage state = getDeliveryTmpState();
+        if (state.deliveryInProgress) {
+            revert ReentrantDelivery(msg.sender, state.deliveryTarget);
         }
-        getReentrancyGuardState().lockedBy = msg.sender;
 
-        _;
+        state.deliveryInProgress = true;
+        state.deliveryTarget = targetAddress;
+        state.deliveryProvider = deliveryProvider;
+        state.refundChain = refundChain;
+        state.refundAddress = refundAddress;
+    }
 
-        getReentrancyGuardState().lockedBy = address(0);
+    function finishDelivery() internal {
+        DeliveryTmpState storage state = getDeliveryTmpState();
+        state.deliveryInProgress = false;
+        state.deliveryTarget = address(0);
+        state.deliveryProvider = address(0);
+        state.refundChain = 0;
+        state.refundAddress = bytes32(0);
+    }
+
+    function getOriginalDeliveryProvider() internal view returns (address) {
+        return getDeliveryTmpState().deliveryProvider;
+    }
+
+    function getCurrentRefundChain() internal view returns (uint16) {
+        return getDeliveryTmpState().refundChain;
+    }
+
+    function getCurrentRefundAddress() internal view returns (bytes32) {
+        return getDeliveryTmpState().refundAddress;
     }
 }
