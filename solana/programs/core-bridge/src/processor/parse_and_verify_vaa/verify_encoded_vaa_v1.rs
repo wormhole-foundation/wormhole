@@ -53,7 +53,7 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
     let guardian_set = &ctx.accounts.guardian_set;
 
     let write_authority = {
-        let encoded_vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);
+        let encoded_vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa).unwrap();
         require!(
             encoded_vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::VaaAlreadyVerified

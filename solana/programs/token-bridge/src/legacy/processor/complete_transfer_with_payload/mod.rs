@@ -7,7 +7,8 @@ pub use wrapped::*;
 use crate::{error::TokenBridgeError, legacy::state::RegisteredEmitter};
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, LoadZeroCopy},
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
@@ -18,7 +19,7 @@ pub fn validate_posted_token_transfer_with_payload(
     dst_token: &AccountInfo,
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
-    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
     let msg =
         crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
@@ -30,7 +31,7 @@ pub fn validate_posted_token_transfer_with_payload(
     // This token bridge transfer must be intended to be redeemed on Solana.
     require_eq!(
         transfer.redeemer_chain(),
-        SOLANA_CHAIN,
+        core_bridge_sdk::SOLANA_CHAIN,
         TokenBridgeError::RedeemerChainNotSolana
     );
 

@@ -2,8 +2,8 @@ use crate::{
     constants::{SOLANA_CHAIN, UPGRADE_SEED_PREFIX},
     error::CoreBridgeError,
     legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
-    state::{Claim, Config},
-    zero_copy::PostedVaaV1,
+    state::Config,
+    zero_copy::{LoadZeroCopy, VaaAccount},
 };
 use anchor_lang::prelude::*;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
@@ -25,28 +25,12 @@ pub struct UpgradeContract<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = crate::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    /// Account representing that a VAA has been consumed.
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](crate::utils::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
     /// upgrade this program's executable. We verify this PDA address here out of convenience to get
@@ -84,6 +68,16 @@ pub struct UpgradeContract<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> crate::utils::cpi::CreateAccount<'info> for UpgradeContract<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+}
+
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     for UpgradeContract<'info>
 {
@@ -94,7 +88,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
         let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
@@ -124,9 +118,11 @@ impl<'info> UpgradeContract<'info> {
 /// Loader Upgradeable program to upgrade this program's executable to the provided buffer.
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
+    let vaa = VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
     // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    crate::utils::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
 
     // Finally upgrade.
     invoke_signed(

@@ -2,12 +2,13 @@ use crate::{
     constants::MINT_AUTHORITY_SEED_PREFIX,
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, LegacyWrappedAsset, RegisteredEmitter},
+    state::{LegacyWrappedAsset, RegisteredEmitter},
     utils,
 };
 use anchor_lang::prelude::*;
 use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, LoadZeroCopy},
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
@@ -22,27 +23,12 @@ pub struct CompleteTransferWrapped<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = core_bridge_program::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
     /// decree.
@@ -105,6 +91,16 @@ pub struct CompleteTransferWrapped<'info> {
     token_program: Program<'info, anchor_spl::token::Token>,
 }
 
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for CompleteTransferWrapped<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+}
+
 impl<'info> utils::cpi::MintTo<'info> for CompleteTransferWrapped<'info> {
     fn token_program(&self) -> AccountInfo<'info> {
         self.token_program.to_account_info()
@@ -141,7 +137,7 @@ impl<'info> CompleteTransferWrapped<'info> {
         )?;
 
         let (token_chain, token_address) = super::validate_posted_token_transfer(
-            &ctx.accounts.posted_vaa,
+            &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
             &ctx.accounts.recipient,
@@ -152,7 +148,11 @@ impl<'info> CompleteTransferWrapped<'info> {
         // NOTE: This check may be redundant because our wrapped mint PDA should only exist for wrapped assets (i.e.
         // chain ID != 1. But there may be accounts that exist where the chain ID == 1, so we do perform this check as a
         // precaution).
-        require_neq!(token_chain, SOLANA_CHAIN, TokenBridgeError::NativeAsset);
+        require_neq!(
+            token_chain,
+            core_bridge_sdk::SOLANA_CHAIN,
+            TokenBridgeError::NativeAsset
+        );
 
         // Wrapped asset account must agree with the encoded token info.
         let asset = &ctx.accounts.wrapped_asset;
@@ -171,12 +171,13 @@ fn complete_transfer_wrapped(
     ctx: Context<CompleteTransferWrapped>,
     _args: EmptyArgs,
 ) -> Result<()> {
+    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
     // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
 
-    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
-    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let transfer = msg.transfer().unwrap();
 
     // We do not have to denormalize wrapped mint amounts because by definition wrapped mints can

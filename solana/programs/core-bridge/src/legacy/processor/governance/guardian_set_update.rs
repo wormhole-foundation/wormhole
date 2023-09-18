@@ -1,9 +1,9 @@
 use crate::{
     error::CoreBridgeError,
     legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
-    state::{Claim, Config, GuardianSet},
+    state::{Config, GuardianSet},
     types::Timestamp,
-    zero_copy::PostedVaaV1,
+    zero_copy::{LoadZeroCopy, VaaAccount},
 };
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::core::CoreBridgeGovPayload;
@@ -25,28 +25,12 @@ pub struct GuardianSetUpdate<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = crate::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    /// Account representing that a VAA has been consumed.
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](crate::utils::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// Existing guardian set, whose guardian set index is the same one found in the [Config].
     #[account(
@@ -64,7 +48,7 @@ pub struct GuardianSetUpdate<'info> {
     #[account(
         init,
         payer = payer,
-        space = try_compute_size(&posted_vaa)?,
+        space = try_compute_size(&vaa)?,
         seeds = [
             GuardianSet::SEED_PREFIX,
             &curr_guardian_set.index.saturating_add(1).to_be_bytes()
@@ -74,6 +58,16 @@ pub struct GuardianSetUpdate<'info> {
     new_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::utils::cpi::CreateAccount<'info> for GuardianSetUpdate<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -87,7 +81,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let config = &ctx.accounts.config;
-        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
         let gov_payload = super::require_valid_posted_governance_vaa(config, &vaa)?;
 
         // Encoded guardian set must be the next value after the current guardian set index.
@@ -112,10 +106,16 @@ impl<'info> GuardianSetUpdate<'info> {
 fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Result<()> {
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
     // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
 
-    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
-    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
+    let vaa = VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
+    crate::utils::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+
+    let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload().unwrap())
+        .unwrap()
+        .decree();
     let decree = gov_payload.guardian_set_update().unwrap();
 
     // Deserialize new guardian set.
@@ -133,10 +133,15 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
     }
 
     // Set new guardian set account fields.
+    let creation_time = match &vaa {
+        VaaAccount::EncodedVaa(inner) => inner.try_timestamp().unwrap(),
+        VaaAccount::PostedVaaV1(inner) => inner.timestamp(),
+    };
+
     ctx.accounts.new_guardian_set.set_inner(
         GuardianSet {
             index: ctx.accounts.curr_guardian_set.index + 1,
-            creation_time: vaa.timestamp(),
+            creation_time,
             keys,
             expiration_time: Default::default(),
         }
@@ -162,9 +167,9 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
 /// NOTE: We check the validity of the governance VAA in access control. If the posted VAA happens
 /// to deserialize as a guardian set update decree but anything else is invalid about this message,
 /// this instruction handler will revert (just not at this step when determining the account size).
-fn try_compute_size(posted_vaa: &AccountInfo) -> Result<usize> {
-    let vaa = PostedVaaV1::parse(posted_vaa)?;
-    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload())
+fn try_compute_size(vaa: &AccountInfo) -> Result<usize> {
+    let vaa = VaaAccount::load(vaa)?;
+    let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload()?)
         .map(|msg| msg.decree())
         .map_err(|_| error!(CoreBridgeError::InvalidGovernanceVaa))?;
 

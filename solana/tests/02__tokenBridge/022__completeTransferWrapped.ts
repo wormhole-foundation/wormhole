@@ -25,6 +25,7 @@ import {
   getTokenBalances,
   invokeVerifySignaturesAndPostVaa,
   parallelPostVaa,
+  processVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as tokenBridge from "../helpers/tokenBridge";
@@ -37,6 +38,8 @@ const dummyTokenBridge = new MockTokenBridge(
   690 // Starting sequence
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+const localVariables = new Map<string, any>();
 
 describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -115,12 +118,21 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
             forkRecipientToken.address
           );
 
-          // Post the VAA.
+          // Process the VAA for the new implementation.
+          const encodedVaa = await processVaa(
+            tokenBridge.getCoreBridgeProgram(program),
+            payer,
+            signedVaa,
+            GUARDIAN_SET_INDEX
+          );
+
+          // And post the VAA.
           const parsed = await parallelPostVaa(connection, payer, signedVaa);
           const ix = tokenBridge.legacyCompleteTransferWrappedIx(
             program,
             {
               payer: payer.publicKey,
+              vaa: encodedVaa,
               recipientToken: recipientToken.address,
               wrappedMint: mint,
             },
@@ -225,6 +237,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
             fee
           ),
         ]);
+
+        // Save for later
+        localVariables.set(`signedVaa${decimals}`, signedVaa);
+        localVariables.set(`recipientToken${decimals}`, recipientToken.address);
       });
 
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, With Fee)`, async () => {
@@ -626,6 +642,39 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Wrapped)", () =
   });
 
   describe("New Implementation", () => {
+    it("Cannot Invoke `complete_transfer_wrapped` on Same VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa8") as Buffer;
+      const recipientToken = localVariables.get("recipientToken8") as anchor.web3.PublicKey;
+
+      const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+        program,
+        { payer: payer.publicKey, recipientToken },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Cannot Invoke `complete_transfer_wrapped` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa8") as Buffer;
+      const recipientToken = localVariables.get("recipientToken8") as anchor.web3.PublicKey;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCompleteTransferWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa, recipientToken },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
     for (const { chain, decimals, address } of wrappedMints) {
       it(`Invoke \`complete_transfer_wrapped\` (${decimals} Decimals, Recipient == Wallet Address with Rent Sysvar)`, async () => {
         const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));

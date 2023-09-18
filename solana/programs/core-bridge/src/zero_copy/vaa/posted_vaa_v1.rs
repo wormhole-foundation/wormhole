@@ -96,37 +96,32 @@ impl<'a> PostedVaaV1<'a> {
         keccak::hash(self.message_hash().as_ref())
     }
 
-    /// Parse account data assumed to match the [PostedVaaV1](state::PostedVaaV1) schema.
-    ///
-    /// NOTE: There is no ownership check because [AccountInfo](anchor_lang::prelude::AccountInfo)
-    /// is not passed into this method.
-    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
-        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
-
-        let data = acc_info.try_borrow_data()?;
+    pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {
+        let parsed = Self(acc_info.try_borrow_data()?);
         require_gte!(
-            data.len(),
+            parsed.0.len(),
             Self::PAYLOAD_START,
             ErrorCode::AccountDidNotDeserialize
         );
-
-        let parsed = Self(data);
         require_eq!(
             parsed.0.len(),
             Self::PAYLOAD_START + parsed.payload_size(),
             ErrorCode::AccountDidNotDeserialize
         );
+        Ok(parsed)
+    }
+}
+
+impl<'a> crate::zero_copy::LoadZeroCopy<'a> for PostedVaaV1<'a> {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        let parsed = Self::new(acc_info)?;
         require!(
             parsed.discriminator() == Self::DISC,
             ErrorCode::AccountDidNotDeserialize
         );
 
         Ok(parsed)
-    }
-
-    /// Be careful with using this method. This method does not check the owner of the account or
-    /// check for the size of borrowed account data.
-    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
-        Self(acc_info.data.borrow())
     }
 }

@@ -30,7 +30,7 @@ pub struct MockLegacyCompleteTransferWithPayloadWrapped<'info> {
     dst_token: Account<'info, token::TokenAccount>,
 
     /// CHECK: This account is needed for the Token Bridge program.
-    posted_vaa: UncheckedAccount<'info>,
+    vaa: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(mut)]
@@ -116,7 +116,7 @@ impl<'info> token_bridge_sdk::cpi::CompleteTransfer<'info>
     }
 
     fn vaa(&self) -> AccountInfo<'info> {
-        self.posted_vaa.to_account_info()
+        self.vaa.to_account_info()
     }
 }
 

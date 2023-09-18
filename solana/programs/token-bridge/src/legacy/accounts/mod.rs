@@ -6,7 +6,7 @@ use solana_program::instruction::AccountMeta;
 
 pub struct CompleteTransferNative {
     pub payer: Pubkey,
-    pub posted_vaa: Pubkey,
+    pub vaa: Pubkey,
     pub claim: Pubkey,
     pub registered_emitter: Pubkey,
     pub recipient_token: Pubkey,
@@ -24,7 +24,7 @@ impl ToAccountMetas for CompleteTransferNative {
         vec![
             AccountMeta::new(self.payer, true),
             AccountMeta::new_readonly(crate::ID, false), // _config
-            AccountMeta::new_readonly(self.posted_vaa, false),
+            AccountMeta::new_readonly(self.vaa, false),
             AccountMeta::new(self.claim, false),
             AccountMeta::new_readonly(self.registered_emitter, false),
             AccountMeta::new(self.recipient_token, false),
@@ -41,7 +41,7 @@ impl ToAccountMetas for CompleteTransferNative {
 
 pub struct CompleteTransferWrapped {
     pub payer: Pubkey,
-    pub posted_vaa: Pubkey,
+    pub vaa: Pubkey,
     pub claim: Pubkey,
     pub registered_emitter: Pubkey,
     pub recipient_token: Pubkey,
@@ -59,7 +59,7 @@ impl ToAccountMetas for CompleteTransferWrapped {
         vec![
             AccountMeta::new(self.payer, true),
             AccountMeta::new_readonly(crate::ID, false), // _config
-            AccountMeta::new_readonly(self.posted_vaa, false),
+            AccountMeta::new_readonly(self.vaa, false),
             AccountMeta::new(self.claim, false),
             AccountMeta::new_readonly(self.registered_emitter, false),
             AccountMeta::new(self.recipient_token, false),
@@ -76,7 +76,7 @@ impl ToAccountMetas for CompleteTransferWrapped {
 
 pub struct CompleteTransferWithPayloadNative {
     pub payer: Pubkey,
-    pub posted_vaa: Pubkey,
+    pub vaa: Pubkey,
     pub claim: Pubkey,
     pub registered_emitter: Pubkey,
     pub dst_token: Pubkey,
@@ -93,7 +93,7 @@ impl ToAccountMetas for CompleteTransferWithPayloadNative {
         vec![
             AccountMeta::new(self.payer, true),
             AccountMeta::new_readonly(crate::ID, false), // _config
-            AccountMeta::new_readonly(self.posted_vaa, false),
+            AccountMeta::new_readonly(self.vaa, false),
             AccountMeta::new(self.claim, false),
             AccountMeta::new_readonly(self.registered_emitter, false),
             AccountMeta::new(self.dst_token, false),
@@ -111,7 +111,7 @@ impl ToAccountMetas for CompleteTransferWithPayloadNative {
 
 pub struct CompleteTransferWithPayloadWrapped {
     pub payer: Pubkey,
-    pub posted_vaa: Pubkey,
+    pub vaa: Pubkey,
     pub claim: Pubkey,
     pub registered_emitter: Pubkey,
     pub dst_token: Pubkey,
@@ -128,7 +128,7 @@ impl ToAccountMetas for CompleteTransferWithPayloadWrapped {
         vec![
             AccountMeta::new(self.payer, true),
             AccountMeta::new_readonly(crate::ID, false), // _config
-            AccountMeta::new_readonly(self.posted_vaa, false),
+            AccountMeta::new_readonly(self.vaa, false),
             AccountMeta::new(self.claim, false),
             AccountMeta::new_readonly(self.registered_emitter, false),
             AccountMeta::new(self.dst_token, false),

@@ -1,0 +1,171 @@
+use std::cell::Ref;
+
+use crate::{
+    error::CoreBridgeError,
+    state,
+    types::{Timestamp, VaaVersion},
+};
+use anchor_lang::{
+    prelude::{
+        err, error, require, require_eq, require_gte, require_keys_eq, AccountInfo,
+        AnchorDeserialize, ErrorCode, Pubkey, Result,
+    },
+    Discriminator,
+};
+use wormhole_raw_vaas::{Payload, Vaa};
+
+/// Account used to warehouse VAA buffer.
+pub struct EncodedVaa<'a>(Ref<'a, &'a mut [u8]>);
+
+impl<'a> EncodedVaa<'a> {
+    pub const DISC: [u8; 8] = state::EncodedVaa::DISCRIMINATOR;
+    pub const VAA_START: usize = state::EncodedVaa::VAA_START;
+
+    pub fn discriminator(&self) -> [u8; 8] {
+        self.0[..8].try_into().unwrap()
+    }
+
+    /// Processing status. **This encoded VAA is only considered usable when this status is set
+    /// to [Verified](state::ProcessingStatus::Verified).**
+    pub fn status(&self) -> state::ProcessingStatus {
+        AnchorDeserialize::deserialize(&mut &self.0[8..9]).unwrap()
+    }
+
+    /// The authority that has write privilege to this account.
+    pub fn write_authority(&self) -> Pubkey {
+        Pubkey::try_from(&self.0[9..41]).unwrap()
+    }
+
+    /// VAA version. Only when the VAA is verified is this version set to something that is not
+    /// [Unset](VaaVersion::Unset).
+    pub fn version(&self) -> VaaVersion {
+        AnchorDeserialize::deserialize(&mut &self.0[41..42]).unwrap()
+    }
+
+    pub fn vaa_size(&self) -> usize {
+        let mut buf = &self.0[42..Self::VAA_START];
+        u32::deserialize(&mut buf).unwrap().try_into().unwrap()
+    }
+
+    pub fn buf(&self) -> &[u8] {
+        &self.0[Self::VAA_START..]
+    }
+
+    // pub fn try_emitter_chain(&self) -> Result<u16> {
+    //     match self.version() {
+    //         VaaVersion::V1 => parse_v1(self.buf()).map(|v1| v1.body().emitter_chain()),
+    //         _ => err!(CoreBridgeError::InvalidVaaVersion),
+    //     }
+    // }
+
+    // pub fn try_emitter_address(&self) -> Result<[u8; 32]> {
+    //     match self.version() {
+    //         VaaVersion::V1 => parse_v1(self.buf()).map(|v1| v1.body().emitter_address()),
+    //         _ => err!(CoreBridgeError::InvalidVaaVersion),
+    //     }
+    // }
+
+    // pub fn try_sequence(&self) -> Result<u64> {
+    //     match self.version() {
+    //         VaaVersion::V1 => parse_v1(self.buf()).map(|v1| v1.body().sequence()),
+    //         _ => err!(CoreBridgeError::InvalidVaaVersion),
+    //     }
+    // }
+
+    pub fn try_emitter_info(&self) -> Result<([u8; 32], u16, u64)> {
+        match self.version() {
+            VaaVersion::V1 => {
+                let v1 = self.as_v1()?;
+                Ok((
+                    v1.body().emitter_address(),
+                    v1.body().emitter_chain(),
+                    v1.body().sequence(),
+                ))
+            }
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn try_timestamp(&self) -> Result<Timestamp> {
+        match self.version() {
+            VaaVersion::V1 => {
+                let v1 = self.as_v1()?;
+                Ok(v1.body().timestamp().into())
+            }
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn try_payload(&self) -> Result<Payload> {
+        match self.version() {
+            VaaVersion::V1 => {
+                let v1 = self.as_v1()?;
+                Ok(v1.body().payload())
+            }
+            _ => err!(CoreBridgeError::InvalidVaaVersion),
+        }
+    }
+
+    pub fn as_v1(&'a self) -> Result<Vaa<'a>> {
+        parse_v1(self.buf())
+    }
+
+    pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {
+        let parsed = Self(acc_info.try_borrow_data()?);
+        parsed.require_correct_size()?;
+
+        // We only allow verified VAAs to be read.
+        require!(
+            parsed.status() == state::ProcessingStatus::Verified,
+            CoreBridgeError::UnverifiedVaa
+        );
+        Ok(parsed)
+    }
+
+    pub(crate) fn parse_unverified(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        let parsed = Self(acc_info.try_borrow_data()?);
+        parsed.require_correct_size()?;
+
+        require!(
+            parsed.discriminator() == Self::DISC,
+            ErrorCode::AccountDiscriminatorMismatch
+        );
+
+        Ok(parsed)
+    }
+
+    fn require_correct_size(&self) -> Result<()> {
+        require_gte!(
+            self.0.len(),
+            Self::VAA_START,
+            ErrorCode::AccountDidNotDeserialize
+        );
+        require_eq!(
+            self.0.len(),
+            Self::VAA_START + self.vaa_size(),
+            ErrorCode::AccountDidNotDeserialize
+        );
+        Ok(())
+    }
+}
+
+impl<'a> crate::zero_copy::LoadZeroCopy<'a> for EncodedVaa<'a> {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        let parsed = Self::new(acc_info)?;
+
+        require!(
+            parsed.discriminator() == Self::DISC,
+            ErrorCode::AccountDiscriminatorMismatch
+        );
+
+        Ok(parsed)
+    }
+}
+
+fn parse_v1(buf: &[u8]) -> Result<Vaa<'_>> {
+    Vaa::parse(buf).map_err(|_| error!(CoreBridgeError::CannotParseVaa))
+}

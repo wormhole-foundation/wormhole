@@ -31,6 +31,7 @@ import {
   invokeVerifySignaturesAndPostVaa,
   expectIxOkDetails,
   ETHEREUM_TOKEN_ALREADY_CREATED,
+  processVaa,
 } from "../helpers";
 import * as tokenBridge from "../helpers/tokenBridge";
 
@@ -122,6 +123,8 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         canonicalAddress: "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
         nativeDecimals: 18,
       });
+
+      localVariables.set("signedVaa", signedVaa);
     });
 
     it("Invoke `create_or_update_wrapped` to Update Asset", async () => {
@@ -245,7 +248,38 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
   });
 
   describe("New Implementation", () => {
-    it("Invoke `crate_or_update_wrapped` to Update Previously Created Wrapped Asset", async () => {
+    it("Cannot Invoke `create_or_update_wrapped` on Same Posted VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
+
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Cannot Invoke `create_or_update_wrapped` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa") as Buffer;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
+    it("Invoke `create_or_update_wrapped` to Update Previously Created Wrapped Asset", async () => {
       // Make sure metadata has already been created.
       {
         const mint = tokenBridge.wrappedMintPda(
@@ -305,17 +339,18 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
         address: ETHEREUM_TOKEN_ALREADY_CREATED,
       });
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       // Create the instruction.
       const parsed = parseVaa(signedVaa);
       const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
         program,
-        { payer: payer.publicKey },
+        { payer: payer.publicKey, vaa: encodedVaa },
         parsed
       );
 
@@ -343,15 +378,16 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
     it("Cannot Invoke `create_or_update_wrapped` on Out-of-Sequence VAA", async () => {
       const oosSignedVaa = localVariables.get("oosSignedVaa") as Buffer;
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         tokenBridge.getCoreBridgeProgram(program),
         payer,
-        oosSignedVaa
+        oosSignedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const ix = tokenBridge.legacyCreateOrUpdateWrappedIx(
         program,
-        { payer: payer.publicKey },
+        { payer: payer.publicKey, vaa: encodedVaa },
         parseVaa(oosSignedVaa)
       );
 

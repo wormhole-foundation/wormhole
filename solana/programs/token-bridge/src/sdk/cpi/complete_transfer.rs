@@ -115,7 +115,7 @@ where
             accounts.token_bridge_program(),
             crate::legacy::cpi::CompleteTransferWrapped {
                 payer: accounts.payer(),
-                posted_vaa: accounts.vaa(),
+                vaa: accounts.vaa(),
                 claim: accounts.token_bridge_claim(),
                 registered_emitter: accounts.token_bridge_registered_emitter(),
                 recipient_token: accounts.dst_token_account(),
@@ -138,7 +138,7 @@ where
             accounts.token_bridge_program(),
             crate::legacy::cpi::CompleteTransferNative {
                 payer: accounts.payer(),
-                posted_vaa: accounts.vaa(),
+                vaa: accounts.vaa(),
                 claim: accounts.token_bridge_claim(),
                 registered_emitter: accounts.token_bridge_registered_emitter(),
                 recipient_token: accounts.dst_token_account(),
@@ -176,7 +176,7 @@ where
             accounts.token_bridge_program(),
             crate::legacy::cpi::CompleteTransferWithPayloadWrapped {
                 payer: accounts.payer(),
-                posted_vaa: accounts.vaa(),
+                vaa: accounts.vaa(),
                 claim: accounts.token_bridge_claim(),
                 registered_emitter: accounts.token_bridge_registered_emitter(),
                 dst_token: accounts.dst_token_account(),
@@ -198,7 +198,7 @@ where
             accounts.token_bridge_program(),
             crate::legacy::cpi::CompleteTransferWithPayloadNative {
                 payer: accounts.payer(),
-                posted_vaa: accounts.vaa(),
+                vaa: accounts.vaa(),
                 claim: accounts.token_bridge_claim(),
                 registered_emitter: accounts.token_bridge_registered_emitter(),
                 dst_token: accounts.dst_token_account(),

@@ -50,8 +50,6 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
         label: "claim",
         contextName: "claim",
         errorMsg: "ConstraintSeeds",
-        dataLength: 1,
-        owner: program.programId,
       },
     ];
 

@@ -15,7 +15,7 @@ import { Config, RegisteredEmitter, custodyAuthorityPda, custodyTokenPda } from 
 export type LegacyCompleteTransferNativeContext = {
   payer: PublicKey;
   config?: PublicKey; // TODO: demonstrate this isn't needed in tests
-  postedVaa?: PublicKey;
+  vaa?: PublicKey;
   claim?: PublicKey;
   registeredEmitter?: PublicKey;
   recipientToken: PublicKey;
@@ -43,7 +43,7 @@ export function legacyCompleteTransferNativeAccounts(
   let {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -63,8 +63,8 @@ export function legacyCompleteTransferNativeAccounts(
     config = Config.address(programId);
   }
 
-  if (postedVaa === undefined) {
-    postedVaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
+  if (vaa === undefined) {
+    vaa = PostedVaaV1.address(coreBridgeProgram, Array.from(hash));
   }
 
   if (claim === undefined) {
@@ -105,7 +105,7 @@ export function legacyCompleteTransferNativeAccounts(
   return {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -135,7 +135,7 @@ export function legacyCompleteTransferNativeIx(
   const {
     payer,
     config,
-    postedVaa,
+    vaa,
     claim,
     registeredEmitter,
     recipientToken,
@@ -161,7 +161,7 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: postedVaa!,
+      pubkey: vaa!,
       isWritable: false,
       isSigner: false,
     },

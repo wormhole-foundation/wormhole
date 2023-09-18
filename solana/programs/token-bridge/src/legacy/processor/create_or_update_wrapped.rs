@@ -2,12 +2,13 @@ use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
-    state::{Claim, LegacyWrappedAsset, RegisteredEmitter, WrappedAsset},
+    state::{LegacyWrappedAsset, RegisteredEmitter, WrappedAsset},
 };
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{metadata, token};
 use core_bridge_program::{
-    legacy::utils::LegacyAnchorized, sdk as core_bridge_sdk, zero_copy::PostedVaaV1,
+    legacy::utils::LegacyAnchorized,
+    sdk::{self as core_bridge_sdk, LoadZeroCopy},
 };
 use mpl_token_metadata::state::DataV2;
 use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
@@ -33,27 +34,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = core_bridge_program::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// CHECK: To avoid multiple borrows to the posted vaa account to generate seeds and other mint
     /// parameters, we perform these checks outside of this accounts context. The pubkey for this
@@ -62,12 +48,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        mint::decimals = try_attestation_decimals(&posted_vaa)?,
+        mint::decimals = try_attestation_decimals(&vaa)?,
         mint::authority = mint_authority,
         seeds = [
             WRAPPED_MINT_SEED_PREFIX,
-            try_attestation_token_chain_bytes(&posted_vaa)?.as_ref(),
-            try_attestation_token_address(&posted_vaa)?.as_ref(),
+            try_attestation_token_chain_bytes(&vaa)?.as_ref(),
+            try_attestation_token_address(&vaa)?.as_ref(),
         ],
         bump,
     )]
@@ -141,8 +127,8 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 }
 
 fn try_attestation_decimals(vaa_acc_info: &AccountInfo) -> Result<u8> {
-    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::parse(vaa.payload())
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
     msg.attestation()
         .map(|attestation| cap_decimals(attestation.decimals()))
@@ -150,8 +136,8 @@ fn try_attestation_decimals(vaa_acc_info: &AccountInfo) -> Result<u8> {
 }
 
 fn try_attestation_token_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 2]> {
-    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::parse(vaa.payload())
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
 
     let token_chain = msg
@@ -171,8 +157,8 @@ fn try_attestation_token_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 
 }
 
 fn try_attestation_token_address(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]> {
-    let vaa = PostedVaaV1::parse(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::parse(vaa.payload())
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
     msg.attestation()
         .map(|attestation| attestation.token_address())
@@ -181,13 +167,13 @@ fn try_attestation_token_address(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]>
 
 impl<'info> CreateOrUpdateWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = &ctx.accounts.posted_vaa;
+        let vaa = &ctx.accounts.vaa;
 
         // NOTE: Other attestation validation is performed using the try_attestation_* methods,
         // which were used in the accounts context.
         crate::utils::require_valid_posted_token_bridge_vaa(
             &vaa.key(),
-            &PostedVaaV1::parse(vaa).unwrap(),
+            &core_bridge_sdk::VaaAccount::load(vaa).unwrap(),
             &ctx.accounts.registered_emitter,
         )?;
 
@@ -198,10 +184,6 @@ impl<'info> CreateOrUpdateWrapped<'info> {
 
 #[access_control(CreateOrUpdateWrapped::constraints(&ctx))]
 fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArgs) -> Result<()> {
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
-
     // Check if token metadata has been created yet. If it isn't, we must create this account and
     // the wrapped asset account.
     if ctx.accounts.token_metadata.data_is_empty() {
@@ -212,17 +194,23 @@ fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArg
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
-    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
+    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
 
+    let (_, _, sequence) = vaa.try_emitter_info().unwrap();
     let wrapped_asset = WrappedAsset {
         legacy: LegacyWrappedAsset {
             token_chain: attestation.token_chain(),
             token_address: attestation.token_address(),
             native_decimals: attestation.decimals(),
         },
-        last_updated_sequence: vaa.sequence(),
+        last_updated_sequence: sequence,
     };
 
     // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
@@ -279,8 +267,13 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
-    let msg = TokenBridgeMessage::parse(vaa.payload()).unwrap();
+    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
+    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
+    // so this value does not matter. But the legacy program set this data to true.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
 
     // For wrapped assets created before this implementation, the wrapped asset schema did not
@@ -314,18 +307,19 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     }
 
     // Now check the sequence to see whether this VAA is stale.
+    let (_, _, updated_sequence) = vaa.try_emitter_info().unwrap();
     let wrapped_asset = {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =
             LegacyAnchorized::<0, WrappedAsset>::try_deserialize(&mut acc_data.as_ref())?;
         require_gt!(
-            vaa.sequence(),
+            updated_sequence,
             wrapped_asset.last_updated_sequence,
             TokenBridgeError::AttestationOutOfSequence
         );
 
         // Modify this wrapped asset to prepare it for writing.
-        wrapped_asset.last_updated_sequence = vaa.sequence();
+        wrapped_asset.last_updated_sequence = updated_sequence;
 
         wrapped_asset
     };

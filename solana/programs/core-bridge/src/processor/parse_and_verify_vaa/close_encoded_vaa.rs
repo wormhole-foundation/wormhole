@@ -32,8 +32,5 @@ impl<'info> CloseEncodedVaa<'info> {
 
 #[access_control(CloseEncodedVaa::constraints(&ctx))]
 pub fn close_encoded_vaa(ctx: Context<CloseEncodedVaa>) -> Result<()> {
-    crate::utils::close_account(
-        ctx.accounts.encoded_vaa.to_account_info(),
-        ctx.accounts.write_authority.to_account_info(),
-    )
+    crate::utils::close_account(&ctx.accounts.encoded_vaa, &ctx.accounts.write_authority)
 }

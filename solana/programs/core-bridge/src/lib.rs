@@ -28,7 +28,7 @@ pub mod types;
 
 pub(crate) mod utils;
 
-pub mod zero_copy;
+pub(crate) mod zero_copy;
 
 use anchor_lang::prelude::*;
 

@@ -37,7 +37,7 @@ impl<'info> CloseMessageV1<'info> {
 #[access_control(CloseMessageV1::constraints(&ctx))]
 pub fn close_message_v1(ctx: Context<CloseMessageV1>) -> Result<()> {
     crate::utils::close_account(
-        ctx.accounts.draft_message.to_account_info(),
-        ctx.accounts.close_account_destination.to_account_info(),
+        &ctx.accounts.draft_message,
+        &ctx.accounts.close_account_destination,
     )
 }

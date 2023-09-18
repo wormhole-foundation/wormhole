@@ -1,6 +1,3 @@
-mod claim;
-pub use claim::*;
-
 mod config;
 pub use config::*;
 

@@ -51,8 +51,6 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
         label: "claim",
         contextName: "claim",
         errorMsg: "ConstraintSeeds",
-        dataLength: 1,
-        owner: program.programId,
       },
     ];
 
@@ -94,7 +92,7 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
         forkedProgram,
         {
           payer: payer.publicKey,
-          recipient: recipient,
+          recipient,
         },
         new anchor.BN(amount),
         payer
@@ -122,20 +120,32 @@ describe("Core Bridge -- Legacy Instruction: Transfer Fees", () => {
       expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
 
       // Save the signed VAA for later.
+      localVariables.set("amount", amount);
       localVariables.set("signedVaa", signedVaa);
+      localVariables.set("recipient", recipient);
     });
   });
 
   describe("New implementation", () => {
     it("Cannot Invoke `transfer_fees` with Same VAA", async () => {
+      const amount = localVariables.get("amount") as number;
       const signedVaa = localVariables.get("signedVaa") as Buffer;
+      const recipient = localVariables.get("recipient") as anchor.web3.PublicKey;
+
+      const transferIx = anchor.web3.SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: coreBridge.feeCollectorPda(program.programId),
+        lamports: amount,
+      });
+      //await expectIxOk(connection, [transferIx], [payer]);
 
       await expectIxErr(
         connection,
         [
+          transferIx,
           coreBridge.legacyTransferFeesIx(
             program,
-            { payer: payer.publicKey, recipient: anchor.web3.Keypair.generate().publicKey },
+            { payer: payer.publicKey, recipient },
             parseVaa(signedVaa)
           ),
         ],

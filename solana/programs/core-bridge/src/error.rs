@@ -53,7 +53,7 @@ pub enum CoreBridgeError {
     GovernanceForAnotherChain = 0x26,
 
     #[msg("InvalidGovernanceVaa")]
-    InvalidGovernanceVaa,
+    InvalidGovernanceVaa = 0x28,
 
     #[msg("InsufficientFees")]
     InsufficientFees = 0x100,

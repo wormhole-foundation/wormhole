@@ -129,9 +129,6 @@ describe("Token Bridge -- Instruction: Register Chain", () => {
       );
       expectDeepEqual(registeredData, legacyRegisteredData);
 
-      const encodedVaaInfo = await connection.getAccountInfo(encodedVaa);
-      expect(encodedVaaInfo).is.null;
-
       // Save for later.
       localVariables.set("signedVaa", signedVaa);
     });

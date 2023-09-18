@@ -57,7 +57,7 @@ pub struct PostMessageArgs {
 ///
 /// NOTE: It is preferred to use the new process of verifying a VAA using the new Core Bridge Anchor
 /// instructions. See [init_encoded_vaa](crate::wormhole_core_bridge_solana::init_encoded_vaa) and
-/// [process_encoded_vaa](crate::wormhole_core_bridge_solana::process_encoded_vaa) for more info.
+/// [write_encoded_vaa](crate::wormhole_core_bridge_solana::write_encoded_vaa) for more info.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PostVaaArgs {
     /// Unused data.
@@ -82,7 +82,7 @@ pub struct PostVaaArgs {
 ///
 /// NOTE: It is preferred to use the new process of verifying a VAA using the new Core Bridge Anchor
 /// instructions. See [init_encoded_vaa](crate::wormhole_core_bridge_solana::init_encoded_vaa) and
-/// [process_encoded_vaa](crate::wormhole_core_bridge_solana::process_encoded_vaa) for more info.
+/// [write_encoded_vaa](crate::wormhole_core_bridge_solana::write_encoded_vaa) for more info.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct VerifySignaturesArgs {
     /// Indices of verified guardian signatures.

@@ -1,11 +1,8 @@
 use crate::{
     constants::UPGRADE_SEED_PREFIX, error::TokenBridgeError, legacy::instruction::EmptyArgs,
-    state::Claim,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    constants::SOLANA_CHAIN, legacy::utils::LegacyAnchorized, zero_copy::PostedVaaV1,
-};
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 
 #[derive(Accounts)]
@@ -16,28 +13,12 @@ pub struct UpgradeContract<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = core_bridge_program::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    /// Account representing that a VAA has been consumed.
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     /// CHECK: We need this upgrade authority to invoke the BPF Loader Upgradeable program to
     /// upgrade this program's executable. We verify this PDA address here out of convenience to get
@@ -75,6 +56,16 @@ pub struct UpgradeContract<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for UpgradeContract<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
+}
+
 impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
     for UpgradeContract<'info>
 {
@@ -85,9 +76,9 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa_acc_info = &ctx.accounts.posted_vaa;
+        let vaa_acc_info = &ctx.accounts.vaa;
         let vaa_key = vaa_acc_info.key();
-        let vaa = PostedVaaV1::parse(vaa_acc_info)?;
+        let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
         let gov_payload = super::require_valid_posted_governance_vaa(&vaa_key, &vaa)?;
 
         let decree = gov_payload
@@ -97,7 +88,7 @@ impl<'info> UpgradeContract<'info> {
         // Make sure that the contract upgrade is intended for this network.
         require_eq!(
             decree.chain(),
-            SOLANA_CHAIN,
+            core_bridge_sdk::SOLANA_CHAIN,
             TokenBridgeError::GovernanceForAnotherChain
         );
 
@@ -117,9 +108,11 @@ impl<'info> UpgradeContract<'info> {
 /// Loader Upgradeable program to upgrade this program's executable to the provided buffer.
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
+    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
     // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
 
     // Finally upgrade.
     invoke_signed(

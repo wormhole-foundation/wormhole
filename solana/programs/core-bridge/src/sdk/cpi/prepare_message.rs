@@ -2,8 +2,9 @@ pub use crate::processor::InitMessageV1Args;
 
 use anchor_lang::prelude::*;
 
-/// Trait for invoking the Core Bridge program's [init_message_v1](crate::cpi::init_message_v1) and
-/// [process_message_v1](crate::cpi::process_message_v1) instructions. These instructions are used
+/// Trait for invoking the Core Bridge program's [init_message_v1](crate::cpi::init_message_v1),
+/// [write_message_v1](crate::cpi::write_message_v1) and
+/// [finalize_message_v1](crate::cpi::finalize_message_v1) instructions. These instructions are used
 /// in concert with each other to prepare a message, which can be posted either within a program via
 /// CPI or within the same transaction block as an instruction following your program's instruction.
 pub trait PrepareMessage<'info> {
@@ -22,7 +23,7 @@ pub trait PrepareMessage<'info> {
 /// Program instructions.
 ///
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
-/// either invoke [create_account](crate::utils::create_account) or use Anchor's `init` macro
+/// either invoke [create_account](crate::sdk::cpi::create_account) or use Anchor's `init` macro
 /// directive before calling this method.
 pub fn prepare_message<'info, A>(
     accounts: &A,

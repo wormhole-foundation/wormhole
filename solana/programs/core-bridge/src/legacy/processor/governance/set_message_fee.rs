@@ -2,8 +2,8 @@ use crate::{
     constants::SOLANA_CHAIN,
     error::CoreBridgeError,
     legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
-    state::{Claim, Config},
-    zero_copy::PostedVaaV1,
+    state::Config,
+    zero_copy::{LoadZeroCopy, VaaAccount},
 };
 use anchor_lang::prelude::*;
 use ruint::aliases::U256;
@@ -26,30 +26,24 @@ pub struct SetMessageFee<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
-    #[account(owner = crate::ID)]
-    posted_vaa: AccountInfo<'info>,
+    vaa: AccountInfo<'info>,
 
-    /// Account representing that a VAA has been consumed.
-    #[account(
-        init,
-        payer = payer,
-        space = Claim::INIT_SPACE,
-        seeds = [
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_address())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.emitter_chain().to_be_bytes())?
-                .as_ref(),
-            PostedVaaV1::parse(&posted_vaa)
-                .map(|vaa| vaa.sequence().to_be_bytes())?
-                .as_ref(),
-        ],
-        bump,
-    )]
-    claim: Account<'info, LegacyAnchorized<0, Claim>>,
+    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
+    /// [claim_vaa](crate::utils::cpi::claim_vaa) is called.
+    #[account(mut)]
+    claim: AccountInfo<'info>,
 
     system_program: Program<'info, System>,
+}
+
+impl<'info> crate::utils::cpi::CreateAccount<'info> for SetMessageFee<'info> {
+    fn system_program(&self) -> AccountInfo<'info> {
+        self.system_program.to_account_info()
+    }
+
+    fn payer(&self) -> AccountInfo<'info> {
+        self.payer.to_account_info()
+    }
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -62,7 +56,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 
 impl<'info> SetMessageFee<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
+        let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
         let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
@@ -90,12 +84,15 @@ impl<'info> SetMessageFee<'info> {
 /// the message fee in the [Config] account.
 #[access_control(SetMessageFee::constraints(&ctx))]
 fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> {
+    let vaa = VaaAccount::load(&ctx.accounts.vaa).unwrap();
+
     // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
     // so this value does not matter. But the legacy program set this data to true.
-    ctx.accounts.claim.is_complete = true;
+    crate::utils::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
 
-    let vaa = PostedVaaV1::parse_unchecked(&ctx.accounts.posted_vaa);
-    let gov_payload = CoreBridgeGovPayload::parse(vaa.payload()).unwrap().decree();
+    let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload().unwrap())
+        .unwrap()
+        .decree();
 
     // Uint encodes limbs in little endian, so we will take the first u64 value.
     let fee = U256::from_be_bytes(gov_payload.set_message_fee().unwrap().fee());

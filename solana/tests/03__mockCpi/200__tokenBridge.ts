@@ -22,7 +22,7 @@ import {
   createAssociatedTokenAccountOffCurve,
   expectDeepEqual,
   expectIxOk,
-  invokeVerifySignaturesAndPostVaa,
+  processVaa,
 } from "../helpers";
 import * as coreBridge from "../helpers/coreBridge";
 import * as mockCpi from "../helpers/mockCpi";
@@ -330,10 +330,11 @@ describe("Mock CPI -- Token Bridge", () => {
         [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -347,7 +348,6 @@ describe("Mock CPI -- Token Bridge", () => {
       const {
         coreBridgeProgram,
         payerToken,
-        postedVaa,
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         custodyToken: tokenBridgeCustodyToken,
@@ -373,7 +373,7 @@ describe("Mock CPI -- Token Bridge", () => {
           recipientToken,
           recipient,
           payerToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeCustodyToken,
@@ -408,10 +408,11 @@ describe("Mock CPI -- Token Bridge", () => {
         payload
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -424,7 +425,6 @@ describe("Mock CPI -- Token Bridge", () => {
       const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
-        postedVaa,
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         custodyToken: tokenBridgeCustodyToken,
@@ -452,7 +452,7 @@ describe("Mock CPI -- Token Bridge", () => {
           tokenBridgeProgramRedeemerAuthority: programRedeemerAuthority,
           tokenBridgeCustomRedeemerAuthority: null,
           dstToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeCustodyToken,
@@ -498,10 +498,11 @@ describe("Mock CPI -- Token Bridge", () => {
         payload
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -512,7 +513,6 @@ describe("Mock CPI -- Token Bridge", () => {
       const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
-        postedVaa,
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         custodyToken: tokenBridgeCustodyToken,
@@ -535,7 +535,7 @@ describe("Mock CPI -- Token Bridge", () => {
           tokenBridgeProgramRedeemerAuthority: null,
           tokenBridgeCustomRedeemerAuthority: customRedeemerAuthority,
           dstToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeCustodyToken,
@@ -577,10 +577,11 @@ describe("Mock CPI -- Token Bridge", () => {
         [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -604,7 +605,6 @@ describe("Mock CPI -- Token Bridge", () => {
       const {
         coreBridgeProgram,
         payerToken,
-        postedVaa,
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         wrappedAsset: tokenBridgeWrappedAsset,
@@ -629,7 +629,7 @@ describe("Mock CPI -- Token Bridge", () => {
           recipientToken,
           recipient,
           payerToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeWrappedMint: wrappedMint,
@@ -682,10 +682,11 @@ describe("Mock CPI -- Token Bridge", () => {
         payload
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -697,7 +698,7 @@ describe("Mock CPI -- Token Bridge", () => {
       const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
-        postedVaa,
+
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         wrappedAsset: tokenBridgeWrappedAsset,
@@ -724,7 +725,7 @@ describe("Mock CPI -- Token Bridge", () => {
           tokenBridgeProgramRedeemerAuthority: programRedeemerAuthority,
           tokenBridgeCustomRedeemerAuthority: null,
           dstToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeWrappedMint: wrappedMint,
@@ -778,10 +779,11 @@ describe("Mock CPI -- Token Bridge", () => {
         payload
       );
 
-      await invokeVerifySignaturesAndPostVaa(
+      const encodedVaa = await processVaa(
         mockCpi.getCoreBridgeProgram(program),
         payer,
-        signedVaa
+        signedVaa,
+        GUARDIAN_SET_INDEX
       );
 
       const parsed = parseVaa(signedVaa);
@@ -791,7 +793,6 @@ describe("Mock CPI -- Token Bridge", () => {
       const legacyRegisteredEmitterDerive = true;
       const {
         coreBridgeProgram,
-        postedVaa,
         claim: tokenBridgeClaim,
         registeredEmitter: tokenBridgeRegisteredEmitter,
         wrappedAsset: tokenBridgeWrappedAsset,
@@ -813,7 +814,7 @@ describe("Mock CPI -- Token Bridge", () => {
           tokenBridgeProgramRedeemerAuthority: null,
           tokenBridgeCustomRedeemerAuthority: customRedeemerAuthority,
           dstToken,
-          postedVaa,
+          vaa: encodedVaa,
           tokenBridgeClaim,
           tokenBridgeRegisteredEmitter,
           tokenBridgeWrappedMint: wrappedMint,

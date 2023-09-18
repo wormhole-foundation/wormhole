@@ -47,7 +47,7 @@ pub fn write_encoded_vaa(ctx: Context<WriteEncodedVaa>, args: WriteEncodedVaaArg
     );
 
     let vaa_size: usize = {
-        let vaa = EncodedVaa::parse_unchecked(&ctx.accounts.encoded_vaa);
+        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa).unwrap();
         require!(
             vaa.status() == ProcessingStatus::Writing,
             CoreBridgeError::NotInWritingStatus

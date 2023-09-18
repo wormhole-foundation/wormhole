@@ -15,6 +15,7 @@ import {
   ETHEREUM_DEADBEEF_TOKEN_ADDRESS,
   expectDeepEqual,
   expectIxOk,
+  processVaa,
 } from "../helpers";
 import {
   CHAIN_ID_SOLANA,
@@ -37,6 +38,8 @@ const dummyTokenBridge = new MockTokenBridge(
   6900 // Starting sequence
 );
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
+
+const localVariables = new Map<string, any>();
 
 describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wrapped)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -107,12 +110,21 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
             payer.publicKey
           );
 
-          // Post the VAA.
+          // Process the VAA for the new implementation.
+          const encodedVaa = await processVaa(
+            tokenBridge.getCoreBridgeProgram(program),
+            payer,
+            signedVaa,
+            GUARDIAN_SET_INDEX
+          );
+
+          // And post the VAA.
           const parsed = await parallelPostVaa(connection, payer, signedVaa);
           const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
             program,
             {
               payer: payer.publicKey,
+              vaa: encodedVaa,
               dstToken: dstToken.address,
               wrappedMint: mint,
             },
@@ -170,7 +182,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           forkedProgram,
           {
             dstToken: payerToken,
-            forkRecipientToken: forkPayerToken,
+            forkDstToken: forkPayerToken,
             redeemerAuthority: payer,
           },
           signedVaa,
@@ -186,6 +198,10 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           tokenBridge.TransferDirection.In,
           amount
         );
+
+        // Save for later
+        localVariables.set(`signedVaa${decimals}`, signedVaa);
+        localVariables.set(`dstToken${decimals}`, payerToken.address);
       });
 
       it(`Invoke \`complete_transfer_with_payload_wrapped\` (${decimals} Decimals, Redeemer != Redeemer Authority)`, async () => {
@@ -194,7 +210,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         );
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate();
-        const [dstToken, forkRecipientToken] = await Promise.all([
+        const [dstToken, forkDstToken] = await Promise.all([
           getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey),
           getOrCreateAssociatedTokenAccount(connection, payer, forkMint, recipient.publicKey),
         ]);
@@ -210,7 +226,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           program,
           forkedProgram,
           dstToken.address,
-          forkRecipientToken.address
+          forkDstToken.address
         );
 
         // Complete the transfer.
@@ -219,7 +235,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           forkedProgram,
           {
             dstToken,
-            forkRecipientToken,
+            forkDstToken,
             redeemerAuthority: recipient,
           },
           signedVaa,
@@ -230,7 +246,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         await tokenBridge.expectCorrectWrappedTokenBalanceChanges(
           connection,
           dstToken.address,
-          forkRecipientToken.address,
+          forkDstToken.address,
           recipientBalancesBefore,
           tokenBridge.TransferDirection.In,
           amount
@@ -267,7 +283,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
           forkedProgram,
           {
             dstToken: payerToken,
-            forkRecipientToken: forkPayerToken,
+            forkDstToken: forkPayerToken,
             redeemerAuthority: payer,
           },
           signedVaa,
@@ -319,7 +335,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
         forkedProgram,
         {
           dstToken: payerToken,
-          forkRecipientToken: forkPayerToken,
+          forkDstToken: forkPayerToken,
           redeemerAuthority: payer,
         },
         signedVaa,
@@ -339,6 +355,38 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer With Payload (Wr
   });
 
   describe("New Implementation", () => {
+    it("Cannot Invoke `complete_transfer_wrapped` on Same VAA", async () => {
+      const signedVaa = localVariables.get("signedVaa8") as Buffer;
+      const dstToken = localVariables.get("dstToken8") as anchor.web3.PublicKey;
+
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
+        program,
+        { payer: payer.publicKey, dstToken },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+    it("Cannot Invoke `complete_transfer_wrapped` on Same VAA Buffer using Encoded Vaa", async () => {
+      const signedVaa = localVariables.get("signedVaa8") as Buffer;
+      const dstToken = localVariables.get("dstToken8") as anchor.web3.PublicKey;
+
+      const encodedVaa = await processVaa(
+        tokenBridge.getCoreBridgeProgram(program),
+        payer,
+        signedVaa,
+        GUARDIAN_SET_INDEX
+      );
+
+      const ix = tokenBridge.legacyCompleteTransferWithPayloadWrappedIx(
+        program,
+        { payer: payer.publicKey, vaa: encodedVaa, dstToken },
+        parseVaa(signedVaa)
+      );
+
+      await expectIxErr(connection, [ix], [payer], "already in use");
+    });
+
     for (const { chain, decimals, address } of wrappedMints) {
       it(`Cannot Invoke \`complete_transfer_with_payload_wrapped)\` (${decimals} Decimals, Invalid Mint)`, async () => {
         const mint = tokenBridge.wrappedMintPda(program.programId, chain, Array.from(address));
@@ -656,14 +704,14 @@ async function parallelTxDetails(
   forkedProgram: tokenBridge.TokenBridgeProgram,
   tokenAccounts: {
     dstToken: Account;
-    forkRecipientToken: Account;
+    forkDstToken: Account;
     redeemerAuthority: anchor.web3.Keypair;
   },
   signedVaa,
   payer: anchor.web3.Keypair
 ) {
   const connection = program.provider.connection;
-  const { dstToken, forkRecipientToken, redeemerAuthority } = tokenAccounts;
+  const { dstToken, forkDstToken, redeemerAuthority } = tokenAccounts;
 
   // Post the VAA.
   const parsed = await parallelPostVaa(connection, payer, signedVaa);
@@ -682,7 +730,7 @@ async function parallelTxDetails(
     forkedProgram,
     {
       payer: payer.publicKey,
-      dstToken: forkRecipientToken.address,
+      dstToken: forkDstToken.address,
       redeemerAuthority: redeemerAuthority.publicKey,
     },
     parsed

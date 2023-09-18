@@ -1,8 +1,5 @@
 //! Account schemas for the Core Bridge Program.
 
-mod claim;
-pub use claim::*;
-
 mod config;
 pub use config::*;
 

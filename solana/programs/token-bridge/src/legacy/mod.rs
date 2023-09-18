@@ -24,7 +24,7 @@ pub mod cpi {
         invoke_signed(
             &instruction::complete_transfer_native(accounts::CompleteTransferNative {
                 payer: *ctx.accounts.payer.key,
-                posted_vaa: *ctx.accounts.posted_vaa.key,
+                vaa: *ctx.accounts.vaa.key,
                 claim: *ctx.accounts.claim.key,
                 registered_emitter: *ctx.accounts.registered_emitter.key,
                 recipient_token: *ctx.accounts.recipient_token.key,
@@ -48,7 +48,7 @@ pub mod cpi {
         invoke_signed(
             &instruction::complete_transfer_wrapped(accounts::CompleteTransferWrapped {
                 payer: *ctx.accounts.payer.key,
-                posted_vaa: *ctx.accounts.posted_vaa.key,
+                vaa: *ctx.accounts.vaa.key,
                 claim: *ctx.accounts.claim.key,
                 registered_emitter: *ctx.accounts.registered_emitter.key,
                 recipient_token: *ctx.accounts.recipient_token.key,
@@ -73,7 +73,7 @@ pub mod cpi {
             &instruction::complete_transfer_with_payload_native(
                 accounts::CompleteTransferWithPayloadNative {
                     payer: *ctx.accounts.payer.key,
-                    posted_vaa: *ctx.accounts.posted_vaa.key,
+                    vaa: *ctx.accounts.vaa.key,
                     claim: *ctx.accounts.claim.key,
                     registered_emitter: *ctx.accounts.registered_emitter.key,
                     dst_token: *ctx.accounts.dst_token.key,
@@ -98,7 +98,7 @@ pub mod cpi {
             &instruction::complete_transfer_with_payload_wrapped(
                 accounts::CompleteTransferWithPayloadWrapped {
                     payer: *ctx.accounts.payer.key,
-                    posted_vaa: *ctx.accounts.posted_vaa.key,
+                    vaa: *ctx.accounts.vaa.key,
                     claim: *ctx.accounts.claim.key,
                     registered_emitter: *ctx.accounts.registered_emitter.key,
                     dst_token: *ctx.accounts.dst_token.key,
@@ -258,7 +258,7 @@ pub mod cpi {
         pub payer: AccountInfo<'info>,
         /// CHECK: Posted VAA Account (read-only, seeds = ["PostedVAA", message_hash],
         /// seeds::program = core_bridge_program).
-        pub posted_vaa: AccountInfo<'info>,
+        pub vaa: AccountInfo<'info>,
         /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
@@ -298,7 +298,7 @@ pub mod cpi {
         pub payer: AccountInfo<'info>,
         /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
-        pub posted_vaa: AccountInfo<'info>,
+        pub vaa: AccountInfo<'info>,
         /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
@@ -339,7 +339,7 @@ pub mod cpi {
         pub payer: AccountInfo<'info>,
         /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
-        pub posted_vaa: AccountInfo<'info>,
+        pub vaa: AccountInfo<'info>,
         /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,
@@ -376,7 +376,7 @@ pub mod cpi {
         pub payer: AccountInfo<'info>,
         /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
         /// seeds::program = core_bridge_program).
-        pub posted_vaa: AccountInfo<'info>,
+        pub vaa: AccountInfo<'info>,
         /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
         /// seeds::program = token_bridge_program).
         pub claim: AccountInfo<'info>,

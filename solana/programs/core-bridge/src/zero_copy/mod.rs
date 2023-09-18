@@ -5,11 +5,14 @@
 mod config;
 pub use config::*;
 
-mod encoded_vaa;
-pub use encoded_vaa::*;
-
 mod posted_message_v1;
 pub use posted_message_v1::*;
 
-mod posted_vaa_v1;
-pub use posted_vaa_v1::*;
+mod vaa;
+pub use vaa::*;
+
+use anchor_lang::prelude::{AccountInfo, Result};
+
+pub trait LoadZeroCopy<'a>: Sized {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self>;
+}
