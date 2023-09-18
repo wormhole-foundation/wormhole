@@ -478,7 +478,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             LocalNative.wrap(0),
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             targetChain,
-            address(0x0),
+            toWormholeFormat(address(0x0)),
             getDefaultDeliveryProvider(),
             new VaaKey[](0),
             CONSISTENCY_LEVEL_FINALIZED
@@ -501,7 +501,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             LocalNative.wrap(0),
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             targetChain,
-            address(0x0),
+            toWormholeFormat(address(0x0)),
             getDefaultDeliveryProvider(),
             vaaKeys,
             CONSISTENCY_LEVEL_FINALIZED
@@ -529,7 +529,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             paymentForExtraReceiverValue,
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             refundChain,
-            refundAddress,
+            toWormholeFormat(refundAddress),
             deliveryProviderAddress,
             vaaKeys,
             consistencyLevel
@@ -549,13 +549,13 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) public payable {
-        uint256 cost = quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters, deliveryProviderAddress);
+        (LocalNative cost,) = quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters, deliveryProviderAddress);
         send(
             targetChain,
             targetAddress,
             payload,
             receiverValue,
-            msg.value - cost, // include the extra value that is passed in
+            LocalNative.wrap(msg.value) - cost, // include the extra value that is passed in
             encodedExecutionParameters,
             refundChain,
             refundAddress,
