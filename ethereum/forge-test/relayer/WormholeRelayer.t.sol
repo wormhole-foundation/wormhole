@@ -1649,11 +1649,14 @@ contract WormholeRelayerTests is Test {
         );
         assertEq(setup.target.coreRelayerFull.deliveryFailureBlock(stack.deliveryVaaHash), 0);
 
-        vm.expectRevert(
-            abi.encodeWithSignature("DeliveryAlreadyExecuted(bytes32)", stack.deliveryVaaHash)
-        );
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs, stack.encodedDeliveryVAA, stack.relayerRefundAddress, bytes("")
+        );
+
+        assertTrue(
+            getDeliveryStatus()
+                == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            "Should have failed due to Replay Protection"
         );
     }
 
