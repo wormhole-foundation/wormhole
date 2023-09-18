@@ -506,12 +506,19 @@ contract TestGovernance is TestUtils {
         unchangedStorage(address(proxied), storageSlot)
     {
         vm.assume(storageSlot != hashedLocationOffset(0, GUARDIANSETS_SLOT, 1));
-        vm.assume(storageSlot != hashedLocationOffset(0, GUARDIANSETS_SLOT, 0));
+
+        // New GuardianSet array length should be initialized from zero to non-zero
+        vm.assume(storageSlot != hashedLocationOffset(1, GUARDIANSETS_SLOT, 0));
+
         vm.assume(storageSlot != GUARDIANSETINDEX_SLOT);
         vm.assume(0 < newGuardianSet.length);
         vm.assume(newGuardianSet.length < 20);
-        for(uint8 i = 0; i < newGuardianSet.length; i++)
+
+        for(uint8 i = 0; i < newGuardianSet.length; i++) {
             vm.assume(newGuardianSet[i] != address(0));
+            // New GuardianSet key array elements should be initialized from zero to non-zero
+            vm.assume(storageSlot != arrayElementLocation(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0), i));
+        }
 
         vm.chainId(EVMCHAINID);
 
@@ -751,12 +758,20 @@ contract TestGovernance is TestUtils {
         unchangedStorage(address(proxied), storageSlot)
     {
         vm.assume(storageSlot != hashedLocationOffset(0, GUARDIANSETS_SLOT, 1));
-        vm.assume(storageSlot != hashedLocationOffset(0, GUARDIANSETS_SLOT, 0));
+
+        // New GuardianSet array length should be initialized from zero to non-zero
+        vm.assume(storageSlot != hashedLocationOffset(1, GUARDIANSETS_SLOT, 0));
+
         vm.assume(storageSlot != GUARDIANSETINDEX_SLOT);
         vm.assume(0 < newGuardianSet.length);
         vm.assume(newGuardianSet.length < 20);
-        for(uint8 i = 0; i < newGuardianSet.length; i++)
+
+        for(uint8 i = 0; i < newGuardianSet.length; i++) {
             vm.assume(newGuardianSet[i] != address(0));
+            // New GuardianSet key array elements should be initialized from zero to non-zero
+            vm.assume(storageSlot != arrayElementLocation(hashedLocationOffset(1, GUARDIANSETS_SLOT, 0), i));
+        }
+
         vm.chainId(EVMCHAINID);
 
         bytes memory payload = payloadSubmitNewGuardianSet(MODULE, CHAINID, 1, newGuardianSet);

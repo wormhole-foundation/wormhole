@@ -122,7 +122,7 @@ func NewWatcher(
 	latestBlockURL := "blocks/latest"
 
 	// Terra2 and Injective do things slightly differently than terra classic
-	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
+	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 || (chainID == vaa.ChainIDTerra && env != common.UnsafeDevNet) {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
