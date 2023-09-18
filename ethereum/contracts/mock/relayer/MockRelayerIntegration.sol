@@ -7,6 +7,7 @@ import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
+import "../../relayer/wormholeRelayer/WormholeRelayer.sol";
 
 import {toWormholeFormat} from "../../relayer/libraries/Utils.sol";
 
@@ -31,7 +32,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
     IWormhole immutable wormhole;
 
     // trusted relayer contract on this chain
-    IWormholeRelayer immutable relayer;
+    WormholeRelayer immutable relayer;
 
     // deployer of this contract
     address immutable owner;
@@ -60,7 +61,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
     constructor(address _wormholeCore, address _coreRelayer) {
         wormhole = IWormhole(_wormholeCore);
-        relayer = IWormholeRelayer(_coreRelayer);
+        relayer = WormholeRelayer(_coreRelayer);
         owner = msg.sender;
     }
 
@@ -317,7 +318,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         if (message.version == Version.SEND_BACK || message.version == Version.MULTI_SEND_BACK) {
             (LocalNative cost,) =
                 relayer.quoteEVMDeliveryPrice(sourceChain, TargetNative.wrap(0), Gas.wrap(500_000));
-            relayer.sendToEvm{value: LocalNative.unwrap(cost)}(
+            relayer.forwardToEvm{value: LocalNative.unwrap(cost)}(
                 sourceChain,
                 getRegisteredContractAddress(sourceChain),
                 encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
@@ -334,7 +335,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 (cost,) = relayer.quoteEVMDeliveryPrice(
                     wormhole.chainId(), TargetNative.wrap(0), Gas.wrap(500_000)
                 );
-                relayer.sendToEvm{value: LocalNative.unwrap(cost)}(
+                relayer.forwardToEvm{value: LocalNative.unwrap(cost)}(
                     wormhole.chainId(),
                     getRegisteredContractAddress(wormhole.chainId()),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
