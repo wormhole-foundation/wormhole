@@ -15,7 +15,6 @@ import {
     InvalidOverrideRefundPerGasUnused,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
-    DeliveryAlreadyExecuted,
     MessageKey,
     VAA_KEY_TYPE,
     VaaKey,
@@ -71,11 +70,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
         if (vm.emitterAddress != registeredWormholeRelayer) {
             revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
-        }
-
-        // Enforce replay protection
-        if (getDeliverySuccessState().deliverySuccessBlock[vm.hash] != 0) {
-            revert DeliveryAlreadyExecuted(vm.hash);
         }
     
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
@@ -263,21 +257,33 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return;
         }
 
-        DeliveryResults memory results = executeInstruction(
-            EvmDeliveryInstruction({
-                sourceChain: vaaInfo.sourceChain,
-                targetAddress: vaaInfo.deliveryInstruction.targetAddress,
-                payload: vaaInfo.deliveryInstruction.payload,
-                gasLimit: vaaInfo.gasLimit,
-                totalReceiverValue: vaaInfo.totalReceiverValue,
-                targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
-                senderAddress: vaaInfo.deliveryInstruction.senderAddress,
-                deliveryHash: vaaInfo.deliveryVaaHash,
-                signedVaas: vaaInfo.encodedVMs
-            }
-        ));
+        DeliveryResults memory results;
 
-        setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
+        // Check replay protection - if so, set status to receiver failure
+        if(getDeliverySuccessState().deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
+            results = DeliveryResults(
+                Gas.wrap(0),
+                DeliveryStatus.RECEIVER_FAILURE,
+                bytes("Delivery already performed")
+            );
+        } else {
+            results = executeInstruction(
+                EvmDeliveryInstruction({
+                    sourceChain: vaaInfo.sourceChain,
+                    targetAddress: vaaInfo.deliveryInstruction.targetAddress,
+                    payload: vaaInfo.deliveryInstruction.payload,
+                    gasLimit: vaaInfo.gasLimit,
+                    totalReceiverValue: vaaInfo.totalReceiverValue,
+                    targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
+                    senderAddress: vaaInfo.deliveryInstruction.senderAddress,
+                    deliveryHash: vaaInfo.deliveryVaaHash,
+                    signedVaas: vaaInfo.encodedVMs
+                })
+            );
+            setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
+        }
+
+        
 
         RefundStatus refundStatus = payRefunds(
             vaaInfo.deliveryInstruction,
