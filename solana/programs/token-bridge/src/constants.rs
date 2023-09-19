@@ -40,6 +40,8 @@ pub const PROGRAM_REDEEMER_SEED_PREFIX: &[u8] = b"redeemer";
 #[constant]
 pub const MAX_DECIMALS: u8 = 8;
 
+pub(crate) const GOVERNANCE_CHAIN: u16 = 1;
+
 pub(crate) const GOVERNANCE_EMITTER: [u8; 32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
 ];

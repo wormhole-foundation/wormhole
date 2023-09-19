@@ -35,7 +35,7 @@ pub struct TransferTokensWithPayloadNative<'info> {
         seeds = [mint.key().as_ref()],
         bump,
     )]
-    custody_token: Box<Account<'info, anchor_spl::token::TokenAccount>>,
+    custody_token: Account<'info, anchor_spl::token::TokenAccount>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -187,7 +187,7 @@ fn transfer_tokens_with_payload_native(
     // Deposit native assets from the source token account into the custody account.
     utils::cpi::transfer(
         ctx.accounts,
-        ctx.accounts.custody_token.to_account_info(),
+        ctx.accounts.custody_token.as_ref(),
         mint.truncate_amount(amount),
         Some(&[&[
             TRANSFER_AUTHORITY_SEED_PREFIX,
@@ -210,7 +210,7 @@ fn transfer_tokens_with_payload_native(
     // Finally publish Wormhole message using the Core Bridge.
     utils::cpi::post_token_bridge_message(
         ctx.accounts,
-        ctx.accounts.core_message.to_account_info(),
+        &ctx.accounts.core_message,
         nonce,
         token_transfer,
     )

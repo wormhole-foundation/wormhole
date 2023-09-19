@@ -1,5 +1,7 @@
 //! Utilities for the Core Bridge Program.
-pub(crate) mod cpi;
+pub mod cpi;
+
+pub mod vaa;
 
 use anchor_lang::prelude::*;
 

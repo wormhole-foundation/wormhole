@@ -33,8 +33,6 @@ pub struct RegisterChain<'info> {
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
     /// potentially allows for multiple emitters to be registered for a given chain ID (when there
     /// should only be one).
-    ///
-    /// See the new `register_chain` instruction handler for the correct way to create this account.
     #[account(
         init,
         payer = payer,
@@ -61,23 +59,19 @@ impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for RegisterChain<'info> 
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::CloseEncodedVaa<'info> for RegisterChain<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-
-    fn write_authority(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-
-    fn encoded_vaa(&self) -> AccountInfo<'info> {
-        self.vaa.to_account_info()
-    }
-}
-
 impl<'info> RegisterChain<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        super::require_valid_governance_encoded_vaa(&ctx.accounts.vaa)
+        let vaa_acc_info = &ctx.accounts.vaa;
+        let vaa_key = vaa_acc_info.key();
+        let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+        let gov_payload = crate::processor::require_valid_governance_vaa(&vaa_key, &vaa)?;
+
+        gov_payload
+            .register_chain()
+            .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))?;
+
+        // Done.
+        Ok(())
     }
 }
 
@@ -85,9 +79,10 @@ impl<'info> RegisterChain<'info> {
 pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     // Deserialize and set data in registered emitter accounts.
     {

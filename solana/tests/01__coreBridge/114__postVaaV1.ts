@@ -35,21 +35,6 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
   });
 
   describe("Ok", () => {
-    it("Cannot Invoke `post_vaa_v1` without Correct Write Authority", async () => {
-      const signedVaa = defaultVaa();
-
-      const vaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
-
-      const someoneElse = anchor.web3.Keypair.generate();
-      await transferLamports(connection, payer, someoneElse.publicKey);
-
-      const ix = await coreBridge.postVaaV1Ix(program, {
-        writeAuthority: someoneElse.publicKey,
-        vaa,
-      });
-      await expectIxErr(connection, [ix], [someoneElse], "ConstraintHasOne");
-    });
-
     it("Cannot Invoke `post_vaa_v1` with Incorrect Post VAA PDA", async () => {
       const signedVaa = defaultVaa();
 
@@ -94,9 +79,6 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
       });
       await expectIxOk(connection, [ix], [payer]);
 
-      const vaaAccount = await connection.getAccountInfo(vaa);
-      expect(vaaAccount).is.null;
-
       const postedVaaData = await coreBridge.PostedVaaV1.fromPda(
         connection,
         program.programId,
@@ -108,7 +90,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
         signatureSet: anchor.web3.PublicKey.default,
         guardianSetIndex: GUARDIAN_SET_INDEX,
         nonce: 420,
-        sequence: new anchor.BN(3),
+        sequence: new anchor.BN(2),
         emitterChain: 69,
         emitterAddress: Array.from(Buffer.alloc(32, "deadbeef")),
         payload: Buffer.alloc(2 * 1_024, "Somebody set us up the bomb. "),

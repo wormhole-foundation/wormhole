@@ -116,7 +116,7 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
     ) {
         (Some(_), _) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
-            ctx.accounts.core_message.to_account_info(),
+            &ctx.accounts.core_message,
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,
@@ -138,7 +138,7 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
         ),
         (None, Some(_)) => core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
-            ctx.accounts.core_message.to_account_info(),
+            &ctx.accounts.core_message,
             core_bridge_sdk::cpi::PublishMessageDirective::Message {
                 nonce,
                 payload,

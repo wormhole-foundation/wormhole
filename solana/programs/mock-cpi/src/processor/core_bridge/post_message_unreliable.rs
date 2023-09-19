@@ -93,7 +93,7 @@ pub fn mock_post_message_unreliable(
 
     core_bridge_sdk::cpi::publish_message(
         ctx.accounts,
-        ctx.accounts.core_message.to_account_info(),
+        &ctx.accounts.core_message,
         core_bridge_sdk::cpi::PublishMessageDirective::UnreliableMessage {
             nonce,
             payload,

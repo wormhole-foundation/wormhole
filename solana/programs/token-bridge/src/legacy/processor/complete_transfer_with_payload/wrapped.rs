@@ -38,7 +38,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Destination token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
@@ -66,7 +66,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
         seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>>,
+    wrapped_asset: Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -163,9 +163,10 @@ fn complete_transfer_with_payload_wrapped(
 ) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     // Take transfer amount as-is.
     let mint_amount = TokenBridgeMessage::try_from(vaa.try_payload().unwrap())
@@ -180,7 +181,7 @@ fn complete_transfer_with_payload_wrapped(
     // Finally transfer encoded amount by minting to the redeemer's token account.
     utils::cpi::mint_to(
         ctx.accounts,
-        ctx.accounts.dst_token.to_account_info(),
+        &ctx.accounts.dst_token,
         mint_amount,
         Some(&[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]]),
     )

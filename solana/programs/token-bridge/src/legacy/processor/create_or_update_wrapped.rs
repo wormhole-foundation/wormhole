@@ -29,7 +29,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
@@ -100,8 +100,8 @@ pub struct CreateOrUpdateWrapped<'info> {
     )]
     mint_authority: AccountInfo<'info>,
 
-    /// CHECK: Rent is needed for the MPL Token Metadata program.
-    rent: UncheckedAccount<'info>,
+    /// CHECK: Previously needed sysvar.
+    _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, token::Token>,
@@ -196,9 +196,10 @@ fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArg
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
@@ -220,7 +221,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     {
         core_bridge_sdk::cpi::create_account(
             ctx.accounts,
-            ctx.accounts.wrapped_asset.to_account_info(),
+            &ctx.accounts.wrapped_asset,
             WrappedAsset::INIT_SPACE,
             &crate::ID,
             Some(&[&[
@@ -247,7 +248,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
                 payer: ctx.accounts.payer.to_account_info(),
                 update_authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
+                rent: ctx.accounts.mpl_token_metadata_program.to_account_info(), // optional rent
             },
             &[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]],
         ),
@@ -269,9 +270,10 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();

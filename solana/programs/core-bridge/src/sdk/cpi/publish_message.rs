@@ -81,7 +81,7 @@ pub enum PublishMessageDirective {
 /// this account. Otherwise, a keypair can be used.
 pub fn publish_message<'info, A>(
     accounts: &A,
-    new_message: AccountInfo<'info>,
+    new_message: &AccountInfo<'info>,
     directive: PublishMessageDirective,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -159,7 +159,7 @@ where
 
 fn handle_post_message_v1<'info, A>(
     accounts: &A,
-    new_message: AccountInfo<'info>,
+    new_message: &AccountInfo<'info>,
     args: PostMessageArgs,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -171,7 +171,7 @@ where
             accounts.core_bridge_program(),
             crate::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config(),
-                message: new_message,
+                message: new_message.to_account_info(),
                 emitter: Some(accounts.core_emitter_authority()),
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
@@ -186,7 +186,7 @@ where
 
 fn handle_post_program_message_v1<'info, A>(
     accounts: &A,
-    new_message: AccountInfo<'info>,
+    new_message: &AccountInfo<'info>,
     program_id: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
@@ -199,7 +199,7 @@ where
     // Create message account.
     crate::utils::cpi::create_account(
         accounts,
-        new_message.to_account_info(),
+        new_message,
         crate::sdk::compute_init_message_v1_space(payload.len()),
         &crate::ID,
         signer_seeds,
@@ -225,7 +225,7 @@ where
             accounts.core_bridge_program(),
             crate::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config(),
-                message: new_message,
+                message: new_message.to_account_info(),
                 emitter: None,
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
@@ -243,7 +243,7 @@ where
 
 fn handle_post_unreliable_message_v1<'info, A>(
     accounts: &A,
-    new_message: AccountInfo<'info>,
+    new_message: &AccountInfo<'info>,
     args: PostMessageArgs,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -255,7 +255,7 @@ where
             accounts.core_bridge_program(),
             crate::legacy::cpi::PostMessageUnreliable {
                 config: accounts.core_bridge_config(),
-                message: new_message,
+                message: new_message.to_account_info(),
                 emitter: accounts.core_emitter_authority(),
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),
@@ -270,7 +270,7 @@ where
 
 fn handle_prepared_message_v1<'info, A>(
     accounts: &A,
-    new_message: AccountInfo<'info>,
+    new_message: &AccountInfo<'info>,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
 where
@@ -281,7 +281,7 @@ where
             accounts.core_bridge_program(),
             crate::legacy::cpi::PostMessage {
                 config: accounts.core_bridge_config(),
-                message: new_message,
+                message: new_message.to_account_info(),
                 emitter: None,
                 emitter_sequence: accounts.core_emitter_sequence(),
                 payer: accounts.payer(),

@@ -12,11 +12,6 @@ pub struct PostVaaV1<'info> {
     #[account(mut)]
     write_authority: Signer<'info>,
 
-    #[account(
-        mut,
-        has_one = write_authority,
-        close = write_authority,
-    )]
     vaa: Account<'info, EncodedVaa>,
 
     #[account(

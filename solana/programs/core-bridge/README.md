@@ -141,7 +141,7 @@ pub fn publish_hello_world(ctx: Context<PublishHelloWorld>) -> Result<()> {
 
     core_bridge_sdk::cpi::publish_message(
         ctx.accounts,
-        ctx.accounts.core_message.to_account_info(),
+        &ctx.accounts.core_message,
         core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
             program_id: crate::ID,
             nonce,
@@ -240,7 +240,7 @@ pub mod core_bridge_hello_world {
 
         core_bridge_sdk::cpi::publish_message(
             ctx.accounts,
-            ctx.accounts.core_message.to_account_info(),
+            &ctx.accounts.core_message,
             core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,

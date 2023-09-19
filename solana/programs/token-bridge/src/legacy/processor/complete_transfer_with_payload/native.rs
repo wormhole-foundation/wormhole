@@ -157,9 +157,10 @@ fn complete_transfer_with_payload_native(
 ) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
@@ -175,7 +176,7 @@ fn complete_transfer_with_payload_native(
     // Finally transfer encoded amount.
     utils::cpi::transfer(
         ctx.accounts,
-        ctx.accounts.dst_token.to_account_info(),
+        &ctx.accounts.dst_token,
         transfer_amount,
         Some(&[&[
             CUSTODY_AUTHORITY_SEED_PREFIX,

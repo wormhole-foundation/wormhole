@@ -35,7 +35,7 @@ pub struct CompleteTransferNative<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
     /// can be sure that this token account is the same mint since the Token Program transfer
@@ -167,9 +167,10 @@ impl<'info> CompleteTransferNative<'info> {
 fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyArgs) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let transfer = msg.transfer().unwrap();
@@ -209,7 +210,7 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
 
         utils::cpi::transfer(
             ctx.accounts,
-            ctx.accounts.payer_token.to_account_info(),
+            &ctx.accounts.payer_token,
             relayer_payout,
             Some(&[custody_authority_seeds]),
         )?;
@@ -218,7 +219,7 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
     // Finally transfer remaining transfer_amount to recipient.
     utils::cpi::transfer(
         ctx.accounts,
-        ctx.accounts.recipient_token.to_account_info(),
+        &ctx.accounts.recipient_token,
         transfer_amount,
         Some(&[custody_authority_seeds]),
     )

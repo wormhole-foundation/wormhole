@@ -14,7 +14,7 @@ pub trait MintTo<'info> {
 
 pub fn mint_to<'info, A>(
     accounts: &A,
-    to: AccountInfo<'info>,
+    to: &AccountInfo<'info>,
     mint_amount: u64,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -26,7 +26,7 @@ where
             accounts.token_program(),
             token::MintTo {
                 mint: accounts.mint(),
-                to,
+                to: to.to_account_info(),
                 authority: accounts.mint_authority(),
             },
             signer_seeds.unwrap_or_default(),
@@ -68,8 +68,14 @@ where
 {
     burn_from(
         accounts,
-        accounts.require_from()?,
-        accounts.require_authority()?,
+        accounts
+            .from()
+            .as_ref()
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?,
+        accounts
+            .authority()
+            .as_ref()
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?,
         burn_amount,
         signer_seeds,
     )
@@ -77,8 +83,8 @@ where
 
 fn burn_from<'info, A>(
     accounts: &A,
-    from: AccountInfo<'info>,
-    authority: AccountInfo<'info>,
+    from: &AccountInfo<'info>,
+    authority: &AccountInfo<'info>,
     burn_amount: u64,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -90,8 +96,8 @@ where
             accounts.token_program(),
             token::Burn {
                 mint: accounts.mint(),
-                from,
-                authority,
+                from: from.to_account_info(),
+                authority: authority.to_account_info(),
             },
             signer_seeds.unwrap_or_default(),
         ),
@@ -109,20 +115,11 @@ pub trait Transfer<'info> {
     fn authority(&self) -> Option<AccountInfo<'info>> {
         None
     }
-
-    fn require_from(&self) -> Result<AccountInfo<'info>> {
-        self.from().ok_or(error!(ErrorCode::AccountNotEnoughKeys))
-    }
-
-    fn require_authority(&self) -> Result<AccountInfo<'info>> {
-        self.authority()
-            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))
-    }
 }
 
 pub fn transfer<'info, A>(
     accounts: &A,
-    to: AccountInfo<'info>,
+    to: &AccountInfo<'info>,
     transfer_amount: u64,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -131,8 +128,14 @@ where
 {
     transfer_from(
         accounts,
-        accounts.require_from()?,
-        accounts.require_authority()?,
+        accounts
+            .from()
+            .as_ref()
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?,
+        accounts
+            .authority()
+            .as_ref()
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?,
         to,
         transfer_amount,
         signer_seeds,
@@ -141,9 +144,9 @@ where
 
 pub fn transfer_from<'info, A>(
     accounts: &A,
-    from: AccountInfo<'info>,
-    authority: AccountInfo<'info>,
-    to: AccountInfo<'info>,
+    from: &AccountInfo<'info>,
+    authority: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
     transfer_amount: u64,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()>
@@ -154,9 +157,9 @@ where
         CpiContext::new_with_signer(
             accounts.token_program(),
             token::Transfer {
-                from,
-                to,
-                authority,
+                from: from.to_account_info(),
+                to: to.to_account_info(),
+                authority: authority.to_account_info(),
             },
             signer_seeds.unwrap_or_default(),
         ),
@@ -166,7 +169,7 @@ where
 
 pub fn post_token_bridge_message<'info, A, W>(
     accounts: &A,
-    core_message: AccountInfo<'info>,
+    core_message: &AccountInfo<'info>,
     nonce: u32,
     message: W,
 ) -> Result<()>

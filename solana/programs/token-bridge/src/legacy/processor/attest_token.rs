@@ -162,7 +162,7 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     // Finally post Wormhole message via Core Bridge.
     utils::cpi::post_token_bridge_message(
         ctx.accounts,
-        ctx.accounts.core_message.to_account_info(),
+        &ctx.accounts.core_message,
         nonce,
         crate::messages::Attestation {
             token_address: ctx.accounts.mint.key().to_bytes(),

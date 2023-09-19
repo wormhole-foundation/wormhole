@@ -198,7 +198,7 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     {
         utils::cpi::create_account(
             ctx.accounts,
-            ctx.accounts.message.to_account_info(),
+            &ctx.accounts.message,
             PostedMessageV1::compute_size(payload.len()),
             &crate::ID,
             None,

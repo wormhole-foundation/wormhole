@@ -38,7 +38,7 @@ pub struct CompleteTransferWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
-    registered_emitter: Box<Account<'info, LegacyAnchorized<0, RegisteredEmitter>>>,
+    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
@@ -67,7 +67,7 @@ pub struct CompleteTransferWrapped<'info> {
         seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Box<Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>>,
+    wrapped_asset: Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -173,9 +173,10 @@ fn complete_transfer_wrapped(
 ) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let transfer = msg.transfer().unwrap();
@@ -205,7 +206,7 @@ fn complete_transfer_wrapped(
 
         utils::cpi::mint_to(
             ctx.accounts,
-            payer_token.to_account_info(),
+            &payer_token,
             relayer_payout,
             Some(&[mint_authority_seeds]),
         )?;
@@ -214,7 +215,7 @@ fn complete_transfer_wrapped(
     // If there is any amount left after the relayer payout, finally mint remaining.
     utils::cpi::mint_to(
         ctx.accounts,
-        recipient_token.to_account_info(),
+        &recipient_token,
         mint_amount,
         Some(&[mint_authority_seeds]),
     )

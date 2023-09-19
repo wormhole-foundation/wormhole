@@ -79,7 +79,7 @@ impl<'info> UpgradeContract<'info> {
         let vaa_acc_info = &ctx.accounts.vaa;
         let vaa_key = vaa_acc_info.key();
         let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-        let gov_payload = super::require_valid_posted_governance_vaa(&vaa_key, &vaa)?;
+        let gov_payload = crate::processor::require_valid_governance_vaa(&vaa_key, &vaa)?;
 
         let decree = gov_payload
             .contract_upgrade()
@@ -110,9 +110,10 @@ impl<'info> UpgradeContract<'info> {
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
     let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
-    // Mark the claim as complete. The account only exists to ensure that the VAA is not processed,
-    // so this value does not matter. But the legacy program set this data to true.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &crate::ID, &vaa, &ctx.accounts.claim)?;
+    // Create the claim account to provide replay protection. Because this instruction creates this
+    // account every time it is executed, this account cannot be created again with this emitter
+    // address, chain and sequence combination.
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
 
     // Finally upgrade.
     invoke_signed(

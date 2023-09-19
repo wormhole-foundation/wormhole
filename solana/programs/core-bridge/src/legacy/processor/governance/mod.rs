@@ -38,7 +38,7 @@ pub fn require_valid_posted_governance_vaa<'ctx>(
     // The emitter must be the hard-coded governance emitter.
     let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
     require!(
-        emitter_chain == crate::constants::SOLANA_CHAIN
+        emitter_chain == crate::constants::GOVERNANCE_CHAIN
             && emitter_address == crate::constants::GOVERNANCE_EMITTER,
         CoreBridgeError::InvalidGovernanceEmitter
     );
