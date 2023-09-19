@@ -14,11 +14,12 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {DeliveryInstruction} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {
-    ReentrancyGuardState,
+    DeliveryTmpState,
+    getDeliveryTmpState,
     getDeliverySuccessState,
-    getReentrancyGuardState,
     getDeliveryFailureState,
-    getRegisteredWormholeRelayersState
+    getRegisteredWormholeRelayersState,
+    getReentrancyGuardState
 } from "./WormholeRelayerStorage.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
@@ -121,5 +122,27 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         _;
 
         getReentrancyGuardState().lockedBy = address(0);
+    }
+
+     // ----------------------- delivery transaction temorary storage functions -----------------------
+
+    function recordRefundInformation(uint16 refundChain, bytes32 refundAddress) internal {
+        DeliveryTmpState storage state = getDeliveryTmpState();
+        state.refundChain = refundChain;
+        state.refundAddress = refundAddress;
+    }
+
+    function clearRefundInformation() internal {
+        DeliveryTmpState storage state = getDeliveryTmpState();
+        state.refundChain = 0;
+        state.refundAddress = bytes32(0);
+    }
+
+    function getCurrentRefundChain() internal view returns (uint16) {
+        return getDeliveryTmpState().refundChain;
+    }
+
+    function getCurrentRefundAddress() internal view returns (bytes32) {
+        return getDeliveryTmpState().refundAddress;
     }
 }

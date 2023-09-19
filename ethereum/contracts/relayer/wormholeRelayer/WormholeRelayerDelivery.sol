@@ -74,6 +74,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
 
+        // Record information about the delivery's refund in temporary storage
+        recordRefundInformation(
+            instruction.refundChain,
+            instruction.refundAddress
+        );
+
         DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
             sourceChain: vm.emitterChainId,
             sourceSequence: vm.sequence,
@@ -117,6 +123,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         checkMessageKeysWithMessages(instruction.messageKeys, encodedVMs);
 
         executeDelivery(deliveryVaaInfo);
+
+        // Clear temporary storage of refund information
+        clearRefundInformation();
     }
 
     // ------------------------------------------- PRIVATE -------------------------------------------
