@@ -109,7 +109,9 @@ impl<'info> utils::cpi::Burn<'info> for TransferTokensWithPayloadWrapped<'info> 
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWithPayloadWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for TransferTokensWithPayloadWrapped<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }

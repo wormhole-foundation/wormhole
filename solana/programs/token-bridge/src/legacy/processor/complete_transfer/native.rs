@@ -88,7 +88,9 @@ pub struct CompleteTransferNative<'info> {
     token_program: Program<'info, anchor_spl::token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for CompleteTransferNative<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for CompleteTransferNative<'info>
+{
     fn system_program(&self) -> AccountInfo<'info> {
         self.system_program.to_account_info()
     }
@@ -128,10 +130,12 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> CompleteTransferNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        crate::zero_copy::TokenAccount::require_owner(
-            &ctx.accounts.payer_token,
-            &ctx.accounts.payer.key(),
-        )?;
+        let payer_token_account = crate::zero_copy::TokenAccount::load(&ctx.accounts.payer_token)?;
+        require_keys_eq!(
+            payer_token_account.owner(),
+            ctx.accounts.payer.key(),
+            ErrorCode::ConstraintTokenOwner
+        );
 
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
@@ -175,7 +179,7 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let transfer = msg.transfer().unwrap();
 
-    let decimals = Mint::parse(&ctx.accounts.mint).unwrap().decimals();
+    let decimals = Mint::load(&ctx.accounts.mint).unwrap().decimals();
 
     // Denormalize transfer transfer_amount and relayer payouts based on this mint's decimals. When these
     // transfers were made outbound, the amounts were normalized, so it is safe to unwrap these
@@ -210,7 +214,7 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
 
         utils::cpi::transfer(
             ctx.accounts,
-            &ctx.accounts.payer_token,
+            payer_token,
             relayer_payout,
             Some(&[custody_authority_seeds]),
         )?;
@@ -219,7 +223,7 @@ fn complete_transfer_native(ctx: Context<CompleteTransferNative>, _args: EmptyAr
     // Finally transfer remaining transfer_amount to recipient.
     utils::cpi::transfer(
         ctx.accounts,
-        &ctx.accounts.recipient_token,
+        recipient_token,
         transfer_amount,
         Some(&[custody_authority_seeds]),
     )

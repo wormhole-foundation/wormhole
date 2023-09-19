@@ -21,28 +21,28 @@ impl<'a> Mint<'a> {
         }
     }
 
-    pub fn require_mint_authority(
-        acc_info: &'a AccountInfo,
-        mint_authority: Option<&Pubkey>,
-    ) -> Result<()> {
-        let mint = Self::parse(acc_info)?;
-        match mint.mint_authority() {
-            Some(actual) => {
-                let expected =
-                    mint_authority.ok_or(error!(ErrorCode::ConstraintMintMintAuthority))?;
-                require_keys_eq!(actual, *expected, ErrorCode::ConstraintMintMintAuthority);
-            }
-            None => {
-                require!(
-                    mint_authority.is_none(),
-                    ErrorCode::ConstraintMintMintAuthority
-                );
-            }
-        }
+    // pub fn require_mint_authority(
+    //     acc_info: &'a AccountInfo,
+    //     mint_authority: Option<&Pubkey>,
+    // ) -> Result<()> {
+    //     let mint = Self::parse(acc_info)?;
+    //     match mint.mint_authority() {
+    //         Some(actual) => {
+    //             let expected =
+    //                 mint_authority.ok_or(error!(ErrorCode::ConstraintMintMintAuthority))?;
+    //             require_keys_eq!(actual, *expected, ErrorCode::ConstraintMintMintAuthority);
+    //         }
+    //         None => {
+    //             require!(
+    //                 mint_authority.is_none(),
+    //                 ErrorCode::ConstraintMintMintAuthority
+    //             );
+    //         }
+    //     }
 
-        // Done.
-        Ok(())
-    }
+    //     // Done.
+    //     Ok(())
+    // }
 
     /// Total supply of tokens.
     pub fn supply(&self) -> u64 {
@@ -66,8 +66,10 @@ impl<'a> Mint<'a> {
             _ => Some(Pubkey::try_from(&self.0[50..82]).unwrap()),
         }
     }
+}
 
-    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+impl<'a> core_bridge_program::sdk::LoadZeroCopy<'a> for Mint<'a> {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
         require_keys_eq!(
             *acc_info.owner,
             anchor_spl::token::ID,
@@ -85,10 +87,6 @@ impl<'a> Mint<'a> {
         require!(mint.is_initialized(), ErrorCode::AccountNotInitialized);
 
         Ok(mint)
-    }
-
-    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
-        Self(acc_info.data.borrow())
     }
 }
 

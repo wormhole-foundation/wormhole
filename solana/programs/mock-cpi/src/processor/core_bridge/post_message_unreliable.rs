@@ -45,7 +45,9 @@ pub struct MockPostMessageUnreliable<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockPostMessageUnreliable<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for MockPostMessageUnreliable<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }

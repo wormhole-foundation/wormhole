@@ -4,14 +4,20 @@ use anchor_spl::token;
 use core_bridge_program::sdk as core_bridge_sdk;
 use wormhole_io::Writeable;
 
+/// Trait for invoking the SPL Token program's mint instruction.
 pub trait MintTo<'info> {
     fn token_program(&self) -> AccountInfo<'info>;
 
+    /// Mint of the asset being burned. Must be mutable because the supply will change after
+    /// invoking [mint_to].
     fn mint(&self) -> AccountInfo<'info>;
 
+    /// Authority associated with the mint that permits minting new assets.
     fn mint_authority(&self) -> AccountInfo<'info>;
 }
 
+/// Method for invoking the SPL Token program's mint instruction. This method may be useful if you
+/// do not want to create CPI contexts repetitively in your instruction handler.
 pub fn mint_to<'info, A>(
     accounts: &A,
     to: &AccountInfo<'info>,
@@ -35,29 +41,31 @@ where
     )
 }
 
+/// Trait for invoking the SPL Token program's burn instruction.
 pub trait Burn<'info> {
     fn token_program(&self) -> AccountInfo<'info>;
 
+    /// Mint of the asset being burned. Must be mutable because the supply will change after
+    /// invoking [burn].
     fn mint(&self) -> AccountInfo<'info>;
 
+    /// Optional token account from which the asset amount is burned. This account must be
+    /// `Some(token_account)` if you invoke the [burn] method. It is not required if you invoke
+    /// [burn_from] since this account is specified in the method.
     fn from(&self) -> Option<AccountInfo<'info>> {
         None
     }
 
+    /// Optional authority, which permits burning assets from a token account. This account must be
+    /// `Some(authority)` if you invoke the [burn] method. It is not required if you invoke
+    /// [burn_from] since this account is specified in the method.
     fn authority(&self) -> Option<AccountInfo<'info>> {
         None
     }
-
-    fn require_from(&self) -> Result<AccountInfo<'info>> {
-        self.from().ok_or(error!(ErrorCode::AccountNotEnoughKeys))
-    }
-
-    fn require_authority(&self) -> Result<AccountInfo<'info>> {
-        self.authority()
-            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))
-    }
 }
 
+/// Method for invoking the SPL Token program's burn instruction. This method may be useful if you
+/// do not want to create CPI contexts repetitively in your instruction handler.
 pub fn burn<'info, A>(
     accounts: &A,
     burn_amount: u64,
@@ -81,7 +89,10 @@ where
     )
 }
 
-fn burn_from<'info, A>(
+/// Method for invoking the SPL Token program's burn instruction by specifying the token account
+/// (and its authority) associated with the asset being burned. This method may be useful if you
+/// do not want to create CPI contexts repetitively in your instruction handler.
+pub fn burn_from<'info, A>(
     accounts: &A,
     from: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
@@ -105,18 +116,27 @@ where
     )
 }
 
+/// Trait for invoking the SPL Token program's transfer instruction.
 pub trait Transfer<'info> {
     fn token_program(&self) -> AccountInfo<'info>;
 
+    /// Optional token account from which the asset amount is removed. This account must be
+    /// `Some(token_account)` if you invoke the [transfer] method. It is not required if you invoke
+    /// [transfer_from] since this account is specified in the method.
     fn from(&self) -> Option<AccountInfo<'info>> {
         None
     }
 
+    /// Optional authority, which permits removing assets from a token account. This account must be
+    /// `Some(authority)` if you invoke the [transfer] method. It is not required if you invoke
+    /// [transfer_from] since this account is specified in the method.
     fn authority(&self) -> Option<AccountInfo<'info>> {
         None
     }
 }
 
+/// Method for invoking the SPL Token program's transfer instruction. This method may be useful if
+/// you do not want to create CPI contexts repetitively in your instruction handler.
 pub fn transfer<'info, A>(
     accounts: &A,
     to: &AccountInfo<'info>,
@@ -142,6 +162,9 @@ where
     )
 }
 
+/// Method for invoking the SPL Token program's transfer instruction by specifying the token account
+/// (and its authority) associated with the asset being transferred. This method may be useful if
+/// you do not want to create CPI contexts repetitively in your instruction handler.
 pub fn transfer_from<'info, A>(
     accounts: &A,
     from: &AccountInfo<'info>,

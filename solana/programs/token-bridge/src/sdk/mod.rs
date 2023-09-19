@@ -5,16 +5,19 @@
 
 pub use core_bridge_program::sdk as core_bridge_sdk;
 
+#[doc(inline)]
 pub use crate::{
     constants::{PROGRAM_REDEEMER_SEED_PREFIX, PROGRAM_SENDER_SEED_PREFIX},
     legacy::instruction::{TransferTokensArgs, TransferTokensWithPayloadArgs},
-    state, zero_copy,
+    state,
+    zero_copy::{Mint, TokenAccount},
 };
 
+/// Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
+/// is useful for specifying accounts for a client.
 pub mod accounts {
-    //! Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
-    //! is useful for specifying accounts for a client.
 
+    #[doc(inline)]
     pub use crate::{accounts::*, legacy::accounts::*};
 }
 
@@ -22,11 +25,10 @@ pub mod accounts {
 #[cfg(feature = "cpi")]
 pub mod cpi;
 
+/// Instruction builders. These should be used directly when one wants to serialize instruction
+/// data when speciying instructions on a client.
 pub mod instruction {
-    //! Instruction builders. These should be used directly when one wants to serialize instruction
-    //! data when speciying instructions on a client.
+
+    #[doc(inline)]
     pub use crate::{accounts, instruction::*, legacy::instruction as legacy};
 }
-
-/// The program ID of the Token Bridge program.
-pub static PROGRAM_ID: anchor_lang::prelude::Pubkey = crate::ID;

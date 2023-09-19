@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, system_program};
 
-/// Trait for invoking the system program's create account instruction.
+/// Trait for invoking the System program's create account instruction.
 pub trait CreateAccount<'info> {
     fn system_program(&self) -> AccountInfo<'info>;
 
@@ -8,6 +8,11 @@ pub trait CreateAccount<'info> {
     fn payer(&self) -> AccountInfo<'info>;
 }
 
+/// Method for invoking the System program's create account instruction. This method may be useful
+/// if it is inconvenient to use Anchor's `init` account macro directive.
+///
+/// NOTE: This method does not serialize any data into your new account. You will need to serialize
+/// this data by borrowing mutable data and writing to it.
 pub fn create_account<'info, A>(
     accounts: &A,
     new_account: &AccountInfo<'info>,

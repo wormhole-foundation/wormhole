@@ -1,9 +1,8 @@
-pub use crate::legacy::instruction::{TransferTokensArgs, TransferTokensWithPayloadArgs};
-
 use crate::{error::TokenBridgeError, zero_copy::Mint};
 use anchor_lang::prelude::*;
+use core_bridge_program::sdk::LoadZeroCopy;
 
-pub trait CompleteTransfer<'info>: super::CreateAccount<'info> {
+pub trait CompleteTransfer<'info>: super::system_program::CreateAccount<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info>;
 
     /// SPL Token Program.
@@ -79,7 +78,7 @@ where
 {
     // If whether this mint is wrapped is unspecified, we derive the mint authority, which will cost
     // some compute units.
-    let is_wrapped_asset = !crate::utils::is_native_mint(&Mint::parse_unchecked(&accounts.mint()));
+    let is_wrapped_asset = !crate::utils::is_native_mint(&Mint::load(&accounts.mint())?);
 
     complete_transfer_specified(accounts, is_wrapped_asset, signer_seeds)
 }

@@ -77,7 +77,7 @@ pub struct CompleteTransferWithPayloadNative<'info> {
     token_program: Program<'info, anchor_spl::token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
     for CompleteTransferWithPayloadNative<'info>
 {
     fn system_program(&self) -> AccountInfo<'info> {
@@ -169,7 +169,7 @@ fn complete_transfer_with_payload_native(
         .transfer_with_message()
         .unwrap()
         .encoded_amount()
-        .denorm(Mint::parse_unchecked(&ctx.accounts.mint).decimals())
+        .denorm(Mint::load(&ctx.accounts.mint).unwrap().decimals())
         .try_into()
         .expect("Solana token amounts are u64");
 

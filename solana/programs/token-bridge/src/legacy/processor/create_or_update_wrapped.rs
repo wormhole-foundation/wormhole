@@ -108,7 +108,9 @@ pub struct CreateOrUpdateWrapped<'info> {
     mpl_token_metadata_program: Program<'info, metadata::Metadata>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for CreateOrUpdateWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for CreateOrUpdateWrapped<'info>
+{
     fn system_program(&self) -> AccountInfo<'info> {
         self.system_program.to_account_info()
     }
@@ -219,7 +221,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 
     // Create and set wrapped asset data.
     {
-        core_bridge_sdk::cpi::create_account(
+        core_bridge_sdk::cpi::system_program::create_account(
             ctx.accounts,
             &ctx.accounts.wrapped_asset,
             WrappedAsset::INIT_SPACE,

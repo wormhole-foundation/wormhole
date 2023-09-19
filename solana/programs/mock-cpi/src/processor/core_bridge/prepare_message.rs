@@ -23,7 +23,7 @@ pub struct MockPrepareMessageV1<'info> {
     #[account(
         init,
         payer = payer,
-        space = core_bridge_sdk::compute_init_message_v1_space(data_len.try_into().unwrap()),
+        space = core_bridge_sdk::compute_prepared_message_space(data_len.try_into().unwrap()),
         seeds = [
             b"my_draft_message",
             payer.key().as_ref(),

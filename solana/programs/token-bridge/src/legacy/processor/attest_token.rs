@@ -1,7 +1,7 @@
 use crate::{legacy::instruction::LegacyAttestTokenArgs, utils, zero_copy::Mint};
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -62,7 +62,7 @@ pub struct AttestToken<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for AttestToken<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for AttestToken<'info> {
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -157,7 +157,7 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
     let LegacyAttestTokenArgs { nonce } = args;
 
     let metadata = &ctx.accounts.token_metadata.data;
-    let decimals = Mint::parse(&ctx.accounts.mint).unwrap().decimals();
+    let decimals = Mint::load(&ctx.accounts.mint).unwrap().decimals();
 
     // Finally post Wormhole message via Core Bridge.
     utils::cpi::post_token_bridge_message(

@@ -36,7 +36,7 @@ pub struct RedeemHelloWorld<'info> {
 
     /// CHECK: This account is needed for the Token Bridge program. This account warehouses the
     /// VAA of the token transfer from another chain.
-    posted_vaa: UncheckedAccount<'info>,
+    encoded_vaa: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(mut)]
@@ -67,7 +67,9 @@ pub struct RedeemHelloWorld<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> token_bridge_sdk::cpi::CreateAccount<'info> for RedeemHelloWorld<'info> {
+impl<'info> token_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for RedeemHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -82,8 +84,12 @@ impl<'info> token_bridge_sdk::cpi::CompleteTransfer<'info> for RedeemHelloWorld<
         self.token_bridge_program.to_account_info()
     }
 
+    fn token_program(&self) -> AccountInfo<'info> {
+        self.token_program.to_account_info()
+    }
+
     fn vaa(&self) -> AccountInfo<'info> {
-        self.posted_vaa.to_account_info()
+        self.encoded_vaa.to_account_info()
     }
 
     fn token_bridge_claim(&self) -> AccountInfo<'info> {
@@ -120,10 +126,6 @@ impl<'info> token_bridge_sdk::cpi::CompleteTransfer<'info> for RedeemHelloWorld<
 
     fn token_bridge_wrapped_asset(&self) -> Option<AccountInfo<'info>> {
         self.token_bridge_wrapped_asset.clone()
-    }
-
-    fn token_program(&self) -> AccountInfo<'info> {
-        self.token_program.to_account_info()
     }
 }
 
@@ -199,7 +201,9 @@ pub struct TransferHelloWorld<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> token_bridge_sdk::cpi::CreateAccount<'info> for TransferHelloWorld<'info> {
+impl<'info> token_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for TransferHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -236,12 +240,12 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<
         self.token_bridge_program.to_account_info()
     }
 
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
     fn token_program(&self) -> AccountInfo<'info> {
         self.token_program.to_account_info()
+    }
+
+    fn core_message(&self) -> AccountInfo<'info> {
+        self.core_message.to_account_info()
     }
 
     fn src_token_account(&self) -> AccountInfo<'info> {
@@ -250,6 +254,10 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<
 
     fn mint(&self) -> AccountInfo<'info> {
         self.mint.to_account_info()
+    }
+
+    fn sender_authority(&self) -> Option<AccountInfo<'info>> {
+        Some(self.sender_authority.to_account_info())
     }
 
     fn token_bridge_transfer_authority(&self) -> AccountInfo<'info> {
@@ -266,10 +274,6 @@ impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for TransferHelloWorld<
 
     fn token_bridge_wrapped_asset(&self) -> Option<AccountInfo<'info>> {
         self.token_bridge_wrapped_asset.clone()
-    }
-
-    fn sender_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.sender_authority.to_account_info())
     }
 }
 

@@ -3,6 +3,7 @@ use crate::{
     legacy::instruction::{TransferTokensArgs, TransferTokensWithPayloadArgs},
 };
 use anchor_lang::prelude::*;
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 
 /// Trait for invoking one of the ways you can transfer assets to another network using the Token
 /// Bridge program.
@@ -10,7 +11,7 @@ use anchor_lang::prelude::*;
 /// NOTE: A sender's address can either be a program's ID or a custom PDA address for transfers with
 /// a message payload. If the sender address is a program ID, then the seeds for the sender
 /// authority must be \["sender"\].
-pub trait TransferTokens<'info>: core_bridge_program::sdk::cpi::PublishMessage<'info> {
+pub trait TransferTokens<'info>: core_bridge_sdk::cpi::PublishMessage<'info> {
     fn token_bridge_program(&self) -> AccountInfo<'info>;
 
     /// SPL Token Program.
@@ -66,7 +67,7 @@ pub trait TransferTokens<'info>: core_bridge_program::sdk::cpi::PublishMessage<'
     }
 }
 
-// Direcrtive used to determine how to transfer assets.
+/// Direcrtive used to determine how to transfer assets.
 pub enum TransferTokensDirective {
     /// Ordinary transfer with relay. If a relayer fee greater than zero is specified, this amount
     /// is deducted from the transfer amount to pay the redeemer of this transfer. This is useful to
@@ -101,8 +102,10 @@ pub enum TransferTokensDirective {
     },
 }
 
-/// SDK method for transferring assets to another network with the Token Bridge program. This method
-/// will handle any of the following directives:
+/// SDK method for transferring assets to another network with the Token Bridge program.
+///
+/// This method will handle any of the following directives:
+///
 /// * Transfer with relay.
 /// * Transfer with message payload, whose sender is your program ID.
 /// * Transfer with message payload, whose sender is either a keypair pubkey or PDA address.
@@ -122,13 +125,14 @@ where
     // If whether this mint is wrapped is unspecified, we derive the mint authority, which will cost
     // some compute units.
     let is_wrapped_asset =
-        !crate::utils::is_native_mint(&crate::zero_copy::Mint::parse_unchecked(&accounts.mint()));
+        !crate::utils::is_native_mint(&crate::zero_copy::Mint::load(&accounts.mint())?);
 
     transfer_tokens_specified(accounts, directive, is_wrapped_asset, signer_seeds)
 }
 
-/// SDK method for transferring assets to another network with the Token Bridge program. This method
-/// will handle any of the following directives:
+/// SDK method for transferring assets to another network with the Token Bridge program.
+///
+/// This method will handle any of the following directives:
 /// * Transfer with relay.
 /// * Transfer with message payload, whose sender is your program ID.
 /// * Transfer with message payload, whose sender is either a keypair pubkey or PDA address.

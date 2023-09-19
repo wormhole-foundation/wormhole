@@ -49,7 +49,7 @@ pub struct RegisterChain<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for RegisterChain<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for RegisterChain<'info> {
     fn system_program(&self) -> AccountInfo<'info> {
         self.system_program.to_account_info()
     }

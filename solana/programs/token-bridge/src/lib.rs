@@ -30,7 +30,7 @@ pub mod state;
 
 pub(crate) mod utils;
 
-pub mod zero_copy;
+pub(crate) mod zero_copy;
 
 #[program]
 pub mod wormhole_token_bridge_solana {

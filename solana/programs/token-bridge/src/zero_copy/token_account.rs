@@ -16,23 +16,9 @@ impl<'a> TokenAccount<'a> {
         Pubkey::try_from(&self.0[0..32]).unwrap()
     }
 
-    pub fn require_mint(acc_info: &'a AccountInfo, mint: &Pubkey) -> Result<()> {
-        let token = Self::parse(acc_info)?;
-        require_keys_eq!(token.mint(), *mint, ErrorCode::ConstraintTokenMint);
-
-        Ok(())
-    }
-
     /// The owner of this account.
     pub fn owner(&self) -> Pubkey {
         Pubkey::try_from(&self.0[32..64]).unwrap()
-    }
-
-    pub fn require_owner(acc_info: &'a AccountInfo, owner: &Pubkey) -> Result<()> {
-        let token = Self::parse(acc_info)?;
-        require_keys_eq!(token.owner(), *owner, ErrorCode::ConstraintTokenOwner);
-
-        Ok(())
     }
 
     /// The amount of tokens this account holds.
@@ -81,8 +67,10 @@ impl<'a> TokenAccount<'a> {
             _ => Some(Pubkey::try_from(&self.0[133..165]).unwrap()),
         }
     }
+}
 
-    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
+impl<'a> core_bridge_program::sdk::LoadZeroCopy<'a> for TokenAccount<'a> {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
         require_keys_eq!(
             *acc_info.owner,
             anchor_spl::token::ID,
@@ -103,9 +91,5 @@ impl<'a> TokenAccount<'a> {
         );
 
         Ok(token)
-    }
-
-    pub fn parse_unchecked(acc_info: &'a AccountInfo) -> Self {
-        Self(acc_info.data.borrow())
     }
 }

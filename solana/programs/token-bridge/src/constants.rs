@@ -1,3 +1,6 @@
+//! Constants used by the Token Bridge Program. For integrators, necessary constants are re-exported
+//! in the [sdk](crate::sdk) module.
+
 use anchor_lang::prelude::constant;
 
 /// Seed for upgrade authority.

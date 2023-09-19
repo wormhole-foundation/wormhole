@@ -91,7 +91,9 @@ pub struct CompleteTransferWrapped<'info> {
     token_program: Program<'info, anchor_spl::token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for CompleteTransferWrapped<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for CompleteTransferWrapped<'info>
+{
     fn system_program(&self) -> AccountInfo<'info> {
         self.system_program.to_account_info()
     }
@@ -131,10 +133,11 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> CompleteTransferWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        crate::zero_copy::Mint::require_mint_authority(
-            &ctx.accounts.wrapped_mint,
-            Some(&ctx.accounts.mint_authority.key()),
-        )?;
+        let mint = crate::zero_copy::Mint::load(&ctx.accounts.wrapped_mint)?;
+        require!(
+            mint.mint_authority() == Some(ctx.accounts.mint_authority.key()),
+            ErrorCode::ConstraintMintMintAuthority
+        );
 
         let (token_chain, token_address) = super::validate_posted_token_transfer(
             &ctx.accounts.vaa,
@@ -206,7 +209,7 @@ fn complete_transfer_wrapped(
 
         utils::cpi::mint_to(
             ctx.accounts,
-            &payer_token,
+            payer_token,
             relayer_payout,
             Some(&[mint_authority_seeds]),
         )?;
@@ -215,7 +218,7 @@ fn complete_transfer_wrapped(
     // If there is any amount left after the relayer payout, finally mint remaining.
     utils::cpi::mint_to(
         ctx.accounts,
-        &recipient_token,
+        recipient_token,
         mint_amount,
         Some(&[mint_authority_seeds]),
     )

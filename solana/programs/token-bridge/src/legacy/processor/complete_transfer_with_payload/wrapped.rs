@@ -82,7 +82,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     token_program: Program<'info, anchor_spl::token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
     for CompleteTransferWithPayloadWrapped<'info>
 {
     fn system_program(&self) -> AccountInfo<'info> {
@@ -125,10 +125,11 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> CompleteTransferWithPayloadWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        crate::zero_copy::Mint::require_mint_authority(
-            &ctx.accounts.wrapped_mint,
-            Some(&ctx.accounts.mint_authority.key()),
-        )?;
+        let mint = crate::zero_copy::Mint::load(&ctx.accounts.wrapped_mint)?;
+        require!(
+            mint.mint_authority() == Some(ctx.accounts.mint_authority.key()),
+            ErrorCode::ConstraintMintMintAuthority
+        );
 
         let (token_chain, token_address) = super::validate_posted_token_transfer_with_payload(
             &ctx.accounts.vaa,

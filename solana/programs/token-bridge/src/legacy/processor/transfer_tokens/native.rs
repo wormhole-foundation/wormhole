@@ -6,7 +6,7 @@ use crate::{
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 
@@ -98,7 +98,9 @@ impl<'info> utils::cpi::Transfer<'info> for TransferTokensNative<'info> {
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensNative<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for TransferTokensNative<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -178,7 +180,7 @@ fn transfer_tokens_native(
         recipient_chain,
     } = args;
 
-    let mint = Mint::parse_unchecked(&ctx.accounts.mint);
+    let mint = Mint::load(&ctx.accounts.mint).unwrap();
 
     // Deposit native assets from the sender's account into the custody account.
     utils::cpi::transfer(

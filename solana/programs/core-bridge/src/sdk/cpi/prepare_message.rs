@@ -23,8 +23,8 @@ pub trait PrepareMessage<'info> {
 /// Program instructions.
 ///
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
-/// either invoke [create_account](crate::sdk::cpi::create_account) or use Anchor's `init` macro
-/// directive before calling this method.
+/// either invoke [create_account](crate::sdk::cpi::system_program::create_account) or use Anchor's
+/// `init` macro directive before calling this method.
 pub fn prepare_message<'info, A>(
     accounts: &A,
     init_args: InitMessageV1Args,

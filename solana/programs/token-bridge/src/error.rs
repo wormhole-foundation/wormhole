@@ -1,3 +1,5 @@
+//! Errors that may arise when interacting with the Token Bridge Program.
+//!
 use anchor_lang::prelude::error_code;
 
 #[error_code]
@@ -84,14 +86,17 @@ pub enum TokenBridgeError {
     #[msg("InvalidRecipient")]
     InvalidRecipient = 0x48,
 
+    #[msg("InvalidRelayerFee")]
+    InvalidRelayerFee = 0x60,
+
+    #[msg("InvalidProgramSender")]
+    InvalidProgramSender = 0x62,
+
     #[msg("CannotSerializeJson")]
     CannotSerializeJson = 0x700,
 
     #[msg("AttestationOutOfSequence")]
     AttestationOutOfSequence = 0x702,
-
-    #[msg("InvalidRelayerFee")]
-    InvalidRelayerFee = 0x60,
 
     #[msg("ImplementationMismatch")]
     ImplementationMismatch = 0x800,

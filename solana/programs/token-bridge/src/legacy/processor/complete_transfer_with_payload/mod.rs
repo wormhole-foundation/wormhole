@@ -23,9 +23,10 @@ pub fn validate_posted_token_transfer_with_payload(
     let msg =
         crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
-    let transfer = match msg {
-        TokenBridgeMessage::TransferWithMessage(inner) => inner,
-        _ => return err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    let transfer = if let TokenBridgeMessage::TransferWithMessage(inner) = msg {
+        inner
+    } else {
+        return err!(TokenBridgeError::InvalidTokenBridgeVaa);
     };
 
     // This token bridge transfer must be intended to be redeemed on Solana.
@@ -57,7 +58,7 @@ pub fn validate_posted_token_transfer_with_payload(
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.
-        let token = crate::zero_copy::TokenAccount::parse(dst_token)?;
+        let token = crate::zero_copy::TokenAccount::load(dst_token)?;
         require_keys_eq!(redeemer, token.owner(), ErrorCode::ConstraintTokenOwner);
     }
 

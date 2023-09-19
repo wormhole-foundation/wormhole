@@ -5,7 +5,7 @@ use crate::{
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
 use ruint::aliases::U256;
 use wormhole_raw_vaas::support::EncodedAmount;
 
@@ -31,7 +31,7 @@ pub struct TransferTokensWithPayloadNative<'info> {
         init_if_needed,
         payer = payer,
         token::mint = mint,
-        token::authority = custody_authority, //find_custody_authority(),
+        token::authority = custody_authority,
         seeds = [mint.key().as_ref()],
         bump,
     )]
@@ -102,7 +102,9 @@ impl<'info> utils::cpi::Transfer<'info> for TransferTokensWithPayloadNative<'inf
     }
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for TransferTokensWithPayloadNative<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for TransferTokensWithPayloadNative<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -182,7 +184,7 @@ fn transfer_tokens_with_payload_native(
     // want to spend compute units to re-derive the authority if cpi_program_id is Some(pubkey).
     let sender = crate::utils::new_sender_address(&ctx.accounts.sender_authority, cpi_program_id)?;
 
-    let mint = Mint::parse_unchecked(&ctx.accounts.mint);
+    let mint = Mint::load(&ctx.accounts.mint).unwrap();
 
     // Deposit native assets from the source token account into the custody account.
     utils::cpi::transfer(

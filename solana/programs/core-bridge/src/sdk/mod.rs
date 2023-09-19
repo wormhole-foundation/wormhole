@@ -30,6 +30,6 @@ pub mod instruction {
 /// Convenient method to determine the space required for a [PostedMessageV1] account before the
 /// account is initialized via
 /// [init_message_v1](crate::wormhole_core_bridge_solana::init_message_v1).
-pub fn compute_init_message_v1_space(payload_size: usize) -> usize {
+pub fn compute_prepared_message_space(payload_size: usize) -> usize {
     crate::state::PostedMessageV1::BYTES_START + payload_size
 }

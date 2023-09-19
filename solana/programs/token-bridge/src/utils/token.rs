@@ -4,13 +4,14 @@ use crate::{
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
+use core_bridge_program::sdk::LoadZeroCopy;
 
 /// With an account meant to be a Token Program mint account, make sure it is not a mint that the
 /// Token Bridge program controls.
 pub fn require_native_mint(acc_info: &AccountInfo) -> Result<()> {
     // If there is a mint authority, make sure it is not the Token Bridge's mint authority, which
     // controls burn and mint for its wrapped assets.
-    let mint = Mint::parse(acc_info)?;
+    let mint = Mint::load(acc_info)?;
     require!(is_native_mint(&mint), TokenBridgeError::WrappedAsset);
 
     // Done.

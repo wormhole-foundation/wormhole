@@ -11,9 +11,9 @@ address, there are a few traits that you the integrator will have to implement:
 - `PublishMessage<'info>`
   - Ensures that all Core Bridge accounts are included in your [account context].
 - `CreateAccount<'info>`
-  - Requires payer and system program account infos.
+  - Requires payer and System program account infos.
 
-These traits are found in the SDK submodule of the Core Bridge program crate.
+These traits are found in the [SDK] submodule of the Core Bridge program crate.
 
 ```rust,ignore
 use wormhole_core_bridge_solana::sdk as core_bridge_sdk;
@@ -82,7 +82,9 @@ requires the `CreateAccount` trait, which defines a `payer` account, who has the
 a new account, and the `system_program`, which is used via CPI to create accounts.
 
 ```rust,ignore
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for PublishHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -97,8 +99,8 @@ Finally implement the `PublishMessage` trait by providing the necessary Core Bri
 
 **NOTE: For messages where the emitter address is your program ID, the `core_emitter_authority` is
 your program's PDA address derived using `[b"emitter"]` as its seeds. This seed prefix is provided
-for you as `PROGRAM_EMITTER_SEED_PREFIX` and is used in your account context to validate the correct
-emitter authority is provided.**
+for you as `PROGRAM_EMITTER_SEED_PREFIX` and is used in your account context to validate that the
+correct emitter authority is provided.**
 
 ```rust,ignore
 impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for PublishHelloWorld<'info> {
@@ -156,10 +158,13 @@ pub fn publish_hello_world(ctx: Context<PublishHelloWorld>) -> Result<()> {
 }
 ```
 
-And that is all you need to do to emit a Wormhole message from Solana. Putting everything together
-to make a simple Anchor program looks like the following:
+And that is all you need to do to emit a Wormhole message from Solana.
+
+## Putting it All Together
 
 ```rust,ignore
+#![allow(clippy::result_large_err)]
+
 use anchor_lang::prelude::*;
 use wormhole_core_bridge_solana::sdk as core_bridge_sdk;
 
@@ -198,7 +203,9 @@ pub struct PublishHelloWorld<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for PublishHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
@@ -259,3 +266,4 @@ pub mod core_bridge_hello_world {
 [account context]: https://docs.rs/anchor-lang/latest/anchor_lang/derive.Accounts.html
 [anchor]: https://docs.rs/anchor-lang/latest/anchor_lang/
 [program]: https://docs.rs/anchor-lang/latest/anchor_lang/accounts/program/struct.Program.html
+[sdk]: https://docs.rs/wormhole-core-bridge-solana/latest/wormhole_core_bridge_solana/sdk/cpi/index.html

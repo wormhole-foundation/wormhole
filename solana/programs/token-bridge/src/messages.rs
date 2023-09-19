@@ -1,3 +1,6 @@
+//! Messages relevant to the Token Bridge across all networks. These messages are serialized and
+//! then published via the Core Bridge program.
+
 use anchor_lang::prelude::Pubkey;
 use ruint::aliases::U256;
 use wormhole_io::Writeable;

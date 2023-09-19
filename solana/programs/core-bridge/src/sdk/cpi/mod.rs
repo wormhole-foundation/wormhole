@@ -1,9 +1,11 @@
 //! CPI builders. Methods useful for interacting with the Core Bridge program from another program.
 
-pub use crate::utils::{
-    cpi::{create_account, CreateAccount},
-    vaa::claim_vaa,
-};
+/// Sub-module for System program interaction.
+pub mod system_program {
+    pub use crate::utils::cpi::{create_account, CreateAccount};
+}
+
+pub use crate::utils::vaa::claim_vaa;
 
 mod close_encoded_vaa;
 pub use close_encoded_vaa::*;

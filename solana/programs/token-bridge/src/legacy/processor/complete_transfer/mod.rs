@@ -23,9 +23,10 @@ pub fn validate_posted_token_transfer(
     let msg =
         crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
-    let transfer = match msg {
-        TokenBridgeMessage::Transfer(inner) => inner,
-        _ => return err!(TokenBridgeError::InvalidTokenBridgeVaa),
+    let transfer = if let TokenBridgeMessage::Transfer(inner) = msg {
+        inner
+    } else {
+        return err!(TokenBridgeError::InvalidTokenBridgeVaa);
     };
 
     // This token bridge transfer must be intended to be redeemed on Solana.
@@ -69,7 +70,12 @@ pub fn validate_posted_token_transfer(
         );
 
         // Finally check that the owner of the recipient token account is the encoded recipient.
-        crate::zero_copy::TokenAccount::require_owner(recipient_token, &expected_recipient)?;
+        let token_account = crate::zero_copy::TokenAccount::load(recipient_token)?;
+        require_keys_eq!(
+            token_account.owner(),
+            expected_recipient,
+            ErrorCode::ConstraintTokenOwner
+        );
     }
 
     // Done.

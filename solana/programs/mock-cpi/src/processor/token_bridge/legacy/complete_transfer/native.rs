@@ -51,7 +51,7 @@ pub struct MockLegacyCompleteTransferNative<'info> {
     associated_token_program: Program<'info, associated_token::AssociatedToken>,
 }
 
-impl<'info> token_bridge_sdk::cpi::CreateAccount<'info>
+impl<'info> token_bridge_sdk::cpi::system_program::CreateAccount<'info>
     for MockLegacyCompleteTransferNative<'info>
 {
     fn payer(&self) -> AccountInfo<'info> {

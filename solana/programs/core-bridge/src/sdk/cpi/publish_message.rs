@@ -7,7 +7,7 @@ use anchor_lang::prelude::*;
 /// NOTE: A message's emitter address can either be a program's ID or a custom address (determined
 /// by either a keypair or program's PDA). If the emitter address is a program ID, then
 /// the seeds for the emitter authority must be \["emitter"\].
-pub trait PublishMessage<'info>: super::CreateAccount<'info> {
+pub trait PublishMessage<'info>: super::system_program::CreateAccount<'info> {
     fn core_bridge_program(&self) -> AccountInfo<'info>;
 
     /// Core Bridge Emitter Authority (read-only signer). This account should return either the
@@ -64,8 +64,10 @@ pub enum PublishMessageDirective {
     PreparedMessage,
 }
 
-/// SDK method for posting a new message with the Core Bridge program. This method will handle any
-/// of the following directives:
+/// SDK method for posting a new message with the Core Bridge program.
+///
+/// This method will handle any of the following directives:
+///
 /// * Post a new message with an emitter address determined by either a keypair pubkey or PDA
 ///   address.
 /// * Post a new message with an emitter address that is a program ID.
@@ -200,7 +202,7 @@ where
     crate::utils::cpi::create_account(
         accounts,
         new_message,
-        crate::sdk::compute_init_message_v1_space(payload.len()),
+        crate::sdk::compute_prepared_message_space(payload.len()),
         &crate::ID,
         signer_seeds,
     )?;

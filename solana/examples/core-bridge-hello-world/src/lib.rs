@@ -38,7 +38,9 @@ pub struct PublishHelloWorld<'info> {
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for PublishHelloWorld<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for PublishHelloWorld<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }

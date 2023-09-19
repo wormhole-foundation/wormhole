@@ -87,7 +87,7 @@ pub struct MockLegacyTransferTokensWithPayloadNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info>
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
     for MockLegacyTransferTokensWithPayloadNative<'info>
 {
     fn payer(&self) -> AccountInfo<'info> {

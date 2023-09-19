@@ -56,7 +56,7 @@ pub struct UpgradeContract<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for UpgradeContract<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for UpgradeContract<'info> {
     fn system_program(&self) -> AccountInfo<'info> {
         self.system_program.to_account_info()
     }

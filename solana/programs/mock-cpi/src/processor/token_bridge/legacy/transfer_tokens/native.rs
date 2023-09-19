@@ -74,7 +74,9 @@ pub struct MockLegacyTransferTokensNative<'info> {
     token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::CreateAccount<'info> for MockLegacyTransferTokensNative<'info> {
+impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
+    for MockLegacyTransferTokensNative<'info>
+{
     fn payer(&self) -> AccountInfo<'info> {
         self.payer.to_account_info()
     }
