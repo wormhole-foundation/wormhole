@@ -460,4 +460,108 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetChain, currentChainAmount
         );
     }
+
+    // Forwards
+
+    function forwardPayloadToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        Gas gasLimit
+    ) external payable {
+        forward(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            payload,
+            receiverValue,
+            LocalNative.wrap(0),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            getCurrentRefundChain(),
+            getCurrentRefundAddress(),
+            getDefaultDeliveryProvider(),
+            new VaaKey[](0),
+            CONSISTENCY_LEVEL_FINALIZED
+        );
+    }
+
+    function forwardVaasToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        Gas gasLimit,
+        VaaKey[] memory vaaKeys
+    ) external payable {
+        forward(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            payload,
+            receiverValue,
+            LocalNative.wrap(0),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            getCurrentRefundChain(),
+            getCurrentRefundAddress(),
+            getDefaultDeliveryProvider(),
+            vaaKeys,
+            CONSISTENCY_LEVEL_FINALIZED
+        );
+    }
+
+    function forwardToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) public payable {
+        forward(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            payload,
+            receiverValue,
+            paymentForExtraReceiverValue,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            refundChain,
+            toWormholeFormat(refundAddress),
+            deliveryProviderAddress,
+            vaaKeys,
+            consistencyLevel
+        );
+    }
+
+    function forward(
+        uint16 targetChain,
+        bytes32 targetAddress,
+        bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        bytes memory encodedExecutionParameters,
+        uint16 refundChain,
+        bytes32 refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) public payable {
+        (LocalNative cost,) = quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters, deliveryProviderAddress);
+        send(
+            targetChain,
+            targetAddress,
+            payload,
+            receiverValue,
+            LocalNative.wrap(msg.value) - cost, // include the extra value that is passed in
+            encodedExecutionParameters,
+            refundChain,
+            refundAddress,
+            deliveryProviderAddress,
+            vaaKeys,
+            consistencyLevel
+        );
+    }
 }

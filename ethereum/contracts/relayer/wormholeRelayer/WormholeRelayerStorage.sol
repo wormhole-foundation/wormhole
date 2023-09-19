@@ -62,22 +62,6 @@ function getRegisteredWormholeRelayersState()
     }
 }
 
-struct ReentrancyGuardState {
-    // if 0 address, no reentrancy guard is active
-    // otherwise, the address of the contract that has locked the reentrancy guard (msg.sender)
-    address lockedBy;
-}
-
-//keccak256("ReentrancyGuardState") - 1
-bytes32 constant REENTRANCY_GUARD_STORAGE_SLOT =
-    0x44dc27ebd67a87ad2af1d98fc4a5f971d9492fe12498e4c413ab5a05b7807a67;
-
-function getReentrancyGuardState() pure returns (ReentrancyGuardState storage state) {
-    assembly ("memory-safe") {
-        state.slot := REENTRANCY_GUARD_STORAGE_SLOT
-    }
-}
-
 // Replay Protection and Indexing
 
 struct DeliverySuccessState {
@@ -105,5 +89,38 @@ function getDeliverySuccessState() pure returns (DeliverySuccessState storage st
 function getDeliveryFailureState() pure returns (DeliveryFailureState storage state) {
     assembly ("memory-safe") {
         state.slot := DELIVERY_FAILURE_STATE_STORAGE_SLOT
+    }
+}
+
+struct ReentrancyGuardState {
+    // if 0 address, no reentrancy guard is active
+    // otherwise, the address of the contract that has locked the reentrancy guard (msg.sender)
+    address lockedBy;
+}
+
+//keccak256("ReentrancyGuardState") - 1
+bytes32 constant REENTRANCY_GUARD_STORAGE_SLOT =
+    0x44dc27ebd67a87ad2af1d98fc4a5f971d9492fe12498e4c413ab5a05b7807a67;
+
+function getReentrancyGuardState() pure returns (ReentrancyGuardState storage state) {
+    assembly ("memory-safe") {
+        state.slot := REENTRANCY_GUARD_STORAGE_SLOT
+    }
+}
+
+struct DeliveryTmpState {
+    // the refund chain for the in-progress delivery
+    uint16 refundChain;
+    // the refund address for the in-progress delivery
+    bytes32 refundAddress;
+}
+
+//keccak256("DeliveryTmpState") - 1
+bytes32 constant DELIVERY_TMP_STORAGE_SLOT =
+    0x1a2a8eb52f1d00a1242a3f8cc031e30a32870ff64f69009c4e06f75bd842fd22;
+
+function getDeliveryTmpState() pure returns (DeliveryTmpState storage state) {
+    assembly ("memory-safe") {
+        state.slot := DELIVERY_TMP_STORAGE_SLOT
     }
 }
