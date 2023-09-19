@@ -13,6 +13,7 @@ import {
   getWormholeRelayer,
   RPCS_BY_CHAIN,
   RELAYER_CONTRACTS,
+  getWormholeRelayerAddress
 } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
@@ -26,10 +27,12 @@ import {
   DeliveryOverrideArgs,
   parseRefundStatus,
 } from "../structs";
+import { InfoRequestParams } from "./info";
 import {
   DeliveryProvider,
   DeliveryProvider__factory,
   Implementation__factory,
+  IWormholeRelayer__factory,
   IWormholeRelayerDelivery__factory,
 } from "../../ethers-contracts/";
 import { DeliveryEvent } from "../../ethers-contracts/WormholeRelayer";
@@ -346,6 +349,42 @@ export function vaaKeyToVaaKeyStruct(vaaKey: VaaKey): VaaKeyStruct {
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     sequence: vaaKey.sequence || 0,
   };
+}
+
+export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName, sourceVaaSequence: BigNumber, infoRequest?: InfoRequestParams): Promise<DeliveryInfo> {
+  const environment = infoRequest?.environment || 'MAINNET'
+  const targetChainProvider =
+    infoRequest?.targetChainProviders?.get(targetChain) ||
+    getDefaultProvider(environment, targetChain);
+
+  if (!targetChainProvider) {
+    throw Error(
+      "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
+    );
+  }
+  const targetWormholeRelayerAddress = infoRequest?.wormholeRelayerAddresses?.get(targetChain) ||
+  getWormholeRelayerAddress(targetChain, environment);
+  const wormholeRelayer = getWormholeRelayer(
+    targetChain,
+    environment,
+    targetChainProvider,
+    targetWormholeRelayerAddress
+  );
+
+  const blockNumberSuccess = await wormholeRelayer.deliverySuccessBlock(deliveryHash);
+  const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(deliveryHash);
+  const blockNumber = blockNumberSuccess ? blockNumberSuccess : blockNumberFailure;
+
+  const targetChainStatus = await getWormholeRelayerInfoBySourceSequence(
+    environment,
+    targetChain,
+    targetChainProvider,
+    sourceChain,
+    sourceVaaSequence,
+    blockNumber,
+    blockNumber,
+    targetWormholeRelayerAddress
+  ) 
 }
 
 export async function getDeliveryHash(
