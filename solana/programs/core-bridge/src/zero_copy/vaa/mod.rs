@@ -13,6 +13,7 @@ use crate::types::VaaVersion;
 
 use super::LoadZeroCopy;
 
+#[non_exhaustive]
 pub enum VaaAccount<'a> {
     EncodedVaa(EncodedVaa<'a>),
     PostedVaaV1(PostedVaaV1<'a>),
