@@ -96,13 +96,13 @@ transfer assets into Solana:
 - `token_bridge_claim` (Account used to prevent replay attacks ensuring that each VAA is redeemed
   only once).
 - `token_bridge_registered_emitter` (Account reflecting which Token Bridge smart contract emits
-  Wormhole messages, seeds = [emitter_chain]).
+  Wormhole messages, seeds = \[emitter_chain\]).
 - `dst_token_account` (where the assets will be bridged from).
 - `mint` (SPL Mint, which should be the same mint of your token account).
 - `token_bridge_redeemer_authority` (seeds: ["redeemer"])
   - **NOTE: Your program ID is the redeemer in this case and must match the encoded redeemer address
     in the transfer VAA.**
-- `token_bridge_custody_token_account` (required for native assets, seeds: [mint.key]).
+- `token_bridge_custody_token_account` (required for native assets, seeds: \[mint.key\]).
 - `token_bridge_custody_authority` (required for native assets, seeds: ["custody_signer"]).
 - `token_bridge_mint_authority` (required for wrapped assets, seeds: ["mint_signer"]).
 - `token_bridge_wrapped_asset` (required for wrapped assets, seeds: ["meta", mint.key]).

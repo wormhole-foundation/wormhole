@@ -11,6 +11,12 @@ pub(crate) use processor::*;
 
 pub mod state;
 
+/// Collection of methods to interact with the Token Bridge program via CPI. The structs defined in
+/// this module mirror the structs deriving [Accounts](anchor_lang::prelude::Accounts), where each
+/// field is an [AccountInfo]. **Integrators: Please use [sdk](crate::sdk) instead of this module.**
+///
+/// NOTE: This is similar to how [cpi](mod@crate::cpi) is generated via Anchor's
+/// [program][anchor_lang::prelude::program] macro.
 #[cfg(feature = "cpi")]
 pub mod cpi {
     use anchor_lang::prelude::*;

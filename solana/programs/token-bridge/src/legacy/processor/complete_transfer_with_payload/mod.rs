@@ -66,6 +66,26 @@ pub fn validate_posted_token_transfer_with_payload(
     Ok((transfer.token_chain(), transfer.token_address()))
 }
 
+/// The Anchor context orders the accounts as:
+///
+/// 1.  `payer`
+/// 2.  `_config`
+/// 3.  `vaa`
+/// 4.  `claim`
+/// 5.  `registered_emitter`
+/// 6.  `dst_token`
+/// 7.  `redeemer_authority`
+/// 8.  `_relayer_fee_token`
+/// 9.  `custody_token`     OR `wrapped_mint`
+/// 10.  `mint`             OR `wrapped_asset`
+/// 11. `custody_authority` OR `mint_aurhority`
+/// 12. `_rent`              <-- order unspecified
+/// 13. `system_program`     <-- order unspecified
+/// 14. `token_program`      <-- order unspecified
+///
+/// Because the legacy implementation did not require specifying where the Rent sysvar, System
+/// program and SPL token program should be, we ensure that these accounts are 12, 13 and 14
+/// respectively because the Anchor account context requires them to be in these positions.
 pub fn order_complete_transfer_with_payload_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {

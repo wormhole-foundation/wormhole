@@ -82,6 +82,29 @@ pub fn validate_posted_token_transfer(
     Ok((transfer.token_chain(), transfer.token_address()))
 }
 
+/// The Anchor context orders the accounts as:
+///
+/// 1.  `payer`
+/// 2.  `config`
+/// 3.  `vaa`
+/// 4.  `claim`
+/// 5.  `registered_emitter`
+/// 6.  `recipient_token`
+/// 7.  `payer_token`
+/// 8.  `custody_token`     OR `wrapped_mint`
+/// 9.  `mint`              OR `wrapped_asset`
+/// 10. `custody_authority` OR `mint_authority`
+/// 11. `recipient`          <-- order unspecified
+/// 12. `system_program`     <-- order unspecified
+/// 13. `token_program`      <-- order unspecified
+///
+/// Because the legacy implementation did not require specifying where the recipient, System program
+/// and SPL token program should be, we ensure that these accounts are 11, 12 and 13 respectively
+/// because the Anchor account context requires them to be in these positions.
+///
+/// NOTE: Recipient as account #11 is optional based on whether the VAA's encoded recipient is the
+/// owner of the `recipient_token` account. See the complete transfer account contexts for more
+/// info.
 pub fn order_complete_transfer_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {

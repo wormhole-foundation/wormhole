@@ -1,5 +1,8 @@
-//! A set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This is
-//! useful for specifying self for a client.
+//! A set of structs mirroring the structs deriving [Accounts](anchor_lang::prelude::Accounts),
+//! where each field is a [Pubkey]. This is useful for specifying self for a client.
+//!
+//! NOTE: This is similar to how [accounts](mod@crate::accounts) is generated via Anchor's
+//! [program][anchor_lang::prelude::program] macro.
 
 use anchor_lang::{prelude::Pubkey, ToAccountMetas};
 use solana_program::instruction::AccountMeta;
