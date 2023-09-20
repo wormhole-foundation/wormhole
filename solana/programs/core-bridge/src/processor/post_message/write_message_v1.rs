@@ -1,4 +1,8 @@
-use crate::{error::CoreBridgeError, state::MessageStatus, zero_copy::PostedMessageV1};
+use crate::{
+    error::CoreBridgeError,
+    state::MessageStatus,
+    zero_copy::{LoadZeroCopy, PostedMessageV1},
+};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -13,7 +17,7 @@ pub struct WriteMessageV1<'info> {
 
 impl<'info> WriteMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let message = PostedMessageV1::parse(&ctx.accounts.draft_message)?;
+        let message = PostedMessageV1::load(&ctx.accounts.draft_message)?;
 
         require_keys_eq!(
             ctx.accounts.emitter_authority.key(),
@@ -46,7 +50,7 @@ pub fn write_message_v1(ctx: Context<WriteMessageV1>, args: WriteMessageV1Args) 
     );
 
     let msg_length = {
-        let message = PostedMessageV1::parse_unchecked(&ctx.accounts.draft_message);
+        let message = PostedMessageV1::load(&ctx.accounts.draft_message).unwrap();
 
         require!(
             message.status() == MessageStatus::Writing,

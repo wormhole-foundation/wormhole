@@ -1,4 +1,8 @@
-use crate::{error::CoreBridgeError, state::MessageStatus, zero_copy::PostedMessageV1};
+use crate::{
+    error::CoreBridgeError,
+    state::MessageStatus,
+    zero_copy::{LoadZeroCopy, PostedMessageV1},
+};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -17,7 +21,7 @@ pub struct CloseMessageV1<'info> {
 
 impl<'info> CloseMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let message = PostedMessageV1::parse(&ctx.accounts.draft_message)?;
+        let message = PostedMessageV1::load(&ctx.accounts.draft_message)?;
 
         require!(
             message.status() != MessageStatus::Unset,

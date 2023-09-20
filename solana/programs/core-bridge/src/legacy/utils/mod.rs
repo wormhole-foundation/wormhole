@@ -113,6 +113,41 @@ pub trait ProcessLegacyInstruction<'info, T: AnchorDeserialize>:
     /// program. This method gets invoked in the process instruction method.
     const ANCHOR_IX_FN: fn(Context<Self>, T) -> Result<()>;
 
+    /// This method is used to order the accounts in the same order as the Anchorized account
+    /// contexts. In the legacy implementation, some accounts were not required to be defined in any
+    /// context, and were passed in sort of like how remaining accounts work in Anchor.
+    ///
+    /// For example, in the post message instruction, the Anchor context orders the accounts as:
+    ///
+    /// 1. `config`
+    /// 2. `message`
+    /// 3. `emitter`
+    /// 4. `emitter_sequence`
+    /// 5. `payer`
+    /// 6. `fee_collector`
+    /// 7. `clock`
+    /// 8. `system_program`
+    ///
+    /// In the legacy implementation, accounts only up through the `clock` sysvar were defined in
+    /// an account context (meaning that the accounts relevant to the business logic were defined
+    /// with a specific order).
+    ///
+    /// There were actually two accounts that were required with the legacy post message
+    /// instruction:
+    ///
+    /// 8. System program
+    /// 9. Rent sysvar.
+    ///
+    /// These two accounts could have been passed into an instruction in any order (so the System
+    /// program can either be #8 or #9 in the instruction's account metas). Because integrators
+    /// composing with these legacy implementations may be passing in these accounts in any sort of
+    /// order, this method will make sure that any account after the last ordered account. So in
+    /// this example, making sure the System program is #9 (and not caring about where Rent ends up
+    /// because it is not needed anymore).
+    ///
+    /// Ordering matters because Anchor requires that all the necessary accounts are defined in its
+    /// account contexts. So this includes the System program (whereas with the legacy
+    /// implementation did not require this to be defined in its context).
     fn order_account_infos<'a>(
         account_infos: &'a [AccountInfo<'info>],
     ) -> Result<Vec<AccountInfo<'info>>> {

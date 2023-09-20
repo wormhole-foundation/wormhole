@@ -2,6 +2,7 @@ use crate::{
     error::CoreBridgeError,
     legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
     state::{Config, EmitterSequence, PostedMessageV1Unreliable},
+    zero_copy::LoadZeroCopy,
 };
 use anchor_lang::prelude::*;
 
@@ -151,12 +152,18 @@ fn try_compute_size(msg_acc_info: &AccountInfo, payload_size: u32) -> Result<usi
     let payload_size = usize::try_from(payload_size).unwrap();
 
     if !msg_acc_info.data_is_empty() {
-        let msg = crate::zero_copy::PostedMessageV1::parse_unreliable(msg_acc_info)?;
-        require_eq!(
-            payload_size,
-            msg.payload_size(),
-            CoreBridgeError::PayloadSizeMismatch
-        );
+        let msg = crate::zero_copy::MessageAccount::load(msg_acc_info)?;
+
+        match msg.v1_unreliable() {
+            Some(inner) => {
+                require_eq!(
+                    payload_size,
+                    inner.payload_size(),
+                    CoreBridgeError::PayloadSizeMismatch
+                )
+            }
+            _ => return err!(ErrorCode::AccountDidNotDeserialize),
+        }
     }
 
     Ok(PostedMessageV1Unreliable::compute_size(payload_size))

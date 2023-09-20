@@ -5,8 +5,8 @@
 mod config;
 pub use config::*;
 
-mod posted_message_v1;
-pub use posted_message_v1::*;
+mod message;
+pub use message::*;
 
 mod vaa;
 pub use vaa::*;

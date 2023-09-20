@@ -4,6 +4,8 @@ const ROOT = `${__dirname}/..`;
 const CORE_BRIDGE_IDL = `${ROOT}/target/idl/wormhole_core_bridge_solana.json`;
 const CORE_BRIDGE_TYPES = `${ROOT}/target/types/wormhole_core_bridge_solana.ts`;
 
+const IGNORE_TYPES = ['"name": "MessageAccount"', '"name": "VaaAccount"'];
+
 main();
 
 function main() {
@@ -15,20 +17,21 @@ function main() {
   }
 
   const idl = fs.readFileSync(CORE_BRIDGE_IDL, "utf8").split("\n");
-  while (spliceType(idl));
-  fs.writeFileSync(CORE_BRIDGE_IDL, idl.join("\n"), "utf8");
-
   const types = fs.readFileSync(CORE_BRIDGE_TYPES, "utf8").split("\n");
-  while (spliceType(types));
+  for (const matchStr of IGNORE_TYPES) {
+    while (spliceType(idl, matchStr));
+    while (spliceType(types, matchStr));
+  }
+  fs.writeFileSync(CORE_BRIDGE_IDL, idl.join("\n"), "utf8");
   fs.writeFileSync(CORE_BRIDGE_TYPES, types.join("\n"), "utf8");
 }
 
-function spliceType(lines: string[]) {
+function spliceType(lines: string[], matchStr: string) {
   let lineNumber = 0;
   let start = -1;
   let spaces = -1;
   for (const line of lines) {
-    if (line.includes('"name": "VaaAccount"')) {
+    if (line.includes(matchStr)) {
       start = lineNumber - 1;
       spaces = line.indexOf('"') - 2;
     } else if (start > -1) {

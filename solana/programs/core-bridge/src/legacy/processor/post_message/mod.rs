@@ -9,6 +9,7 @@ use crate::{
         PostedMessageV1Info,
     },
     utils,
+    zero_copy::LoadZeroCopy,
 };
 use anchor_lang::prelude::*;
 
@@ -96,6 +97,20 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
     }
 }
 
+/// The Anchor context orders the accounts as:
+///
+/// 1. `config`
+/// 2. `message`
+/// 3. `emitter`
+/// 4. `emitter_sequence`
+/// 5. `payer`
+/// 6. `fee_collector`
+/// 7. `clock`
+/// 8. `system_program`
+///
+/// Because the legacy implementation did not require specifying where the System program should be,
+/// we ensure that it is account #8 because the Anchor account context requires it to be in this
+/// position.
 pub(super) fn order_post_message_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
@@ -249,7 +264,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     );
 
     let (consistency_level, nonce, emitter, payload) = {
-        let msg = crate::zero_copy::PostedMessageV1::parse_unchecked(&ctx.accounts.message);
+        let msg = crate::zero_copy::PostedMessageV1::load(&ctx.accounts.message).unwrap();
 
         (
             msg.consistency_level(),
@@ -331,7 +346,7 @@ fn find_emitter_for_sequence(
 
         Ok(emitter.key())
     } else {
-        let msg = crate::zero_copy::PostedMessageV1::parse(msg_acc_info)?;
+        let msg = crate::zero_copy::PostedMessageV1::load(msg_acc_info)?;
 
         match msg.status() {
             MessageStatus::Unset => err!(CoreBridgeError::MessageAlreadyPublished),

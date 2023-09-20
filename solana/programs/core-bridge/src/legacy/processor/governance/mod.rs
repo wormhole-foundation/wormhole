@@ -24,10 +24,7 @@ pub fn require_valid_posted_governance_vaa<'ctx>(
     // Make sure the VAA was attested for by the latest guardian set.
     let guardian_set_index = match vaa {
         VaaAccount::EncodedVaa(inner) => inner.as_v1().map(|v1| v1.guardian_set_index())?,
-        VaaAccount::PostedVaaV1(inner) => {
-            msg!("wtf... {}", inner.guardian_set_index());
-            inner.guardian_set_index()
-        }
+        VaaAccount::PostedVaaV1(inner) => inner.guardian_set_index(),
     };
     require_eq!(
         config.guardian_set_index,

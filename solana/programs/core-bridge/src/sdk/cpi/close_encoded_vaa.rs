@@ -22,19 +22,3 @@ where
         },
     ))
 }
-
-/// SDK method to close an EncodedVaa account. If the write authority is not the same one found on
-/// the [EncodedVaa](crate::state::EncodedVaa) account, this method will return `Ok` with a Solana
-/// log message indicating failure.
-pub fn maybe_close_encoded_vaa<'info, A>(accounts: &A) -> Result<()>
-where
-    A: CloseEncodedVaa<'info>,
-{
-    close_encoded_vaa(accounts).or_else(|_| {
-        // Closing the encoded vaa failed, so move on.
-        msg!("Cannot close EncodedVaa without Write Authority");
-
-        // Done.
-        Ok(())
-    })
-}

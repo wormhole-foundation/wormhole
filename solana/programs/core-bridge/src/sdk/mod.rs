@@ -9,7 +9,7 @@ pub use crate::{
     legacy::instruction::PostMessageArgs,
     processor::{InitMessageV1Args, WriteEncodedVaaArgs, WriteMessageV1Args},
     types,
-    zero_copy::{Config, LoadZeroCopy, PostedMessageV1, VaaAccount},
+    zero_copy::{Config, LoadZeroCopy, MessageAccount, PostedMessageV1, VaaAccount},
 };
 
 /// Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
