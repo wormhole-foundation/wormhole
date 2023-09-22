@@ -1,4 +1,5 @@
 ganache.log
+anvil.log
 lib/*
 !lib/README.md
 flattened
