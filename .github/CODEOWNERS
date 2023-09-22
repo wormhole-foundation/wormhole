@@ -10,7 +10,7 @@
 /cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @gator-boi @kcsongor
 /ethereum/contracts/relayer @derpy-duck @JoeHowarth @gator-boi
-/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth @gator-boi
+/ethereum/contracts/interfaces/relayer @derpy-duck @JoeHowarth @gator-boi
 /ethereum/forge-test/relayer @derpy-duck @JoeHowarth @gator-boi
 /ethereum/ts-scripts/relayer @derpy-duck @JoeHowarth @gator-boi
 /near/ @evan-gray @kcsongor
