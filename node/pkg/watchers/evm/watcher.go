@@ -289,7 +289,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
 		// This only supports Bedrock mode
 		useFinalizedBlocks = true
-		safeBlocksSupported := true
+		safeBlocksSupported = true
 		logger.Info("using finalized blocks, will publish safe blocks")
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
