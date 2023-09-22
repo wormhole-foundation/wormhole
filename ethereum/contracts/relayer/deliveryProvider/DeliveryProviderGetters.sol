@@ -60,7 +60,7 @@ contract DeliveryProviderGetters is DeliveryProviderState {
     function assetConversionBuffer(uint16 targetChain)
         public
         view
-        returns (uint16 tolerance, uint16 toleranceDenominator)
+        returns (uint16 buffer, uint16 bufferDenominator)
     {
         DeliveryProviderStorage.AssetConversion storage assetConversion =
             _state.assetConversion[targetChain];

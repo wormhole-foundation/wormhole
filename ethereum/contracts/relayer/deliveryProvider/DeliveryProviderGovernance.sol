@@ -11,6 +11,7 @@ import "../../interfaces/relayer/TypedUnits.sol";
 import "./DeliveryProviderGetters.sol";
 import "./DeliveryProviderSetters.sol";
 import "./DeliveryProviderStructs.sol";
+import {getSupportedMessageKeyTypes} from "./DeliveryProviderState.sol";
 
 abstract contract DeliveryProviderGovernance is
     DeliveryProviderGetters,
@@ -67,6 +68,17 @@ abstract contract DeliveryProviderGovernance is
             unchecked {
                 i += 1;
             }
+        }
+    }
+
+    function updateSupportedMessageKeyTypes(uint8 keyType, bool supported)
+        public
+        onlyOwner
+    {
+        if (supported) {
+            getSupportedMessageKeyTypes().bitmap |= (1 << keyType);
+        } else {
+            getSupportedMessageKeyTypes().bitmap &= ~(1 << keyType);
         }
     }
 
@@ -260,6 +272,9 @@ abstract contract DeliveryProviderGovernance is
 
         if (coreConfig.updateRewardAddress) {
             updateRewardAddressImpl(coreConfig.rewardAddress);
+        }
+        if(coreConfig.updateSupportedKeyTypes) {
+            getSupportedMessageKeyTypes().bitmap = coreConfig.supportedKeyTypesBitmap;
         }
     }
 

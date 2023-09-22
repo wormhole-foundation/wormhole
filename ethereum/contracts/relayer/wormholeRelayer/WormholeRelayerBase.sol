@@ -4,24 +4,22 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
-import {toWormholeFormat, min, pay} from "../../libraries/relayer/Utils.sol";
+import {toWormholeFormat, min, pay} from "../../relayer/libraries/Utils.sol";
 import {
-    NoDeliveryInProgress,
     ReentrantDelivery,
-    ForwardRequestFromWrongAddress,
     DeliveryProviderDoesNotSupportTargetChain,
     VaaKey,
     InvalidMsgValue,
     IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
-import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
+import {DeliveryInstruction} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {
-    ForwardInstruction,
     DeliveryTmpState,
     getDeliveryTmpState,
     getDeliverySuccessState,
     getDeliveryFailureState,
-    getRegisteredWormholeRelayersState
+    getRegisteredWormholeRelayersState,
+    getReentrancyGuardState
 } from "./WormholeRelayerStorage.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
@@ -114,41 +112,30 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
     }
 
-    // ----------------------- delivery transaction temorary storage functions -----------------------
-
-    function startDelivery(address targetAddress, address deliveryProvider, uint16 refundChain, bytes32 refundAddress) internal {
-        DeliveryTmpState storage state = getDeliveryTmpState();
-        if (state.deliveryInProgress) {
-            revert ReentrantDelivery(msg.sender, state.deliveryTarget);
+    modifier nonReentrant() {
+        // Reentrancy guard
+        if (getReentrancyGuardState().lockedBy != address(0)) {
+            revert ReentrantDelivery(msg.sender, getReentrancyGuardState().lockedBy);
         }
+        getReentrancyGuardState().lockedBy = msg.sender;
 
-        state.deliveryInProgress = true;
-        state.deliveryTarget = targetAddress;
-        state.deliveryProvider = deliveryProvider;
+        _;
+
+        getReentrancyGuardState().lockedBy = address(0);
+    }
+
+     // ----------------------- delivery transaction temorary storage functions -----------------------
+
+    function recordRefundInformation(uint16 refundChain, bytes32 refundAddress) internal {
+        DeliveryTmpState storage state = getDeliveryTmpState();
         state.refundChain = refundChain;
         state.refundAddress = refundAddress;
     }
 
-    function finishDelivery() internal {
+    function clearRefundInformation() internal {
         DeliveryTmpState storage state = getDeliveryTmpState();
-        state.deliveryInProgress = false;
-        state.deliveryTarget = address(0);
-        state.deliveryProvider = address(0);
         state.refundChain = 0;
         state.refundAddress = bytes32(0);
-        delete state.forwardInstructions;
-    }
-
-    function appendForwardInstruction(ForwardInstruction memory forwardInstruction) internal {
-        getDeliveryTmpState().forwardInstructions.push(forwardInstruction);
-    }
-
-    function getForwardInstructions() internal view returns (ForwardInstruction[] storage) {
-        return getDeliveryTmpState().forwardInstructions;
-    }
-
-    function getOriginalDeliveryProvider() internal view returns (address) {
-        return getDeliveryTmpState().deliveryProvider;
     }
 
     function getCurrentRefundChain() internal view returns (uint16) {
@@ -157,16 +144,5 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
 
     function getCurrentRefundAddress() internal view returns (bytes32) {
         return getDeliveryTmpState().refundAddress;
-    }
-
-    function checkMsgSenderInDelivery() internal view {
-        DeliveryTmpState storage state = getDeliveryTmpState();
-        if (!state.deliveryInProgress) {
-            revert NoDeliveryInProgress();
-        }
-
-        if (msg.sender != state.deliveryTarget) {
-            revert ForwardRequestFromWrongAddress(msg.sender, state.deliveryTarget);
-        }
     }
 }

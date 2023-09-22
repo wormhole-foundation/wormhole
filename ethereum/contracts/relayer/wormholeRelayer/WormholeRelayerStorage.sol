@@ -92,32 +92,27 @@ function getDeliveryFailureState() pure returns (DeliveryFailureState storage st
     }
 }
 
-// ---------------------------------- Temporary/Volatile Storage -----------------------------------
+struct ReentrancyGuardState {
+    // if 0 address, no reentrancy guard is active
+    // otherwise, the address of the contract that has locked the reentrancy guard (msg.sender)
+    address lockedBy;
+}
 
-//Unlike proper persistent storage, everything below is only used for the lifetime of the current
-//  transaction and is (i.e. must be) reset at the end.
+//keccak256("ReentrancyGuardState") - 1
+bytes32 constant REENTRANCY_GUARD_STORAGE_SLOT =
+    0x44dc27ebd67a87ad2af1d98fc4a5f971d9492fe12498e4c413ab5a05b7807a67;
 
-struct ForwardInstruction {
-    bytes encodedInstruction;
-    LocalNative msgValue;
-    LocalNative deliveryPrice;
-    LocalNative paymentForExtraReceiverValue;
-    address payable rewardAddress;
-    uint8 consistencyLevel;
+function getReentrancyGuardState() pure returns (ReentrancyGuardState storage state) {
+    assembly ("memory-safe") {
+        state.slot := REENTRANCY_GUARD_STORAGE_SLOT
+    }
 }
 
 struct DeliveryTmpState {
-    bool deliveryInProgress;
-    // the target address that is currently being delivered to (0 for a simple refund)
-    address deliveryTarget;
-    // the target relay provider address for the in-progress delivery
-    address deliveryProvider;
     // the refund chain for the in-progress delivery
     uint16 refundChain;
     // the refund address for the in-progress delivery
     bytes32 refundAddress;
-    // Requests which will be forwarded from the current delivery.
-    ForwardInstruction[] forwardInstructions;
 }
 
 //keccak256("DeliveryTmpState") - 1
