@@ -351,7 +351,7 @@ export function vaaKeyToVaaKeyStruct(vaaKey: VaaKey): VaaKeyStruct {
   };
 }
 
-export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName, sourceVaaSequence: BigNumber, infoRequest?: InfoRequestParams): Promise<DeliveryInfo> {
+export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName, sourceVaaSequence: BigNumber, infoRequest?: InfoRequestParams): Promise<DeliveryTargetInfo[]> {
   const environment = infoRequest?.environment || 'MAINNET'
   const targetChainProvider =
     infoRequest?.targetChainProviders?.get(targetChain) ||
@@ -375,7 +375,7 @@ export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetC
   const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(deliveryHash);
   const blockNumber = blockNumberSuccess ? blockNumberSuccess : blockNumberFailure;
 
-  const targetChainStatus = await getWormholeRelayerInfoBySourceSequence(
+  const targetChainStatusEvents = (await getWormholeRelayerInfoBySourceSequence(
     environment,
     targetChain,
     targetChainProvider,
@@ -384,7 +384,65 @@ export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetC
     blockNumber,
     blockNumber,
     targetWormholeRelayerAddress
-  ) 
+  )).events
+
+  return targetChainStatusEvents;
+}
+
+export function getDeliveryHashFromVaaFields(
+  sourceChain: number,
+  emitterAddress: string,
+  sequence: number,
+  timestamp: number,
+  nonce: number,
+  consistencyLevel: number,
+  deliveryVaaPayload: string, 
+): string {
+  const body = ethers.utils.solidityPack(
+    ["uint32", "uint32", "uint16", "bytes32", "uint64", "uint8", "bytes"],
+
+    [
+      timestamp,
+      nonce,
+      sourceChain,
+      emitterAddress,
+      sequence,
+      consistencyLevel,
+      deliveryVaaPayload,
+    ]
+  );
+  const deliveryHash = ethers.utils.keccak256(ethers.utils.keccak256(body));
+  return deliveryHash;
+}
+
+export async function getDeliveryHashFromWormscan(
+  sourceChain: ChainName,
+  sequence: number,
+  optionalParams?: {
+    network?: Network;
+    provider?: ethers.providers.Provider;
+    wormholeRelayerAddress?: string;
+  } 
+): Promise<string> {
+  const sourceChainId = CHAINS[sourceChain];
+  const network = optionalParams?.network || 'MAINNET';
+  const wormscanAPI = ((_network: Network) => {
+    switch(_network) {
+      case 'MAINNET':
+        return 'https://api.wormscan.io/'
+      case 'TESTNET':
+        return 'https://api.testnet.wormscan.io/'
+      default: 
+        // possible extension for tilt/ci - search through the guardian api 
+        // at localhost:7071 (tilt) or guardian:7071 (ci)
+        throw new Error("Not testnet or mainnet - so no wormscan api access")
+    }
+  })(network);
+
+  const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(sourceChain, network);
+  const wormholeRelayerAddressBytes32 = tryNativeToHexString(wormholeRelayerAddress, sourceChain)
+  const result = await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${wormholeRelayerAddressBytes32}/${sequence}`)
+  console.log(result);
 }
 
 export async function getDeliveryHash(
@@ -394,6 +452,7 @@ export async function getDeliveryHash(
     network?: Network;
     provider?: ethers.providers.Provider;
     index?: number;
+    wormholeRelayerAddress?: string;
   }
 ): Promise<string> {
   const network: Network = optionalParams?.network || "MAINNET";
@@ -404,7 +463,7 @@ export async function getDeliveryHash(
     throw Error(`No wormhole contract on ${sourceChain} for ${network}`);
   }
   const wormholeRelayerAddress =
-    RELAYER_CONTRACTS[network][sourceChain]?.wormholeRelayerAddress;
+    optionalParams?.wormholeRelayerAddress || RELAYER_CONTRACTS[network][sourceChain]?.wormholeRelayerAddress;
   if (!wormholeRelayerAddress) {
     throw Error(
       `No wormhole relayer contract on ${sourceChain} for ${network}`
@@ -427,20 +486,18 @@ export async function getDeliveryHash(
   const log = logs[index];
   const wormholePublishedMessage =
     Implementation__factory.createInterface().parseLog(log);
+  
   const block = await provider.getBlock(rx.blockHash);
-  const body = ethers.utils.solidityPack(
-    ["uint32", "uint32", "uint16", "bytes32", "uint64", "uint8", "bytes"],
 
-    [
-      block.timestamp,
-      wormholePublishedMessage.args["nonce"],
-      CHAINS[sourceChain],
-      log.topics[1],
-      wormholePublishedMessage.args["sequence"],
-      wormholePublishedMessage.args["consistencyLevel"],
-      wormholePublishedMessage.args["payload"],
-    ]
-  );
-  const deliveryHash = ethers.utils.keccak256(ethers.utils.keccak256(body));
-  return deliveryHash;
+
+
+  return getDeliveryHashFromVaaFields(
+    CHAINS[sourceChain],
+    log.topics[1],
+    wormholePublishedMessage.args["sequence"],
+    block.timestamp,
+    wormholePublishedMessage.args["nonce"],
+    wormholePublishedMessage.args["consistencyLevel"],
+    wormholePublishedMessage.args["payload"],
+  ) 
 }
