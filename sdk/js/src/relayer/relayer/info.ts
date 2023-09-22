@@ -28,6 +28,7 @@ import {
   parseWormholeLog,
   getBlockRange,
   getWormholeRelayerInfoBySourceSequence,
+  getDeliveryHash,
 } from "./helpers";
 import { DeliveryInfo } from "./deliver";
 
@@ -140,6 +141,8 @@ export async function getWormholeRelayerInfo(
 
   const { type, parsed } = parseWormholeLog(deliveryLog.log);
 
+  // deal with redelivery case
+
   const instruction = parsed as DeliveryInstruction;
 
   const targetChainId = instruction.targetChainId as ChainId;
@@ -154,6 +157,8 @@ export async function getWormholeRelayerInfo(
       "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
     );
   }
+
+  const deliveryHash = getDeliveryHash()
   const [blockStartNumber, blockEndNumber] =
     infoRequest?.targetChainBlockRanges?.get(targetChain) ||
     getBlockRange(targetChainProvider);
