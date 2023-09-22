@@ -32,21 +32,21 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: ganache
+        - name: anvil
           image: eth-node
           command:
             - npx
-            - ganache-cli
-            - --logging.quiet
-            - --wallet.defaultBalance=10000
-            - --wallet.deterministic
-            - --chain.time="1970-01-01T00:00:00+00:00"
+            - anvil
+            - --silent
+            - --timestamp="1970-01-01T00:00:00+00:00"
             - --host=0.0.0.0
-            - --wallet.totalAccounts=11
-            - --chain.chainId=1397
-            - --chain.asyncRequestProcessing=false
+            - --accounts=11
+            - --chain-id=1397
+            - --port 8546
+            - -m "myth like bonus scare over problem client lizard pioneer submit female collect"
+          
           ports:
-            - containerPort: 8545
+            - containerPort: 8546
               name: rpc
               protocol: TCP
           readinessProbe:
@@ -58,7 +58,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run deploy-relayers-evm2 && nc -lkn 2000"
+            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && RPC_URL='http://localhost:8546' PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npm run deploy-contracts && forge script DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY && echo 'Skipping registration of chains' && npm run deploy-relayers-evm2 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
