@@ -631,7 +631,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.String("eth_network", w.networkName))
-				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
 				readiness.SetReady(w.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
@@ -646,6 +645,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				} else {
 					atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
+					currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
 				}
 
 				for key, pLock := range w.pending {
