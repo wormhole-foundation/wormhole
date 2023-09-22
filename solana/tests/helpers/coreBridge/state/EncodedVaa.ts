@@ -7,21 +7,16 @@ export enum ProcessingStatus {
   Verified = 2,
 }
 
-export enum VaaVersion {
-  Unset = 0,
-  V1 = 1,
-}
-
 export class EncodedVaa {
   status: ProcessingStatus;
   writeAuthority: PublicKey;
-  version: VaaVersion;
+  version: number;
   buf: Buffer;
 
   private constructor(
     status: ProcessingStatus,
     writeAuthority: PublicKey,
-    version: VaaVersion,
+    version: number,
     buf: Buffer
   ) {
     this.status = status;
@@ -52,16 +47,6 @@ export class EncodedVaa {
       }
     })();
 
-    const version = (() => {
-      if (vaaVersion.unset !== undefined) {
-        return VaaVersion.Unset;
-      } else if (vaaVersion.v1 !== undefined) {
-        return VaaVersion.V1;
-      } else {
-        throw new Error("Invalid processing status");
-      }
-    })();
-
-    return new EncodedVaa(status, writeAuthority, version, buf);
+    return new EncodedVaa(status, writeAuthority, vaaVersion, buf);
   }
 }

@@ -5,15 +5,17 @@ import { ethers } from "ethers";
 
 export type PostVaaV1Context = {
   writeAuthority: PublicKey;
-  vaa: PublicKey;
+  encodedVaa: PublicKey;
   postedVaa?: PublicKey;
 };
 
 export async function postVaaV1Ix(program: CoreBridgeProgram, accounts: PostVaaV1Context) {
-  let { writeAuthority, vaa, postedVaa } = accounts;
+  let { writeAuthority, encodedVaa, postedVaa } = accounts;
 
   if (postedVaa === undefined) {
-    const vaaBuf = await program.account.encodedVaa.fetch(vaa).then((vaaData) => vaaData.buf);
+    const vaaBuf = await program.account.encodedVaa
+      .fetch(encodedVaa)
+      .then((vaaData) => vaaData.buf);
     const numSignatures = vaaBuf.readUInt8(5);
     const message = vaaBuf.subarray(6 + 66 * numSignatures);
 
@@ -23,5 +25,8 @@ export async function postVaaV1Ix(program: CoreBridgeProgram, accounts: PostVaaV
     );
   }
 
-  return program.methods.postVaaV1().accounts({ writeAuthority, vaa, postedVaa }).instruction();
+  return program.methods
+    .postVaaV1()
+    .accounts({ writeAuthority, encodedVaa, postedVaa })
+    .instruction();
 }

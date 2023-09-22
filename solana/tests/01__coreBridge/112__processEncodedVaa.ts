@@ -317,7 +317,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
         expectDeepEqual(encodedVaaData, {
           status: coreBridge.ProcessingStatus.Writing,
           writeAuthority: payer.publicKey,
-          version: coreBridge.VaaVersion.Unset,
+          version: 0,
           buf: expectedBuf,
         });
       });

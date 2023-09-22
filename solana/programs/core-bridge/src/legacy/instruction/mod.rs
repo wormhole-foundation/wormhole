@@ -85,7 +85,13 @@ pub struct PostVaaArgs {
 /// [write_encoded_vaa](crate::wormhole_core_bridge_solana::write_encoded_vaa) for more info.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct VerifySignaturesArgs {
-    /// Indices of verified guardian signatures.
+    /// Indices of verified guardian signatures, where -1 indicates a missing value. There is a
+    /// missing value if the guardian at this index is not expected to have its signature verfied by
+    /// the Sig Verify native program in the instruction invoked prior).
+    ///
+    /// NOTE: In the legacy implementation, this argument being a fixed-sized array of 19 only
+    /// allows the first 19 guardians of any size guardian set to be verified. Because of this, it
+    /// is absolutely important to use the new process of verifying a VAA.
     pub signer_indices: [i8; 19],
 }
 

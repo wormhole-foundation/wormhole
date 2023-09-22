@@ -10,7 +10,11 @@ pub use transfer_fees::*;
 mod upgrade_contract;
 pub use upgrade_contract::*;
 
-use crate::{error::CoreBridgeError, state::Config, zero_copy::VaaAccount};
+use crate::{
+    error::CoreBridgeError,
+    state::{Config, VaaVersion},
+    zero_copy::VaaAccount,
+};
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::core::{CoreBridgeDecree, CoreBridgeGovPayload};
 
@@ -23,7 +27,9 @@ pub fn require_valid_posted_governance_vaa<'ctx>(
 ) -> Result<CoreBridgeDecree<'ctx>> {
     // Make sure the VAA was attested for by the latest guardian set.
     let guardian_set_index = match vaa {
-        VaaAccount::EncodedVaa(inner) => inner.as_v1().map(|v1| v1.guardian_set_index())?,
+        VaaAccount::EncodedVaa(inner) => match inner.as_vaa()? {
+            VaaVersion::V1(vaa) => vaa.guardian_set_index(),
+        },
         VaaAccount::PostedVaaV1(inner) => inner.guardian_set_index(),
     };
     require_eq!(

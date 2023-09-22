@@ -9,7 +9,7 @@ use anchor_lang::prelude::{
 };
 use wormhole_raw_vaas::Payload;
 
-use crate::types::VaaVersion;
+use crate::state::VaaVersion;
 
 use super::LoadZeroCopy;
 
@@ -20,16 +20,22 @@ pub enum VaaAccount<'a> {
 }
 
 impl<'a> VaaAccount<'a> {
-    pub fn version(&'a self) -> VaaVersion {
+    pub fn version(&'a self) -> u8 {
         match self {
             Self::EncodedVaa(inner) => inner.version(),
-            Self::PostedVaaV1(_) => VaaVersion::V1,
+            Self::PostedVaaV1(_) => 1,
         }
     }
 
     pub fn try_emitter_info(&self) -> Result<([u8; 32], u16, u64)> {
         match self {
-            Self::EncodedVaa(inner) => inner.try_emitter_info(),
+            Self::EncodedVaa(inner) => match inner.as_vaa()? {
+                VaaVersion::V1(vaa) => Ok((
+                    vaa.body().emitter_address(),
+                    vaa.body().emitter_chain(),
+                    vaa.body().sequence(),
+                )),
+            },
             Self::PostedVaaV1(inner) => Ok((
                 inner.emitter_address(),
                 inner.emitter_chain(),
@@ -40,7 +46,9 @@ impl<'a> VaaAccount<'a> {
 
     pub fn try_payload(&self) -> Result<Payload> {
         match self {
-            Self::EncodedVaa(inner) => inner.try_payload(),
+            Self::EncodedVaa(inner) => match inner.as_vaa()? {
+                VaaVersion::V1(vaa) => Ok(vaa.body().payload()),
+            },
             Self::PostedVaaV1(inner) => Ok(Payload::parse(inner.payload())),
         }
     }

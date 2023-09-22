@@ -2,12 +2,11 @@ use crate::{
     error::CoreBridgeError,
     legacy::utils::LegacyAnchorized,
     state::{GuardianSet, Header, ProcessingStatus},
-    types::VaaVersion,
     zero_copy::EncodedVaa,
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
-use wormhole_raw_vaas::GuardianSetSig;
+use wormhole_raw_vaas::{GuardianSetSig, Vaa};
 
 #[derive(Accounts)]
 pub struct VerifyEncodedVaaV1<'info> {
@@ -60,14 +59,11 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
         );
 
         // Parse and verify.
-        let vaa = encoded_vaa.as_v1()?;
+        let vaa =
+            Vaa::parse(encoded_vaa.buf()).map_err(|_| error!(CoreBridgeError::CannotParseVaa))?;
 
         // Must be V1.
-        require_eq!(
-            vaa.version(),
-            u8::from(VaaVersion::V1),
-            CoreBridgeError::InvalidVaaVersion
-        );
+        require_eq!(vaa.version(), 1, CoreBridgeError::InvalidVaaVersion);
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
         require_eq!(
@@ -127,7 +123,7 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
         Header {
             status: ProcessingStatus::Verified,
             write_authority,
-            version: VaaVersion::V1,
+            version: 1,
         },
     )
         .serialize(&mut writer)

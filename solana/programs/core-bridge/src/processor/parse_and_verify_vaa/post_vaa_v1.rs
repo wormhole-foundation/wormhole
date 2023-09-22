@@ -1,26 +1,26 @@
 use crate::{
     error::CoreBridgeError,
     legacy::utils::LegacyAnchorized,
-    state::{EncodedVaa, PostedVaaV1, PostedVaaV1Info, ProcessingStatus},
-    types::VaaVersion,
+    state::{PostedVaaV1, PostedVaaV1Info},
+    zero_copy::{self, LoadZeroCopy},
 };
 use anchor_lang::prelude::*;
-use wormhole_raw_vaas::Vaa;
 
 #[derive(Accounts)]
 pub struct PostVaaV1<'info> {
     #[account(mut)]
     write_authority: Signer<'info>,
 
-    vaa: Account<'info, EncodedVaa>,
+    /// CHECK: Encoded VAA, whose body will be serialized into the posted VAA account.
+    encoded_vaa: AccountInfo<'info>,
 
     #[account(
         init,
         payer = write_authority,
-        space = PostedVaaV1::compute_size(vaa.v1()?.body().payload().as_ref().len()),
+        space = try_compute_size(&encoded_vaa)?,
         seeds = [
             PostedVaaV1::SEED_PREFIX,
-            solana_program::keccak::hash(vaa.v1()?.body().as_ref()).as_ref(),
+            try_message_hash(&encoded_vaa)?.as_ref(),
         ],
         bump,
     )]
@@ -29,38 +29,13 @@ pub struct PostVaaV1<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> PostVaaV1<'info> {
-    fn constraints(ctx: &Context<Self>) -> Result<()> {
-        // We can only create a legacy VAA account if the VAA account was verified.
-        //
-        // NOTE: We are keeping this here as a fail safe. We should never reach this point because
-        // if the VAA is unverified, its version will not be set (so the account context zero-copy
-        // getters before this access control will fail).
-        require!(
-            ctx.accounts.vaa.status == ProcessingStatus::Verified,
-            CoreBridgeError::UnverifiedVaa
-        );
-
-        // Done.
-        Ok(())
-    }
-}
-
-#[access_control(PostVaaV1::constraints(&ctx))]
 pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
-    let encoded_vaa = &ctx.accounts.vaa;
+    // This is safe because we checked that the VAA version in the encoded VAA account is V1.
+    let encoded_vaa = zero_copy::EncodedVaa::load(&ctx.accounts.encoded_vaa).unwrap();
+    let vaa = encoded_vaa.as_vaa().unwrap();
+    let v1 = vaa.v1().unwrap();
 
-    // This is safe because the VAA integrity has already been verified.
-    let vaa = Vaa::parse(&encoded_vaa.buf).unwrap();
-
-    // Verify version.
-    require_eq!(
-        vaa.version(),
-        u8::from(VaaVersion::V1),
-        CoreBridgeError::InvalidVaaVersion
-    );
-
-    let body = vaa.body();
+    let body = v1.body();
 
     ctx.accounts.posted_vaa.set_inner(
         PostedVaaV1 {
@@ -68,7 +43,7 @@ pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
                 consistency_level: body.consistency_level(),
                 timestamp: body.timestamp().into(),
                 signature_set: Default::default(),
-                guardian_set_index: vaa.guardian_set_index(),
+                guardian_set_index: v1.guardian_set_index(),
                 nonce: body.nonce(),
                 sequence: body.sequence(),
                 emitter_chain: body.emitter_chain(),
@@ -81,4 +56,34 @@ pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
 
     // Done.
     Ok(())
+}
+
+fn try_compute_size(vaa: &AccountInfo) -> Result<usize> {
+    let encoded_vaa = zero_copy::EncodedVaa::load(vaa)?;
+    let payload_size = encoded_vaa
+        .as_vaa()?
+        .v1()
+        .ok_or(error!(CoreBridgeError::InvalidVaaVersion))?
+        .body()
+        .payload()
+        .as_ref()
+        .len();
+
+    let acct_size = PostedVaaV1::compute_size(payload_size);
+
+    // CPI to create the posted VAA account will fail if the size of the VAA payload is too large.
+    require_gte!(10_240, acct_size, CoreBridgeError::PostedVaaPayloadTooLarge);
+
+    Ok(acct_size)
+}
+
+fn try_message_hash(vaa: &AccountInfo) -> Result<solana_program::keccak::Hash> {
+    let encoded_vaa = zero_copy::EncodedVaa::load(vaa)?;
+    let vaa = encoded_vaa.as_vaa()?;
+    let body = vaa
+        .v1()
+        .ok_or(error!(CoreBridgeError::InvalidVaaVersion))?
+        .body();
+
+    Ok(solana_program::keccak::hash(body.as_ref()))
 }

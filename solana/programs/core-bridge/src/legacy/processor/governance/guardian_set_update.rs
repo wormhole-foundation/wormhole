@@ -132,7 +132,14 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
 
     // Set new guardian set account fields.
     let creation_time = match &vaa {
-        VaaAccount::EncodedVaa(inner) => inner.try_timestamp().unwrap(),
+        VaaAccount::EncodedVaa(inner) => inner
+            .as_vaa()
+            .unwrap()
+            .v1()
+            .unwrap()
+            .body()
+            .timestamp()
+            .into(),
         VaaAccount::PostedVaaV1(inner) => inner.timestamp(),
     };
 

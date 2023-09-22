@@ -175,6 +175,9 @@ pub enum CoreBridgeError {
     #[msg("WriteAuthorityMismatch")]
     WriteAuthorityMismatch = 0x10ba,
 
+    #[msg("PostedVaaPayloadTooLarge")]
+    PostedVaaPayloadTooLarge = 0x10bc,
+
     #[msg("EmitterRequired")]
     EmitterRequired = 0x2000,
 
