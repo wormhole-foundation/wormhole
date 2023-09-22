@@ -9,7 +9,7 @@ fi
 RPC_URL="$1"
 
 # Step 1: Run 'forge script DeployCore' and store the JSON output in 'returnInfo'
-returnInfo=$(forge script DeployCore --rpc-url "$RPC_URL")
+returnInfo=$(forge script DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY")
 
 # Check if 'returnInfo' contains a valid JSON
 if ! jq -e . >/dev/null 2>&1 <<< "$returnInfo"; then
@@ -29,4 +29,4 @@ forge script DeployTokenBridge --rpc-url "$RPC_URL"
 # Step 4: Run 'forge script DeployNFTBridge'
 forge script DeployNFTBridge --rpc-url "$RPC_URL"
 
-echo "Deployment completed successfully."
+echo "Deployment of Core Bridge, Token Bridge, and NFT Bridge completed successfully."

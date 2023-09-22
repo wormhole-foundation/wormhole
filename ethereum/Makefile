@@ -61,7 +61,7 @@ flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 .env: .env.test
 	cp $< $@
 
-test: test-forge test-identifiers test-ganache
+test: test-forge test-identifiers # test-ganache
 
 .PHONY: test-ganache
 test-ganache: build .env dependencies

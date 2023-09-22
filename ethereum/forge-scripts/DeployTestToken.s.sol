@@ -10,7 +10,7 @@ import "forge-std/Script.sol";
 
 contract DeployTestToken is Script {
     // DryRun - Deploy the system
-    // dry run: forge script DeployTokenBridge --sig "dryRun()" --rpc-url $RPC
+    // dry run: forge script DeployTestToken --sig "dryRun()" --rpc-url $RPC
     function dryRun() public {
         _deploy();
     }
