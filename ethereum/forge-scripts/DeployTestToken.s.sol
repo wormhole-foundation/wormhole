@@ -15,7 +15,7 @@ contract DeployTestToken is Script {
         _deploy();
     }
     // Deploy the system
-    // deploy:  forge script DeployTokenBridge --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
+    // deploy:  forge script DeployTestToken --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
     function run() public returns (address deployedTokenAddress, address deployedNFTaddress, address deployedWETHaddress, address deployedAccountantTokenAddress) {
         vm.startBroadcast();
         (deployedTokenAddress, deployedNFTaddress, deployedWETHaddress, deployedAccountantTokenAddress) = _deploy();
