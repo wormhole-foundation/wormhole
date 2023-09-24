@@ -55,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "RPC_URL='http://localhost:8545' PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npm run deploy-contracts && forge script DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY && echo 'Skipping registration of chains' && npm run deploy-relayers-evm1 && nc -lkn 2000"
+            - "RPC_URL='http://localhost:8545' PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npm run deploy-contracts -- $RPC_URL && forge script DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY && echo 'Skipping registration of chains' && npm run deploy-relayers-evm1 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
@@ -67,6 +67,6 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npx truffle exec mine.js"
+            - "echo 'Replace this script'"
 ---
 
