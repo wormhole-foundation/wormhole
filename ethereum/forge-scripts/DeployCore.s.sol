@@ -8,12 +8,12 @@ import "forge-std/Script.sol";
 
 contract DeployCore is Script {
     // DryRun - Deploy the system
-    // dry run: forge script DeployCore --sig "dryRun()" --rpc-url $RPC
+    // dry run: forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "dryRun()" --rpc-url $RPC
     function dryRun() public {
         _deploy();
     }
     // Deploy the system
-    // deploy:  forge script DeployCore --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
+    // deploy:  forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
     function run() public returns (address deployedAddress) {
         vm.startBroadcast();
         deployedAddress = _deploy();
