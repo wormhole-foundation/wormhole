@@ -63,7 +63,7 @@ jobs:
       - run: cd algorand && make test
 
   ethereum:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -74,7 +74,7 @@ jobs:
       - run: cd ethereum && make test
 
   ethereum-upgrade:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
