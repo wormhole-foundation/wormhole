@@ -36,15 +36,14 @@ spec:
           image: eth-node
           command:
             - anvil
-            - --silent
             - --host=0.0.0.0
             - --accounts=11
             - --chain-id=1397
             - --port=8546
-            - -m "myth like bonus scare over problem client lizard pioneer submit female collect"
+            - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
           
           ports:
-            - containerPort: 8546
+            - containerPort: 8545
               name: rpc
               protocol: TCP
           readinessProbe:
@@ -56,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && RPC_URL='http://localhost:8546' PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npm run deploy-contracts && forge script DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY && echo 'Skipping registration of chains' && npm run deploy-relayers-evm2 && nc -lkn 2000"
+            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && [ $CI ] && RPC_URL='http://eth-devnet2:8545' || RPC_URL='http://localhost:8546' && echo $RPC_URL && RPC_URL=$RPC_URL PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npm run deploy-contracts && forge script DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY && echo 'Skipping registration of chains' && npm run deploy-relayers-evm2 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
