@@ -55,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && [ $CI ] && export RPC_URL='http://eth-devnet2:8545' || export RPC_URL='http://localhost:8546' && export PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d && npm run deploy-contracts && forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast && echo 'Skipping registration of chains' && npm run deploy-relayers-evm2 && nc -lkn 2000"
+            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && ./forge-scripts/devnetInitialization.sh"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
