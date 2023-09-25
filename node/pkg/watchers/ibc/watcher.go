@@ -476,6 +476,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 					}
 
 					if evt != nil {
+						evt.Msg.IsReobservation = true
 						if err := w.processIbcReceivePublishEvent(evt, "reobservation"); err != nil {
 							return fmt.Errorf("failed to process reobserved IBC event: %w", err)
 						}

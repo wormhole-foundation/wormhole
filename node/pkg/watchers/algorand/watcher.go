@@ -130,7 +130,7 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 // lookAtTxn takes an outer transaction from the block.payset and gathers
 // observations from messages emitted in nested inner transactions
 // then passes them on the relevant channels
-func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger) {
+func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger, isReobservation bool) {
 
 	observations := gatherObservations(e, t.SignedTxnWithAD, 0, logger)
 
@@ -165,6 +165,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			EmitterAddress:   obs.emitterAddress,
 			Payload:          obs.payload,
 			ConsistencyLevel: 0,
+			IsReobservation:  isReobservation,
 		}
 
 		algorandMessagesConfirmed.Inc()
@@ -261,7 +262,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, element := range block.Payset {
-					lookAtTxn(e, element, block, logger)
+					lookAtTxn(e, element, block, logger, true)
 				}
 			}
 
@@ -287,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 
 					for _, element := range block.Payset {
-						lookAtTxn(e, element, block, logger)
+						lookAtTxn(e, element, block, logger, false)
 					}
 					e.next_round = e.next_round + 1
 

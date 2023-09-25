@@ -304,6 +304,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey)
 				for _, msg := range msgs {
+					msg.IsReobservation = true
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}

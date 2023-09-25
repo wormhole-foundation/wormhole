@@ -150,6 +150,7 @@ func (testCase *testCase) run(ctx context.Context) error {
 	// assert that messages were re-observed correctly...
 	expectedMsgReObserved := map[string]*testMessageTracker{}
 	for _, em := range testCase.expectedMsgReObserved {
+		em.IsReobservation = true
 		expectedMsgReObserved[em.MessageIDString()] = &testMessageTracker{MessagePublication: em, seen: false}
 	}
 

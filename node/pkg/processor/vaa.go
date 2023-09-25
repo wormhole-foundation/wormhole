@@ -7,7 +7,8 @@ import (
 
 type VAA struct {
 	vaa.VAA
-	Unreliable bool
+	Unreliable    bool
+	Reobservation bool
 }
 
 func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
@@ -40,4 +41,8 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 
 func (v *VAA) IsReliable() bool {
 	return !v.Unreliable
+}
+
+func (v *VAA) IsReobservation() bool {
+	return v.Reobservation
 }

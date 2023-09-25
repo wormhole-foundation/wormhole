@@ -76,7 +76,8 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 			Sequence:         k.Sequence,
 			ConsistencyLevel: k.ConsistencyLevel,
 		},
-		Unreliable: k.Unreliable,
+		Unreliable:    k.Unreliable,
+		Reobservation: k.IsReobservation,
 	}
 
 	// Generate digest of the unsigned VAA.
@@ -100,7 +101,9 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		zap.String("emitter_address_b58", base58.Encode(k.EmitterAddress.Bytes())),
 		zap.Uint8("consistency_level", k.ConsistencyLevel),
 		zap.String("message_id", v.MessageID()),
-		zap.String("signature", hex.EncodeToString(s)))
+		zap.String("signature", hex.EncodeToString(s)),
+		zap.Bool("isReobservation", k.IsReobservation),
+	)
 
 	messagesSignedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String()}).Add(1)

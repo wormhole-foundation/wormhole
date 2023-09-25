@@ -70,7 +70,7 @@ func TestPendingMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
+	assert.Equal(t, []byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
 }
 
 func TestTransferMsgID(t *testing.T) {
@@ -110,18 +110,18 @@ func TestIsTransfer(t *testing.T) {
 }
 
 func TestIsPendingMsg(t *testing.T) {
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/1/1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1/1/1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsPendingMsg([]byte{}))
-	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 }
 
 func TestGetChainGovernorData(t *testing.T) {
@@ -286,6 +286,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 		EmitterAddress:   tokenBridgeAddr,
 		Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		ConsistencyLevel: 16,
+		IsReobservation:  true,
 	}
 
 	pending1 := &PendingTransfer{
@@ -296,12 +297,12 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	bytes, err := pending1.Marshal()
 	require.NoError(t, err)
 
-	pending2, err := UnmarshalPendingTransfer(bytes)
+	pending2, err := UnmarshalPendingTransfer(bytes, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, pending1, pending2)
 
-	expectedPendingKey := "GOV:PENDING2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedPendingKey := "GOV:PENDING3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedPendingKey, string(PendingMsgID(&pending2.Msg)))
 }
 
@@ -395,16 +396,38 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	assert.Equal(t, pending2, pending[1])
 }
 
-func (d *Database) storeOldPendingMsg(t *testing.T, k *common.MessagePublication) {
-	b, _ := k.Marshal()
+func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
+	buf := new(bytes.Buffer)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+
+	b := marshalOldMessagePublication(&p.Msg)
+
+	vaa.MustWrite(buf, binary.BigEndian, b)
 
 	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(oldPendingMsgID(k), b); err != nil {
+		if err := txn.Set(oldPendingMsgID(&p.Msg), buf.Bytes()); err != nil {
 			return err
 		}
 		return nil
 	})
+
 	require.NoError(t, err)
+}
+
+func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(msg.TxHash[:])
+	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
+	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
+	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
+	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
+	buf.Write(msg.EmitterAddress[:])
+	buf.Write(msg.Payload)
+
+	return buf.Bytes()
 }
 
 func TestLoadingOldPendingTransfers(t *testing.T) {
@@ -454,7 +477,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	// Write the first pending event in the old format.
 	pending1 := &PendingTransfer{
-		ReleaseTime: now.Add(time.Hour * 72), // Since we are writing this in the old format, this will not get stored, but computed on reload.
+		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.,
 		Msg: common.MessagePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        now,
@@ -464,10 +487,11 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 			EmitterAddress:   tokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
+			// IsReobservation will not be serialized. It should be set to false on reload.
 		},
 	}
 
-	db.storeOldPendingMsg(t, &pending1.Msg)
+	db.storeOldPendingMsg(t, pending1)
 	require.Nil(t, err)
 
 	now2 := now.Add(time.Second * 5)
@@ -484,6 +508,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 			EmitterAddress:   tokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
+			IsReobservation:  true,
 		},
 	}
 
