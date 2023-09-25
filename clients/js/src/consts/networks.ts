@@ -166,7 +166,7 @@ const MAINNET = {
   },
   sei: {
     rpc: undefined,
-    key: undefined,
+    key: getEnvVar("SEI_KEY"),
   },
   rootstock: {
     rpc: "https://public-node.rsk.co",
