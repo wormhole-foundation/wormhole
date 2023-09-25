@@ -15,6 +15,7 @@ RUN ls $HOME/.foundry/bin
 
 # Run as user, otherwise, npx explodes.
 RUN mv /root/.foundry/bin/forge /bin/forge
+RUN mv /root/.foundry/bin/anvil /bin/anvil
 USER 1000
 
 
