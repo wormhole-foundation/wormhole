@@ -28,8 +28,6 @@ contract DeployCore is Script {
         uint16 governanceChainId = uint16(vm.envUint("INIT_GOV_CHAIN_ID"));
         bytes32 governanceContract = bytes32(vm.envBytes32("INIT_GOV_CONTRACT"));
         uint256 evmChainId = vm.envUint("INIT_EVM_CHAIN_ID");
-
-        console.log();
         
         setup.setup(address(impl), initialSigners, chainId, governanceChainId, governanceContract, evmChainId);
 

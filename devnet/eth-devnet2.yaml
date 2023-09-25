@@ -62,9 +62,3 @@ spec:
             initialDelaySeconds: 90
             tcpSocket:
               port: 2000
-        - name: mine
-          image: eth-node
-          command:
-            - /bin/sh
-            - -c
-            - "echo 'Replace this script'"
