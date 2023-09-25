@@ -83,8 +83,8 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	m := obs.Msg
 	hash := hex.EncodeToString(m.Hash)
 	s := p.state.signatures[hash]
-	if s != nil && s.settled {
-		// already settled; ignoring additional signatures for it.
+	if s != nil && s.submitted {
+		// already submitted; ignoring additional signatures for it.
 		return
 	}
 
