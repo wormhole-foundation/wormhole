@@ -40,7 +40,7 @@ spec:
             - --host=0.0.0.0
             - --accounts=11
             - --chain-id=1397
-            - --port 8546
+            - --port=8546
             - -m "myth like bonus scare over problem client lizard pioneer submit female collect"
           
           ports:
