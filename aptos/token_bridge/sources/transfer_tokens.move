@@ -150,7 +150,7 @@ module token_bridge::transfer_tokens {
         transfer_tokens_internal(coins, relayer_fee)
     }
 
-    // transfer a native or wraped token from sender to token_bridge
+    // transfer a native or wrapped token from sender to token_bridge
     fun transfer_tokens_internal<CoinType>(
         coins: Coin<CoinType>,
         relayer_fee: u64,
@@ -219,7 +219,7 @@ module token_bridge::transfer_tokens_test {
 
     use wrapped_coin::coin::T;
 
-    /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    /// Registration VAA for the ethereum token bridge 0xdeadbeef
     /// +------------------------------------------------------------------------------+
     /// | Wormhole VAA v1         | nonce: 1                | time: 1                  |
     /// | guardian set #0         | #23663022               | consistency: 0           |
@@ -274,7 +274,7 @@ module token_bridge::transfer_tokens_test {
         deployer: &signer,
     ) {
         // we initialise the bridge with zero fees to avoid having to mint fee
-        // tokens in these tests. The wormolhe fee handling is already tested
+        // tokens in these tests. The wormhole fee handling is already tested
         // in wormhole.move, so it's unnecessary here.
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
         wormhole::wormhole_test::setup(0);
