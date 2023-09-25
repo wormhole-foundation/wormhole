@@ -9,7 +9,7 @@ fi
 RPC_URL="$1"
 
 # Step 1: Run 'forge script DeployCore' and store the JSON output in 'returnInfo'
-returnInfo=$(forge script DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY")
+returnInfo=$(forge script ./forge-scripts/DeployCore.s.sol:DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY")
 
 # Check if 'returnInfo' contains a valid JSON
 if ! jq -e . >/dev/null 2>&1 <<< "$returnInfo"; then
