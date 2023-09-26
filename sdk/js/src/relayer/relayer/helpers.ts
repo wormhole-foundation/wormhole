@@ -7,6 +7,8 @@ import {
   tryNativeToHexString,
   isChain,
   CONTRACTS,
+  parseVaa,
+  SignedVaa
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import {
@@ -26,6 +28,8 @@ import {
   VaaKey,
   DeliveryOverrideArgs,
   parseRefundStatus,
+  RedeliveryInstruction,
+  parseWormholeRelayerResend,
 } from "../structs";
 import { InfoRequestParams } from "./info";
 import {
@@ -42,17 +46,18 @@ export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
   transactionHash: string | null;
   vaaHash: string | null;
-  sourceChain: ChainName;
+  sourceChain: ChainName | null;
   sourceVaaSequence: BigNumber | null;
   gasUsed: BigNumber;
   refundStatus: RefundStatus;
+  timestamp?: number;
   revertString?: string; // Only defined if status is RECEIVER_FAILURE
   overrides?: DeliveryOverrideArgs;
 };
 
 export function parseWormholeLog(log: ethers.providers.Log): {
   type: RelayerPayloadId;
-  parsed: DeliveryInstruction | string;
+  parsed: DeliveryInstruction | RedeliveryInstruction | string;
 } {
   const abi = [
     "event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)",
@@ -63,7 +68,10 @@ export function parseWormholeLog(log: ethers.providers.Log): {
   const type = parseWormholeRelayerPayloadType(payload);
   if (type == RelayerPayloadId.Delivery) {
     return { type, parsed: parseWormholeRelayerSend(payload) };
-  } else {
+  } else if (type == RelayerPayloadId.Redelivery) {
+    return { type, parsed: parseWormholeRelayerResend(payload) };
+  }
+  else {
     throw Error("Invalid wormhole log");
   }
 }
@@ -72,6 +80,13 @@ export function printChain(chainId: number) {
   if (!(chainId in CHAIN_ID_TO_NAME))
     throw Error(`Invalid Chain ID: ${chainId}`);
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
+}
+
+export const CCTP_DOMAIN_TO_NAME = ['ethereum', 'avalanche', 'arbitrum', 'optimism']
+export function printCCTPDomain(domain: number) {
+  if (domain >= CCTP_DOMAIN_TO_NAME.length)
+    throw Error(`Invalid cctp domain: ${domain}`);
+  return `${CCTP_DOMAIN_TO_NAME[domain]} (Domain ${domain})`;
 }
 
 export function getDefaultProvider(
@@ -101,21 +116,13 @@ export function getDeliveryProvider(
   return contract;
 }
 
-export function getBlockRange(
-  provider: ethers.providers.Provider,
-  timestamp?: number
-): [ethers.providers.BlockTag, ethers.providers.BlockTag] {
-  return [-2040, "latest"];
-}
-
 export async function getWormholeRelayerInfoBySourceSequence(
   environment: Network,
   targetChain: ChainName,
   targetChainProvider: ethers.providers.Provider,
-  sourceChain: ChainName,
-  sourceVaaSequence: BigNumber,
-  blockStartNumber: ethers.providers.BlockTag,
-  blockEndNumber: ethers.providers.BlockTag,
+  sourceChain: ChainName | undefined,
+  sourceVaaSequence: BigNumber | undefined,
+  blockNumber: ethers.providers.BlockTag,
   targetWormholeRelayerAddress: string
 ): Promise<{ chain: ChainName; events: DeliveryTargetInfo[] }> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
@@ -124,31 +131,10 @@ export async function getWormholeRelayerInfoBySourceSequence(
     targetChainProvider,
     sourceChain,
     sourceVaaSequence,
-    blockStartNumber,
-    blockEndNumber,
+    blockNumber,
     targetWormholeRelayerAddress
   );
-  if (deliveryEvents.length == 0) {
-    let status = `Delivery didn't happen on ${targetChain} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
-    try {
-      const blockStart = await targetChainProvider.getBlock(blockStartNumber);
-      const blockEnd = await targetChainProvider.getBlock(blockEndNumber);
-      status = `Delivery didn't happen on ${targetChain} within blocks ${
-        blockStart.number
-      } to ${blockEnd.number} (within times ${new Date(
-        blockStart.timestamp * 1000
-      ).toString()} to ${new Date(blockEnd.timestamp * 1000).toString()})`;
-    } catch (e) {}
-    deliveryEvents.push({
-      status,
-      transactionHash: null,
-      vaaHash: null,
-      sourceChain: sourceChain,
-      sourceVaaSequence,
-      gasUsed: BigNumber.from(0),
-      refundStatus: RefundStatus.RefundFail,
-    });
-  }
+
   const targetChainStatus = {
     chain: targetChain,
     events: deliveryEvents,
@@ -161,14 +147,17 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   environment: Network,
   targetChain: ChainName,
   targetChainProvider: ethers.providers.Provider,
-  sourceChain: ChainName,
-  sourceVaaSequence: BigNumber,
-  blockStartNumber: ethers.providers.BlockTag,
-  blockEndNumber: ethers.providers.BlockTag,
+  sourceChain: ChainName | undefined,
+  sourceVaaSequence: BigNumber | undefined,
+  blockNumber: ethers.providers.BlockTag,
   targetWormholeRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
-  const sourceChainId = CHAINS[sourceChain];
-  if (!sourceChainId) throw Error(`Invalid source chain: ${sourceChain}`);
+  let sourceChainId = undefined;
+  if(sourceChain) {
+    sourceChainId = CHAINS[sourceChain];
+    if (!sourceChainId) throw Error(`Invalid source chain: ${sourceChain}`);
+  }
+
   const wormholeRelayer = getWormholeRelayer(
     targetChain,
     environment,
@@ -176,71 +165,27 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     targetWormholeRelayerAddress
   );
 
-  const deliveryEvents = wormholeRelayer.filters.Delivery(
+  const deliveryEventsFilter = wormholeRelayer.filters.Delivery(
     null,
     sourceChainId,
     sourceVaaSequence
   );
 
-  const deliveryEventsPreFilter: DeliveryEvent[] =
+  const deliveryEvents: DeliveryEvent[] =
     await wormholeRelayer.queryFilter(
-      deliveryEvents,
-      blockStartNumber,
-      blockEndNumber
+      deliveryEventsFilter,
+      blockNumber,
+      blockNumber
     );
 
-  const isValid: boolean[] = await Promise.all(
-    deliveryEventsPreFilter.map((deliveryEvent) =>
-      areSignaturesValid(
-        deliveryEvent.getTransaction(),
-        targetChain,
-        targetChainProvider,
-        environment
-      )
-    )
-  );
+
+  const timestamp = (await targetChainProvider.getBlock(blockNumber)).timestamp;
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    deliveryEventsPreFilter.filter((deliveryEvent, i) => isValid[i])
+    deliveryEvents,
+    timestamp
   );
-}
-
-async function areSignaturesValid(
-  transaction: Promise<ethers.Transaction>,
-  targetChain: ChainName,
-  targetChainProvider: ethers.providers.Provider,
-  environment: Network
-) {
-  const coreAddress = CONTRACTS[environment][targetChain].core;
-  if (!coreAddress)
-    throw Error(
-      `No Wormhole Address for chain ${targetChain}, network ${environment}`
-    );
-
-  const wormhole = Implementation__factory.connect(
-    coreAddress,
-    targetChainProvider
-  );
-  const decodedData =
-    IWormholeRelayerDelivery__factory.createInterface().parseTransaction(
-      await transaction
-    );
-
-  const vaaIsValid = async (vaa: ethers.utils.BytesLike): Promise<boolean> => {
-    const [, result, reason] = await wormhole.parseAndVerifyVM(vaa);
-    if (!result) console.log(`Invalid vaa! Reason: ${reason}`);
-    return result;
-  };
-
-  const vaas = decodedData.args[0];
-  for (let i = 0; i < vaas.length; i++) {
-    if (!(await vaaIsValid(vaas[i]))) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export function deliveryStatus(status: number) {
@@ -267,7 +212,7 @@ export function transformDeliveryLog(log: {
     string
   ];
   transactionHash: string;
-}): DeliveryTargetInfo {
+}, timestamp: number): DeliveryTargetInfo {
   const status = deliveryStatus(log.args[4]);
   if (!isChain(log.args[1]))
     throw Error(`Invalid source chain id: ${log.args[1]}`);
@@ -282,6 +227,7 @@ export function transformDeliveryLog(log: {
     refundStatus: parseRefundStatus(log.args[6]),
     revertString:
       status == DeliveryStatus.ReceiverFailure ? log.args[7] : undefined,
+    timestamp,
     overrides:
       Buffer.from(log.args[8].substring(2), "hex").length > 0
         ? parseOverrideInfoFromDeliveryEvent(
@@ -292,9 +238,10 @@ export function transformDeliveryLog(log: {
 }
 
 async function transformDeliveryEvents(
-  events: DeliveryEvent[]
+  events: DeliveryEvent[],
+  timestamp: number,
 ): Promise<DeliveryTargetInfo[]> {
-  return events.map((x) => transformDeliveryLog(x));
+  return events.map((x) => transformDeliveryLog(x, timestamp));
 }
 
 export function getWormholeRelayerLog(
@@ -351,7 +298,7 @@ export function vaaKeyToVaaKeyStruct(vaaKey: VaaKey): VaaKeyStruct {
   };
 }
 
-export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName, sourceVaaSequence: BigNumber, infoRequest?: InfoRequestParams): Promise<DeliveryTargetInfo[]> {
+export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName | undefined, sourceVaaSequence: number | undefined, infoRequest?: InfoRequestParams): Promise<DeliveryTargetInfo[]> {
   const environment = infoRequest?.environment || 'MAINNET'
   const targetChainProvider =
     infoRequest?.targetChainProviders?.get(targetChain) ||
@@ -375,14 +322,15 @@ export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetC
   const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(deliveryHash);
   const blockNumber = blockNumberSuccess ? blockNumberSuccess : blockNumberFailure;
 
+  if(blockNumber.toNumber() === 0) return [];
+
   const targetChainStatusEvents = (await getWormholeRelayerInfoBySourceSequence(
     environment,
     targetChain,
     targetChainProvider,
     sourceChain,
-    sourceVaaSequence,
-    blockNumber,
-    blockNumber,
+    BigNumber.from(sourceVaaSequence),
+    blockNumber.toNumber(),
     targetWormholeRelayerAddress
   )).events
 
@@ -415,7 +363,7 @@ export function getDeliveryHashFromVaaFields(
   return deliveryHash;
 }
 
-export async function getDeliveryHashFromWormscan(
+export async function getWormscanRelayerInfo(
   sourceChain: ChainName,
   sequence: number,
   optionalParams?: {
@@ -423,7 +371,7 @@ export async function getDeliveryHashFromWormscan(
     provider?: ethers.providers.Provider;
     wormholeRelayerAddress?: string;
   } 
-): Promise<string> {
+): Promise<Response> {
   const sourceChainId = CHAINS[sourceChain];
   const network = optionalParams?.network || 'MAINNET';
   const wormscanAPI = ((_network: Network) => {
@@ -441,8 +389,23 @@ export async function getDeliveryHashFromWormscan(
 
   const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(sourceChain, network);
   const wormholeRelayerAddressBytes32 = tryNativeToHexString(wormholeRelayerAddress, sourceChain)
-  const result = await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${wormholeRelayerAddressBytes32}/${sequence}`)
-  console.log(result);
+  const result = (await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${wormholeRelayerAddressBytes32}/${sequence}`));
+  return result;
+}
+
+export async function getRelayerTransactionHashFromWormscan(
+  sourceChain: ChainName,
+  sequence: number,
+  optionalParams?: {
+    network?: Network;
+    provider?: ethers.providers.Provider;
+    wormholeRelayerAddress?: string;
+  } 
+): Promise<string> {
+  const wormscanData = (await (await getWormscanRelayerInfo(sourceChain, sequence, optionalParams)).json()).data;
+  const vaa = Buffer.from(wormscanData.vaa, "base64");
+  const parsedVaa = parseVaa(vaa);
+  return parsedVaa.hash.toString("hex");
 }
 
 export async function getDeliveryHash(
@@ -483,17 +446,25 @@ export async function getDeliveryHash(
         index > 0 ? ` (the ${index}-th wormhole relayer log was requested)` : ""
       }`
     );
-  const log = logs[index];
+  return getDeliveryHashFromLog(logs[index], CHAINS[sourceChain], provider, rx.blockHash);
+}
+
+export async function getDeliveryHashFromLog(
+  wormholeLog: ethers.providers.Log,
+  sourceChain: ChainId,
+  provider: ethers.providers.Provider,
+  blockHash: string 
+): Promise<string> {
   const wormholePublishedMessage =
-    Implementation__factory.createInterface().parseLog(log);
+    Implementation__factory.createInterface().parseLog(wormholeLog);
   
-  const block = await provider.getBlock(rx.blockHash);
+  const block = await provider.getBlock(blockHash);
 
 
 
   return getDeliveryHashFromVaaFields(
-    CHAINS[sourceChain],
-    log.topics[1],
+    sourceChain,
+    wormholeLog.topics[1],
     wormholePublishedMessage.args["sequence"],
     block.timestamp,
     wormholePublishedMessage.args["nonce"],

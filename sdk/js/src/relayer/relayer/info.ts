@@ -20,15 +20,18 @@ import {
   KeyType,
   parseVaaKey,
   parseCCTPKey,
+  RedeliveryInstruction,
 } from "../structs";
 import {
   getDefaultProvider,
   printChain,
+  printCCTPDomain,
   getWormholeRelayerLog,
   parseWormholeLog,
-  getBlockRange,
-  getWormholeRelayerInfoBySourceSequence,
-  getDeliveryHash,
+  getDeliveryHashFromLog,
+  getRelayerTransactionHashFromWormscan,
+  getWormholeRelayerInfoByHash,
+  getWormscanRelayerInfo
 } from "./helpers";
 import { DeliveryInfo } from "./deliver";
 
@@ -36,10 +39,6 @@ export type InfoRequestParams = {
   environment?: Network;
   sourceChainProvider?: ethers.providers.Provider;
   targetChainProviders?: Map<ChainName, ethers.providers.Provider>;
-  targetChainBlockRanges?: Map<
-    ChainName,
-    [ethers.providers.BlockTag, ethers.providers.BlockTag]
-  >;
   wormholeRelayerWhMessageIndex?: number;
   wormholeRelayerAddresses?: Map<ChainName, string>;
 };
@@ -121,6 +120,7 @@ export async function getWormholeRelayerInfo(
     sourceTransaction
   );
   if (!receipt) throw Error("Transaction has not been mined");
+  const sourceTimestamp = (await sourceChainProvider.getBlock(receipt.blockNumber)).timestamp;
   const bridgeAddress = CONTRACTS[environment][sourceChain].core;
   const wormholeRelayerAddress =
     infoRequest?.wormholeRelayerAddresses?.get(sourceChain) ||
@@ -141,11 +141,36 @@ export async function getWormholeRelayerInfo(
 
   const { type, parsed } = parseWormholeLog(deliveryLog.log);
 
-  // deal with redelivery case
+  if(type === RelayerPayloadId.Redelivery) {
+    const redeliveryInstruction = (parsed as RedeliveryInstruction);
 
-  const instruction = parsed as DeliveryInstruction;
+    if(!(isChain(redeliveryInstruction.deliveryVaaKey.chainId))) {
+      throw new Error(`The chain ID specified by this redelivery is invalid: ${redeliveryInstruction.deliveryVaaKey.chainId}`)
+    }
+    if(!(isChain(redeliveryInstruction.targetChainId))) {
+      throw new Error(`The target chain ID specified by this redelivery is invalid: ${redeliveryInstruction.targetChainId}`)
+    }
 
-  const targetChainId = instruction.targetChainId as ChainId;
+    const originalSourceChainName = CHAIN_ID_TO_NAME[redeliveryInstruction.deliveryVaaKey.chainId as ChainId];
+
+    const modifiedInfoRequest = infoRequest;
+    if(modifiedInfoRequest?.sourceChainProvider) {
+      modifiedInfoRequest.sourceChainProvider = modifiedInfoRequest?.targetChainProviders?.get(originalSourceChainName)
+    }
+    
+    const transactionHash = await getRelayerTransactionHashFromWormscan(originalSourceChainName, redeliveryInstruction.deliveryVaaKey.sequence.toNumber(), {
+      network: infoRequest?.environment,
+      provider: infoRequest?.targetChainProviders?.get(originalSourceChainName),
+      wormholeRelayerAddress: infoRequest?.wormholeRelayerAddresses?.get(originalSourceChainName)
+    });
+    
+    return getWormholeRelayerInfo(originalSourceChainName, transactionHash, modifiedInfoRequest);
+  } 
+
+  const instruction = (parsed as DeliveryInstruction);
+
+  const targetChainId = instruction.targetChainId;
+
   if (!isChain(targetChainId)) throw Error(`Invalid Chain: ${targetChainId}`);
   const targetChain = CHAIN_ID_TO_NAME[targetChainId];
   const targetChainProvider =
@@ -158,32 +183,29 @@ export async function getWormholeRelayerInfo(
     );
   }
 
-  const deliveryHash = getDeliveryHash()
-  const [blockStartNumber, blockEndNumber] =
-    infoRequest?.targetChainBlockRanges?.get(targetChain) ||
-    getBlockRange(targetChainProvider);
-
-  const targetChainStatus = await getWormholeRelayerInfoBySourceSequence(
-    environment,
-    targetChain,
-    targetChainProvider,
-    sourceChain,
-    BigNumber.from(deliveryLog.sequence),
-    blockStartNumber,
-    blockEndNumber,
-    infoRequest?.wormholeRelayerAddresses?.get(targetChain) ||
-      getWormholeRelayerAddress(targetChain, environment)
+  const sourceSequence = BigNumber.from(
+    deliveryLog.sequence
   );
+
+  const deliveryHash = await getDeliveryHashFromLog(deliveryLog.log, CHAINS[sourceChain], sourceChainProvider, receipt.blockHash);
+
+  const vaa = await getWormscanRelayerInfo(sourceChain, sourceSequence.toNumber(), {network: infoRequest?.environment, provider: infoRequest?.sourceChainProvider, wormholeRelayerAddress: infoRequest?.wormholeRelayerAddresses?.get(sourceChain)})
+  const signingOfVaaTimestamp = new Date((await vaa.json()).data?.indexedAt).getTime();
+
+  const targetChainDeliveries = await getWormholeRelayerInfoByHash(deliveryHash, targetChain, sourceChain, sourceSequence.toNumber(), infoRequest);
 
   return {
     type: RelayerPayloadId.Delivery,
     sourceChain: sourceChain,
     sourceTransactionHash: sourceTransaction,
-    sourceDeliverySequenceNumber: BigNumber.from(
-      deliveryLog.sequence
-    ).toNumber(),
+    sourceDeliverySequenceNumber: sourceSequence.toNumber(),
     deliveryInstruction: instruction,
-    targetChainStatus,
+    sourceTimestamp,
+    signingOfVaaTimestamp,
+    targetChainStatus: {
+      chain: targetChain,
+      events: targetChainDeliveries
+    },
   };
 }
 
@@ -203,17 +225,19 @@ export function stringifyWormholeRelayerInfo(
       "0000000000000000000000000000000000000000000000000000000000000000"
   ) {
     if (!excludeSourceInformation) {
-      stringifiedInfo += `Found delivery request in transaction ${
+      stringifiedInfo += `Chain: ${info.sourceChain}\n`
+      
+      stringifiedInfo += `Source Transaction Hash: ${
         info.sourceTransactionHash
-      } on ${
-        info.sourceChain
-      }\nfrom sender ${info.deliveryInstruction.senderAddress.toString(
+      }\n`
+      stringifiedInfo += `Sender: ${info.deliveryInstruction.senderAddress.toString(
         "hex"
-      )} from ${info.sourceChain} with delivery sequence number ${
+      )}`
+      stringifiedInfo += `Delivery sequence number: ${
         info.sourceDeliverySequenceNumber
       }\n`;
     } else {
-      stringifiedInfo += `Found delivery request from sender ${info.deliveryInstruction.senderAddress.toString(
+      stringifiedInfo += `Sender: ${info.deliveryInstruction.senderAddress.toString(
         "hex"
       )}\n`;
     }
@@ -221,27 +245,27 @@ export function stringifyWormholeRelayerInfo(
 
     const payload = info.deliveryInstruction.payload.toString("hex");
     if (payload.length > 0) {
-      stringifiedInfo += `\nPayload to be relayed (as hex string): 0x${payload}`;
+      stringifiedInfo += `\nPayload to be relayed: 0x${payload}\n`;
     }
     if (numMsgs > 0) {
-      stringifiedInfo += `\nThe following ${numMsgs} wormhole messages (VAAs) were ${
+      stringifiedInfo += `\nThe following ${numMsgs} messages were ${
         payload.length > 0 ? "also " : ""
-      }requested to be relayed:\n`;
+      }requested to be relayed with this delivery:\n`;
       stringifiedInfo += info.deliveryInstruction.messageKeys
         .map((msgKey, i) => {
           let result = "";
           if (msgKey.keyType == KeyType.VAA) {
             const vaaKey = parseVaaKey(msgKey.key);
-            result += `(VAA ${i}): `;
-            result += `Message from ${
+            result += `(Message ${i}): `;
+            result += `Wormhole VAA from ${
               vaaKey.chainId ? printChain(vaaKey.chainId) : ""
             }, with emitter address ${vaaKey.emitterAddress?.toString(
               "hex"
             )} and sequence number ${vaaKey.sequence}`;
           } else if (msgKey.keyType == KeyType.CCTP) {
             const cctpKey = parseCCTPKey(msgKey.key);
-            result += `(CCTP ${i}): `;
-            result += `Transfer from cctp domain ${printChain(cctpKey.domain)}`;
+            result += `(Message ${i}): `;
+            result += `CCTP Transfer from domain ${printCCTPDomain(cctpKey.domain)}`;
             result += `, with nonce ${cctpKey.nonce}`;
           } else {
             result += `(Unknown key type${i}): ${msgKey.keyType}`;
@@ -262,15 +286,9 @@ export function stringifyWormholeRelayerInfo(
 
     const targetChainName =
       CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
-    stringifiedInfo += `${
-      numMsgs == 0
-        ? payload.length == 0
-          ? ""
-          : "\n\nPayload was requested to be relayed"
-        : "\n\nThese were requested to be sent"
-    } to 0x${instruction.targetAddress.toString("hex")} on ${printChain(
+    stringifiedInfo += `Destination chain: ${printChain(
       instruction.targetChainId
-    )}\n`;
+    )}\nDestination address: 0x${instruction.targetAddress.toString("hex")}\n\n`;
     const totalReceiverValue = instruction.requestedReceiverValue.add(
       instruction.extraReceiverValue
     );
@@ -294,25 +312,37 @@ export function stringifyWormholeRelayerInfo(
     stringifiedInfo += `Gas limit: ${executionInfo.gasLimit} ${targetChainName} gas\n`;
 
     const refundAddressChosen =
-      instruction.refundAddress !== instruction.refundDeliveryProvider;
+      instruction.refundAddress.toString('hex') !== '0000000000000000000000000000000000000000000000000000000000000000';
     if (refundAddressChosen) {
       stringifiedInfo += `Refund rate: ${ethers.utils.formatEther(
         executionInfo.targetChainRefundPerGasUnused
       )} of ${targetChainName} currency per unit of gas unused\n`;
       stringifiedInfo += `Refund address: ${instruction.refundAddress.toString(
         "hex"
-      )}\n`;
+      )} on ${printChain(instruction.refundChainId)}\n`;
     }
     stringifiedInfo += `\n`;
+    if(info.sourceTimestamp) {
+      stringifiedInfo += `Sent: ${new Date(info.sourceTimestamp * 1000).toString()}\n`
+    }
+    if(info.signingOfVaaTimestamp) {
+      stringifiedInfo += `Signed by guardians: ${new Date(info.signingOfVaaTimestamp).toString()}\n`
+    } else {
+      stringifiedInfo += `Not yet signed by guardians - check https://wormhole-foundation.github.io/wormhole-dashboard/#/ for status\n`
+    }
+    stringifiedInfo += `\n`
+    if(info.targetChainStatus.events.length === 0) {
+      stringifiedInfo += "Delivery has not occured yet\n";
+    }
     stringifiedInfo += info.targetChainStatus.events
 
       .map(
         (e, i) =>
-          `Delivery attempt ${i + 1}: ${
+          `Delivery attempt: ${
             e.transactionHash
               ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
               : ""
-          }\nStatus: ${e.status}\n${
+          }\nDelivery Time: ${new Date((e.timestamp as number)*1000).toString()}\nStatus: ${e.status}\n${
             e.revertString
               ? `Failure reason: ${
                   e.gasUsed.eq(executionInfo.gasLimit)
@@ -352,7 +382,7 @@ export function stringifyWormholeRelayerInfo(
 
       .map(
         (e, i) =>
-          `Delivery attempt ${i + 1}: ${
+          `Delivery attempt: ${
             e.transactionHash
               ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
               : ""

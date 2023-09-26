@@ -12,6 +12,11 @@ type AddressInfo = {
 };
 
 const TESTNET: { [K in ChainName]?: AddressInfo } = {
+  ethereum: {
+    wormholeRelayerAddress: "0x28D8F1Be96f97C1387e94A53e00eCcFb4E75175a",
+    mockDeliveryProviderAddress: "0xD1463B4fe86166768d2ff51B1A928beBB5c9f375",
+    mockIntegrationAddress: "0xb81bc199b73AB34c393a4192C163252116a03370"
+  },
   bsc: {
     wormholeRelayerAddress: "0x80aC94316391752A193C1c47E27D382b507c93F3",
     mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
@@ -36,6 +41,16 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
     wormholeRelayerAddress: "0x0591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0",
     mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56",
+  },
+  arbitrum: {
+    wormholeRelayerAddress: "0xAd753479354283eEE1b86c9470c84D42f229FF43",
+    mockDeliveryProviderAddress: "0x90995DBd1aae85872451b50A569dE947D34ac4ee",
+    mockIntegrationAddress: "0x0de48f34E14d08934DA1eA2286Be1b2BED5c062a"
+  },
+  optimism: {
+    wormholeRelayerAddress: "0x01A957A525a5b7A72808bA9D10c389674E459891",
+    mockDeliveryProviderAddress: "0xfCe1Df3EF22fe5Cb7e2f5988b7d58fF633a313a7",
+    mockIntegrationAddress: "0x421e0bb71dDeeC727Af79766423d33D8FD7dB963"
   },
   base: {
     wormholeRelayerAddress: "0xea8029CD7FCAEFFcD1F53686430Db0Fc8ed384E1",

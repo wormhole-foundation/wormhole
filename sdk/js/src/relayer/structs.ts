@@ -15,8 +15,7 @@ export enum DeliveryStatus {
   PendingDelivery = "Pending Delivery",
   DeliverySuccess = "Delivery Success",
   ReceiverFailure = "Receiver Failure",
-  ThisShouldNeverHappen = "This should never happen. Contact Support.",
-  DeliveryDidntHappenWithinRange = "Delivery didn't happen within given block range",
+  ThisShouldNeverHappen = "This should never happen. Contact Support."
 }
 
 export enum RefundStatus {
@@ -25,6 +24,8 @@ export enum RefundStatus {
   CrossChainRefundSent = "Cross Chain Refund Sent",
   CrossChainRefundFailProviderNotSupported = "Cross Chain Refund Fail - Provider does not support the refund chain",
   CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund",
+  RefundAddressNotProvided = "No refund address provided",
+  InvalidRefundStatus = "Invalid refund status"
 }
 
 export function parseRefundStatus(index: number) {
@@ -38,7 +39,9 @@ export function parseRefundStatus(index: number) {
     ? RefundStatus.CrossChainRefundFailProviderNotSupported
     : index === 4
     ? RefundStatus.CrossChainRefundFailNotEnough
-    : RefundStatus.CrossChainRefundFailProviderNotSupported;
+    : index === 5 
+    ? RefundStatus.RefundAddressNotProvided
+    : RefundStatus.InvalidRefundStatus
 }
 
 export enum KeyType {
