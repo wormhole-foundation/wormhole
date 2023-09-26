@@ -23,6 +23,8 @@ export type DeliveryInfo = {
   sourceChain: ChainName;
   sourceTransactionHash: string;
   sourceDeliverySequenceNumber: number;
+  sourceTimestamp: number;
+  signingOfVaaTimestamp: number | undefined;
   deliveryInstruction: DeliveryInstruction;
   targetChainStatus: {
     chain: ChainName;
