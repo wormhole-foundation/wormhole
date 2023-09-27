@@ -19,25 +19,28 @@ import { DeliveryTargetInfo } from "./helpers";
 import { getSignedVAAWithRetry } from "../../rpc";
 
 export type CCTPTransferParsed = {
-  amount: bigint, // decimals is 6
-  mintRecipient: string,
-  destinationDomain: number,
-  estimatedAttestationSeconds: number
-  attested: boolean
-}
+  amount: bigint; // decimals is 6
+  mintRecipient: string;
+  destinationDomain: number;
+  estimatedAttestationSeconds: number;
+  attested: boolean;
+};
 export type TokenTransferParsed = {
-  amount: bigint,
-  originAddress: string,
-  originChain: number,
-  targetAddress: string,
-  targetChain: number,
+  amount: bigint;
+  originAddress: string;
+  originChain: number;
+  targetAddress: string;
+  targetChain: number;
   fromAddress: string | undefined;
-  name?: string,
-  symbol?: string,
-  decimals?: number,
-  signedVaaTimestamp?: number
-}
-export type AdditionalMessageParsed = CCTPTransferParsed | TokenTransferParsed | undefined
+  name?: string;
+  symbol?: string;
+  decimals?: number;
+  signedVaaTimestamp?: number;
+};
+export type AdditionalMessageParsed =
+  | CCTPTransferParsed
+  | TokenTransferParsed
+  | undefined;
 
 export type DeliveryInfo = {
   type: RelayerPayloadId.Delivery;
@@ -52,7 +55,7 @@ export type DeliveryInfo = {
     chain: ChainName;
     events: DeliveryTargetInfo[];
   };
-  stringified?: string
+  stringified?: string;
 };
 
 export type DeliveryArguments = {
