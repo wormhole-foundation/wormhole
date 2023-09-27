@@ -9,6 +9,15 @@ import "../interfaces/IWormhole.sol";
 /// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
     using BytesLib for bytes;
+
+    // Custom errors
+    error InvalidResponseVersion();
+    error VersionMismatch();
+    error NumberOfResponsesMismatch();
+    error ChainIdMismatch();
+    error RequestTypeMismatch();
+    error UnsupportedQueryType();
+    error UnexpectedNumberOfResults();
        
     /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
     struct ParsedQueryResponse {
@@ -62,7 +71,9 @@ abstract contract QueryResponse {
         uint index = 0;
         
         r.version = response.toUint8(index);
-        require(r.version == 1, "invalid response version");
+        if (r.version != 1) {
+            revert InvalidResponseVersion();
+        }
         index += 1;
 
         r.senderChainId = response.toUint16(index);
@@ -80,7 +91,9 @@ abstract contract QueryResponse {
         index += 4;
         uint reqIdx = index;
 
-        require(response.toUint8(reqIdx) == r.version, "version mismatch between request and response");
+        if (response.toUint8(reqIdx) != r.version) {
+            revert VersionMismatch();
+        }
         reqIdx += 1;
 
         r.nonce = response.toUint32(reqIdx);
@@ -92,24 +105,32 @@ abstract contract QueryResponse {
         // The response starts after the request.
         uint respIdx = index + len;
 
-        require(response.toUint8(respIdx) == numPerChainQueries, "num_per_chain_responses does not match num_per_chain_queries");
+        if (response.toUint8(respIdx) != numPerChainQueries) {
+            revert NumberOfResponsesMismatch();
+        }
         respIdx += 1;
 
         r.responses = new ParsedPerChainQueryResponse[](numPerChainQueries);
 
         // Walk through the requests and responses in lock step.
-        for (uint idx = 0; idx < numPerChainQueries; idx++) {
+        for (uint idx = 0; idx < numPerChainQueries;) {
             r.responses[idx].chainId = response.toUint16(reqIdx);
-            require(response.toUint16(respIdx) == r.responses[idx].chainId, "reqChainId does not match respChainId");
+            if (response.toUint16(respIdx) != r.responses[idx].chainId) {
+                revert ChainIdMismatch();
+            }
             reqIdx += 2;
             respIdx += 2;
 
             r.responses[idx].queryType = response.toUint8(reqIdx);
-            require(response.toUint8(respIdx) == r.responses[idx].queryType, "reqQueryType does not match respQueryType");
+            if (response.toUint8(respIdx) != r.responses[idx].queryType) {
+                revert RequestTypeMismatch();
+            }
             reqIdx += 1;
             respIdx += 1;
             
-            require(r.responses[idx].queryType == 1, "EthCall is the only supported query type");
+            if (r.responses[idx].queryType != 1) {
+                revert UnsupportedQueryType();
+            }
 
             len = response.toUint32(reqIdx);
             reqIdx += 4;
@@ -120,6 +141,8 @@ abstract contract QueryResponse {
             respIdx += 4;
             r.responses[idx].response = response.slice(respIdx, len);
             respIdx += len;
+
+            unchecked { idx += 1; }
         }
 
         return r;
@@ -127,7 +150,9 @@ abstract contract QueryResponse {
 
     /// @dev parseEthCallQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallQueryResponse memory r) {
-        require(pcr.queryType == 1, "query type must be EthCall");
+        if (pcr.queryType != 1) {
+                revert UnsupportedQueryType();
+        }
 
         uint reqIdx = 0;
         uint respIdx = 0;
@@ -150,13 +175,15 @@ abstract contract QueryResponse {
         r.blockTime = pcr.response.toUint64(respIdx);
         respIdx += 8;
 
-        require(pcr.response.toUint8(respIdx) == numBatchCallData, "num results doesn't match num call datas");
+        if (pcr.response.toUint8(respIdx) != numBatchCallData) {
+                revert UnexpectedNumberOfResults();
+        }
         respIdx += 1;
 
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
-        for (uint idx = 0; idx < numBatchCallData; idx++) {
+        for (uint idx = 0; idx < numBatchCallData;) {
             r.result[idx].contractAddress = pcr.request.toAddress(reqIdx);
             reqIdx += 20;
 
@@ -169,13 +196,15 @@ abstract contract QueryResponse {
             respIdx += 4;
             r.result[idx].result = pcr.response.slice(respIdx, len);
             respIdx += len;
+
+            unchecked { idx += 1; }
         }
 
         return r;
     }
 
     /**
-     * @dev verifyQueryResponseSignatures serves to 
+     * @dev verifyQueryResponseSignatures verifies the signatures on a query response. It calls into the Wormhole contract.
      * IWormhole.Signature expects the last byte to be bumped by 27 
      * see https://github.com/wormhole-foundation/wormhole/blob/637b1ee657de7de05f783cbb2078dd7d8bfda4d0/ethereum/contracts/Messages.sol#L174
      */
