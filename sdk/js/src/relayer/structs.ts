@@ -1,5 +1,4 @@
-import { BigNumber, ethers } from "ethers";
-import { arrayify } from "ethers/lib/utils";
+import { BigNumber, ethers, } from "ethers";
 
 export enum RelayerPayloadId {
   Delivery = 1,
@@ -124,7 +123,7 @@ export function parseWormholeRelayerPayloadType(
   stringPayload: string | Buffer | Uint8Array
 ): RelayerPayloadId {
   const payload =
-    typeof stringPayload === "string" ? arrayify(stringPayload) : stringPayload;
+    typeof stringPayload === "string" ? ethers.utils.arrayify(stringPayload) : stringPayload;
   if (
     payload[0] != RelayerPayloadId.Delivery &&
     payload[0] != RelayerPayloadId.Redelivery
@@ -155,28 +154,22 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     );
   }
   idx += 1;
-
   const targetChainId = bytes.readUInt16BE(idx);
   idx += 2;
   const targetAddress = bytes.slice(idx, idx + 32);
   idx += 32;
-
   let payload: Buffer;
   [payload, idx] = parsePayload(bytes, idx);
-
   const requestedReceiverValue = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
   idx += 32;
-
   const extraReceiverValue = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
   idx += 32;
-
   let encodedExecutionInfo;
   [encodedExecutionInfo, idx] = parsePayload(bytes, idx);
-
   const refundChainId = bytes.readUInt16BE(idx);
   idx += 2;
   const refundAddress = bytes.slice(idx, idx + 32);
@@ -189,7 +182,6 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   idx += 32;
   const numMessages = bytes.readUInt8(idx);
   idx += 1;
-
   let messageKeys = [] as MessageKey[];
   for (let i = 0; i < numMessages; ++i) {
     const res = parseMessageKey(bytes, idx);

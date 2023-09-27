@@ -82,11 +82,17 @@ export function printChain(chainId: number) {
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
 }
 
-export const CCTP_DOMAIN_TO_NAME = ['ethereum', 'avalanche', 'arbitrum', 'optimism']
+export const CCTP_DOMAIN_TO_NAME = ['ethereum', 'avalanche', 'optimism', 'arbitrum']
 export function printCCTPDomain(domain: number) {
   if (domain >= CCTP_DOMAIN_TO_NAME.length)
     throw Error(`Invalid cctp domain: ${domain}`);
   return `${CCTP_DOMAIN_TO_NAME[domain]} (Domain ${domain})`;
+}
+
+export const estimatedAttestationTimeInSeconds = (sourceChain: string, environment: Network): number => {
+  const testnetTime = sourceChain === 'avalanche' ? 20 : 60;
+  const mainnetTime = sourceChain === 'avalanche' ? 20 : 60 * 13;
+  return environment === 'TESTNET' ? testnetTime : mainnetTime
 }
 
 export function getDefaultProvider(
@@ -179,7 +185,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     );
 
 
-  const timestamp = (await targetChainProvider.getBlock(blockNumber)).timestamp;
+  const timestamp = (await targetChainProvider.getBlock(blockNumber)).timestamp * 1000;
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
@@ -244,12 +250,13 @@ async function transformDeliveryEvents(
   return events.map((x) => transformDeliveryLog(x, timestamp));
 }
 
-export function getWormholeRelayerLog(
+export function getWormholeLog(
   receipt: ContractReceipt,
   bridgeAddress: string,
   emitterAddress: string,
-  index: number
-): { log: ethers.providers.Log; sequence: string } {
+  index: number,
+  sequence?: number
+): { log: ethers.providers.Log; sequence: string, payload: string } {
   const bridgeLogs = receipt.logs.filter((l) => {
     return l.address === bridgeAddress;
   });
@@ -264,17 +271,26 @@ export function getWormholeRelayerLog(
       sequence: log.args[1].toString(),
       nonce: log.args[2].toString(),
       emitterAddress: tryNativeToHexString(log.args[0].toString(), "ethereum"),
+      payload: log.args[3],
       log: bridgeLog,
     };
   });
 
   const filtered = parsed.filter(
-    (x) => x.emitterAddress == emitterAddress.toLowerCase()
+    (x) => {
+      console.log(x.emitterAddress);
+      console.log(emitterAddress);
+      if((x.emitterAddress == emitterAddress.toLowerCase()) && sequence) {
+        console.log(`seuqnce 1: ${x.sequence}`);
+        console.log(`sequence 2: ${sequence}`);
+      }
+      return x.emitterAddress == emitterAddress.toLowerCase() && (sequence === undefined ? true : (x.sequence+"" === sequence+""))
+    }
   );
 
   if (filtered.length == 0) {
     throw Error(
-      "No WormholeRelayer contract interactions found for this transaction."
+      `No wormhole contract interactions found for this transaction, with emitter address ${emitterAddress} ${sequence === undefined ? '' : `and sequence ${sequence}`}`
     );
   }
 
@@ -284,6 +300,7 @@ export function getWormholeRelayerLog(
     return {
       log: filtered[index].log,
       sequence: filtered[index].sequence,
+      payload: filtered[index].payload
     };
   }
 }
@@ -363,17 +380,12 @@ export function getDeliveryHashFromVaaFields(
   return deliveryHash;
 }
 
-export async function getWormscanRelayerInfo(
+export async function getWormscanInfo(
+  network: Network,
   sourceChain: ChainName,
   sequence: number,
-  optionalParams?: {
-    network?: Network;
-    provider?: ethers.providers.Provider;
-    wormholeRelayerAddress?: string;
-  } 
-): Promise<Response> {
-  const sourceChainId = CHAINS[sourceChain];
-  const network = optionalParams?.network || 'MAINNET';
+  emitterAddress: string
+) {
   const wormscanAPI = ((_network: Network) => {
     switch(_network) {
       case 'MAINNET':
@@ -386,11 +398,24 @@ export async function getWormscanRelayerInfo(
         throw new Error("Not testnet or mainnet - so no wormscan api access")
     }
   })(network);
-
-  const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(sourceChain, network);
-  const wormholeRelayerAddressBytes32 = tryNativeToHexString(wormholeRelayerAddress, sourceChain)
-  const result = (await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${wormholeRelayerAddressBytes32}/${sequence}`));
+  const emitterAddressBytes32 = tryNativeToHexString(emitterAddress, sourceChain)
+  const sourceChainId = CHAINS[sourceChain];
+  const result = (await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${emitterAddressBytes32}/${sequence}`));
   return result;
+}
+
+export async function getWormscanRelayerInfo(
+  sourceChain: ChainName,
+  sequence: number,
+  optionalParams?: {
+    network?: Network;
+    provider?: ethers.providers.Provider;
+    wormholeRelayerAddress?: string;
+  } 
+): Promise<Response> {
+  const network = optionalParams?.network || 'MAINNET';
+  const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(sourceChain, network);
+  return getWormscanInfo(network, sourceChain, sequence, wormholeRelayerAddress);
 }
 
 export async function getRelayerTransactionHashFromWormscan(
