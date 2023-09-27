@@ -3,12 +3,12 @@
 
 pragma solidity ^0.8.0;
 
-import "../libraries/external/BytesLib.sol";
+import {BytesParsing} from "../relayer/libraries/BytesParsing.sol";
 import "../interfaces/IWormhole.sol";
 
 /// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
-    using BytesLib for bytes;
+    using BytesParsing for bytes;
 
     // Custom errors
     error InvalidResponseVersion();
@@ -70,77 +70,70 @@ abstract contract QueryResponse {
 
         uint index = 0;
         
-        r.version = response.toUint8(index);
+        (r.version, index) = response.asUint8Unchecked(index);
         if (r.version != 1) {
             revert InvalidResponseVersion();
         }
-        index += 1;
 
-        r.senderChainId = response.toUint16(index);
-        index += 2;
+        (r.senderChainId, index) = response.asUint16Unchecked(index);
 
         if (r.senderChainId == 0) {
-            r.requestId = response.slice(index, 65);
-            index += 65;
+            (r.requestId, index) = response.sliceUnchecked(index, 65);
         } else {
-            r.requestId = response.slice(index, 32);
-            index += 32;
+            (r.requestId, index) = response.sliceUnchecked(index, 32);
         }
         
-        uint32 len = response.toUint32(index); // query_request_len
-        index += 4;
+        uint32 len;
+        (len, index) = response.asUint32Unchecked(index); // query_request_len
         uint reqIdx = index;
 
-        if (response.toUint8(reqIdx) != r.version) {
+        uint8 version;
+        (version, reqIdx) = response.asUint8Unchecked(reqIdx);
+        if (version != r.version) {
             revert VersionMismatch();
         }
-        reqIdx += 1;
 
-        r.nonce = response.toUint32(reqIdx);
-        reqIdx += 4;
+        (r.nonce, reqIdx) = response.asUint32Unchecked(reqIdx);
 
-        uint8 numPerChainQueries = response.toUint8(reqIdx);
-        reqIdx += 1;
+        uint8 numPerChainQueries;
+        (numPerChainQueries, reqIdx) = response.asUint8Unchecked(reqIdx);
 
         // The response starts after the request.
         uint respIdx = index + len;
 
-        if (response.toUint8(respIdx) != numPerChainQueries) {
+        uint8 respNumPerChainQueries;
+        (respNumPerChainQueries, respIdx) = response.asUint8Unchecked(respIdx);
+        if (respNumPerChainQueries != numPerChainQueries) {
             revert NumberOfResponsesMismatch();
         }
-        respIdx += 1;
 
         r.responses = new ParsedPerChainQueryResponse[](numPerChainQueries);
 
         // Walk through the requests and responses in lock step.
         for (uint idx = 0; idx < numPerChainQueries;) {
-            r.responses[idx].chainId = response.toUint16(reqIdx);
-            if (response.toUint16(respIdx) != r.responses[idx].chainId) {
+            (r.responses[idx].chainId, reqIdx) = response.asUint16Unchecked(reqIdx);
+            uint16 respChainId;
+            (respChainId, respIdx) = response.asUint16Unchecked(respIdx);
+            if (respChainId != r.responses[idx].chainId) {
                 revert ChainIdMismatch();
             }
-            reqIdx += 2;
-            respIdx += 2;
 
-            r.responses[idx].queryType = response.toUint8(reqIdx);
-            if (response.toUint8(respIdx) != r.responses[idx].queryType) {
+            (r.responses[idx].queryType, reqIdx) = response.asUint8Unchecked(reqIdx);
+            uint8 respQueryType;
+            (respQueryType, respIdx) = response.asUint8Unchecked(respIdx);
+            if (respQueryType != r.responses[idx].queryType) {
                 revert RequestTypeMismatch();
             }
-            reqIdx += 1;
-            respIdx += 1;
             
             if (r.responses[idx].queryType != 1) {
                 revert UnsupportedQueryType();
             }
 
-            len = response.toUint32(reqIdx);
-            reqIdx += 4;
-            r.responses[idx].request = response.slice(reqIdx, len);
-            reqIdx += len;
+            (len, reqIdx) = response.asUint32Unchecked(reqIdx);
+            (r.responses[idx].request, reqIdx) = response.sliceUnchecked(reqIdx, len);
 
-            len = response.toUint32(respIdx);
-            respIdx += 4;
-            r.responses[idx].response = response.slice(respIdx, len);
-            respIdx += len;
+            (len, respIdx) = response.asUint32Unchecked(respIdx);
+            (r.responses[idx].response, respIdx) = response.sliceUnchecked(respIdx, len);
 
             unchecked { idx += 1; }
         }
@@ -157,45 +150,37 @@ abstract contract QueryResponse {
         uint reqIdx = 0;
         uint respIdx = 0;
 
-        uint32 len = pcr.request.toUint32(reqIdx); // block_id_len
-        reqIdx += 4;
+        uint32 len;
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // block_id_len
 
-        r.requestBlockId = pcr.request.slice(reqIdx, len);
-        reqIdx += len;
+        (r.requestBlockId, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
 
-        uint8 numBatchCallData = pcr.request.toUint8(reqIdx);
-        reqIdx += 1;
+        uint8 numBatchCallData;
+        (numBatchCallData, reqIdx) = pcr.request.asUint8Unchecked(reqIdx);
 
-        r.blockNum = pcr.response.toUint64(respIdx);
-        respIdx += 8;
+        (r.blockNum, respIdx) = pcr.response.asUint64Unchecked(respIdx);
 
-        r.blockHash = pcr.response.toBytes32(respIdx);
-        respIdx += 32;
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx);
 
-        r.blockTime = pcr.response.toUint64(respIdx);
-        respIdx += 8;
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx);
 
-        if (pcr.response.toUint8(respIdx) != numBatchCallData) {
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx);
+        if (respNumResults != numBatchCallData) {
                 revert UnexpectedNumberOfResults();
         }
-        respIdx += 1;
 
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
         for (uint idx = 0; idx < numBatchCallData;) {
-            r.result[idx].contractAddress = pcr.request.toAddress(reqIdx);
-            reqIdx += 20;
+            (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
 
-            len = pcr.request.toUint32(reqIdx); // call_data_len
-            reqIdx += 4;
-            r.result[idx].callData = pcr.request.slice(reqIdx, len);
-            reqIdx += len;
+            (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
+            (r.result[idx].callData, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
 
-            len = pcr.response.toUint32(respIdx); // result_len
-            respIdx += 4;
-            r.result[idx].result = pcr.response.slice(respIdx, len);
-            respIdx += len;
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
 
             unchecked { idx += 1; }
         }
