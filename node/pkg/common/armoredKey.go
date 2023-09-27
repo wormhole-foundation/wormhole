@@ -1,61 +1,30 @@
-package guardiand
+package common
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 
-	"github.com/certusone/wormhole/node/pkg/common"
-
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/spf13/cobra"
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 
-	"github.com/certusone/wormhole/node/pkg/devnet"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 )
-
-var keyDescription *string
 
 const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
 )
 
-func init() {
-	keyDescription = KeygenCmd.Flags().String("desc", "", "Human-readable key description (optional)")
+// LoadGuardianKey loads a serialized guardian key from disk.
+func LoadGuardianKey(filename string, unsafeDevMode bool) (*ecdsa.PrivateKey, error) {
+	return LoadArmoredKey(filename, GuardianKeyArmoredBlock, unsafeDevMode)
 }
 
-var KeygenCmd = &cobra.Command{
-	Use:   "keygen [KEYFILE]",
-	Short: "Create guardian key at the specified path",
-	Run:   runKeygen,
-	Args:  cobra.ExactArgs(1),
-}
-
-func runKeygen(cmd *cobra.Command, args []string) {
-	common.LockMemory()
-	common.SetRestrictiveUmask()
-
-	log.Print("Creating new key at ", args[0])
-
-	gk, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
-	if err != nil {
-		log.Fatalf("failed to generate key: %v", err)
-	}
-
-	err = writeGuardianKey(gk, *keyDescription, args[0], false)
-	if err != nil {
-		log.Fatalf("failed to write key: %v", err)
-	}
-}
-
-// loadGuardianKey loads a serialized guardian key from disk.
-func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
+// LoadArmoredKey loads a serialized key from disk.
+func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecdsa.PrivateKey, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -66,7 +35,7 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to read armored file: %w", err)
 	}
 
-	if p.Type != GuardianKeyArmoredBlock {
+	if p.Type != blockType {
 		return nil, fmt.Errorf("invalid block type: %s", p.Type)
 	}
 
@@ -81,7 +50,7 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
 	}
 
-	if !*unsafeDevMode && m.UnsafeDeterministicKey {
+	if !unsafeDevMode && m.UnsafeDeterministicKey {
 		return nil, errors.New("refusing to use deterministic key in production")
 	}
 
@@ -93,8 +62,8 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 	return gk, nil
 }
 
-// writeGuardianKey serializes a guardian key and writes it to disk.
-func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string, unsafe bool) error {
+// WriteArmoredKey serializes a key and writes it to disk.
+func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string, blockType string, unsafe bool) error {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		return errors.New("refusing to override existing key")
 	}
@@ -122,7 +91,7 @@ func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string
 	if description != "" {
 		headers["Description"] = description
 	}
-	a, err := armor.Encode(f, GuardianKeyArmoredBlock, headers)
+	a, err := armor.Encode(f, blockType, headers)
 	if err != nil {
 		panic(err)
 	}
@@ -135,16 +104,4 @@ func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string
 		return err
 	}
 	return f.Close()
-}
-
-// generateDevnetGuardianKey returns a deterministic testnet key.
-func generateDevnetGuardianKey() (*ecdsa.PrivateKey, error) {
-	// Figure out our devnet index
-	idx, err := devnet.GetDevnetIndex()
-	if err != nil {
-		return nil, err
-	}
-
-	// Generate guardian key
-	return devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), uint64(idx)), nil
 }

@@ -781,14 +781,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if *unsafeDevMode {
-		gk, err := generateDevnetGuardianKey()
+		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
 		if err != nil {
 			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
-		}
-
-		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *guardianKeyPath, true)
-		if err != nil {
-			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
 	}
 
@@ -797,7 +792,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	defer db.Close()
 
 	// Guardian key
-	gk, err := loadGuardianKey(*guardianKeyPath)
+	gk, err := common.LoadGuardianKey(*guardianKeyPath, *unsafeDevMode)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}

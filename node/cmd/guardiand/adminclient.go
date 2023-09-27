@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -39,6 +40,7 @@ import (
 var (
 	clientSocketPath *string
 	shouldBackfill   *bool
+	unsafeDevnetMode *bool
 )
 
 func init() {
@@ -67,6 +69,10 @@ func init() {
 	PurgePythNetVaasCmd.Flags().AddFlagSet(pf)
 	SignExistingVaaCmd.Flags().AddFlagSet(pf)
 	SignExistingVaasFromCSVCmd.Flags().AddFlagSet(pf)
+
+	adminClientSignWormchainAddressFlags := pflag.NewFlagSet("adminClientSignWormchainAddressFlags", pflag.ContinueOnError)
+	unsafeDevnetMode = adminClientSignWormchainAddressFlags.Bool("unsafeDevMode", false, "Run in unsafe devnet mode")
+	AdminClientSignWormchainAddress.Flags().AddFlagSet(adminClientSignWormchainAddressFlags)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -225,7 +231,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
 		return fmt.Errorf("must provide a bech32 address that has 'wormhole' prefix")
 	}
-	gk, err := loadGuardianKey(guardianKeyPath)
+	gk, err := common.LoadGuardianKey(guardianKeyPath, *unsafeDevnetMode)
 	if err != nil {
 		return fmt.Errorf("failed to load guardian key: %w", err)
 	}
