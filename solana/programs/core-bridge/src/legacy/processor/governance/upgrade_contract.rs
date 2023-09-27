@@ -89,7 +89,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
-        let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
+        let gov_payload = super::require_valid_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .contract_upgrade()

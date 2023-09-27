@@ -27,16 +27,14 @@ impl<'info> InitMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Infer the expected message length given the size of the created account.
         let data_len = ctx.accounts.draft_message.data_len();
-        require_gt!(
-            data_len,
-            PostedMessageV1::PAYLOAD_START,
+        require!(
+            data_len > PostedMessageV1::PAYLOAD_START,
             CoreBridgeError::InvalidCreatedAccountSize
         );
 
         // This message length cannot exceed the maximum message length.
-        require_gte!(
-            MAX_MESSAGE_PAYLOAD_SIZE,
-            data_len - PostedMessageV1::PAYLOAD_START,
+        require!(
+            data_len - PostedMessageV1::PAYLOAD_START <= MAX_MESSAGE_PAYLOAD_SIZE,
             CoreBridgeError::ExceedsMaxPayloadSize
         );
 

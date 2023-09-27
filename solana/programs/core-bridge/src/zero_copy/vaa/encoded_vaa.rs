@@ -3,8 +3,8 @@ use std::cell::Ref;
 use crate::{error::CoreBridgeError, state};
 use anchor_lang::{
     prelude::{
-        err, error, require, require_eq, require_gte, require_keys_eq, AccountInfo,
-        AnchorDeserialize, ErrorCode, Pubkey, Result,
+        err, error, require, require_eq, require_keys_eq, AccountInfo, AnchorDeserialize,
+        ErrorCode, Pubkey, Result,
     },
     Discriminator,
 };
@@ -83,9 +83,8 @@ impl<'a> EncodedVaa<'a> {
     }
 
     fn require_correct_size(&self) -> Result<()> {
-        require_gte!(
-            self.0.len(),
-            Self::VAA_START,
+        require!(
+            self.0.len() >= Self::VAA_START,
             ErrorCode::AccountDidNotDeserialize
         );
         require_eq!(

@@ -23,9 +23,8 @@ impl<'info> InitEncodedVaa<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // The size of the created account must be more than the size of discriminator and header
         // (some VAA buffer > 0 bytes).
-        require_gt!(
-            ctx.accounts.encoded_vaa.data_len(),
-            EncodedVaa::VAA_START,
+        require!(
+            ctx.accounts.encoded_vaa.data_len() > EncodedVaa::VAA_START,
             CoreBridgeError::InvalidCreatedAccountSize
         );
 

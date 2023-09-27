@@ -75,9 +75,8 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
         // Do we have enough signatures for quorum?
         let guardian_keys = &guardian_set.keys;
         let quorum = crate::utils::quorum(guardian_keys.len());
-        require_gte!(
-            usize::from(vaa.signature_count()),
-            quorum,
+        require!(
+            usize::from(vaa.signature_count()) >= quorum,
             CoreBridgeError::NoQuorum
         );
 
@@ -93,7 +92,7 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
             // We do not allow for non-increasing guardian signature indices.
             let index = usize::from(sig.guardian_index());
             if let Some(last_index) = last_guardian_index {
-                require_gt!(index, last_index, CoreBridgeError::InvalidGuardianIndex);
+                require!(index > last_index, CoreBridgeError::InvalidGuardianIndex);
             }
 
             // Does this guardian index exist in this guardian set?

@@ -97,9 +97,8 @@ impl<'info> PostVaa<'info> {
 
         // Number of verified signatures in the signature set account must be at least quorum with
         // the guardian set.
-        require_gte!(
-            signature_set.num_verified(),
-            utils::quorum(ctx.accounts.guardian_set.keys.len()),
+        require!(
+            signature_set.num_verified() >= utils::quorum(ctx.accounts.guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 

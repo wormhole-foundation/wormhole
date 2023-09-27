@@ -62,7 +62,7 @@ pub fn write_message_v1(ctx: Context<WriteMessageV1>, args: WriteMessageV1Args) 
 
     let index = usize::try_from(index).unwrap();
     let end = index.saturating_add(data.len());
-    require_gte!(msg_length, end, CoreBridgeError::DataOverflow);
+    require!(end <= msg_length, CoreBridgeError::DataOverflow);
 
     let acc_data = &mut ctx.accounts.draft_message.data.borrow_mut();
     acc_data[(PostedMessageV1::PAYLOAD_START + index)..(PostedMessageV1::PAYLOAD_START + end)]

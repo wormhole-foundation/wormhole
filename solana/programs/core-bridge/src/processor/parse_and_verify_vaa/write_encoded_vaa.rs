@@ -58,7 +58,7 @@ pub fn write_encoded_vaa(ctx: Context<WriteEncodedVaa>, args: WriteEncodedVaaArg
 
     let index = usize::try_from(index).unwrap();
     let end = index.saturating_add(data.len());
-    require_gte!(vaa_size, end, CoreBridgeError::DataOverflow);
+    require!(end <= vaa_size, CoreBridgeError::DataOverflow);
 
     let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
     acc_data[(EncodedVaa::VAA_START + index)..(EncodedVaa::VAA_START + end)].copy_from_slice(&data);

@@ -156,9 +156,8 @@ impl<'info> TransferTokensNative<'info> {
         crate::utils::require_native_mint(&ctx.accounts.mint)?;
 
         // Cannot configure a fee greater than the total transfer amount.
-        require_gte!(
-            args.amount,
-            args.relayer_fee,
+        require!(
+            args.relayer_fee <= args.amount,
             TokenBridgeError::InvalidRelayerFee
         );
 

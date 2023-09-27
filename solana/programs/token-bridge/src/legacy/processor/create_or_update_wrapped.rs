@@ -316,9 +316,8 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =
             LegacyAnchorized::<0, WrappedAsset>::try_deserialize(&mut acc_data.as_ref())?;
-        require_gt!(
-            updated_sequence,
-            wrapped_asset.last_updated_sequence,
+        require!(
+            updated_sequence > wrapped_asset.last_updated_sequence,
             TokenBridgeError::AttestationOutOfSequence
         );
 

@@ -69,12 +69,15 @@ fn try_compute_size(vaa: &AccountInfo) -> Result<usize> {
         .as_ref()
         .len();
 
-    let acct_size = PostedVaaV1::compute_size(payload_size);
+    let acc_size = PostedVaaV1::compute_size(payload_size);
 
     // CPI to create the posted VAA account will fail if the size of the VAA payload is too large.
-    require_gte!(10_240, acct_size, CoreBridgeError::PostedVaaPayloadTooLarge);
+    require!(
+        acc_size <= 10_240,
+        CoreBridgeError::PostedVaaPayloadTooLarge
+    );
 
-    Ok(acct_size)
+    Ok(acc_size)
 }
 
 fn try_message_hash(vaa: &AccountInfo) -> Result<solana_program::keccak::Hash> {

@@ -4,9 +4,7 @@ pub use encoded_vaa::*;
 mod posted_vaa_v1;
 pub use posted_vaa_v1::*;
 
-use anchor_lang::prelude::{
-    err, error, require_gt, require_keys_eq, AccountInfo, ErrorCode, Result,
-};
+use anchor_lang::prelude::{err, error, require, require_keys_eq, AccountInfo, ErrorCode, Result};
 use wormhole_raw_vaas::Payload;
 
 use crate::state::VaaVersion;
@@ -74,7 +72,7 @@ impl<'a> LoadZeroCopy<'a> for VaaAccount<'a> {
 
         let discriminator = {
             let data = acc_info.try_borrow_data()?;
-            require_gt!(data.len(), 8, ErrorCode::AccountDidNotDeserialize);
+            require!(data.len() > 8, ErrorCode::AccountDidNotDeserialize);
 
             data[..8].try_into().unwrap()
         };

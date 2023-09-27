@@ -82,7 +82,7 @@ impl<'info> GuardianSetUpdate<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let config = &ctx.accounts.config;
         let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
-        let gov_payload = super::require_valid_posted_governance_vaa(config, &vaa)?;
+        let gov_payload = super::require_valid_governance_vaa(config, &vaa)?;
 
         // Encoded guardian set must be the next value after the current guardian set index.
         //

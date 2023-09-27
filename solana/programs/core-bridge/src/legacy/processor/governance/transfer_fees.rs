@@ -76,7 +76,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 impl<'info> TransferFees<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
-        let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
+        let gov_payload = super::require_valid_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .transfer_fees()
@@ -92,7 +92,7 @@ impl<'info> TransferFees<'info> {
         // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
         // lamports are u64).
         let amount = U256::from_be_bytes(decree.amount());
-        require_gte!(U256::from(u64::MAX), amount, CoreBridgeError::U64Overflow);
+        require!(amount <= U256::from(u64::MAX), CoreBridgeError::U64Overflow);
 
         // The recipient provided in the account context must be the same as the one encoded in the
         // governance VAA.
@@ -111,9 +111,9 @@ impl<'info> TransferFees<'info> {
                 let fee_collector = AsRef::<AccountInfo>::as_ref(&ctx.accounts.fee_collector);
                 (fee_collector.data_len(), fee_collector.lamports())
             };
-            require_gte!(
-                lamports.saturating_sub(to_u64_unchecked(&amount)),
-                Rent::get().map(|rent| rent.minimum_balance(data_len))?,
+            let min_required = Rent::get().map(|rent| rent.minimum_balance(data_len))?;
+            require!(
+                lamports.saturating_sub(to_u64_unchecked(&amount)) >= min_required,
                 CoreBridgeError::NotEnoughLamports
             );
         }

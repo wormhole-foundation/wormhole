@@ -21,7 +21,7 @@ use wormhole_raw_vaas::core::{CoreBridgeDecree, CoreBridgeGovPayload};
 /// Validate a posted VAA as a Core Bridge governance decree. Specifically for the Core Bridge, the
 /// guardian set used to attest for this governance decree must be the latest guardian set (found in
 /// the [Config] account).
-pub fn require_valid_posted_governance_vaa<'ctx>(
+pub fn require_valid_governance_vaa<'ctx>(
     config: &'ctx Config,
     vaa: &'ctx VaaAccount<'ctx>,
 ) -> Result<CoreBridgeDecree<'ctx>> {

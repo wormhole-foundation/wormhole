@@ -1,9 +1,7 @@
 mod posted_message_v1;
 pub use posted_message_v1::*;
 
-use anchor_lang::prelude::{
-    err, error, require_gt, require_keys_eq, AccountInfo, ErrorCode, Result,
-};
+use anchor_lang::prelude::{err, error, require, require_keys_eq, AccountInfo, ErrorCode, Result};
 
 use super::LoadZeroCopy;
 
@@ -35,7 +33,7 @@ impl<'a> LoadZeroCopy<'a> for MessageAccount<'a> {
 
         let discriminator = {
             let data = acc_info.try_borrow_data()?;
-            require_gt!(data.len(), 4, ErrorCode::AccountDidNotDeserialize);
+            require!(data.len() > 4, ErrorCode::AccountDidNotDeserialize);
 
             data[..4].try_into().unwrap()
         };

@@ -3,8 +3,7 @@ use std::cell::Ref;
 use crate::{state, types::Timestamp};
 use anchor_lang::{
     prelude::{
-        error, require, require_eq, require_gte, require_keys_eq, AccountInfo, ErrorCode, Pubkey,
-        Result,
+        error, require, require_eq, require_keys_eq, AccountInfo, ErrorCode, Pubkey, Result,
     },
     solana_program::keccak,
 };
@@ -98,9 +97,8 @@ impl<'a> PostedVaaV1<'a> {
 
     pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {
         let parsed = Self(acc_info.try_borrow_data()?);
-        require_gte!(
-            parsed.0.len(),
-            Self::PAYLOAD_START,
+        require!(
+            parsed.0.len() >= Self::PAYLOAD_START,
             ErrorCode::AccountDidNotDeserialize
         );
         require_eq!(

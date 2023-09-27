@@ -57,7 +57,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
 impl<'info> SetMessageFee<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa = VaaAccount::load(&ctx.accounts.vaa)?;
-        let gov_payload = super::require_valid_posted_governance_vaa(&ctx.accounts.config, &vaa)?;
+        let gov_payload = super::require_valid_governance_vaa(&ctx.accounts.config, &vaa)?;
 
         let decree = gov_payload
             .set_message_fee()
@@ -73,7 +73,7 @@ impl<'info> SetMessageFee<'info> {
         // Make sure that the encoded fee does not overflow since the encoded amount is u256 (and
         // lamports are u64).
         let fee = U256::from_be_bytes(decree.fee());
-        require_gte!(U256::from(u64::MAX), fee, CoreBridgeError::U64Overflow);
+        require!(fee <= U256::from(u64::MAX), CoreBridgeError::U64Overflow);
 
         // Done.
         Ok(())

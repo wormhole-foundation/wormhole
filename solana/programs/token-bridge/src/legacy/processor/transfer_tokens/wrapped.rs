@@ -159,9 +159,8 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 impl<'info> TransferTokensWrapped<'info> {
     fn constraints(args: &TransferTokensArgs) -> Result<()> {
         // Cannot configure a fee greater than the total transfer amount.
-        require_gte!(
-            args.amount,
-            args.relayer_fee,
+        require!(
+            args.relayer_fee <= args.amount,
             TokenBridgeError::InvalidRelayerFee
         );
 
