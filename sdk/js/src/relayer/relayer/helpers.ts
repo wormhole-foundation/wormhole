@@ -283,12 +283,6 @@ export function getWormholeLog(
   });
 
   const filtered = parsed.filter((x) => {
-    console.log(x.emitterAddress);
-    console.log(emitterAddress);
-    if (x.emitterAddress == emitterAddress.toLowerCase() && sequence) {
-      console.log(`seuqnce 1: ${x.sequence}`);
-      console.log(`sequence 2: ${sequence}`);
-    }
     return (
       x.emitterAddress == emitterAddress.toLowerCase() &&
       (sequence === undefined ? true : x.sequence + "" === sequence + "")
