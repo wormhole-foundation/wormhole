@@ -8,14 +8,14 @@ import {
   isChain,
   CONTRACTS,
   parseVaa,
-  SignedVaa
+  SignedVaa,
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import {
   getWormholeRelayer,
   RPCS_BY_CHAIN,
   RELAYER_CONTRACTS,
-  getWormholeRelayerAddress
+  getWormholeRelayerAddress,
 } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
@@ -70,8 +70,7 @@ export function parseWormholeLog(log: ethers.providers.Log): {
     return { type, parsed: parseWormholeRelayerSend(payload) };
   } else if (type == RelayerPayloadId.Redelivery) {
     return { type, parsed: parseWormholeRelayerResend(payload) };
-  }
-  else {
+  } else {
     throw Error("Invalid wormhole log");
   }
 }
@@ -82,18 +81,26 @@ export function printChain(chainId: number) {
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
 }
 
-export const CCTP_DOMAIN_TO_NAME = ['ethereum', 'avalanche', 'optimism', 'arbitrum']
+export const CCTP_DOMAIN_TO_NAME = [
+  "ethereum",
+  "avalanche",
+  "optimism",
+  "arbitrum",
+];
 export function printCCTPDomain(domain: number) {
   if (domain >= CCTP_DOMAIN_TO_NAME.length)
     throw Error(`Invalid cctp domain: ${domain}`);
   return `${CCTP_DOMAIN_TO_NAME[domain]} (Domain ${domain})`;
 }
 
-export const estimatedAttestationTimeInSeconds = (sourceChain: string, environment: Network): number => {
-  const testnetTime = sourceChain === 'avalanche' ? 20 : 60;
-  const mainnetTime = sourceChain === 'avalanche' ? 20 : 60 * 13;
-  return environment === 'TESTNET' ? testnetTime : mainnetTime
-}
+export const estimatedAttestationTimeInSeconds = (
+  sourceChain: string,
+  environment: Network
+): number => {
+  const testnetTime = sourceChain === "avalanche" ? 20 : 60;
+  const mainnetTime = sourceChain === "avalanche" ? 20 : 60 * 13;
+  return environment === "TESTNET" ? testnetTime : mainnetTime;
+};
 
 export function getDefaultProvider(
   network: Network,
@@ -159,7 +166,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   targetWormholeRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
   let sourceChainId = undefined;
-  if(sourceChain) {
+  if (sourceChain) {
     sourceChainId = CHAINS[sourceChain];
     if (!sourceChainId) throw Error(`Invalid source chain: ${sourceChain}`);
   }
@@ -177,21 +184,17 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     sourceVaaSequence
   );
 
-  const deliveryEvents: DeliveryEvent[] =
-    await wormholeRelayer.queryFilter(
-      deliveryEventsFilter,
-      blockNumber,
-      blockNumber
-    );
+  const deliveryEvents: DeliveryEvent[] = await wormholeRelayer.queryFilter(
+    deliveryEventsFilter,
+    blockNumber,
+    blockNumber
+  );
 
-
-  const timestamp = (await targetChainProvider.getBlock(blockNumber)).timestamp * 1000;
+  const timestamp =
+    (await targetChainProvider.getBlock(blockNumber)).timestamp * 1000;
 
   // There is a max limit on RPCs sometimes for how many blocks to query
-  return await transformDeliveryEvents(
-    deliveryEvents,
-    timestamp
-  );
+  return await transformDeliveryEvents(deliveryEvents, timestamp);
 }
 
 export function deliveryStatus(status: number) {
@@ -205,20 +208,23 @@ export function deliveryStatus(status: number) {
   }
 }
 
-export function transformDeliveryLog(log: {
-  args: [
-    string,
-    number,
-    BigNumber,
-    string,
-    number,
-    BigNumber,
-    number,
-    string,
-    string
-  ];
-  transactionHash: string;
-}, timestamp: number): DeliveryTargetInfo {
+export function transformDeliveryLog(
+  log: {
+    args: [
+      string,
+      number,
+      BigNumber,
+      string,
+      number,
+      BigNumber,
+      number,
+      string,
+      string
+    ];
+    transactionHash: string;
+  },
+  timestamp: number
+): DeliveryTargetInfo {
   const status = deliveryStatus(log.args[4]);
   if (!isChain(log.args[1]))
     throw Error(`Invalid source chain id: ${log.args[1]}`);
@@ -245,7 +251,7 @@ export function transformDeliveryLog(log: {
 
 async function transformDeliveryEvents(
   events: DeliveryEvent[],
-  timestamp: number,
+  timestamp: number
 ): Promise<DeliveryTargetInfo[]> {
   return events.map((x) => transformDeliveryLog(x, timestamp));
 }
@@ -256,7 +262,7 @@ export function getWormholeLog(
   emitterAddress: string,
   index: number,
   sequence?: number
-): { log: ethers.providers.Log; sequence: string, payload: string } {
+): { log: ethers.providers.Log; sequence: string; payload: string } {
   const bridgeLogs = receipt.logs.filter((l) => {
     return l.address === bridgeAddress;
   });
@@ -276,21 +282,24 @@ export function getWormholeLog(
     };
   });
 
-  const filtered = parsed.filter(
-    (x) => {
-      console.log(x.emitterAddress);
-      console.log(emitterAddress);
-      if((x.emitterAddress == emitterAddress.toLowerCase()) && sequence) {
-        console.log(`seuqnce 1: ${x.sequence}`);
-        console.log(`sequence 2: ${sequence}`);
-      }
-      return x.emitterAddress == emitterAddress.toLowerCase() && (sequence === undefined ? true : (x.sequence+"" === sequence+""))
+  const filtered = parsed.filter((x) => {
+    console.log(x.emitterAddress);
+    console.log(emitterAddress);
+    if (x.emitterAddress == emitterAddress.toLowerCase() && sequence) {
+      console.log(`seuqnce 1: ${x.sequence}`);
+      console.log(`sequence 2: ${sequence}`);
     }
-  );
+    return (
+      x.emitterAddress == emitterAddress.toLowerCase() &&
+      (sequence === undefined ? true : x.sequence + "" === sequence + "")
+    );
+  });
 
   if (filtered.length == 0) {
     throw Error(
-      `No wormhole contract interactions found for this transaction, with emitter address ${emitterAddress} ${sequence === undefined ? '' : `and sequence ${sequence}`}`
+      `No wormhole contract interactions found for this transaction, with emitter address ${emitterAddress} ${
+        sequence === undefined ? "" : `and sequence ${sequence}`
+      }`
     );
   }
 
@@ -300,7 +309,7 @@ export function getWormholeLog(
     return {
       log: filtered[index].log,
       sequence: filtered[index].sequence,
-      payload: filtered[index].payload
+      payload: filtered[index].payload,
     };
   }
 }
@@ -315,8 +324,14 @@ export function vaaKeyToVaaKeyStruct(vaaKey: VaaKey): VaaKeyStruct {
   };
 }
 
-export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetChain: ChainName, sourceChain: ChainName | undefined, sourceVaaSequence: number | undefined, infoRequest?: InfoRequestParams): Promise<DeliveryTargetInfo[]> {
-  const environment = infoRequest?.environment || 'MAINNET'
+export async function getWormholeRelayerInfoByHash(
+  deliveryHash: string,
+  targetChain: ChainName,
+  sourceChain: ChainName | undefined,
+  sourceVaaSequence: number | undefined,
+  infoRequest?: InfoRequestParams
+): Promise<DeliveryTargetInfo[]> {
+  const environment = infoRequest?.environment || "MAINNET";
   const targetChainProvider =
     infoRequest?.targetChainProviders?.get(targetChain) ||
     getDefaultProvider(environment, targetChain);
@@ -326,8 +341,9 @@ export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetC
       "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
     );
   }
-  const targetWormholeRelayerAddress = infoRequest?.wormholeRelayerAddresses?.get(targetChain) ||
-  getWormholeRelayerAddress(targetChain, environment);
+  const targetWormholeRelayerAddress =
+    infoRequest?.wormholeRelayerAddresses?.get(targetChain) ||
+    getWormholeRelayerAddress(targetChain, environment);
   const wormholeRelayer = getWormholeRelayer(
     targetChain,
     environment,
@@ -335,21 +351,29 @@ export async function getWormholeRelayerInfoByHash(deliveryHash: string, targetC
     targetWormholeRelayerAddress
   );
 
-  const blockNumberSuccess = await wormholeRelayer.deliverySuccessBlock(deliveryHash);
-  const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(deliveryHash);
-  const blockNumber = blockNumberSuccess ? blockNumberSuccess : blockNumberFailure;
+  const blockNumberSuccess = await wormholeRelayer.deliverySuccessBlock(
+    deliveryHash
+  );
+  const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(
+    deliveryHash
+  );
+  const blockNumber = blockNumberSuccess
+    ? blockNumberSuccess
+    : blockNumberFailure;
 
-  if(blockNumber.toNumber() === 0) return [];
+  if (blockNumber.toNumber() === 0) return [];
 
-  const targetChainStatusEvents = (await getWormholeRelayerInfoBySourceSequence(
-    environment,
-    targetChain,
-    targetChainProvider,
-    sourceChain,
-    BigNumber.from(sourceVaaSequence),
-    blockNumber.toNumber(),
-    targetWormholeRelayerAddress
-  )).events
+  const targetChainStatusEvents = (
+    await getWormholeRelayerInfoBySourceSequence(
+      environment,
+      targetChain,
+      targetChainProvider,
+      sourceChain,
+      BigNumber.from(sourceVaaSequence),
+      blockNumber.toNumber(),
+      targetWormholeRelayerAddress
+    )
+  ).events;
 
   return targetChainStatusEvents;
 }
@@ -361,7 +385,7 @@ export function getDeliveryHashFromVaaFields(
   timestamp: number,
   nonce: number,
   consistencyLevel: number,
-  deliveryVaaPayload: string, 
+  deliveryVaaPayload: string
 ): string {
   const body = ethers.utils.solidityPack(
     ["uint32", "uint32", "uint16", "bytes32", "uint64", "uint8", "bytes"],
@@ -387,20 +411,25 @@ export async function getWormscanInfo(
   emitterAddress: string
 ) {
   const wormscanAPI = ((_network: Network) => {
-    switch(_network) {
-      case 'MAINNET':
-        return 'https://api.wormscan.io/'
-      case 'TESTNET':
-        return 'https://api.testnet.wormscan.io/'
-      default: 
-        // possible extension for tilt/ci - search through the guardian api 
+    switch (_network) {
+      case "MAINNET":
+        return "https://api.wormscan.io/";
+      case "TESTNET":
+        return "https://api.testnet.wormscan.io/";
+      default:
+        // possible extension for tilt/ci - search through the guardian api
         // at localhost:7071 (tilt) or guardian:7071 (ci)
-        throw new Error("Not testnet or mainnet - so no wormscan api access")
+        throw new Error("Not testnet or mainnet - so no wormscan api access");
     }
   })(network);
-  const emitterAddressBytes32 = tryNativeToHexString(emitterAddress, sourceChain)
+  const emitterAddressBytes32 = tryNativeToHexString(
+    emitterAddress,
+    sourceChain
+  );
   const sourceChainId = CHAINS[sourceChain];
-  const result = (await fetch(`${wormscanAPI}api/v1/vaas/${sourceChainId}/${emitterAddressBytes32}/${sequence}`));
+  const result = await fetch(
+    `${wormscanAPI}api/v1/vaas/${sourceChainId}/${emitterAddressBytes32}/${sequence}`
+  );
   return result;
 }
 
@@ -411,11 +440,18 @@ export async function getWormscanRelayerInfo(
     network?: Network;
     provider?: ethers.providers.Provider;
     wormholeRelayerAddress?: string;
-  } 
+  }
 ): Promise<Response> {
-  const network = optionalParams?.network || 'MAINNET';
-  const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(sourceChain, network);
-  return getWormscanInfo(network, sourceChain, sequence, wormholeRelayerAddress);
+  const network = optionalParams?.network || "MAINNET";
+  const wormholeRelayerAddress =
+    optionalParams?.wormholeRelayerAddress ||
+    getWormholeRelayerAddress(sourceChain, network);
+  return getWormscanInfo(
+    network,
+    sourceChain,
+    sequence,
+    wormholeRelayerAddress
+  );
 }
 
 export async function getRelayerTransactionHashFromWormscan(
@@ -425,9 +461,13 @@ export async function getRelayerTransactionHashFromWormscan(
     network?: Network;
     provider?: ethers.providers.Provider;
     wormholeRelayerAddress?: string;
-  } 
+  }
 ): Promise<string> {
-  const wormscanData = (await (await getWormscanRelayerInfo(sourceChain, sequence, optionalParams)).json()).data;
+  const wormscanData = (
+    await (
+      await getWormscanRelayerInfo(sourceChain, sequence, optionalParams)
+    ).json()
+  ).data;
   const vaa = Buffer.from(wormscanData.vaa, "base64");
   const parsedVaa = parseVaa(vaa);
   return parsedVaa.hash.toString("hex");
@@ -451,7 +491,8 @@ export async function getDeliveryHash(
     throw Error(`No wormhole contract on ${sourceChain} for ${network}`);
   }
   const wormholeRelayerAddress =
-    optionalParams?.wormholeRelayerAddress || RELAYER_CONTRACTS[network][sourceChain]?.wormholeRelayerAddress;
+    optionalParams?.wormholeRelayerAddress ||
+    RELAYER_CONTRACTS[network][sourceChain]?.wormholeRelayerAddress;
   if (!wormholeRelayerAddress) {
     throw Error(
       `No wormhole relayer contract on ${sourceChain} for ${network}`
@@ -471,21 +512,24 @@ export async function getDeliveryHash(
         index > 0 ? ` (the ${index}-th wormhole relayer log was requested)` : ""
       }`
     );
-  return getDeliveryHashFromLog(logs[index], CHAINS[sourceChain], provider, rx.blockHash);
+  return getDeliveryHashFromLog(
+    logs[index],
+    CHAINS[sourceChain],
+    provider,
+    rx.blockHash
+  );
 }
 
 export async function getDeliveryHashFromLog(
   wormholeLog: ethers.providers.Log,
   sourceChain: ChainId,
   provider: ethers.providers.Provider,
-  blockHash: string 
+  blockHash: string
 ): Promise<string> {
   const wormholePublishedMessage =
     Implementation__factory.createInterface().parseLog(wormholeLog);
-  
+
   const block = await provider.getBlock(blockHash);
-
-
 
   return getDeliveryHashFromVaaFields(
     sourceChain,
@@ -494,6 +538,6 @@ export async function getDeliveryHashFromLog(
     block.timestamp,
     wormholePublishedMessage.args["nonce"],
     wormholePublishedMessage.args["consistencyLevel"],
-    wormholePublishedMessage.args["payload"],
-  ) 
+    wormholePublishedMessage.args["payload"]
+  );
 }

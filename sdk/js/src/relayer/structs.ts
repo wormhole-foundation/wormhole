@@ -1,4 +1,4 @@
-import { BigNumber, ethers, } from "ethers";
+import { BigNumber, ethers } from "ethers";
 
 export enum RelayerPayloadId {
   Delivery = 1,
@@ -14,7 +14,7 @@ export enum DeliveryStatus {
   PendingDelivery = "Pending Delivery",
   DeliverySuccess = "Delivery Success",
   ReceiverFailure = "Receiver Failure",
-  ThisShouldNeverHappen = "This should never happen. Contact Support."
+  ThisShouldNeverHappen = "This should never happen. Contact Support.",
 }
 
 export enum RefundStatus {
@@ -24,7 +24,7 @@ export enum RefundStatus {
   CrossChainRefundFailProviderNotSupported = "Cross Chain Refund Fail - Provider does not support the refund chain",
   CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund",
   RefundAddressNotProvided = "No refund address provided",
-  InvalidRefundStatus = "Invalid refund status"
+  InvalidRefundStatus = "Invalid refund status",
 }
 
 export function parseRefundStatus(index: number) {
@@ -38,9 +38,9 @@ export function parseRefundStatus(index: number) {
     ? RefundStatus.CrossChainRefundFailProviderNotSupported
     : index === 4
     ? RefundStatus.CrossChainRefundFailNotEnough
-    : index === 5 
+    : index === 5
     ? RefundStatus.RefundAddressNotProvided
-    : RefundStatus.InvalidRefundStatus
+    : RefundStatus.InvalidRefundStatus;
 }
 
 export enum KeyType {
@@ -123,7 +123,9 @@ export function parseWormholeRelayerPayloadType(
   stringPayload: string | Buffer | Uint8Array
 ): RelayerPayloadId {
   const payload =
-    typeof stringPayload === "string" ? ethers.utils.arrayify(stringPayload) : stringPayload;
+    typeof stringPayload === "string"
+      ? ethers.utils.arrayify(stringPayload)
+      : stringPayload;
   if (
     payload[0] != RelayerPayloadId.Delivery &&
     payload[0] != RelayerPayloadId.Redelivery

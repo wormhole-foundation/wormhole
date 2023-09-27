@@ -35,9 +35,14 @@ import {
   getWormscanRelayerInfo,
   getWormscanInfo,
   CCTP_DOMAIN_TO_NAME,
-  estimatedAttestationTimeInSeconds 
+  estimatedAttestationTimeInSeconds,
 } from "./helpers";
-import { AdditionalMessageParsed, CCTPTransferParsed, DeliveryInfo, TokenTransferParsed } from "./deliver";
+import {
+  AdditionalMessageParsed,
+  CCTPTransferParsed,
+  DeliveryInfo,
+  TokenTransferParsed,
+} from "./deliver";
 import { ERC20__factory } from "../../ethers-contracts";
 
 export type InfoRequestParams = {
@@ -125,7 +130,8 @@ export async function getWormholeRelayerInfo(
     sourceTransaction
   );
   if (!receipt) throw Error("Transaction has not been mined");
-  const sourceTimestamp = (await sourceChainProvider.getBlock(receipt.blockNumber)).timestamp * 1000;
+  const sourceTimestamp =
+    (await sourceChainProvider.getBlock(receipt.blockNumber)).timestamp * 1000;
   const bridgeAddress = CONTRACTS[environment][sourceChain].core;
   const wormholeRelayerAddress =
     infoRequest?.wormholeRelayerAddresses?.get(sourceChain) ||
@@ -146,33 +152,51 @@ export async function getWormholeRelayerInfo(
 
   const { type, parsed } = parseWormholeLog(deliveryLog.log);
 
-  if(type === RelayerPayloadId.Redelivery) {
-    const redeliveryInstruction = (parsed as RedeliveryInstruction);
+  if (type === RelayerPayloadId.Redelivery) {
+    const redeliveryInstruction = parsed as RedeliveryInstruction;
 
-    if(!(isChain(redeliveryInstruction.deliveryVaaKey.chainId))) {
-      throw new Error(`The chain ID specified by this redelivery is invalid: ${redeliveryInstruction.deliveryVaaKey.chainId}`)
+    if (!isChain(redeliveryInstruction.deliveryVaaKey.chainId)) {
+      throw new Error(
+        `The chain ID specified by this redelivery is invalid: ${redeliveryInstruction.deliveryVaaKey.chainId}`
+      );
     }
-    if(!(isChain(redeliveryInstruction.targetChainId))) {
-      throw new Error(`The target chain ID specified by this redelivery is invalid: ${redeliveryInstruction.targetChainId}`)
+    if (!isChain(redeliveryInstruction.targetChainId)) {
+      throw new Error(
+        `The target chain ID specified by this redelivery is invalid: ${redeliveryInstruction.targetChainId}`
+      );
     }
 
-    const originalSourceChainName = CHAIN_ID_TO_NAME[redeliveryInstruction.deliveryVaaKey.chainId as ChainId];
+    const originalSourceChainName =
+      CHAIN_ID_TO_NAME[redeliveryInstruction.deliveryVaaKey.chainId as ChainId];
 
     const modifiedInfoRequest = infoRequest;
-    if(modifiedInfoRequest?.sourceChainProvider) {
-      modifiedInfoRequest.sourceChainProvider = modifiedInfoRequest?.targetChainProviders?.get(originalSourceChainName)
+    if (modifiedInfoRequest?.sourceChainProvider) {
+      modifiedInfoRequest.sourceChainProvider =
+        modifiedInfoRequest?.targetChainProviders?.get(originalSourceChainName);
     }
-    
-    const transactionHash = await getRelayerTransactionHashFromWormscan(originalSourceChainName, redeliveryInstruction.deliveryVaaKey.sequence.toNumber(), {
-      network: infoRequest?.environment,
-      provider: infoRequest?.targetChainProviders?.get(originalSourceChainName),
-      wormholeRelayerAddress: infoRequest?.wormholeRelayerAddresses?.get(originalSourceChainName)
-    });
-    
-    return getWormholeRelayerInfo(originalSourceChainName, transactionHash, modifiedInfoRequest);
-  } 
 
-  const instruction = (parsed as DeliveryInstruction);
+    const transactionHash = await getRelayerTransactionHashFromWormscan(
+      originalSourceChainName,
+      redeliveryInstruction.deliveryVaaKey.sequence.toNumber(),
+      {
+        network: infoRequest?.environment,
+        provider: infoRequest?.targetChainProviders?.get(
+          originalSourceChainName
+        ),
+        wormholeRelayerAddress: infoRequest?.wormholeRelayerAddresses?.get(
+          originalSourceChainName
+        ),
+      }
+    );
+
+    return getWormholeRelayerInfo(
+      originalSourceChainName,
+      transactionHash,
+      modifiedInfoRequest
+    );
+  }
+
+  const instruction = parsed as DeliveryInstruction;
 
   const targetChainId = instruction.targetChainId;
 
@@ -188,124 +212,195 @@ export async function getWormholeRelayerInfo(
     );
   }
 
-  const sourceSequence = BigNumber.from(
-    deliveryLog.sequence
+  const sourceSequence = BigNumber.from(deliveryLog.sequence);
+
+  const deliveryHash = await getDeliveryHashFromLog(
+    deliveryLog.log,
+    CHAINS[sourceChain],
+    sourceChainProvider,
+    receipt.blockHash
   );
 
-  const deliveryHash = await getDeliveryHashFromLog(deliveryLog.log, CHAINS[sourceChain], sourceChainProvider, receipt.blockHash);
-
-  const vaa = await getWormscanRelayerInfo(sourceChain, sourceSequence.toNumber(), {network: infoRequest?.environment, provider: infoRequest?.sourceChainProvider, wormholeRelayerAddress: infoRequest?.wormholeRelayerAddresses?.get(sourceChain)})
-  const signingOfVaaTimestamp = new Date((await vaa.json()).data?.indexedAt).getTime();
+  const vaa = await getWormscanRelayerInfo(
+    sourceChain,
+    sourceSequence.toNumber(),
+    {
+      network: infoRequest?.environment,
+      provider: infoRequest?.sourceChainProvider,
+      wormholeRelayerAddress:
+        infoRequest?.wormholeRelayerAddresses?.get(sourceChain),
+    }
+  );
+  const signingOfVaaTimestamp = new Date(
+    (await vaa.json()).data?.indexedAt
+  ).getTime();
 
   // obtain additional message info
-  const additionalMessageInformation: AdditionalMessageParsed[] = await Promise.all(instruction.messageKeys.map(async (messageKey) => {
-    if(messageKey.keyType === 1) {
-      // check receipt
-      const vaaKey = parseVaaKey(messageKey.key);
+  const additionalMessageInformation: AdditionalMessageParsed[] =
+    await Promise.all(
+      instruction.messageKeys.map(async (messageKey) => {
+        if (messageKey.keyType === 1) {
+          // check receipt
+          const vaaKey = parseVaaKey(messageKey.key);
 
-      // if token bridge transfer in logs, parse it
-      let tokenBridgeLog;
-      const tokenBridgeEmitterAddress = tryNativeToHexString(CONTRACTS[environment][sourceChain].token_bridge || "", sourceChain);
-      try {
-        if(vaaKey.chainId === CHAINS[sourceChain] && vaaKey.emitterAddress.toString('hex') === tokenBridgeEmitterAddress) {
-          tokenBridgeLog = getWormholeLog(receipt, CONTRACTS[environment][sourceChain].core || "", tokenBridgeEmitterAddress, 0, vaaKey.sequence.toNumber());
-        }
-      } catch (e) {
-        console.log(e);
-      }
-      if(!tokenBridgeLog) return undefined;
-      const parsedTokenInfo = parseTransferPayload(Buffer.from(tokenBridgeLog.payload.substring(2), "hex"));
-      const originChainName = CHAIN_ID_TO_NAME[parsedTokenInfo.originChain as ChainId];
-      let signedVaaTimestamp = undefined;
-      let tokenName = undefined;
-      let tokenSymbol = undefined;
-      let tokenDecimals = undefined;
+          // if token bridge transfer in logs, parse it
+          let tokenBridgeLog;
+          const tokenBridgeEmitterAddress = tryNativeToHexString(
+            CONTRACTS[environment][sourceChain].token_bridge || "",
+            sourceChain
+          );
+          try {
+            if (
+              vaaKey.chainId === CHAINS[sourceChain] &&
+              vaaKey.emitterAddress.toString("hex") ===
+                tokenBridgeEmitterAddress
+            ) {
+              tokenBridgeLog = getWormholeLog(
+                receipt,
+                CONTRACTS[environment][sourceChain].core || "",
+                tokenBridgeEmitterAddress,
+                0,
+                vaaKey.sequence.toNumber()
+              );
+            }
+          } catch (e) {
+            console.log(e);
+          }
+          if (!tokenBridgeLog) return undefined;
+          const parsedTokenInfo = parseTransferPayload(
+            Buffer.from(tokenBridgeLog.payload.substring(2), "hex")
+          );
+          const originChainName =
+            CHAIN_ID_TO_NAME[parsedTokenInfo.originChain as ChainId];
+          let signedVaaTimestamp = undefined;
+          let tokenName = undefined;
+          let tokenSymbol = undefined;
+          let tokenDecimals = undefined;
 
-      // Try to get additional token information, assuming it is an ERC20
-      try {
-        const tokenProvider = (parsedTokenInfo.originChain === CHAINS[sourceChain] ? infoRequest?.sourceChainProvider : infoRequest?.targetChainProviders?.get(originChainName)) || getDefaultProvider(environment, originChainName);
-        const tokenContract = ERC20__factory.connect('0x'+parsedTokenInfo.originAddress.substring(24), tokenProvider);
-        tokenName = await tokenContract.name();
-        tokenSymbol = await tokenContract.symbol();
-        tokenDecimals = await tokenContract.decimals();
-      } catch (e) {
-        console.log(e);
-      }
-      // Try to get wormscan information on if the tokens have been signed
-      try {
-        const tokenVaa = await getWormscanInfo(environment, sourceChain, parseInt(tokenBridgeLog.sequence), CONTRACTS[environment][sourceChain].token_bridge || "");
-        signedVaaTimestamp = new Date((await tokenVaa.json()).data?.indexedAt).getTime();
-      } catch {
+          // Try to get additional token information, assuming it is an ERC20
+          try {
+            const tokenProvider =
+              (parsedTokenInfo.originChain === CHAINS[sourceChain]
+                ? infoRequest?.sourceChainProvider
+                : infoRequest?.targetChainProviders?.get(originChainName)) ||
+              getDefaultProvider(environment, originChainName);
+            const tokenContract = ERC20__factory.connect(
+              "0x" + parsedTokenInfo.originAddress.substring(24),
+              tokenProvider
+            );
+            tokenName = await tokenContract.name();
+            tokenSymbol = await tokenContract.symbol();
+            tokenDecimals = await tokenContract.decimals();
+          } catch (e) {
+            console.log(e);
+          }
+          // Try to get wormscan information on if the tokens have been signed
+          try {
+            const tokenVaa = await getWormscanInfo(
+              environment,
+              sourceChain,
+              parseInt(tokenBridgeLog.sequence),
+              CONTRACTS[environment][sourceChain].token_bridge || ""
+            );
+            signedVaaTimestamp = new Date(
+              (await tokenVaa.json()).data?.indexedAt
+            ).getTime();
+          } catch {}
 
-      }
-
-      const parsed: TokenTransferParsed = {
-        amount: BigNumber.from(parsedTokenInfo.amount).mul(BigNumber.from(10).pow((tokenDecimals && tokenDecimals > 8) ? (tokenDecimals - 8) : 1)).toBigInt(),
-        originAddress: parsedTokenInfo.originAddress,
-        originChain: parsedTokenInfo.originChain,
-        targetAddress: parsedTokenInfo.targetAddress,
-        targetChain: parsedTokenInfo.targetChain,
-        fromAddress: parsedTokenInfo.fromAddress,
-        name: tokenName,
-        symbol: tokenSymbol,
-        decimals: tokenDecimals,
-        signedVaaTimestamp
-      }
-      return parsed;
-
-    } else if(messageKey.keyType === 2) {
-      // check receipt
-      const cctpKey = parseCCTPKey(messageKey.key);
-
-      let cctpLog;
-      let messageSentLog;
-      const DepositForBurnTopic = '0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0'
-      const MessageSentTopic = '0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036'
-      try {
-        if(CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
-          const cctpLogFilter = (log: ethers.providers.Log) => {
-            return log.topics[0] === DepositForBurnTopic && parseInt(log.topics[1]) === cctpKey.nonce.toNumber();
+          const parsed: TokenTransferParsed = {
+            amount: BigNumber.from(parsedTokenInfo.amount)
+              .mul(
+                BigNumber.from(10).pow(
+                  tokenDecimals && tokenDecimals > 8 ? tokenDecimals - 8 : 1
+                )
+              )
+              .toBigInt(),
+            originAddress: parsedTokenInfo.originAddress,
+            originChain: parsedTokenInfo.originChain,
+            targetAddress: parsedTokenInfo.targetAddress,
+            targetChain: parsedTokenInfo.targetChain,
+            fromAddress: parsedTokenInfo.fromAddress,
+            name: tokenName,
+            symbol: tokenSymbol,
+            decimals: tokenDecimals,
+            signedVaaTimestamp,
           };
-          cctpLog = receipt.logs.find(cctpLogFilter);
-          const index = receipt.logs.findIndex(cctpLogFilter);
-          const messageSentLogs = receipt.logs.filter((log, i) => {
-            return log.topics[0] === MessageSentTopic && i <= index;
-          })
-          messageSentLog = messageSentLogs[messageSentLogs.length - 1];
+          return parsed;
+        } else if (messageKey.keyType === 2) {
+          // check receipt
+          const cctpKey = parseCCTPKey(messageKey.key);
+
+          let cctpLog;
+          let messageSentLog;
+          const DepositForBurnTopic =
+            "0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0";
+          const MessageSentTopic =
+            "0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036";
+          try {
+            if (CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
+              const cctpLogFilter = (log: ethers.providers.Log) => {
+                return (
+                  log.topics[0] === DepositForBurnTopic &&
+                  parseInt(log.topics[1]) === cctpKey.nonce.toNumber()
+                );
+              };
+              cctpLog = receipt.logs.find(cctpLogFilter);
+              const index = receipt.logs.findIndex(cctpLogFilter);
+              const messageSentLogs = receipt.logs.filter((log, i) => {
+                return log.topics[0] === MessageSentTopic && i <= index;
+              });
+              messageSentLog = messageSentLogs[messageSentLogs.length - 1];
+            }
+          } catch (e) {
+            console.log(e);
+          }
+          if (!cctpLog || !messageSentLog) return undefined;
+
+          // Try to get attestation information on if the tokens have been signed
+          let attested = false;
+          try {
+            const message = new ethers.utils.Interface([
+              "event MessageSent(bytes message)",
+            ]).parseLog(messageSentLog).args.message;
+            const msgHash = ethers.utils.keccak256(message);
+            const url =
+              (environment === "TESTNET"
+                ? "https://iris-api-sandbox.circle.com/v1/attestations/"
+                : "https://iris-api.circle.com/v1/attestations/") + msgHash;
+            const attestation = await fetch(url);
+            attested = (await attestation.json()).status === "complete";
+          } catch (e) {
+            console.log(e);
+          }
+
+          const parsed: CCTPTransferParsed = {
+            amount: BigNumber.from(
+              Buffer.from(cctpLog.data.substring(2, 2 + 64), "hex")
+            ).toBigInt(),
+            mintRecipient: "0x" + cctpLog.data.substring(2 + 64 + 24, 2 + 128),
+            destinationDomain: BigNumber.from(
+              Buffer.from(cctpLog.data.substring(2 + 128, 2 + 192), "hex")
+            ).toNumber(),
+            attested,
+            estimatedAttestationSeconds: estimatedAttestationTimeInSeconds(
+              sourceChain,
+              environment
+            ),
+          };
+          return parsed;
+        } else {
+          return undefined;
         }
-      } catch (e) {
-        console.log(e)
-      }
-      if(!cctpLog || !messageSentLog) return undefined;
+      })
+    );
 
-      // Try to get attestation information on if the tokens have been signed
-      let attested = false;
-      try {
-        const message = new ethers.utils.Interface(['event MessageSent(bytes message)']).parseLog(messageSentLog).args.message;
-        const msgHash = ethers.utils.keccak256(message);
-        const url = (environment === 'TESTNET' ? 'https://iris-api-sandbox.circle.com/v1/attestations/' : 'https://iris-api.circle.com/v1/attestations/') + msgHash
-        const attestation = await fetch(url);
-        attested = (await attestation.json()).status === 'complete';
-      } catch (e) {
-        console.log(e)
-      }
-      
-      const parsed: CCTPTransferParsed = {
-        amount: BigNumber.from(Buffer.from(cctpLog.data.substring(2, 2+64), "hex")).toBigInt(),
-        mintRecipient: '0x' + cctpLog.data.substring(2 + 64 + 24, 2 + 128),
-        destinationDomain: BigNumber.from(Buffer.from(cctpLog.data.substring(2 + 128, 2 + 192), "hex")).toNumber(),
-        attested,
-        estimatedAttestationSeconds: estimatedAttestationTimeInSeconds(sourceChain, environment)
-      }
-      return parsed;
-
-    } else {
-      return undefined;
-    }
-  }))
-
-
-  const targetChainDeliveries = await getWormholeRelayerInfoByHash(deliveryHash, targetChain, sourceChain, sourceSequence.toNumber(), infoRequest);
+  const targetChainDeliveries = await getWormholeRelayerInfoByHash(
+    deliveryHash,
+    targetChain,
+    sourceChain,
+    sourceSequence.toNumber(),
+    infoRequest
+  );
 
   const result: DeliveryInfo = {
     type: RelayerPayloadId.Delivery,
@@ -318,7 +413,7 @@ export async function getWormholeRelayerInfo(
     additionalMessageInformation,
     targetChainStatus: {
       chain: targetChain,
-      events: targetChainDeliveries
+      events: targetChainDeliveries,
     },
   };
   const stringified = stringifyWormholeRelayerInfo(result);
@@ -342,17 +437,14 @@ export function stringifyWormholeRelayerInfo(
       "0000000000000000000000000000000000000000000000000000000000000000"
   ) {
     if (!excludeSourceInformation) {
-      stringifiedInfo += `Source chain: ${info.sourceChain}\n`
-      
-      stringifiedInfo += `Source Transaction Hash: ${
-        info.sourceTransactionHash
-      }\n`
-      stringifiedInfo += `Sender: ${'0x'+info.deliveryInstruction.senderAddress.toString(
-        "hex"
-      ).substring(24)}\n`
-      stringifiedInfo += `Delivery sequence number: ${
-        info.sourceDeliverySequenceNumber
+      stringifiedInfo += `Source chain: ${info.sourceChain}\n`;
+
+      stringifiedInfo += `Source Transaction Hash: ${info.sourceTransactionHash}\n`;
+      stringifiedInfo += `Sender: ${
+        "0x" +
+        info.deliveryInstruction.senderAddress.toString("hex").substring(24)
       }\n`;
+      stringifiedInfo += `Delivery sequence number: ${info.sourceDeliverySequenceNumber}\n`;
     } else {
       stringifiedInfo += `Sender: ${info.deliveryInstruction.senderAddress.toString(
         "hex"
@@ -365,7 +457,9 @@ export function stringifyWormholeRelayerInfo(
       stringifiedInfo += `\nPayload to be relayed: 0x${payload}\n`;
     }
     if (numMsgs > 0) {
-      stringifiedInfo += `\nThe following ${numMsgs === 1 ? '' : `${numMsgs} `}message${numMsgs === 1 ? ' was' : 's were'} ${
+      stringifiedInfo += `\nThe following ${
+        numMsgs === 1 ? "" : `${numMsgs} `
+      }message${numMsgs === 1 ? " was" : "s were"} ${
         payload.length > 0 ? "also " : ""
       }requested to be relayed with this delivery:\n`;
       stringifiedInfo += info.deliveryInstruction.messageKeys
@@ -373,29 +467,65 @@ export function stringifyWormholeRelayerInfo(
           let result = "";
           if (msgKey.keyType == KeyType.VAA) {
             const vaaKey = parseVaaKey(msgKey.key);
-            result += `(Message ${i+1}): `;
+            result += `(Message ${i + 1}): `;
             result += `Wormhole VAA from ${
               vaaKey.chainId ? printChain(vaaKey.chainId) : ""
             }, with emitter address ${vaaKey.emitterAddress?.toString(
               "hex"
             )} and sequence number ${vaaKey.sequence}`;
-            if(info.additionalMessageInformation[i]) {
-              const tokenTransferInfo = info.additionalMessageInformation[i] as TokenTransferParsed;
-              result += `\nThis is a token bridge transfer of ${tokenTransferInfo.decimals ? `${ethers.utils.formatUnits(tokenTransferInfo.amount, tokenTransferInfo.decimals)} ` : `${tokenTransferInfo.amount} normalized units of `}${tokenTransferInfo.name ? `${tokenTransferInfo.name} (${tokenTransferInfo.symbol})` : `token ${tokenTransferInfo.originAddress.substring(24)} (which is native to ${printChain(tokenTransferInfo.originChain)})`}`
-              if(tokenTransferInfo.signedVaaTimestamp) {
-                result += `\ntransfer signed by guardians: ${new Date(tokenTransferInfo.signedVaaTimestamp).toString()}`
+            if (info.additionalMessageInformation[i]) {
+              const tokenTransferInfo = info.additionalMessageInformation[
+                i
+              ] as TokenTransferParsed;
+              result += `\nThis is a token bridge transfer of ${
+                tokenTransferInfo.decimals
+                  ? `${ethers.utils.formatUnits(
+                      tokenTransferInfo.amount,
+                      tokenTransferInfo.decimals
+                    )} `
+                  : `${tokenTransferInfo.amount} normalized units of `
+              }${
+                tokenTransferInfo.name
+                  ? `${tokenTransferInfo.name} (${tokenTransferInfo.symbol})`
+                  : `token ${tokenTransferInfo.originAddress.substring(
+                      24
+                    )} (which is native to ${printChain(
+                      tokenTransferInfo.originChain
+                    )})`
+              }`;
+              if (tokenTransferInfo.signedVaaTimestamp) {
+                result += `\ntransfer signed by guardians: ${new Date(
+                  tokenTransferInfo.signedVaaTimestamp
+                ).toString()}`;
               } else {
-                result += `\ntransfer not yet signed by guardians`
+                result += `\ntransfer not yet signed by guardians`;
               }
             }
           } else if (msgKey.keyType == KeyType.CCTP) {
             const cctpKey = parseCCTPKey(msgKey.key);
-            result += `(Message ${i+1}): `;
-            result += `CCTP Transfer from domain ${printCCTPDomain(cctpKey.domain)}`;
+            result += `(Message ${i + 1}): `;
+            result += `CCTP Transfer from domain ${printCCTPDomain(
+              cctpKey.domain
+            )}`;
             result += `, with nonce ${cctpKey.nonce}`;
-            if(info.additionalMessageInformation[i]) {
-              const cctpTransferInfo = info.additionalMessageInformation[i] as CCTPTransferParsed;
-              result += `\nThis is a CCTP transfer of ${`${ethers.utils.formatUnits(cctpTransferInfo.amount, 6)}`} USDC ${cctpTransferInfo.attested ? '(Attestation is complete' : '(Attestation currently pending'}, typically takes ${cctpTransferInfo.estimatedAttestationSeconds < 60 ? `${cctpTransferInfo.estimatedAttestationSeconds} seconds` : `${cctpTransferInfo.estimatedAttestationSeconds/60} minutes`})` 
+            if (info.additionalMessageInformation[i]) {
+              const cctpTransferInfo = info.additionalMessageInformation[
+                i
+              ] as CCTPTransferParsed;
+              result += `\nThis is a CCTP transfer of ${`${ethers.utils.formatUnits(
+                cctpTransferInfo.amount,
+                6
+              )}`} USDC ${
+                cctpTransferInfo.attested
+                  ? "(Attestation is complete"
+                  : "(Attestation currently pending"
+              }, typically takes ${
+                cctpTransferInfo.estimatedAttestationSeconds < 60
+                  ? `${cctpTransferInfo.estimatedAttestationSeconds} seconds`
+                  : `${
+                      cctpTransferInfo.estimatedAttestationSeconds / 60
+                    } minutes`
+              })`;
             }
           } else {
             result += `(Unknown key type ${i}): ${msgKey.keyType}`;
@@ -418,7 +548,9 @@ export function stringifyWormholeRelayerInfo(
       CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
     stringifiedInfo += `\n\nDestination chain: ${printChain(
       instruction.targetChainId
-    )}\nDestination address: 0x${instruction.targetAddress.toString("hex").substring(24)}\n\n`;
+    )}\nDestination address: 0x${instruction.targetAddress
+      .toString("hex")
+      .substring(24)}\n\n`;
     const totalReceiverValue = instruction.requestedReceiverValue.add(
       instruction.extraReceiverValue
     );
@@ -442,7 +574,8 @@ export function stringifyWormholeRelayerInfo(
     stringifiedInfo += `Gas limit: ${executionInfo.gasLimit} ${targetChainName} gas\n`;
 
     const refundAddressChosen =
-      instruction.refundAddress.toString('hex') !== '0000000000000000000000000000000000000000000000000000000000000000';
+      instruction.refundAddress.toString("hex") !==
+      "0000000000000000000000000000000000000000000000000000000000000000";
     if (refundAddressChosen) {
       stringifiedInfo += `Refund rate: ${ethers.utils.formatEther(
         executionInfo.targetChainRefundPerGasUnused
@@ -452,16 +585,18 @@ export function stringifyWormholeRelayerInfo(
       )} on ${printChain(instruction.refundChainId)}\n`;
     }
     stringifiedInfo += `\n`;
-    if(info.sourceTimestamp) {
-      stringifiedInfo += `Sent: ${new Date(info.sourceTimestamp).toString()}\n`
+    if (info.sourceTimestamp) {
+      stringifiedInfo += `Sent: ${new Date(info.sourceTimestamp).toString()}\n`;
     }
-    if(info.signingOfVaaTimestamp) {
-      stringifiedInfo += `Delivery vaa signed by guardians: ${new Date(info.signingOfVaaTimestamp).toString()}\n`
+    if (info.signingOfVaaTimestamp) {
+      stringifiedInfo += `Delivery vaa signed by guardians: ${new Date(
+        info.signingOfVaaTimestamp
+      ).toString()}\n`;
     } else {
-      stringifiedInfo += `Delivery not yet signed by guardians - check https://wormhole-foundation.github.io/wormhole-dashboard/#/ for status\n`
+      stringifiedInfo += `Delivery not yet signed by guardians - check https://wormhole-foundation.github.io/wormhole-dashboard/#/ for status\n`;
     }
-    stringifiedInfo += `\n`
-    if(info.targetChainStatus.events.length === 0) {
+    stringifiedInfo += `\n`;
+    if (info.targetChainStatus.events.length === 0) {
       stringifiedInfo += "Delivery has not occured yet\n";
     }
     stringifiedInfo += info.targetChainStatus.events
@@ -472,7 +607,9 @@ export function stringifyWormholeRelayerInfo(
             e.transactionHash
               ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
               : ""
-          }\nDelivery Time: ${new Date((e.timestamp as number)).toString()}\nStatus: ${e.status}\n${
+          }\nDelivery Time: ${new Date(
+            e.timestamp as number
+          ).toString()}\nStatus: ${e.status}\n${
             e.revertString
               ? `Failure reason: ${
                   e.gasUsed.eq(executionInfo.gasLimit)
