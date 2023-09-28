@@ -57,12 +57,12 @@
       "rpcUrlLocal": "http://localhost:8545",
       "rpcPort": "8545",
       "contracts": {
-        "coreEmitterAddress": "0000000000000000000000005b1869D9A4C187F2EAa108f3062412ecf0526b24",
-        "coreNativeAddress": "0x5b1869D9A4C187F2EAa108f3062412ecf0526b24",
-        "tokenBridgeEmitterAddress": "000000000000000000000000D833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
-        "tokenBridgeNativeAddress": "0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
-        "nftBridgeEmitterAddress": "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
-        "nftBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+        "coreEmitterAddress": "000000000000000000000000CfEB869F69431e42cdB54A4F4f105C19C080A601",
+        "coreNativeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
+        "tokenBridgeEmitterAddress": "0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7",
+        "tokenBridgeNativeAddress": "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7",
+        "nftBridgeEmitterAddress": "0000000000000000000000009b1f7F645351AF3631a656421eD2e40f2802E6c0",
+        "nftBridgeAddress": "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0"
       },
       "accounts": {
         "testWallet": {
@@ -138,7 +138,7 @@
       "rpcPort": "8546",
       "contracts": {
         "coreEmitterAddress": "0000000000000000000000005b1869D9A4C187F2EAa108f3062412ecf0526b24",
-        "coreNativeAddress": "0x5b1869D9A4C187F2EAa108f3062412ecf0526b24",
+        "coreNativeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
         "tokenBridgeEmitterAddress": "000000000000000000000000D833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
         "tokenBridgeNativeAddress": "0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
         "nftBridgeEmitterAddress": "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",

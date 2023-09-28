@@ -5,6 +5,7 @@ pragma solidity ^0.8.13;
 import {NFTBridgeImplementation} from "../contracts/nft/NFTBridgeImplementation.sol";
 import {NFTBridgeSetup} from "../contracts/nft/NFTBridgeSetup.sol";
 import {NFTImplementation} from "../contracts/nft/token/NFTImplementation.sol";
+import {NFTBridgeEntrypoint} from "../contracts/nft/NFTBridgeEntrypoint.sol";
 import "forge-std/Script.sol";
 
 contract DeployNFTBridge is Script {
@@ -34,7 +35,7 @@ contract DeployNFTBridge is Script {
 
         address wormhole = vm.envAddress("WORMHOLE_ADDRESS");
 
-        nftBridgeSetup.setup(
+        bytes memory setupAbi = abi.encodeCall(NFTBridgeSetup.setup, (
             address(nftBridgeImpl),
             chainId,
             wormhole,
@@ -43,9 +44,11 @@ contract DeployNFTBridge is Script {
             address(nftImpl),
             finality,
             evmChainId
-        );
+        ));
 
-        return address(nftBridgeSetup);
+        NFTBridgeEntrypoint nftBridge = new NFTBridgeEntrypoint(address(nftBridgeSetup), setupAbi);
+
+        return address(nftBridge);
 
         // TODO: initialize?
     }

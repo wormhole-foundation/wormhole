@@ -16,6 +16,8 @@ returnInfo=$(cat ./broadcast/DeployCore.s.sol/1/run-latest.json)
 # Extract the 'WORMHOLE_ADDRESS' value from 'returnInfo'
 WORMHOLE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
+echo "Wormhole address that will be used to initialize token bridge and nft bridge: $WORMHOLE_ADDRESS"
+
 # Step 2: Replace 'WORMHOLE_ADDRESS' in the .env file with the extracted value
 sed -i "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || echo "WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
 
