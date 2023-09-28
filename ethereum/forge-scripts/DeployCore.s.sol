@@ -4,6 +4,7 @@
 pragma solidity ^0.8.13;
 import {Implementation} from "../contracts/Implementation.sol";
 import {Setup} from "../contracts/Setup.sol";
+import {Wormhole} from "../contracts/Wormhole.sol";
 import "forge-std/Script.sol";
 
 contract DeployCore is Script {
@@ -28,11 +29,9 @@ contract DeployCore is Script {
         uint16 governanceChainId = uint16(vm.envUint("INIT_GOV_CHAIN_ID"));
         bytes32 governanceContract = bytes32(vm.envBytes32("INIT_GOV_CONTRACT"));
         uint256 evmChainId = vm.envUint("INIT_EVM_CHAIN_ID");
-        
-        setup.setup(address(impl), initialSigners, chainId, governanceChainId, governanceContract, evmChainId);
 
-        return address(setup);
+        Wormhole wormhole = new Wormhole(address(setup), abi.encodeCall(Setup.setup, (address(impl), initialSigners, chainId, governanceChainId, governanceContract, evmChainId)));
 
-        // TODO: initialize?
+        return address(wormhole);
     }
 }
