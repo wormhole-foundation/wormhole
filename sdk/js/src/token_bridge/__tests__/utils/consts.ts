@@ -55,7 +55,7 @@ export const TERRA_PRIVATE_KEY2 =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty"; // test2
 export const TERRA2_PRIVATE_KEY =
   "symbol force gallery make bulk round subway violin worry mixture penalty kingdom boring survey tool fringe patrol sausage hard admit remember broken alien absorb"; // test3
-export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
+export const TEST_ERC20 = "0x67B5656d60a809915323Bf2C40A8bEF15A152e3e";
 export const TEST_SOLANA_TOKEN = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 export const WORMHOLE_RPC_HOSTS = ci
   ? ["http://guardian:7071"]

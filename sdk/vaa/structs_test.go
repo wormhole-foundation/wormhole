@@ -153,7 +153,7 @@ func TestAddress_UnmarshalJSON(t *testing.T) {
 }
 
 func TestAddress_Unmarshal(t *testing.T) {
-	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, _ := StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 
 	b, err := json.Marshal(addr)
 	require.NoError(t, err)
@@ -174,7 +174,7 @@ func TestAddress_UnmarshalEmptyBuffer(t *testing.T) {
 }
 
 func TestAddress_UnmarshalBufferTooShort(t *testing.T) {
-	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, _ := StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 
 	b, err := json.Marshal(addr)
 	require.NoError(t, err)

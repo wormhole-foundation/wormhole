@@ -152,7 +152,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 }
 
 func TestMessageIDString(t *testing.T) {
-	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	type test struct {
@@ -164,13 +164,13 @@ func TestMessageIDString(t *testing.T) {
 	tests := []test{
 		{label: "simple",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
+			output: "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/1"},
 		{label: "missing sequence",
 			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"},
+			output: "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0"},
 		{label: "missing chain id",
 			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
-			output: "0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
+			output: "0/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/1"},
 		{label: "missing emitter address",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
 			output: "2/0000000000000000000000000000000000000000000000000000000000000000/1"},
@@ -187,7 +187,7 @@ func TestMessageIDString(t *testing.T) {
 }
 
 func TestMessageID(t *testing.T) {
-	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	type test struct {
@@ -199,13 +199,13 @@ func TestMessageID(t *testing.T) {
 	tests := []test{
 		{label: "simple",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+			output: []byte("2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/1")},
 		{label: "missing sequence",
 			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
-			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")},
+			output: []byte("2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")},
 		{label: "missing chain id",
 			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
-			output: []byte("0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+			output: []byte("0/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/1")},
 		{label: "missing emitter address",
 			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
 			output: []byte("2/0000000000000000000000000000000000000000000000000000000000000000/1")},

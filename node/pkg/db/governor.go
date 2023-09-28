@@ -252,7 +252,7 @@ const oldPendingLen = len(oldPending)
 const pending = "GOV:PENDING2:"
 const pendingLen = len(pending)
 
-const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
+const minMsgIdLen = len("1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")
 
 func TransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", transfer, t.MsgID))

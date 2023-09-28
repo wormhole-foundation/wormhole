@@ -5192,7 +5192,7 @@ func createTransferKeysForTestingBatchTransferStatus(t *testing.T, num int) ([]T
 
 		keys[i] = tk
 
-		bytes := fmt.Sprintf("{\"key\":{\"emitter_chain\":%d,\"emitter_address\":\"%s\",\"sequence\":%d},\"status\":{\"committed\":{\"data\":{\"amount\":\"1000000000000000000\",\"token_chain\":2,\"token_address\":\"0000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a\",\"recipient_chain\":4},\"digest\":\"1nbbff/7/ai9GJUs4h2JymFuO4+XcasC6t05glXc99M=\"}}}",
+		bytes := fmt.Sprintf("{\"key\":{\"emitter_chain\":%d,\"emitter_address\":\"%s\",\"sequence\":%d},\"status\":{\"committed\":{\"data\":{\"amount\":\"1000000000000000000\",\"token_chain\":2,\"token_address\":\"00000000000000000000000067B5656d60a809915323Bf2C40A8bEF15A152e3e\",\"recipient_chain\":4},\"digest\":\"1nbbff/7/ai9GJUs4h2JymFuO4+XcasC6t05glXc99M=\"}}}",
 			tk.EmitterChain, tk.EmitterAddress.String(), tk.Sequence)
 
 		if first {
@@ -5217,7 +5217,7 @@ func createTxRespForCommitted() []byte {
     "codespace": "",
     "code": 0,
     "data": "0AD2010A242F636F736D7761736D2E7761736D2E76312E4D736745786563757465436F6E747261637412A9010AA6015B7B226B6579223A7B22656D69747465725F636861696E223A322C22656D69747465725F61646472657373223A2230303030303030303030303030303030303030303030303030323930666231363732303861663435356262313337373830313633623762376139613130633136222C2273657175656E6365223A313638333133363234347D2C22737461747573223A7B2274797065223A22636F6D6D6974746564227D7D5D",
-    "raw_log": "[{\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"action\",\"value\":\"submit_observations\"},{\"key\":\"owner\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"tx_hash\",\"value\":\"\\\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\\\"\"},{\"key\":\"timestamp\",\"value\":\"1683136244\"},{\"key\":\"nonce\",\"value\":\"0\"},{\"key\":\"emitter_chain\",\"value\":\"2\"},{\"key\":\"emitter_address\",\"value\":\"\\\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\\\"\"},{\"key\":\"sequence\",\"value\":\"1683136244\"},{\"key\":\"consistency_level\",\"value\":\"15\"},{\"key\":\"payload\",\"value\":\"\\\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\\\"\"}]}]}]",
+    "raw_log": "[{\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"action\",\"value\":\"submit_observations\"},{\"key\":\"owner\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"tx_hash\",\"value\":\"\\\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\\\"\"},{\"key\":\"timestamp\",\"value\":\"1683136244\"},{\"key\":\"nonce\",\"value\":\"0\"},{\"key\":\"emitter_chain\",\"value\":\"2\"},{\"key\":\"emitter_address\",\"value\":\"\\\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\\\"\"},{\"key\":\"sequence\",\"value\":\"1683136244\"},{\"key\":\"consistency_level\",\"value\":\"15\"},{\"key\":\"payload\",\"value\":\"\\\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\\\"\"}]}]}]",
     "logs": [
       {
         "msg_index": 0,
@@ -5276,7 +5276,7 @@ func createTxRespForCommitted() []byte {
               { "key": "emitter_chain", "value": "2" },
               {
                 "key": "emitter_address",
-                "value": "\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\""
+                "value": "\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\""
               },
               { "key": "sequence", "value": "1683136244" },
               { "key": "consistency_level", "value": "15" },

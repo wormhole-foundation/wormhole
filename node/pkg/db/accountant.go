@@ -34,7 +34,7 @@ func (d *MockAccountantDB) AcctGetData(logger *zap.Logger) ([]*common.MessagePub
 const acctPendingTransfer = "ACCT:PXFER:"
 const acctPendingTransferLen = len(acctPendingTransfer)
 
-const acctMinMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
+const acctMinMsgIdLen = len("1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")
 
 func acctPendingTransferMsgID(msgId string) []byte {
 	return []byte(fmt.Sprintf("%v%v", acctPendingTransfer, msgId))

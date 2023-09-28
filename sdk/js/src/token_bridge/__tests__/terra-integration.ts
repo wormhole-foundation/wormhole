@@ -302,7 +302,7 @@ describe.skip("Terra Integration Tests", () => {
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
           const amount = parseUnits("1", 18);
-          const ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
+          const ERC20 = "0x67B5656d60a809915323Bf2C40A8bEF15A152e3e";
           const TerraWalletAddress: string = TERRA_PUBLIC_KEY;
           interface Erc20Balance {
             balance: string;

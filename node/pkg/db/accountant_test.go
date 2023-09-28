@@ -16,7 +16,7 @@ import (
 )
 
 func TestAcctPendingTransferMsgID(t *testing.T) {
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
@@ -30,17 +30,17 @@ func TestAcctPendingTransferMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("ACCT:PXFER:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), acctPendingTransferMsgID(msg1.MessageIDString()))
+	assert.Equal(t, []byte("ACCT:PXFER:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"), acctPendingTransferMsgID(msg1.MessageIDString()))
 }
 
 func TestAcctIsPendingTransfer(t *testing.T) {
-	assert.Equal(t, true, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER:")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER:1")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER:1/1/1")))
-	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, acctIsPendingTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/")))
+	assert.Equal(t, true, acctIsPendingTransfer([]byte("ACCT:PXFER:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")))
+	assert.Equal(t, false, acctIsPendingTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte{}))
 }
@@ -53,7 +53,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 	}
 	defer db.Close()
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
@@ -147,7 +147,7 @@ func TestAcctGetData(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.rowExistsInDB(junk))
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{

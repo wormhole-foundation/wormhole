@@ -207,7 +207,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, nil)
 	require.NotNil(t, acct)
 
-	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	emitterAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
@@ -235,7 +235,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 	acct := newAccountantForTest(t, logger, ctx, dontEnforceAccountant, obsvReqWriteC, acctChan, nil)
 	require.NotNil(t, acct)
 
-	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 
 	payloadBytes := buildMockTransferPayloadBytes(1,
 		vaa.ChainIDEthereum,
@@ -279,7 +279,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, nil)
 	require.NotNil(t, acct)
 
-	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 
 	payloadBytes := buildMockTransferPayloadBytes(1,
 		vaa.ChainIDEthereum,
@@ -331,7 +331,7 @@ func TestForDeadlock(t *testing.T) {
 	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, &wormchainConn)
 	require.NotNil(t, acct)
 
-	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 
 	payloadBytes := buildMockTransferPayloadBytes(1,
 		vaa.ChainIDEthereum,

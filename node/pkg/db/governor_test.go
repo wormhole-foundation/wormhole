@@ -29,7 +29,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -39,7 +39,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
@@ -51,12 +51,12 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
 func TestPendingMsgID(t *testing.T) {
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
@@ -70,14 +70,14 @@ func TestPendingMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
+	assert.Equal(t, []byte("GOV:PENDING2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"), PendingMsgID(msg1))
 }
 
 func TestTransferMsgID(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	xfer := &Transfer{
@@ -87,41 +87,41 @@ func TestTransferMsgID(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
-	assert.Equal(t, []byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
+	assert.Equal(t, []byte("GOV:XFER2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"), TransferMsgID(xfer))
 }
 
 func TestIsTransfer(t *testing.T) {
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:")))
 	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:1")))
 	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:1/1/1")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/")))
+	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, IsTransfer([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsTransfer([]byte{}))
-	assert.Equal(t, true, isOldTransfer([]byte("GOV:XFER:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, isOldTransfer([]byte("GOV:XFER:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
+	assert.Equal(t, false, isOldTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 
 }
 
 func TestIsPendingMsg(t *testing.T) {
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/1/1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/0")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsPendingMsg([]byte{}))
-	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
+	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415")))
 }
 
 func TestGetChainGovernorData(t *testing.T) {
@@ -152,7 +152,7 @@ func TestStoreTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -162,7 +162,7 @@ func TestStoreTransfer(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
@@ -181,7 +181,7 @@ func TestDeleteTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -191,7 +191,7 @@ func TestDeleteTransfer(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
@@ -216,7 +216,7 @@ func TestStorePendingMsg(t *testing.T) {
 	}
 	defer db.Close()
 
-	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err2 := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	assert.NoError(t, err2)
 
 	msg := &common.MessagePublication{
@@ -244,7 +244,7 @@ func TestDeletePendingMsg(t *testing.T) {
 	}
 	defer db.Close()
 
-	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err2 := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	assert.NoError(t, err2)
 
 	msg := &common.MessagePublication{
@@ -274,7 +274,7 @@ func TestDeletePendingMsg(t *testing.T) {
 }
 
 func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg := common.MessagePublication{
@@ -301,7 +301,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 
 	assert.Equal(t, pending1, pending2)
 
-	expectedPendingKey := "GOV:PENDING2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedPendingKey := "GOV:PENDING2:2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"
 	assert.Equal(t, expectedPendingKey, string(PendingMsgID(&pending2.Msg)))
 }
 
@@ -314,7 +314,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -327,7 +327,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
@@ -341,7 +341,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131416",
 		Hash:           "Hash2",
 	}
 
@@ -416,7 +416,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -429,7 +429,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		Hash:           "Hash1",
 	}
 
@@ -443,7 +443,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131416",
 		Hash:           "Hash2",
 	}
 
@@ -549,7 +549,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -559,7 +559,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		// Do not set the Hash.
 	}
 
@@ -570,7 +570,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
@@ -583,7 +583,7 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -597,7 +597,7 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131415",
 		// Do not set the Hash.
 	}
 
@@ -612,7 +612,7 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
+		MsgID:          "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/789101112131416",
 		Hash:           "Hash2",
 	}
 

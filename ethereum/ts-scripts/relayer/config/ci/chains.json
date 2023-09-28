@@ -8,13 +8,13 @@
       "evmNetworkId": 1,
       "chainId": 2,
       "rpc": "http://eth-devnet:8545",
-      "wormholeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+      "wormholeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601"
     },
     {
       "evmNetworkId": 1397,
       "chainId": 4,
       "rpc": "http://eth-devnet2:8545",
-      "wormholeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+      "wormholeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601"
     }
   ]
 }

@@ -512,14 +512,14 @@ const DEVNET = {
     nft_bridge: "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
   },
   ethereum: {
-    core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
-    token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
-    nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+    core: "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
+    token_bridge: "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7",
+    nft_bridge: "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0",
   },
   bsc: {
-    core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
-    token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
-    nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+    core: "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
+    token_bridge: "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7",
+    nft_bridge: "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0",
   },
   polygon: {
     core: undefined,

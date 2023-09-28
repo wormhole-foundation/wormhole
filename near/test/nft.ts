@@ -45,9 +45,9 @@ export const ETH_NODE_URL = "ws://localhost:8545";
 export const ETH_PRIVATE_KEY =
   "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; // account 1
 export const ETH_CORE_BRIDGE_ADDRESS =
-  "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550";
+  "0xCfEB869F69431e42cdB54A4F4f105C19C080A601";
 export const ETH_NFT_BRIDGE_ADDRESS =
-  "0x26b4afb60d6c903165150c6f0aa14f8016be4aec";
+  "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0";
 
 const web3 = new Web3(ETH_NODE_URL);
 let provider: ethers.providers.WebSocketProvider =
