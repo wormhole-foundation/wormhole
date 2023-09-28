@@ -2,7 +2,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { calculateFee } from "@cosmjs/stargate";
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { toUtf8 } from "@cosmjs/encoding";
-import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx"
+import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { getSigningCosmWasmClient } from "@sei-js/core";
 
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
@@ -150,11 +150,15 @@ export const submit = async (
   // For some reason, the simulation only provides the gas used but no events
   // so we can't determine whether it worked unless we do away with cosmjs and query the node ourselves.
   // See https://github.com/cosmos/cosmjs/issues/1148#issuecomment-1129259646
-  const gasUsed = await client.simulate(account.address, [executeContractMsg], undefined);
+  const gasUsed = await client.simulate(
+    account.address,
+    [executeContractMsg],
+    undefined
+  );
   // It looks like the simulation is a bit lacking when it comes to estimating gas.
   // See https://github.com/cosmos/cosmos-sdk/issues/4938
   // That's why we multiply it by a factor of 1.3
-  const estimatedGas = Math.floor(gasUsed * 130 / 100);
+  const estimatedGas = Math.floor((gasUsed * 130) / 100);
 
   const fee = calculateFee(estimatedGas, "0.1usei");
   const result = await client.execute(
