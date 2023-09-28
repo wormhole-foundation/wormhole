@@ -310,7 +310,7 @@ export const getTokenFromTokenRegistry = async (
   const tokenRegistryPackageId = getPackageIdFromType(
     tokenBridgeStateFields.token_registry?.type
   );
-  if (!tokenRegistryObjectId) {
+  if (!tokenRegistryPackageId) {
     throw new Error("Unable to fetch token registry package ID");
   }
 
