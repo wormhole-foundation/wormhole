@@ -257,7 +257,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 		return gov, nil
 	}
 
-	emitterAddr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	emitterAddr, err := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	if err != nil {
 		return gov, nil
 	}
@@ -362,7 +362,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	emitterAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	emitterAddr, _ := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
@@ -467,7 +467,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 		1.25,
 	)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 
 	msg := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -501,7 +501,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -628,7 +628,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -803,7 +803,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1050,7 +1050,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1259,7 +1259,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1360,7 +1360,7 @@ func TestTransferPayloadTooShort(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1409,7 +1409,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	emitterAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	emitterAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
 	require.NoError(t, err)
 
@@ -1528,7 +1528,7 @@ func TestReobservationOfPublishedMsg(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1591,7 +1591,7 @@ func TestReobservationOfEnqueued(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
@@ -1653,7 +1653,7 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddrStr := "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7" //nolint:gosec
+	tokenBridgeAddrStr := "0x9561c133dd8580860b6b7e504bc5aa500f0f06a7" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 

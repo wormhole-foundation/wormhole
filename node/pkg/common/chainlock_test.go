@@ -152,7 +152,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 }
 
 func TestMessageIDString(t *testing.T) {
-	addr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	addr, err := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	type test struct {
@@ -187,7 +187,7 @@ func TestMessageIDString(t *testing.T) {
 }
 
 func TestMessageID(t *testing.T) {
-	addr, err := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	addr, err := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	type test struct {

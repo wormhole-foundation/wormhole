@@ -10,7 +10,7 @@
 //   - governor-release-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and publishes it, without regard to the threshold.
 //   - governor-reset-release-timer - resets the release timer for the specified VAA to the configured maximum.
 //
-// The VAA_ID is of the form "2/0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7/3", which is "emitter chain / emitter address / sequence number".
+// The VAA_ID is of the form "2/0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7/3", which is "emitter chain / emitter address / sequence number".
 
 // The chain governor also supports the following REST queries:
 //

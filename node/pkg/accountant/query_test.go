@@ -48,13 +48,13 @@ func TestParseMissingObservationsResponse(t *testing.T) {
 }
 
 func TestParseBatchTransferStatusCommittedResponse(t *testing.T) {
-	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":1674568234},\"status\":{\"committed\":{\"data\":{\"amount\":\"1000000000000000000\",\"token_chain\":2,\"token_address\":\"00000000000000000000000067B5656d60a809915323Bf2C40A8bEF15A152e3e\",\"recipient_chain\":4},\"digest\":\"1nbbff/7/ai9GJUs4h2JymFuO4+XcasC6t05glXc99M=\"}}}]}")
+	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":1674568234},\"status\":{\"committed\":{\"data\":{\"amount\":\"1000000000000000000\",\"token_chain\":2,\"token_address\":\"00000000000000000000000067B5656d60a809915323Bf2C40A8bEF15A152e3e\",\"recipient_chain\":4},\"digest\":\"1nbbff/7/ai9GJUs4h2JymFuO4+XcasC6t05glXc99M=\"}}}]}")
 	var response BatchTransferStatusResponse
 	err := json.Unmarshal(responsesJson, &response)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(response.Details))
 
-	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	expectedTokenAddress, err := vaa.StringToAddress("00000000000000000000000067B5656d60a809915323Bf2C40A8bEF15A152e3e")
@@ -89,13 +89,13 @@ func TestParseBatchTransferStatusCommittedResponse(t *testing.T) {
 }
 
 func TestParseBatchTransferStatusNotFoundResponse(t *testing.T) {
-	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":1674484597},\"status\":null}]}")
+	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":1674484597},\"status\":null}]}")
 	var response BatchTransferStatusResponse
 	err := json.Unmarshal(responsesJson, &response)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(response.Details))
 
-	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	expectedResult := TransferDetails{
@@ -112,13 +112,13 @@ func TestParseBatchTransferStatusNotFoundResponse(t *testing.T) {
 }
 
 func TestParseBatchTransferStatusPendingResponse(t *testing.T) {
-	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":3},\"status\":{\"pending\":[{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}]}}]}")
+	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":3},\"status\":{\"pending\":[{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}]}}]}")
 	var response BatchTransferStatusResponse
 	err := json.Unmarshal(responsesJson, &response)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(response.Details))
 
-	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	expectedDigest, err := hex.DecodeString("eb986600de086d6f4c067483cd89a0a03ff7cdef85f2293d34678a47fbd0e09e")

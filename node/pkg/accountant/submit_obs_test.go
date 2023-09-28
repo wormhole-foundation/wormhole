@@ -12,13 +12,13 @@ import (
 )
 
 func TestParseObservationResponseDataKey(t *testing.T) {
-	dataJson := []byte("{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":1673978163}")
+	dataJson := []byte("{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":1673978163}")
 
 	var key TransferKey
 	err := json.Unmarshal(dataJson, &key)
 	require.NoError(t, err)
 
-	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	expectedResult := TransferKey{
@@ -30,13 +30,13 @@ func TestParseObservationResponseDataKey(t *testing.T) {
 }
 
 func TestParseObservationResponseData(t *testing.T) {
-	responsesJson := []byte("[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":1674061268},\"status\":{\"type\":\"committed\"}},{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7\",\"sequence\":1674061267},\"status\":{\"type\":\"error\",\"data\":\"digest mismatch for processed message\"}}]")
+	responsesJson := []byte("[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":1674061268},\"status\":{\"type\":\"committed\"}},{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7\",\"sequence\":1674061267},\"status\":{\"type\":\"error\",\"data\":\"digest mismatch for processed message\"}}]")
 	var responses ObservationResponses
 	err := json.Unmarshal(responsesJson, &responses)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(responses))
 
-	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	expectedResult0 := ObservationResponse{

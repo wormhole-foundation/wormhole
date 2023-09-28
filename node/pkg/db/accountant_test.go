@@ -147,7 +147,7 @@ func TestAcctGetData(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.rowExistsInDB(junk))
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7")
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x9561c133dd8580860b6b7e504bc5aa500f0f06a7")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
