@@ -221,19 +221,27 @@ export async function getWormholeRelayerInfo(
     receipt.blockHash
   );
 
-  const vaa = await getWormscanRelayerInfo(
-    sourceChain,
-    sourceSequence.toNumber(),
-    {
-      network: infoRequest?.environment,
-      provider: infoRequest?.sourceChainProvider,
-      wormholeRelayerAddress:
-        infoRequest?.wormholeRelayerAddresses?.get(sourceChain),
-    }
-  );
-  const signingOfVaaTimestamp = new Date(
+  let signingOfVaaTimestamp;
+  try {
+    const vaa = await getWormscanRelayerInfo(
+      sourceChain,
+      sourceSequence.toNumber(),
+      {
+        network: infoRequest?.environment,
+        provider: infoRequest?.sourceChainProvider,
+        wormholeRelayerAddress:
+          infoRequest?.wormholeRelayerAddresses?.get(sourceChain),
+      }
+    );
+    signingOfVaaTimestamp = new Date(
     (await vaa.json()).data?.indexedAt
   ).getTime();
+    } catch {
+      // wormscan won't work for devnet - so let's hardcode this
+      if(environment === 'DEVNET') {
+        signingOfVaaTimestamp = sourceTimestamp;
+      }
+  }
 
   // obtain additional message info
   const additionalMessageInformation: AdditionalMessageParsed[] =
