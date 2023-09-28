@@ -226,7 +226,7 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 
 	var msg *common.MessagePublication
 	if isOld {
-		msg, err = common.UnmarshalOldMessagePublicationForGovernor(buf)
+		msg, err = common.UnmarshalOldMessagePublicationBeforeIsReobservation(buf)
 	} else {
 		msg, err = common.UnmarshalMessagePublication(buf)
 	}

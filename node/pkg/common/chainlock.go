@@ -43,7 +43,7 @@ func (msg *MessagePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
 }
 
-const minMsgLength = 88
+const minMsgLength = 88 // Marshalled length with empty payload
 
 func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
@@ -61,10 +61,12 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalOldMessagePublicationForGovernor deserializes a MessagePublication from prior to the addition of IsReobservation.
+const oldMinMsgLength = 83 // Old marshalled length with empty payload
+
+// UnmarshalOldMessagePublicationBeforeIsReobservation deserializes a MessagePublication from prior to the addition of IsReobservation.
 // This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
-func UnmarshalOldMessagePublicationForGovernor(data []byte) (*MessagePublication, error) {
-	if len(data) < minMsgLength {
+func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessagePublication, error) {
+	if len(data) < oldMinMsgLength {
 		return nil, errors.New("message is too short")
 	}
 
