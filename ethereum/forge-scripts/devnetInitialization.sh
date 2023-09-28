@@ -33,8 +33,8 @@ while IFS= read -r line; do
   fi
 done < ".env"
 
-token_bridge_registration_vaas="[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]";
-nft_bridge_registration_vaas="[$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]";
+token_bridge_registration_vaas="\"[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]\"";
+nft_bridge_registration_vaas="[\"$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]\"";
 
 echo 'token bridge address';
 echo $TOKEN_BRIDGE_ADDRESS;
