@@ -234,13 +234,13 @@ export async function getWormholeRelayerInfo(
       }
     );
     signingOfVaaTimestamp = new Date(
-    (await vaa.json()).data?.indexedAt
-  ).getTime();
-    } catch {
-      // wormscan won't work for devnet - so let's hardcode this
-      if(environment === 'DEVNET') {
-        signingOfVaaTimestamp = sourceTimestamp;
-      }
+      (await vaa.json()).data?.indexedAt
+    ).getTime();
+  } catch {
+    // wormscan won't work for devnet - so let's hardcode this
+    if (environment === "DEVNET") {
+      signingOfVaaTimestamp = sourceTimestamp;
+    }
   }
 
   // obtain additional message info
