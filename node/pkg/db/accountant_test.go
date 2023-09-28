@@ -30,7 +30,7 @@ func TestAcctPendingTransferMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("ACCT:PXFER:"+"2/0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7"), acctPendingTransferMsgID(msg1.MessageIDString()))
+	assert.Equal(t, []byte("ACCT:PXFER:"+"2/0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7/789101112131415"), acctPendingTransferMsgID(msg1.MessageIDString()))
 }
 
 func TestAcctIsPendingTransfer(t *testing.T) {
