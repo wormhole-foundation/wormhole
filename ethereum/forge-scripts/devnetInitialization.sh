@@ -26,15 +26,15 @@ nft_bridge_registration_vaas_arr=()
 while IFS= read -r line; do
   # Use a regular expression to match the desired pattern
   if [[ "$line" =~ ^REGISTER_.*_TOKEN_BRIDGE_VAA=([^[:space:]]+) ]]; then
-    token_bridge_registration_vaas_arr+=("${BASH_REMATCH[1]}")
+    token_bridge_registration_vaas_arr+=("0x${BASH_REMATCH[1]}")
   fi
   if [[ "$line" =~ ^REGISTER_.*_NFT_BRIDGE_VAA=([^[:space:]]+) ]]; then
-    nft_bridge_registration_vaas_arr+=("${BASH_REMATCH[1]}")
+    nft_bridge_registration_vaas_arr+=("0x${BASH_REMATCH[1]}")
   fi
 done < ".env"
 
-token_bridge_registration_vaas="\"[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]\"";
-nft_bridge_registration_vaas="[\"$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]\"";
+token_bridge_registration_vaas="[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]";
+nft_bridge_registration_vaas="[$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]";
 
 echo 'token bridge address';
 echo $TOKEN_BRIDGE_ADDRESS;
