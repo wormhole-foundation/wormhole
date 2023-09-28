@@ -5,6 +5,7 @@ pragma solidity ^0.8.13;
 import {BridgeImplementation} from "../contracts/bridge/BridgeImplementation.sol";
 import {BridgeSetup} from "../contracts/bridge/BridgeSetup.sol";
 import {TokenImplementation} from "../contracts/bridge/token/TokenImplementation.sol";
+import {TokenBridge} from "../contracts/bridge/TokenBridge.sol";
 import "forge-std/Script.sol";
 
 contract DeployTokenBridge is Script {
@@ -35,7 +36,7 @@ contract DeployTokenBridge is Script {
 
         address wormhole = vm.envAddress("WORMHOLE_ADDRESS");
 
-        bridgeSetup.setup(
+        bytes memory setupAbi = abi.encodeCall(BridgeSetup.setup, (
             address(bridgeImpl),
             chainId,
             wormhole,
@@ -45,10 +46,10 @@ contract DeployTokenBridge is Script {
             WETH,
             finality,
             evmChainId
-        );
+        ));
 
-        return address(bridgeSetup);
+        TokenBridge tokenBridge = new TokenBridge(address(bridgeSetup), setupAbi);
 
-        // TODO: initialize?
+        return address(tokenBridge);
     }
 }
