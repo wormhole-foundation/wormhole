@@ -137,7 +137,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
   sourceVaaSequence: BigNumber | undefined,
   blockNumber: ethers.providers.BlockTag,
   targetWormholeRelayerAddress: string
-): Promise<{ chain: ChainName; events: DeliveryTargetInfo[] }> {
+): Promise<DeliveryTargetInfo[]> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,
     targetChain,
@@ -148,12 +148,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     targetWormholeRelayerAddress
   );
 
-  const targetChainStatus = {
-    chain: targetChain,
-    events: deliveryEvents,
-  };
-
-  return targetChainStatus;
+  return deliveryEvents
 }
 
 export async function getWormholeRelayerDeliveryEventsBySourceSequence(
@@ -357,8 +352,7 @@ export async function getWormholeRelayerInfoByHash(
 
   if (blockNumber.toNumber() === 0) return [];
 
-  const targetChainStatusEvents = (
-    await getWormholeRelayerInfoBySourceSequence(
+  return await getWormholeRelayerInfoBySourceSequence(
       environment,
       targetChain,
       targetChainProvider,
@@ -366,10 +360,7 @@ export async function getWormholeRelayerInfoByHash(
       BigNumber.from(sourceVaaSequence),
       blockNumber.toNumber(),
       targetWormholeRelayerAddress
-    )
-  ).events;
-
-  return targetChainStatusEvents;
+  )
 }
 
 export function getDeliveryHashFromVaaFields(

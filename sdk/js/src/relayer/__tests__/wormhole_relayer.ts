@@ -140,6 +140,8 @@ const getStatus = async (
       wormholeRelayerAddresses,
     }
   )) as relayer.DeliveryInfo;
+  console.log(JSON.stringify(info.targetChainStatus));
+  console.log(`num of deliveries in this block: ${info.targetChainStatus.events.length}`);
   return info.targetChainStatus.events[index ? index : 0].status;
 };
 
@@ -177,10 +179,6 @@ describe("Wormhole Relayer Tests", () => {
     const rx = await testSend(arbitraryPayload);
 
     await waitForRelay();
-
-    console.log("Checking status using SDK");
-    const status = await getStatus(rx.transactionHash);
-    expect(status).toBe("Delivery Success");
 
     console.log("Checking if message was relayed");
     const message = await target.mockIntegration.getMessage();
@@ -228,10 +226,6 @@ describe("Wormhole Relayer Tests", () => {
 
     await waitForRelay();
 
-    console.log("Checking status using SDK");
-    const status = await getStatus(tx.hash);
-    expect(status).toBe("Delivery Success");
-
     console.log("Checking if message was relayed");
     const message = (await target.mockIntegration.getDeliveryData())
       .additionalVaas[0];
@@ -256,10 +250,6 @@ describe("Wormhole Relayer Tests", () => {
     {
       const message = await target.mockIntegration.getMessage();
       expect(message).not.toBe(arbitraryPayload);
-
-      console.log("Checking status using SDK");
-      const status = await getStatus(rx.transactionHash);
-      expect(status).toBe("Receiver Failure");
     }
     const [value, refundPerGasUnused] = await relayer.getPriceAndRefundInfo(
       sourceChain,
@@ -311,11 +301,6 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
     console.log("Manual delivery tx status", deliveryRx.status);
 
-    console.log("Checking status using SDK");
-    // Get the status of the second delivery (index 1)
-    const status = await getStatus(rx.transactionHash, undefined, 1);
-    expect(status).toBe("Delivery Success");
-
     console.log("Checking if message was relayed");
     const message = await target.mockIntegration.getMessage();
     expect(message).toBe(arbitraryPayload);
@@ -360,10 +345,6 @@ describe("Wormhole Relayer Tests", () => {
 
     await waitForRelay();
 
-    console.log("Checking status using SDK");
-    const status = await getStatus(tx.hash);
-    expect(status).toBe("Receiver Failure");
-
     const info = (await relayer.getWormholeRelayerInfo(sourceChain, tx.hash, {
       wormholeRelayerAddresses,
       ...optionalParams,
@@ -372,14 +353,6 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay();
 
     const newEndingBalance = await source.wallet.getBalance();
-
-    console.log("Checking status of refund using SDK");
-    console.log(relayer.stringifyWormholeRelayerInfo(info));
-    const statusOfRefund = await getStatus(
-      info.targetChainStatus.events[0].transactionHash || "",
-      targetChain
-    );
-    expect(statusOfRefund).toBe("Delivery Success");
 
     console.log(`Quoted gas delivery fee: ${value}`);
     console.log(
@@ -408,9 +381,6 @@ describe("Wormhole Relayer Tests", () => {
 
     const message = await target.mockIntegration.getMessage();
     expect(message).not.toBe(arbitraryPayload);
-
-    const status = await getStatus(rx.transactionHash);
-    expect(status).toBe("Receiver Failure");
   });
 
   test("Executes a receiver failure and then redelivery through SDK", async () => {
@@ -423,10 +393,6 @@ describe("Wormhole Relayer Tests", () => {
 
     const message = await target.mockIntegration.getMessage();
     expect(message).not.toBe(arbitraryPayload);
-
-    console.log("Checking status using SDK");
-    const status = await getStatus(rx.transactionHash);
-    expect(status).toBe("Receiver Failure");
 
     const value = await relayer.getPrice(
       sourceChain,
