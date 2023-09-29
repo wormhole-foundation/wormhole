@@ -60,6 +60,7 @@ guardiansPublicHexCSV=$(echo ${guardiansPublicHex} | jq --raw-output -c '. | joi
 initSigners="INIT_SIGNERS"
 upsert_env_file $ethFile $initSigners $guardiansPublicEth
 upsert_env_file $envFile $initSigners $guardiansPublicHex
+upsert_env_file $ethFile "INIT_SIGNERS_CSV" $guardiansPublicHexCSV
 upsert_env_file $envFile "INIT_SIGNERS_CSV" $guardiansPublicHexCSV
 
 
