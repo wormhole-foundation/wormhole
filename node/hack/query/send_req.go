@@ -9,9 +9,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math/big"
-	"os"
 	"strings"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,7 +34,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 )
 
@@ -71,7 +67,7 @@ func main() {
 	signingKeyPath := string("./dev.guardian.key")
 
 	logger.Info("Loading signing key", zap.String("signingKeyPath", signingKeyPath))
-	sk, err := loadGuardianKey(signingKeyPath)
+	sk, err := common.LoadGuardianKey(signingKeyPath, true)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -418,39 +414,4 @@ func sendQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.PrivateKey, 
 			break
 		}
 	}
-}
-
-// loadGuardianKey loads a serialized guardian key from disk.
-func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	p, err := armor.Decode(f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read armored file: %w", err)
-	}
-
-	if p.Type != GuardianKeyArmoredBlock {
-		return nil, fmt.Errorf("invalid block type: %s", p.Type)
-	}
-
-	b, err := io.ReadAll(p.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var m nodev1.GuardianKey
-	err = proto.Unmarshal(b, &m)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
-	}
-
-	gk, err := ethCrypto.ToECDSA(m.Data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize raw key data: %w", err)
-	}
-
-	return gk, nil
 }

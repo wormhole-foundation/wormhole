@@ -225,6 +225,61 @@ describe("eth call", () => {
       });
     expect(err).toBe(true);
   });
+  test("unsigned query should fail if not allowed", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      totalSupplyCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const signature = "";
+    let err = false;
+    await axios
+      .put<QueryResponse>(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(`request not signed\n`);
+      });
+    expect(err).toBe(true);
+  });
+  test("unsigned query should succeed if allowed", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [nameCallData]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const signature = "";
+    const response = await axios.put<QueryResponse>(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key_2" } } // This API key allows unsigned queries.
+    );
+    expect(response.status).toBe(200);
+  });
   test("health check", async () => {
     const response = await axios.get(HEALTH_URL);
     expect(response.status).toBe(200);

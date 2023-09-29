@@ -2,6 +2,7 @@ package ccq
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 )
@@ -55,9 +57,10 @@ type Config struct {
 }
 
 type User struct {
-	UserName     string        `json:"userName"`
-	ApiKey       string        `json:"apiKey"`
-	AllowedCalls []AllowedCall `json:"allowedCalls"`
+	UserName      string        `json:"userName"`
+	ApiKey        string        `json:"apiKey"`
+	AllowUnsigned bool          `json:"allowUnsigned"`
+	AllowedCalls  []AllowedCall `json:"allowedCalls"`
 }
 
 type AllowedCall struct {
@@ -73,9 +76,10 @@ type EthCall struct {
 type Permissions map[string]*permissionEntry
 
 type permissionEntry struct {
-	userName     string
-	apiKey       string
-	allowedCalls allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
+	userName      string
+	apiKey        string
+	allowUnsigned bool
+	allowedCalls  allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
 }
 
 type allowedCallsForUser map[string]struct{}
@@ -139,9 +143,10 @@ func parseConfig(fileName string) (Permissions, error) {
 		}
 
 		pe := &permissionEntry{
-			userName:     user.UserName,
-			apiKey:       apiKey,
-			allowedCalls: allowedCalls,
+			userName:      user.UserName,
+			apiKey:        apiKey,
+			allowUnsigned: user.AllowUnsigned,
+			allowedCalls:  allowedCalls,
 		}
 
 		ret[apiKey] = pe
@@ -151,7 +156,7 @@ func parseConfig(fileName string) (Permissions, error) {
 }
 
 // validateRequest verifies that this API key is allowed to do all of the calls in this request.
-func validateRequest(logger *zap.Logger, perms Permissions, apiKey string, qr *gossipv1.SignedQueryRequest) error {
+func validateRequest(logger *zap.Logger, perms Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) error {
 	apiKey = strings.ToLower(apiKey)
 	permsForUser, exists := perms[strings.ToLower(apiKey)]
 	if !exists {
@@ -159,6 +164,21 @@ func validateRequest(logger *zap.Logger, perms Permissions, apiKey string, qr *g
 	}
 
 	// TODO: Should we verify the signatures?
+
+	if len(qr.Signature) == 0 {
+		if !permsForUser.allowUnsigned || signerKey == nil {
+			return fmt.Errorf("request not signed")
+		}
+
+		// Sign the request using our key.
+		var err error
+		digest := query.QueryRequestDigest(common.UnsafeDevNet, qr.QueryRequest)
+		qr.Signature, err = ethCrypto.Sign(digest.Bytes(), signerKey)
+		if err != nil {
+			logger.Error("failed to sign request", zap.Error(err))
+			return fmt.Errorf("failed to sign request")
+		}
+	}
 
 	var queryRequest query.QueryRequest
 	err := queryRequest.Unmarshal(qr.QueryRequest)
