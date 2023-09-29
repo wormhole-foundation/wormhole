@@ -8,6 +8,10 @@ fi
 
 RPC_URL="$1"
 
+# Step 0: Deploy 4 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
+# (the addresses depend on the number of contracts that have been previously deployed, and the wallet address, I believe!)
+forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
+
 # Step 1: Run 'forge script DeployCore' 
 forge script ./forge-scripts/DeployCore.s.sol:DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
 # Get the JSON output from the specified file
