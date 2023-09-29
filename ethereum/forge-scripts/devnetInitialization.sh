@@ -14,15 +14,23 @@ else
   fi
 fi
 
+# Load the environment variables from .env
+if [ -f .env ]; then
+  source .env
+else
+  echo "The .env file does not exist."
+  exit 1
+fi
+
 PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
 
-PRIVATE_KEY=$PRIVATE_KEY RPC_URL=$RPC_URL CHAIN_ID=$CHAIN_ID NETWORK=$NETWORK npm run deploy-contracts 
+RPC_URL=$RPC_URL NETWORK=$NETWORK npm run deploy-contracts 
 
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 
 # Get Token Bridge and NFT Bridge addresses
 
-returnInfo=$(cat ./deployment-addresses/$NETWORK/$CHAIN_ID/run-latest.json)
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/run-latest.json)
 echo 'this is the return info from the previous deployment'
 echo $returnInfo 
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.TOKEN_BRIDGE_ADDRESS' <<< "$returnInfo")
