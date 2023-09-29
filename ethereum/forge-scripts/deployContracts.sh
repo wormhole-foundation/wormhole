@@ -37,13 +37,20 @@ WORMHOLE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "Wormhole address that will be used to initialize token bridge and nft bridge: $WORMHOLE_ADDRESS"
 
 # Step 2: Replace 'WORMHOLE_ADDRESS' in the .env file with the extracted value
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  # on macOS's sed, the -i flag needs the '' argument to not create
-  # backup files
-  sed -i '' "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || echo "WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
-else
-  sed -i "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || echo "WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
+if grep -q "^WORMHOLE_ADDRESS=" .env; then 
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # on macOS's sed, the -i flag needs the '' argument to not create
+    # backup files
+    sed -i '' "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env
+  else
+    sed -i "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || echo "WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
+  fi
+  echo "Replaced Wormhole address in .env to be $WORMHOLE_ADDRESS"
+else 
+  echo -e "\nWORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
+  echo "Added WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS to .env"
 fi
+
 
 # Step 3: Run 'forge script DeployTokenBridge'
 forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast 
