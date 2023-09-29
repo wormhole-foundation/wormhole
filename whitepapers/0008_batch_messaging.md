@@ -115,6 +115,20 @@ struct VM2 {
     bytes[] observations;
 }
 ```
+---
+### Solana
+```rust
+
+struct VM2 {
+    version: u8,                   
+    guardianSetIndex: u32,       // Inlined header
+    signatures: Vec<Signature>,    // Array of Signatures
+    hashes: Vec<[u8; 32]>,         // Array of observation hashes
+    hash: [u8; 32],                // Computed Batch Hash
+    observations: Vec<Vec<u8>>,   // Array of observation bytes with prepended version 3
+}
+```
+	
 
 ### Payloads (Encoded Messages)
 
