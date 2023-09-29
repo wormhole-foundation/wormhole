@@ -176,6 +176,8 @@ func TestCrossChainQuery(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 	}
 
+	logger.Info("Detected peers")
+
 	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
 	if err != nil {
 		panic(err)
