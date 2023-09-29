@@ -9,11 +9,11 @@ fi
 RPC_URL="$1"
 
 echo 'Here is the env file you are working with!'
-env
+cat .env
 
 # Step 0: Deploy 4 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
 # (the addresses depend on the number of contracts that have been previously deployed, and the wallet address, I believe!)
-forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig "run(uint256)" 4 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
+forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig "run(uint256)" 2 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
 
 # Step 1: Run 'forge script DeployCore' 
 forge script ./forge-scripts/DeployCore.s.sol:DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
