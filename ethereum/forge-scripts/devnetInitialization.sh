@@ -16,17 +16,15 @@ fi
 
 PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
 
-PRIVATE_KEY=$PRIVATE_KEY RPC_URL=$RPC_URL npm run deploy-contracts 
+PRIVATE_KEY=$PRIVATE_KEY RPC_URL=$RPC_URL CHAIN_ID=$CHAIN_ID NETWORK=$NETWORK npm run deploy-contracts 
 
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 
 # Get Token Bridge and NFT Bridge addresses
 
-returnInfo=$(cat ./broadcast/DeployTokenBridge.s.sol/1/run-latest.json)
-TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
-
-returnInfo=$(cat ./broadcast/DeployNFTBridge.s.sol/1/run-latest.json)
-NFT_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$CHAIN_ID/run-latest.json)
+TOKEN_BRIDGE_ADDRESS=$(jq -r '.TOKEN_BRIDGE_ADDRESS' <<< "$returnInfo")
+NFT_BRIDGE_ADDRESS=$(jq -r '.NFT_BRIDGE_ADDRESS' <<< "$returnInfo")
 
 # Registration of chains
 token_bridge_registration_vaas_arr=()
