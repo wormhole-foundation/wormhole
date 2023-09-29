@@ -53,7 +53,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "CHAIN_ID=2 ./forge-scripts/devnetInitialization.sh"
+            - "CHAIN_ID=2 NETWORK=devnet ./forge-scripts/devnetInitialization.sh"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
