@@ -57,12 +57,12 @@
       "rpcUrlLocal": "http://localhost:8545",
       "rpcPort": "8545",
       "contracts": {
-        "coreEmitterAddress": "000000000000000000000000CfEB869F69431e42cdB54A4F4f105C19C080A601",
-        "coreNativeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
-        "tokenBridgeEmitterAddress": "0000000000000000000000009561C133DD8580860B6b7E504bC5Aa500f0f06a7",
-        "tokenBridgeNativeAddress": "0x9561C133DD8580860B6b7E504bC5Aa500f0f06a7",
-        "nftBridgeEmitterAddress": "0000000000000000000000009b1f7F645351AF3631a656421eD2e40f2802E6c0",
-        "nftBridgeAddress": "0x9b1f7F645351AF3631a656421eD2e40f2802E6c0"
+        "coreEmitterAddress": "000000000000000000000000c89ce4735882c9f0f0fe26686c53074e09b0d550",
+        "coreNativeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+        "tokenBridgeEmitterAddress": "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+        "tokenBridgeNativeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+        "nftBridgeEmitterAddress": "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
+        "nftBridgeAddress": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
       },
       "accounts": {
         "testWallet": {
@@ -73,25 +73,25 @@
       },
       "addresses": {
         "testToken": {
-          "address": "0x67B5656d60a809915323Bf2C40A8bEF15A152e3e",
+          "address": "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
           "name": "Ethereum Test Token",
           "symbol": "TKN",
           "decimals": 18
         },
         "testNFT": {
-          "address": "0xA57B8a5584442B467b4689F1144D269d096A3daF",
+          "address": "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66",
           "name": "Not an APE 🐒",
           "symbol": "APE🐒",
           "decimals": 0
         },
         "testWETH": {
-          "address": "0x0E696947A06550DEf604e82C26fd9E493e576337",
+          "address": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
           "name": "Wrapped Ether",
           "symbol": "WETH",
           "decimals": 18
         },
         "testGA": {
-          "address": "0xDb56f2e9369E0D7bD191099125a3f6C370F8ed15",
+          "address": "0x4cFB3F70BF6a80397C2e634e5bDd85BC0bb189EE",
           "name": "Accountant Test Token",
           "symbol": "GA",
           "decimals": 18
@@ -137,12 +137,12 @@
       "rpcUrlLocal": "http://localhost:8546",
       "rpcPort": "8546",
       "contracts": {
-        "coreEmitterAddress": "0000000000000000000000005b1869D9A4C187F2EAa108f3062412ecf0526b24",
-        "coreNativeAddress": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601",
-        "tokenBridgeEmitterAddress": "000000000000000000000000D833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
-        "tokenBridgeNativeAddress": "0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb",
-        "nftBridgeEmitterAddress": "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
-        "nftBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+        "coreEmitterAddress": "000000000000000000000000c89ce4735882c9f0f0fe26686c53074e09b0d550",
+        "coreNativeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+        "tokenBridgeEmitterAddress": "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+        "tokenBridgeNativeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+        "nftBridgeEmitterAddress": "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
+        "nftBridgeAddress": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
       }
     },
     "8": {
