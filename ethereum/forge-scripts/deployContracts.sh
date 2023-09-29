@@ -1,14 +1,11 @@
 #!/bin/bash
 
 # Check if the three arguments are provided
-if [ $# -ne 2 ]; then
-  echo "Usage: $0 RPC_URL NETWORK"
+if [ $# -ne 3 ]; then
+  echo "Usage: $0 RPC_URL NETWORK PRIVATE_KEY"
   exit 1
 fi
 
-# Extract the arguments into separate variables
-RPC_URL="$1"
-NETWORK="$2"
 
 echo 'Here is the env file you are working with!'
 cat .env
@@ -20,6 +17,11 @@ else
   echo "The .env file does not exist."
   exit 1
 fi
+
+# Extract the arguments into separate variables
+RPC_URL="$1"
+NETWORK="$2"
+PRIVATE_KEY="$3"
 
 
 # Step 0: Deploy 4 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
