@@ -30,7 +30,7 @@ forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RP
 
 # Get Token Bridge and NFT Bridge addresses
 
-returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/run-latest.json)
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/latest.json)
 echo 'this is the return info from the previous deployment'
 echo $returnInfo 
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.TOKEN_BRIDGE_ADDRESS' <<< "$returnInfo")
