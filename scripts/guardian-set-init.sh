@@ -55,13 +55,15 @@ guardiansPublicEth=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:
 guardiansPublicHex=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:$lastIndex] | [.[].public[2:]]' $addressesJson)
 # also make a CSV string of the hex addresses, so the client scripts that need that format don't have to.
 guardiansPublicHexCSV=$(echo ${guardiansPublicHex} | jq --raw-output -c '. | join(",")')
+# also make a CSV string of the hex addresses with 0x, so the client scripts that need that format don't have to.
+guardiansPublicEthCSV=$(echo ${guardiansPublicEth} | jq --raw-output -c '. | join(",")')
 
 # write the lists of addresses to the env files
 initSigners="INIT_SIGNERS"
 upsert_env_file $ethFile $initSigners $guardiansPublicEth
 upsert_env_file $envFile $initSigners $guardiansPublicHex
+upsert_env_file $ethFile "INIT_SIGNERS_CSV" $guardiansPublicEthCSV
 upsert_env_file $envFile "INIT_SIGNERS_CSV" $guardiansPublicHexCSV
-upsert_env_file $ethFile "INIT_SIGNERS_CSV" $guardiansPublicHexCSV
 
 
 # 2) guardian private keys - used for generating the initial governance VAAs (register token bridge & nft bridge contracts on each chain).
