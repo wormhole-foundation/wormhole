@@ -17,10 +17,10 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "build:forge": "if [ \"$DEV\" = \"True\" ]; then forge build; else forge build --via-ir; fi",
+    "build:forge": "echo $DEV; if [ \"$DEV\" = \"True\" ]; then forge build; else forge build --via-ir; fi",
     "build": "npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types",
     "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
-    "deploy-contracts": "npm run build:forge && echo 'This is the rpc url' && echo $RPC_URL && bash ./forge-scripts/deployContracts.sh $RPC_URL $NETWORK $CHAIN_ID",
+    "deploy-contracts": "npm run build:forge && echo 'This is the rpc url' && echo $RPC_URL && bash ./forge-scripts/deployContracts.sh $RPC_URL $NETWORK",
     "deploy-bridge-implementation-only": "npm run build:forge && forge script DeployCoreImplementationOnly",
     "deploy-token-implementation-only": "npm run build:forge && forge script DeployTokenImplementationOnly",
     "deploy-read-only": "npm run build:forge && truffle migrate --f 1 --to 2 --compile-none",
