@@ -28,20 +28,22 @@
 
 set -euo pipefail
 
-function usage() {
-cat <<EOF >&2
-Usage:
+usage() {
+  cat <<-EOF >&2
+	Usage: $(basename "$0") [OPTIONS]
 
-  $(basename "$0") [-h] [-m s] [-c s] [-a s] [-o d] -- Generate governance proposal for a given module to be upgraded to a given address
+	Generate governance proposal for a module to be upgraded to a given address.
 
-  where:
-    -h  show this help text
-    -m  module (bridge, token_bridge, nft_bridge)
-    -c  chain name
-    -a  new code address (example: 0x3f1a6729bb27350748f0a0bd85ca641a100bf0a1)
-    -o  multi-mode output directory
+	Options:
+	  -h, --help                Show this help message
+	  -m, --module <module>     Specify the module (bridge, token_bridge, nft_bridge)
+	  -c, --chain <chain_name>  Specify the chain name
+	  -a, --address <address>   Specify the new code address (e.g., 0x3f1a6729bb27350748f0a0bd85ca641a100bf0a1)
+	  -o, --output <output_dir> Specify the multi-mode output directory
+	  -f, --force               Force: bypass dirty git repo check
+
 EOF
-exit 1
+  exit 1
 }
 
 # Check if guardiand command exists. It's needed for generating the protoxt and
@@ -51,38 +53,73 @@ if ! command -v guardiand >/dev/null 2>&1; then
   exit 1
 fi
 
+# Check if the worm command exists. It's needed for computing the digest.
+if ! command -v worm >/dev/null 2>&1; then
+  echo "ERROR: worm binary not found" >&2
+  exit 1
+fi
+
 ### Parse command line options
 address=""
 module=""
 chain_name=""
 multi_mode=false
 out_dir=""
-while getopts ':hm:c:a:o:' option; do
-  case "$option" in
-    h) usage
-       ;;
-    m) module=$OPTARG
-       ;;
-    c) chain_name=$OPTARG
-       ;;
-    a) address=$OPTARG
-       ;;
-    o) multi_mode=true
-       out_dir=$OPTARG
-       ;;
-    :) printf "missing argument for -%s\n" "$OPTARG" >&2
-       usage
-       ;;
-   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
-       usage
-       ;;
+allow_dirty=false
+
+while (( "$#" )); do
+  case "$1" in
+    -h|--help)
+      usage
+      ;;
+    -m|--module)
+      module="$2"
+      shift 2
+      ;;
+    -c|--chain)
+      chain_name="$2"
+      shift 2
+      ;;
+    -a|--address)
+      address="$2"
+      shift 2
+      ;;
+    -o|--output)
+      multi_mode=true
+      out_dir="$2"
+      shift 2
+      ;;
+    -f|--force)
+      allow_dirty=true
+      shift
+      ;;
+    --) # end of options
+      shift
+      break
+      ;;
+    -*)
+      echo "Error: Unsupported option $1" >&2
+      usage
+      ;;
+    *) # anything else
+      echo "Error: Unsupported argument $1" >&2
+      usage
+      ;;
   esac
 done
-shift $((OPTIND - 1))
 
 [ -z "$address" ] && usage
 [ -z "$chain_name" ] && usage
 [ -z "$module" ] && usage
+
+# Check if the git tree is dirty
+if [ "$allow_dirty" = false ]; then
+  if ! git diff-index --quiet HEAD --; then
+    echo "ERROR: git tree is dirty. Commit or stash your changes first." >&2
+    echo "If you are sure you want to proceed, use the --force flag." >&2
+    exit 1
+  fi
+fi
 
 ### The script constructs the governance proposal in two different steps. First,
 ### the governance prototxt (for VAA injection by the guardiand tool), then the voting/verification instructions.
@@ -190,13 +227,17 @@ case "$chain_name" in
     explorer="https://optimistic.etherscan.io/address/"
     evm=true
     ;;
+  aptos)
+    chain=22
+    explorer="https://explorer.aptoslabs.com/account/"
+    ;;
   base)
     echo "Need to specify the base explorer URL!"
-    exit 1  
+    exit 1
     chain=30
     explorer="??/address/"
     evm=true
-    ;;    
+    ;;
   *)
     echo "Unknown chain: $chain_name" >&2
     exit 1
@@ -429,7 +470,7 @@ elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "pythnet" ]; then
 
 	## Verify
 	Contract at [$explorer$address]($explorer$address)
-  
+
   $extra
 
 	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
@@ -486,11 +527,29 @@ elif [ "$chain_name" = "terra" ]; then
 	wormhole/terra$ ./verify -n mainnet -c $chain_name -w $(terra_artifact) -i $terra_code_id
 	\`\`\`
 EOF
+elif [ "$chain_name" = "aptos" ]; then
+  cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/aptos $ docker build -f Dockerfile --target aptos -t aptos-build .
+	\`\`\`
+
+	This command will build a docker image that can compile the contracts reproducibly.
+
+	## Verify
+	Next, run the following command to check that the contract hash matches the expected value ($address):
+
+	\`\`\`shell
+	# $module
+	wormhole/aptos$ docker run -it aptos-build
+	wormhole/aptos$ worm aptos hash-contracts /tmp/$module --named-addresses wormhole=0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625,deployer=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b,token_bridge=0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f,nft_bridge=0x1bdffae984043833ed7fe223f7af7a3f8902d04129b14f801823e64827da7130
+	wormhole/aptos$ exit
+	\`\`\`
+EOF
 else
   echo "ERROR: no verification instructions for chain $chain_name" >&2
   exit 1
 fi
-
 
 
 cat <<-EOF >> "$instructions_file"
