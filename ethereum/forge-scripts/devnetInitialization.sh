@@ -1,9 +1,17 @@
 #!/bin/bash
 
 if [ $CI ]; then
-  RPC_URL='http://eth-devnet:8545'
+  if [ $CHAIN_ID -eq 4 ]; then
+    RPC_URL='http://eth-devnet2:8545'
+  else 
+    RPC_URL='http://eth-devnet:8545'
+  fi
 else 
-  RPC_URL='http://localhost:8545'
+  if [ $CHAIN_ID -eq 4 ]; then
+    RPC_URL='http://localhost:8546'
+  else 
+    RPC_URL='http://localhost:8545'
+  fi
 fi
 
 PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d

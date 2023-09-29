@@ -55,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && ./forge-scripts/devnetInitialization.sh"
+            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && CHAIN_ID=4 ./forge-scripts/devnetInitialization.sh"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300

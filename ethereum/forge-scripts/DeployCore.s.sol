@@ -24,7 +24,7 @@ contract DeployCore is Script {
         Implementation impl = new Implementation();
         Setup setup = new Setup();
 
-        address[] memory initialSigners = vm.envAddress("INIT_SIGNERS", ",");
+        address[] memory initialSigners = vm.envAddress("INIT_SIGNERS_CSV", ",");
         uint16 chainId = uint16(vm.envUint("INIT_CHAIN_ID"));
         uint16 governanceChainId = uint16(vm.envUint("INIT_GOV_CHAIN_ID"));
         bytes32 governanceContract = bytes32(vm.envBytes32("INIT_GOV_CONTRACT"));
