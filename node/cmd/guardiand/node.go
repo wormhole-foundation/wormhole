@@ -207,9 +207,6 @@ var (
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
-
-	ccqEnabled           *bool
-	ccqAllowedRequesters *string
 	ccqP2pPort           *uint
 	ccqP2pBootstrap      *string
 	ccqAllowedPeers      *string
@@ -378,9 +375,6 @@ func init() {
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
-
-	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
-	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")

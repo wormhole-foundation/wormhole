@@ -21,11 +21,11 @@ contract QueryDemo is Context, QueryResponse {
         uint256 blockTime;
     }
 
-    address owner;
-    address wormhole;
-    uint16 myChainID;
-    mapping(uint16 => ChainEntry) counters;
-    uint16[] foreignChainIDs;
+    address private immutable owner;
+    address private immutable wormhole;
+    uint16 private immutable myChainID;
+    mapping(uint16 => ChainEntry) private counters;
+    uint16[] private foreignChainIDs;
 
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
@@ -33,7 +33,7 @@ contract QueryDemo is Context, QueryResponse {
         owner = _owner;
         wormhole = _wormhole;  
         myChainID = _myChainID;
-        counters[myChainID] = ChainEntry(myChainID, address(this), 0, 0, 0);
+        counters[_myChainID] = ChainEntry(_myChainID, address(this), 0, 0, 0);
     }
 
     // updateRegistration should be used to add the other chains and to set / update contract addresses.
@@ -82,7 +82,7 @@ contract QueryDemo is Context, QueryResponse {
             bytes4 result;
             assembly {
                     result := mload(add(callData, 32))
-                }
+            }
             require(result == GetMyCounter, "unexpected callData");
 
             require(eqr.result[0].result.length == 32, "result is not a uint256");
