@@ -148,7 +148,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     targetWormholeRelayerAddress
   );
 
-  return deliveryEvents
+  return deliveryEvents;
 }
 
 export async function getWormholeRelayerDeliveryEventsBySourceSequence(
@@ -353,14 +353,14 @@ export async function getWormholeRelayerInfoByHash(
   if (blockNumber.toNumber() === 0) return [];
 
   return await getWormholeRelayerInfoBySourceSequence(
-      environment,
-      targetChain,
-      targetChainProvider,
-      sourceChain,
-      BigNumber.from(sourceVaaSequence),
-      blockNumber.toNumber(),
-      targetWormholeRelayerAddress
-  )
+    environment,
+    targetChain,
+    targetChainProvider,
+    sourceChain,
+    BigNumber.from(sourceVaaSequence),
+    blockNumber.toNumber(),
+    targetWormholeRelayerAddress
+  );
 }
 
 export function getDeliveryHashFromVaaFields(
