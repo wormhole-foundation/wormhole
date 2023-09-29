@@ -18,6 +18,7 @@ abstract contract QueryResponse {
     error RequestTypeMismatch();
     error UnsupportedQueryType();
     error UnexpectedNumberOfResults();
+    error InvalidPayloadLength(uint256 received, uint256 expected);
        
     /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
     struct ParsedQueryResponse {
@@ -135,9 +136,10 @@ abstract contract QueryResponse {
             (len, respIdx) = response.asUint32Unchecked(respIdx);
             (r.responses[idx].response, respIdx) = response.sliceUnchecked(respIdx, len);
 
-            unchecked { idx += 1; }
+            unchecked { ++idx; }
         }
 
+        checkLength(response, respIdx);
         return r;
     }
 
@@ -182,9 +184,11 @@ abstract contract QueryResponse {
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
 
-            unchecked { idx += 1; }
+            unchecked { ++idx; }
         }
 
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
         return r;
     }
 
@@ -229,6 +233,13 @@ abstract contract QueryResponse {
         }
 
         /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
+    }
+
+    /// @dev checkLength verifies that the message was fully consumed.
+    function checkLength(bytes memory encoded, uint256 expected) private pure {
+        if (encoded.length != expected) {
+            revert InvalidPayloadLength(encoded.length, expected);
+        }
     }
 }
 
