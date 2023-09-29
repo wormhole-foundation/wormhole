@@ -57,6 +57,7 @@ guardiansPublicHex=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:
 guardiansPublicHexCSV=$(echo ${guardiansPublicHex} | jq --raw-output -c '. | join(",")')
 # also make a CSV string of the hex addresses with 0x, so the client scripts that need that format don't have to.
 guardiansPublicEthCSV=$(echo ${guardiansPublicEth} | jq --raw-output -c '. | join(",")')
+echo "LETS GOO DIDNT GET CAHCED"
 
 # write the lists of addresses to the env files
 initSigners="INIT_SIGNERS"
