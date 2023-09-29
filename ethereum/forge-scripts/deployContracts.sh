@@ -30,11 +30,11 @@ echo "Wormhole address that will be used to initialize token bridge and nft brid
 sed -i "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || echo "WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS" >> .env
 
 # Step 3: Run 'forge script DeployTokenBridge'
-returnInfo = ${forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1}
+returnInfo = $(forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1)
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
 # Step 4: Run 'forge script DeployNFTBridge'
-returnInfo = ${forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1}
+returnInfo = $(forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1)
 NFT_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
 echo "Deployment of Core Bridge, Token Bridge, and NFT Bridge completed successfully."
