@@ -20,7 +20,7 @@ forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig
 
 # Step 1: Run 'forge script DeployCore', get the JSON output from the specified file
 returnInfo=$(forge script ./forge-scripts/DeployCore.s.sol:DeployCore --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1)
-
+cat $returnInfo
 # Extract the 'WORMHOLE_ADDRESS' value from 'returnInfo'
 WORMHOLE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
@@ -31,10 +31,12 @@ sed -i "s/^WORMHOLE_ADDRESS=.*$/WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS/" .env || ech
 
 # Step 3: Run 'forge script DeployTokenBridge'
 returnInfo=$(forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1)
+cat $returnInfo
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
 # Step 4: Run 'forge script DeployNFTBridge'
 returnInfo=$(forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --json | tail -n 1)
+cat $returnInfo
 NFT_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
 echo "Deployment of Core Bridge, Token Bridge, and NFT Bridge completed successfully."
