@@ -1,4 +1,4 @@
-use crate::{error::TokenBridgeError, state::RegisteredEmitter};
+use crate::state::RegisteredEmitter;
 use anchor_lang::prelude::*;
 use core_bridge_program::legacy::utils::LegacyAnchorized;
 
@@ -8,7 +8,7 @@ pub struct SecureRegisteredEmitter<'info> {
     payer: Signer<'info>,
 
     #[account(
-        init_if_needed,
+        init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [legacy_registered_emitter.chain.to_be_bytes().as_ref()],
@@ -35,13 +35,6 @@ pub struct SecureRegisteredEmitter<'info> {
 }
 
 pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
-    let registered = &mut ctx.accounts.registered_emitter;
-    require_eq!(
-        registered.chain,
-        0,
-        TokenBridgeError::EmitterAlreadyRegistered
-    );
-
     let emitter = &ctx.accounts.legacy_registered_emitter;
 
     // Copy registered emitter account.

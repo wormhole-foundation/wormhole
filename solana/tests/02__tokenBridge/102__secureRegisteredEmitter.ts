@@ -66,7 +66,7 @@ describe("Token Bridge -- Instruction: Secure Registered Emitter", () => {
         payer: payer.publicKey,
         legacyRegisteredEmitter: legacyRegistered,
       });
-      await expectIxErr(connection, [ix], [payer], "EmitterAlreadyRegistered");
+      await expectIxErr(connection, [ix], [payer], "already in use");
     });
   });
 });
