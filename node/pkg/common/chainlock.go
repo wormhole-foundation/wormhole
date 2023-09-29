@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,6 +14,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 )
+
+const HashLength = 32
+const AddressLength = 32
 
 type MessagePublication struct {
 	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
@@ -24,6 +28,7 @@ type MessagePublication struct {
 	EmitterChain     vaa.ChainID
 	EmitterAddress   vaa.Address
 	Payload          []byte
+	IsReobservation  bool
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
@@ -38,7 +43,7 @@ func (msg *MessagePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
 }
 
-const minMsgLength = 88
+const minMsgLength = 88 // Marshalled length with empty payload
 
 func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
@@ -50,15 +55,19 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
 	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
 	buf.Write(msg.EmitterAddress[:])
+	vaa.MustWrite(buf, binary.BigEndian, msg.IsReobservation)
 	buf.Write(msg.Payload)
 
 	return buf.Bytes(), nil
 }
 
-// Unmarshal deserializes the binary representation of a VAA
-func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
-	if len(data) < minMsgLength {
-		return nil, fmt.Errorf("message is too short")
+const oldMinMsgLength = 83 // Old marshalled length with empty payload
+
+// UnmarshalOldMessagePublicationBeforeIsReobservation deserializes a MessagePublication from prior to the addition of IsReobservation.
+// This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
+func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessagePublication, error) {
+	if len(data) < oldMinMsgLength {
+		return nil, errors.New("message is too short")
 	}
 
 	msg := &MessagePublication{}
@@ -66,7 +75,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	reader := bytes.NewReader(data[:])
 
 	txHash := common.Hash{}
-	if n, err := reader.Read(txHash[:]); err != nil || n != 32 {
+	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
 		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
 	}
 	msg.TxHash = txHash
@@ -94,10 +103,68 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	}
 
 	emitterAddress := vaa.Address{}
-	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != AddressLength {
 		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
 	}
 	msg.EmitterAddress = emitterAddress
+
+	payload := make([]byte, reader.Len())
+	n, err := reader.Read(payload)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
+	}
+	msg.Payload = payload[:n]
+
+	return msg, nil
+}
+
+// UnmarshalMessagePublication deserializes a MessagePublication
+func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
+	if len(data) < minMsgLength {
+		return nil, fmt.Errorf("message is too short")
+	}
+
+	msg := &MessagePublication{}
+
+	reader := bytes.NewReader(data[:])
+
+	txHash := common.Hash{}
+	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
+		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
+	}
+	msg.TxHash = txHash
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read timestamp: %w", err)
+	}
+	msg.Timestamp = time.Unix(int64(unixSeconds), 0)
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.Sequence); err != nil {
+		return nil, fmt.Errorf("failed to read sequence: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.ConsistencyLevel); err != nil {
+		return nil, fmt.Errorf("failed to read consistency level: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
+
+	emitterAddress := vaa.Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != AddressLength {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	msg.EmitterAddress = emitterAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.IsReobservation); err != nil {
+		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
+	}
 
 	payload := make([]byte, reader.Len())
 	n, err := reader.Read(payload)

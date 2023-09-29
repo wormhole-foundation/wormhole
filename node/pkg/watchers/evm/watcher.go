@@ -423,6 +423,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				for _, msg := range msgs {
+					msg.IsReobservation = true
 					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
 							zap.Stringer("tx", msg.TxHash),

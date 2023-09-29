@@ -47,7 +47,6 @@ const (
 	transferEnqueued = false
 )
 
-// WARNING: Change me in ./node/db as well
 const maxEnqueuedTime = time.Hour * 24
 
 type (
