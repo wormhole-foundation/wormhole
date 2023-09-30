@@ -23,9 +23,9 @@ contract DeployNFTBridge is Script {
     }
 
     function _deploy() internal returns (address deployedAddress) {
-        NFTBridgeImplementation nftBridgeImpl = new NFTBridgeImplementation();
         NFTImplementation nftImpl = new NFTImplementation();
         NFTBridgeSetup nftBridgeSetup = new NFTBridgeSetup();
+        NFTBridgeImplementation nftBridgeImpl = new NFTBridgeImplementation();
 
         uint16 chainId = uint16(vm.envUint("BRIDGE_INIT_CHAIN_ID"));
         uint16 governanceChainId = uint16(vm.envUint("BRIDGE_INIT_GOV_CHAIN_ID"));
