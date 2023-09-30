@@ -23,9 +23,9 @@ contract DeployTokenBridge is Script {
     }
 
     function _deploy() internal returns (address deployedAddress) {
-        BridgeImplementation bridgeImpl = new BridgeImplementation();
         TokenImplementation tokenImpl = new TokenImplementation();
         BridgeSetup bridgeSetup = new BridgeSetup();
+        BridgeImplementation bridgeImpl = new BridgeImplementation();
 
         uint16 chainId = uint16(vm.envUint("BRIDGE_INIT_CHAIN_ID"));
         uint16 governanceChainId = uint16(vm.envUint("BRIDGE_INIT_GOV_CHAIN_ID"));
