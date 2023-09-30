@@ -43,7 +43,7 @@ func TestCrossChainQuery(t *testing.T) {
 	}
 
 	p2pNetworkID := "/wormhole/dev"
-	var p2pPort uint = 8997
+	var p2pPort uint = 8996
 	p2pBootstrap := "/dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw,/dns4/guardian-1.guardian/udp/8996/quic/p2p/12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu"
 	nodeKeyPath := "../querier.key"
 
@@ -172,7 +172,7 @@ func TestCrossChainQuery(t *testing.T) {
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 	// Wait for peers
-	for len(th_resp.ListPeers()) < 1 {
+	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
 
