@@ -172,7 +172,7 @@ func TestCrossChainQuery(t *testing.T) {
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 	// Wait for peers
-	for len(th_req.ListPeers()) < 1 {
+	for len(th_resp.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
 
