@@ -190,6 +190,7 @@ func (ccq *ccqP2p) run(
 		return ccq.publisher(ctx, gk, queryResponseReadC)
 	})
 
+	ccq.logger.Info("Node has been started", zap.String("peer_id", ccq.h.ID().String()), zap.String("addrs", fmt.Sprintf("%v", ccq.h.Addrs())))
 	return nil
 }
 

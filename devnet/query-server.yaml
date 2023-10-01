@@ -34,7 +34,7 @@ spec:
             - /guardiand
             - query-server
             - --nodeKey
-            - node/hack/query/querier.key
+            - node/cmd/ccq/ccq.p2p.key
             - --signerKey
             - node/cmd/ccq/ccq.signing.key
             - --listenAddr

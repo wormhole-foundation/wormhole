@@ -64,6 +64,7 @@ func TestCrossChainQuery(t *testing.T) {
 	if err != nil {
 		logger.Fatal("Failed to fetch current guardian set", zap.Error(err))
 	}
+	logger.Info("Fetched guardian set", zap.Any("keys", sgs.Keys))
 	gs := common.GuardianSet{
 		Keys:  sgs.Keys,
 		Index: idx,
@@ -175,6 +176,8 @@ func TestCrossChainQuery(t *testing.T) {
 	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
+
+	logger.Info("Detected peers")
 
 	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
 	if err != nil {
