@@ -172,12 +172,12 @@ func TestCrossChainQuery(t *testing.T) {
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
-	// Wait for peers
-	for len(th_req.ListPeers()) < 1 {
-		time.Sleep(time.Millisecond * 100)
-	}
+	// // Wait for peers
+	// for len(th_req.ListPeers()) < 1 {
+	// 	time.Sleep(time.Millisecond * 100)
+	// }
 
-	logger.Info("Detected peers")
+	// logger.Info("Detected peers")
 
 	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
 	if err != nil {
