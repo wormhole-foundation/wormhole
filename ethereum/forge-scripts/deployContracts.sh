@@ -24,7 +24,7 @@ NETWORK="$2"
 PRIVATE_KEY="$3"
 
 
-# Step 0: Deploy 4 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
+# Step 0: Deploy 2 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
 # (the addresses depend on the number of contracts that have been previously deployed, and the wallet address, I believe!)
 forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig "run(uint256)" 2 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
 
@@ -51,11 +51,20 @@ else
   echo "Added WORMHOLE_ADDRESS=$WORMHOLE_ADDRESS to .env"
 fi
 
+# Step 0: Deploy 1 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
+# (the addresses depend on the number of contracts that have been previously deployed, and the wallet address, I believe!)
+forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig "run(uint256)" 1 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
+
 
 # Step 3: Run 'forge script DeployTokenBridge'
 forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast 
 returnInfo=$(cat ./broadcast/DeployTokenBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
+
+# Step 0: Deploy 1 dummy contracts to match devnet addresses in Anvil to what they originally were in Ganache 
+# (the addresses depend on the number of contracts that have been previously deployed, and the wallet address, I believe!)
+forge script ./forge-scripts/DeployDummyContract.s.sol:DeployDummyContract --sig "run(uint256)" 1 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
+
 
 # Step 4: Run 'forge script DeployNFTBridge'
 forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
