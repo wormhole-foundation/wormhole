@@ -34,7 +34,7 @@ pub struct CompleteTransferNative<'info> {
     /// allows registering multiple emitter addresses for the same chain ID. These seeds are not
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
-    /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
+    /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
     registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
@@ -139,9 +139,13 @@ impl<'info> CompleteTransferNative<'info> {
 
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)?;
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
 
-        let (token_chain, token_address) = super::validate_posted_token_transfer(
+        let (token_chain, token_address) = super::validate_token_transfer_vaa(
             &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,

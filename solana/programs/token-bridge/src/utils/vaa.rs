@@ -15,7 +15,7 @@ const INVALID_POSTED_VAA_KEYS: [&str; 7] = [
 ];
 
 /// We disallow certain posted VAA accounts from being used to redeem Token Bridge transfers.
-pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
+pub fn require_valid_vaa_key(acc_key: &Pubkey) -> Result<()> {
     // IYKYK.
     require!(
         !INVALID_POSTED_VAA_KEYS.contains(&acc_key.to_string().as_str()),
@@ -30,12 +30,12 @@ pub fn require_valid_posted_vaa_key(acc_key: &Pubkey) -> Result<()> {
 /// - Transfer (Payload ID == 1)
 /// - Attestation (Payload ID == 2)
 /// - Transfer with Message (Payload ID == 3)
-pub fn require_valid_posted_token_bridge_vaa<'ctx>(
+pub fn require_valid_token_bridge_vaa<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
     vaa: &'ctx core_bridge_sdk::VaaAccount<'ctx>,
     registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
-    require_valid_posted_vaa_key(vaa_acc_key)?;
+    require_valid_vaa_key(vaa_acc_key)?;
 
     let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
     let emitter_key = registered_emitter.key();

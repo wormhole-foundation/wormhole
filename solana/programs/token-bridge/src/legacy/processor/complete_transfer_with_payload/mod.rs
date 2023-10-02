@@ -12,7 +12,7 @@ use core_bridge_program::{
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
-pub fn validate_posted_token_transfer_with_payload(
+pub fn validate_token_transfer_with_payload_vaa(
     vaa_acc_info: &AccountInfo,
     registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
     redeemer_authority: &Signer,
@@ -20,8 +20,7 @@ pub fn validate_posted_token_transfer_with_payload(
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
     let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg =
-        crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
+    let msg = crate::utils::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = if let TokenBridgeMessage::TransferWithMessage(inner) = msg {
         inner
@@ -38,10 +37,8 @@ pub fn validate_posted_token_transfer_with_payload(
 
     // The encoded transfer recipient can either be the signer of this instruction or a
     // program whose signer is a PDA using the seeds [b"redeemer"] (and the encoded redeemer
-    // is the program ID). If the latter, the transfer redeemer can be any PDA that signs
+    // is the program ID). If the former, the transfer redeemer can be any PDA that signs
     // for this instruction.
-    //
-    // NOTE: Requiring that the transfer redeemer be a signer is a patch.
     let redeemer = Pubkey::from(transfer.redeemer());
     let redeemer_authority = redeemer_authority.key();
     if redeemer != redeemer_authority {

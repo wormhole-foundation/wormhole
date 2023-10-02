@@ -12,7 +12,7 @@ use core_bridge_program::{
 };
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
-pub fn validate_posted_token_transfer(
+pub fn validate_token_transfer_vaa(
     vaa_acc_info: &AccountInfo,
     registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
     recipient_token: &AccountInfo,
@@ -20,8 +20,7 @@ pub fn validate_posted_token_transfer(
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
     let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg =
-        crate::utils::require_valid_posted_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
+    let msg = crate::utils::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = if let TokenBridgeMessage::Transfer(inner) = msg {
         inner

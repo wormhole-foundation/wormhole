@@ -1,5 +1,6 @@
 use crate::{
     constants::{CUSTODY_AUTHORITY_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX},
+    error::TokenBridgeError,
     legacy::instruction::TransferTokensWithPayloadArgs,
     utils::{self, TruncateAmount},
     zero_copy::Mint,
@@ -160,7 +161,13 @@ impl<'info> TransferTokensWithPayloadNative<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
+
+        Ok(())
     }
 }
 

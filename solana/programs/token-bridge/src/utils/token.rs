@@ -1,30 +1,21 @@
 use crate::{
     constants::{MAX_DECIMALS, MINT_AUTHORITY_SEED_PREFIX},
-    error::TokenBridgeError,
     zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk::LoadZeroCopy;
 
-/// With an account meant to be a Token Program mint account, make sure it is not a mint that the
-/// Token Bridge program controls.
-pub fn require_native_mint(acc_info: &AccountInfo) -> Result<()> {
-    // If there is a mint authority, make sure it is not the Token Bridge's mint authority, which
-    // controls burn and mint for its wrapped assets.
-    let mint = Mint::load(acc_info)?;
-    require!(is_native_mint(&mint), TokenBridgeError::WrappedAsset);
-
-    // Done.
-    Ok(())
-}
-
-pub fn is_native_mint(mint: &Mint) -> bool {
+/// Basically check whether the mint authority is the Token Bridge's mint authority.
+///
+/// NOTE: This method does not guarantee that the mint is a mint created by the Token Bridge program
+/// via `create_or_update_wrapped` instruction because someone can transfer mint authority for
+/// another mint to the Token Bridge's mint authority.
+pub fn is_wrapped_mint(mint: &Mint) -> bool {
     if let Some(mint_authority) = mint.mint_authority() {
         let (token_bridge_mint_authority, _) =
             Pubkey::find_program_address(&[MINT_AUTHORITY_SEED_PREFIX], &crate::ID);
-        mint_authority != token_bridge_mint_authority
+        mint_authority == token_bridge_mint_authority
     } else {
-        true
+        false
     }
 }
 

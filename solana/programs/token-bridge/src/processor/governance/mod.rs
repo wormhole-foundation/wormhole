@@ -13,7 +13,7 @@ pub fn require_valid_governance_vaa<'ctx>(
     vaa_key: &'ctx Pubkey,
     vaa: &'ctx core_bridge_sdk::VaaAccount<'ctx>,
 ) -> Result<TokenBridgeDecree<'ctx>> {
-    crate::utils::require_valid_posted_vaa_key(vaa_key)?;
+    crate::utils::require_valid_vaa_key(vaa_key)?;
 
     let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
     require!(

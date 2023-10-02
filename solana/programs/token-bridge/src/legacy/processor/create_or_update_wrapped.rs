@@ -28,7 +28,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// allows registering multiple emitter addresses for the same chain ID. These seeds are not
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
-    /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
+    /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
     registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
@@ -173,7 +173,7 @@ impl<'info> CreateOrUpdateWrapped<'info> {
 
         // NOTE: Other attestation validation is performed using the try_attestation_* methods,
         // which were used in the accounts context.
-        crate::utils::require_valid_posted_token_bridge_vaa(
+        crate::utils::require_valid_token_bridge_vaa(
             &vaa.key(),
             &core_bridge_sdk::VaaAccount::load(vaa).unwrap(),
             &ctx.accounts.registered_emitter,
