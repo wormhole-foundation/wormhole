@@ -140,10 +140,6 @@ const getStatus = async (
       wormholeRelayerAddresses,
     }
   )) as relayer.DeliveryInfo;
-  console.log(JSON.stringify(info.targetChainStatus));
-  console.log(
-    `num of deliveries in this block: ${info.targetChainStatus.events.length}`
-  );
   return info.targetChainStatus.events[index ? index : 0].status;
 };
 
