@@ -178,6 +178,7 @@ export const RPCS_BY_CHAIN: {
     terra: "https://columbus-fcd.terra.dev",
     injective: "https://k8s.mainnet.lcd.injective.network",
     solana: "https://api.mainnet-beta.solana.com",
+    base: "https://mainnet.base.org",
   },
   TESTNET: {
     solana: "https://api.devnet.solana.com",
@@ -206,6 +207,7 @@ export const RPCS_BY_CHAIN: {
     optimism: "https://goerli.optimism.io",
     gnosis: "https://sokol.poa.network/",
     rootstock: "https://public-node.rsk.co",
+    base: "https://goerli.base.org",
   },
   DEVNET: {
     ethereum: "http://localhost:8545",
