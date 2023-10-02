@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gorilla/mux"
@@ -31,6 +32,7 @@ type queryResponse struct {
 type httpServer struct {
 	topic            *pubsub.Topic
 	logger           *zap.Logger
+	env              common.Environment
 	permissions      Permissions
 	signerKey        *ecdsa.PrivateKey
 	pendingResponses *PendingResponses
@@ -83,7 +85,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	if err := validateRequest(s.logger, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
+	if err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
 		s.logger.Debug("invalid request", zap.String("api_key", apiKey[0]), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -154,13 +156,14 @@ func (s *httpServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("health check")
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
 	s := &httpServer{
 		topic:            t,
 		permissions:      permissions,
 		signerKey:        signerKey,
 		pendingResponses: p,
 		logger:           logger,
+		env:              env,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT", "OPTIONS")

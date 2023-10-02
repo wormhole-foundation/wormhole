@@ -33,6 +33,8 @@ spec:
           command:
             - /guardiand
             - query-server
+            - --env
+            - dev
             - --nodeKey
             - node/cmd/ccq/ccq.p2p.key
             - --signerKey
