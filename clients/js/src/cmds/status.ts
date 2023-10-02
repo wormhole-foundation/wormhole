@@ -29,14 +29,6 @@ export const builder = (y: typeof yargs) =>
       describe: "Source transaction hash",
       type: "string",
       demandOption: true,
-    } as const)
-    .positional("block-start", {
-      describe: "Starting Block Range, i.e. -2048",
-      type: "string",
-    } as const)
-    .positional("block-end", {
-      describe: "Ending Block Range, i.e. latest",
-      type: "string",
     } as const);
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
@@ -59,39 +51,16 @@ export const handler = async (
     targetChainProviders.set(
       key as ChainName,
       new ethers.providers.JsonRpcProvider(
-        NETWORKS[network][key as ChainName].rpc
+        NETWORKS[network as Network][key as ChainName].rpc
       )
     );
-  }
-  const targetChainBlockRanges = new Map<
-    ChainName,
-    [ethers.providers.BlockTag, ethers.providers.BlockTag]
-  >();
-  const getBlockTag = (tagString: string): ethers.providers.BlockTag => {
-    if (+tagString) return parseInt(tagString);
-    return tagString;
-  };
-  for (const key in NETWORKS[network]) {
-    targetChainBlockRanges.set(key as ChainName, [
-      getBlockTag(argv["block-start"] || "-2048"),
-      getBlockTag(argv["block-end"] || "latest"),
-    ]);
   }
 
   const info = await relayer.getWormholeRelayerInfo(chain, argv.tx, {
     environment: network,
     sourceChainProvider,
     targetChainProviders,
-    targetChainBlockRanges,
   });
 
   console.log(relayer.stringifyWormholeRelayerInfo(info));
-  if (
-    info.targetChainStatus.events[0].status ===
-    relayer.DeliveryStatus.DeliveryDidntHappenWithinRange
-  ) {
-    console.log(
-      "Try using the '--block-start' and '--block-end' flags to specify a different block range"
-    );
-  }
 };
