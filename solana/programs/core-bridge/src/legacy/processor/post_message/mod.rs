@@ -3,7 +3,10 @@ pub use unreliable::*;
 
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
+    legacy::{
+        instruction::PostMessageArgs,
+        utils::{LegacyAccount, LegacyAnchorized},
+    },
     state::{
         Config, EmitterSequence, MessageStatus, PostedMessageV1, PostedMessageV1Data,
         PostedMessageV1Info,
@@ -140,15 +143,14 @@ pub(super) fn order_post_message_account_infos<'info>(
 /// It handles the message fee check on the fee collector, upticks the emitter sequence number and
 /// returns the posted message data, which will be serialized to either `PostedMessageV1` or
 /// `PostedMessageV1Unreliable` depending on which instruction handler called this method.
-pub(super) fn new_posted_message_data(
+pub(super) fn new_posted_message_info(
     config: &mut Account<LegacyAnchorized<0, Config>>,
     fee_collector: &Option<AccountInfo>,
     emitter_sequence: &mut Account<LegacyAnchorized<0, EmitterSequence>>,
     consistency_level: u8,
     nonce: u32,
     emitter: &Pubkey,
-    payload: Vec<u8>,
-) -> Result<PostedMessageV1Data> {
+) -> Result<PostedMessageV1Info> {
     // Determine whether fee has been paid. Update core bridge config account if so.
     //
     // NOTE: This is inconsistent with other Core Bridge implementations, where we would check that
@@ -159,26 +161,23 @@ pub(super) fn new_posted_message_data(
     let sequence = emitter_sequence.value;
 
     // Finally set the `message` account with posted data.
-    let data = PostedMessageV1Data {
-        info: PostedMessageV1Info {
-            consistency_level,
-            emitter_authority: Default::default(),
-            status: MessageStatus::Unset,
-            _gap_0: Default::default(),
-            posted_timestamp: Clock::get().map(Into::into)?,
-            nonce,
-            sequence,
-            solana_chain_id: Default::default(),
-            emitter: *emitter,
-        },
-        payload,
+    let info = PostedMessageV1Info {
+        consistency_level,
+        emitter_authority: Default::default(),
+        status: MessageStatus::Unset,
+        _gap_0: Default::default(),
+        posted_timestamp: Clock::get().map(Into::into)?,
+        nonce,
+        sequence,
+        solana_chain_id: Default::default(),
+        emitter: *emitter,
     };
 
     // Increment emitter sequence value.
     emitter_sequence.value += 1;
 
     // Done.
-    Ok(data)
+    Ok(info)
 }
 
 /// Processor to post (publish) a Wormhole message by setting up the message account for
@@ -220,25 +219,25 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         )?;
     }
 
-    let data = new_posted_message_data(
+    let info = new_posted_message_info(
         &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
         &ctx.accounts.emitter.as_ref().unwrap().key(),
-        payload,
     )?;
 
     // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
     // able to remove this to save on compute units.
-    msg!("Sequence: {}", data.sequence);
+    msg!("Sequence: {}", info.sequence);
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
+    LegacyAnchorized::from(PostedMessageV1::from(PostedMessageV1Data { info, payload }))
+        .try_serialize(&mut writer)?;
 
     // Done.
     Ok(())
@@ -263,32 +262,25 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let (consistency_level, nonce, emitter, payload) = {
+    let (consistency_level, nonce, emitter) = {
         let msg = crate::zero_copy::PostedMessageV1::load(&ctx.accounts.message).unwrap();
 
-        (
-            msg.consistency_level(),
-            msg.nonce(),
-            msg.emitter(),
-            msg.payload().to_vec(),
-        )
+        (msg.consistency_level(), msg.nonce(), msg.emitter())
     };
 
-    let data = new_posted_message_data(
+    let info = new_posted_message_info(
         &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
         &mut ctx.accounts.emitter_sequence,
         consistency_level,
         nonce,
         &emitter,
-        payload,
     )?;
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
-    // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1 { data }).try_serialize(&mut writer)?;
+    (PostedMessageV1::DISCRIMINATOR, info).serialize(&mut writer)?;
 
     // Done.
     Ok(())

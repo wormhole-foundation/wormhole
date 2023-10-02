@@ -26,6 +26,12 @@ impl PostedMessageV1Unreliable {
     }
 }
 
+impl From<PostedMessageV1Data> for PostedMessageV1Unreliable {
+    fn from(value: PostedMessageV1Data) -> Self {
+        Self { data: value }
+    }
+}
+
 impl Deref for PostedMessageV1Unreliable {
     type Target = PostedMessageV1Data;
 

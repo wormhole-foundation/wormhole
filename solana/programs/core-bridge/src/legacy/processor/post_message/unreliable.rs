@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
-    state::{Config, EmitterSequence, PostedMessageV1Unreliable},
+    state::{Config, EmitterSequence, PostedMessageV1Data, PostedMessageV1Unreliable},
     zero_copy::LoadZeroCopy,
 };
 use anchor_lang::prelude::*;
@@ -119,24 +119,23 @@ fn post_message_unreliable(
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let data = super::new_posted_message_data(
+    let info = super::new_posted_message_info(
         &mut ctx.accounts.config,
         &ctx.accounts.fee_collector,
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
         &ctx.accounts.emitter.key(),
-        payload,
     )?;
 
     // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
     // able to remove this to save on compute units.
-    msg!("Sequence: {}", data.sequence);
+    msg!("Sequence: {}", info.sequence);
 
     // Finally set the `message` account with posted data.
     ctx.accounts
         .message
-        .set_inner(PostedMessageV1Unreliable { data }.into());
+        .set_inner(PostedMessageV1Unreliable::from(PostedMessageV1Data { info, payload }).into());
 
     // Done.
     Ok(())

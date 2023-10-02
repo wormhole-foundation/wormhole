@@ -107,6 +107,12 @@ impl PostedMessageV1 {
     }
 }
 
+impl From<PostedMessageV1Data> for PostedMessageV1 {
+    fn from(value: PostedMessageV1Data) -> Self {
+        Self { data: value }
+    }
+}
+
 impl crate::legacy::utils::LegacyAccount<4> for PostedMessageV1 {
     const DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
 
