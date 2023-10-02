@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/spf13/cobra"
@@ -22,6 +23,7 @@ import (
 const CCQ_SERVER_SIGNING_KEY = "CCQ SERVER SIGNING KEY"
 
 var (
+	envStr            *string
 	p2pNetworkID      *string
 	p2pPort           *uint
 	p2pBootstrap      *string
@@ -37,6 +39,7 @@ var (
 )
 
 func init() {
+	envStr = QueryServerCmd.Flags().String("env", "", "environment (dev, test, prod)")
 	p2pNetworkID = QueryServerCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
 	p2pPort = QueryServerCmd.Flags().Uint("port", 8995, "P2P UDP listener port")
 	p2pBootstrap = QueryServerCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
@@ -90,6 +93,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
 	}
 
+	env, err := common.ParseEnvironment(*envStr)
+	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
+		if *envStr == "" {
+			logger.Fatal("Please specify --env")
+		}
+		logger.Fatal("Invalid value for --env, must be dev, test or prod", zap.String("val", *envStr))
+	}
+
 	// Verify flags
 	if *nodeKeyPath == "" {
 		logger.Fatal("Please specify --nodeKey")
@@ -125,6 +136,8 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("Failed to loader signer key", zap.Error(err))
 		}
+
+		logger.Info("will sign unsigned requests if api key supports it", zap.Stringer("signingKey", ethCrypto.PubkeyToAddress(signerKey.PublicKey)))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -139,7 +152,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger)
+		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger, env)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
