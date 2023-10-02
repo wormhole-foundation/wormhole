@@ -192,7 +192,7 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,
-  }
+  },
 };
 
 const TESTNET = {
@@ -372,7 +372,7 @@ const TESTNET = {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,
-  }
+  },
 };
 
 const DEVNET = {
@@ -529,7 +529,7 @@ const DEVNET = {
   kujira: {
     rpc: undefined,
     key: undefined,
-  }
+  },
 };
 
 /**
