@@ -115,6 +115,6 @@ export const getOriginalAsset = async (
     case "kujira":
       throw new Error(`${chainName} not supported`);
     default:
-      impossible(chainName);
+      throw Error(`Not a valid chain: ${chainName}`);
   }
 };
