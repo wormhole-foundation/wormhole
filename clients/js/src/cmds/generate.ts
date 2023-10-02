@@ -332,7 +332,7 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "kujira") {
     throw Error("kujira is not supported yet");
   } else {
-    impossible(chain);
+    throw Error(`Chain ${chain} is not valid`);
   }
 }
 
