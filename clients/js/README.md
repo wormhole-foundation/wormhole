@@ -255,7 +255,8 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -a, --contract-address  Contract to submit VAA to (override config)   [string]
@@ -310,13 +311,15 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
       --dst-chain   destination chain
            [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
       --amount      token amount                             [string] [required]
@@ -348,7 +351,8 @@ Positionals:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
   tx       Source transaction hash                                      [string]
 
 Options:
