@@ -325,6 +325,12 @@ function parseAddress(chain: ChainName, address: string): string {
     return "0x" + tryNativeToHexString(address, chain);
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
+  } else if (chain === "cosmoshub") {
+    throw Error("cosmoshub is not supported yet");
+  } else if (chain === "evmos") {
+    throw Error("evmos is not supported yet");
+  } else if (chain === "kujira") {
+    throw Error("kujira is not supported yet");
   } else {
     impossible(chain);
   }
