@@ -453,9 +453,7 @@ export async function getRelayerTransactionHashFromWormscan(
       await getWormscanRelayerInfo(sourceChain, sequence, optionalParams)
     ).json()
   ).data;
-  const vaa = Buffer.from(wormscanData.vaa, "base64");
-  const parsedVaa = parseVaa(vaa);
-  return parsedVaa.hash.toString("hex");
+  return "0x" + wormscanData.txHash;
 }
 
 export async function getDeliveryHash(

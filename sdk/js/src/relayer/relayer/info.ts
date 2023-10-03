@@ -129,7 +129,10 @@ export async function getWormholeRelayerInfo(
   const receipt = await sourceChainProvider.getTransactionReceipt(
     sourceTransaction
   );
-  if (!receipt) throw Error("Transaction has not been mined");
+  if (!receipt)
+    throw Error(
+      `Transaction has not been mined: ${sourceTransaction} on ${sourceChain} (${environment})`
+    );
   const sourceTimestamp =
     (await sourceChainProvider.getBlock(receipt.blockNumber)).timestamp * 1000;
   const bridgeAddress = CONTRACTS[environment][sourceChain].core;
@@ -551,7 +554,6 @@ export function stringifyWormholeRelayerInfo(
       instruction.requestedReceiverValue = overrides.newReceiverValue;
       instruction.encodedExecutionInfo = overrides.newExecutionInfo;
     }
-
     const targetChainName =
       CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
     stringifiedInfo += `\n\nDestination chain: ${printChain(
@@ -609,32 +611,68 @@ export function stringifyWormholeRelayerInfo(
     }
     stringifiedInfo += info.targetChainStatus.events
 
-      .map(
-        (e, i) =>
-          `Delivery attempt: ${
-            e.transactionHash
-              ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
-              : ""
-          }\nDelivery Time: ${new Date(
-            e.timestamp as number
-          ).toString()}\nStatus: ${e.status}\n${
-            e.revertString
-              ? `Failure reason: ${
-                  e.gasUsed.eq(executionInfo.gasLimit)
-                    ? "Gas limit hit"
-                    : e.revertString
-                }\n`
-              : ""
-          }Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${ethers.utils.formatEther(
-            executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed)
-          )} of ${targetChainName} currency\n${`Refund amount: ${ethers.utils.formatEther(
-            executionInfo.targetChainRefundPerGasUnused.mul(
-              executionInfo.gasLimit.sub(e.gasUsed)
-            )
-          )} of ${targetChainName} currency \nRefund status: ${
-            e.refundStatus
-          }\n`}`
-      )
+      .map((e, i) => {
+        let override = e.overrides || false;
+        let overriddenExecutionInfo = e.overrides
+          ? parseEVMExecutionInfoV1(e.overrides.newExecutionInfo, 0)[0]
+          : executionInfo;
+        let overriddenReceiverValue = e.overrides
+          ? e.overrides.newReceiverValue
+          : totalReceiverValue;
+        const overriddenGasLimit = override
+          ? overriddenExecutionInfo.gasLimit
+          : executionInfo.gasLimit;
+
+        // Add information about any override applied to the delivery
+        let overrideStringifiedInfo = "";
+        if (override) {
+          overrideStringifiedInfo += !overriddenReceiverValue.eq(
+            totalReceiverValue
+          )
+            ? `Overridden amount to pass into target address: ${ethers.utils.formatEther(
+                overriddenReceiverValue
+              )} of ${targetChainName} currency\n`
+            : ``;
+          overrideStringifiedInfo += !(
+            overriddenGasLimit === executionInfo.gasLimit
+          )
+            ? `Overridden gas limit: ${overriddenExecutionInfo.gasLimit} ${targetChainName} gas\n`
+            : "";
+          if (
+            refundAddressChosen &&
+            executionInfo.targetChainRefundPerGasUnused !==
+              overriddenExecutionInfo.targetChainRefundPerGasUnused
+          ) {
+            overrideStringifiedInfo += `Overridden refund rate: ${ethers.utils.formatEther(
+              overriddenExecutionInfo.targetChainRefundPerGasUnused
+            )} of ${targetChainName} currency per unit of gas unused\n`;
+          }
+        }
+
+        return `Delivery attempt: ${
+          e.transactionHash
+            ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
+            : ""
+        }\nDelivery Time: ${new Date(
+          e.timestamp as number
+        ).toString()}\n${overrideStringifiedInfo}Status: ${e.status}\n${
+          e.revertString
+            ? `Failure reason: ${
+                e.gasUsed.eq(overriddenExecutionInfo.gasLimit)
+                  ? "Gas limit hit"
+                  : e.revertString
+              }\n`
+            : ""
+        }Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${ethers.utils.formatEther(
+          overriddenExecutionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed)
+        )} of ${targetChainName} currency\n${`Refund amount: ${ethers.utils.formatEther(
+          overriddenExecutionInfo.targetChainRefundPerGasUnused.mul(
+            overriddenExecutionInfo.gasLimit.sub(e.gasUsed)
+          )
+        )} of ${targetChainName} currency \nRefund status: ${
+          e.refundStatus
+        }\n`}`;
+      })
       .join("\n");
   } else if (
     info.type == RelayerPayloadId.Delivery &&
