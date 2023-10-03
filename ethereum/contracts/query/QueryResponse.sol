@@ -54,6 +54,7 @@ abstract contract QueryResponse {
     }    
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
+    uint8 public constant QT_ETH_CALL = 1;
 
     /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
@@ -126,7 +127,7 @@ abstract contract QueryResponse {
                 revert RequestTypeMismatch();
             }
             
-            if (r.responses[idx].queryType != 1) {
+            if (r.responses[idx].queryType != QT_ETH_CALL) {
                 revert UnsupportedQueryType();
             }
 
@@ -145,7 +146,7 @@ abstract contract QueryResponse {
 
     /// @dev parseEthCallQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallQueryResponse memory r) {
-        if (pcr.queryType != 1) {
+        if (pcr.queryType != QT_ETH_CALL) {
                 revert UnsupportedQueryType();
         }
 
