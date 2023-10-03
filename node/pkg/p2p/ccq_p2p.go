@@ -17,7 +17,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/zap"
@@ -66,9 +65,8 @@ func newCcqRunP2p(
 
 func (ccq *ccqP2p) run(
 	ctx context.Context,
-	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
-	h *host.Host,
+	h host.Host,
 	networkID string,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
@@ -83,7 +81,7 @@ func (ccq *ccqP2p) run(
 	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
 	ccq.logger.Info("Creating pubsub topics", zap.String("request_topic", topic_req), zap.String("response_topic", topic_resp))
-	ps, err := pubsub.NewGossipSub(ctx, *h,
+	ps, err := pubsub.NewGossipSub(ctx, h,
 		// We only want to accept subscribes from peers in the allow list.
 		pubsub.WithPeerFilter(func(peerID peer.ID, topic string) bool {
 			if len(ccq.allowedPeers) == 0 {
@@ -140,7 +138,7 @@ func (ccq *ccqP2p) run(
 		return ccq.publisher(ctx, gk, queryResponseReadC)
 	})
 
-	ccq.logger.Info("Node has been started", zap.String("peer_id", ccq.h.ID().String()), zap.String("addrs", fmt.Sprintf("%v", ccq.h.Addrs())))
+	ccq.logger.Info("Node has been started", zap.String("peer_id", h.ID().String()), zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 	return nil
 }
 

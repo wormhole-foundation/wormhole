@@ -330,7 +330,7 @@ func Run(
 		if ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
-			if err := ccq.run(ctx, priv, gk, &h, networkID, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, gk, h, networkID, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
