@@ -54,7 +54,7 @@ echo "Token Bridge address: $TOKEN_BRIDGE_ADDRESS"
 
 returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/NFTBridge/latest.json)
 NFT_BRIDGE_ADDRESS=$(jq -r '.NFT_BRIDGE_ADDRESS' <<< "$returnInfo")
-echo "NFT Bridge address: $TOKEN_BRIDGE_ADDRESS"
+echo "NFT Bridge address: $NFT_BRIDGE_ADDRESS"
 
 # Registration of chains
 token_bridge_registration_vaas_arr=()
