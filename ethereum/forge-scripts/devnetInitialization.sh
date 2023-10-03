@@ -23,18 +23,38 @@ else
 fi
 
 PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
+NETWORK='devnet'
 
-PRIVATE_KEY=$PRIVATE_KEY RPC_URL=$RPC_URL NETWORK=$NETWORK npm run deploy-contracts 
+npm run build:forge
+
+NUM_RUNS=2 source ./forge-scripts/deployDummyContract.sh
+
+source ./forge-scripts/deployCoreBridge.sh
+
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/CoreBridge/latest.json)
+WORMHOLE_ADDRESS=$(jq -r '.WORMHOLE_ADDRESS' <<< "$returnInfo")
+
+NUM_RUNS=1 source ./forge-scripts/deployDummyContract.sh
+
+source ./forge-scripts/deployTokenBridge.sh
+
+NUM_RUNS=1 source ./forge-scripts/deployDummyContract.sh
+
+source ./forge-scripts/deployNFTBridge.sh
+
+NUM_RUNS=17 source ./forge-scripts/deployDummyContract.sh
 
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 
 # Get Token Bridge and NFT Bridge addresses
 
-returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/latest.json)
-echo 'this is the return info from the previous deployment'
-echo $returnInfo 
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/TokenBridge/latest.json)
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.TOKEN_BRIDGE_ADDRESS' <<< "$returnInfo")
+echo "Token Bridge address: $TOKEN_BRIDGE_ADDRESS"
+
+returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/NFTBridge/latest.json)
 NFT_BRIDGE_ADDRESS=$(jq -r '.NFT_BRIDGE_ADDRESS' <<< "$returnInfo")
+echo "NFT Bridge address: $TOKEN_BRIDGE_ADDRESS"
 
 # Registration of chains
 token_bridge_registration_vaas_arr=()
@@ -49,17 +69,17 @@ while IFS= read -r line; do
   fi
 done < ".env"
 
-token_bridge_registration_vaas="[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]";
-nft_bridge_registration_vaas="[$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]";
+TOKEN_BRIDGE_REGISTRATION_VAAS="[$(IFS=','; echo "${token_bridge_registration_vaas_arr[*]}")]";
+NFT_BRIDGE_REGISTRATION_VAAS="[$(IFS=','; echo "${nft_bridge_registration_vaas_arr[*]}")]";
 
 echo 'token bridge address';
 echo $TOKEN_BRIDGE_ADDRESS;
 echo 'token bridge registrations';
-echo $token_bridge_registration_vaas;
+echo $TOKEN_BRIDGE_REGISTRATION_VAAS;
 
-forge script ./forge-scripts/RegisterChainsTokenBridge.s.sol:RegisterChainsTokenBridge --sig "run(address,bytes[])" $TOKEN_BRIDGE_ADDRESS $token_bridge_registration_vaas --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+source "./forge-scripts/registerChainsTokenBridge.sh"
 echo 'Registration of token bridges done';
-forge script ./forge-scripts/RegisterChainsNFTBridge.s.sol:RegisterChainsNFTBridge --sig "run(address,bytes[])" $NFT_BRIDGE_ADDRESS $nft_bridge_registration_vaas --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+source "./forge-scripts/registerChainsNFTBridge.sh"
 echo 'Registration of NFT bridges done';
 
 npm run deploy-relayers-evm1
