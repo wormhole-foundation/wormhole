@@ -11,8 +11,13 @@ prompt_for_variable "INIT_CHAIN_ID" "Please provide the Wormhole Chain ID (e.g. 
 prompt_for_variable "NETWORK" "Please provide the network (e.g. 'mainnet', 'testnet', 'devnet', 'ci')"
 prompt_for_variable "WORMHOLE_ADDRESS" "Please provide the address of the core bridge on this chain"
 
+prompt_for_variable "INIT_GOV_CHAIN_ID" 'Please provide the initial governance chain id' 1
+prompt_for_variable "INIT_GOV_CONTRACT" 'Please provide the initial governance contract address' 0x0000000000000000000000000000000000000000000000000000000000000004
+prompt_for_variable "BRIDGE_INIT_WETH" 'Please provide the WETH address'
+prompt_for_variable "BRIDGE_INIT_FINALITY" 'Please provide the initial finality value' 1
+
 # Step 1: Run 'forge script DeployTokenBridge', get the JSON output from the specified file
-forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast 
+forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --sig "run(uint16,uint16,bytes32,address,uint8,uint256,address)" $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $BRIDGE_INIT_WETH $BRIDGE_INIT_FINALITY $INIT_EVM_CHAIN_ID $WORMHOLE_ADDRESS --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast 
 returnInfo=$(cat ./broadcast/DeployTokenBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")

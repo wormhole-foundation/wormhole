@@ -8,13 +8,30 @@ import "forge-std/Script.sol";
 contract DeployCore is Script {
     // DryRun - Deploy the system
     // dry run: forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "dryRun()" --rpc-url $RPC
-    function dryRun() public {
-        _deploy();
+    function dryRun(
+        address[] memory initialSigners,
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        uint256 evmChainId
+    ) public {
+        _deploy(
+            initialSigners,
+            chainId,
+            governanceChainId,
+            governanceContract,
+            evmChainId
+        );
     }
 
     // Deploy the system
-    // deploy:  forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
-    function run()
+    function run(
+        address[] memory initialSigners,
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        uint256 evmChainId
+    )
         public
         returns (
             address deployedAddress,
@@ -23,11 +40,23 @@ contract DeployCore is Script {
         )
     {
         vm.startBroadcast();
-        (deployedAddress, setupAddress, implAddress) = _deploy();
+        (deployedAddress, setupAddress, implAddress) = _deploy(
+            initialSigners,
+            chainId,
+            governanceChainId,
+            governanceContract,
+            evmChainId
+        );
         vm.stopBroadcast();
     }
 
-    function _deploy()
+    function _deploy(
+        address[] memory initialSigners,
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        uint256 evmChainId
+    )
         internal
         returns (
             address deployedAddress,
@@ -37,17 +66,6 @@ contract DeployCore is Script {
     {
         Implementation impl = new Implementation();
         Setup setup = new Setup();
-
-        address[] memory initialSigners = vm.envAddress(
-            "INIT_SIGNERS_CSV",
-            ","
-        );
-        uint16 chainId = uint16(vm.envUint("INIT_CHAIN_ID"));
-        uint16 governanceChainId = uint16(vm.envUint("INIT_GOV_CHAIN_ID"));
-        bytes32 governanceContract = bytes32(
-            vm.envBytes32("INIT_GOV_CONTRACT")
-        );
-        uint256 evmChainId = vm.envUint("INIT_EVM_CHAIN_ID");
 
         Wormhole wormhole = new Wormhole(
             address(setup),
