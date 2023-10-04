@@ -327,8 +327,10 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("evmos is not supported yet");
   } else if (chain === "kujira") {
     throw Error("kujira is not supported yet");
+  } else if (chain === "rootstock") {
+    throw Error("rootstock is not supported yet");
   } else {
-    throw Error(`Chain ${chain} is not valid`);
+    impossible(chain);
   }
 }
 

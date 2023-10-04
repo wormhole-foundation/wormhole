@@ -190,8 +190,12 @@ async function executeSubmit(
     throw Error("Evmos is not supported yet");
   } else if (chain === "kujira") {
     throw Error("kujira is not supported yet");
+  } else if (chain === "rootstock") {
+    throw Error("rootstock is not supported yet");
   } else {
-    throw Error(`Not a valid chain: ${chain}`);
+    // If you get a type error here, hover over `chain`'s type and it tells you
+    // which cases are not handled
+    impossible(chain);
   }
 }
 
