@@ -7,15 +7,35 @@ import {TokenBridge} from "../contracts/bridge/TokenBridge.sol";
 import "forge-std/Script.sol";
 
 contract DeployTokenBridge is Script {
-    // DryRun - Deploy the system
-    // dry run: forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --sig "dryRun()" --rpc-url $RPC
-    function dryRun() public {
-        _deploy();
+    function dryRun(
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        address weth,
+        uint8 finality,
+        uint256 evmChainId,
+        address wormhole
+    ) public {
+        _deploy(
+            chainId,
+            governanceChainId,
+            governanceContract,
+            weth,
+            finality,
+            evmChainId,
+            wormhole
+        );
     }
 
-    // Deploy the system
-    // deploy:  forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge --sig "run()" --rpc-url $RPC --etherscan-api-key $ETHERSCAN_API_KEY --private-key $RAW_PRIVATE_KEY --broadcast --verify
-    function run()
+    function run(
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        address weth,
+        uint8 finality,
+        uint256 evmChainId,
+        address wormhole
+    )
         public
         returns (
             address deployedAddress,
@@ -30,11 +50,27 @@ contract DeployTokenBridge is Script {
             tokenImplementationAddress,
             bridgeSetupAddress,
             bridgeImplementationAddress
-        ) = _deploy();
+        ) = _deploy(
+            chainId,
+            governanceChainId,
+            governanceContract,
+            weth,
+            finality,
+            evmChainId,
+            wormhole
+        );
         vm.stopBroadcast();
     }
 
-    function _deploy()
+    function _deploy(
+        uint16 chainId,
+        uint16 governanceChainId,
+        bytes32 governanceContract,
+        address weth,
+        uint8 finality,
+        uint256 evmChainId,
+        address wormhole
+    )
         internal
         returns (
             address deployedAddress,
@@ -46,19 +82,6 @@ contract DeployTokenBridge is Script {
         TokenImplementation tokenImpl = new TokenImplementation();
         BridgeSetup bridgeSetup = new BridgeSetup();
         BridgeImplementation bridgeImpl = new BridgeImplementation();
-
-        uint16 chainId = uint16(vm.envUint("BRIDGE_INIT_CHAIN_ID"));
-        uint16 governanceChainId = uint16(
-            vm.envUint("BRIDGE_INIT_GOV_CHAIN_ID")
-        );
-        bytes32 governanceContract = bytes32(
-            vm.envBytes32("BRIDGE_INIT_GOV_CONTRACT")
-        );
-        address weth = vm.envAddress("BRIDGE_INIT_WETH");
-        uint8 finality = uint8(vm.envUint("BRIDGE_INIT_FINALITY"));
-        uint256 evmChainId = vm.envUint("INIT_EVM_CHAIN_ID");
-
-        address wormhole = vm.envAddress("WORMHOLE_ADDRESS");
 
         bytes memory setupAbi = abi.encodeCall(
             BridgeSetup.setup,
