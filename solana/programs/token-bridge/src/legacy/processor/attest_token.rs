@@ -1,4 +1,6 @@
-use crate::{legacy::instruction::LegacyAttestTokenArgs, utils::{self, fix_account_order}, zero_copy::Mint};
+use crate::{
+    error::TokenBridgeError, legacy::instruction::LegacyAttestTokenArgs, utils, zero_copy::Mint,
+};
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
 use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
@@ -107,7 +109,7 @@ impl<'info>
     fn order_account_infos<'a>(
         account_infos: &'a [AccountInfo<'info>],
     ) -> Result<Vec<AccountInfo<'info>>> {
-        fix_account_order(account_infos, 14, false, true)
+        utils::fix_account_order(account_infos, 14, false, true)
     }
 }
 
@@ -115,7 +117,13 @@ impl<'info> AttestToken<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
+
+        Ok(())
     }
 }
 

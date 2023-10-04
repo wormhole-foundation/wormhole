@@ -78,7 +78,7 @@ where
 {
     // If whether this mint is wrapped is unspecified, we derive the mint authority, which will cost
     // some compute units.
-    let is_wrapped_asset = !crate::utils::is_native_mint(&Mint::load(&accounts.mint())?);
+    let is_wrapped_asset = crate::utils::is_wrapped_mint(&Mint::load(&accounts.mint())?);
 
     complete_transfer_specified(accounts, is_wrapped_asset, signer_seeds)
 }

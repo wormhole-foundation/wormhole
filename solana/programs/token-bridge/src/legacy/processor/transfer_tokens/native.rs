@@ -153,7 +153,11 @@ impl<'info> TransferTokensNative<'info> {
     fn constraints(ctx: &Context<Self>, args: &TransferTokensArgs) -> Result<()> {
         // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
         // originated from a foreign network.
-        crate::utils::require_native_mint(&ctx.accounts.mint)?;
+        let mint = Mint::load(&ctx.accounts.mint)?;
+        require!(
+            !crate::utils::is_wrapped_mint(&mint),
+            TokenBridgeError::WrappedAsset
+        );
 
         // Cannot configure a fee greater than the total transfer amount.
         require!(

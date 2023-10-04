@@ -37,7 +37,7 @@ pub struct CompleteTransferWrapped<'info> {
     /// allows registering multiple emitter addresses for the same chain ID. These seeds are not
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
-    /// See the `require_valid_token_bridge_posted_vaa` instruction handler for more details.
+    /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
     registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we verify the wrapped mint, we can depend on the
@@ -54,8 +54,9 @@ pub struct CompleteTransferWrapped<'info> {
 
     /// CHECK: Wrapped mint (i.e. minted by Token Bridge program).
     ///
-    /// NOTE: Instead of checking the seeds, we check that the mint authority is the Token Bridge's
-    /// in access control.
+    /// NOTE: Because this mint is guaranteed to have a Wrapped Asset account (since this account's
+    /// pubkey is a part of the Wrapped Asset's PDA address), we do not need to check that this
+    /// mint is one that the Token Bridge program has mint authority for.
     #[account(mut)]
     wrapped_mint: AccountInfo<'info>,
 
@@ -133,13 +134,7 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
 
 impl<'info> CompleteTransferWrapped<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let mint = crate::zero_copy::Mint::load(&ctx.accounts.wrapped_mint)?;
-        require!(
-            mint.mint_authority() == Some(ctx.accounts.mint_authority.key()),
-            ErrorCode::ConstraintMintMintAuthority
-        );
-
-        let (token_chain, token_address) = super::validate_posted_token_transfer(
+        let (token_chain, token_address) = super::validate_token_transfer_vaa(
             &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
