@@ -541,7 +541,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         bytes32 targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        LocalNative,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
