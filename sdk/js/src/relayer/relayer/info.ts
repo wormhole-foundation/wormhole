@@ -51,6 +51,7 @@ export type InfoRequestParams = {
   targetChainProviders?: Map<ChainName, ethers.providers.Provider>;
   wormholeRelayerWhMessageIndex?: number;
   wormholeRelayerAddresses?: Map<ChainName, string>;
+  targetBlockRange?: [ethers.providers.BlockTag, ethers.providers.BlockTag];
 };
 
 export type GetPriceOptParams = {

@@ -597,6 +597,67 @@ describe("Wormhole Relayer Tests", () => {
       ethers.utils.getAddress((await getImplementationAddress()).substring(26))
     ).toBe(ethers.utils.getAddress(newWormholeRelayerImplementationAddress));
   });
+
+  testIfNotDevnet()("Checks the status of a message", async () => {
+    const txHash =
+      "0x967372d27654176b7e2e97c262541d7b98104a4ad020c965ea3cbfc22ff15381";
+    const mySourceChain: ChainName = "base";
+    const environment: Network = "TESTNET";
+
+    const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
+      environment,
+      targetBlockRange: [45474272, 45476272],
+    });
+    console.log(info.stringified);
+  });
+
+  testIfNotDevnet()("Tests custom manual delivery", async () => {
+    const txHash =
+      "0xa167311cd28f5799d0bd1299df7339696c25d4c4c5aa2698d8483f490bf0afa6";
+    const mySourceChain: ChainName = "base";
+    const targetProvider = "https://endpoints.omniatech.io/v1/op/goerli/public";
+    const environment: Network = "TESTNET";
+
+    const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
+      environment,
+    });
+    console.log(info.stringified);
+
+    const priceInfo = await manualDelivery(
+      mySourceChain,
+      txHash,
+      { environment },
+      true
+    );
+
+    const signer = new ethers.Wallet(
+      PRIVATE_KEY,
+      new ethers.providers.JsonRpcProvider(targetProvider) ||
+        getDefaultProvider(environment, priceInfo.targetChain)
+    );
+
+    console.log(
+      `Price: ${ethers.utils.formatEther(priceInfo.quote)} of ${
+        priceInfo.targetChain
+      } currency`
+    );
+    const balance = await signer.getBalance();
+    console.log(
+      `My balance: ${ethers.utils.formatEther(balance)} of ${
+        priceInfo.targetChain
+      } currency`
+    );
+
+    const deliveryRx = await manualDelivery(
+      mySourceChain,
+      txHash,
+      { environment },
+      false,
+      undefined,
+      signer
+    );
+    console.log("Manual delivery tx hash", deliveryRx.txHash);
+  });
 });
 
 function sleep(ms: number): Promise<void> {

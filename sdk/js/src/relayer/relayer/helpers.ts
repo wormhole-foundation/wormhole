@@ -132,7 +132,9 @@ export async function getWormholeRelayerInfoBySourceSequence(
   targetChainProvider: ethers.providers.Provider,
   sourceChain: ChainName | undefined,
   sourceVaaSequence: BigNumber | undefined,
-  blockNumber: ethers.providers.BlockTag,
+  blockRange:
+    | [ethers.providers.BlockTag, ethers.providers.BlockTag]
+    | undefined,
   targetWormholeRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
@@ -141,7 +143,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     targetChainProvider,
     sourceChain,
     sourceVaaSequence,
-    blockNumber,
+    blockRange,
     targetWormholeRelayerAddress
   );
 
@@ -154,7 +156,9 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   targetChainProvider: ethers.providers.Provider,
   sourceChain: ChainName | undefined,
   sourceVaaSequence: BigNumber | undefined,
-  blockNumber: ethers.providers.BlockTag,
+  blockRange:
+    | [ethers.providers.BlockTag, ethers.providers.BlockTag]
+    | undefined,
   targetWormholeRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
   let sourceChainId = undefined;
@@ -178,15 +182,19 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
 
   const deliveryEvents: DeliveryEvent[] = await wormholeRelayer.queryFilter(
     deliveryEventsFilter,
-    blockNumber,
-    blockNumber
+    blockRange ? blockRange[0] : "-2000",
+    blockRange ? blockRange[1] : "latest"
   );
 
-  const timestamp =
-    (await targetChainProvider.getBlock(blockNumber)).timestamp * 1000;
+  const timestamps = await Promise.all(
+    deliveryEvents.map(
+      async (e) =>
+        (await targetChainProvider.getBlock(e.blockNumber)).timestamp * 1000
+    )
+  );
 
   // There is a max limit on RPCs sometimes for how many blocks to query
-  return await transformDeliveryEvents(deliveryEvents, timestamp);
+  return await transformDeliveryEvents(deliveryEvents, timestamps);
 }
 
 export function deliveryStatus(status: number) {
@@ -243,9 +251,9 @@ export function transformDeliveryLog(
 
 async function transformDeliveryEvents(
   events: DeliveryEvent[],
-  timestamp: number
+  timestamps: number[]
 ): Promise<DeliveryTargetInfo[]> {
-  return events.map((x) => transformDeliveryLog(x, timestamp));
+  return events.map((x, i) => transformDeliveryLog(x, timestamps[i]));
 }
 
 export function getWormholeLog(
@@ -349,13 +357,19 @@ export async function getWormholeRelayerInfoByHash(
 
   if (blockNumber.toNumber() === 0) return [];
 
+  const blockRange =
+    infoRequest?.targetBlockRange ||
+    (targetChain === "arbitrum"
+      ? undefined
+      : [blockNumber.toNumber(), blockNumber.toNumber()]);
+
   return await getWormholeRelayerInfoBySourceSequence(
     environment,
     targetChain,
     targetChainProvider,
     sourceChain,
     BigNumber.from(sourceVaaSequence),
-    blockNumber.toNumber(),
+    blockRange,
     targetWormholeRelayerAddress
   );
 }
