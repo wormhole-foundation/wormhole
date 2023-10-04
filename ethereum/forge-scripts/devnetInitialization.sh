@@ -82,6 +82,10 @@ echo 'Registration of token bridges done';
 source "./forge-scripts/registerChainsNFTBridge.sh"
 echo 'Registration of NFT bridges done';
 
-npm run deploy-relayers-evm1
+if [ $CHAIN_ID -eq 4 ]; then
+  npm run deploy-relayers-evm2
+else 
+  npm run deploy-relayers-evm1
+fi
 
 nc -lkn 2000
