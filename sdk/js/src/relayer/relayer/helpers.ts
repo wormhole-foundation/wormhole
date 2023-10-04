@@ -7,8 +7,6 @@ import {
   tryNativeToHexString,
   isChain,
   CONTRACTS,
-  parseVaa,
-  SignedVaa,
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import {
@@ -30,14 +28,13 @@ import {
   parseRefundStatus,
   RedeliveryInstruction,
   parseWormholeRelayerResend,
+  CCTPKey,
 } from "../structs";
 import { InfoRequestParams } from "./info";
 import {
   DeliveryProvider,
   DeliveryProvider__factory,
   Implementation__factory,
-  IWormholeRelayer__factory,
-  IWormholeRelayerDelivery__factory,
 } from "../../ethers-contracts/";
 import { DeliveryEvent } from "../../ethers-contracts/WormholeRelayer";
 import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
@@ -523,4 +520,47 @@ export async function getDeliveryHashFromLog(
     wormholePublishedMessage.args["consistencyLevel"],
     wormholePublishedMessage.args["payload"]
   );
+}
+
+export async function getCCTPMessageLogURL(
+  cctpKey: CCTPKey,
+  sourceChain: ChainName,
+  receipt: ethers.providers.TransactionReceipt,
+  environment: Network
+) {
+  let cctpLog;
+  let messageSentLog;
+  const DepositForBurnTopic =
+    "0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0";
+  const MessageSentTopic =
+    "0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036";
+  try {
+    if (CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
+      const cctpLogFilter = (log: ethers.providers.Log) => {
+        return (
+          log.topics[0] === DepositForBurnTopic &&
+          parseInt(log.topics[1]) === cctpKey.nonce.toNumber()
+        );
+      };
+      cctpLog = receipt.logs.find(cctpLogFilter);
+      const index = receipt.logs.findIndex(cctpLogFilter);
+      const messageSentLogs = receipt.logs.filter((log, i) => {
+        return log.topics[0] === MessageSentTopic && i <= index;
+      });
+      messageSentLog = messageSentLogs[messageSentLogs.length - 1];
+    }
+  } catch (e) {
+    console.log(e);
+  }
+  if (!cctpLog || !messageSentLog) return undefined;
+
+  const message = new ethers.utils.Interface([
+    "event MessageSent(bytes message)",
+  ]).parseLog(messageSentLog).args.message;
+  const msgHash = ethers.utils.keccak256(message);
+  const url =
+    (environment === "TESTNET"
+      ? "https://iris-api-sandbox.circle.com/v1/attestations/"
+      : "https://iris-api.circle.com/v1/attestations/") + msgHash;
+  return { message, cctpLog, url };
 }

@@ -25,9 +25,8 @@ import {
 } from "../../../";
 import { GovernanceEmitter, MockGuardians } from "../../../src/mock";
 import { Implementation__factory } from "../../ethers-contracts";
-import { deliver } from "../relayer";
+import { manualDelivery } from "../relayer";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
-import { getSignedVAAWithRetry } from "../../rpc";
 import { packEVMExecutionInfoV1 } from "../structs";
 
 const network: Network = getNetwork();
@@ -37,6 +36,7 @@ const sourceChain = network == "DEVNET" ? "ethereum" : "celo";
 const targetChain = network == "DEVNET" ? "bsc" : "avalanche";
 
 const testIfDevnet = () => (network == "DEVNET" ? test : test.skip);
+const testIfNotDevnet = () => (network != "DEVNET" ? test : test.skip);
 
 type TestChain = {
   chainId: ChainId;
@@ -231,78 +231,86 @@ describe("Wormhole Relayer Tests", () => {
     expect(parsedMessage.payload).toBe(arbitraryPayload);
   });
 
-  test("Executes a Delivery Success with manual delivery", async () => {
-    const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+  testIfNotDevnet()(
+    "Executes a Delivery Success with manual delivery",
+    async () => {
+      const arbitraryPayload = getArbitraryBytes32();
+      console.log(`Sent message: ${arbitraryPayload}`);
 
-    const deliverySeq = await Implementation__factory.connect(
-      CONTRACTS[network][sourceChain].core || "",
-      source.provider
-    ).nextSequence(source.wormholeRelayerAddress);
+      const deliverySeq = await Implementation__factory.connect(
+        CONTRACTS[network][sourceChain].core || "",
+        source.provider
+      ).nextSequence(source.wormholeRelayerAddress);
 
-    const rx = await testSend(arbitraryPayload, false, true);
+      const rx = await testSend(arbitraryPayload, false, true);
 
-    await waitForRelay();
+      await waitForRelay();
 
-    // confirm that the message was not relayed successfully
-    {
-      const message = await target.mockIntegration.getMessage();
-      expect(message).not.toBe(arbitraryPayload);
-    }
-    const [value, refundPerGasUnused] = await relayer.getPriceAndRefundInfo(
-      sourceChain,
-      targetChain,
-      REASONABLE_GAS_LIMIT,
-      optionalParams
-    );
-
-    const info = (await relayer.getWormholeRelayerInfo(
-      sourceChain,
-      rx.transactionHash,
-      { wormholeRelayerAddresses, ...optionalParams }
-    )) as relayer.DeliveryInfo;
-
-    const rpc = getGuardianRPC(network, ci);
-    const emitterAddress = Buffer.from(
-      tryNativeToUint8Array(source.wormholeRelayerAddress, "ethereum")
-    );
-    const deliveryVaa = await getSignedVAAWithRetry(
-      [rpc],
-      source.chainId,
-      emitterAddress.toString("hex"),
-      deliverySeq.toBigInt().toString(),
-      { transport: NodeHttpTransport() }
-    );
-
-    console.log(`Got delivery VAA: ${deliveryVaa}`);
-    const deliveryRx = await deliver(
-      deliveryVaa.vaaBytes,
-      target.wallet,
-      getGuardianRPC(network, ci),
-      network,
+      // confirm that the message was not relayed successfully
       {
-        newExecutionInfo: Buffer.from(
-          packEVMExecutionInfoV1({
-            gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
-            targetChainRefundPerGasUnused:
-              ethers.BigNumber.from(refundPerGasUnused),
-          }).substring(2),
-          "hex"
-        ),
-        newReceiverValue: ethers.BigNumber.from(0),
-        redeliveryHash: Buffer.from(
-          ethers.utils.keccak256("0x1234").substring(2),
-          "hex"
-        ), // fake a redelivery
+        const message = await target.mockIntegration.getMessage();
+        expect(message).not.toBe(arbitraryPayload);
       }
-    );
-    console.log("Manual delivery tx hash", deliveryRx.transactionHash);
-    console.log("Manual delivery tx status", deliveryRx.status);
+      const [value, refundPerGasUnused] = await relayer.getPriceAndRefundInfo(
+        sourceChain,
+        targetChain,
+        REASONABLE_GAS_LIMIT,
+        optionalParams
+      );
 
-    console.log("Checking if message was relayed");
-    const message = await target.mockIntegration.getMessage();
-    expect(message).toBe(arbitraryPayload);
-  });
+      const priceInfo = await manualDelivery(
+        sourceChain,
+        rx.transactionHash,
+        { wormholeRelayerAddresses, ...optionalParams },
+        true,
+        {
+          newExecutionInfo: Buffer.from(
+            packEVMExecutionInfoV1({
+              gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
+              targetChainRefundPerGasUnused:
+                ethers.BigNumber.from(refundPerGasUnused),
+            }).substring(2),
+            "hex"
+          ),
+          newReceiverValue: ethers.BigNumber.from(0),
+          redeliveryHash: Buffer.from(
+            ethers.utils.keccak256("0x1234").substring(2),
+            "hex"
+          ), // fake a redelivery
+        }
+      );
+
+      console.log(`Price: ${priceInfo.quote} of ${priceInfo.targetChain} wei`);
+
+      const deliveryRx = await manualDelivery(
+        sourceChain,
+        rx.transactionHash,
+        { wormholeRelayerAddresses, ...optionalParams },
+        false,
+        {
+          newExecutionInfo: Buffer.from(
+            packEVMExecutionInfoV1({
+              gasLimit: ethers.BigNumber.from(REASONABLE_GAS_LIMIT),
+              targetChainRefundPerGasUnused:
+                ethers.BigNumber.from(refundPerGasUnused),
+            }).substring(2),
+            "hex"
+          ),
+          newReceiverValue: ethers.BigNumber.from(0),
+          redeliveryHash: Buffer.from(
+            ethers.utils.keccak256("0x1234").substring(2),
+            "hex"
+          ), // fake a redelivery
+        },
+        target.wallet
+      );
+      console.log("Manual delivery tx hash", deliveryRx.txHash);
+
+      console.log("Checking if message was relayed");
+      const message = await target.mockIntegration.getMessage();
+      expect(message).toBe(arbitraryPayload);
+    }
+  );
 
   testIfDevnet()("Test getPrice in Typescript SDK", async () => {
     const price = await relayer.getPrice(

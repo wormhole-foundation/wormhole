@@ -1,6 +1,12 @@
 import { BigNumber, ethers, ContractReceipt } from "ethers";
 import { IWormholeRelayer__factory } from "../../ethers-contracts";
-import { ChainName, toChainName, ChainId, Network } from "../../utils";
+import {
+  ChainName,
+  toChainName,
+  ChainId,
+  Network,
+  CHAIN_ID_TO_NAME,
+} from "../../utils";
 import { SignedVaa, parseVaa } from "../../vaa";
 import { getWormholeRelayerAddress } from "../consts";
 import {
@@ -11,12 +17,17 @@ import {
   parseEVMExecutionInfoV1,
   parseWormholeRelayerPayloadType,
   parseWormholeRelayerSend,
-  VaaKey,
-  KeyType,
   parseVaaKey,
+  MessageKey,
+  parseCCTPKey,
 } from "../structs";
-import { DeliveryTargetInfo } from "./helpers";
-import { getSignedVAAWithRetry } from "../../rpc";
+import {
+  DeliveryTargetInfo,
+  getCCTPMessageLogURL,
+  getDefaultProvider,
+  getWormscanInfo,
+} from "./helpers";
+import { InfoRequestParams, getWormholeRelayerInfo } from "./info";
 
 export type CCTPTransferParsed = {
   amount: bigint; // decimals is 6
@@ -64,25 +75,84 @@ export type DeliveryArguments = {
   deliveryHash: string;
 };
 
+export async function manualDelivery(
+  sourceChain: ChainName,
+  sourceTransaction: string,
+  infoRequest?: InfoRequestParams,
+  getQuoteOnly?: boolean,
+  overrides?: DeliveryOverrideArgs,
+  signer?: ethers.Signer
+): Promise<{ quote: BigNumber; targetChain: ChainName; txHash?: string }> {
+  const info = await getWormholeRelayerInfo(
+    sourceChain,
+    sourceTransaction,
+    infoRequest
+  );
+  const environment = infoRequest?.environment || "MAINNET";
+  const sourceProvider =
+    infoRequest?.sourceChainProvider ||
+    getDefaultProvider(environment, sourceChain);
+  const receipt = await sourceProvider.getTransactionReceipt(sourceTransaction);
+  const wormholeRelayerAddress =
+    infoRequest?.wormholeRelayerAddresses?.get(sourceChain) ||
+    getWormholeRelayerAddress(sourceChain, environment);
+  const response = await (
+    await getWormscanInfo(
+      environment,
+      info.sourceChain,
+      info.sourceDeliverySequenceNumber,
+      wormholeRelayerAddress
+    )
+  ).json();
+  console.log(
+    `wormscan repsonse (inputs: ${environment} ${info.sourceChain} ${info.sourceDeliverySequenceNumber} ${wormholeRelayerAddress}): ${response}`
+  );
+  console.log(JSON.stringify(response));
+  const signedVaa = response.data.vaa;
+  const signedVaaBuffer = Buffer.from(signedVaa, "base64");
+  const result: { quote: BigNumber; targetChain: ChainName; txHash?: string } =
+    {
+      quote: deliveryBudget(info.deliveryInstruction, overrides),
+      targetChain:
+        CHAIN_ID_TO_NAME[info.deliveryInstruction.targetChainId as ChainId],
+      txHash: undefined,
+    };
+  if (getQuoteOnly) {
+    return result;
+  } else {
+    if (!signer) {
+      throw new Error("no signer provided");
+    }
+    const deliveryReceipt = await deliver(
+      signedVaaBuffer,
+      signer,
+      environment,
+      overrides,
+      sourceChain,
+      receipt
+    );
+    result.txHash = deliveryReceipt.transactionHash;
+    return result;
+  }
+}
+
 export async function deliver(
   deliveryVaa: SignedVaa,
   signer: ethers.Signer,
-  wormholeRPCs: string | string[],
   environment: Network = "MAINNET",
-  overrides?: DeliveryOverrideArgs
+  overrides?: DeliveryOverrideArgs,
+  sourceChain?: ChainName,
+  sourceReceipt?: ethers.providers.TransactionReceipt
 ): Promise<ContractReceipt> {
   const { budget, deliveryInstruction, deliveryHash } =
     extractDeliveryArguments(deliveryVaa, overrides);
 
-  const vaaKeys = deliveryInstruction.messageKeys.map((key) => {
-    if (key.keyType !== KeyType.VAA) {
-      throw new Error(
-        "Only VAA keys are supported by manual delivery. Found: " + key.keyType
-      );
-    }
-    return parseVaaKey(key.key);
-  });
-  const additionalVaas = await fetchAdditionalVaas(wormholeRPCs, vaaKeys);
+  const additionalMessages = await fetchAdditionalMessages(
+    deliveryInstruction.messageKeys,
+    environment,
+    sourceChain,
+    sourceReceipt
+  );
 
   const wormholeRelayerAddress = getWormholeRelayerAddress(
     toChainName(deliveryInstruction.targetChainId as ChainId),
@@ -93,14 +163,14 @@ export async function deliver(
     signer
   );
   const gasEstimate = await wormholeRelayer.estimateGas.deliver(
-    additionalVaas,
+    additionalMessages,
     deliveryVaa,
     signer.getAddress(),
     overrides ? packOverrides(overrides) : new Uint8Array(),
     { value: budget }
   );
   const tx = await wormholeRelayer.deliver(
-    additionalVaas,
+    additionalMessages,
     deliveryVaa,
     signer.getAddress(),
     overrides ? packOverrides(overrides) : new Uint8Array(),
@@ -153,20 +223,67 @@ export function extractDeliveryArguments(
   };
 }
 
-export async function fetchAdditionalVaas(
-  wormholeRPCs: string | string[],
-  additionalVaaKeys: VaaKey[]
-): Promise<SignedVaa[]> {
-  const rpcs = typeof wormholeRPCs === "string" ? [wormholeRPCs] : wormholeRPCs;
-  const vaas = await Promise.all(
-    additionalVaaKeys.map(async (vaaKey) =>
-      getSignedVAAWithRetry(
-        rpcs,
-        vaaKey.chainId as ChainId,
-        vaaKey.emitterAddress.toString("hex"),
-        vaaKey.sequence.toBigInt().toString()
-      )
-    )
+export async function fetchAdditionalMessages(
+  additionalMessageKeys: MessageKey[],
+  environment: Network,
+  sourceChain?: ChainName,
+  sourceReceipt?: ethers.providers.TransactionReceipt
+): Promise<(Uint8Array | Buffer)[]> {
+  const messages = await Promise.all(
+    additionalMessageKeys.map(async (messageKey) => {
+      if (messageKey.keyType === 1) {
+        const vaaKey = parseVaaKey(messageKey.key);
+        const signedVaa = (
+          await (
+            await getWormscanInfo(
+              environment,
+              CHAIN_ID_TO_NAME[vaaKey.chainId as ChainId],
+              vaaKey.sequence.toNumber(),
+              "0x" + vaaKey.emitterAddress.toString("hex")
+            )
+          ).json()
+        ).vaa;
+        return Buffer.from(signedVaa, "base64");
+      } else {
+        const cctpKey = parseCCTPKey(messageKey.key);
+        if (!sourceReceipt)
+          throw new Error(
+            "No source receipt provided - needed to obtain CCTP message"
+          );
+        if (!environment)
+          throw new Error(
+            "No environment provided - needed to obtain CCTP message"
+          );
+        if (!sourceChain)
+          throw new Error(
+            "No source chain provided - needed to obtain CCTP message"
+          );
+
+        const response = await getCCTPMessageLogURL(
+          cctpKey,
+          sourceChain,
+          sourceReceipt,
+          environment
+        );
+
+        // Try to get attestation
+        let attestation;
+        try {
+          const attestationResponse = await fetch(response?.url || "");
+          attestation = (await attestationResponse.json()).attestation;
+        } catch (e) {
+          console.log(e);
+        }
+
+        return Buffer.from(
+          new ethers.utils.AbiCoder().encode(
+            ["bytes", "bytes"],
+            [response?.message || [], attestation]
+          ),
+          "hex"
+        );
+      }
+    })
   );
-  return vaas.map((vaa) => vaa.vaaBytes);
+  return messages;
 }
