@@ -35,7 +35,7 @@ async function run() {
   console.log("Start! " + processName);
 
   for (let i = 0; i < operatingChains.length; i++) {
-    await configureChainsDeliveryProvider(chains[i]);
+    await configureChainsDeliveryProvider(operatingChains[i]);
   }
 }
 
