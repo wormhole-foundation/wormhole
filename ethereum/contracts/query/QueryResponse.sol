@@ -3,12 +3,22 @@
 
 pragma solidity ^0.8.0;
 
-import "../libraries/external/BytesLib.sol";
+import {BytesParsing} from "../relayer/libraries/BytesParsing.sol";
 import "../interfaces/IWormhole.sol";
 
 /// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
-    using BytesLib for bytes;
+    using BytesParsing for bytes;
+
+    // Custom errors
+    error InvalidResponseVersion();
+    error VersionMismatch();
+    error NumberOfResponsesMismatch();
+    error ChainIdMismatch();
+    error RequestTypeMismatch();
+    error UnsupportedQueryType();
+    error UnexpectedNumberOfResults();
+    error InvalidPayloadLength(uint256 received, uint256 expected);
        
     /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
     struct ParsedQueryResponse {
@@ -44,6 +54,7 @@ abstract contract QueryResponse {
     }    
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
+    uint8 public constant QT_ETH_CALL = 1;
 
     /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
@@ -61,121 +72,129 @@ abstract contract QueryResponse {
 
         uint index = 0;
         
-        r.version = response.toUint8(index);
-        require(r.version == 1, "invalid response version");
-        index += 1;
+        (r.version, index) = response.asUint8Unchecked(index);
+        if (r.version != 1) {
+            revert InvalidResponseVersion();
+        }
 
-        r.senderChainId = response.toUint16(index);
-        index += 2;
+        (r.senderChainId, index) = response.asUint16Unchecked(index);
 
         if (r.senderChainId == 0) {
-            r.requestId = response.slice(index, 65);
-            index += 65;
+            (r.requestId, index) = response.sliceUnchecked(index, 65);
         } else {
-            r.requestId = response.slice(index, 32);
-            index += 32;
+            (r.requestId, index) = response.sliceUnchecked(index, 32);
         }
         
-        uint32 len = response.toUint32(index); // query_request_len
-        index += 4;
+        uint32 len;
+        (len, index) = response.asUint32Unchecked(index); // query_request_len
         uint reqIdx = index;
 
-        require(response.toUint8(reqIdx) == r.version, "version mismatch between request and response");
-        reqIdx += 1;
+        uint8 version;
+        (version, reqIdx) = response.asUint8Unchecked(reqIdx);
+        if (version != r.version) {
+            revert VersionMismatch();
+        }
 
-        r.nonce = response.toUint32(reqIdx);
-        reqIdx += 4;
+        (r.nonce, reqIdx) = response.asUint32Unchecked(reqIdx);
 
-        uint8 numPerChainQueries = response.toUint8(reqIdx);
-        reqIdx += 1;
+        uint8 numPerChainQueries;
+        (numPerChainQueries, reqIdx) = response.asUint8Unchecked(reqIdx);
 
         // The response starts after the request.
         uint respIdx = index + len;
 
-        require(response.toUint8(respIdx) == numPerChainQueries, "num_per_chain_responses does not match num_per_chain_queries");
-        respIdx += 1;
+        uint8 respNumPerChainQueries;
+        (respNumPerChainQueries, respIdx) = response.asUint8Unchecked(respIdx);
+        if (respNumPerChainQueries != numPerChainQueries) {
+            revert NumberOfResponsesMismatch();
+        }
 
         r.responses = new ParsedPerChainQueryResponse[](numPerChainQueries);
 
         // Walk through the requests and responses in lock step.
-        for (uint idx = 0; idx < numPerChainQueries; idx++) {
-            r.responses[idx].chainId = response.toUint16(reqIdx);
-            require(response.toUint16(respIdx) == r.responses[idx].chainId, "reqChainId does not match respChainId");
-            reqIdx += 2;
-            respIdx += 2;
+        for (uint idx = 0; idx < numPerChainQueries;) {
+            (r.responses[idx].chainId, reqIdx) = response.asUint16Unchecked(reqIdx);
+            uint16 respChainId;
+            (respChainId, respIdx) = response.asUint16Unchecked(respIdx);
+            if (respChainId != r.responses[idx].chainId) {
+                revert ChainIdMismatch();
+            }
 
-            r.responses[idx].queryType = response.toUint8(reqIdx);
-            require(response.toUint8(respIdx) == r.responses[idx].queryType, "reqQueryType does not match respQueryType");
-            reqIdx += 1;
-            respIdx += 1;
+            (r.responses[idx].queryType, reqIdx) = response.asUint8Unchecked(reqIdx);
+            uint8 respQueryType;
+            (respQueryType, respIdx) = response.asUint8Unchecked(respIdx);
+            if (respQueryType != r.responses[idx].queryType) {
+                revert RequestTypeMismatch();
+            }
             
-            require(r.responses[idx].queryType == 1, "EthCall is the only supported query type");
+            if (r.responses[idx].queryType != QT_ETH_CALL) {
+                revert UnsupportedQueryType();
+            }
 
-            len = response.toUint32(reqIdx);
-            reqIdx += 4;
-            r.responses[idx].request = response.slice(reqIdx, len);
-            reqIdx += len;
+            (len, reqIdx) = response.asUint32Unchecked(reqIdx);
+            (r.responses[idx].request, reqIdx) = response.sliceUnchecked(reqIdx, len);
 
-            len = response.toUint32(respIdx);
-            respIdx += 4;
-            r.responses[idx].response = response.slice(respIdx, len);
-            respIdx += len;
+            (len, respIdx) = response.asUint32Unchecked(respIdx);
+            (r.responses[idx].response, respIdx) = response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
         }
 
+        checkLength(response, respIdx);
         return r;
     }
 
     /// @dev parseEthCallQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallQueryResponse memory r) {
-        require(pcr.queryType == 1, "query type must be EthCall");
+        if (pcr.queryType != QT_ETH_CALL) {
+                revert UnsupportedQueryType();
+        }
 
         uint reqIdx = 0;
         uint respIdx = 0;
 
-        uint32 len = pcr.request.toUint32(reqIdx); // block_id_len
-        reqIdx += 4;
+        uint32 len;
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // block_id_len
 
-        r.requestBlockId = pcr.request.slice(reqIdx, len);
-        reqIdx += len;
+        (r.requestBlockId, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
 
-        uint8 numBatchCallData = pcr.request.toUint8(reqIdx);
-        reqIdx += 1;
+        uint8 numBatchCallData;
+        (numBatchCallData, reqIdx) = pcr.request.asUint8Unchecked(reqIdx);
 
-        r.blockNum = pcr.response.toUint64(respIdx);
-        respIdx += 8;
+        (r.blockNum, respIdx) = pcr.response.asUint64Unchecked(respIdx);
 
-        r.blockHash = pcr.response.toBytes32(respIdx);
-        respIdx += 32;
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx);
 
-        r.blockTime = pcr.response.toUint64(respIdx);
-        respIdx += 8;
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx);
 
-        require(pcr.response.toUint8(respIdx) == numBatchCallData, "num results doesn't match num call datas");
-        respIdx += 1;
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx);
+        if (respNumResults != numBatchCallData) {
+                revert UnexpectedNumberOfResults();
+        }
 
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
-        for (uint idx = 0; idx < numBatchCallData; idx++) {
-            r.result[idx].contractAddress = pcr.request.toAddress(reqIdx);
-            reqIdx += 20;
+        for (uint idx = 0; idx < numBatchCallData;) {
+            (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
 
-            len = pcr.request.toUint32(reqIdx); // call_data_len
-            reqIdx += 4;
-            r.result[idx].callData = pcr.request.slice(reqIdx, len);
-            reqIdx += len;
+            (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
+            (r.result[idx].callData, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
 
-            len = pcr.response.toUint32(respIdx); // result_len
-            respIdx += 4;
-            r.result[idx].result = pcr.response.slice(respIdx, len);
-            respIdx += len;
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
         }
 
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
         return r;
     }
 
     /**
-     * @dev verifyQueryResponseSignatures serves to 
+     * @dev verifyQueryResponseSignatures verifies the signatures on a query response. It calls into the Wormhole contract.
      * IWormhole.Signature expects the last byte to be bumped by 27 
      * see https://github.com/wormhole-foundation/wormhole/blob/637b1ee657de7de05f783cbb2078dd7d8bfda4d0/ethereum/contracts/Messages.sol#L174
      */
@@ -215,6 +234,13 @@ abstract contract QueryResponse {
         }
 
         /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
+    }
+
+    /// @dev checkLength verifies that the message was fully consumed.
+    function checkLength(bytes memory encoded, uint256 expected) private pure {
+        if (encoded.length != expected) {
+            revert InvalidPayloadLength(encoded.length, expected);
+        }
     }
 }
 
