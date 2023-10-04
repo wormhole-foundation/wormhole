@@ -13,13 +13,13 @@ contract Messages is Getters {
     using BytesParsing for bytes;
 
     function parseAndVerifyVMOptimized(
-        bytes calldata encodedVM, 
-        bytes calldata guardianSet, 
+        bytes calldata encodedVM,
+        bytes calldata guardianSet,
         uint32 guardianSetIndex
     ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
-        // Verify that the specified guardian set is a valid. 
+        // Verify that the specified guardian set is a valid.
         require(
-            getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet), 
+            getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet),
             "invalid guardian set"
         );
 
@@ -28,13 +28,13 @@ contract Messages is Getters {
         // Verify that the VM is signed with the same guardian set that was specified.
         require(vm.guardianSetIndex == guardianSetIndex, "mismatched guardian set index");
 
-        (valid, reason) = verifyVMInternal(vm, parseGuardianSetOptimized(guardianSet), false);
+        (valid, reason) = verifyVMInternal(vm, parseGuardianSet(guardianSet), false);
     }
 
-    function parseGuardianSetOptimized(bytes calldata guardianSetData) public pure returns (Structs.GuardianSet memory guardianSet) {
+    function parseGuardianSet(bytes calldata guardianSetData) public pure returns (Structs.GuardianSet memory guardianSet) {
         // Fetch the guardian set length.
-        uint256 endGuardianKeyIndex = guardianSetData.length - 4; 
-        uint256 guardianCount = endGuardianKeyIndex / 20; 
+        uint256 endGuardianKeyIndex = guardianSetData.length - 4;
+        uint256 guardianCount = endGuardianKeyIndex / 20;
 
         guardianSet = Structs.GuardianSet({
             keys : new address[](guardianCount),
@@ -45,11 +45,11 @@ contract Messages is Getters {
         uint256 offset = 0;
         for(uint256 i = 0; i < guardianCount;) {
             (guardianSet.keys[i], offset) = guardianSetData.asAddressUnchecked(offset);
-            unchecked { 
-                ++i; 
-            } 
-        } 
-    } 
+            unchecked {
+                ++i;
+            }
+        }
+    }
 
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
@@ -67,7 +67,7 @@ contract Messages is Getters {
     *  - it aims to verify the hash field provided against the contents of the vm
     */
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
-        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), true);    
+        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), true);
     }
 
     /**
@@ -179,7 +179,7 @@ contract Messages is Getters {
 
         /// If we are here, we've validated that the provided signatures are valid for the provided guardianSet
         return (true, "");
-    } 
+    }
 
     /**
      * @dev parseVM serves to parse an encodedVM into a vm struct
@@ -188,18 +188,18 @@ contract Messages is Getters {
     function parseVM(bytes memory encodedVM) public view virtual returns (Structs.VM memory vm) {
         uint256 offset = 0;
 
-        // SECURITY: Note that currently the VM.version is not part of the hash 
-        // and for reasons described below it cannot be made part of the hash. 
-        // This means that this field's integrity is not protected and cannot be trusted. 
-        // This is not a problem today since there is only one accepted version, but it 
-        // could be a problem if we wanted to allow other versions in the future. 
+        // SECURITY: Note that currently the VM.version is not part of the hash
+        // and for reasons described below it cannot be made part of the hash.
+        // This means that this field's integrity is not protected and cannot be trusted.
+        // This is not a problem today since there is only one accepted version, but it
+        // could be a problem if we wanted to allow other versions in the future.
         (vm.version, offset) = encodedVM.asUint8Unchecked(offset);
         require(vm.version == 1, "invalid payload id");
 
-        // Guardian set index. 
+        // Guardian set index.
         (vm.guardianSetIndex, offset) = encodedVM.asUint32Unchecked(offset);
 
-        // Parse sigs. 
+        // Parse sigs.
         uint256 signersLen;
         (signersLen, offset) = encodedVM.asUint8Unchecked(offset);
 
@@ -209,18 +209,18 @@ contract Messages is Getters {
             (vm.signatures[i].r, offset) = encodedVM.asBytes32Unchecked(offset);
             (vm.signatures[i].s, offset) = encodedVM.asBytes32Unchecked(offset);
             (vm.signatures[i].v, offset) = encodedVM.asUint8Unchecked(offset);
-            
-            unchecked { 
+
+            unchecked {
                 vm.signatures[i].v += 27;
-                ++i; 
+                ++i;
             }
         }
 
         /*
         Hash the body
 
-        SECURITY: Do not change the way the hash of a VM is computed! 
-        Changing it could result into two different hashes for the same observation. 
+        SECURITY: Do not change the way the hash of a VM is computed!
+        Changing it could result into two different hashes for the same observation.
         But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body;

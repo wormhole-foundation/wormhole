@@ -11,15 +11,15 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 
 contract WormholeSigner is Test {
-  // Signer wallet. 
+  // Signer wallet.
   struct Wallet {
     address addr;
     uint256 key;
   }
 
   function encodeAndSignMessage(
-    Structs.VM memory vm_, 
-    uint256[] memory guardianKeys, 
+    Structs.VM memory vm_,
+    uint256[] memory guardianKeys,
     uint32 guardianSetIndex
   ) public pure returns (bytes memory signedMessage) {
     // Compute the hash of the body
@@ -48,7 +48,7 @@ contract WormholeSigner is Test {
       signatures,
       body
     );
-  } 
+  }
 }
 
 contract ExportedMessages is Messages, Setters {
@@ -66,11 +66,11 @@ contract TestMessages is Test {
   uint256 constant testGuardian = 93941733246223705020089879371323733820373732307041878556247502674739205313440;
 
   ExportedMessages messages;
-  WormholeSigner wormholeSimulator; 
+  WormholeSigner wormholeSimulator;
 
   Structs.GuardianSet guardianSet;
 
-  // Guardian set with 19 guardians and wallets with each signing key. 
+  // Guardian set with 19 guardians and wallets with each signing key.
   Structs.GuardianSet guardianSetOpt;
   uint256[] guardianKeys = new uint256[](19);
 
@@ -83,16 +83,16 @@ contract TestMessages is Test {
   }
 
   function setupMultiGuardian() internal {
-    // initialize guardian set with 19 guardians 
+    // initialize guardian set with 19 guardians
     address[] memory keys = new address[](19);
     for (uint256 i = 0; i < 19; ++i) {
-      // create a keypair for each guardian 
+      // create a keypair for each guardian
       VmSafe.Wallet memory wallet = vm.createWallet(string(abi.encodePacked("guardian", i)));
-      keys[i] = wallet.addr; 
-      guardianKeys[i] = wallet.privateKey; 
+      keys[i] = wallet.addr;
+      guardianKeys[i] = wallet.privateKey;
     }
-    guardianSetOpt = Structs.GuardianSet(keys, 0); 
-    require(messages.quorum(guardianSetOpt.keys.length) == 13, "Quorum should be 13"); 
+    guardianSetOpt = Structs.GuardianSet(keys, 0);
+    require(messages.quorum(guardianSetOpt.keys.length) == 13, "Quorum should be 13");
   }
 
   function setUp() public {
@@ -102,7 +102,7 @@ contract TestMessages is Test {
     wormholeSimulator = new WormholeSigner();
     setupSingleGuardian();
     setupMultiGuardian();
-  } 
+  }
 
   function getSignedVM(
     bytes memory payload,
@@ -269,13 +269,13 @@ contract TestMessages is Test {
     }
     encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSetOpt.expirationTime);
 
-    // Parse the guardian set. 
-    Structs.GuardianSet memory parsedSet = messages.parseGuardianSetOptimized(encodedGuardianSet);
+    // Parse the guardian set.
+    Structs.GuardianSet memory parsedSet = messages.parseGuardianSet(encodedGuardianSet);
 
     // Validate the results by comparing the parsed set to the original set.
     for (uint256 i = 0; i < guardianCount; ++i) {
       assert(parsedSet.keys[i] == guardianSetOpt.keys[i]);
-    } 
+    }
     assert(parsedSet.expirationTime == guardianSetOpt.expirationTime);
   }
 
@@ -290,7 +290,7 @@ contract TestMessages is Test {
     messages.storeGuardianSetPub(guardianSetOpt, currentSetIndex);
     messages.setGuardianSetHash(currentSetIndex);
 
-    // Create a message with an arbitrary payload. 
+    // Create a message with an arbitrary payload.
     bytes memory signedMessage = getSignedVM(
       payload,
       emitterAddress,
@@ -299,14 +299,14 @@ contract TestMessages is Test {
       currentSetIndex
     );
 
-    // Parse and verify the VM. 
+    // Parse and verify the VM.
     (Structs.VM memory vm_, bool valid,) = messages.parseAndVerifyVM(signedMessage);
     assertEq(valid, true);
 
-    // Parse and verify the VM using the optimized endpoint. 
+    // Parse and verify the VM using the optimized endpoint.
     (Structs.VM memory vmOptimized, bool valid_,) = messages.parseAndVerifyVMOptimized(
-      signedMessage, 
-      messages.getEncodedGuardianSet(currentSetIndex), 
+      signedMessage,
+      messages.getEncodedGuardianSet(currentSetIndex),
       currentSetIndex
     );
     assertEq(valid_, true);
@@ -328,6 +328,6 @@ contract TestMessages is Test {
       assertEq(vm_.signatures[i].r, vmOptimized.signatures[i].r);
       assertEq(vm_.signatures[i].s, vmOptimized.signatures[i].s);
       assertEq(vm_.signatures[i].v, vmOptimized.signatures[i].v);
-    }    
+    }
   }
 }
