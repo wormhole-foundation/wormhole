@@ -15,7 +15,7 @@ prompt_for_variable "INIT_GOV_CHAIN_ID" 'Please provide the initial governance c
 prompt_for_variable "INIT_GOV_CONTRACT" 'Please provide the initial governance contract address' 0x0000000000000000000000000000000000000000000000000000000000000004
 
 # Step 1: Run 'forge script DeployCore', get the JSON output from the specified file
-forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "run(address[],uint16,uint16,bytes32,uint256)" $INIT_SIGNERS $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $INIT_EVM_CHAIN_ID --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast
+forge script ./forge-scripts/DeployCore.s.sol:DeployCore --sig "run(address[],uint16,uint16,bytes32,uint256)" $INIT_SIGNERS $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $INIT_EVM_CHAIN_ID --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --via-ir
 returnInfo=$(cat ./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'
 WORMHOLE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")

@@ -16,7 +16,7 @@ prompt_for_variable "INIT_GOV_CONTRACT" 'Please provide the initial governance c
 prompt_for_variable "BRIDGE_INIT_FINALITY" 'Please provide the initial finality value' 1
 
 # Step 1: Run 'forge script DeployNFTBridge', get the JSON output from the specified file
-forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --sig "run(uint16,uint16,bytes32,uint8,uint256,address)" $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $BRIDGE_INIT_FINALITY $INIT_EVM_CHAIN_ID $WORMHOLE_ADDRESS --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast 
+forge script ./forge-scripts/DeployNFTBridge.s.sol:DeployNFTBridge --sig "run(uint16,uint16,bytes32,uint8,uint256,address)" $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $BRIDGE_INIT_FINALITY $INIT_EVM_CHAIN_ID $WORMHOLE_ADDRESS --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast --via-ir
 returnInfo=$(cat ./broadcast/DeployNFTBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'
 NFT_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
