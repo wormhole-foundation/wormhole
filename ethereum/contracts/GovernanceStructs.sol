@@ -31,7 +31,7 @@ contract GovernanceStructs {
         uint8 action;
         uint16 chain;
 
-        Structs.GuardianSet newGuardianSet; 
+        Structs.GuardianSet newGuardianSet;
         uint32 newGuardianSetIndex;
     }
 

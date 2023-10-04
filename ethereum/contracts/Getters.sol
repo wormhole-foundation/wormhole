@@ -65,7 +65,7 @@ contract Getters is State {
         uint256 guardianCount = guardianSet.keys.length;
         for (uint256 i = 0; i < guardianCount;) {
             encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSet.keys[i]);
-            unchecked { i += 1; }
+            unchecked { ++i; }
         }
         encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSet.expirationTime);
     }

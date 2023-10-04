@@ -96,7 +96,9 @@ contract TestMessages is Test {
   }
 
   function setUp() public {
+    console.log("here?");
     messages = new ExportedMessages();
+    console.log("or?");
     wormholeSimulator = new WormholeSigner();
     setupSingleGuardian();
     setupMultiGuardian();
@@ -320,5 +322,12 @@ contract TestMessages is Test {
     assertEq(vm_.payload, vmOptimized.payload);
     assertEq(vm_.guardianSetIndex, vmOptimized.guardianSetIndex);
     assertEq(vm_.signatures.length, vmOptimized.signatures.length);
+
+    for (uint256 i = 0; i < vm_.signatures.length; ++i) {
+      assertEq(vm_.signatures[i].guardianIndex, vmOptimized.signatures[i].guardianIndex);
+      assertEq(vm_.signatures[i].r, vmOptimized.signatures[i].r);
+      assertEq(vm_.signatures[i].s, vmOptimized.signatures[i].s);
+      assertEq(vm_.signatures[i].v, vmOptimized.signatures[i].v);
+    }    
   }
 }

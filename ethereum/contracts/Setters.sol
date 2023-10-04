@@ -18,9 +18,9 @@ contract Setters is State {
         uint setLength = set.keys.length;
         for (uint i = 0; i < setLength;) {
             require(set.keys[i] != address(0), "Invalid key");
-            unchecked { i += 1; }
+            unchecked { ++i; }
         }
-        _state.guardianSets[index] = set;    
+        _state.guardianSets[index] = set;   
     }
 
     function setInitialized(address implementatiom) internal {
