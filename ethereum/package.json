@@ -25,8 +25,8 @@
     "deploy-read-only": "npm run build:forge && truffle migrate --f 1 --to 2 --compile-none",
     "deploy-bridges-only": "npm run build:forge && truffle migrate --f 3 --to 4 --compile-none",
     "deploy_weth9": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 9 --compile-none",
-    "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
-    "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "deploy-relayers-evm1": "CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "deploy-relayers-evm2": "CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "typecheck": "tsc --noEmit --skipLibCheck"
     },
   "author": "",
