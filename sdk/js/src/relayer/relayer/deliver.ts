@@ -104,10 +104,7 @@ export async function manualDelivery(
       wormholeRelayerAddress
     )
   ).json();
-  console.log(
-    `wormscan repsonse (inputs: ${environment} ${info.sourceChain} ${info.sourceDeliverySequenceNumber} ${wormholeRelayerAddress}): ${response}`
-  );
-  console.log(JSON.stringify(response));
+
   const signedVaa = response.data.vaa;
   const signedVaaBuffer = Buffer.from(signedVaa, "base64");
   const result: { quote: BigNumber; targetChain: ChainName; txHash?: string } =
@@ -177,7 +174,6 @@ export async function deliver(
     { value: budget, gasLimit: gasEstimate.mul(2) }
   );
   const rx = await tx.wait();
-  console.log(`Delivered ${deliveryHash} on ${rx.blockNumber}`);
   return rx;
 }
 
