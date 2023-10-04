@@ -24,8 +24,8 @@ abstract contract QueryResponse {
     struct ParsedQueryResponse {
         uint8   version;
         uint16  senderChainId;
-        bytes   requestId; // 65 byte sig for off-chain, 32 byte vaaHash for on-chain
         uint32  nonce;
+        bytes   requestId; // 65 byte sig for off-chain, 32 byte vaaHash for on-chain
         ParsedPerChainQueryResponse [] responses;
     }
 
@@ -41,8 +41,8 @@ abstract contract QueryResponse {
     struct EthCallQueryResponse {
         bytes requestBlockId;
         uint64 blockNum;
-        bytes32 blockHash;
         uint64 blockTime;
+        bytes32 blockHash;
         EthCallData [] result;
     }
 
