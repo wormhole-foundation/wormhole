@@ -144,6 +144,8 @@ export const handler = async (
     throw Error("evmos is not supported yet");
   } else if (srcChain === "kujira") {
     throw Error("kujira is not supported yet");
+  } else if (srcChain === "rootstock") {
+    throw Error("rootstock is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled

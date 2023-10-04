@@ -157,8 +157,9 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
     case "cosmoshub":
     case "evmos":
     case "kujira":
+    case "rootstock":
       throw new Error(`${chainName} not supported`);
     default:
-      throw Error(`Not a valid chain: ${chainName}`);
+      impossible(chainName);
   }
 };
