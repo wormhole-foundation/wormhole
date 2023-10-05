@@ -455,7 +455,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 : RefundStatus.REFUND_FAIL;
         }
 
-        // User requested refund on a different chain
+        // User requested refund on a different chaingit 
         
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
@@ -498,7 +498,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     function getBaseDeliveryPrice(
         uint16 refundChain,
         address deliveryProvider
-    ) external returns (LocalNative price) {
+    ) external view returns (LocalNative price) {
         if (msg.sender != address(this)) {
             revert RequesterNotWormholeRelayer();
         }
