@@ -463,10 +463,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         // (Note: assumes refund chain is an EVM chain)
         LocalNative baseDeliveryPrice;
       
-        try deliveryProvider.quoteDeliveryPrice(
-            refundChain,
-            TargetNative.wrap(0),
-            encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+        try this.getBaseDeliveryPrice(
+                refundChain,
+                fromWormholeFormat(relayerAddress)
         ) returns (LocalNative quote, bytes memory) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
@@ -496,6 +495,22 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
+    }
+
+    function getBaseDeliveryPrice(
+        uint16 refundChain,
+        address deliveryProvider
+    ) external returns (LocalNative price) {
+        if (msg.sender != address(this)) {
+            revert RequesterNotWormholeRelayer();
+        }
+        bytes memory encodedExecutionInfo;
+        (price, encodedExecutionInfo) = IDeliveryProvider(deliveryProvider)
+            .quoteDeliveryPrice(
+                refundChain,
+                TargetNative.wrap(0),
+                encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+            );
     }
 
     function checkMessageKeysWithMessages(
