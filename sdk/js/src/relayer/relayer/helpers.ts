@@ -351,7 +351,7 @@ export async function getWormholeRelayerInfoByHash(
   const blockNumberFailure = await wormholeRelayer.deliveryFailureBlock(
     deliveryHash
   );
-  const blockNumber = blockNumberSuccess
+  const blockNumber = blockNumberSuccess.gt(0)
     ? blockNumberSuccess
     : blockNumberFailure;
 
