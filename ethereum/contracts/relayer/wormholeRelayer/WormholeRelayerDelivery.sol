@@ -466,7 +466,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         try this.getBaseDeliveryPrice(
                 refundChain,
                 fromWormholeFormat(relayerAddress)
-        ) returns (LocalNative quote, bytes memory) {
+        ) returns (LocalNative quote) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
