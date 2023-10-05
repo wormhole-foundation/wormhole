@@ -229,7 +229,7 @@ export async function fetchAdditionalMessages(
     additionalMessageKeys.map(async (messageKey) => {
       if (messageKey.keyType === 1) {
         const vaaKey = parseVaaKey(messageKey.key);
-        const signedVaa = (
+        const signedVaa = (await (
           await (
             await getWormscanInfo(
               environment,
@@ -238,9 +238,12 @@ export async function fetchAdditionalMessages(
               "0x" + vaaKey.emitterAddress.toString("hex")
             )
           ).json()
-        ).vaa;
+        )).data?.vaa;
+        if(!signedVaa) {
+          throw new Error(`No signed VAA available on WormScan for vaaKey ${JSON.stringify(vaaKey)}`)
+        }
         return Buffer.from(signedVaa, "base64");
-      } else {
+      } else if (messageKey.keyType === 2) {
         const cctpKey = parseCCTPKey(messageKey.key);
         if (!sourceReceipt)
           throw new Error(
@@ -263,22 +266,22 @@ export async function fetchAdditionalMessages(
         );
 
         // Try to get attestation
-        let attestation;
-        try {
-          const attestationResponse = await fetch(response?.url || "");
-          attestation = (await attestationResponse.json()).attestation;
-        } catch (e) {
-          console.log(e);
+        const attestationResponse = await fetch(response?.url || "");
+        const attestationResponseJson = (await attestationResponse.json())
+        const attestation = attestationResponseJson.attestation;
+        if(!attestation) {
+          throw new Error(`Unable to get attestation from Circle, for cctp key ${JSON.stringify(cctpKey)}, message ${response?.message}`)
         }
-
         return Buffer.from(
           new ethers.utils.AbiCoder().encode(
             ["bytes", "bytes"],
             [response?.message || [], attestation]
-          ),
+          ).substring(2),
           "hex"
         );
-      }
+      } else {
+        throw new Error(`Message key type unknown: ${messageKey.keyType} (messageKey ${messageKey.key})`)
+      } 
     })
   );
   return messages;

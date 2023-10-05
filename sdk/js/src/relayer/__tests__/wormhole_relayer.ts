@@ -600,22 +600,21 @@ describe("Wormhole Relayer Tests", () => {
 
   testIfNotDevnet()("Checks the status of a message", async () => {
     const txHash =
-      "0x967372d27654176b7e2e97c262541d7b98104a4ad020c965ea3cbfc22ff15381";
-    const mySourceChain: ChainName = "base";
+      "0xa75e4100240e9b498a48fa29de32c9e62ec241bf4071a3c93fde0df5de53c507";
+    const mySourceChain: ChainName = "celo";
     const environment: Network = "TESTNET";
 
     const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
-      environment,
-      targetBlockRange: [45474272, 45476272],
+      environment
     });
     console.log(info.stringified);
   });
 
   testIfNotDevnet()("Tests custom manual delivery", async () => {
     const txHash =
-      "0xa167311cd28f5799d0bd1299df7339696c25d4c4c5aa2698d8483f490bf0afa6";
-    const mySourceChain: ChainName = "base";
-    const targetProvider = "https://endpoints.omniatech.io/v1/op/goerli/public";
+      "0xc57d12cc789e4e9fa50d496cea62c2a0f11a7557c8adf42b3420e0585ba1f911";
+    const mySourceChain: ChainName = "arbitrum";
+    const targetProvider = undefined;
     const environment: Network = "TESTNET";
 
     const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
@@ -629,10 +628,11 @@ describe("Wormhole Relayer Tests", () => {
       { environment },
       true
     );
+    console.log(`Price info: ${JSON.stringify(priceInfo)}`)
 
     const signer = new ethers.Wallet(
       PRIVATE_KEY,
-      new ethers.providers.JsonRpcProvider(targetProvider) ||
+      targetProvider ? new ethers.providers.JsonRpcProvider(targetProvider) :
         getDefaultProvider(environment, priceInfo.targetChain)
     );
 
