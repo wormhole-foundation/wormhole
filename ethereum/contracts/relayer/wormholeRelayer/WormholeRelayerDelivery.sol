@@ -455,7 +455,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 : RefundStatus.REFUND_FAIL;
         }
 
-        // User requested refund on a different chaingit 
+        // User requested refund on a different chain
         
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
