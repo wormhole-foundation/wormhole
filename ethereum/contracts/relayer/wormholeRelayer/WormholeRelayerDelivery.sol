@@ -3,48 +3,24 @@
 pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import {
-    InvalidDeliveryVaa,
-    InvalidEmitter,
-    InsufficientRelayerFunds,
-    TargetChainIsNotThisChain,
-    MessageKeysLengthDoesNotMatchMessagesLength,
-    VaaKeysDoNotMatchVaas,
-    InvalidOverrideGasLimit,
-    InvalidOverrideReceiverValue,
-    InvalidOverrideRefundPerGasUnused,
-    RequesterNotWormholeRelayer,
-    DeliveryProviderCannotReceivePayment,
-    MessageKey,
-    VAA_KEY_TYPE,
-    VaaKey,
-    IWormholeRelayerDelivery,
-    IWormholeRelayerSend,
-    RETURNDATA_TRUNCATION_THRESHOLD
-} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
+import {InvalidDeliveryVaa, InvalidEmitter, InsufficientRelayerFunds, TargetChainIsNotThisChain, MessageKeysLengthDoesNotMatchMessagesLength, VaaKeysDoNotMatchVaas, InvalidOverrideGasLimit, InvalidOverrideReceiverValue, InvalidOverrideRefundPerGasUnused, RequesterNotWormholeRelayer, DeliveryProviderCannotReceivePayment, MessageKey, VAA_KEY_TYPE, VaaKey, IWormholeRelayerDelivery, IWormholeRelayerSend, RETURNDATA_TRUNCATION_THRESHOLD, RequesterNotWormholeRelayer} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
 import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
-import {
-    DeliveryInstruction,
-    DeliveryOverride,
-    EvmDeliveryInstruction
-} from "../../relayer/libraries/RelayerInternalStructs.sol";
+import {DeliveryInstruction, DeliveryOverride, EvmDeliveryInstruction} from "../../relayer/libraries/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../relayer/libraries/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
-import {
-    DeliverySuccessState,
-    DeliveryFailureState,
-    getDeliverySuccessState,
-    getDeliveryFailureState
-} from "./WormholeRelayerStorage.sol";
+import {DeliverySuccessState, DeliveryFailureState, getDeliverySuccessState, getDeliveryFailureState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../relayer/libraries/ExecutionParameters.sol";
 
-abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
-    using WormholeRelayerSerde for *; 
+abstract contract WormholeRelayerDelivery is
+    WormholeRelayerBase,
+    IWormholeRelayerDelivery
+{
+    using WormholeRelayerSerde for *;
     using BytesParsing for bytes;
     using WeiLib for Wei;
     using GasLib for Gas;
@@ -58,21 +34,31 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         address payable relayerRefundAddress,
         bytes memory deliveryOverrides
     ) public payable nonReentrant {
-
         // Parse and verify VAA containing delivery instructions, revert if invalid
-        (IWormhole.VM memory vm, bool valid, string memory reason) =
-            getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
+        (
+            IWormhole.VM memory vm,
+            bool valid,
+            string memory reason
+        ) = getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
         if (!valid) {
             revert InvalidDeliveryVaa(reason);
         }
 
-        // Revert if the emitter of the VAA is not a Wormhole Relayer contract 
-        bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
+        // Revert if the emitter of the VAA is not a Wormhole Relayer contract
+        bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(
+                vm.emitterChainId
+            );
         if (vm.emitterAddress != registeredWormholeRelayer) {
-            revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
+            revert InvalidEmitter(
+                vm.emitterAddress,
+                registeredWormholeRelayer,
+                vm.emitterChainId
+            );
         }
-    
-        DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
+
+        DeliveryInstruction memory instruction = vm
+            .payload
+            .decodeDeliveryInstruction();
 
         // Record information about the delivery's refund in temporary storage
         recordRefundInformation(
@@ -105,7 +91,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         ) = getDeliveryParametersEvmV1(instruction, deliveryOverrides);
 
         // Revert if msg.value is not enough to fund both the receiver value
-        // as well as the maximum possible refund 
+        // as well as the maximum possible refund
         // Note: instruction's TargetNative is delivery's LocalNative
         LocalNative requiredFunds = (deliveryVaaInfo.gasLimit.toWei(
             deliveryVaaInfo.targetChainRefundPerGasUnused
@@ -157,34 +143,46 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             bytes32 redeliveryHash
         )
     {
-        ExecutionInfoVersion instructionExecutionInfoVersion =
-            decodeExecutionInfoVersion(instruction.encodedExecutionInfo);
+        ExecutionInfoVersion instructionExecutionInfoVersion = decodeExecutionInfoVersion(
+                instruction.encodedExecutionInfo
+            );
         if (instructionExecutionInfoVersion != ExecutionInfoVersion.EVM_V1) {
             revert UnexpectedExecutionInfoVersion(
-                uint8(instructionExecutionInfoVersion), uint8(ExecutionInfoVersion.EVM_V1)
+                uint8(instructionExecutionInfoVersion),
+                uint8(ExecutionInfoVersion.EVM_V1)
             );
         }
 
-        EvmExecutionInfoV1 memory executionInfo =
-            decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
+        EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(
+            instruction.encodedExecutionInfo
+        );
 
         // If present, apply redelivery deliveryOverrides to current instruction
         if (encodedOverrides.length != 0) {
-            DeliveryOverride memory deliveryOverrides = encodedOverrides.decodeDeliveryOverride();
+            DeliveryOverride memory deliveryOverrides = encodedOverrides
+                .decodeDeliveryOverride();
 
             // Check to see if gasLimit >= original gas limit, receiver value >= original receiver value, and refund >= original refund
             // If so, replace the corresponding variables with the overriden variables
             // If not, revert
-            (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(
-                instruction.requestedReceiverValue, executionInfo, deliveryOverrides
+            (
+                instruction.requestedReceiverValue,
+                executionInfo
+            ) = decodeAndCheckOverridesEvmV1(
+                instruction.requestedReceiverValue,
+                executionInfo,
+                deliveryOverrides
             );
             instruction.extraReceiverValue = TargetNative.wrap(0);
             redeliveryHash = deliveryOverrides.redeliveryHash;
         }
 
         gasLimit = executionInfo.gasLimit;
-        targetChainRefundPerGasUnused = executionInfo.targetChainRefundPerGasUnused;
-        totalReceiverValue = instruction.requestedReceiverValue + instruction.extraReceiverValue;
+        targetChainRefundPerGasUnused = executionInfo
+            .targetChainRefundPerGasUnused;
+        totalReceiverValue =
+            instruction.requestedReceiverValue +
+            instruction.extraReceiverValue;
     }
 
     function decodeAndCheckOverridesEvmV1(
@@ -199,25 +197,33 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             EvmExecutionInfoV1 memory deliveryOverridesExecutionInfo
         )
     {
-        if (deliveryOverrides.newReceiverValue.unwrap() < receiverValue.unwrap()) {
+        if (
+            deliveryOverrides.newReceiverValue.unwrap() < receiverValue.unwrap()
+        ) {
             revert InvalidOverrideReceiverValue();
         }
 
-        ExecutionInfoVersion deliveryOverridesExecutionInfoVersion =
-            decodeExecutionInfoVersion(deliveryOverrides.newExecutionInfo);
-        if (ExecutionInfoVersion.EVM_V1 != deliveryOverridesExecutionInfoVersion) {
+        ExecutionInfoVersion deliveryOverridesExecutionInfoVersion = decodeExecutionInfoVersion(
+                deliveryOverrides.newExecutionInfo
+            );
+        if (
+            ExecutionInfoVersion.EVM_V1 != deliveryOverridesExecutionInfoVersion
+        ) {
             revert VersionMismatchOverride(
-                uint8(ExecutionInfoVersion.EVM_V1), uint8(deliveryOverridesExecutionInfoVersion)
+                uint8(ExecutionInfoVersion.EVM_V1),
+                uint8(deliveryOverridesExecutionInfoVersion)
             );
         }
 
-        deliveryOverridesExecutionInfo =
-            decodeEvmExecutionInfoV1(deliveryOverrides.newExecutionInfo);
+        deliveryOverridesExecutionInfo = decodeEvmExecutionInfoV1(
+            deliveryOverrides.newExecutionInfo
+        );
         deliveryOverridesReceiverValue = deliveryOverrides.newReceiverValue;
 
         if (
-            deliveryOverridesExecutionInfo.targetChainRefundPerGasUnused.unwrap()
-                < executionInfo.targetChainRefundPerGasUnused.unwrap()
+            deliveryOverridesExecutionInfo
+                .targetChainRefundPerGasUnused
+                .unwrap() < executionInfo.targetChainRefundPerGasUnused.unwrap()
         ) {
             revert InvalidOverrideRefundPerGasUnused();
         }
@@ -257,7 +263,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      */
 
     function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
-
         // If the targetAddress is the 0 address
         // Then emit event and return
         // (This is used for cross-chain refunds)
@@ -269,7 +274,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         DeliveryResults memory results;
 
         // Check replay protection - if so, set status to receiver failure
-        if(getDeliverySuccessState().deliverySuccessBlock[vaaInfo.deliveryVaaHash] != 0) {
+        if (
+            getDeliverySuccessState().deliverySuccessBlock[
+                vaaInfo.deliveryVaaHash
+            ] != 0
+        ) {
             results = DeliveryResults(
                 Gas.wrap(0),
                 DeliveryStatus.RECEIVER_FAILURE,
@@ -283,7 +292,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                     payload: vaaInfo.deliveryInstruction.payload,
                     gasLimit: vaaInfo.gasLimit,
                     totalReceiverValue: vaaInfo.totalReceiverValue,
-                    targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
+                    targetChainRefundPerGasUnused: vaaInfo
+                        .targetChainRefundPerGasUnused,
                     senderAddress: vaaInfo.deliveryInstruction.senderAddress,
                     deliveryHash: vaaInfo.deliveryVaaHash,
                     signedVaas: vaaInfo.encodedVMs
@@ -292,33 +302,36 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             setDeliveryBlock(results.status, vaaInfo.deliveryVaaHash);
         }
 
-        
-
         RefundStatus refundStatus = payRefunds(
             vaaInfo.deliveryInstruction,
             vaaInfo.relayerRefundAddress,
-            (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
+            (vaaInfo.gasLimit - results.gasUsed)
+                .toWei(vaaInfo.targetChainRefundPerGasUnused)
+                .asLocalNative(),
             results.status
         );
         emitDeliveryEvent(vaaInfo, results, refundStatus);
     }
 
-    function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
-        internal
-        returns (DeliveryResults memory results)
-    {
-
+    function executeInstruction(
+        EvmDeliveryInstruction memory evmInstruction
+    ) internal returns (DeliveryResults memory results) {
         Gas gasLimit = evmInstruction.gasLimit;
         bool success;
         {
-            address payable deliveryTarget = payable(fromWormholeFormat(evmInstruction.targetAddress));
-            bytes memory callData = abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
-                evmInstruction.payload,
-                evmInstruction.signedVaas,
-                evmInstruction.senderAddress,
-                evmInstruction.sourceChain,
-                evmInstruction.deliveryHash
-            ));
+            address payable deliveryTarget = payable(
+                fromWormholeFormat(evmInstruction.targetAddress)
+            );
+            bytes memory callData = abi.encodeCall(
+                IWormholeReceiver.receiveWormholeMessages,
+                (
+                    evmInstruction.payload,
+                    evmInstruction.signedVaas,
+                    evmInstruction.senderAddress,
+                    evmInstruction.sourceChain,
+                    evmInstruction.deliveryHash
+                )
+            );
 
             // Measure gas usage of call
             Gas preGas = Gas.wrap(gasleft());
@@ -358,17 +371,17 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             DeliveryStatus.RECEIVER_FAILURE
         );
         emitDeliveryEvent(
-            vaaInfo, 
-            DeliveryResults(
-                Gas.wrap(0),
-                DeliveryStatus.SUCCESS,
-                bytes("")
-            ), 
+            vaaInfo,
+            DeliveryResults(Gas.wrap(0), DeliveryStatus.SUCCESS, bytes("")),
             refundStatus
         );
     }
 
-    function emitDeliveryEvent(DeliveryVAAInfo memory vaaInfo, DeliveryResults memory results, RefundStatus refundStatus) private {
+    function emitDeliveryEvent(
+        DeliveryVAAInfo memory vaaInfo,
+        DeliveryResults memory results,
+        RefundStatus refundStatus
+    ) private {
         emit Delivery(
             fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
             vaaInfo.sourceChain,
@@ -378,7 +391,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             results.gasUsed,
             refundStatus,
             results.additionalStatusInfo,
-            (vaaInfo.redeliveryHash != 0) ? vaaInfo.encodedOverrides : new bytes(0)
+            (vaaInfo.redeliveryHash != 0)
+                ? vaaInfo.encodedOverrides
+                : new bytes(0)
         );
     }
 
@@ -392,41 +407,47 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         //  'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
         LocalNative receiverValueRefundAmount = LocalNative.wrap(0);
 
-        if (
-            status == DeliveryStatus.RECEIVER_FAILURE
-        ) {
-            receiverValueRefundAmount = (
-                deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue
-            ).asNative().asLocalNative(); // NOTE: instruction's target is delivery's local
+        if (status == DeliveryStatus.RECEIVER_FAILURE) {
+            receiverValueRefundAmount = (deliveryInstruction
+                .requestedReceiverValue +
+                deliveryInstruction.extraReceiverValue)
+                .asNative()
+                .asLocalNative(); // NOTE: instruction's target is delivery's local
         }
 
         // Total refund to the user
         // (If the forward succeeded, the 'transactionFeeRefundAmount' was used there already)
-        LocalNative refundToRefundAddress = receiverValueRefundAmount
-            + transactionFeeRefundAmount;
+        LocalNative refundToRefundAddress = receiverValueRefundAmount +
+            transactionFeeRefundAmount;
 
         //Refund the user
-        refundStatus = deliveryInstruction.refundAddress == bytes32(0x0) ? RefundStatus.NO_REFUND_REQUESTED : payRefundToRefundAddress(
-            deliveryInstruction.refundChain,
-            deliveryInstruction.refundAddress,
-            refundToRefundAddress,
-            deliveryInstruction.refundDeliveryProvider
-        );
+        refundStatus = deliveryInstruction.refundAddress == bytes32(0x0)
+            ? RefundStatus.NO_REFUND_REQUESTED
+            : payRefundToRefundAddress(
+                deliveryInstruction.refundChain,
+                deliveryInstruction.refundAddress,
+                refundToRefundAddress,
+                deliveryInstruction.refundDeliveryProvider
+            );
 
         //If sending the user's refund failed, this gets added to the relayer's refund
         LocalNative leftoverUserRefund = refundToRefundAddress;
         if (
-            refundStatus == RefundStatus.REFUND_SENT
-                || refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT
+            refundStatus == RefundStatus.REFUND_SENT ||
+            refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT
         ) {
             leftoverUserRefund = LocalNative.wrap(0);
         }
 
         // Refund the relayer all remaining funds
-        LocalNative relayerRefundAmount = calcRelayerRefundAmount(deliveryInstruction, transactionFeeRefundAmount, leftoverUserRefund);
+        LocalNative relayerRefundAmount = calcRelayerRefundAmount(
+            deliveryInstruction,
+            transactionFeeRefundAmount,
+            leftoverUserRefund
+        );
 
         bool paymentSucceeded = pay(relayerRefundAddress, relayerRefundAmount);
-        if(!paymentSucceeded) {
+        if (!paymentSucceeded) {
             revert DeliveryProviderCannotReceivePayment();
         }
     }
@@ -436,10 +457,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         LocalNative transactionFeeRefundAmount,
         LocalNative leftoverUserRefund
     ) private view returns (LocalNative) {
-        return msgValue()
+        return
+            msgValue() -
             // Note: instruction's target is delivery's local
-            - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue).asNative().asLocalNative() 
-            - transactionFeeRefundAmount + leftoverUserRefund;
+            (deliveryInstruction.requestedReceiverValue +
+                deliveryInstruction.extraReceiverValue)
+                .asNative()
+                .asLocalNative() -
+            transactionFeeRefundAmount +
+            leftoverUserRefund;
     }
 
     function payRefundToRefundAddress(
@@ -450,24 +476,24 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     ) private returns (RefundStatus) {
         // User requested refund on this chain
         if (refundChain == getChainId()) {
-            return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
-                ? RefundStatus.REFUND_SENT
-                : RefundStatus.REFUND_FAIL;
+            return
+                pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
+                    ? RefundStatus.REFUND_SENT
+                    : RefundStatus.REFUND_FAIL;
         }
 
         // User requested refund on a different chain
-        
-        IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
-        
+
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
         LocalNative baseDeliveryPrice;
-      
-        try deliveryProvider.quoteDeliveryPrice(
-            refundChain,
-            TargetNative.wrap(0),
-            encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
-        ) returns (LocalNative quote, bytes memory) {
+
+        try
+            this.getBaseDeliveryPrice(
+                refundChain,
+                fromWormholeFormat(relayerAddress)
+            )
+        returns (LocalNative quote) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
@@ -477,25 +503,45 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
-        
+
         // Request a 'send' with 'paymentForExtraReceiverValue' equal to the refund minus the 'empty delivery price'
-        try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
-            refundChain,
-            bytes32(0),
-            bytes(""),
-            TargetNative.wrap(0),
-            refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
-            encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
-            refundChain,
-            refundAddress,
-            fromWormholeFormat(relayerAddress),
-            new VaaKey[](0),
-            CONSISTENCY_LEVEL_INSTANT
-        ) returns (uint64) {
+        try
+            IWormholeRelayerSend(address(this)).send{
+                value: refundAmount.unwrap()
+            }(
+                refundChain,
+                bytes32(0),
+                bytes(""),
+                TargetNative.wrap(0),
+                refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
+                encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
+                refundChain,
+                refundAddress,
+                fromWormholeFormat(relayerAddress),
+                new VaaKey[](0),
+                CONSISTENCY_LEVEL_INSTANT
+            )
+        returns (uint64) {
             return RefundStatus.CROSS_CHAIN_REFUND_SENT;
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
+    }
+
+    function getBaseDeliveryPrice(
+        uint16 refundChain,
+        address deliveryProvider
+    ) external returns (LocalNative price) {
+        if (msg.sender != address(this)) {
+            revert RequesterNotWormholeRelayer();
+        }
+        bytes memory encodedExecutionInfo;
+        (price, encodedExecutionInfo) = IDeliveryProvider(deliveryProvider)
+            .quoteDeliveryPrice(
+                refundChain,
+                TargetNative.wrap(0),
+                encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+            );
     }
 
     function checkMessageKeysWithMessages(
@@ -503,19 +549,27 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bytes[] memory signedMessages
     ) private view {
         if (messageKeys.length != signedMessages.length) {
-            revert MessageKeysLengthDoesNotMatchMessagesLength(messageKeys.length, signedMessages.length);
+            revert MessageKeysLengthDoesNotMatchMessagesLength(
+                messageKeys.length,
+                signedMessages.length
+            );
         }
 
         uint256 len = messageKeys.length;
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ) {
             if (messageKeys[i].keyType == VAA_KEY_TYPE) {
-                IWormhole.VM memory parsedVaa = getWormhole().parseVM(signedMessages[i]);
-                (VaaKey memory vaaKey,) = WormholeRelayerSerde.decodeVaaKey(messageKeys[i].encodedKey, 0);
-                
+                IWormhole.VM memory parsedVaa = getWormhole().parseVM(
+                    signedMessages[i]
+                );
+                (VaaKey memory vaaKey, ) = WormholeRelayerSerde.decodeVaaKey(
+                    messageKeys[i].encodedKey,
+                    0
+                );
+
                 if (
-                    vaaKey.chainId != parsedVaa.emitterChainId
-                        || vaaKey.emitterAddress != parsedVaa.emitterAddress
-                        || vaaKey.sequence != parsedVaa.sequence
+                    vaaKey.chainId != parsedVaa.emitterChainId ||
+                    vaaKey.emitterAddress != parsedVaa.emitterAddress ||
+                    vaaKey.sequence != parsedVaa.sequence
                 ) {
                     revert VaaKeysDoNotMatchVaas(uint8(i));
                 }
@@ -528,13 +582,18 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     }
 
     // Ensures current block number is set to implement replay protection and for indexing purposes
-    function setDeliveryBlock(DeliveryStatus status, bytes32 deliveryHash) private {
+    function setDeliveryBlock(
+        DeliveryStatus status,
+        bytes32 deliveryHash
+    ) private {
         if (status == DeliveryStatus.SUCCESS) {
-            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block.number;
+            getDeliverySuccessState().deliverySuccessBlock[deliveryHash] = block
+                .number;
             // Clear out failure block if it exists from previous delivery failure
             delete getDeliveryFailureState().deliveryFailureBlock[deliveryHash];
         } else {
-            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block.number;
+            getDeliveryFailureState().deliveryFailureBlock[deliveryHash] = block
+                .number;
         }
     }
 }
