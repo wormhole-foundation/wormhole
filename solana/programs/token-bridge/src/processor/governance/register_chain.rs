@@ -24,7 +24,7 @@ pub struct RegisterChain<'info> {
         init,
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
-        seeds = [try_decree_foreign_chain_bytes(&vaa)?.as_ref()],
+        seeds = [try_decree(&vaa, |decree| decree.foreign_chain())?.to_be_bytes().as_ref()],
         bump,
     )]
     registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
@@ -38,8 +38,8 @@ pub struct RegisterChain<'info> {
         payer = payer,
         space = RegisteredEmitter::INIT_SPACE,
         seeds = [
-            try_decree_foreign_chain_bytes(&vaa)?.as_ref(),
-            try_decree_foreign_emitter(&vaa)?.as_ref(),
+            try_decree(&vaa, |decree| decree.foreign_chain())?.to_be_bytes().as_ref(),
+            try_decree(&vaa, |decree| decree.foreign_emitter())?.as_ref(),
         ],
         bump,
     )]
@@ -106,24 +106,14 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     Ok(())
 }
 
-fn try_decree_foreign_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 2]> {
+fn try_decree<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
+    where F: FnOnce(&wormhole_raw_vaas::token_bridge::RegisterChain) -> T {
     let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
     let gov_payload = TokenBridgeGovPayload::try_from(vaa.try_payload()?)
         .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
     gov_payload
         .decree()
         .register_chain()
-        .map(|decree| decree.foreign_chain().to_be_bytes())
-        .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
-}
-
-fn try_decree_foreign_emitter(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]> {
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let gov_payload = TokenBridgeGovPayload::try_from(vaa.try_payload()?)
-        .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
-    gov_payload
-        .decree()
-        .register_chain()
-        .map(|decree| decree.foreign_emitter())
+        .map(func)
         .ok_or(error!(TokenBridgeError::InvalidGovernanceAction))
 }

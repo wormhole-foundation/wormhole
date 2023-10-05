@@ -34,6 +34,10 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
+    #[account(
+        constraint = try_attestation(&vaa, |attestation| attestation.token_chain())?
+                        != core_bridge_sdk::SOLANA_CHAIN @ TokenBridgeError::NativeAsset,
+    )]
     vaa: AccountInfo<'info>,
 
     /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
@@ -48,12 +52,12 @@ pub struct CreateOrUpdateWrapped<'info> {
     #[account(
         init_if_needed,
         payer = payer,
-        mint::decimals = try_attestation_decimals(&vaa)?,
+        mint::decimals = try_attestation(&vaa, |att| cap_decimals(att.decimals()))?,
         mint::authority = mint_authority,
         seeds = [
             WRAPPED_MINT_SEED_PREFIX,
-            try_attestation_token_chain_bytes(&vaa)?.as_ref(),
-            try_attestation_token_address(&vaa)?.as_ref(),
+            try_attestation(&vaa, |att| att.token_chain())?.to_be_bytes().as_ref(),
+            try_attestation(&vaa, |att| att.token_address())?.as_ref(),
         ],
         bump,
     )]
@@ -126,45 +130,6 @@ impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, 
     const LOG_IX_NAME: &'static str = "LegacyCreateOrUpdateWrapped";
 
     const ANCHOR_IX_FN: fn(Context<Self>, EmptyArgs) -> Result<()> = create_or_update_wrapped;
-}
-
-fn try_attestation_decimals(vaa_acc_info: &AccountInfo) -> Result<u8> {
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
-        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-    msg.attestation()
-        .map(|attestation| cap_decimals(attestation.decimals()))
-        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
-}
-
-fn try_attestation_token_chain_bytes(vaa_acc_info: &AccountInfo) -> Result<[u8; 2]> {
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
-        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-
-    let token_chain = msg
-        .attestation()
-        .map(|attestation| attestation.token_chain())
-        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))?;
-
-    // This token must have originated from another network.
-    require_neq!(
-        token_chain,
-        core_bridge_sdk::SOLANA_CHAIN,
-        TokenBridgeError::NativeAsset
-    );
-
-    // Done.
-    Ok(token_chain.to_be_bytes())
-}
-
-fn try_attestation_token_address(vaa_acc_info: &AccountInfo) -> Result<[u8; 32]> {
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
-        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
-    msg.attestation()
-        .map(|attestation| attestation.token_address())
-        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
 
 impl<'info> CreateOrUpdateWrapped<'info> {
@@ -374,13 +339,17 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     }
 }
 
-fn cap_decimals(decimals: u8) -> u8 {
-    if decimals > MAX_DECIMALS {
-        MAX_DECIMALS
-    } else {
-        decimals
-    }
+fn try_attestation<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
+    where F: FnOnce(&Attestation) -> T {
+    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
+        .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
+    msg.attestation()
+        .map(func)
+        .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
+
+fn cap_decimals(decimals: u8) -> u8 { std::cmp::min(decimals, MAX_DECIMALS) }
 
 struct FixedMeta {
     symbol: String,
