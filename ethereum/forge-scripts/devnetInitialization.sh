@@ -8,7 +8,7 @@ if [ "$DEV" != "True" ]; then
   fi
 else 
   if [ $CHAIN_ID -eq 4 ]; then
-    RPC_URL='http://localhost:8546'
+    RPC_URL='http://localhost:8545'
   else 
     RPC_URL='http://localhost:8545'
   fi
