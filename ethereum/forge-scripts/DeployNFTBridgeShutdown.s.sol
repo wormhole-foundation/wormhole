@@ -2,7 +2,7 @@
 
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
-import {NFTBridgeShutdown} from "../contracts/bridge/NFTBridgeShutdown.sol";
+import {NFTBridgeShutdown} from "../contracts/nft/NFTBridgeShutdown.sol";
 import "forge-std/Script.sol";
 
 contract DeployNFTBridgeShutdown is Script {
