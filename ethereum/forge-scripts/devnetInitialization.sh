@@ -2,9 +2,9 @@
 
 if [ "$DEV" != "True" ]; then
   if [ $CHAIN_ID -eq 4 ]; then
-    RPC_URL='ws://eth-devnet2:8545'
+    RPC_URL='http://localhost:8545'
   else 
-    RPC_URL='ws://eth-devnet:8545'
+    RPC_URL='http://localhost:8545'
   fi
 else 
   if [ $CHAIN_ID -eq 4 ]; then
