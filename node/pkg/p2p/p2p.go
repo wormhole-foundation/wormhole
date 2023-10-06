@@ -268,6 +268,12 @@ func Run(
 
 		logger := supervisor.Logger(ctx)
 
+		var coerr error
+		bootstrapPeers, ccqBootstrapPeers, coerr = checkForCutOver(logger, bootstrapPeers, ccqBootstrapPeers, components)
+		if coerr != nil {
+			logger.Fatal("failed to check for cutover", zap.Error(coerr))
+		}
+
 		defer func() {
 			// TODO: Right now we're canceling the root context because it used to be the case that libp2p cannot be cleanly restarted.
 			// But that seems to no longer be the case. We may want to revisit this. See (https://github.com/libp2p/go-libp2p/issues/992) for background.
@@ -352,7 +358,7 @@ func Run(
 		if ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
-			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, components.ListeningAddressesPatterns, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
