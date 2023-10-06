@@ -86,6 +86,9 @@ echo "core: $CORE"
 GUARDIAN_ADDRESS=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
 GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
 
+# Use the anvil devnet private key (this is not a production key)
+PRIVATE_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
+
 ANVIL_PID=""
 
 function clean_up () {
@@ -116,31 +119,33 @@ case "$module" in
     bridge|core)
         MODULE=Core
         if [[ $shutdown = true ]]; then
-            SCRIPT="scripts/deploy_core_bridge_shutdown.js"
+            SCRIPT_NAME="DeployCoreBridgeShutdown"
         else
-            SCRIPT="scripts/deploy_core_bridge.js"
+            SCRIPT_NAME="DeployCoreBridgeImplementation"
         fi
         ;;
     token_bridge)
         MODULE=TokenBridge
         if [[ $shutdown = true ]]; then
-            SCRIPT="scripts/deploy_token_bridge_shutdown.js"
+            SCRIPT_NAME="DeployTokenBridgeShutdown"
         else
-            SCRIPT="scripts/deploy_token_bridge.js"
+            SCRIPT_NAME="DeployTokenBridgeImplementation"
         fi
         ;;
     nft_bridge)
         MODULE=NFTBridge
         if [[ $shutdown = true ]]; then
-            SCRIPT="scripts/deploy_nft_bridge_shutdown.js"
+            SCRIPT_NAME="DeployNFTBridgeShutdown"
         else
-            SCRIPT="scripts/deploy_nft_bridge.js"
+            SCRIPT_NAME="DeployNFTBridgeImplementation"
         fi
         ;;
     *) echo "unknown module $module" >&2
        usage
        ;;
 esac
+
+SCRIPT="./forge-scripts/$SCRIPT_NAME.s.sol:$SCRIPT_NAME"
 
 CONTRACT=$(worm info contract mainnet "$chain_name" "$MODULE")
 
@@ -151,11 +156,13 @@ if [[ -n "$address" ]]; then
 else
     if [[ $skip_compile = false ]]; then
         echo "🛠  Compiling contract..."
-        build_output=$(npm run build) || ( echo "$build_output" && exit 1 )
+        build_output=$(npm run build:forge) || ( echo "$build_output" && exit 1 )
     fi
     printf "⬆️  Deploying implementation..."
-    deploy_output=$(npx truffle exec $SCRIPT --network development) || ( echo "$deploy_output" && exit 1 )
-    new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
+    forge script $SCRIPT --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast --via-ir 
+    returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/1/run-latest.json)
+    new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
+
 fi
 printf " %s\n" "$new_implementation"
 
