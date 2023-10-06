@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$CI" -eq "true" ]; then
+if [ "$DEV" != "True" ]; then
   if [ $CHAIN_ID -eq 4 ]; then
     RPC_URL='http://eth-devnet2:8545'
   else 
@@ -83,13 +83,13 @@ source "./forge-scripts/registerChainsNFTBridge.sh"
 echo 'Registration of NFT bridges done';
 
 if [ $CHAIN_ID -eq 4 ]; then
-  if [ "$CI" -eq "true" ]; then
+  if [ "$DEV" != "True" ]; then
     ENV=ci npm run deploy-relayers-evm2
   else 
     ENV=tilt npm run deploy-relayers-evm2
   fi
 else
-  if [ "$CI" -eq "true" ]; then
+  if [ "$DEV" != "True" ]; then
     ENV=ci npm run deploy-relayers-evm1
   else 
     ENV=tilt npm run deploy-relayers-evm1
