@@ -38,7 +38,6 @@ spec:
             - --host=0.0.0.0
             - --accounts=11
             - --chain-id=1
-            - --port=8545
             - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
           ports:
             - containerPort: 8545
