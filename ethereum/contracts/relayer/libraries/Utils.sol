@@ -6,12 +6,14 @@ import "../../interfaces/relayer/TypedUnits.sol";
 
 error NotAnEvmAddress(bytes32);
 
+uint256 constant GAS_LIMIT_PAYMENT = 100_000;
+
 function pay(address payable receiver, LocalNative amount) returns (bool success) {
   uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
     // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
     // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
-    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasleft(), amount_, 0);
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), GAS_LIMIT_PAYMENT, amount_, 0);
   else
     success = true;
 }
