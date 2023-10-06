@@ -52,6 +52,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     using TargetNativeLib for TargetNative;
     using LocalNativeLib for LocalNative;
 
+    uint256 constant GAS_LIMIT_EXTERNAL_CALL = 500_000;
+
     function deliver(
         bytes[] memory encodedVMs,
         bytes memory encodedDeliveryVAA,
@@ -446,7 +448,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         uint16 refundChain,
         bytes32 refundAddress,
         LocalNative refundAmount,
-        bytes32 relayerAddress
+        bytes32 deliveryProvider
     ) private returns (RefundStatus) {
         // User requested refund on this chain
         if (refundChain == getChainId()) {
@@ -461,12 +463,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         // (Note: assumes refund chain is an EVM chain)
         LocalNative baseDeliveryPrice;
       
-        try this.getBaseDeliveryPrice(
-                refundChain,
-                fromWormholeFormat(relayerAddress)
-        ) returns (LocalNative quote) {
-            baseDeliveryPrice = quote;
-        } catch (bytes memory) {
+        (bool success, bytes memory returnData) = fromWormholeFormat(deliveryProvider).staticcall{gas: GAS_LIMIT_EXTERNAL_CALL}(abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))));
+
+        if(success) {
+            (baseDeliveryPrice,) = abi.decode(returnData, (LocalNative, bytes));
+        } else {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
 
@@ -475,17 +476,21 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
         
+        return sendCrossChainRefund(refundChain, refundAddress, refundAmount, refundAmount - getWormholeMessageFee() - baseDeliveryPrice, deliveryProvider);
+    }
+
+    function sendCrossChainRefund(uint16 refundChain, bytes32 refundAddress, LocalNative sendAmount, LocalNative receiveAmount, bytes32 deliveryProvider) internal returns (RefundStatus status) {
         // Request a 'send' with 'paymentForExtraReceiverValue' equal to the refund minus the 'empty delivery price'
-        try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
+        try IWormholeRelayerSend(address(this)).send{value: sendAmount.unwrap(), gas: GAS_LIMIT_EXTERNAL_CALL}(
             refundChain,
             bytes32(0),
             bytes(""),
             TargetNative.wrap(0),
-            refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
+            receiveAmount,
             encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
             refundChain,
             refundAddress,
-            fromWormholeFormat(relayerAddress),
+            fromWormholeFormat(deliveryProvider),
             new VaaKey[](0),
             CONSISTENCY_LEVEL_INSTANT
         ) returns (uint64) {
@@ -493,22 +498,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
-    }
-
-    function getBaseDeliveryPrice(
-        uint16 refundChain,
-        address deliveryProvider
-    ) external view returns (LocalNative price) {
-        if (msg.sender != address(this)) {
-            revert RequesterNotWormholeRelayer();
-        }
-        bytes memory encodedExecutionInfo;
-        (price, encodedExecutionInfo) = IDeliveryProvider(deliveryProvider)
-            .quoteDeliveryPrice(
-                refundChain,
-                TargetNative.wrap(0),
-                encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
-            );
     }
 
     function checkMessageKeysWithMessages(
