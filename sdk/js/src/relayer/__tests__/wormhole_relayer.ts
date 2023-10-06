@@ -605,7 +605,7 @@ describe("Wormhole Relayer Tests", () => {
     const environment: Network = "TESTNET";
 
     const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
-      environment
+      environment,
     });
     console.log(info.stringified);
   });
@@ -628,12 +628,13 @@ describe("Wormhole Relayer Tests", () => {
       { environment },
       true
     );
-    console.log(`Price info: ${JSON.stringify(priceInfo)}`)
+    console.log(`Price info: ${JSON.stringify(priceInfo)}`);
 
     const signer = new ethers.Wallet(
       PRIVATE_KEY,
-      targetProvider ? new ethers.providers.JsonRpcProvider(targetProvider) :
-        getDefaultProvider(environment, priceInfo.targetChain)
+      targetProvider
+        ? new ethers.providers.JsonRpcProvider(targetProvider)
+        : getDefaultProvider(environment, priceInfo.targetChain)
     );
 
     console.log(
