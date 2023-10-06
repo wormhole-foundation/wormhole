@@ -43,7 +43,8 @@ skip_compile=false
 keepalive_anvil=false
 shutdown=false
 anvil_out=$(mktemp)
-while getopts ':hm:c:a:xkdl:s' option; do
+evm_chain_id=0
+while getopts ':hm:c:e:a:xkdl:s' option; do
   case "$option" in
     h) usage
        ;;
@@ -119,9 +120,9 @@ case "$module" in
     bridge|core)
         MODULE=Core
         if [[ $shutdown = true ]]; then
-            SCRIPT_NAME="DeployCoreBridgeShutdown"
+            SCRIPT_NAME="DeployCoreShutdown"
         else
-            SCRIPT_NAME="DeployCoreBridgeImplementation"
+            SCRIPT_NAME="DeployCoreImplementationOnly"
         fi
         ;;
     token_bridge)
@@ -129,7 +130,7 @@ case "$module" in
         if [[ $shutdown = true ]]; then
             SCRIPT_NAME="DeployTokenBridgeShutdown"
         else
-            SCRIPT_NAME="DeployTokenBridgeImplementation"
+            SCRIPT_NAME="DeployTokenBridgeImplementationOnly"
         fi
         ;;
     nft_bridge)
@@ -137,7 +138,7 @@ case "$module" in
         if [[ $shutdown = true ]]; then
             SCRIPT_NAME="DeployNFTBridgeShutdown"
         else
-            SCRIPT_NAME="DeployNFTBridgeImplementation"
+            SCRIPT_NAME="DeployNFTBridgeImplementationOnly"
         fi
         ;;
     *) echo "unknown module $module" >&2
@@ -160,6 +161,7 @@ else
     fi
     printf "⬆️  Deploying implementation..."
     forge script $SCRIPT --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast --via-ir 
+    # The '1' here is the EVM chain ID - is 1 for ethereum
     returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/1/run-latest.json)
     new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
