@@ -25,7 +25,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
@@ -51,8 +51,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     using GasPriceLib for GasPrice;
     using TargetNativeLib for TargetNative;
     using LocalNativeLib for LocalNative;
-
-    uint256 constant GAS_LIMIT_EXTERNAL_CALL = 500_000;
 
     function deliver(
         bytes[] memory encodedVMs,
@@ -462,11 +460,18 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
         LocalNative baseDeliveryPrice;
-      
-        (bool success, bytes memory returnData) = fromWormholeFormat(deliveryProvider).staticcall{gas: GAS_LIMIT_EXTERNAL_CALL}(abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))));
 
-        if(success) {
-            (baseDeliveryPrice,) = abi.decode(returnData, (LocalNative, bytes));
+        uint256 QUOTE_LENGTH_BYTES = 32;
+        (bool success, bytes memory returnData) = returnLengthBoundedCall(
+            fromWormholeFormat(deliveryProvider),
+            abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))),
+            GAS_LIMIT_EXTERNAL_CALL,
+            0,
+            QUOTE_LENGTH_BYTES
+        );
+        
+        if(success && returnData.length >= QUOTE_LENGTH_BYTES) {
+            baseDeliveryPrice = abi.decode(returnData, (LocalNative));
         } else {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
