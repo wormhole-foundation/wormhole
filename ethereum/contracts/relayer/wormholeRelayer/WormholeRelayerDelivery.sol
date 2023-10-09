@@ -483,7 +483,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             QUOTE_LENGTH_BYTES
         );
         
-        if(externalCallSuccess && returnData.length >= QUOTE_LENGTH_BYTES) {
+        if(externalCallSuccess && returnData.length == QUOTE_LENGTH_BYTES) {
             baseDeliveryPrice = abi.decode(returnData, (LocalNative));
             success = true;
         } else {
