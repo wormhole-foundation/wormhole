@@ -477,7 +477,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         // If the refundAmount is not greater than the 'empty delivery price', the refund does not go through
-        if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
+        if (refundAmount <= baseDeliveryPrice) {
+            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+        } else if(refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
         
