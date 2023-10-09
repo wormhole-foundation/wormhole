@@ -474,7 +474,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     }
 
     function untrustedBaseDeliveryPrice(address deliveryProvider, uint16 refundChain) internal returns (bool success, LocalNative baseDeliveryPrice) {
-        uint256 QUOTE_LENGTH_BYTES = 32;
+        uint256 constant QUOTE_LENGTH_BYTES = 32;
         (bool externalCallSuccess, bytes memory returnData) = returnLengthBoundedCall(
             deliveryProvider,
             abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))),
