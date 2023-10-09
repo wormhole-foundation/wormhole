@@ -13,7 +13,17 @@ function pay(address payable receiver, LocalNative amount) returns (bool success
   if (amount_ != 0)
     // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
     // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
-    (success,) = returnLengthBoundedCall(receiver, new bytes(0), GAS_LIMIT_EXTERNAL_CALL, amount_, 0);
+    (success,) = returnLengthBoundedCallWithValue(receiver, new bytes(0), gasleft(), amount_, 0);
+  else
+    success = true;
+}
+
+function payWithBoundedGas(address payable receiver, LocalNative amount, uint256 gasBound) returns (bool success) {
+  uint256 amount_ = LocalNative.unwrap(amount);
+  if (amount_ != 0)
+    // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
+    // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
+    (success,) = returnLengthBoundedCallWithValue(receiver, new bytes(0), gasBound, amount_, 0);
   else
     success = true;
 }
@@ -50,13 +60,25 @@ uint256 constant memoryWord = 32;
 uint256 constant maskModulo32 = 0x1f;
 
 /**
+ * Overload with no 'value' and non-payable address
+ */
+function returnLengthBoundedCall(
+  address callee,
+  bytes memory callData,
+  uint256 gasLimit,
+  uint256 dataLengthBound
+) returns (bool success, bytes memory returnedData) {
+  return returnLengthBoundedCallWithValue(payable(callee), callData, gasLimit, 0, dataLengthBound);
+}
+
+/**
  * Implements call that truncates return data to a specific size to avoid excessive gas consumption for relayers
  * when a revert or unexpectedly large return value is produced by the call.
  *
  * @param returnedData Buffer of returned data truncated to the first `dataLengthBound` bytes.
  */
-function returnLengthBoundedCall(
-  address callee,
+function returnLengthBoundedCallWithValue(
+  address payable callee,
   bytes memory callData,
   uint256 gasLimit,
   uint256 value,
