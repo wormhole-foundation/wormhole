@@ -31,6 +31,7 @@ export const CHAINS = {
   base: 30,
   sei: 32,
   rootstock: 33,
+  scroll: 34,
   wormchain: 3104,
   cosmoshub: 4000,
   evmos: 4001,
@@ -65,6 +66,7 @@ export const EVMChainNames = [
   "gnosis",
   "base",
   "rootstock",
+  "scroll",
   "sepolia",
 ] as const;
 export type EVMChainName = typeof EVMChainNames[number];
@@ -274,6 +276,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqaqfk2j",
     token_bridge:
@@ -475,6 +482,11 @@ const TESTNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: "0x055F47F1250012C6B20c436570a76e52c17Af2D5",
+    token_bridge: "0x22427d90B7dA3fA4642F7025A854c7254E4e45BF",
+    nft_bridge: "0x47B9a1406BEe29a3001BFEB7e45aE45fFFB40c18",
+  },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
     token_bridge:
@@ -673,6 +685,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
     token_bridge:
@@ -776,6 +793,7 @@ export const CHAIN_ID_BTC = CHAINS["btc"];
 export const CHAIN_ID_BASE = CHAINS["base"];
 export const CHAIN_ID_SEI = CHAINS["sei"];
 export const CHAIN_ID_ROOTSTOCK = CHAINS["rootstock"];
+export const CHAIN_ID_SCROLL = CHAINS["scroll"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
 export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];
