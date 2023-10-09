@@ -25,7 +25,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
+import {pay, max, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
@@ -477,10 +477,10 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         // If the refundAmount is not greater than the 'empty delivery price', the refund does not go through
-        if (refundAmount <= baseDeliveryPrice) {
-            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
-        } else if(refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
-            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+        unchecked {
+            if ((refundAmount <= baseDeliveryPrice) || (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice)) {
+                return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+            }
         }
         
         return sendCrossChainRefund(refundChain, refundAddress, refundAmount, refundAmount - getWormholeMessageFee() - baseDeliveryPrice, deliveryProvider);
