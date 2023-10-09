@@ -459,31 +459,36 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
-        LocalNative baseDeliveryPrice;
+        (bool success, LocalNative baseDeliveryPrice) = untrustedBaseDeliveryPrice(fromWormholeFormat(deliveryProvider), refundChain);
+        
+        // If the unstrusted call failed, or the refundAmount is not greater than the 'empty delivery price', then the refund does not go through
+        // Note: We first check 'refundAmount <= baseDeliveryPrice', in case an untrusted delivery provider returns a value that overflows once
+        // the wormhole message fee is added to it
+        unchecked {
+            if (!success || (refundAmount <= baseDeliveryPrice) || (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice)) {
+                return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+            }
+        }
+        
+        return sendCrossChainRefund(refundChain, refundAddress, refundAmount, refundAmount - getWormholeMessageFee() - baseDeliveryPrice, deliveryProvider);
+    }
 
+    function untrustedBaseDeliveryPrice(address deliveryProvider, uint16 refundChain) internal returns (bool success, LocalNative baseDeliveryPrice) {
         uint256 QUOTE_LENGTH_BYTES = 32;
-        (bool success, bytes memory returnData) = returnLengthBoundedCall(
-            fromWormholeFormat(deliveryProvider),
+        (bool externalCallSuccess, bytes memory returnData) = returnLengthBoundedCall(
+            deliveryProvider,
             abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))),
             GAS_LIMIT_EXTERNAL_CALL,
             0,
             QUOTE_LENGTH_BYTES
         );
         
-        if(success && returnData.length >= QUOTE_LENGTH_BYTES) {
+        if(externalCallSuccess && returnData.length >= QUOTE_LENGTH_BYTES) {
             baseDeliveryPrice = abi.decode(returnData, (LocalNative));
+            success = true;
         } else {
-            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
+            success = false;
         }
-
-        // If the refundAmount is not greater than the 'empty delivery price', the refund does not go through
-        unchecked {
-            if ((refundAmount <= baseDeliveryPrice) || (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice)) {
-                return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
-            }
-        }
-        
-        return sendCrossChainRefund(refundChain, refundAddress, refundAmount, refundAmount - getWormholeMessageFee() - baseDeliveryPrice, deliveryProvider);
     }
 
     function sendCrossChainRefund(uint16 refundChain, bytes32 refundAddress, LocalNative sendAmount, LocalNative receiveAmount, bytes32 deliveryProvider) internal returns (RefundStatus status) {
