@@ -25,7 +25,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, max, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
+import {pay, payWithBoundedGas, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, returnLengthBoundedCallWithValue, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
@@ -42,6 +42,8 @@ import {
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../relayer/libraries/ExecutionParameters.sol";
+
+uint256 constant QUOTE_LENGTH_BYTES = 32;
 
 abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
     using WormholeRelayerSerde for *; 
@@ -326,7 +328,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             // Calls the `receiveWormholeMessages` endpoint on the contract `evmInstruction.targetAddress`
             // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
             // If it reverts, returns the first 132 bytes of the revert message
-            (success, results.additionalStatusInfo) = returnLengthBoundedCall(
+            (success, results.additionalStatusInfo) = returnLengthBoundedCallWithValue(
                 deliveryTarget,
                 callData,
                 gasLimit.unwrap(),
@@ -450,7 +452,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     ) private returns (RefundStatus) {
         // User requested refund on this chain
         if (refundChain == getChainId()) {
-            return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
+            return payWithBoundedGas(payable(fromWormholeFormat(refundAddress)), refundAmount, GAS_LIMIT_EXTERNAL_CALL)
                 ? RefundStatus.REFUND_SENT
                 : RefundStatus.REFUND_FAIL;
         }
@@ -474,12 +476,10 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     }
 
     function untrustedBaseDeliveryPrice(address deliveryProvider, uint16 refundChain) internal returns (bool success, LocalNative baseDeliveryPrice) {
-        uint256 constant QUOTE_LENGTH_BYTES = 32;
         (bool externalCallSuccess, bytes memory returnData) = returnLengthBoundedCall(
             deliveryProvider,
             abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))),
             GAS_LIMIT_EXTERNAL_CALL,
-            0,
             QUOTE_LENGTH_BYTES
         );
         
@@ -493,6 +493,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
     function sendCrossChainRefund(uint16 refundChain, bytes32 refundAddress, LocalNative sendAmount, LocalNative receiveAmount, bytes32 deliveryProvider) internal returns (RefundStatus status) {
         // Request a 'send' with 'paymentForExtraReceiverValue' equal to the refund minus the 'empty delivery price'
+        // We limit the gas because we are within a delivery, so thus the trust assumptions on the delivery provider are different
+        // Normally, in 'send', a revert is no problem; but here, we want to prevent such reverts in this try-catch
         try IWormholeRelayerSend(address(this)).send{value: sendAmount.unwrap(), gas: GAS_LIMIT_EXTERNAL_CALL}(
             refundChain,
             bytes32(0),
