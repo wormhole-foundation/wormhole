@@ -182,7 +182,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
 
   const deliveryEvents: DeliveryEvent[] = await wormholeRelayer.queryFilter(
     deliveryEventsFilter,
-    blockRange ? blockRange[0] : "-2000",
+    blockRange ? blockRange[0] : -2000,
     blockRange ? blockRange[1] : "latest"
   );
 
