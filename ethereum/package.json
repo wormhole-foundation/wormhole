@@ -8,6 +8,7 @@
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts": "^4.3.1",
     "@truffle/hdwallet-provider": "^1.7.0",
+    "@types/node-fetch": "^2.6.6",
     "chai": "^4.3.7",
     "mocha": "^8.4.0",
     "truffle": "5.8.4",
@@ -27,8 +28,9 @@
     "deploy_weth9": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 9 --compile-none",
     "deploy-relayers-evm1": "CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
-    "typecheck": "tsc --noEmit --skipLibCheck"
-    },
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "mine": "ts-node ./mine.ts"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -37,6 +39,7 @@
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "jsonfile": "^4.0.0",
+    "node-fetch": "^2.7.0",
     "truffle-hdwallet-provider-klaytn": "^1.4.2",
     "typechain": "^8.1.1"
   }
