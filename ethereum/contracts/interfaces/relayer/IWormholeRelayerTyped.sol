@@ -382,7 +382,6 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @notice *** This will only be able to succeed if the following is true **
      *         - newGasLimit >= gas limit of the old instruction
      *         - newReceiverValue >= receiver value of the old instruction
-     *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
      */
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
