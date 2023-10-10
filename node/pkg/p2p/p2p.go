@@ -189,6 +189,45 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 	return successes
 }
 
+func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
+	h, err := libp2p.New(
+		// Use the keypair we generated
+		libp2p.Identity(priv),
+
+		// Multiple listen addresses
+		libp2p.ListenAddrStrings(
+			components.ListeningAddresses()...,
+		),
+
+		// Enable TLS security as the only security protocol.
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+
+		// Enable QUIC transport as the only transport.
+		libp2p.Transport(libp2pquic.NewTransport),
+
+		// Let's prevent our peer from having too many
+		// connections by attaching a connection manager.
+		libp2p.ConnectionManager(components.ConnMgr),
+
+		// Let this host use the DHT to find other hosts
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
+
+			bootstrappers, _ := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+
+			// TODO(leo): Persistent data store (i.e. address book)
+			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
+				// This intentionally makes us incompatible with the global IPFS DHT
+				dht.ProtocolPrefix(protocol.ID("/"+networkID)),
+				dht.BootstrapPeers(bootstrappers...),
+			)
+			return idht, err
+		}),
+	)
+
+	return h, err
+}
+
 func Run(
 	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqC chan<- *gossipv1.ObservationRequest,
@@ -229,41 +268,7 @@ func Run(
 			rootCtxCancel()
 		}()
 
-		h, err := libp2p.New(
-			// Use the keypair we generated
-			libp2p.Identity(priv),
-
-			// Multiple listen addresses
-			libp2p.ListenAddrStrings(
-				components.ListeningAddresses()...,
-			),
-
-			// Enable TLS security as the only security protocol.
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-			// Enable QUIC transport as the only transport.
-			libp2p.Transport(libp2pquic.NewTransport),
-
-			// Let's prevent our peer from having too many
-			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(components.ConnMgr),
-
-			// Let this host use the DHT to find other hosts
-			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-				logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
-
-				bootstrappers, _ := bootstrapAddrs(logger, bootstrapPeers, h.ID())
-
-				// TODO(leo): Persistent data store (i.e. address book)
-				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-					// This intentionally makes us incompatible with the global IPFS DHT
-					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-					dht.BootstrapPeers(bootstrappers...),
-				)
-				return idht, err
-			}),
-		)
-
+		h, err := NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 		if err != nil {
 			panic(err)
 		}
