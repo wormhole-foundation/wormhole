@@ -41,6 +41,7 @@ spec:
             - --chain-id=1397
             - --silent
             - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
+            - --block-time=1
           
           ports:
             - containerPort: 8545
