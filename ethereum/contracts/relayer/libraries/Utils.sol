@@ -6,24 +6,22 @@ import "../../interfaces/relayer/TypedUnits.sol";
 
 error NotAnEvmAddress(bytes32);
 
-uint256 constant GAS_LIMIT_EXTERNAL_CALL = 100_000;
-
 function pay(address payable receiver, LocalNative amount) returns (bool success) {
   uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
     // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
     // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
-    (success,) = returnLengthBoundedCallWithValue(receiver, new bytes(0), gasleft(), amount_, 0);
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasleft(), amount_, 0);
   else
     success = true;
 }
 
-function payWithBoundedGas(address payable receiver, LocalNative amount, uint256 gasBound) returns (bool success) {
+function pay(address payable receiver, LocalNative amount, uint256 gasBound) returns (bool success) {
   uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
     // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
     // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
-    (success,) = returnLengthBoundedCallWithValue(receiver, new bytes(0), gasBound, amount_, 0);
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasBound, amount_, 0);
   else
     success = true;
 }
@@ -68,7 +66,7 @@ function returnLengthBoundedCall(
   uint256 gasLimit,
   uint256 dataLengthBound
 ) returns (bool success, bytes memory returnedData) {
-  return returnLengthBoundedCallWithValue(payable(callee), callData, gasLimit, 0, dataLengthBound);
+  return returnLengthBoundedCall(payable(callee), callData, gasLimit, 0, dataLengthBound);
 }
 
 /**
@@ -77,7 +75,7 @@ function returnLengthBoundedCall(
  *
  * @param returnedData Buffer of returned data truncated to the first `dataLengthBound` bytes.
  */
-function returnLengthBoundedCallWithValue(
+function returnLengthBoundedCall(
   address payable callee,
   bytes memory callData,
   uint256 gasLimit,
