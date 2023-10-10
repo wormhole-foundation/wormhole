@@ -13,7 +13,7 @@
     {
       "evmNetworkId": 1397,
       "chainId": 4,
-      "rpc": "http://localhost:8546",
+      "rpc": "http://localhost:8545",
       "wormholeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
     }
   ]
