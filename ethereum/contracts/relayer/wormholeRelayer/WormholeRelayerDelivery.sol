@@ -25,7 +25,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, payWithBoundedGas, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, returnLengthBoundedCallWithValue, GAS_LIMIT_EXTERNAL_CALL} from "../../relayer/libraries/Utils.sol";
+import {pay, pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
@@ -44,6 +44,8 @@ import "../../interfaces/relayer/TypedUnits.sol";
 import "../../relayer/libraries/ExecutionParameters.sol";
 
 uint256 constant QUOTE_LENGTH_BYTES = 32;
+
+uint256 constant GAS_LIMIT_EXTERNAL_CALL = 100_000;
 
 abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
     using WormholeRelayerSerde for *; 
@@ -328,7 +330,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             // Calls the `receiveWormholeMessages` endpoint on the contract `evmInstruction.targetAddress`
             // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
             // If it reverts, returns the first 132 bytes of the revert message
-            (success, results.additionalStatusInfo) = returnLengthBoundedCallWithValue(
+            (success, results.additionalStatusInfo) = returnLengthBoundedCall(
                 deliveryTarget,
                 callData,
                 gasLimit.unwrap(),
@@ -452,7 +454,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     ) private returns (RefundStatus) {
         // User requested refund on this chain
         if (refundChain == getChainId()) {
-            return payWithBoundedGas(payable(fromWormholeFormat(refundAddress)), refundAmount, GAS_LIMIT_EXTERNAL_CALL)
+            return pay(payable(fromWormholeFormat(refundAddress)), refundAmount, GAS_LIMIT_EXTERNAL_CALL)
                 ? RefundStatus.REFUND_SENT
                 : RefundStatus.REFUND_FAIL;
         }
