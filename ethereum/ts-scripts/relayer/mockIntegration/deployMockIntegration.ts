@@ -9,10 +9,6 @@ import {
 } from "../helpers/env";
 import { deployMockIntegration } from "../helpers/deployments";
 import { BigNumber, BigNumberish, BytesLike } from "ethers";
-import {
-  tryNativeToHexString,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import { wait } from "../helpers/utils";
 
@@ -47,7 +43,7 @@ async function run() {
     }[] = chains.map((c, j) => ({
       chainId: c.chainId,
       addr:
-        "0x" + tryNativeToHexString(getMockIntegrationAddress(c), "ethereum"),
+        "0x000000000000000000000000" + getMockIntegrationAddress(c).substring(2)
     }));
 
     await mockIntegration
