@@ -145,6 +145,7 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDOptimism:  {},
 		vaa.ChainIDBase:      {},
 		vaa.ChainIDScroll:    {},
+		vaa.ChainIDMantle:    {},
 		vaa.ChainIDSepolia:   {},
 	}
 
