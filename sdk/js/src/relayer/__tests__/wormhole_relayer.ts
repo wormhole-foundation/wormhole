@@ -592,6 +592,7 @@ describe("Wormhole Relayer Tests", () => {
     );
 
     let tx = await source.wormholeRelayer.submitContractUpgrade(firstSignedVaa);
+    await tx.wait();
 
     expect(
       ethers.utils.getAddress((await getImplementationAddress()).substring(26))
