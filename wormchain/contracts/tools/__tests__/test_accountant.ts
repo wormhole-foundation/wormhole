@@ -174,8 +174,6 @@ describe("Global Accountant Tests", () => {
           ethSigner,
           ETH_GA_TEST_TOKEN
         );
-        console.log(`attest from eth parameters: token bridge: ${CONTRACTS.DEVNET.ethereum.token_bridge}, ethsigner ${ethSigner}, ga test token ${ETH_GA_TEST_TOKEN}`)
-        console.log(`receipt: ${JSON.stringify(receipt)}`)
         // get the sequence from the logs (needed to fetch the vaa)
         const sequence = parseSequenceFromLogEth(
           receipt,
