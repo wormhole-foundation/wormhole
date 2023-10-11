@@ -55,7 +55,7 @@ const createTestChain = (name: ChainName) => {
   if (process.env.DEV) {
     // Via ir is off -> different wormhole relayer address
     addressInfo.wormholeRelayerAddress =
-      "0xc55290D3881fa70F9138974E9f2a563A59782004";
+      "0x5e70F7F12EfcD686048A5eBB519e96c6E86d2735";
   }
   if (network == "MAINNET")
     addressInfo.mockIntegrationAddress =
@@ -351,7 +351,7 @@ describe("Wormhole Relayer Tests", () => {
     );
     console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await source.wallet.getBalance();
-
+    const endingBalance = startingBalance.sub(value);
     const tx = await relayer.sendToEvm(
       source.wallet,
       sourceChain,
@@ -365,7 +365,6 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Sent delivery request!");
     await tx.wait();
     console.log("Message confirmed!");
-    const endingBalance = await source.wallet.getBalance();
 
     await waitForRelay();
 
