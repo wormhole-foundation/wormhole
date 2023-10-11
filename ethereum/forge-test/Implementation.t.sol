@@ -153,13 +153,13 @@ contract TestImplementation is TestUtils {
         proxied.publishMessage{value: messageFee}(nonce, payload, consistencyLevel);
     }
 
-    function testShouldBeInitializedWithCorrectSignersAndValues() {
+    function testShouldBeInitializedWithCorrectSignersAndValues() public {
         uint32 index = proxied.getCurrentGuardianSetIndex();
-        GuardianSet memory set = proxied.getGuardianSet(index);
+        IWormhole.GuardianSet memory set = proxied.getGuardianSet(index);
 
         // check set
-        assertEq(set[0].length, 1, "Guardian set length wrong");
-        assertEq(set[0][0], vm.addr(testGuardian), "Guardian wrong");
+        assertEq(set.keys.length, 1, "Guardian set length wrong");
+        assertEq(set.keys[0], vm.addr(testGuardian), "Guardian wrong");
 
         // check expiration
         assertEq(set.expirationTime, 0);
@@ -179,29 +179,29 @@ contract TestImplementation is TestUtils {
         assertEq(governanceContract, 0x0000000000000000000000000000000000000000000000000000000000000004, "Wrong governance contract");
     }
 
-    function testShouldLogAPublishedMessageCorrectly() {
+    function testShouldLogAPublishedMessageCorrectly() public {
         vm.expectEmit();
-        emit IWormhole.LogMessagePublished(address(this), 0, 291, 0x123321, 32);
-        proxied.publishMessage(0x123, 0x123321, 32);
+        emit LogMessagePublished(address(this), uint64(0), uint32(291), bytes(hex"123321"), uint8(32));
+        proxied.publishMessage(0x123, hex"123321", 32);
     }
 
-    function testShouldIncreaseTheSequenceForAnAccount() {
-        proxied.publishMessage(0x1, 0x1, 32);
-        uint64 sequence = proxied.publishMessage(0x1, 0x1, 32);
+    function testShouldIncreaseTheSequenceForAnAccount() public {
+        proxied.publishMessage(0x1, hex"01", 32);
+        uint64 sequence = proxied.publishMessage(0x1, hex"01", 32);
         assertEq(sequence, 1, "Sequence number didn't increase");
     }
 
-    function testParseVMsCorrectly() {
+    function testParseVMsCorrectly() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         uint16 emitterChainId = 11;
         bytes32 emitterAddress = 0x0000000000000000000000000000000000000000000000000000000000000eee;
         uint64 sequence = 25;
         uint8 consistencyLevel = 32;
-        bytes memory data = 0xaaaaaa;
+        bytes memory data = hex"aaaaaa";
         
         bytes memory body = abi.encodePacked(timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel);
-        bytes32 bodyHash = keccak256(keccak256(body));
+        bytes32 bodyHash = keccak256(abi.encodePacked(keccak256(body)));
 
         
 
