@@ -55,7 +55,7 @@ const createTestChain = (name: ChainName) => {
   if (process.env.DEV) {
     // Via ir is off -> different wormhole relayer address
     addressInfo.wormholeRelayerAddress =
-      "0xc55290D3881fa70F9138974E9f2a563A59782004";
+      "0x5e70F7F12EfcD686048A5eBB519e96c6E86d2735";
   }
   if (network == "MAINNET")
     addressInfo.mockIntegrationAddress =
