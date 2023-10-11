@@ -130,6 +130,15 @@ const getStatus = async (
   _sourceChain?: ChainName,
   index?: number
 ): Promise<string> => {
+  const info = await getInfo(txHash, _sourceChain, index);
+  return info.targetChainStatus.events[index ? index : 0].status;
+};
+
+const getInfo = async (
+  txHash: string,
+  _sourceChain?: ChainName,
+  index?: number
+): Promise<relayer.DeliveryInfo> => {
   const info = (await relayer.getWormholeRelayerInfo(
     _sourceChain || sourceChain,
     txHash,
@@ -140,7 +149,7 @@ const getStatus = async (
       wormholeRelayerAddresses,
     }
   )) as relayer.DeliveryInfo;
-  return info.targetChainStatus.events[index ? index : 0].status;
+  return info;
 };
 
 const testSend = async (
@@ -375,10 +384,12 @@ describe("Wormhole Relayer Tests", () => {
 
     console.log("Checking status of refund using SDK");
     console.log(relayer.stringifyWormholeRelayerInfo(info));
-    const statusOfRefund = await getStatus(
+    const infoOfRefund = await getInfo(
       info.targetChainStatus.events[0].transactionHash || "",
       targetChain
     );
+    console.log(relayer.stringifyWormholeRelayerInfo(infoOfRefund));
+    const statusOfRefund = infoOfRefund.targetChainStatus.events[0].status;
     expect(statusOfRefund).toBe("Delivery Success");
 
     console.log(`Quoted gas delivery fee: ${value}`);
