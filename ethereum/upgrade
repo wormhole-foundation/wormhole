@@ -9,15 +9,13 @@ evm_chain_id=$4
 rpc_url=$5
 private_key=$6
 
-
-secret=$MNEMONIC
 guardian_secret=""
 
 if [ "$network" = testnet ]; then
   guardian_secret=$GUARDIAN_MNEMONIC
 fi
 
-SCRIPT=""
+SCRIPT_NAME=""
 verify_module=""
 case "$module" in
     Core)
@@ -59,7 +57,7 @@ if [ $ret = 0 ]; then
   exit
 fi
 
-forge script $SCRIPT --rpc-url $rpc_url --private-key $private_key --broadcast --via-ir || ( echo "✘ $chain $module: $deploy_output" && exit 1 )
+forge script $SCRIPT --rpc-url $rpc_url --private-key $private_key --broadcast --via-ir || ( echo "✘ $chain $module" && exit 1 )
 returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/$evm_chain_id/run-latest.json) 
 new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
