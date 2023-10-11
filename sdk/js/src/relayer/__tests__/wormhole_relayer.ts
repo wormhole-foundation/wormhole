@@ -351,7 +351,7 @@ describe("Wormhole Relayer Tests", () => {
     );
     console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await source.wallet.getBalance();
-
+    const endingBalance = startingBalance.sub(value);
     const tx = await relayer.sendToEvm(
       source.wallet,
       sourceChain,
@@ -365,7 +365,6 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Sent delivery request!");
     await tx.wait();
     console.log("Message confirmed!");
-    const endingBalance = await source.wallet.getBalance();
 
     await waitForRelay();
 
