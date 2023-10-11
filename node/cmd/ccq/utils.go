@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -174,13 +175,13 @@ func parseConfig(byteValue []byte) (Permissions, error) {
 	return ret, nil
 }
 
-// validateRequest verifies that this API key is allowed to do all of the calls in this request.
-func validateRequest(logger *zap.Logger, env common.Environment, perms Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) error {
+// validateRequest verifies that this API key is allowed to do all of the calls in this request. In the case of an error, it returns the HTTP status.
+func validateRequest(logger *zap.Logger, env common.Environment, perms Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) (int, error) {
 	apiKey = strings.ToLower(apiKey)
 	permsForUser, exists := perms[strings.ToLower(apiKey)]
 	if !exists {
 		logger.Debug("invalid api key", zap.String("apiKey", apiKey))
-		return fmt.Errorf("invalid api key")
+		return http.StatusForbidden, fmt.Errorf("invalid api key")
 	}
 
 	// TODO: Should we verify the signatures?
@@ -192,7 +193,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 				zap.Bool("allowUnsigned", permsForUser.allowUnsigned),
 				zap.Bool("signerKeyConfigured", signerKey != nil),
 			)
-			return fmt.Errorf("request not signed")
+			return http.StatusBadRequest, fmt.Errorf("request not signed")
 		}
 
 		// Sign the request using our key.
@@ -201,7 +202,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 		qr.Signature, err = ethCrypto.Sign(digest.Bytes(), signerKey)
 		if err != nil {
 			logger.Debug("failed to sign request", zap.String("userName", permsForUser.userName), zap.Error(err))
-			return fmt.Errorf("failed to sign request: %w", err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to sign request: %w", err)
 		}
 	}
 
@@ -209,13 +210,13 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 	err := queryRequest.Unmarshal(qr.QueryRequest)
 	if err != nil {
 		logger.Debug("failed to unmarshal request", zap.String("userName", permsForUser.userName), zap.Error(err))
-		return fmt.Errorf("failed to unmarshal request: %w", err)
+		return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Make sure the overall query request is sane.
 	if err := queryRequest.Validate(); err != nil {
 		logger.Debug("failed to validate request", zap.String("userName", permsForUser.userName), zap.Error(err))
-		return fmt.Errorf("failed to validate request: %w", err)
+		return http.StatusBadRequest, fmt.Errorf("failed to validate request: %w", err)
 	}
 
 	// Make sure they are allowed to make all of the calls that they are asking for.
@@ -226,25 +227,25 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 				contractAddress, err := vaa.BytesToAddress(callData.To)
 				if err != nil {
 					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
-					return fmt.Errorf("failed to parse contract address: %w", err)
+					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
 				}
 				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
 					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
-					return fmt.Errorf("eth call data must be at least four bytes")
+					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
 				}
 				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
 				callKey := fmt.Sprintf("ethCall:%d:%s:%s", pcq.ChainId, contractAddress, call)
 				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-					return fmt.Errorf(`call "%s" not authorized`, callKey)
+					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
 				}
 			}
 		default:
 			logger.Debug("unsupported query type", zap.String("userName", permsForUser.userName), zap.Any("type", pcq.Query))
-			return fmt.Errorf("unsupported query type")
+			return http.StatusBadRequest, fmt.Errorf("unsupported query type")
 		}
 	}
 
 	logger.Debug("submitting query request", zap.String("userName", permsForUser.userName))
-	return nil
+	return http.StatusOK, nil
 }

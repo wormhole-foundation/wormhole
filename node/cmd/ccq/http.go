@@ -61,7 +61,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	apiKey, exists := r.Header["X-Api-Key"]
 	if !exists || len(apiKey) != 1 {
 		s.logger.Debug("received a request without an api key", zap.Stringer("url", r.URL), zap.Error(err))
-		http.Error(w, "api key is missing", http.StatusBadRequest)
+		http.Error(w, "api key is missing", http.StatusUnauthorized)
 		return
 	}
 
@@ -84,9 +84,9 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	if err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
+	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
 		// Don't need to log here because the details were logged in the function.
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -106,7 +106,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	pendingResponse := NewPendingResponse(signedQueryRequest)
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
-		http.Error(w, "Duplicate request", http.StatusInternalServerError)
+		http.Error(w, "Duplicate request", http.StatusBadRequest)
 		return
 	}
 
