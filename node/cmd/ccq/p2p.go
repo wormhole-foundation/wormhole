@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -13,17 +12,9 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/libp2p/go-libp2p"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/core/routing"
-	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
-	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -46,62 +37,12 @@ type P2PSub struct {
 	host       host.Host
 }
 
-func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrap, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger) (*P2PSub, error) {
+func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger) (*P2PSub, error) {
 	// p2p setup
 	components := p2p.DefaultComponents()
 	components.Port = port
-	h, err := libp2p.New(
-		// Use the keypair we generated
-		libp2p.Identity(priv),
 
-		// Multiple listen addresses
-		libp2p.ListenAddrStrings(
-			components.ListeningAddresses()...,
-		),
-
-		// Enable TLS security as the only security protocol.
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-		// Enable QUIC transport as the only transport.
-		libp2p.Transport(libp2pquic.NewTransport),
-
-		// Let's prevent our peer from having too many
-		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(components.ConnMgr),
-
-		// Let this host use the DHT to find other hosts
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrap))
-			bootstrappers := make([]peer.AddrInfo, 0)
-			for _, addr := range strings.Split(bootstrap, ",") {
-				if addr == "" {
-					continue
-				}
-				ma, err := multiaddr.NewMultiaddr(addr)
-				if err != nil {
-					logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-					continue
-				}
-				pi, err := peer.AddrInfoFromP2pAddr(ma)
-				if err != nil {
-					logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-					continue
-				}
-				if pi.ID == h.ID() {
-					logger.Info("We're a bootstrap node")
-					continue
-				}
-				bootstrappers = append(bootstrappers, *pi)
-			}
-			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-				// This intentionally makes us incompatible with the global IPFS DHT
-				dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-				dht.BootstrapPeers(bootstrappers...),
-			)
-			return idht, err
-		}),
-	)
-
+	h, err := p2p.NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
 		return nil, err
 	}
