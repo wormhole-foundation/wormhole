@@ -38,7 +38,7 @@ lib/forge-std:
 	forge install foundry-rs/forge-std@v1.5.5 --no-git --no-commit
 
 lib/openzeppelin-contracts:
-	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
+	forge install openzeppelin/openzeppelin-contracts@v4.3.1 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
@@ -61,15 +61,7 @@ flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 .env: .env.test
 	cp $< $@
 
-test: test-forge test-identifiers # test-ganache
-
-.PHONY: test-ganache
-test-ganache: build .env dependencies
-	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
-	. ./.env && npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId $$INIT_EVM_CHAIN_ID --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false > ganache.log &
-	sleep 5
-	npm test || (pkill ganache-cli && exit 1)
-	pkill ganache-cli || true
+test: test-forge test-identifiers 
 
 .PHONY: test-upgrade
 test-upgrade: build .env node_modules
@@ -86,4 +78,4 @@ test-forge: dependencies
 	forge test --no-match-test .*_KEVM # ignore KEVM tests (see PROOFS.md)
 
 clean:
-	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
+	rm -rf .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts

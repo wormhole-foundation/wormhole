@@ -6,7 +6,7 @@ import {
   Environment,
 } from "../../../token_bridge/__tests__/utils/consts";
 
-const SAFE_RELAY_DELAY = 20000;
+const SAFE_RELAY_DELAY = 15000;
 
 const characters =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

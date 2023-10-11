@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   ChainInfo,
   getWormholeRelayerAddress,
@@ -15,6 +14,15 @@ const governanceContract =
 //don't use the variable module in global scope in node
 const wormholeRelayerModule =
   "0x0000000000000000000000000000000000576f726d686f6c6552656c61796572";
+
+export function toWormholeFormat(address: string) {
+  // EVM only
+  let strippedAddress = address;
+  if(address.substring(0, 2) === '0x') {
+    strippedAddress = address.substring(2);
+  }
+  return '0x000000000000000000000000' + strippedAddress;
+}
 
 export function createWormholeRelayerUpgradeVAA(
   chain: ChainInfo,
@@ -33,7 +41,7 @@ export function createWormholeRelayerUpgradeVAA(
       wormholeRelayerModule,
       2,
       chain.chainId,
-      "0x" + tryNativeToHexString(newAddress, "ethereum"),
+      toWormholeFormat(newAddress),
     ]
   );
 
@@ -54,8 +62,7 @@ export function createDefaultDeliveryProviderVAA(chain: ChainInfo) {
       wormholeRelayerModule,
       3,
       chain.chainId,
-      "0x" +
-        tryNativeToHexString(getDeliveryProviderAddress(chain), "ethereum"),
+      toWormholeFormat(getDeliveryProviderAddress(chain)),
     ]
   );
 
@@ -83,7 +90,7 @@ export async function createRegisterChainVAA(
       1,
       0,
       chain.chainId,
-      "0x" + tryNativeToHexString(coreRelayerAddress, "ethereum"),
+      toWormholeFormat(coreRelayerAddress),
     ]
   );
 
