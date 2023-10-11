@@ -44,7 +44,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 
-		w.Header().Set("Access-Control-Allow-Methods", "PUT")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		w.WriteHeader(http.StatusNoContent)
@@ -169,7 +169,7 @@ func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signer
 		env:              env,
 	}
 	r := mux.NewRouter()
-	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT", "POST", "OPTIONS")
 	r.HandleFunc("/v1/health", s.handleHealth).Methods("GET")
 	return &http.Server{
 		Addr:              addr,
