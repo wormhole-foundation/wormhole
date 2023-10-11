@@ -5,6 +5,10 @@ set -euo pipefail
 network=$1
 module=$2
 chain=$3
+evm_chain_id=$4
+rpc_url=$5
+private_key=$6
+
 
 secret=$MNEMONIC
 guardian_secret=""
@@ -17,34 +21,27 @@ SCRIPT=""
 verify_module=""
 case "$module" in
     Core)
-        SCRIPT="scripts/deploy_core_bridge.js"
-        FILE="build/contracts/Implementation.json"
+        SCRIPT_NAME="DeployCoreImplementationOnly"
+        FILE="build-forge/Implementation.sol/Implementation.json"
         verify_module="core"
         ;;
     TokenBridge)
-        SCRIPT="scripts/deploy_token_bridge.js"
-        FILE="build/contracts/BridgeImplementation.json"
+        SCRIPT_NAME="DeployTokenBridgeImplementationOnly"
+        FILE="build-forge/BridgeImplementation.sol/BridgeImplementation.json"
         verify_module="token_bridge"
         ;;
     NFTBridge)
-        SCRIPT="scripts/deploy_nft_bridge.js"
-        FILE="build/contracts/NFTBridgeImplementation.json"
+        SCRIPT_NAME="DeployNFTBridgeImplementationOnly"
+        FILE="build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
         verify_module="nft_bridge"
         ;;
     *) echo "unknown module $module" >&2
        ;;
 esac
 
-# TODO: add option to not compile (but compile by default)
+SCRIPT="./forge-scripts/$SCRIPT_NAME.s.sol:$SCRIPT_NAME"
 
-truffle_network=""
-case "$network" in
-    mainnet)
-        truffle_network="$chain"
-    ;;
-    testnet)
-        truffle_network="$chain"_testnet
-esac
+# TODO: add option to not compile (but compile by default)
 
 ret=0
 implementation=$(worm evm info -c "$chain" -m "$module" -n "$network" -i 2>/dev/null) || ret=$?
@@ -62,8 +59,9 @@ if [ $ret = 0 ]; then
   exit
 fi
 
-deploy_output=$(npx truffle exec $SCRIPT --network "$truffle_network") || ( echo "✘ $chain $module: $deploy_output" && exit 1 )
-new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
+forge script $SCRIPT --rpc-url $rpc_url --private-key $private_key --broadcast --via-ir || ( echo "✘ $chain $module: $deploy_output" && exit 1 )
+returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/$evm_chain_id/run-latest.json) 
+new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 
 ret=0
 (./verify -n "$network" -c "$chain" $FILE "$new_implementation" > /dev/null) || ret=$?

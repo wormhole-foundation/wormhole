@@ -290,13 +290,13 @@ guardiand template token-bridge-upgrade-contract \\
 function evm_artifact() {
   case "$module" in
   bridge|core)
-    echo "build/contracts/Implementation.json"
+    echo "build-forge/Implementation.sol/Implementation.json"
     ;;
   token_bridge)
-    echo "build/contracts/BridgeImplementation.json"
+    echo "build-forge/BridgeImplementation.sol/BridgeImplementation.json"
     ;;
   nft_bridge)
-    echo "build/contracts/NFTBridgeImplementation.json"
+    echo "build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
     ;;
   *) echo "unknown module $module" >&2
      usage

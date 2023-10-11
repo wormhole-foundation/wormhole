@@ -11,13 +11,10 @@ evm_version = "paris"
 out = 'build-forge'
 libs = ['lib', 'node_modules']
 remappings = [
-    '@solidity-parser/=node_modules/@solidity-parser/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/',
     '@openzeppelin/=lib/openzeppelin-contracts/',
-    'truffle/=node_modules/truffle/',
 ]
-fs_permissions = [{ access = "read", path = "./"}]
 
 [fmt]
 line_length = 100

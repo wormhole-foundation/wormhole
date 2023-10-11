@@ -46,13 +46,13 @@ for module in ${modules[@]}; do
     FILE=""
     case "$module" in
         Core)
-            FILE="build/contracts/Implementation.json"
+            FILE="build-forge/Implementation.sol/Implementation.json"
             ;;
         TokenBridge)
-            FILE="build/contracts/BridgeImplementation.json"
+            FILE="build-forge/BridgeImplementation.sol/BridgeImplementation.json"
             ;;
         NFTBridge)
-            FILE="build/contracts/NFTBridgeImplementation.json"
+            FILE="build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
             ;;
         *) echo "unknown module $module" >&2
            ;;
