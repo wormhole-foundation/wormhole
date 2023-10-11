@@ -155,6 +155,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 func (s *httpServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("health check")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "ok")
 }
 
 func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
