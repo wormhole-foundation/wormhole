@@ -1,4 +1,3 @@
-import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import fs from "fs";
 
@@ -17,13 +16,13 @@ import { proxyContractSalt, setupContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
-  chainId: ChainId;
+  chainId: number;
   rpc: string;
   wormholeAddress: string;
 };
 
 export type Deployment = {
-  chainId: ChainId;
+  chainId: number;
   address: string;
 };
 
@@ -120,7 +119,7 @@ export function loadChains(): ChainInfo[] {
   return chains.chains;
 }
 
-export function getChain(chain: ChainId): ChainInfo {
+export function getChain(chain: number): ChainInfo {
   const chains = loadChains();
   const output = chains.find((x) => x.chainId == chain);
   if (!output) {
@@ -347,7 +346,7 @@ export function getDeliveryProvider(
   return contract;
 }
 
-const wormholeRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
+const wormholeRelayerAddressesCache: Partial<Record<number, string>> = {};
 export async function getWormholeRelayerAddress(
   chain: ChainInfo,
   forceCalculate?: boolean

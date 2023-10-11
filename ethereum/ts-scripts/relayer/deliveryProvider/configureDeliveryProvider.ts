@@ -1,4 +1,3 @@
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import type { BigNumberish } from "ethers";
 import {
   init,
@@ -18,7 +17,7 @@ import type { DeliveryProviderStructs } from "../../../ethers-contracts/Delivery
  * Meant for `config.pricingInfo`
  */
 interface PricingInfo {
-  chainId: ChainId
+  chainId: number
   deliverGasOverhead: BigNumberish
   updatePriceGas: BigNumberish
   updatePriceNative: BigNumberish
@@ -81,7 +80,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
     }
     const targetChainProviderAddress = getDeliveryProviderAddress(targetChain);
     const remoteDeliveryProvider =
-      "0x" + tryNativeToHexString(targetChainProviderAddress, "ethereum");
+      "0x000000000000000000000000" + targetChainProviderAddress.substring(2);
     const chainConfigUpdate = {
       chainId: targetChain.chainId,
       updateAssetConversionBuffer: true,
