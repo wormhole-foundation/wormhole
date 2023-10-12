@@ -5,12 +5,10 @@ pragma solidity ^0.8.0;
 
 import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "./QueryResponse.sol";
 
 /// @dev QueryDemo is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
-contract QueryDemo is Context, QueryResponse {
+contract QueryDemo is QueryResponse {
     using BytesLib for bytes;
 
     struct ChainEntry {
@@ -97,7 +95,7 @@ contract QueryDemo is Context, QueryResponse {
     }
 
     modifier onlyOwner() {
-        require(owner == _msgSender(), "caller is not the owner");
+        require(owner == msg.sender, "caller is not the owner");
         _;
     }
 }
