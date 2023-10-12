@@ -29,8 +29,8 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "relayer-status": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'Checks the status of a message'",
-    "relayer-manual-delivery": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'custom manual delivery'"
+    "test-relayer-status": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'Checks the status of a message'",
+    "test-relayer-manual-delivery": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'custom manual delivery'"
   },
   "keywords": [
     "wormhole",
