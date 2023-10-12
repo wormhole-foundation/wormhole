@@ -22,7 +22,7 @@ contract TestQueryResponse is Test {
     uint8 sigGuardianIndex = 0;
 
     bytes32 expectedHash = 0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e;
-    bytes32 expectedDigetst = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
+    bytes32 expectedDigest = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
 
     Wormhole wormhole;
     QueryResponse queryResponse;
@@ -71,7 +71,7 @@ contract TestQueryResponse is Test {
 
     function test_getResponseDigest() public {
         bytes32 digest = queryResponse.getResponseDigest(resp);
-        assertEq(digest, expectedDigetst);
+        assertEq(digest, expectedDigest);
     }
 
     function test_verifyQueryResponseSignatures() public view {
