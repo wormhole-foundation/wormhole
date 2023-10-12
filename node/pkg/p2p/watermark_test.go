@@ -185,5 +185,11 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.components,
 			nil,   // ibc feature string
 			false, // gateway relayer enabled
+			false, // ccqEnabled
+			nil,   // signed query request channel
+			nil,   // query response channel
+			"",    // query bootstrap peers
+			0,     // query port
+			"",    // query allowed peers
 		))
 }

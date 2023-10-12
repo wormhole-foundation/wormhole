@@ -17,6 +17,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
@@ -179,6 +180,19 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 
 func (c *CeloConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	return c.rawClient.CallContext(ctx, result, method, args...)
+}
+
+func (c *CeloConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	celoB := make([]celoRpc.BatchElem, len(b))
+	for i, v := range b {
+		celoB[i] = celoRpc.BatchElem{
+			Method: v.Method,
+			Args:   v.Args,
+			Result: v.Result,
+			Error:  v.Error,
+		}
+	}
+	return c.rawClient.BatchCallContext(ctx, celoB)
 }
 
 func convertCeloEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {
