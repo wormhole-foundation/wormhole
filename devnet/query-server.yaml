@@ -36,13 +36,13 @@ spec:
             - --env
             - dev
             - --nodeKey
-            - node/cmd/ccq/ccq.p2p.key
+            - node/cmd/ccq/devnet.p2p.key
             - --signerKey
-            - node/cmd/ccq/ccq.signing.key
+            - node/cmd/ccq/devnet.signing.key
             - --listenAddr
             - "[::]:6069"
             - --permFile
-            - "node/cmd/ccq/devnet.config.json"
+            - "node/cmd/ccq/devnet.permissions.json"
             - --ethRPC
             - http://eth-devnet:8545
             - --ethContract
