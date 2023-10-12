@@ -126,7 +126,7 @@ func handleQueryRequestsImpl(
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
 
-	// TODO: This should only include watchers that are actually running. Also need to test all these chains.
+	// CCQ is currently only supported on EVM.
 	supportedChains := map[vaa.ChainID]struct{}{
 		vaa.ChainIDEthereum:  {},
 		vaa.ChainIDBSC:       {},
@@ -145,6 +145,15 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDOptimism:  {},
 		vaa.ChainIDBase:      {},
 		vaa.ChainIDSepolia:   {},
+	}
+
+	// But we don't want to allow CCQ if the chain is not enabled.
+	for chainID := range supportedChains {
+		if _, exists := chainQueryReqC[chainID]; !exists {
+			delete(supportedChains, chainID)
+		} else {
+			logger.Info("queries supported on chain", zap.Stringer("chainID", chainID))
+		}
 	}
 
 	ticker := time.NewTicker(retryIntervalImpl)
@@ -317,10 +326,10 @@ func handleQueryRequestsImpl(
 					qLogger.Warn("received a retry needed response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
 			} else if resp.Status == QueryFatalError {
-				qLogger.Warn("received a fatal error response, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+				qLogger.Error("received a fatal error response, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				delete(pendingQueries, resp.RequestID)
 			} else {
-				qLogger.Warn("received an unexpected query status, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx), zap.Int("status", int(resp.Status)))
+				qLogger.Error("received an unexpected query status, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx), zap.Int("status", int(resp.Status)))
 				delete(pendingQueries, resp.RequestID)
 			}
 
@@ -330,14 +339,14 @@ func handleQueryRequestsImpl(
 				timeout := pq.receiveTime.Add(requestTimeoutImpl)
 				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("timeout", timeout))
 				if timeout.Before(now) {
-					qLogger.Warn("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
+					qLogger.Error("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 					delete(pendingQueries, reqId)
 				} else {
 					if pq.respPub != nil {
 						// Resend the response to be published.
 						select {
 						case queryResponseWriteC <- pq.respPub:
-							qLogger.Debug("resend of query response to p2p succeeded", zap.String("requestID", reqId))
+							qLogger.Info("resend of query response to p2p succeeded", zap.String("requestID", reqId))
 							delete(pendingQueries, reqId)
 						default:
 							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))

@@ -15,6 +15,9 @@ import (
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
+// MSG_VERSION is the current version of the CCQ message protocol.
+const MSG_VERSION uint8 = 1
+
 // QueryRequest defines a cross chain query request to be submitted to the guardians.
 // It is the payload of the SignedQueryRequest gossip message.
 type QueryRequest struct {
@@ -75,7 +78,6 @@ type PerChainQueryInternal struct {
 
 // QueryRequestDigest returns the query signing prefix based on the environment.
 func QueryRequestDigest(env common.Environment, b []byte) ethCommon.Hash {
-	// TODO: should this use a different standard of signing messages, like https://eips.ethereum.org/EIPS/eip-712
 	var queryRequestPrefix []byte
 	if env == common.MainNet {
 		queryRequestPrefix = []byte("mainnet_query_request_000000000000|")
@@ -111,7 +113,7 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(1))           // version
+	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION)        // version
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries)))
@@ -139,7 +141,7 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 		return fmt.Errorf("failed to read message version: %w", err)
 	}
 
-	if version != 1 {
+	if version != MSG_VERSION {
 		return fmt.Errorf("unsupported message version: %d", version)
 	}
 

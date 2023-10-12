@@ -208,7 +208,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 		if g.queryHandler != nil {
 			logger.Info("Starting query handler", zap.String("component", "ccq"))
 			if err := g.queryHandler.Start(ctx); err != nil {
-				logger.Fatal("failed to create chain governor", zap.Error(err), zap.String("component", "ccq"))
+				logger.Fatal("failed to create query handler", zap.Error(err), zap.String("component", "ccq"))
 			}
 		}
 

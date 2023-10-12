@@ -253,7 +253,6 @@ func (resp *QueryResponsePublication) RequestID() string {
 // Similar to sdk/vaa/structs.go,
 // In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
 // the first hash (32 bytes) vs the full body data.
-// TODO: confirm if this works / is worthwhile.
 func (msg *QueryResponsePublication) SigningDigest() (common.Hash, error) {
 	msgBytes, err := msg.Marshal()
 	if err != nil {

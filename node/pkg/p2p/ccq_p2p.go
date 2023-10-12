@@ -16,16 +16,10 @@ import (
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 
-	"github.com/libp2p/go-libp2p"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/core/routing"
-	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
-	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"go.uber.org/zap"
 )
 
@@ -90,41 +84,7 @@ func (ccq *ccqP2p) run(
 	}
 	components.Port = port
 
-	ccq.h, err = libp2p.New(
-		// Use the keypair we generated
-		libp2p.Identity(priv),
-
-		// Multiple listen addresses
-		libp2p.ListenAddrStrings(
-			components.ListeningAddresses()...,
-		),
-
-		// Enable TLS security as the only security protocol.
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-		// Enable QUIC transport as the only transport.
-		libp2p.Transport(libp2pquic.NewTransport),
-
-		// Let's prevent our peer from having too many
-		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(components.ConnMgr), // TODO: Can we use the same connection manager?
-
-		// Let this host use the DHT to find other hosts
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			ccq.logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
-
-			bootstrappers, _ := bootstrapAddrs(ccq.logger, bootstrapPeers, h.ID())
-
-			// TODO(leo): Persistent data store (i.e. address book)
-			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-				// This intentionally makes us incompatible with the global IPFS DHT
-				dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-				dht.BootstrapPeers(bootstrappers...),
-			)
-			return idht, err
-		}),
-	)
-
+	ccq.h, err = NewHost(ccq.logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
 		return fmt.Errorf("failed to create p2p: %w", err)
 	}

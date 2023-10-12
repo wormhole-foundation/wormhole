@@ -47,10 +47,12 @@ var (
 
 // createPerChainQueryForTesting creates a per chain query for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForTesting(
+	t *testing.T,
 	chainId vaa.ChainID,
 	block string,
 	numCalls int,
 ) *PerChainQueryRequest {
+	t.Helper()
 	callData := []*EthCallData{}
 	for count := 0; count < numCalls; count++ {
 		callData = append(callData, &EthCallData{
@@ -72,9 +74,11 @@ func createPerChainQueryForTesting(
 
 // createSignedQueryRequestForTesting creates a query request object and signs it using the specified key.
 func createSignedQueryRequestForTesting(
+	t *testing.T,
 	sk *ecdsa.PrivateKey,
 	perChainQueries []*PerChainQueryRequest,
 ) (*gossipv1.SignedQueryRequest, *QueryRequest) {
+	t.Helper()
 	nonce += 1
 	queryRequest := &QueryRequest{
 		Nonce:           nonce,
@@ -101,7 +105,8 @@ func createSignedQueryRequestForTesting(
 }
 
 // createExpectedResultsForTest generates an array of the results expected for a request. These results are returned by the watcher, and used to validate the response.
-func createExpectedResultsForTest(perChainQueries []*PerChainQueryRequest) []PerChainQueryResponse {
+func createExpectedResultsForTest(t *testing.T, perChainQueries []*PerChainQueryRequest) []PerChainQueryResponse {
+	t.Helper()
 	expectedResults := []PerChainQueryResponse{}
 	for _, pcq := range perChainQueries {
 		switch req := pcq.Query.(type) {
@@ -114,7 +119,7 @@ func createExpectedResultsForTest(perChainQueries []*PerChainQueryRequest) []Per
 			resp := &EthCallQueryResponse{
 				BlockNumber: blockNum,
 				Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
-				Time:        timeForTest(timeForTest(now)),
+				Time:        timeForTest(t, now),
 				Results:     [][]byte{},
 			}
 			for _, cd := range req.CallData {
@@ -398,8 +403,7 @@ func (md *mockData) waitForResponse() *QueryResponsePublication {
 // TestInvalidQueries tests all the obvious reasons why a query may fail (aside from watcher failures).
 func TestInvalidQueries(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
@@ -408,38 +412,37 @@ func TestInvalidQueries(t *testing.T) {
 
 	// Query with a bad signature should fail.
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	signedQueryRequest.Signature[0] += 1 // Corrupt the signature.
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for an unsupported chain should fail. The supported chains are defined in supportedChains in query.go
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDAlgorand, "0x28d9630", 2)}
-	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDAlgorand, "0x28d9630", 2)}
+	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for a chain that supports queries but that is not in the watcher channel map should fail.
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDSepolia, "0x28d9630", 2)}
-	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDSepolia, "0x28d9630", 2)}
+	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 }
 
 func TestSingleQueryShouldSucceed(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Submit the query request to the handler.
@@ -455,18 +458,17 @@ func TestSingleQueryShouldSucceed(t *testing.T) {
 
 func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Submit the query request to the handler.
@@ -483,15 +485,14 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 
 func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Make it retry a couple of times, but not enough to make it fail.
@@ -511,15 +512,14 @@ func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 
 func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Make the first per chain query timeout, but the retry should succeed.
@@ -538,18 +538,17 @@ func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
 
 func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Make polygon retry a couple of times, but not enough to make it fail.
@@ -571,18 +570,17 @@ func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
 
 func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Make both chains retry a couple of times, but not enough to make it fail.
@@ -606,18 +604,17 @@ func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 
 func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Make BSC return a fatal error.
@@ -636,15 +633,14 @@ func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
 
 func TestPublishRetrySucceeds(t *testing.T) {
 	ctx := context.Background()
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
+	logger := zap.NewNop()
 
 	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
 
 	// Submit the query request to the handler.

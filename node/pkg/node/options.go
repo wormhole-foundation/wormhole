@@ -350,9 +350,8 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Uint16("responseChainId", uint16(response.ChainId)),
 									zap.Stringer("watcherChainId", chainId),
 								)
-							} else {
-								g.queryResponseC.writeC <- response
 							}
+							g.queryResponseC.writeC <- response
 						}
 					}
 				}(chainQueryResponseC[chainId], chainId)
