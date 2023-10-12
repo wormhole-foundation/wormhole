@@ -6,7 +6,40 @@ pragma solidity ^0.8.0;
 import {BytesParsing} from "../relayer/libraries/BytesParsing.sol";
 import "../interfaces/IWormhole.sol";
 
-/// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
+// @dev ParsedQueryResponse is returned by QueryResponse.parseAndVerifyQueryResponse().
+struct ParsedQueryResponse {
+    uint8   version;
+    uint16  senderChainId;
+    uint32  nonce;
+    bytes   requestId; // 65 byte sig for off-chain, 32 byte vaaHash for on-chain
+    ParsedPerChainQueryResponse [] responses;
+}
+
+// @dev ParsedPerChainQueryResponse describes a single per-chain response.
+struct ParsedPerChainQueryResponse {
+    uint16 chainId;
+    uint8 queryType;
+    bytes request;
+    bytes response;
+}
+
+// @dev EthCallQueryResponse describes an ETH call per-chain query.
+struct EthCallQueryResponse {
+    bytes requestBlockId;
+    uint64 blockNum;
+    uint64 blockTime;
+    bytes32 blockHash;
+    EthCallData [] result;
+}
+
+// @dev EthCallData describes a single ETH call query / response pair.
+struct EthCallData {
+    address contractAddress;
+    bytes callData;
+    bytes result;
+}
+
+// @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
     using BytesParsing for bytes;
 
@@ -19,39 +52,6 @@ abstract contract QueryResponse {
     error UnsupportedQueryType();
     error UnexpectedNumberOfResults();
     error InvalidPayloadLength(uint256 received, uint256 expected);
-       
-    /// @dev ParsedQueryResponse is returned by parseAndVerifyQueryResponse().
-    struct ParsedQueryResponse {
-        uint8   version;
-        uint16  senderChainId;
-        uint32  nonce;
-        bytes   requestId; // 65 byte sig for off-chain, 32 byte vaaHash for on-chain
-        ParsedPerChainQueryResponse [] responses;
-    }
-
-    /// @dev ParsedPerChainQueryResponse describes a single per-chain response.
-    struct ParsedPerChainQueryResponse {
-        uint16 chainId;
-        uint8 queryType;
-        bytes request;
-        bytes response;
-    }
-
-    /// @dev EthCallQueryResponse describes an ETH call per-chain query.
-    struct EthCallQueryResponse {
-        bytes requestBlockId;
-        uint64 blockNum;
-        uint64 blockTime;
-        bytes32 blockHash;
-        EthCallData [] result;
-    }
-
-    /// @dev EthCallData describes a single ETH call query / response pair.
-    struct EthCallData {
-        address contractAddress;
-        bytes callData;
-        bytes result;
-    }    
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
     uint8 public constant QT_ETH_CALL = 1;
