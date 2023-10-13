@@ -50,11 +50,11 @@
 
 ## DB
 
-/node/pkg/db/ @bruce-riley @kev1n-peters
+/node/pkg/db/ @bruce-riley @kev1n-peters @panoel
 
 ## Accountant
 
-/node/pkg/accountant/ @bruce-riley @evan-gray
+/node/pkg/accountant/ @bruce-riley @evan-gray @panoel
 
 ## Governor
 
@@ -66,15 +66,15 @@
 
 ## P2P
 
-/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters
+/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @panoel
 
 ## Consensus / Processor
 
-/node/pkg/processor/ @bruce-riley @evan-gray
+/node/pkg/processor/ @bruce-riley @evan-gray @panoel
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @bruce-riley @kev1n-peters
+/node/pkg/publicrpc/ @bruce-riley @kev1n-peters @panoel
 
 ## Supervisor Framework
 

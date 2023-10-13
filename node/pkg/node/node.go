@@ -11,7 +11,9 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -59,6 +61,7 @@ type G struct {
 	acct            *accountant.Accountant
 	gov             *governor.ChainGovernor
 	gatewayRelayer  *gwrelayer.GatewayRelayer
+	queryHandler    *query.QueryHandler
 	publicrpcServer *grpc.Server
 
 	// runnables
@@ -82,6 +85,12 @@ type G struct {
 	obsvReqSendC channelPair[*gossipv1.ObservationRequest]
 	// acctC is the channel where messages will be put after they reached quorum in the accountant.
 	acctC channelPair[*common.MessagePublication]
+
+	// Cross Chain Query Handler channels
+	chainQueryReqC            map[vaa.ChainID]chan *query.PerChainQueryInternal
+	signedQueryReqC           channelPair[*gossipv1.SignedQueryRequest]
+	queryResponseC            channelPair[*query.PerChainQueryResponseInternal]
+	queryResponsePublicationC channelPair[*query.QueryResponsePublication]
 }
 
 func NewGuardianNode(
@@ -108,6 +117,11 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
+	// Cross Chain Query Handler channels
+	g.chainQueryReqC = make(map[vaa.ChainID]chan *query.PerChainQueryInternal)
+	g.signedQueryReqC = makeChannelPair[*gossipv1.SignedQueryRequest](query.SignedQueryRequestChannelSize)
+	g.queryResponseC = makeChannelPair[*query.PerChainQueryResponseInternal](0)
+	g.queryResponsePublicationC = makeChannelPair[*query.QueryResponsePublication](0)
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)
@@ -188,6 +202,13 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			logger.Info("Starting gateway relayer")
 			if err := g.gatewayRelayer.Start(ctx); err != nil {
 				logger.Fatal("failed to start gateway relayer", zap.Error(err), zap.String("component", "gwrelayer"))
+			}
+		}
+
+		if g.queryHandler != nil {
+			logger.Info("Starting query handler", zap.String("component", "ccq"))
+			if err := g.queryHandler.Start(ctx); err != nil {
+				logger.Fatal("failed to create query handler", zap.Error(err), zap.String("component", "ccq"))
 			}
 		}
 
