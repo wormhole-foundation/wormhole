@@ -5,12 +5,13 @@
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
+  "types": "./lib/types/index.d.ts",
   "files": [
     "lib/"
   ],
   "scripts": {
     "test": "jest --verbose",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json"
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && tsc -p tsconfig.types.json"
   },
   "keywords": [
     "wormhole",
