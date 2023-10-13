@@ -51,11 +51,37 @@ const EthCallQueryRequestType ChainSpecificQueryType = 1
 
 // EthCallQueryRequest implements ChainSpecificQuery for an EVM eth_call query request.
 type EthCallQueryRequest struct {
-	// BlockId identifies the block to be queried. It mus be a hex string starting with 0x. It may be a block number or a block hash.
+	// BlockId identifies the block to be queried. It must be a hex string starting with 0x. It may be a block number or a block hash.
 	BlockId string
 
 	// CallData is an array of specific queries to be performed on the specified block, in a single RPC call.
 	CallData []*EthCallData
+}
+
+func (ecr *EthCallQueryRequest) CallDataList() []*EthCallData {
+	return ecr.CallData
+}
+
+// EthCallByTimestampQueryRequestType is the type of an EVM eth_call_by_timestamp query request.
+const EthCallByTimestampQueryRequestType ChainSpecificQueryType = 2
+
+// EthCallByTimestampQueryRequest implements ChainSpecificQuery for an EVM eth_call_by_timestamp query request.
+type EthCallByTimestampQueryRequest struct {
+	// TargetTimeInUs specifies the desired timestamp in microseconds.
+	TargetTimestamp uint64
+
+	// TargetBlockIdHint is optional. If specified, it identifies the block prior to the desired timestamp. It must be a hex string starting with 0x. It may be a block number or a block hash.
+	TargetBlockIdHint string
+
+	// FollowingBlockIdHint is optional. If specified, it identifies the block immediately follwoing the desired timestamp. It must be a hex string starting with 0x. It may be a block number or a block hash.
+	FollowingBlockIdHint string
+
+	// CallData is an array of specific queries to be performed on the specified block, in a single RPC call.
+	CallData []*EthCallData
+}
+
+func (ecr *EthCallByTimestampQueryRequest) CallDataList() []*EthCallData {
+	return ecr.CallData
 }
 
 // EthCallData specifies the parameters to a single EVM eth_call request.
@@ -264,6 +290,12 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 			return fmt.Errorf("failed to unmarshal eth call request: %w", err)
 		}
 		perChainQuery.Query = &q
+	case EthCallByTimestampQueryRequestType:
+		q := EthCallByTimestampQueryRequest{}
+		if err := q.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal eth call by timestamp request: %w", err)
+		}
+		perChainQuery.Query = &q
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -317,10 +349,17 @@ func (left *PerChainQueryRequest) Equal(right *PerChainQueryRequest) bool {
 		case *EthCallQueryRequest:
 			return leftEcq.Equal(rightEcd)
 		default:
-			panic("unsupported query type on right") // We checked this above!
+			panic("unsupported query type on right, must be eth_call")
+		}
+	case *EthCallByTimestampQueryRequest:
+		switch rightEcd := right.Query.(type) {
+		case *EthCallByTimestampQueryRequest:
+			return leftEcq.Equal(rightEcd)
+		default:
+			panic("unsupported query type on right, must be eth_call_by_timestamp")
 		}
 	default:
-		panic("unsupported query type on left") // We checked this above!
+		panic("unsupported query type on left")
 	}
 }
 
@@ -362,12 +401,12 @@ func (ecd *EthCallQueryRequest) Unmarshal(data []byte) error {
 func (ecd *EthCallQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
 	blockIdLen := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &blockIdLen); err != nil {
-		return fmt.Errorf("failed to read call Data len: %w", err)
+		return fmt.Errorf("failed to read block id len: %w", err)
 	}
 
 	blockId := make([]byte, blockIdLen)
 	if n, err := reader.Read(blockId[:]); err != nil || n != int(blockIdLen) {
-		return fmt.Errorf("failed to read call To [%d]: %w", n, err)
+		return fmt.Errorf("failed to read block id [%d]: %w", n, err)
 	}
 	ecd.BlockId = string(blockId[:])
 
@@ -388,7 +427,7 @@ func (ecd *EthCallQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error 
 		}
 		data := make([]byte, dataLen)
 		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
-			return fmt.Errorf("failed to read call To [%d]: %w", n, err)
+			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
 		}
 
 		callData := &EthCallData{
@@ -454,8 +493,173 @@ func (left *EthCallQueryRequest) Equal(right *EthCallQueryRequest) bool {
 	return true
 }
 
+//
+// Implementation of EthCallByTimestampQueryRequest, which implements the ChainSpecificQuery interface.
+//
+
+func (e *EthCallByTimestampQueryRequest) Type() ChainSpecificQueryType {
+	return EthCallByTimestampQueryRequestType
+}
+
+// Marshal serializes the binary representation of an EVM eth_call_by_timestamp request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (ecd *EthCallByTimestampQueryRequest) Marshal() ([]byte, error) {
+	if err := ecd.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, ecd.TargetTimestamp)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.TargetBlockIdHint)))
+	buf.Write([]byte(ecd.TargetBlockIdHint))
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.FollowingBlockIdHint)))
+	buf.Write([]byte(ecd.FollowingBlockIdHint))
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	for _, callData := range ecd.CallData {
+		buf.Write(callData.To)
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		buf.Write(callData.Data)
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes an EVM eth_call_by_timestamp query from a byte array
+func (ecd *EthCallByTimestampQueryRequest) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return ecd.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes an EVM eth_call_by_timestamp query from a byte array
+func (ecd *EthCallByTimestampQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
+	if err := binary.Read(reader, binary.BigEndian, &ecd.TargetTimestamp); err != nil {
+		return fmt.Errorf("failed to read timestamp: %w", err)
+	}
+
+	blockIdHintLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &blockIdHintLen); err != nil {
+		return fmt.Errorf("failed to read target block id hint len: %w", err)
+	}
+
+	targetBlockIdHint := make([]byte, blockIdHintLen)
+	if n, err := reader.Read(targetBlockIdHint[:]); err != nil || n != int(blockIdHintLen) {
+		return fmt.Errorf("failed to read target block id hint [%d]: %w", n, err)
+	}
+	ecd.TargetBlockIdHint = string(targetBlockIdHint[:])
+
+	blockIdHintLen = uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &blockIdHintLen); err != nil {
+		return fmt.Errorf("failed to read following block id hint len: %w", err)
+	}
+
+	followingBlockIdHint := make([]byte, blockIdHintLen)
+	if n, err := reader.Read(followingBlockIdHint[:]); err != nil || n != int(blockIdHintLen) {
+		return fmt.Errorf("failed to read following block id hint [%d]: %w", n, err)
+	}
+	ecd.FollowingBlockIdHint = string(followingBlockIdHint[:])
+
+	numCallData := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numCallData); err != nil {
+		return fmt.Errorf("failed to read number of call data entries: %w", err)
+	}
+
+	for count := 0; count < int(numCallData); count++ {
+		to := [EvmContractAddressLength]byte{}
+		if n, err := reader.Read(to[:]); err != nil || n != EvmContractAddressLength {
+			return fmt.Errorf("failed to read call To [%d]: %w", n, err)
+		}
+
+		dataLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
+			return fmt.Errorf("failed to read call Data len: %w", err)
+		}
+		data := make([]byte, dataLen)
+		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
+			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
+		}
+
+		callData := &EthCallData{
+			To:   to[:],
+			Data: data[:],
+		}
+
+		ecd.CallData = append(ecd.CallData, callData)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on an EVM eth_call_by_timestamp query.
+func (ecd *EthCallByTimestampQueryRequest) Validate() error {
+	if ecd.TargetTimestamp == 0 {
+		return fmt.Errorf("target timestamp may not be zero")
+	}
+	if len(ecd.TargetBlockIdHint) > math.MaxUint32 {
+		return fmt.Errorf("target block id hint too long")
+	}
+	if !strings.HasPrefix(ecd.TargetBlockIdHint, "0x") {
+		return fmt.Errorf("target block id must be a hex number or hash starting with 0x")
+	}
+	if len(ecd.FollowingBlockIdHint) > math.MaxUint32 {
+		return fmt.Errorf("following block id hint too long")
+	}
+	if !strings.HasPrefix(ecd.FollowingBlockIdHint, "0x") {
+		return fmt.Errorf("following block id must be a hex number or hash starting with 0x")
+	}
+	if len(ecd.CallData) <= 0 {
+		return fmt.Errorf("does not contain any call data")
+	}
+	if len(ecd.CallData) > math.MaxUint8 {
+		return fmt.Errorf("too many call data entries")
+	}
+	for _, callData := range ecd.CallData {
+		if callData.To == nil || len(callData.To) <= 0 {
+			return fmt.Errorf("no call data to")
+		}
+		if len(callData.To) != EvmContractAddressLength {
+			return fmt.Errorf("invalid length for To contract")
+		}
+		if callData.Data == nil || len(callData.Data) <= 0 {
+			return fmt.Errorf("no call data data")
+		}
+		if len(callData.Data) > math.MaxUint32 {
+			return fmt.Errorf("call data data too long")
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two EVM eth_call_by_timestamp queries are equal.
+func (left *EthCallByTimestampQueryRequest) Equal(right *EthCallByTimestampQueryRequest) bool {
+	if left.TargetTimestamp != right.TargetTimestamp {
+		return false
+	}
+	if left.TargetBlockIdHint != right.TargetBlockIdHint {
+		return false
+	}
+	if left.FollowingBlockIdHint != right.FollowingBlockIdHint {
+		return false
+	}
+	if len(left.CallData) != len(right.CallData) {
+		return false
+	}
+	for idx := range left.CallData {
+		if !bytes.Equal(left.CallData[idx].To, right.CallData[idx].To) {
+			return false
+		}
+		if !bytes.Equal(left.CallData[idx].Data, right.CallData[idx].Data) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func ValidatePerChainQueryRequestType(qt ChainSpecificQueryType) error {
-	if qt != EthCallQueryRequestType {
+	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType {
 		return fmt.Errorf("invalid query request type: %d", qt)
 	}
 	return nil

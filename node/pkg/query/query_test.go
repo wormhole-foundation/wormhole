@@ -45,17 +45,17 @@ var (
 	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC}
 )
 
-// createPerChainQueryForTesting creates a per chain query for use in tests. The To and Data fields are meaningless gibberish, not ABI.
-func createPerChainQueryForTesting(
+// createPerChainQueryForEthCall creates a per chain query for an eth_call for use in tests. The To and Data fields are meaningless gibberish, not ABI.
+func createPerChainQueryForEthCall(
 	t *testing.T,
 	chainId vaa.ChainID,
 	block string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
-	callData := []*EthCallData{}
+	ethCallData := []*EthCallData{}
 	for count := 0; count < numCalls; count++ {
-		callData = append(callData, &EthCallData{
+		ethCallData = append(ethCallData, &EthCallData{
 			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
 			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
 		})
@@ -63,7 +63,37 @@ func createPerChainQueryForTesting(
 
 	callRequest := &EthCallQueryRequest{
 		BlockId:  block,
-		CallData: callData,
+		CallData: ethCallData,
+	}
+
+	return &PerChainQueryRequest{
+		ChainId: chainId,
+		Query:   callRequest,
+	}
+}
+
+// createPerChainQueryForEthCallByTimestamp creates a per chain query for an eth_call_by_timestamp for use in tests. The To and Data fields are meaningless gibberish, not ABI.
+func createPerChainQueryForEthCallByTimestamp(
+	t *testing.T,
+	chainId vaa.ChainID,
+	targetBlock string,
+	followingBlock string,
+	numCalls int,
+) *PerChainQueryRequest {
+	t.Helper()
+	ethCallData := []*EthCallData{}
+	for count := 0; count < numCalls; count++ {
+		ethCallData = append(ethCallData, &EthCallData{
+			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
+			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+		})
+	}
+
+	callRequest := &EthCallByTimestampQueryRequest{
+		TargetTimestamp:      1697216322000000,
+		TargetBlockIdHint:    targetBlock,
+		FollowingBlockIdHint: followingBlock,
+		CallData:             ethCallData,
 	}
 
 	return &PerChainQueryRequest{
@@ -121,6 +151,28 @@ func createExpectedResultsForTest(t *testing.T, perChainQueries []*PerChainQuery
 				Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 				Time:        timeForTest(t, now),
 				Results:     [][]byte{},
+			}
+			for _, cd := range req.CallData {
+				resp.Results = append(resp.Results, []byte(hex.EncodeToString(cd.To)+":"+hex.EncodeToString(cd.Data)))
+			}
+			expectedResults = append(expectedResults, PerChainQueryResponse{
+				ChainId:  pcq.ChainId,
+				Response: resp,
+			})
+		case *EthCallByTimestampQueryRequest:
+			now := time.Now()
+			blockNum, err := strconv.ParseUint(strings.TrimPrefix(req.TargetBlockIdHint, "0x"), 16, 64)
+			if err != nil {
+				panic("invalid blockNum!")
+			}
+			resp := &EthCallByTimestampQueryResponse{
+				TargetBlockNumber:    blockNum,
+				TargetBlockHash:      ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+				TargetBlockTime:      timeForTest(t, now),
+				FollowingBlockNumber: blockNum + 1,
+				FollowingBlockHash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
+				FollowingBlockTime:   timeForTest(t, time.Now().Add(10*time.Second)),
+				Results:              [][]byte{},
 			}
 			for _, cd := range req.CallData {
 				resp.Results = append(resp.Results, []byte(hex.EncodeToString(cd.To)+":"+hex.EncodeToString(cd.Data)))
@@ -412,7 +464,7 @@ func TestInvalidQueries(t *testing.T) {
 
 	// Query with a bad signature should fail.
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	signedQueryRequest.Signature[0] += 1 // Corrupt the signature.
 	md.signedQueryReqWriteC <- signedQueryRequest
@@ -420,27 +472,50 @@ func TestInvalidQueries(t *testing.T) {
 
 	// Query for an unsupported chain should fail. The supported chains are defined in supportedChains in query.go
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDAlgorand, "0x28d9630", 2)}
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDAlgorand, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for a chain that supports queries but that is not in the watcher channel map should fail.
 	md.resetState()
-	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDSepolia, "0x28d9630", 2)}
+	perChainQueries = []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDSepolia, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 }
 
-func TestSingleQueryShouldSucceed(t *testing.T) {
+func TestSingleEthCallQueryShouldSucceed(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
+	md.setExpectedResults(expectedResults)
+
+	// Submit the query request to the handler.
+	md.signedQueryReqWriteC <- signedQueryRequest
+
+	// Wait until we receive a response or timeout.
+	queryResponsePublication := md.waitForResponse()
+	require.NotNil(t, queryResponsePublication)
+
+	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDPolygon))
+	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
+}
+
+func TestSingleEthCallByTimestampQueryShouldSucceed(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
+
+	// Create the request and the expected results. Give the expected results to the mock.
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCallByTimestamp(t, vaa.ChainIDPolygon, "0x28d9630", "0x28d9631", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -464,8 +539,8 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForEthCallByTimestamp(t, vaa.ChainIDBSC, "0x28d9123", "0x28d9124", 3),
 	}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
@@ -490,7 +565,7 @@ func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -517,7 +592,7 @@ func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -544,8 +619,8 @@ func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForEthCall(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
@@ -576,8 +651,8 @@ func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForEthCall(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
@@ -610,8 +685,8 @@ func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*PerChainQueryRequest{
-		createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2),
-		createPerChainQueryForTesting(t, vaa.ChainIDBSC, "0x28d9123", 3),
+		createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		createPerChainQueryForEthCall(t, vaa.ChainIDBSC, "0x28d9123", 3),
 	}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
@@ -638,7 +713,7 @@ func TestPublishRetrySucceeds(t *testing.T) {
 	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForTesting(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)

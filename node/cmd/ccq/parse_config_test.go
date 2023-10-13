@@ -157,7 +157,7 @@ func TestParseConfigUnsupportedCallType(t *testing.T) {
 
 	_, err := parseConfig([]byte(str))
 	require.Error(t, err)
-	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall"`, err.Error())
+	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall" or "ethCallByTimestamp"`, err.Error())
 }
 
 func TestParseConfigInvalidContractAddress(t *testing.T) {
@@ -270,4 +270,47 @@ func TestParseConfigDuplicateAllowedCallForUser(t *testing.T) {
 	_, err := parseConfig([]byte(str))
 	require.Error(t, err)
 	assert.Equal(t, `"ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03" is a duplicate allowed call for user "Test User"`, err.Error())
+}
+
+func TestParseConfigSuccess(t *testing.T) {
+	str := `
+	{
+  "permissions": [
+    {
+      "userName": "Test User",
+      "apiKey": "My_secret_key",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        },
+        {
+          "ethCallByTimestamp": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d7",
+            "call": "0x06fdde03"
+          }
+        }			
+      ]
+    }
+  ]
+}`
+
+	perms, err := parseConfig([]byte(str))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(perms))
+
+	perm, exists := perms["my_secret_key"]
+	require.True(t, exists)
+
+	_, exists = perm.allowedCalls["ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"]
+	assert.True(t, exists)
+
+	_, exists = perm.allowedCalls["ethCallByTimestamp:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d7:06fdde03"]
+	assert.True(t, exists)
 }

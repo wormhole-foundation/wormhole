@@ -53,6 +53,17 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decode the body first. This is because the library seems to hang if we receive a large body and return without decoding it.
+	// This could be a slight waste of resources, but should not be a DoS risk because we cap the max body size.
+
+	var q queryRequest
+	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MAX_BODY_SIZE)).Decode(&q)
+	if err != nil {
+		s.logger.Debug("failed to decode body", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// There should be one and only one API key in the header.
 	apiKeys, exists := r.Header["X-Api-Key"]
 	if !exists || len(apiKeys) != 1 {
@@ -60,21 +71,13 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "api key is missing", http.StatusUnauthorized)
 		return
 	}
-	apiKey := apiKeys[0]
+	apiKey := strings.ToLower(apiKeys[0])
 
 	// Make sure the user is authorized before we go any farther.
-	_, exists = s.permissions[strings.ToLower(apiKey)]
+	_, exists = s.permissions[apiKey]
 	if !exists {
 		s.logger.Debug("invalid api key", zap.String("apiKey", apiKey))
 		http.Error(w, "invalid api key", http.StatusForbidden)
-		return
-	}
-
-	var q queryRequest
-	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MAX_BODY_SIZE)).Decode(&q)
-	if err != nil {
-		s.logger.Debug("failed to decode body", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
