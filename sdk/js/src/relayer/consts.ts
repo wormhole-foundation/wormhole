@@ -224,10 +224,10 @@ export const GUARDIAN_RPC_HOSTS = [
 ];
 
 export const getCircleAPI = (environment: Network) => {
-  return (environment === "TESTNET"
-  ? "https://iris-api-sandbox.circle.com/v1/attestations/"
-  : "https://iris-api.circle.com/v1/attestations/");
-}
+  return environment === "TESTNET"
+    ? "https://iris-api-sandbox.circle.com/v1/attestations/"
+    : "https://iris-api.circle.com/v1/attestations/";
+};
 
 export const getWormscanAPI = (_network: Network) => {
   switch (_network) {
@@ -240,12 +240,12 @@ export const getWormscanAPI = (_network: Network) => {
       // at localhost:7071 (tilt) or guardian:7071 (ci)
       throw new Error("Not testnet or mainnet - so no wormscan api access");
   }
-}
+};
 
 export const CCTP_DOMAIN_TO_NAME = [
   "ethereum",
   "avalanche",
   "optimism",
   "arbitrum",
-  "base"
+  "base",
 ];

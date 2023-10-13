@@ -16,7 +16,7 @@ import {
   getWormholeRelayerAddress,
   getCircleAPI,
   getWormscanAPI,
-  CCTP_DOMAIN_TO_NAME
+  CCTP_DOMAIN_TO_NAME,
 } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
@@ -531,9 +531,10 @@ export async function getCCTPMessageLogURL(
 ) {
   let cctpLog;
   let messageSentLog;
-  const DepositForBurnTopic = 
-    ethers.utils.keccak256("DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)");
-  const MessageSentTopic = ethers.utils.keccak256("MessageSent(bytes)")
+  const DepositForBurnTopic = ethers.utils.keccak256(
+    "DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)"
+  );
+  const MessageSentTopic = ethers.utils.keccak256("MessageSent(bytes)");
   try {
     if (CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
       const cctpLogFilter = (log: ethers.providers.Log) => {
