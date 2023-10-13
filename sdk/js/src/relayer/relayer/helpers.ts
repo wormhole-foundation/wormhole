@@ -14,6 +14,9 @@ import {
   RPCS_BY_CHAIN,
   RELAYER_CONTRACTS,
   getWormholeRelayerAddress,
+  getCircleAPI,
+  getWormscanAPI,
+  CCTP_DOMAIN_TO_NAME
 } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
@@ -78,12 +81,6 @@ export function printChain(chainId: number) {
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
 }
 
-export const CCTP_DOMAIN_TO_NAME = [
-  "ethereum",
-  "avalanche",
-  "optimism",
-  "arbitrum",
-];
 export function printCCTPDomain(domain: number) {
   if (domain >= CCTP_DOMAIN_TO_NAME.length)
     throw Error(`Invalid cctp domain: ${domain}`);
@@ -357,6 +354,7 @@ export async function getWormholeRelayerInfoByHash(
 
   if (blockNumber.toNumber() === 0) return [];
 
+  // There is weirdness with arbitrum where if you call 'block.number', it gives you the L1 block number (the ethereum one) - and this is what is stored in the 'replay protection mapping' - so basically that value isn't useful in finding the delivery here
   const blockRange =
     infoRequest?.targetBlockRange ||
     (targetChain === "arbitrum"
@@ -406,18 +404,7 @@ export async function getWormscanInfo(
   sequence: number,
   emitterAddress: string
 ) {
-  const wormscanAPI = ((_network: Network) => {
-    switch (_network) {
-      case "MAINNET":
-        return "https://api.wormscan.io/";
-      case "TESTNET":
-        return "https://api.testnet.wormscan.io/";
-      default:
-        // possible extension for tilt/ci - search through the guardian api
-        // at localhost:7071 (tilt) or guardian:7071 (ci)
-        throw new Error("Not testnet or mainnet - so no wormscan api access");
-    }
-  })(network);
+  const wormscanAPI = getWormscanAPI(network);
   const emitterAddressBytes32 = tryNativeToHexString(
     emitterAddress,
     sourceChain
@@ -544,10 +531,9 @@ export async function getCCTPMessageLogURL(
 ) {
   let cctpLog;
   let messageSentLog;
-  const DepositForBurnTopic =
-    "0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0";
-  const MessageSentTopic =
-    "0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036";
+  const DepositForBurnTopic = 
+    ethers.utils.keccak256("DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)");
+  const MessageSentTopic = ethers.utils.keccak256("MessageSent(bytes)")
   try {
     if (CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
       const cctpLogFilter = (log: ethers.providers.Log) => {
@@ -572,9 +558,6 @@ export async function getCCTPMessageLogURL(
     "event MessageSent(bytes message)",
   ]).parseLog(messageSentLog).args.message;
   const msgHash = ethers.utils.keccak256(message);
-  const url =
-    (environment === "TESTNET"
-      ? "https://iris-api-sandbox.circle.com/v1/attestations/"
-      : "https://iris-api.circle.com/v1/attestations/") + msgHash;
+  const url = getCircleAPI(environment) + msgHash;
   return { message, cctpLog, url };
 }

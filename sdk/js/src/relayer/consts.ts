@@ -222,3 +222,30 @@ export const GUARDIAN_RPC_HOSTS = [
   "https://wormhole-v2-mainnet-api.chainlayer.network",
   "https://wormhole-v2-mainnet-api.staking.fund",
 ];
+
+export const getCircleAPI = (environment: Network) => {
+  return (environment === "TESTNET"
+  ? "https://iris-api-sandbox.circle.com/v1/attestations/"
+  : "https://iris-api.circle.com/v1/attestations/");
+}
+
+export const getWormscanAPI = (_network: Network) => {
+  switch (_network) {
+    case "MAINNET":
+      return "https://api.wormscan.io/";
+    case "TESTNET":
+      return "https://api.testnet.wormscan.io/";
+    default:
+      // possible extension for tilt/ci - search through the guardian api
+      // at localhost:7071 (tilt) or guardian:7071 (ci)
+      throw new Error("Not testnet or mainnet - so no wormscan api access");
+  }
+}
+
+export const CCTP_DOMAIN_TO_NAME = [
+  "ethereum",
+  "avalanche",
+  "optimism",
+  "arbitrum",
+  "base"
+];
