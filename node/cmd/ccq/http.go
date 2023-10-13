@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -17,6 +18,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
+
+const MAX_BODY_SIZE = 5 * 1024 * 1024
 
 type queryRequest struct {
 	Bytes     string `json:"bytes"`
@@ -43,25 +46,35 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
-
 		w.Header().Set("Access-Control-Allow-Methods", "PUT, POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	var q queryRequest
-	err := json.NewDecoder(r.Body).Decode(&q)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	// There should be one and only one API key in the header.
+	apiKeys, exists := r.Header["X-Api-Key"]
+	if !exists || len(apiKeys) != 1 {
+		s.logger.Debug("received a request with the wrong number of api keys", zap.Stringer("url", r.URL), zap.Int("numApiKeys", len(apiKeys)))
+		http.Error(w, "api key is missing", http.StatusUnauthorized)
+		return
+	}
+	apiKey := apiKeys[0]
+
+	// Make sure the user is authorized before we go any farther.
+	_, exists = s.permissions[strings.ToLower(apiKey)]
+	if !exists {
+		s.logger.Debug("invalid api key", zap.String("apiKey", apiKey))
+		http.Error(w, "invalid api key", http.StatusForbidden)
 		return
 	}
 
-	// There should be one and only one API key in the header.
-	apiKey, exists := r.Header["X-Api-Key"]
-	if !exists || len(apiKey) != 1 {
-		s.logger.Debug("received a request without an api key", zap.Stringer("url", r.URL), zap.Error(err))
-		http.Error(w, "api key is missing", http.StatusUnauthorized)
+	var q queryRequest
+	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MAX_BODY_SIZE)).Decode(&q)
+	if err != nil {
+		s.logger.Debug("failed to decode body", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -84,7 +97,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey[0], signedQueryRequest); err != nil {
+	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest); err != nil {
 		// Don't need to log here because the details were logged in the function.
 		http.Error(w, err.Error(), status)
 		return

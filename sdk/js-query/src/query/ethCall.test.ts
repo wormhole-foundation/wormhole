@@ -277,4 +277,46 @@ describe("eth call", () => {
     const response = await axios.get(HEALTH_URL);
     expect(response.status).toBe(200);
   });
+  test("valid api key but payload too large should fail based on size", async () => {
+    const serialized = new Uint8Array(6000000); // Buffer should be larger than MAX_BODY_SIZE in node/cmd/ccq/http.go.
+    const signature = "";
+    let err = false;
+    await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          // bytes: Buffer.alloc(6000000).toString("hex"),
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(`http: request body too large\n`);
+      });
+    expect(err).toBe(true);
+  });
+  test("invalid api key with payload too large should fail based on api key", async () => {
+    const serialized = new Uint8Array(6000000); // Buffer should be larger than MAX_BODY_SIZE in node/cmd/ccq/http.go.
+    const signature = "";
+    let err = false;
+    await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          // bytes: Buffer.alloc(6000000).toString("hex"),
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "some_junk" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(403);
+        expect(error.response.data).toBe(`invalid api key\n`);
+      });
+    expect(err).toBe(true);
+  });
 });
