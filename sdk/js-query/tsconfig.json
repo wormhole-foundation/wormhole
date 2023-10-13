@@ -3,7 +3,6 @@
     "target": "es6",
     "module": "esnext",
     "moduleResolution": "node",
-    "declaration": true,
     "outDir": "./lib/esm",
     "strict": true,
     "esModuleInterop": true,
