@@ -5,6 +5,7 @@ export class BinaryWriter {
   private _offset: number;
 
   constructor(initialSize: number = 1024) {
+    if (initialSize < 0) throw new Error("Initial size must be non-negative");
     this._buffer = Buffer.alloc(initialSize);
     this._offset = 0;
   }
@@ -21,6 +22,7 @@ export class BinaryWriter {
   }
 
   writeUint8(value: number) {
+    if (value < 0 || value > 255) throw new Error("Invalid value");
     this._ensure(1);
     this._buffer.writeUint8(value, this._offset);
     this._offset += 1;
@@ -28,12 +30,14 @@ export class BinaryWriter {
   }
 
   writeUint16(value: number) {
+    if (value < 0 || value > 65535) throw new Error("Invalid value");
     this._ensure(2);
     this._offset = this._buffer.writeUint16BE(value, this._offset);
     return this;
   }
 
   writeUint32(value: number) {
+    if (value < 0 || value > 4294967295) throw new Error("Invalid value");
     this._ensure(4);
     this._offset = this._buffer.writeUint32BE(value, this._offset);
     return this;

@@ -1,15 +1,31 @@
 import { BinaryWriter } from "./BinaryWriter";
+import { HexString } from "./consts";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
-import { ChainSpecificResponse } from "./response";
-import { hexToUint8Array } from "./utils";
+import { hexToUint8Array, isValidHexString } from "./utils";
 
 export interface EthCallData {
   to: string;
   data: string;
 }
 
+// Can be a block number or a block hash
+export type BlockTag = number | HexString;
+
 export class EthCallQueryRequest implements ChainSpecificQuery {
-  constructor(public blockId: string, public callData: EthCallData[]) {}
+  blockTag: string;
+
+  constructor(blockTag: BlockTag, public callData: EthCallData[]) {
+    if (typeof blockTag === "number") {
+      this.blockTag = `0x${blockTag.toString(16)}`;
+    } else if (isValidHexString(blockTag)) {
+      if (!blockTag.startsWith("0x")) {
+        blockTag = `0x${blockTag}`;
+      }
+      this.blockTag = blockTag;
+    } else {
+      throw new Error(`Invalid block tag: ${blockTag}`);
+    }
+  }
 
   type(): ChainQueryType {
     return ChainQueryType.EthCall;
@@ -17,8 +33,8 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
 
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
-      .writeUint32(this.blockId.length)
-      .writeUint8Array(Buffer.from(this.blockId))
+      .writeUint32(this.blockTag.length)
+      .writeUint8Array(Buffer.from(this.blockTag))
       .writeUint8(this.callData.length);
     this.callData.forEach(({ to, data }) => {
       const dataArray = hexToUint8Array(data);
@@ -29,19 +45,4 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
     });
     return writer.data();
   }
-}
-
-export class EthCallQueryResponse implements ChainSpecificResponse {
-  constructor(
-    public blockNumber: number,
-    public hash: string,
-    public time: string,
-    public results: string[][]
-  ) {}
-
-  type(): ChainQueryType {
-    return ChainQueryType.EthCall;
-  }
-
-  // static fromBytes(bytes: Uint8Array): EthCallQueryResponse {}
 }

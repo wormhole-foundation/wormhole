@@ -8,17 +8,15 @@ import {
 } from "@jest/globals";
 import Web3, { ETH_DATA_FORMAT } from "web3";
 import axios from "axios";
-import * as elliptic from "elliptic";
 import {
   EthCallData,
   EthCallQueryRequest,
   PerChainQueryRequest,
   QueryRequest,
-  QueryResponse,
   sign,
 } from "..";
 
-jest.setTimeout(60000);
+jest.setTimeout(125000);
 
 const CI = false;
 const ENV = "DEVNET";
@@ -104,7 +102,7 @@ describe("eth call", () => {
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put<QueryResponse>(
+    const response = await axios.put(
       QUERY_URL,
       {
         signature,
@@ -113,11 +111,6 @@ describe("eth call", () => {
       { headers: { "X-API-Key": "my_secret_key" } }
     );
     expect(response.status).toBe(200);
-    const queryResponse = QueryResponse.fromBytes(
-      Buffer.from(response.data.bytes, "hex")
-    );
-    // TODO: verify signatures
-    // TOOD: verify query response
   });
   test("missing api-key should fail", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
@@ -140,13 +133,13 @@ describe("eth call", () => {
     const signature = sign(PRIVATE_KEY, digest);
     let err = false;
     await axios
-      .put<QueryResponse>(QUERY_URL, {
+      .put(QUERY_URL, {
         signature,
         bytes: Buffer.from(serialized).toString("hex"),
       })
       .catch(function (error) {
         err = true;
-        expect(error.response.status).toBe(400);
+        expect(error.response.status).toBe(401);
         expect(error.response.data).toBe("api key is missing\n");
       });
     expect(err).toBe(true);
@@ -172,7 +165,7 @@ describe("eth call", () => {
     const signature = sign(PRIVATE_KEY, digest);
     let err = false;
     await axios
-      .put<QueryResponse>(
+      .put(
         QUERY_URL,
         {
           signature,
@@ -182,7 +175,7 @@ describe("eth call", () => {
       )
       .catch(function (error) {
         err = true;
-        expect(error.response.status).toBe(400);
+        expect(error.response.status).toBe(403);
         expect(error.response.data).toBe("invalid api key\n");
       });
     expect(err).toBe(true);
@@ -208,7 +201,7 @@ describe("eth call", () => {
     const signature = sign(PRIVATE_KEY, digest);
     let err = false;
     await axios
-      .put<QueryResponse>(
+      .put(
         QUERY_URL,
         {
           signature,
@@ -245,7 +238,7 @@ describe("eth call", () => {
     const signature = "";
     let err = false;
     await axios
-      .put<QueryResponse>(
+      .put(
         QUERY_URL,
         {
           signature,
@@ -270,7 +263,7 @@ describe("eth call", () => {
     const request = new QueryRequest(nonce, [ethQuery]);
     const serialized = request.serialize();
     const signature = "";
-    const response = await axios.put<QueryResponse>(
+    const response = await axios.put(
       QUERY_URL,
       {
         signature,

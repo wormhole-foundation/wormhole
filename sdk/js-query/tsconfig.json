@@ -8,6 +8,7 @@
     "strict": true,
     "esModuleInterop": true,
     "downlevelIteration": true,
+    "skipLibCheck": true,
     "allowJs": true,
     "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
   },

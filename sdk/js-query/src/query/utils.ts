@@ -1,9 +1,6 @@
 import * as elliptic from "elliptic";
 
-export function isValidHexString(s: string) {
-  if (s.length % 2 !== 0) {
-    throw new Error("hex string length must be even");
-  }
+export function isValidHexString(s: string): boolean {
   return /^(0x)?[0-9a-fA-F]+$/.test(s);
 }
 
@@ -11,9 +8,11 @@ export function hexToUint8Array(s: string): Uint8Array {
   if (!isValidHexString(s)) {
     throw new Error(`${s} is not hex`);
   }
-  return new Uint8Array(
-    Buffer.from(s.startsWith("0x") ? s.slice(2) : s, "hex")
-  );
+  if (s.startsWith("0x")) {
+    s = s.slice(2);
+  }
+  s.padStart(s.length + (s.length % 2), "0");
+  return new Uint8Array(Buffer.from(s, "hex"));
 }
 
 /**
