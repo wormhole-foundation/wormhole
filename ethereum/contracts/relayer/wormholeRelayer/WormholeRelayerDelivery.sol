@@ -25,7 +25,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
+import {pay, pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall, returnLengthBoundedCall} from "../../relayer/libraries/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride,
@@ -42,6 +42,10 @@ import {
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../relayer/libraries/ExecutionParameters.sol";
+
+uint256 constant QUOTE_LENGTH_BYTES = 32;
+
+uint256 constant GAS_LIMIT_EXTERNAL_CALL = 100_000;
 
 abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
     using WormholeRelayerSerde for *; 
@@ -446,49 +450,63 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         uint16 refundChain,
         bytes32 refundAddress,
         LocalNative refundAmount,
-        bytes32 relayerAddress
+        bytes32 deliveryProvider
     ) private returns (RefundStatus) {
         // User requested refund on this chain
         if (refundChain == getChainId()) {
-            return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
+            return pay(payable(fromWormholeFormat(refundAddress)), refundAmount, GAS_LIMIT_EXTERNAL_CALL)
                 ? RefundStatus.REFUND_SENT
                 : RefundStatus.REFUND_FAIL;
         }
 
         // User requested refund on a different chain
         
-        IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
-        
         // Determine price of an 'empty' delivery
         // (Note: assumes refund chain is an EVM chain)
-        LocalNative baseDeliveryPrice;
-      
-        try deliveryProvider.quoteDeliveryPrice(
-            refundChain,
-            TargetNative.wrap(0),
-            encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
-        ) returns (LocalNative quote, bytes memory) {
-            baseDeliveryPrice = quote;
-        } catch (bytes memory) {
-            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
-        }
-
-        // If the refundAmount is not greater than the 'empty delivery price', the refund does not go through
-        if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
-            return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+        (bool success, LocalNative baseDeliveryPrice) = untrustedBaseDeliveryPrice(fromWormholeFormat(deliveryProvider), refundChain);
+        
+        // If the unstrusted call failed, or the refundAmount is not greater than the 'empty delivery price', then the refund does not go through
+        // Note: We first check 'refundAmount <= baseDeliveryPrice', in case an untrusted delivery provider returns a value that overflows once
+        // the wormhole message fee is added to it
+        unchecked {
+            if (!success || (refundAmount <= baseDeliveryPrice) || (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice)) {
+                return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
+            }
         }
         
+        return sendCrossChainRefund(refundChain, refundAddress, refundAmount, refundAmount - getWormholeMessageFee() - baseDeliveryPrice, deliveryProvider);
+    }
+
+    function untrustedBaseDeliveryPrice(address deliveryProvider, uint16 refundChain) internal returns (bool success, LocalNative baseDeliveryPrice) {
+        (bool externalCallSuccess, bytes memory returnData) = returnLengthBoundedCall(
+            deliveryProvider,
+            abi.encodeCall(IDeliveryProvider.quoteDeliveryPrice, (refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()))),
+            GAS_LIMIT_EXTERNAL_CALL,
+            QUOTE_LENGTH_BYTES
+        );
+        
+        if(externalCallSuccess && returnData.length == QUOTE_LENGTH_BYTES) {
+            baseDeliveryPrice = abi.decode(returnData, (LocalNative));
+            success = true;
+        } else {
+            success = false;
+        }
+    }
+
+    function sendCrossChainRefund(uint16 refundChain, bytes32 refundAddress, LocalNative sendAmount, LocalNative receiveAmount, bytes32 deliveryProvider) internal returns (RefundStatus status) {
         // Request a 'send' with 'paymentForExtraReceiverValue' equal to the refund minus the 'empty delivery price'
-        try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
+        // We limit the gas because we are within a delivery, so thus the trust assumptions on the delivery provider are different
+        // Normally, in 'send', a revert is no problem; but here, we want to prevent such reverts in this try-catch
+        try IWormholeRelayerSend(address(this)).send{value: sendAmount.unwrap(), gas: GAS_LIMIT_EXTERNAL_CALL}(
             refundChain,
             bytes32(0),
             bytes(""),
             TargetNative.wrap(0),
-            refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
+            receiveAmount,
             encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
             refundChain,
             refundAddress,
-            fromWormholeFormat(relayerAddress),
+            fromWormholeFormat(deliveryProvider),
             new VaaKey[](0),
             CONSISTENCY_LEVEL_INSTANT
         ) returns (uint64) {

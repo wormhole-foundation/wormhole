@@ -16,6 +16,16 @@ function pay(address payable receiver, LocalNative amount) returns (bool success
     success = true;
 }
 
+function pay(address payable receiver, LocalNative amount, uint256 gasBound) returns (bool success) {
+  uint256 amount_ = LocalNative.unwrap(amount);
+  if (amount_ != 0)
+    // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
+    // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasBound, amount_, 0);
+  else
+    success = true;
+}
+
 function min(uint256 a, uint256 b) pure returns (uint256) {
   return a < b ? a : b;
 }
@@ -46,6 +56,18 @@ function fromWormholeFormatUnchecked(bytes32 whFormatAddress) pure returns (addr
 uint256 constant freeMemoryPtr = 0x40;
 uint256 constant memoryWord = 32;
 uint256 constant maskModulo32 = 0x1f;
+
+/**
+ * Overload with no 'value' and non-payable address
+ */
+function returnLengthBoundedCall(
+  address callee,
+  bytes memory callData,
+  uint256 gasLimit,
+  uint256 dataLengthBound
+) returns (bool success, bytes memory returnedData) {
+  return returnLengthBoundedCall(payable(callee), callData, gasLimit, 0, dataLengthBound);
+}
 
 /**
  * Implements call that truncates return data to a specific size to avoid excessive gas consumption for relayers
