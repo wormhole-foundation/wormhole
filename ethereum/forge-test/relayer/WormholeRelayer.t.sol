@@ -1843,7 +1843,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertDeliveryWithOverrideMaximumRefund(
+    function testAllowDeliveryWithOverrideMaximumRefund(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1877,7 +1877,6 @@ contract WormholeRelayerTests is Test {
             stack.deliveryVaaHash //really redeliveryHash
         );
 
-        vm.expectRevert(abi.encodeWithSignature("InvalidOverrideRefundPerGasUnused()"));
         setup.target.coreRelayerFull.deliver{value: stack.budget}(
             stack.encodedVMs,
             stack.encodedDeliveryVAA,

@@ -380,7 +380,6 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @notice *** This will only be able to succeed if the following is true **
      *         - newGasLimit >= gas limit of the old instruction
      *         - newReceiverValue >= receiver value of the old instruction
-     *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
      */
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
@@ -427,7 +426,10 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param gasLimit gas limit with which to call `targetAddress`. 
      * @return nativePriceQuote Price, in units of current chain currency, that the delivery provider charges to perform the relay
      * @return targetChainRefundPerGasUnused amount of target chain currency that will be refunded per unit of gas unused, 
-     *         if a refundAddress is specified
+     *         if a refundAddress is specified. 
+     *         Note: This value can be overridden by the delivery provider on the target chain. The returned value here should be considered to be a 
+     *         promise by the delivery provider of the amount of refund per gas unused that will be returned to the refundAddress at the target chain. 
+     *         If a delivery provider decides to override, this will be visible as part of the emitted Delivery event on the target chain. 
      */
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
@@ -445,6 +447,9 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @return nativePriceQuote Price, in units of current chain currency, that the delivery provider charges to perform the relay
      * @return targetChainRefundPerGasUnused amount of target chain currency that will be refunded per unit of gas unused, 
      *         if a refundAddress is specified
+     *         Note: This value can be overridden by the delivery provider on the target chain. The returned value here should be considered to be a 
+     *         promise by the delivery provider of the amount of refund per gas unused that will be returned to the refundAddress at the target chain. 
+     *         If a delivery provider decides to override, this will be visible as part of the emitted Delivery event on the target chain.
      */
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
