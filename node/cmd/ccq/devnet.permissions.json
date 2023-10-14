@@ -3,6 +3,7 @@
     {
       "userName": "Test User",
       "apiKey": "my_secret_key",
+      "allowedOrigins": "",
       "allowedCalls": [
         {
           "ethCall": {
@@ -42,6 +43,7 @@
       "userName": "Test User Two",
       "apiKey": "my_secret_key_2",
       "allowUnsigned": true,
+      "allowedOrigins": "",
       "allowedCalls": [
         {
           "ethCall": {

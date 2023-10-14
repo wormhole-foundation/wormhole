@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -41,11 +42,10 @@ type httpServer struct {
 }
 
 func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for all requests.
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
+		// Allow all origins for the preflight request, because the api key can't be sent yet
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "PUT, POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
 		w.Header().Set("Access-Control-Max-Age", "3600")
@@ -63,11 +63,40 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	apiKey := apiKeys[0]
 
 	// Make sure the user is authorized before we go any farther.
-	_, exists = s.permissions[strings.ToLower(apiKey)]
+	permsForUser, exists := s.permissions[strings.ToLower(apiKey)]
 	if !exists {
 		s.logger.Debug("invalid api key", zap.String("apiKey", apiKey))
 		http.Error(w, "invalid api key", http.StatusForbidden)
 		return
+	}
+
+	// Make sure the origin is allowed for the user.
+	origins, exists := r.Header["origin"]
+	nonBrowser := len(permsForUser.allowedOrigins) == 1 && permsForUser.allowedOrigins[0] == ""
+	if nonBrowser && len(origins) != 0 {
+		s.logger.Debug("received a request with an unauthorized origin, expected null origin", zap.Stringer("url", r.URL), zap.Strings("origins", origins), zap.Strings("allowedOrigins", permsForUser.allowedOrigins))
+		http.Error(w, "unauthorized origin", http.StatusUnauthorized)
+		return
+	}
+	anyOrigin := len(permsForUser.allowedOrigins) == 1 && permsForUser.allowedOrigins[0] == "*"
+	if anyOrigin {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	if !anyOrigin && !nonBrowser {
+		if len(origins) != 1 {
+			s.logger.Debug("received a request with an unauthorized origin, expected one origin", zap.Stringer("url", r.URL), zap.Strings("origins", origins), zap.Strings("allowedOrigins", permsForUser.allowedOrigins))
+			http.Error(w, "unauthorized origin", http.StatusUnauthorized)
+			return
+		}
+		if slices.Contains(permsForUser.allowedOrigins, origins[0]) {
+			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin#cors_and_caching
+			w.Header().Set("Access-Control-Allow-Origin", origins[0])
+			w.Header().Set("Vary", "Origin")
+		} else {
+			s.logger.Debug("received a request with an unauthorized origin", zap.Stringer("url", r.URL), zap.Strings("origins", origins), zap.Strings("allowedOrigins", permsForUser.allowedOrigins))
+			http.Error(w, "unauthorized origin", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	var q queryRequest

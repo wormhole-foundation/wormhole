@@ -58,10 +58,11 @@ type Config struct {
 }
 
 type User struct {
-	UserName      string        `json:"userName"`
-	ApiKey        string        `json:"apiKey"`
-	AllowUnsigned bool          `json:"allowUnsigned"`
-	AllowedCalls  []AllowedCall `json:"allowedCalls"`
+	UserName       string        `json:"userName"`
+	ApiKey         string        `json:"apiKey"`
+	AllowUnsigned  bool          `json:"allowUnsigned"`
+	AllowedOrigins string        `json:"allowedOrigins"`
+	AllowedCalls   []AllowedCall `json:"allowedCalls"`
 }
 
 type AllowedCall struct {
@@ -80,7 +81,10 @@ type permissionEntry struct {
 	userName      string
 	apiKey        string
 	allowUnsigned bool
-	allowedCalls  allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
+	// allowedOrigins will control the origins to process requests from as well as the Access-Control-Allow-Origin header on the response
+	// empty for non-browser only (unset), * for any, or a comma separated list of
+	allowedOrigins []string
+	allowedCalls   allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
 }
 
 type allowedCallsForUser map[string]struct{}
@@ -163,10 +167,11 @@ func parseConfig(byteValue []byte) (Permissions, error) {
 		}
 
 		pe := &permissionEntry{
-			userName:      user.UserName,
-			apiKey:        apiKey,
-			allowUnsigned: user.AllowUnsigned,
-			allowedCalls:  allowedCalls,
+			userName:       user.UserName,
+			apiKey:         apiKey,
+			allowUnsigned:  user.AllowUnsigned,
+			allowedOrigins: strings.Split(user.AllowedOrigins, ","),
+			allowedCalls:   allowedCalls,
 		}
 
 		ret[apiKey] = pe
