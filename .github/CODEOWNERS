@@ -25,13 +25,14 @@
 /lp_ui/ @evan-gray @kev1n-peters
 /relayer/generic_relayer @derpy-duck @JoeHowarth @gator-boi
 /scripts/ @evan-gray @kcsongor
-/sdk/ @bruce-riley @evan-gray
+/sdk/ @bruce-riley @evan-gray @kev1n-peters @SEJeff
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
+/sdk/js-query/ @evan-gray @kev1n-peters
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters @barnjamin
 /sdk/rust/ @a5-pickle
-/sdk/vaa/ @bruce-riley
+/sdk/vaa/ @bruce-riley @SEJeff
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
