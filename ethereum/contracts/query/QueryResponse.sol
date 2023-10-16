@@ -39,19 +39,19 @@ struct EthCallData {
     bytes result;
 }
 
+// Custom errors
+error InvalidResponseVersion();
+error VersionMismatch();
+error NumberOfResponsesMismatch();
+error ChainIdMismatch();
+error RequestTypeMismatch();
+error UnsupportedQueryType();
+error UnexpectedNumberOfResults();
+error InvalidPayloadLength(uint256 received, uint256 expected);
+
 // @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
     using BytesParsing for bytes;
-
-    // Custom errors
-    error InvalidResponseVersion();
-    error VersionMismatch();
-    error NumberOfResponsesMismatch();
-    error ChainIdMismatch();
-    error RequestTypeMismatch();
-    error UnsupportedQueryType();
-    error UnexpectedNumberOfResults();
-    error InvalidPayloadLength(uint256 received, uint256 expected);
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
     uint8 public constant QT_ETH_CALL = 1;
