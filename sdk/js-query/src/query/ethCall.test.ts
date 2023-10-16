@@ -19,11 +19,13 @@ import {
 
 jest.setTimeout(125000);
 
-export const CI = false;
+export const CI = process.env.CI;
 export const ENV = "DEVNET";
 export const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-export const CCQ_SERVER_URL = "http://localhost:6069/v1";
+export const CCQ_SERVER_URL = CI
+  ? "http://query-server:6069/v1"
+  : "http://localhost:6069/v1";
 export const QUERY_URL = CCQ_SERVER_URL + "/query";
 export const HEALTH_URL = CCQ_SERVER_URL + "/health";
 export const PRIVATE_KEY =
