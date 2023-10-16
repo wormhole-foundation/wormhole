@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.5
+
+### Changes
+
+Auto relayer better status command
+
 ## 0.10.4
 
 ### Changes
