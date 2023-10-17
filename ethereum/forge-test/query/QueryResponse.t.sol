@@ -21,9 +21,6 @@ contract TestQueryResponse is Test {
     uint8 sigV = 27; // last byte plus magic 27
     uint8 sigGuardianIndex = 0;
 
-    bytes32 expectedHash = 0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e;
-    bytes32 expectedDigest = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
-
     Wormhole wormhole;
     QueryResponse queryResponse;
 
@@ -66,11 +63,13 @@ contract TestQueryResponse is Test {
 
     function test_getResponseHash() public {
         bytes32 hash = queryResponse.getResponseHash(resp);
+        bytes32 expectedHash = 0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e;
         assertEq(hash, expectedHash);
     }
 
     function test_getResponseDigest() public {
         bytes32 digest = queryResponse.getResponseDigest(resp);
+        bytes32 expectedDigest = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
         assertEq(digest, expectedDigest);
     }
 
@@ -119,6 +118,19 @@ contract TestQueryResponse is Test {
         assertEq(eqr.result[1].contractAddress, address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270));
         assertEq(eqr.result[1].callData, hex"18160ddd");
         assertEq(eqr.result[1].result, hex"0000000000000000000000000000000000000000007ae5649beabeddf889364a");
+    }
+
+    function test_parseEthCallQueryResponseRevertWrongQueryType() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 5,
+            queryType: 2,
+            request: hex"00000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd",
+            response: hex"0000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a"
+            });
+
+        vm.expectRevert(UnsupportedQueryType.selector);
+        queryResponse.parseEthCallQueryResponse(r);
     }
 
     function test_parseEthCallQueryResponseComparison() public {
