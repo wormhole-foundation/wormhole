@@ -24,31 +24,36 @@ contract TestImplementation is TestUtils {
     Implementation impl;
     Setup setup;
     Setup proxiedSetup;
-    IWormhole proxied;
+    IWormhole public proxied;
 
-    uint256 constant testGuardian =
+    uint256 public constant testGuardian =
         93941733246223705020089879371323733820373732307041878556247502674739205313440;
-    uint16 governanceChainId = 1;
-    bytes32 constant governanceContract =
+    uint16 public governanceChainId = 1;
+    bytes32 public constant governanceContract =
         0x0000000000000000000000000000000000000000000000000000000000000004;
     bytes32 constant MESSAGEFEE_STORAGESLOT = bytes32(uint256(7));
     bytes32 constant SEQUENCES_SLOT = bytes32(uint256(4));
 
-    uint256 constant testBadSigner1PK = 61380885381456947260501717894649826485638944763666157704556612272461980735996;
-    uint256 constant testSigner1 = 93941733246223705020089879371323733820373732307041878556247502674739205313440;
-    uint256 constant testSigner2 = 62029033948131772461620424086954761227341731979036746506078649711513083917822;
-    uint256 constant testSigner3 = 61380885381456947260501717894649826485638944763666157704556612272461980735995;
+    uint256 constant testBadSigner1PK =
+        61380885381456947260501717894649826485638944763666157704556612272461980735996;
+    uint256 constant testSigner1 =
+        93941733246223705020089879371323733820373732307041878556247502674739205313440;
+    uint256 constant testSigner2 =
+        62029033948131772461620424086954761227341731979036746506078649711513083917822;
+    uint256 constant testSigner3 =
+        61380885381456947260501717894649826485638944763666157704556612272461980735995;
 
     // "Core" (left padded)
-    bytes32 constant core = 0x00000000000000000000000000000000000000000000000000000000436f7265;
+    bytes32 constant core =
+        0x00000000000000000000000000000000000000000000000000000000436f7265;
     uint8 actionContractUpgrade = 1;
     uint8 actionGuardianSetUpgrade = 2;
     uint8 actionMessageFee = 3;
     uint8 actionTransferFee = 4;
     uint8 actionRecoverChainId = 5;
 
-    uint16 testChainId = 2;
-    uint256 testEvmChainId = 1;
+    uint16 public testChainId = 2;
+    uint256 public testEvmChainId = 1;
 
     uint16 fakeChainId = 1337;
     uint256 fakeEvmChainId = 10001;
@@ -81,7 +86,9 @@ contract TestImplementation is TestUtils {
         proxied = IWormhole(address(proxy));
     }
 
-    function uint256Array(uint256 member) internal returns (uint256[] memory arr) {
+    function uint256Array(
+        uint256 member
+    ) internal returns (uint256[] memory arr) {
         arr = new uint256[](1);
         arr[0] = member;
     }
@@ -223,7 +230,11 @@ contract TestImplementation is TestUtils {
         // governance
         uint16 readGovernanceChainId = proxied.governanceChainId();
         bytes32 readGovernanceContract = proxied.governanceContract();
-        assertEq(readGovernanceChainId, governanceChainId, "Wrong governance chain ID");
+        assertEq(
+            readGovernanceChainId,
+            governanceChainId,
+            "Wrong governance chain ID"
+        );
         assertEq(
             readGovernanceContract,
             governanceContract,
@@ -296,7 +307,7 @@ contract TestImplementation is TestUtils {
             );
         }
 
-        signedMessage = abi.encodePacked(signedMessage, body); 
+        signedMessage = abi.encodePacked(signedMessage, body);
     }
 
     function signAndEncodeVM(
@@ -359,7 +370,17 @@ contract TestImplementation is TestUtils {
         uint32 guardianSetIndex = 0;
         bytes memory data = hex"aaaaaa";
 
-        bytes memory signedMessage = signAndEncodeVM(timestamp, nonce, emitterChainId, emitterAddress, sequence, data, uint256Array(testGuardian), guardianSetIndex, consistencyLevel);
+        bytes memory signedMessage = signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            data,
+            uint256Array(testGuardian),
+            guardianSetIndex,
+            consistencyLevel
+        );
 
         (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
             .parseAndVerifyVM(signedMessage);
@@ -399,10 +420,21 @@ contract TestImplementation is TestUtils {
         uint32 guardianSetIndex = 0;
         bytes memory data = hex"aaaaaa";
 
-        bytes memory signedMessage = signAndEncodeVM(timestamp, nonce, emitterChainId, emitterAddress, sequence, data, new uint256[](0), guardianSetIndex, consistencyLevel);
+        bytes memory signedMessage = signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            data,
+            new uint256[](0),
+            guardianSetIndex,
+            consistencyLevel
+        );
 
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
-            .parseAndVerifyVM(signedMessage);
+        (, bool valid, string memory reason) = proxied.parseAndVerifyVM(
+            signedMessage
+        );
 
         assertEq(valid, false, "Signed vaa shouldn't be valid");
         assertEq(reason, "no quorum", "Wrong reason");
@@ -418,10 +450,21 @@ contract TestImplementation is TestUtils {
         uint32 guardianSetIndex = 0;
         bytes memory data = hex"aaaaaa";
 
-        bytes memory signedMessage = signAndEncodeVM(timestamp, nonce, emitterChainId, emitterAddress, sequence, data, uint256Array(testBadSigner1PK), guardianSetIndex, consistencyLevel);
+        bytes memory signedMessage = signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            data,
+            uint256Array(testBadSigner1PK),
+            guardianSetIndex,
+            consistencyLevel
+        );
 
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
-            .parseAndVerifyVM(signedMessage);
+        (, bool valid, string memory reason) = proxied.parseAndVerifyVM(
+            signedMessage
+        );
 
         assertEq(valid, false, "Signed vaa shouldn't be valid");
         assertEq(reason, "VM signature invalid", "Wrong reason");
@@ -437,7 +480,17 @@ contract TestImplementation is TestUtils {
         uint32 guardianSetIndex = 200;
         bytes memory data = hex"aaaaaa";
 
-        bytes memory signedMessage = signAndEncodeVM(timestamp, nonce, emitterChainId, emitterAddress, sequence, data, uint256Array(testGuardian), guardianSetIndex, consistencyLevel);
+        bytes memory signedMessage = signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            data,
+            uint256Array(testGuardian),
+            guardianSetIndex,
+            consistencyLevel
+        );
 
         (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
             .parseAndVerifyVM(signedMessage);
@@ -446,7 +499,9 @@ contract TestImplementation is TestUtils {
         assertEq(reason, "invalid guardian set", "Wrong reason");
     }
 
-    function testShouldRevertOnVMsWithDuplicateNonMonotonicSignatureIndexes() public {
+    function testShouldRevertOnVMsWithDuplicateNonMonotonicSignatureIndexes()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         uint16 emitterChainId = 11;
@@ -459,19 +514,44 @@ contract TestImplementation is TestUtils {
         signers[0] = testSigner1;
         signers[1] = testSigner2;
         signers[2] = testSigner3;
-        bytes memory signedMessage = signAndEncodeVMFixedIndex(timestamp, nonce, emitterChainId, emitterAddress, sequence, data, signers, guardianSetIndex, consistencyLevel);
+        bytes memory signedMessage = signAndEncodeVMFixedIndex(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            data,
+            signers,
+            guardianSetIndex,
+            consistencyLevel
+        );
 
         vm.expectRevert("signature indices must be ascending");
         (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
             .parseAndVerifyVM(signedMessage);
     }
 
-    function shouldSetAndEnforceFees() public {
+    function testShouldSetAndEnforceFees() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         uint256 messageFee = 1111;
-        bytes memory data = abi.encodePacked(core, actionMessageFee, testChainId, messageFee);
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionMessageFee,
+            testChainId,
+            messageFee
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         uint256 before = proxied.messageFee();
         proxied.submitSetMessageFee(vaa);
@@ -480,124 +560,276 @@ contract TestImplementation is TestUtils {
         assertEq(afterSettingFee, messageFee, "wrong message fee");
     }
 
-    function shouldTransferOutCollectedFees(address receiver) public {
+    function testShouldTransferOutCollectedFees(address receiver) public {
         vm.assume(receiver != address(0));
 
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         uint256 amount = 11;
-        bytes memory data = abi.encodePacked(core, actionTransferFee, testChainId, amount, receiver);
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+
+        vm.deal(address(proxied), amount);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionTransferFee,
+            testChainId,
+            amount,
+            addressToBytes32(receiver)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         uint256 receiverBefore = receiver.balance;
         uint256 whBefore = address(proxied).balance;
         proxied.submitTransferFees(vaa);
         uint256 receiverAfter = receiver.balance;
         uint256 whAfter = address(proxied).balance;
-        assertEq(receiverAfter - receiverBefore, amount, "Receiver balance didn't change correctly");
-        assertEq(whBefore - whAfter, amount, "WH Core balance didn't change correctly");
+        assertEq(
+            receiverAfter - receiverBefore,
+            amount,
+            "Receiver balance didn't change correctly"
+        );
+        assertEq(
+            whBefore - whAfter,
+            amount,
+            "WH Core balance didn't change correctly"
+        );
     }
 
-    function shouldRevertWhenSubmittingANewGuardianSetWithTheZeroAddress() public {
-        uint32 timestamp = 1000;
-        uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
-
-        uint256 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
-
-        bytes memory data = abi.encodePacked(core, actionGuardianSetUpgrade, testChainId, oldGuardianSetIndex, uint8(3), vm.addr(testSigner1), vm.addr(testSigner2), zeroAddress);
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
-
-        vm.expectRevert("Invalid key");
-        proxied.submitNewGuardianSet(vaa);
-    }
-
-    function shouldAcceptANewGuardianSet() public {
+    function testShouldRevertWhenSubmittingANewGuardianSetWithTheZeroAddress()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
         uint32 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
 
-        bytes memory data = abi.encodePacked(core, actionGuardianSetUpgrade, testChainId, oldGuardianSetIndex, uint8(3), vm.addr(testSigner1), vm.addr(testSigner2), vm.addr(testSigner3));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionGuardianSetUpgrade,
+            testChainId,
+            oldGuardianSetIndex + 1,
+            uint8(3),
+            vm.addr(testSigner1),
+            vm.addr(testSigner2),
+            zeroAddress
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
+
+        vm.expectRevert("Invalid key");
+        proxied.submitNewGuardianSet(vaa);
+    }
+
+    function testShouldAcceptANewGuardianSet() public {
+        uint32 timestamp = 1000;
+        uint32 nonce = 1001;
+        address zeroAddress = address(0x0);
+
+        uint32 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
+
+        bytes memory data = abi.encodePacked(
+            core,
+            actionGuardianSetUpgrade,
+            testChainId,
+            oldGuardianSetIndex + 1,
+            uint8(3),
+            vm.addr(testSigner1),
+            vm.addr(testSigner2),
+            vm.addr(testSigner3)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitNewGuardianSet(vaa);
 
         uint32 newIndex = proxied.getCurrentGuardianSetIndex();
-        assertEq(oldGuardianSetIndex + 1, newIndex, "New index is one more than old index");
+        assertEq(
+            oldGuardianSetIndex + 1,
+            newIndex,
+            "New index is one more than old index"
+        );
 
-        IWormhole.GuardianSet memory guardianSet = proxied.getGuardianSet(newIndex);
+        IWormhole.GuardianSet memory guardianSet = proxied.getGuardianSet(
+            newIndex
+        );
 
         assertEq(guardianSet.expirationTime, 0, "Wrong expiration time");
         assertEq(guardianSet.keys[0], vm.addr(testSigner1), "Wrong guardian");
         assertEq(guardianSet.keys[1], vm.addr(testSigner2), "Wrong guardian");
         assertEq(guardianSet.keys[2], vm.addr(testSigner3), "Wrong guardian");
-        
-        IWormhole.GuardianSet memory oldGuardianSet = proxied.getGuardianSet(oldGuardianSetIndex);
 
-        assertTrue((oldGuardianSet.expirationTime > block.timestamp + 86000) && (oldGuardianSet.expirationTime < block.timestamp + 88000), "Wrong expiration time");
-        assertEq(oldGuardianSet.keys[0], vm.addr(testSigner1), "Wrong guardian");
-        assertEq(oldGuardianSet.keys[1], vm.addr(testSigner2), "Wrong guardian");
-        assertEq(oldGuardianSet.keys[2], vm.addr(testSigner3), "Wrong guardian");
+        IWormhole.GuardianSet memory oldGuardianSet = proxied.getGuardianSet(
+            oldGuardianSetIndex
+        );
+
+        assertTrue(
+            (oldGuardianSet.expirationTime > block.timestamp + 86000) &&
+                (oldGuardianSet.expirationTime < block.timestamp + 88000),
+            "Wrong expiration time"
+        );
+        assertEq(
+            oldGuardianSet.keys[0],
+            vm.addr(testGuardian),
+            "Wrong guardian"
+        );
     }
 
-    function shouldAcceptSmartContractUpgrades() public {
+    function testShouldAcceptSmartContractUpgrades() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         MockImplementation mock = new MockImplementation();
 
         uint256 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
 
-        bytes memory data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
-        bytes32 afterUpgrade = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
-        assertEq(afterUpgrade, bytes32(uint256(uint160(address(mock)))));
-        assertEq(MockImplementation(payable(address(proxied))).testNewImplementationActive(), true, "New implementation not active");
-
+        bytes32 afterUpgrade = vm.load(
+            address(proxied),
+            IMPLEMENTATION_STORAGE_SLOT
+        );
+        assertEq(afterUpgrade, addressToBytes32(address(mock)));
+        assertEq(
+            MockImplementation(payable(address(proxied)))
+                .testNewImplementationActive(),
+            true,
+            "New implementation not active"
+        );
     }
 
-    function shouldRevertRecoverChainIDGovernancePacketsOnCanonicalChainsNonFork() public {
+    function testShouldRevertRecoverChainIDGovernancePacketsOnCanonicalChainsNonFork()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
-        bytes memory data = abi.encodePacked(core, actionRecoverChainId, testEvmChainId, testChainId);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionRecoverChainId,
+            testEvmChainId,
+            testChainId
+        );
 
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         vm.expectRevert("not a fork");
         proxied.submitRecoverChainId(vaa);
-
     }
 
-    function shouldRevertGovernancePacketsFromOldGuardianSet() public {
+    function testShouldRevertGovernancePacketsFromOldGuardianSet() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
         // upgrade guardian set
-        bytes memory data = abi.encodePacked(core, actionGuardianSetUpgrade, testChainId, uint32(0), uint8(3), vm.addr(testSigner1), vm.addr(testSigner2), vm.addr(testSigner3));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionGuardianSetUpgrade,
+            testChainId,
+            uint32(1),
+            uint8(3),
+            vm.addr(testSigner1),
+            vm.addr(testSigner2),
+            vm.addr(testSigner3)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitNewGuardianSet(vaa);
 
-        data = abi.encodePacked(core, actionTransferFee, testChainId, uint256(1), address(0));
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        data = abi.encodePacked(
+            core,
+            actionTransferFee,
+            testChainId,
+            uint256(1),
+            address(0)
+        );
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         vm.expectRevert("not signed by current guardian set");
         proxied.submitTransferFees(vaa);
     }
 
-    function shouldTimeOutOldGuardians() public {
+    function testShouldTimeOutOldGuardians() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
@@ -605,59 +837,142 @@ contract TestImplementation is TestUtils {
         bytes32 emitterAddress = 0x0000000000000000000000000000000000000000000000000000000000000eee;
 
         // upgrade guardian set
-        bytes memory data = abi.encodePacked(core, actionGuardianSetUpgrade, testChainId, uint32(0), uint8(3), vm.addr(testSigner1), vm.addr(testSigner2), vm.addr(testSigner3));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionGuardianSetUpgrade,
+            testChainId,
+            uint32(1),
+            uint8(3),
+            vm.addr(testSigner1),
+            vm.addr(testSigner2),
+            vm.addr(testSigner3)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitNewGuardianSet(vaa);
 
         data = hex"aaaaaa";
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
-        (,bool valid,) = proxied.parseAndVerifyVM(vaa);
+        (, bool valid, ) = proxied.parseAndVerifyVM(vaa);
 
         assertEq(valid, true, "Vaa should be valid");
 
         skip(100000);
 
-        (,valid,) = proxied.parseAndVerifyVM(vaa);
+        (, valid, ) = proxied.parseAndVerifyVM(vaa);
 
         assertEq(valid, false, "Vaa should be expired");
     }
-    
-    function shouldRevertGovernancePacketsFromWrongGovernanceChain() public {
+
+    function testShouldRevertGovernancePacketsFromWrongGovernanceChain()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
-
-        bytes memory data = abi.encodePacked(core, actionTransferFee, testChainId, uint256(1), address(0));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, 999, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionTransferFee,
+            testChainId,
+            uint256(1),
+            address(0)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            999,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         vm.expectRevert("wrong governance chain");
         proxied.submitTransferFees(vaa);
     }
 
-    function shouldRevertGovernancePacketsFromWrongGovernanceContract() public {
+    function testShouldRevertGovernancePacketsFromWrongGovernanceContract()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
-
-        bytes memory data = abi.encodePacked(core, actionTransferFee, testChainId, uint256(1), address(0));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, core, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionTransferFee,
+            testChainId,
+            uint256(1),
+            address(0)
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            core,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         vm.expectRevert("wrong governance contract");
         proxied.submitTransferFees(vaa);
     }
 
-    function shouldRevertGovernancePacketsThatAlreadyHaveBeenApplied() public {
+    function testShouldRevertGovernancePacketsThatAlreadyHaveBeenApplied()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
         address zeroAddress = address(0x0);
 
+        uint256 amount = 1;
+        vm.deal(address(proxied), amount);
 
-        bytes memory data = abi.encodePacked(core, actionTransferFee, testChainId, uint256(1), address(0));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionTransferFee,
+            testChainId,
+            amount,
+            addressToBytes32(address(0))
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitTransferFees(vaa);
 
@@ -665,124 +980,305 @@ contract TestImplementation is TestUtils {
         proxied.submitTransferFees(vaa);
     }
 
-    function shouldRejectSmartContractUpgradesOnForks() public {
+    function addressToBytes32(address input) internal returns (bytes32 output) {
+        return bytes32(uint256(uint160(input)));
+    }
+
+    function testShouldRejectSmartContractUpgradesOnForks() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
 
         // Perform a successful upgrade
         MockImplementation mock = new MockImplementation();
 
-        bytes memory data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
-        bytes32 afterUpgrade = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
-        assertEq(afterUpgrade, bytes32(uint256(uint160(address(mock)))));
-        assertEq(MockImplementation(payable(address(proxied))).testNewImplementationActive(), true, "New implementation not active");
+        bytes32 afterUpgrade = vm.load(
+            address(proxied),
+            IMPLEMENTATION_STORAGE_SLOT
+        );
+        assertEq(afterUpgrade, addressToBytes32(address(mock)));
+        assertEq(
+            MockImplementation(payable(address(proxied)))
+                .testNewImplementationActive(),
+            true,
+            "New implementation not active"
+        );
 
         // Overwrite EVM Chain ID
-        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(fakeChainId, fakeEvmChainId);
-        assertEq(proxied.chainId(), fakeChainId, "Overwrite didn't work for chain ID");
-        assertEq(proxied.evmChainId(), fakeEvmChainId, "Overwrite didn't work for evm chain ID");
+        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(
+            fakeChainId,
+            fakeEvmChainId
+        );
+        assertEq(
+            proxied.chainId(),
+            fakeChainId,
+            "Overwrite didn't work for chain ID"
+        );
+        assertEq(
+            proxied.evmChainId(),
+            fakeEvmChainId,
+            "Overwrite didn't work for evm chain ID"
+        );
 
-        data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         vm.expectRevert("invalid fork");
         proxied.submitContractUpgrade(vaa);
-
     }
 
-    function shouldAllowRecoverChainIDGovernancePacketsForks() public {
+    function testShouldAllowRecoverChainIDGovernancePacketsForks() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
 
         // Perform a successful upgrade
         MockImplementation mock = new MockImplementation();
 
-        bytes memory data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
-        bytes32 afterUpgrade = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
-        assertEq(afterUpgrade, bytes32(uint256(uint160(address(mock)))));
-        assertEq(MockImplementation(payable(address(proxied))).testNewImplementationActive(), true, "New implementation not active");
+        bytes32 afterUpgrade = vm.load(
+            address(proxied),
+            IMPLEMENTATION_STORAGE_SLOT
+        );
+        assertEq(afterUpgrade, addressToBytes32(address(mock)));
+        assertEq(
+            MockImplementation(payable(address(proxied)))
+                .testNewImplementationActive(),
+            true,
+            "New implementation not active"
+        );
 
         // Overwrite EVM Chain ID
-        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(fakeChainId, fakeEvmChainId);
-        assertEq(proxied.chainId(), fakeChainId, "Overwrite didn't work for chain ID");
-        assertEq(proxied.evmChainId(), fakeEvmChainId, "Overwrite didn't work for evm chain ID");
+        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(
+            fakeChainId,
+            fakeEvmChainId
+        );
+        assertEq(
+            proxied.chainId(),
+            fakeChainId,
+            "Overwrite didn't work for chain ID"
+        );
+        assertEq(
+            proxied.evmChainId(),
+            fakeEvmChainId,
+            "Overwrite didn't work for evm chain ID"
+        );
 
-        // recover chain ID 
-        data = abi.encodePacked(core, actionRecoverChainId, testEvmChainId, testChainId);
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, core, 0, data, uint256Array(testGuardian), 0, 2);
+        // recover chain ID
+        data = abi.encodePacked(
+            core,
+            actionRecoverChainId,
+            testEvmChainId,
+            testChainId
+        );
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitRecoverChainId(vaa);
 
-        assertEq(proxied.chainId(), testChainId, "Recover didn't work for chain ID");
-        assertEq(proxied.evmChainId(), testEvmChainId, "Recover didn't work for evm chain ID");
+        assertEq(
+            proxied.chainId(),
+            testChainId,
+            "Recover didn't work for chain ID"
+        );
+        assertEq(
+            proxied.evmChainId(),
+            testEvmChainId,
+            "Recover didn't work for evm chain ID"
+        );
     }
 
-    function shouldAcceptSmartContractUpgradesAfterChainIdHasBeenRecovered() public {
+    function testShouldAcceptSmartContractUpgradesAfterChainIdHasBeenRecovered()
+        public
+    {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        
+
         // Perform a successful upgrade
         MockImplementation mock = new MockImplementation();
 
-        bytes memory data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        bytes memory vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        bytes memory data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        bytes memory vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
-        bytes32 afterUpgrade = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
-        assertEq(afterUpgrade, bytes32(uint256(uint160(address(mock)))));
-        assertEq(MockImplementation(payable(address(proxied))).testNewImplementationActive(), true, "New implementation not active");
+        bytes32 afterUpgrade = vm.load(
+            address(proxied),
+            IMPLEMENTATION_STORAGE_SLOT
+        );
+        assertEq(afterUpgrade, addressToBytes32(address(mock)));
+        assertEq(
+            MockImplementation(payable(address(proxied)))
+                .testNewImplementationActive(),
+            true,
+            "New implementation not active"
+        );
 
         // Overwrite EVM Chain ID
-        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(fakeChainId, fakeEvmChainId);
-        assertEq(proxied.chainId(), fakeChainId, "Overwrite didn't work for chain ID");
-        assertEq(proxied.evmChainId(), fakeEvmChainId, "Overwrite didn't work for evm chain ID");
+        MockImplementation(payable(address(proxied))).testOverwriteEVMChainId(
+            fakeChainId,
+            fakeEvmChainId
+        );
+        assertEq(
+            proxied.chainId(),
+            fakeChainId,
+            "Overwrite didn't work for chain ID"
+        );
+        assertEq(
+            proxied.evmChainId(),
+            fakeEvmChainId,
+            "Overwrite didn't work for evm chain ID"
+        );
 
-        // recover chain ID 
-        data = abi.encodePacked(core, actionRecoverChainId, testEvmChainId, testChainId);
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, core, 0, data, uint256Array(testGuardian), 0, 2);
+        // recover chain ID
+        data = abi.encodePacked(
+            core,
+            actionRecoverChainId,
+            testEvmChainId,
+            testChainId
+        );
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         proxied.submitRecoverChainId(vaa);
 
-        assertEq(proxied.chainId(), testChainId, "Recover didn't work for chain ID");
-        assertEq(proxied.evmChainId(), testEvmChainId, "Recover didn't work for evm chain ID");
+        assertEq(
+            proxied.chainId(),
+            testChainId,
+            "Recover didn't work for chain ID"
+        );
+        assertEq(
+            proxied.evmChainId(),
+            testEvmChainId,
+            "Recover didn't work for evm chain ID"
+        );
 
         // Perform a successful upgrade
         mock = new MockImplementation();
 
-        data = abi.encodePacked(core, actionContractUpgrade, testChainId, address(mock));
-        vaa = signAndEncodeVM(timestamp, nonce, governanceChainId, governanceContract, 0, data, uint256Array(testGuardian), 0, 2);
+        data = abi.encodePacked(
+            core,
+            actionContractUpgrade,
+            testChainId,
+            addressToBytes32(address(mock))
+        );
+        vaa = signAndEncodeVM(
+            timestamp,
+            nonce,
+            governanceChainId,
+            governanceContract,
+            0,
+            data,
+            uint256Array(testGuardian),
+            0,
+            2
+        );
 
         before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
         afterUpgrade = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
-        assertEq(afterUpgrade, bytes32(uint256(uint160(address(mock)))));
-        assertEq(MockImplementation(payable(address(proxied))).testNewImplementationActive(), true, "New implementation not active");
+        assertEq(afterUpgrade, addressToBytes32(address(mock)));
+        assertEq(
+            MockImplementation(payable(address(proxied)))
+                .testNewImplementationActive(),
+            true,
+            "New implementation not active"
+        );
     }
-
-
-
-
-
-
-
 }
