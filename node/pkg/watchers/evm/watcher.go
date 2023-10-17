@@ -1037,8 +1037,6 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.C
 		zap.Int("numRequests", len(req.CallData)),
 	)
 
-	// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
-
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
 		logger.Error("invalid block id in eth_call query request",
