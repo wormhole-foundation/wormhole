@@ -237,6 +237,12 @@ contract TestBridge is Test {
             vm.load(address(bridge), IMPLEMENTATION_STORAGE_SLOT),
             addressToBytes32(address(mock))
         );
+
+        assertTrue(
+            MockBridgeImplementation(payable(address(bridge)))
+                .testNewImplementationActive(),
+            "implementation not active"
+        );
     }
 
     function testBridgedTokensShouldOnlyBeMintAndBurnableByOwner() public {
