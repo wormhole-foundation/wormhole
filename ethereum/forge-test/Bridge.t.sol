@@ -558,7 +558,7 @@ contract TestBridge is Test {
         assertEq(bridgeBalanceAfter, 0);
     }
 
-    function shouldDepositAndLogTransferWithPayloadCorrectly() public {
+    function testShouldDepositAndLogTransferWithPayloadCorrectly() public {
         testShouldCorrectlyDeployAWrappedAssetForATokenAttestation();
         uint256 amount = 1_000_000_000_000_000_000;
         tokenImpl.mint(address(this), amount);
@@ -1137,7 +1137,7 @@ contract TestBridge is Test {
         signedMessage = abi.encodePacked(signedMessage, body);
     }
 
-    function shouldRejectSmartContractUpgradesOnForks() public {
+    function testShouldRejectSmartContractUpgradesOnForks() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
 
@@ -1215,7 +1215,7 @@ contract TestBridge is Test {
         bridge.upgrade(vaa);
     }
 
-    function shouldAllowRecoverChainIDGovernancePacketsForks() public {
+    function testShouldAllowRecoverChainIDGovernancePacketsForks() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
 
@@ -1304,7 +1304,7 @@ contract TestBridge is Test {
         );
     }
 
-    function shouldAcceptSmartContractUpgradesAfterChainIdHasBeenRecovered()
+    function testShouldAcceptSmartContractUpgradesAfterChainIdHasBeenRecovered()
         public
     {
         uint32 timestamp = 1000;
