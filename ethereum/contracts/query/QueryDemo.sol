@@ -7,6 +7,18 @@ import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
 import "./QueryResponse.sol";
 
+error InvalidOwner();
+// @dev for the onlyOwner modifier
+error InvalidCaller();
+error InvalidContractAddress();
+error InvalidWormholeAddress();
+error InvalidForeignChainID();
+error ObsoleteUpdate();
+error StaleUpdate();
+error UnexpectedCallData();
+error UnexpectedResultLength();
+error UnexpectedResultMismatch();
+
 /// @dev QueryDemo is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 contract QueryDemo is QueryResponse {
     using BytesLib for bytes;
@@ -28,9 +40,14 @@ contract QueryDemo is QueryResponse {
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
     constructor(address _owner, address _wormhole, uint16 _myChainID) {
-        require(_owner != address(0), "Invalid owner");
+        if (_owner == address(0)) {
+            revert InvalidOwner();
+        }
         owner = _owner;
-        require(_wormhole != address(0), "Invalid wormhole address");
+
+        if (_wormhole == address(0)) {
+            revert InvalidWormholeAddress();
+        }
         wormhole = _wormhole;  
         myChainID = _myChainID;
         counters[_myChainID] = ChainEntry(_myChainID, address(this), 0, 0, 0);
@@ -71,16 +88,35 @@ contract QueryDemo is QueryResponse {
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
         uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
-        require(r.responses.length == foreignChainIDs.length, "unexpected number of results");
-        for (uint idx=0; idx<r.responses.length; idx++) {
-            require(counters[r.responses[idx].chainId].chainID == foreignChainIDs[idx], "unexpected foreign chain ID");
-            EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[idx]);
-            require(eqr.blockNum > counters[r.responses[idx].chainId].blockNum, "update is obsolete");
+        if (r.responses.length != foreignChainIDs.length) {
+            revert UnexpectedResultLength();
+        }
+
+        for (uint i=0; i < r.responses.length;) {
+            // Create a storage pointer for frequently read and updated data stored on the blockchain
+            ChainEntry storage chainEntry = counters[r.responses[i].chainId];
+            if (chainEntry.chainID != foreignChainIDs[i]) {
+                revert InvalidForeignChainID();
+            }
+
+            EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
+            if (eqr.blockNum <= chainEntry.blockNum) {
+                revert ObsoleteUpdate();
+            }
+
             // wormhole time is in microseconds, timestamp is in seconds
             adjustedBlockTime = eqr.blockTime / 1_000_000;
-            require(adjustedBlockTime > block.timestamp - 300, "update is stale");
-            require(eqr.result.length == 1, "result mismatch");
-            require(eqr.result[0].contractAddress == counters[r.responses[idx].chainId].contractAddress, "contract address is wrong");
+            if (adjustedBlockTime <= block.timestamp - 300) {
+                revert StaleUpdate();
+            }
+
+            if (eqr.result.length != 1) {
+                revert UnexpectedResultMismatch();
+            }
+
+            if (eqr.result[0].contractAddress != chainEntry.contractAddress) {
+                revert InvalidContractAddress();
+            }
 
             // TODO: Is there an easier way to verify that the call data is correct!
             bytes memory callData = eqr.result[0].callData;
@@ -88,12 +124,19 @@ contract QueryDemo is QueryResponse {
             assembly {
                     result := mload(add(callData, 32))
             }
-            require(result == GetMyCounter, "unexpected callData");
+            if (result != GetMyCounter) {
+                revert UnexpectedCallData();
+            }
 
             require(eqr.result[0].result.length == 32, "result is not a uint256");
-            counters[r.responses[idx].chainId].blockNum = eqr.blockNum;
-            counters[r.responses[idx].chainId].blockTime = adjustedBlockTime;
-            counters[r.responses[idx].chainId].counter = abi.decode(eqr.result[0].result, (uint256));
+
+            chainEntry.blockNum = eqr.blockNum;
+            chainEntry.blockTime = adjustedBlockTime;
+            chainEntry.counter = abi.decode(eqr.result[0].result, (uint256));
+
+            unchecked {
+                ++i;
+            }
         }
 
         counters[myChainID].blockNum = block.number;
@@ -102,7 +145,9 @@ contract QueryDemo is QueryResponse {
     }
 
     modifier onlyOwner() {
-        require(owner == msg.sender, "caller is not the owner");
+        if (owner != msg.sender) {
+            revert InvalidOwner();
+        }
         _;
     }
 }
