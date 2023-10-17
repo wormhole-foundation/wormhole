@@ -560,8 +560,8 @@ contract TestImplementation is TestUtils {
         assertEq(afterSettingFee, messageFee, "wrong message fee");
     }
 
-    function testShouldTransferOutCollectedFees(address receiver) public {
-        vm.assume(receiver != address(0));
+    function testShouldTransferOutCollectedFees() public {
+        address receiver = address(0x1234123412341234123412341234123412341234);
 
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
