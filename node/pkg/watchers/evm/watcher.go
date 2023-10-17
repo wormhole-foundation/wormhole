@@ -2,9 +2,11 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -963,6 +965,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
 }
 
+// TODO: Once PR #3449 lands, move all of this to ccq.go.
+
 // ccqSendQueryResponseForEthCall sends an error response back to the query handler.
 func (w *Watcher) ccqSendQueryResponseForEthCall(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus, resp *query.EthCallQueryResponse) {
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
@@ -1006,9 +1010,9 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.EthCallQueryRequest:
-		w.handleEthCallQueryRequest(logger, ctx, queryRequest, req)
+		w.ccqHandleEthCallQueryRequest(logger, ctx, queryRequest, req)
 	case *query.EthCallByTimestampQueryRequest:
-		w.handleEthCallByTimestampQueryRequest(logger, ctx, queryRequest, req)
+		w.ccqHandleEthCallByTimestampQueryRequest(logger, ctx, queryRequest, req)
 	default:
 		logger.Warn("received unsupported request type",
 			zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
@@ -1026,17 +1030,24 @@ type EvmCallData struct {
 	callErr            error
 }
 
-func (w *Watcher) handleEthCallQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallQueryRequest) {
+func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallQueryRequest) {
 	block := req.BlockId
 	logger.Info("received eth_call query request",
 		zap.String("block", block),
 		zap.Int("numRequests", len(req.CallData)),
 	)
 
-	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 
-	blockMethod, callBlockArg := ccqCreateBlockRequest(block)
+	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
+	if err != nil {
+		logger.Error("invalid block id in eth_call query request",
+			zap.Error(err),
+			zap.String("block", block),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
 
 	// We build two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block.
 	// The second is the data associated with each request (but not the block request). The index into both is the index into the request call data.
@@ -1056,8 +1067,9 @@ func (w *Watcher) handleEthCallQueryRequest(logger *zap.Logger, ctx context.Cont
 	})
 
 	// Query the RPC.
-	err := w.ethConn.RawBatchCallContext(timeout, batch)
-	cancel()
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	err = w.ethConn.RawBatchCallContext(timeout, batch)
 
 	if err != nil {
 		logger.Error("failed to process eth_call query request",
@@ -1154,7 +1166,7 @@ func (w *Watcher) handleEthCallQueryRequest(logger *zap.Logger, ctx context.Cont
 	}
 }
 
-func (w *Watcher) handleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallByTimestampQueryRequest) {
+func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallByTimestampQueryRequest) {
 	block := req.TargetBlockIdHint
 	nextBlock := req.FollowingBlockIdHint
 	logger.Info("received eth_call_by_timestamp query request",
@@ -1164,10 +1176,27 @@ func (w *Watcher) handleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx c
 		zap.Int("numRequests", len(req.CallData)),
 	)
 
-	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
+	if err != nil {
+		logger.Error("invalid target block id hint in eth_call_by_timestamp query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
 
-	blockMethod, callBlockArg := ccqCreateBlockRequest(block)
-	nextBlockMethod, _ := ccqCreateBlockRequest(nextBlock)
+	nextBlockMethod, _, err := ccqCreateBlockRequest(nextBlock)
+	if err != nil {
+		logger.Error("invalid following block id hint in eth_call_by_timestamp query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
 
 	// We build two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block and one for the next block.
 	// The second is the data associated with each request (but not the block requests). The index into both is the index into the request call data.
@@ -1200,8 +1229,9 @@ func (w *Watcher) handleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx c
 	})
 
 	// Query the RPC.
-	err := w.ethConn.RawBatchCallContext(timeout, batch)
-	cancel()
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	err = w.ethConn.RawBatchCallContext(timeout, batch)
 
 	if err != nil {
 		logger.Error("failed to process eth_call_by_timestamp query request",
@@ -1356,21 +1386,35 @@ func (w *Watcher) handleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx c
 	}
 }
 
-func ccqCreateBlockRequest(block string) (string, interface{}) {
+// ccqCreateBlockRequest creates a block query. It parses the block string, allowing for both a block number or a block hash. Note that for now, strings like "latest", "finalized" or "safe"
+// are not supported, and the block must be a hex string starting with 0x. The determination of whether it is a block number or a block hash is based on the overall length of the string,
+// since a hash is 32 bytes (64 hex digits).
+func ccqCreateBlockRequest(block string) (string, interface{}, error) {
 	// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 
 	var blockMethod string
 	var callBlockArg interface{}
-	// TODO: try making these error and see what happens
-	// 1. 66 chars but not 0x hex
-	// 2. 64 chars but not hex
-	// 3. bad blocks
-	// 4. bad 0x lengths
-	// 5. strings that aren't "latest", "safe", "finalized"
-	// 6. "safe" on a chain that doesn't support safe
-	// etc?
-	// I would expect this to trip within this scissor (if at all) but maybe this should get more defensive
-	if len(block) == 66 || len(block) == 64 {
+
+	if block == "" {
+		return blockMethod, callBlockArg, fmt.Errorf("block id is required")
+	}
+
+	if !strings.HasPrefix(block, "0x") {
+		return blockMethod, callBlockArg, fmt.Errorf("block id must start with 0x")
+	}
+	blk := strings.Trim(block, "0x")
+
+	// Devnet can give us block IDs like this: "0x365".
+	if len(blk)%2 != 0 {
+		blk = "0" + blk
+	}
+
+	// Make sure it is valid hex.
+	if _, err := hex.DecodeString(blk); err != nil {
+		return blockMethod, callBlockArg, fmt.Errorf("block id is not valid hex")
+	}
+
+	if len(blk) == 64 {
 		blockMethod = "eth_getBlockByHash"
 		// looks like a hash which requires the object parameter
 		// https://eips.ethereum.org/EIPS/eip-1898
@@ -1385,7 +1429,7 @@ func ccqCreateBlockRequest(block string) (string, interface{}) {
 		callBlockArg = block
 	}
 
-	return blockMethod, callBlockArg
+	return blockMethod, callBlockArg, nil
 }
 
 type EthCallDataIntf interface {
