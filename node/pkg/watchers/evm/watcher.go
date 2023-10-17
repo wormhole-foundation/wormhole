@@ -1311,6 +1311,8 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 
 	targetBlockNum := blockResult.Number.ToInt().Uint64()
 	followingBlockNum := nextBlockResult.Number.ToInt().Uint64()
+
+	// The req.TargetTimestamp is in microseconds but EVM returns seconds. Convert to microseconds.
 	targetTimestamp := uint64(blockResult.Time * 1000000)
 	followingTimestamp := uint64(nextBlockResult.Time * 1000000)
 
