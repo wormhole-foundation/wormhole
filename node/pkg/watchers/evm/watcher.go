@@ -1333,7 +1333,8 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		return
 	}
 
-	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
+	// TODO: According to the whitepaper, the second part of this check should be >= but in devnet sometimes two blocks have the same timestamp.
+	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp > followingTimestamp {
 		logger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
 			zap.String("eth_network", w.networkName),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
