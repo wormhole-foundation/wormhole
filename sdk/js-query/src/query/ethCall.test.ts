@@ -19,20 +19,20 @@ import {
 
 jest.setTimeout(125000);
 
-export const CI = process.env.CI;
-export const ENV = "DEVNET";
-export const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
+const CI = process.env.CI;
+const ENV = "DEVNET";
+const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-export const CCQ_SERVER_URL = CI
+const CCQ_SERVER_URL = CI
   ? "http://query-server:6069/v1"
   : "http://localhost:6069/v1";
-export const QUERY_URL = CCQ_SERVER_URL + "/query";
-export const HEALTH_URL = CCQ_SERVER_URL + "/health";
-export const PRIVATE_KEY =
+const QUERY_URL = CCQ_SERVER_URL + "/query";
+const HEALTH_URL = CCQ_SERVER_URL + "/health";
+const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
-export const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 
-export let web3: Web3;
+let web3: Web3;
 
 beforeAll(() => {
   web3 = new Web3(ETH_NODE_URL);
@@ -42,7 +42,7 @@ afterAll(() => {
   web3.provider?.disconnect();
 });
 
-export function createTestEthCallData(
+function createTestEthCallData(
   to: string,
   name: string,
   outputType: string
@@ -114,6 +114,39 @@ describe("eth call", () => {
       { headers: { "X-API-Key": "my_secret_key" } }
     );
     expect(response.status).toBe(200);
+  });
+  // TODO: This test works in Goerli testnet but not devnet. Try it again after PR #3395 lands.
+  test.skip("get block by hash should work", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const block = await web3.eth.getBlock(BigInt(blockNumber));
+    if (block.hash != undefined) {
+      const ethCall = new EthCallQueryRequest(block.hash?.toString(), [
+        nameCallData,
+        totalSupplyCallData,
+      ]);
+      const chainId = 2;
+      const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+      const nonce = 1;
+      const request = new QueryRequest(nonce, [ethQuery]);
+      const serialized = request.serialize();
+      const digest = QueryRequest.digest(ENV, serialized);
+      const signature = sign(PRIVATE_KEY, digest);
+      const response = await axios.put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      );
+      expect(response.status).toBe(200);
+    }
   });
   test("missing api-key should fail", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
