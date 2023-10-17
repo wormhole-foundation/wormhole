@@ -1241,8 +1241,9 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		return
 	}
 
+	// Checks on the target block.
 	if blockError != nil {
-		logger.Error("failed to process eth_call_by_timestamp query block request",
+		logger.Error("failed to process eth_call_by_timestamp query target block request",
 			zap.Error(blockError),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -1252,7 +1253,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	}
 
 	if blockResult.Number == nil {
-		logger.Error("invalid eth_call_by_timestamp query block result",
+		logger.Error("invalid eth_call_by_timestamp query target block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -1262,7 +1263,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	}
 
 	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
-		logger.Error("block number too large for eth_call_by_timestamp",
+		logger.Error("target block number too large for eth_call_by_timestamp",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -1271,12 +1272,90 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		return
 	}
 
+	// Checks on the following block.
+	if nextBlockError != nil {
+		logger.Error("failed to process eth_call_by_timestamp query following block request",
+			zap.Error(nextBlockError),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if nextBlockResult.Number == nil {
+		logger.Error("invalid eth_call_by_timestamp query following block result",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if nextBlockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
+		logger.Error("following block number too large for eth_call_by_timestamp",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	/*
+		target_block.timestamp <= target_time < following_block.timestamp
+		and
+		following_block_num - 1 == target_block_num
+	*/
+
+	targetBlockNum := blockResult.Number.ToInt().Uint64()
+	followingBlockNum := nextBlockResult.Number.ToInt().Uint64()
+	targetTimestamp := uint64(blockResult.Time * 1000000)
+	followingTimestamp := uint64(nextBlockResult.Time * 1000000)
+
+	if targetBlockNum+1 != followingBlockNum {
+		logger.Error(" eth_call_by_timestamp query blocks are not adjacent",
+			zap.String("eth_network", w.networkName),
+			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
+			zap.Uint64("targetTimestamp", targetTimestamp),
+			zap.Uint64("followingTimestamp", followingTimestamp),
+			zap.String("targetBlockNumber", blockResult.Number.String()),
+			zap.String("followingBlockNumber", nextBlockResult.Number.String()),
+			zap.String("targetBlockHash", blockResult.Hash.Hex()),
+			zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
+			zap.String("targetBlockTime", blockResult.Time.String()),
+			zap.String("followingBlockTime", nextBlockResult.Time.String()),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
+		logger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
+			zap.String("eth_network", w.networkName),
+			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
+			zap.Uint64("targetTimestamp", targetTimestamp),
+			zap.Uint64("followingTimestamp", followingTimestamp),
+			zap.String("targetBlockNumber", blockResult.Number.String()),
+			zap.String("followingBlockNumber", nextBlockResult.Number.String()),
+			zap.String("targetBlockHash", blockResult.Hash.Hex()),
+			zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
+			zap.String("targetBlockTime", blockResult.Time.String()),
+			zap.String("followingBlockTime", nextBlockResult.Time.String()),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
 	resp := query.EthCallByTimestampQueryResponse{
-		TargetBlockNumber: blockResult.Number.ToInt().Uint64(),
-		TargetBlockHash:   blockResult.Hash,
-		TargetBlockTime:   time.Unix(int64(blockResult.Time), 0),
-		// TODO: Fill in the followings!!!
-		Results: [][]byte{},
+		TargetBlockNumber:    blockResult.Number.ToInt().Uint64(),
+		TargetBlockHash:      blockResult.Hash,
+		TargetBlockTime:      time.Unix(int64(blockResult.Time), 0),
+		FollowingBlockNumber: nextBlockResult.Number.ToInt().Uint64(),
+		FollowingBlockHash:   nextBlockResult.Hash,
+		FollowingBlockTime:   time.Unix(int64(nextBlockResult.Time), 0),
+		Results:              [][]byte{},
 	}
 
 	errFound := false
@@ -1305,58 +1384,6 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
-		}
-
-		/*
-			target_block.timestamp <= target_time < following_block.timestamp
-			and
-			following_block_num - 1 == target_block_num
-		*/
-
-		targetBlockNum := blockResult.Number.ToInt().Uint64()
-		followingBlockNum := nextBlockResult.Number.ToInt().Uint64()
-		targetTimestamp := uint64(blockResult.Time * 1000000)
-		followingTimestamp := uint64(nextBlockResult.Time * 1000000)
-
-		if targetBlockNum+1 != followingBlockNum {
-			logger.Error(" eth_call_by_timestamp query blocks are not adjacent",
-				zap.String("eth_network", w.networkName),
-				zap.Uint64("desiredTimestamp", req.TargetTimestamp),
-				zap.Uint64("targetTimestamp", targetTimestamp),
-				zap.Uint64("followingTimestamp", followingTimestamp),
-				zap.String("targetBlockNumber", blockResult.Number.String()),
-				zap.String("followingBlockNumber", nextBlockResult.Number.String()),
-				zap.String("targetBlockHash", blockResult.Hash.Hex()),
-				zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
-				zap.String("targetBlockTime", blockResult.Time.String()),
-				zap.String("followingBlockTime", nextBlockResult.Time.String()),
-				zap.Int("idx", idx),
-				zap.String("to", evmCallData[idx].to.Hex()),
-				zap.Any("data", evmCallData[idx].data),
-				zap.String("result", evmCallData[idx].callResult.String()),
-			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
-			errFound = true
-			break
-		}
-
-		if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
-			logger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
-				zap.String("eth_network", w.networkName),
-				zap.Uint64("desiredTimestamp", req.TargetTimestamp),
-				zap.Uint64("targetTimestamp", targetTimestamp),
-				zap.Uint64("followingTimestamp", followingTimestamp),
-				zap.String("targetBlockNumber", blockResult.Number.String()),
-				zap.String("followingBlockNumber", nextBlockResult.Number.String()),
-				zap.String("targetBlockHash", blockResult.Hash.Hex()),
-				zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
-				zap.String("targetBlockTime", blockResult.Time.String()),
-				zap.String("followingBlockTime", nextBlockResult.Time.String()),
-				zap.Int("idx", idx),
-				zap.String("to", evmCallData[idx].to.Hex()),
-				zap.Any("data", evmCallData[idx].data),
-				zap.String("result", evmCallData[idx].callResult.String()),
-			)
 		}
 
 		logger.Info(" eth_call_by_timestamp query result",

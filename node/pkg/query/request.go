@@ -73,7 +73,7 @@ type EthCallByTimestampQueryRequest struct {
 	// TargetBlockIdHint is optional. If specified, it identifies the block prior to the desired timestamp. It must be a hex string starting with 0x. It may be a block number or a block hash.
 	TargetBlockIdHint string
 
-	// FollowingBlockIdHint is optional. If specified, it identifies the block immediately follwoing the desired timestamp. It must be a hex string starting with 0x. It may be a block number or a block hash.
+	// FollowingBlockIdHint is optional. If specified, it identifies the block immediately following the desired timestamp. It must be a hex string starting with 0x. It may be a block number or a block hash.
 	FollowingBlockIdHint string
 
 	// CallData is an array of specific queries to be performed on the specified block, in a single RPC call.

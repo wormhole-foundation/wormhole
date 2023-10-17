@@ -594,18 +594,18 @@ func (ecr *EthCallByTimestampQueryResponse) UnmarshalFromReader(reader *bytes.Re
 	ecr.TargetBlockTime = time.UnixMicro(unixMicros)
 
 	if err := binary.Read(reader, binary.BigEndian, &ecr.FollowingBlockNumber); err != nil {
-		return fmt.Errorf("failed to read response target block number: %w", err)
+		return fmt.Errorf("failed to read response following block number: %w", err)
 	}
 
 	responseHash = common.Hash{}
 	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
-		return fmt.Errorf("failed to read response target block hash [%d]: %w", n, err)
+		return fmt.Errorf("failed to read response following block hash [%d]: %w", n, err)
 	}
 	ecr.FollowingBlockHash = responseHash
 
 	unixMicros = int64(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
-		return fmt.Errorf("failed to read response target block timestamp: %w", err)
+		return fmt.Errorf("failed to read response following block timestamp: %w", err)
 	}
 	ecr.FollowingBlockTime = time.UnixMicro(unixMicros)
 
