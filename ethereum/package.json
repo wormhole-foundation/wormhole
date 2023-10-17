@@ -11,7 +11,7 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "build:forge": "echo $DEV; if [ \"$DEV\" = \"True\" ]; then forge build; else forge build --via-ir; fi",
+    "build:forge": "echo $DEV; if [ \"$DEV\" = \"True\" ]; then forge build; else FOUNDRY_PROFILE=production forge build; fi",
     "build": "npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types",
     "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
     "typecheck": "tsc --noEmit --skipLibCheck"

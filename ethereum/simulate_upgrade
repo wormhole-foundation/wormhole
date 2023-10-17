@@ -160,7 +160,7 @@ else
         build_output=$(npm run build:forge) || ( echo "$build_output" && exit 1 )
     fi
     printf "⬆️  Deploying implementation..."
-    forge script $SCRIPT --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast --via-ir 
+    FOUNDRY_PROFILE=production forge script $SCRIPT --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast
     # The '1' here is the EVM chain ID - is 1 for ethereum
     returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/1/run-latest.json)
     new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
