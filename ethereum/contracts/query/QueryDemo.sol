@@ -28,7 +28,9 @@ contract QueryDemo is QueryResponse {
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
     constructor(address _owner, address _wormhole, uint16 _myChainID) {
+        require(_owner != address(0), "Invalid owner");
         owner = _owner;
+        require(_wormhole != address(0), "Invalid wormhole address");
         wormhole = _wormhole;  
         myChainID = _myChainID;
         counters[_myChainID] = ChainEntry(_myChainID, address(this), 0, 0, 0);
@@ -53,14 +55,19 @@ contract QueryDemo is QueryResponse {
     function getState() public view returns (ChainEntry[] memory) {
         ChainEntry[] memory ret = new ChainEntry[](foreignChainIDs.length + 1);
         ret[0] = counters[myChainID];
-        for (uint idx=0; idx<foreignChainIDs.length; idx++) {
-            ret[idx+1] = counters[foreignChainIDs[idx]];
-        }      
+        uint256 length = foreignChainIDs.length;
+
+        for (uint256 i=0; i < length;) {
+            ret[i+1] = counters[foreignChainIDs[i]];
+            unchecked {
+                ++i;
+            }
+        }
 
         return ret;
     }
 
-    // updateCounters takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
+    // @notice Takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
         uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
