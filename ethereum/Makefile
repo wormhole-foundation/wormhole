@@ -12,8 +12,7 @@ FLATTEN_FILES:= contracts/Implementation.sol \
                 contracts/nft/NFTBridgeImplementation.sol \
                 contracts/nft/NFTBridgeEntrypoint.sol \
                 contracts/nft/token/NFT.sol \
-                contracts/nft/token/NFTImplementation.sol \
-                contracts/nft/token/NFT.sol
+                contracts/nft/token/NFTImplementation.sol
 
 .PHONY: dependencies test clean all
 
@@ -53,7 +52,7 @@ flattened/%.sol: contracts/%.sol node_modules
     # We remove the license (SPDX) lines and ABIEncoderV2 lines because they
     # break compilation in the flattened file if there are multiple conflicting
     # declarations.
-	npx truffle-flattener $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
+	FOUNDRY_PROFILE=production forge flatten $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
 
 .PHONY: flattened
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))

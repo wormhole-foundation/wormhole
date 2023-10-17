@@ -23,7 +23,6 @@
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "jsonfile": "^4.0.0",
-    "truffle-flattener": "^1.6.0",
     "typechain": "^8.1.1"
   }
 }
