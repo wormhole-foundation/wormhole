@@ -64,6 +64,27 @@ function createTestEthCallData(
   };
 }
 
+async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
+  let followingBlockNumber = BigInt(
+    await web3.eth.getBlockNumber(ETH_DATA_FORMAT)
+  );
+  let targetBlockNumber = BigInt(0);
+  let targetBlockTime = BigInt(0);
+  while (targetBlockNumber === BigInt(0)) {
+    const followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    const targetBlock = await web3.eth.getBlock(
+      (Number(followingBlockNumber) - 1).toString()
+    );
+    if (targetBlock.timestamp < followingBlock.timestamp) {
+      targetBlockTime = targetBlock.timestamp * BigInt(1000000);
+      targetBlockNumber = targetBlock.number;
+    } else {
+      followingBlockNumber = targetBlockNumber;
+    }
+  }
+  return [targetBlockTime, targetBlockNumber, followingBlockNumber];
+}
+
 describe("eth call", () => {
   test("serialize request", () => {
     const toAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
@@ -333,7 +354,6 @@ describe("eth call", () => {
       });
     expect(err).toBe(true);
   });
-
   test("serialize eth_call_by_timestamp request", () => {
     const toAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
     const nameCallData = createTestEthCallData(toAddress, "name", "string");
@@ -364,16 +384,12 @@ describe("eth call", () => {
       "totalSupply",
       "uint256"
     );
-    const followingBlockNum = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
-    const followingBlock = await web3.eth.getBlock(BigInt(followingBlockNum));
-    const targetBlock = await web3.eth.getBlock(
-      (Number(followingBlockNum) - 1).toString()
-    );
-    const targetBlockTime = targetBlock.timestamp * BigInt(1000000);
+    const [targetBlockTime, targetBlockNumber, followingBlockNumber] =
+      await getEthCallByTimestampArgs();
     const ethCall = new EthCallByTimestampQueryRequest(
       targetBlockTime,
-      targetBlock.number.toString(16),
-      followingBlock.number.toString(16),
+      targetBlockNumber.toString(16),
+      followingBlockNumber.toString(16),
       [nameCallData, totalSupplyCallData]
     );
     const chainId = 2;
