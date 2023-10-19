@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import * as elliptic from "elliptic";
 
 export function isValidHexString(s: string): boolean {

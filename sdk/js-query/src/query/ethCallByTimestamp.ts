@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { BlockTag, EthCallData } from "./ethCall";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
