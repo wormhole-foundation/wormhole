@@ -189,7 +189,8 @@ func TestCrossChainQuery(t *testing.T) {
 	logger.Info("Waiting for message...")
 	var success bool
 	signers := map[int]bool{}
-	subCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// The guardians can retry for up to a minute so we have to wait longer than that.
+	subCtx, cancel := context.WithTimeout(ctx, 75*time.Second)
 	defer cancel()
 	for {
 		envelope, err := sub.Next(subCtx)

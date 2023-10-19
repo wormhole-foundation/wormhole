@@ -43,6 +43,14 @@ export class BinaryWriter {
     return this;
   }
 
+  writeUint64(value: bigint) {
+    if (value < 0 || value > 18446744073709551615)
+      throw new Error("Invalid value");
+    this._ensure(8);
+    this._offset = this._buffer.writeBigUInt64BE(value, this._offset);
+    return this;
+  }
+
   writeUint8Array(value: Uint8Array) {
     this._ensure(value.length);
     this._buffer.set(value, this._offset);

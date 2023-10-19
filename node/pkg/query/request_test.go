@@ -45,19 +45,31 @@ func createQueryRequestForTesting(t *testing.T, chainId vaa.ChainID) *QueryReque
 			Data: data2,
 		},
 	}
-	callRequest := &EthCallQueryRequest{
+	callRequest1 := &EthCallQueryRequest{
 		BlockId:  block,
 		CallData: callData,
 	}
 
-	perChainQuery := &PerChainQueryRequest{
+	perChainQuery1 := &PerChainQueryRequest{
 		ChainId: chainId,
-		Query:   callRequest,
+		Query:   callRequest1,
+	}
+
+	callRequest2 := &EthCallByTimestampQueryRequest{
+		TargetTimestamp:      1697216322000000,
+		TargetBlockIdHint:    "0x28d9630",
+		FollowingBlockIdHint: "0x28d9631",
+		CallData:             callData,
+	}
+
+	perChainQuery2 := &PerChainQueryRequest{
+		ChainId: chainId,
+		Query:   callRequest2,
 	}
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
-		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery1, perChainQuery2},
 	}
 
 	return queryRequest
@@ -341,6 +353,142 @@ func TestMarshalOfEthCallQueryWithWrongToLengthShouldFail(t *testing.T) {
 	_, err := queryRequest.Marshal()
 	require.Error(t, err)
 }
+
+///////////// EthCallByTimestamp tests ////////////////////////////////////////
+
+func TestMarshalOfEthCallByTimestampQueryWithNilToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   nil,
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallByTimestampQueryWithEmptyToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   []byte{},
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallByTimestampQueryWithWrongLengthToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   []byte("TooShort"),
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallByTimestampQueryWithNilDataShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d", 0))),
+					Data: nil,
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallByTimestampQueryWithEmptyDataShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d", 0))),
+					Data: []byte{},
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallByTimestampQueryWithWrongToLengthShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallByTimestampQueryRequest{
+			TargetTimestamp: 1697216322000000,
+			CallData: []*EthCallData{
+				{
+					To:   []byte("This is too short!"),
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+///////////// End of EthCallByTimestamp tests /////////////////////////////////
 
 func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {
 	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)

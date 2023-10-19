@@ -67,4 +67,5 @@ export interface ChainSpecificQuery {
 
 export enum ChainQueryType {
   EthCall = 1,
+  EthCallByTimeStamp = 2,
 }

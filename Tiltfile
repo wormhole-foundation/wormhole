@@ -563,6 +563,16 @@ if ci_tests:
             sync("./testing", "/app/testing"),
         ],
     )
+    docker_build(
+        ref = "query-sdk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.querysdk.test",
+        only = [],
+        live_update = [
+            sync("./sdk/js/src", "/app/sdk/js-query/src"),
+            sync("./testing", "/app/testing"),
+        ],
+    )
 
     k8s_yaml_with_ns(encode_yaml_stream(set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians))))
 
@@ -590,6 +600,12 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # node/hack/query/test/test_query.sh handles waiting for guardian, not having deps gets the build earlier
+    )
+    k8s_resource(
+        "query-sdk-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
     )
 
 if terra_classic:

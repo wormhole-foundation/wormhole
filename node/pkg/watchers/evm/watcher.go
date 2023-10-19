@@ -2,9 +2,11 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -130,6 +132,8 @@ type (
 		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
 		rootChainRpc      string
 		rootChainContract string
+
+		ccqMaxBlockNumber *big.Int
 	}
 
 	pendingKey struct {
@@ -173,6 +177,7 @@ func NewEthWatcher(
 		queryResponseC:       queryResponseC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
+		ccqMaxBlockNumber:    big.NewInt(0).SetUint64(math.MaxUint64),
 	}
 }
 
@@ -960,8 +965,10 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
 }
 
-// ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus, resp *query.EthCallQueryResponse) {
+// TODO: Once PR #3449 lands, move all of this to ccq.go.
+
+// ccqSendQueryResponseForEthCall sends an error response back to the query handler.
+func (w *Watcher) ccqSendQueryResponseForEthCall(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus, resp *query.EthCallQueryResponse) {
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
 	select {
 	case w.queryResponseC <- queryResponse:
@@ -971,8 +978,29 @@ func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *query.PerChainQu
 	}
 }
 
+// ccqSendQueryResponseForEthCallByTimestamp sends an error response back to the query handler.
+func (w *Watcher) ccqSendQueryResponseForEthCallByTimestamp(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus, resp *query.EthCallByTimestampQueryResponse) {
+	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
+	select {
+	case w.queryResponseC <- queryResponse:
+		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+	default:
+		logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+	}
+}
+
+// ccqSendQueryResponseForError sends an error response back to the query handler.
+func (w *Watcher) ccqSendQueryResponseForError(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus) {
+	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, nil)
+	select {
+	case w.queryResponseC <- queryResponse:
+		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+	default:
+		logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+	}
+}
+
 func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal) {
-	ccqMaxBlockNumber := big.NewInt(0).SetUint64(math.MaxUint64)
 
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.
@@ -982,197 +1010,497 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.EthCallQueryRequest:
-		block := req.BlockId
-		logger.Info("received query request",
-			zap.String("block", block),
-			zap.Int("numRequests", len(req.CallData)),
-		)
-
-		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-		// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
-
-		var blockMethod string
-		var callBlockArg interface{}
-		// TODO: try making these error and see what happens
-		// 1. 66 chars but not 0x hex
-		// 2. 64 chars but not hex
-		// 3. bad blocks
-		// 4. bad 0x lengths
-		// 5. strings that aren't "latest", "safe", "finalized"
-		// 6. "safe" on a chain that doesn't support safe
-		// etc?
-		// I would expect this to trip within this scissor (if at all) but maybe this should get more defensive
-		if len(block) == 66 || len(block) == 64 {
-			blockMethod = "eth_getBlockByHash"
-			// looks like a hash which requires the object parameter
-			// https://eips.ethereum.org/EIPS/eip-1898
-			// https://docs.alchemy.com/reference/eth-call
-			hash := eth_common.HexToHash(block)
-			callBlockArg = rpc.BlockNumberOrHash{
-				BlockHash:        &hash,
-				RequireCanonical: true,
-			}
-		} else {
-			blockMethod = "eth_getBlockByNumber"
-			callBlockArg = block
-		}
-
-		// EvmCallData contains the details of a single query in the batch.
-		type EvmCallData struct {
-			to                 eth_common.Address
-			data               string
-			callTransactionArg map[string]interface{}
-			callResult         *eth_hexutil.Bytes
-			callErr            error
-		}
-
-		// We build two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block.
-		// The second is the data associated with each request (but not the block request). The index into both is the index into the request call data.
-		batch := []rpc.BatchElem{}
-		evmCallData := []EvmCallData{}
-
-		// Add each requested query to the batch.
-		for _, callData := range req.CallData {
-			// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
-			to := eth_common.BytesToAddress(callData.To)
-			data := eth_hexutil.Encode(callData.Data)
-			ecd := EvmCallData{
-				to:   to,
-				data: data,
-				callTransactionArg: map[string]interface{}{
-					"to":   to,
-					"data": data,
-				},
-				callResult: &eth_hexutil.Bytes{},
-			}
-			evmCallData = append(evmCallData, ecd)
-
-			batch = append(batch, rpc.BatchElem{
-				Method: "eth_call",
-				Args: []interface{}{
-					ecd.callTransactionArg,
-					callBlockArg,
-				},
-				Result: ecd.callResult,
-				Error:  ecd.callErr,
-			})
-		}
-
-		// Add the block query to the batch.
-		var blockResult connectors.BlockMarshaller
-		var blockError error
-		batch = append(batch, rpc.BatchElem{
-			Method: blockMethod,
-			Args: []interface{}{
-				block,
-				false, // no full transaction details
-			},
-			Result: &blockResult,
-			Error:  blockError,
-		})
-
-		// Query the RPC.
-		err := w.ethConn.RawBatchCallContext(timeout, batch)
-		cancel()
-
-		if err != nil {
-			logger.Error("failed to process query request",
-				zap.Error(err),
-				zap.String("block", block),
-				zap.Any("batch", batch),
-			)
-			w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-			return
-		}
-
-		if blockError != nil {
-			logger.Error("failed to process query block request",
-				zap.Error(blockError),
-				zap.String("block", block),
-				zap.Any("batch", batch),
-			)
-			w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-			return
-		}
-
-		if blockResult.Number == nil {
-			logger.Error("invalid query block result",
-				zap.String("eth_network", w.networkName),
-				zap.String("block", block),
-				zap.Any("batch", batch),
-			)
-			w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-			return
-		}
-
-		if blockResult.Number.ToInt().Cmp(ccqMaxBlockNumber) > 0 {
-			logger.Error("block number too large",
-				zap.String("eth_network", w.networkName),
-				zap.String("block", block),
-				zap.Any("batch", batch),
-			)
-			w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-			return
-		}
-
-		resp := query.EthCallQueryResponse{
-			BlockNumber: blockResult.Number.ToInt().Uint64(),
-			Hash:        blockResult.Hash,
-			Time:        time.Unix(int64(blockResult.Time), 0),
-			Results:     [][]byte{},
-		}
-
-		errFound := false
-		for idx := range req.CallData {
-			if evmCallData[idx].callErr != nil {
-				logger.Error("failed to process query call request",
-					zap.Error(evmCallData[idx].callErr),
-					zap.String("block", block),
-					zap.Int("errorIdx", idx),
-					zap.Any("batch", batch),
-				)
-				w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-				errFound = true
-				break
-			}
-
-			// Nil or Empty results are not valid
-			// eth_call will return empty when the state doesn't exist for a block
-			if len(*evmCallData[idx].callResult) == 0 {
-				logger.Error("invalid call result",
-					zap.String("eth_network", w.networkName),
-					zap.String("block", block),
-					zap.Int("errorIdx", idx),
-					zap.Any("batch", batch),
-				)
-				w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
-				errFound = true
-				break
-			}
-
-			logger.Info("query result",
-				zap.String("eth_network", w.networkName),
-				zap.String("block", block),
-				zap.String("blockNumber", blockResult.Number.String()),
-				zap.String("blockHash", blockResult.Hash.Hex()),
-				zap.String("blockTime", blockResult.Time.String()),
-				zap.Int("idx", idx),
-				zap.String("to", evmCallData[idx].to.Hex()),
-				zap.Any("data", evmCallData[idx].data),
-				zap.String("result", evmCallData[idx].callResult.String()),
-			)
-
-			resp.Results = append(resp.Results, *evmCallData[idx].callResult)
-		}
-
-		if !errFound {
-			w.ccqSendQueryResponse(logger, queryRequest, query.QuerySuccess, &resp)
-		}
-
+		w.ccqHandleEthCallQueryRequest(logger, ctx, queryRequest, req)
+	case *query.EthCallByTimestampQueryRequest:
+		w.ccqHandleEthCallByTimestampQueryRequest(logger, ctx, queryRequest, req)
 	default:
 		logger.Warn("received unsupported request type",
 			zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
 		)
-		w.ccqSendQueryResponse(logger, queryRequest, query.QueryFatalError, nil)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
 	}
+}
+
+// EvmCallData contains the details of a single query in the batch.
+type EvmCallData struct {
+	to                 eth_common.Address
+	data               string
+	callTransactionArg map[string]interface{}
+	callResult         *eth_hexutil.Bytes
+	callErr            error
+}
+
+func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallQueryRequest) {
+	block := req.BlockId
+	logger.Info("received eth_call query request",
+		zap.String("block", block),
+		zap.Int("numRequests", len(req.CallData)),
+	)
+
+	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
+	if err != nil {
+		logger.Error("invalid block id in eth_call query request",
+			zap.Error(err),
+			zap.String("block", block),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	// We build two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block.
+	// The second is the data associated with each request (but not the block request). The index into both is the index into the request call data.
+	batch, evmCallData := ccqBuildBatchFromCallData(req, callBlockArg)
+
+	// Add the block query to the batch.
+	var blockResult connectors.BlockMarshaller
+	var blockError error
+	batch = append(batch, rpc.BatchElem{
+		Method: blockMethod,
+		Args: []interface{}{
+			block,
+			false, // no full transaction details
+		},
+		Result: &blockResult,
+		Error:  blockError,
+	})
+
+	// Query the RPC.
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	err = w.ethConn.RawBatchCallContext(timeout, batch)
+
+	if err != nil {
+		logger.Error("failed to process eth_call query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if blockError != nil {
+		logger.Error("failed to process eth_call query block request",
+			zap.Error(blockError),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if blockResult.Number == nil {
+		logger.Error("invalid eth_call query block result",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
+		logger.Error("block number too large for eth_call",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	resp := query.EthCallQueryResponse{
+		BlockNumber: blockResult.Number.ToInt().Uint64(),
+		Hash:        blockResult.Hash,
+		Time:        time.Unix(int64(blockResult.Time), 0),
+		Results:     [][]byte{},
+	}
+
+	errFound := false
+	for idx := range req.CallData {
+		if evmCallData[idx].callErr != nil {
+			logger.Error("failed to process eth_call query call request",
+				zap.Error(evmCallData[idx].callErr),
+				zap.String("block", block),
+				zap.Int("errorIdx", idx),
+				zap.Any("batch", batch),
+			)
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			errFound = true
+			break
+		}
+
+		// Nil or Empty results are not valid
+		// eth_call will return empty when the state doesn't exist for a block
+		if len(*evmCallData[idx].callResult) == 0 {
+			logger.Error("invalid call result for eth_call",
+				zap.String("eth_network", w.networkName),
+				zap.String("block", block),
+				zap.Int("errorIdx", idx),
+				zap.Any("batch", batch),
+			)
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			errFound = true
+			break
+		}
+
+		logger.Info("query result for eth_call",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.String("blockNumber", blockResult.Number.String()),
+			zap.String("blockHash", blockResult.Hash.Hex()),
+			zap.String("blockTime", blockResult.Time.String()),
+			zap.Int("idx", idx),
+			zap.String("to", evmCallData[idx].to.Hex()),
+			zap.Any("data", evmCallData[idx].data),
+			zap.String("result", evmCallData[idx].callResult.String()),
+		)
+
+		resp.Results = append(resp.Results, *evmCallData[idx].callResult)
+	}
+
+	if !errFound {
+		w.ccqSendQueryResponseForEthCall(logger, queryRequest, query.QuerySuccess, &resp)
+	}
+}
+
+func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallByTimestampQueryRequest) {
+	block := req.TargetBlockIdHint
+	nextBlock := req.FollowingBlockIdHint
+	logger.Info("received eth_call_by_timestamp query request",
+		zap.Uint64("timestamp", req.TargetTimestamp),
+		zap.String("block", block),
+		zap.String("nextBlock", nextBlock),
+		zap.Int("numRequests", len(req.CallData)),
+	)
+
+	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
+	if err != nil {
+		logger.Error("invalid target block id hint in eth_call_by_timestamp query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	nextBlockMethod, _, err := ccqCreateBlockRequest(nextBlock)
+	if err != nil {
+		logger.Error("invalid following block id hint in eth_call_by_timestamp query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	// We build two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block and one for the next block.
+	// The second is the data associated with each request (but not the block requests). The index into both is the index into the request call data.
+	batch, evmCallData := ccqBuildBatchFromCallData(req, callBlockArg)
+
+	// Add the block query to the batch.
+	var blockResult connectors.BlockMarshaller
+	var blockError error
+	batch = append(batch, rpc.BatchElem{
+		Method: blockMethod,
+		Args: []interface{}{
+			block,
+			false, // no full transaction details
+		},
+		Result: &blockResult,
+		Error:  blockError,
+	})
+
+	// Add the next block query to the batch.
+	var nextBlockResult connectors.BlockMarshaller
+	var nextBlockError error
+	batch = append(batch, rpc.BatchElem{
+		Method: nextBlockMethod,
+		Args: []interface{}{
+			nextBlock,
+			false, // no full transaction details
+		},
+		Result: &nextBlockResult,
+		Error:  nextBlockError,
+	})
+
+	// Query the RPC.
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	err = w.ethConn.RawBatchCallContext(timeout, batch)
+
+	if err != nil {
+		logger.Error("failed to process eth_call_by_timestamp query request",
+			zap.Error(err),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	// Checks on the target block.
+	if blockError != nil {
+		logger.Error("failed to process eth_call_by_timestamp query target block request",
+			zap.Error(blockError),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if blockResult.Number == nil {
+		logger.Error("invalid eth_call_by_timestamp query target block result",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
+		logger.Error("target block number too large for eth_call_by_timestamp",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	// Checks on the following block.
+	if nextBlockError != nil {
+		logger.Error("failed to process eth_call_by_timestamp query following block request",
+			zap.Error(nextBlockError),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if nextBlockResult.Number == nil {
+		logger.Error("invalid eth_call_by_timestamp query following block result",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	if nextBlockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
+		logger.Error("following block number too large for eth_call_by_timestamp",
+			zap.String("eth_network", w.networkName),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		return
+	}
+
+	/*
+		target_block.timestamp <= target_time < following_block.timestamp
+		and
+		following_block_num - 1 == target_block_num
+	*/
+
+	targetBlockNum := blockResult.Number.ToInt().Uint64()
+	followingBlockNum := nextBlockResult.Number.ToInt().Uint64()
+
+	// The req.TargetTimestamp is in microseconds but EVM returns seconds. Convert to microseconds.
+	targetTimestamp := uint64(blockResult.Time * 1000000)
+	followingTimestamp := uint64(nextBlockResult.Time * 1000000)
+
+	if targetBlockNum+1 != followingBlockNum {
+		logger.Error(" eth_call_by_timestamp query blocks are not adjacent",
+			zap.String("eth_network", w.networkName),
+			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
+			zap.Uint64("targetTimestamp", targetTimestamp),
+			zap.Uint64("followingTimestamp", followingTimestamp),
+			zap.String("targetBlockNumber", blockResult.Number.String()),
+			zap.String("followingBlockNumber", nextBlockResult.Number.String()),
+			zap.String("targetBlockHash", blockResult.Hash.Hex()),
+			zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
+			zap.String("targetBlockTime", blockResult.Time.String()),
+			zap.String("followingBlockTime", nextBlockResult.Time.String()),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
+		logger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
+			zap.String("eth_network", w.networkName),
+			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
+			zap.Uint64("targetTimestamp", targetTimestamp),
+			zap.Uint64("followingTimestamp", followingTimestamp),
+			zap.String("targetBlockNumber", blockResult.Number.String()),
+			zap.String("followingBlockNumber", nextBlockResult.Number.String()),
+			zap.String("targetBlockHash", blockResult.Hash.Hex()),
+			zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
+			zap.String("targetBlockTime", blockResult.Time.String()),
+			zap.String("followingBlockTime", nextBlockResult.Time.String()),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	resp := query.EthCallByTimestampQueryResponse{
+		TargetBlockNumber:    targetBlockNum,
+		TargetBlockHash:      blockResult.Hash,
+		TargetBlockTime:      time.Unix(int64(blockResult.Time), 0),
+		FollowingBlockNumber: followingBlockNum,
+		FollowingBlockHash:   nextBlockResult.Hash,
+		FollowingBlockTime:   time.Unix(int64(nextBlockResult.Time), 0),
+		Results:              [][]byte{},
+	}
+
+	errFound := false
+	for idx := range req.CallData {
+		if evmCallData[idx].callErr != nil {
+			logger.Error("failed to process eth_call_by_timestamp query call request",
+				zap.Error(evmCallData[idx].callErr),
+				zap.String("block", block),
+				zap.String("nextBlock", nextBlock),
+				zap.Int("errorIdx", idx),
+				zap.Any("batch", batch),
+			)
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			errFound = true
+			break
+		}
+
+		// Nil or Empty results are not valid
+		// eth_call will return empty when the state doesn't exist for a block
+		if len(*evmCallData[idx].callResult) == 0 {
+			logger.Error("invalid call result for eth_call_by_timestamp",
+				zap.String("eth_network", w.networkName),
+				zap.String("block", block),
+				zap.String("nextBlock", nextBlock),
+				zap.Int("errorIdx", idx),
+				zap.Any("batch", batch),
+			)
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			errFound = true
+			break
+		}
+
+		logger.Info(" eth_call_by_timestamp query result",
+			zap.String("eth_network", w.networkName),
+			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
+			zap.Uint64("targetTimestamp", targetTimestamp),
+			zap.Uint64("followingTimestamp", followingTimestamp),
+			zap.String("targetBlockNumber", blockResult.Number.String()),
+			zap.String("followingBlockNumber", nextBlockResult.Number.String()),
+			zap.String("targetBlockHash", blockResult.Hash.Hex()),
+			zap.String("followingBlockHash", nextBlockResult.Hash.Hex()),
+			zap.String("targetBlockTime", blockResult.Time.String()),
+			zap.String("followingBlockTime", nextBlockResult.Time.String()),
+			zap.Int("idx", idx),
+			zap.String("to", evmCallData[idx].to.Hex()),
+			zap.Any("data", evmCallData[idx].data),
+			zap.String("result", evmCallData[idx].callResult.String()),
+		)
+
+		resp.Results = append(resp.Results, *evmCallData[idx].callResult)
+	}
+
+	if !errFound {
+		w.ccqSendQueryResponseForEthCallByTimestamp(logger, queryRequest, query.QuerySuccess, &resp)
+	}
+}
+
+// ccqCreateBlockRequest creates a block query. It parses the block string, allowing for both a block number or a block hash. Note that for now, strings like "latest", "finalized" or "safe"
+// are not supported, and the block must be a hex string starting with 0x. The determination of whether it is a block number or a block hash is based on the overall length of the string,
+// since a hash is 32 bytes (64 hex digits).
+func ccqCreateBlockRequest(block string) (string, interface{}, error) {
+	// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
+
+	var blockMethod string
+	var callBlockArg interface{}
+
+	if block == "" {
+		return blockMethod, callBlockArg, fmt.Errorf("block id is required")
+	}
+
+	if !strings.HasPrefix(block, "0x") {
+		return blockMethod, callBlockArg, fmt.Errorf("block id must start with 0x")
+	}
+	blk := strings.Trim(block, "0x")
+
+	// Devnet can give us block IDs like this: "0x365".
+	if len(blk)%2 != 0 {
+		blk = "0" + blk
+	}
+
+	// Make sure it is valid hex.
+	if _, err := hex.DecodeString(blk); err != nil {
+		return blockMethod, callBlockArg, fmt.Errorf("block id is not valid hex")
+	}
+
+	if len(blk) == 64 {
+		blockMethod = "eth_getBlockByHash"
+		// looks like a hash which requires the object parameter
+		// https://eips.ethereum.org/EIPS/eip-1898
+		// https://docs.alchemy.com/reference/eth-call
+		hash := eth_common.HexToHash(block)
+		callBlockArg = rpc.BlockNumberOrHash{
+			BlockHash:        &hash,
+			RequireCanonical: true,
+		}
+	} else {
+		blockMethod = "eth_getBlockByNumber"
+		callBlockArg = block
+	}
+
+	return blockMethod, callBlockArg, nil
+}
+
+type EthCallDataIntf interface {
+	CallDataList() []*query.EthCallData
+}
+
+func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([]rpc.BatchElem, []EvmCallData) {
+	batch := []rpc.BatchElem{}
+	evmCallData := []EvmCallData{}
+	// Add each requested query to the batch.
+	for _, callData := range req.CallDataList() {
+		// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
+		to := eth_common.BytesToAddress(callData.To)
+		data := eth_hexutil.Encode(callData.Data)
+		ecd := EvmCallData{
+			to:   to,
+			data: data,
+			callTransactionArg: map[string]interface{}{
+				"to":   to,
+				"data": data,
+			},
+			callResult: &eth_hexutil.Bytes{},
+		}
+		evmCallData = append(evmCallData, ecd)
+
+		batch = append(batch, rpc.BatchElem{
+			Method: "eth_call",
+			Args: []interface{}{
+				ecd.callTransactionArg,
+				callBlockArg,
+			},
+			Result: ecd.callResult,
+			Error:  ecd.callErr,
+		})
+	}
+
+	return batch, evmCallData
 }

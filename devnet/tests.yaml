@@ -97,3 +97,30 @@ spec:
                 - "/app/node/hack/query/test/success"
             initialDelaySeconds: 5
             periodSeconds: 5
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: query-sdk-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: query-sdk-ci-tests
+          image: query-sdk-test-image
+          command:
+            - /bin/sh
+            - -c
+            - "bash /app/testing/querysdk.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+

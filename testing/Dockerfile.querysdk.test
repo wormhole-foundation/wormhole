@@ -1,0 +1,17 @@
+FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
+
+RUN apt-get update && apt-get -y install \
+  git python3 make curl netcat
+
+RUN mkdir -p /app
+WORKDIR /app
+
+COPY sdk/js-query/package.json sdk/js-query/package-lock.json ./sdk/js-query/
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci --prefix sdk/js-query
+COPY sdk/js-query ./sdk/js-query
+RUN npm run build --prefix sdk/js-query
+
+COPY testing ./testing
+
+WORKDIR /app/testing

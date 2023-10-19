@@ -65,10 +65,17 @@ type User struct {
 }
 
 type AllowedCall struct {
-	EthCall *EthCall `json:"ethCall"`
+	EthCall            *EthCall            `json:"ethCall"`
+	EthCallByTimestamp *EthCallByTimestamp `json:"ethCallByTimestamp"`
 }
 
 type EthCall struct {
+	Chain           int    `json:"chain"`
+	ContractAddress string `json:"contractAddress"`
+	Call            string `json:"call"`
+}
+
+type EthCallByTimestamp struct {
 	Chain           int    `json:"chain"`
 	ContractAddress string `json:"contractAddress"`
 	Call            string `json:"call"`
@@ -132,28 +139,40 @@ func parseConfig(byteValue []byte) (Permissions, error) {
 		// Build the list of allowed calls for this API key.
 		allowedCalls := make(allowedCallsForUser)
 		for _, ac := range user.AllowedCalls {
-			var callKey string
-			if ac.EthCall == nil {
-				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall"`, user.UserName)
+			var chain int
+			var callType, contractAddressStr, callStr string
+			// var contractAddressStr string
+			if ac.EthCall != nil {
+				callType = "ethCall"
+				chain = ac.EthCall.Chain
+				contractAddressStr = ac.EthCall.ContractAddress
+				callStr = ac.EthCall.Call
+			} else if ac.EthCallByTimestamp != nil {
+				callType = "ethCallByTimestamp"
+				chain = ac.EthCallByTimestamp.Chain
+				contractAddressStr = ac.EthCallByTimestamp.ContractAddress
+				callStr = ac.EthCallByTimestamp.Call
+			} else {
+				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall" or "ethCallByTimestamp"`, user.UserName)
 			}
 
 			// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
-			contractAddress, err := vaa.StringToAddress(ac.EthCall.ContractAddress)
+			contractAddress, err := vaa.StringToAddress(contractAddressStr)
 			if err != nil {
-				return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, ac.EthCall.ContractAddress, user.UserName)
+				return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
 			}
 
 			// The call should be the ABI four byte hex hash of the function signature. Parse it into a standard form of "06fdde03".
-			call, err := hex.DecodeString(strings.TrimPrefix(ac.EthCall.Call, "0x"))
+			call, err := hex.DecodeString(strings.TrimPrefix(callStr, "0x"))
 			if err != nil {
-				return nil, fmt.Errorf(`invalid eth call "%s" for user "%s"`, ac.EthCall.Call, user.UserName)
+				return nil, fmt.Errorf(`invalid eth call "%s" for user "%s"`, callStr, user.UserName)
 			}
 			if len(call) != ETH_CALL_SIG_LENGTH {
-				return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, ac.EthCall.Call, user.UserName, ETH_CALL_SIG_LENGTH)
+				return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, callStr, user.UserName, ETH_CALL_SIG_LENGTH)
 			}
 
 			// The permission key is the chain, contract address and call formatted as a colon separated string.
-			callKey = fmt.Sprintf("ethCall:%d:%s:%s", ac.EthCall.Chain, contractAddress, hex.EncodeToString(call))
+			callKey := fmt.Sprintf("%s:%d:%s:%s", callType, chain, contractAddress, hex.EncodeToString(call))
 
 			if _, exists := allowedCalls[callKey]; exists {
 				return nil, fmt.Errorf(`"%s" is a duplicate allowed call for user "%s"`, callKey, user.UserName)
@@ -177,8 +196,7 @@ func parseConfig(byteValue []byte) (Permissions, error) {
 
 // validateRequest verifies that this API key is allowed to do all of the calls in this request. In the case of an error, it returns the HTTP status.
 func validateRequest(logger *zap.Logger, env common.Environment, perms Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) (int, error) {
-	apiKey = strings.ToLower(apiKey)
-	permsForUser, exists := perms[strings.ToLower(apiKey)]
+	permsForUser, exists := perms[apiKey]
 	if !exists {
 		logger.Debug("invalid api key", zap.String("apiKey", apiKey))
 		return http.StatusForbidden, fmt.Errorf("invalid api key")
@@ -235,6 +253,37 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 				}
 				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
 				callKey := fmt.Sprintf("ethCall:%d:%s:%s", pcq.ChainId, contractAddress, call)
+				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+				}
+			}
+		case *query.EthCallByTimestampQueryRequest:
+			for _, callData := range q.CallData {
+				if q.TargetTimestamp == 0 {
+					logger.Debug("eth call by timestamp must have a non-zero timestamp", zap.String("userName", permsForUser.userName))
+					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have a non-zero timestamp")
+				}
+				// TODO: For now, the block hints are required!
+				if q.TargetBlockIdHint == "" {
+					logger.Debug("eth call by timestamp must have the target block hint", zap.String("userName", permsForUser.userName))
+					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have the target block hint")
+				}
+				if q.FollowingBlockIdHint == "" {
+					logger.Debug("eth call by timestamp must have the following block hint", zap.String("userName", permsForUser.userName))
+					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have the following block hint")
+				}
+				contractAddress, err := vaa.BytesToAddress(callData.To)
+				if err != nil {
+					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
+					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
+				}
+				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
+					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
+					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
+				}
+				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
+				callKey := fmt.Sprintf("ethCallByTimestamp:%d:%s:%s", pcq.ChainId, contractAddress, call)
 				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)

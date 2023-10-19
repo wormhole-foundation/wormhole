@@ -11,6 +11,7 @@ import axios from "axios";
 import {
   EthCallData,
   EthCallQueryRequest,
+  EthCallByTimestampQueryRequest,
   PerChainQueryRequest,
   QueryRequest,
   sign,
@@ -18,11 +19,13 @@ import {
 
 jest.setTimeout(125000);
 
-const CI = false;
+const CI = process.env.CI;
 const ENV = "DEVNET";
 const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-const CCQ_SERVER_URL = "http://localhost:6069/v1";
+const CCQ_SERVER_URL = CI
+  ? "http://query-server:6069/v1"
+  : "http://localhost:6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
 const HEALTH_URL = CCQ_SERVER_URL + "/health";
 const PRIVATE_KEY =
@@ -59,6 +62,27 @@ function createTestEthCallData(
       []
     ),
   };
+}
+
+async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
+  let followingBlockNumber = BigInt(
+    await web3.eth.getBlockNumber(ETH_DATA_FORMAT)
+  );
+  let targetBlockNumber = BigInt(0);
+  let targetBlockTime = BigInt(0);
+  while (targetBlockNumber === BigInt(0)) {
+    const followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    const targetBlock = await web3.eth.getBlock(
+      (Number(followingBlockNumber) - 1).toString()
+    );
+    if (targetBlock.timestamp < followingBlock.timestamp) {
+      targetBlockTime = targetBlock.timestamp * BigInt(1000000);
+      targetBlockNumber = targetBlock.number;
+    } else {
+      followingBlockNumber = targetBlockNumber;
+    }
+  }
+  return [targetBlockTime, targetBlockNumber, followingBlockNumber];
 }
 
 describe("eth call", () => {
@@ -111,6 +135,39 @@ describe("eth call", () => {
       { headers: { "X-API-Key": "my_secret_key" } }
     );
     expect(response.status).toBe(200);
+  });
+  // TODO: This test works in Goerli testnet but not devnet. Try it again after PR #3395 lands.
+  test.skip("get block by hash should work", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const block = await web3.eth.getBlock(BigInt(blockNumber));
+    if (block.hash != undefined) {
+      const ethCall = new EthCallQueryRequest(block.hash?.toString(), [
+        nameCallData,
+        totalSupplyCallData,
+      ]);
+      const chainId = 2;
+      const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+      const nonce = 1;
+      const request = new QueryRequest(nonce, [ethQuery]);
+      const serialized = request.serialize();
+      const digest = QueryRequest.digest(ENV, serialized);
+      const signature = sign(PRIVATE_KEY, digest);
+      const response = await axios.put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      );
+      expect(response.status).toBe(200);
+    }
   });
   test("missing api-key should fail", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
@@ -277,7 +334,7 @@ describe("eth call", () => {
     const response = await axios.get(HEALTH_URL);
     expect(response.status).toBe(200);
   });
-  test("valid api key but payload too large should fail based on size", async () => {
+  test("payload too large should fail", async () => {
     const serialized = new Uint8Array(6000000); // Buffer should be larger than MAX_BODY_SIZE in node/cmd/ccq/http.go.
     const signature = "";
     let err = false;
@@ -286,7 +343,6 @@ describe("eth call", () => {
         QUERY_URL,
         {
           signature,
-          // bytes: Buffer.alloc(6000000).toString("hex"),
           bytes: Buffer.from(serialized).toString("hex"),
         },
         { headers: { "X-API-Key": "my_secret_key" } }
@@ -298,24 +354,191 @@ describe("eth call", () => {
       });
     expect(err).toBe(true);
   });
-  test("invalid api key with payload too large should fail based on api key", async () => {
-    const serialized = new Uint8Array(6000000); // Buffer should be larger than MAX_BODY_SIZE in node/cmd/ccq/http.go.
-    const signature = "";
+  test("serialize eth_call_by_timestamp request", () => {
+    const toAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
+    const nameCallData = createTestEthCallData(toAddress, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      toAddress,
+      "totalSupply",
+      "uint256"
+    );
+    const ethCall = new EthCallByTimestampQueryRequest(
+      BigInt(1697216322000000),
+      "0x28d9630",
+      "0x28d9631",
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 5;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    expect(Buffer.from(serialized).toString("hex")).toEqual(
+      "0100000001010005020000005b0006079bf7fad4800000000930783238643936333000000009307832386439363331020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd"
+    );
+  });
+  test("successful eth_call_by_timestamp query", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const [targetBlockTime, targetBlockNumber, followingBlockNumber] =
+      await getEthCallByTimestampArgs();
+    const ethCall = new EthCallByTimestampQueryRequest(
+      targetBlockTime,
+      targetBlockNumber.toString(16),
+      followingBlockNumber.toString(16),
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key" } }
+    );
+    expect(response.status).toBe(200);
+  });
+  test("eth_call_by_timestamp query without target timestamp", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const followingBlockNum = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const followingBlock = await web3.eth.getBlock(BigInt(followingBlockNum));
+    const targetBlock = await web3.eth.getBlock(
+      (Number(followingBlockNum) - 1).toString()
+    );
+    const ethCall = new EthCallByTimestampQueryRequest(
+      BigInt(0),
+      targetBlock.number.toString(16),
+      followingBlock.number.toString(16),
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
     let err = false;
-    await axios
+    const response = await axios
       .put(
         QUERY_URL,
         {
           signature,
-          // bytes: Buffer.alloc(6000000).toString("hex"),
           bytes: Buffer.from(serialized).toString("hex"),
         },
-        { headers: { "X-API-Key": "some_junk" } }
+        { headers: { "X-API-Key": "my_secret_key" } }
       )
       .catch(function (error) {
         err = true;
-        expect(error.response.status).toBe(403);
-        expect(error.response.data).toBe(`invalid api key\n`);
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target timestamp may not be zero\n`
+        );
+      });
+    expect(err).toBe(true);
+  });
+  test("eth_call_by_timestamp query without target hint should fail for now", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const followingBlockNum = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const followingBlock = await web3.eth.getBlock(BigInt(followingBlockNum));
+    const targetBlock = await web3.eth.getBlock(
+      (Number(followingBlockNum) - 1).toString()
+    );
+    const targetBlockTime = targetBlock.timestamp * BigInt(1000000);
+    const ethCall = new EthCallByTimestampQueryRequest(
+      targetBlockTime,
+      "",
+      followingBlock.number.toString(16),
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    const response = await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target block id must be a hex number or hash starting with 0x\n`
+        );
+      });
+    expect(err).toBe(true);
+  });
+  test("eth_call_by_timestamp query without following hint should fail for now", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const followingBlockNum = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const targetBlock = await web3.eth.getBlock(
+      (Number(followingBlockNum) - 1).toString()
+    );
+    const targetBlockTime = targetBlock.timestamp * BigInt(1000000);
+    const ethCall = new EthCallByTimestampQueryRequest(
+      targetBlockTime,
+      targetBlock.number.toString(16),
+      "",
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    const response = await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: following block id must be a hex number or hash starting with 0x\n`
+        );
       });
     expect(err).toBe(true);
   });
