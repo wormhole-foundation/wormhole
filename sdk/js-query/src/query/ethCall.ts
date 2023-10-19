@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { HexString } from "./consts";
 import { ChainQueryType, ChainSpecificQuery } from "./request";

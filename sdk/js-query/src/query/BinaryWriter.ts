@@ -1,3 +1,5 @@
+import { Buffer } from "buffer";
+
 // BinaryWriter appends data to the end of a buffer, resizing the buffer as needed
 // Numbers are encoded as big endian
 export class BinaryWriter {

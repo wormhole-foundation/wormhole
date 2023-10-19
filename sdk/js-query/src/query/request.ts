@@ -1,6 +1,7 @@
+import { keccak256 } from "@ethersproject/keccak256";
+import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { Network } from "./consts";
-import { utils } from "web3";
 import { hexToUint8Array } from "./utils";
 
 export const MAINNET_QUERY_REQUEST_PREFIX =
@@ -41,7 +42,7 @@ export class QueryRequest {
   static digest(network: Network, bytes: Uint8Array): Uint8Array {
     const prefix = getPrefix(network);
     const data = Buffer.concat([Buffer.from(prefix), bytes]);
-    return hexToUint8Array(utils.keccak256(data).slice(2));
+    return hexToUint8Array(keccak256(data).slice(2));
   }
 }
 
