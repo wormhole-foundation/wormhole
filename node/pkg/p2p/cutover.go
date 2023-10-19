@@ -9,17 +9,45 @@ import (
 )
 
 // The format of this time is very picky. Please use the exact format specified by cutOverFmtStr!
-const cutOverTimeStr = "2024-12-31T23:59:59-0000"
+const mainnetCutOverTimeStr = ""
+const testnetCutOverTimeStr = "2024-12-31T23:59:59-0000"
+const devnetCutOverTimeStr = "2022-12-31T23:59:59-0000"
 const cutOverFmtStr = "2006-01-02T15:04:05-0700"
 
-// checkForCutOver checks to see if / when we need to cut over to the new quic-v1 based on a preset time. If cutOverTimeStr is set, then this feature is enabled.
-// If the current time is after the configured time, we should start up using the new quic-v1 bootstrap peers immediately. If the configured time is in the future,
-// we need to start up with the existing bootstrap string and cut over to the new quic-v1 at the specified time.
-func checkForCutOver(logger *zap.Logger, bootstrapPeers string, ccqBootstrapPeers string, components *Components) (newBootstrapPeers string, newCcqBootstrapPeers string, err error) {
-	newBootstrapPeers, newCcqBootstrapPeers, delay, err := checkForCutOverImpl(logger, bootstrapPeers, ccqBootstrapPeers, components, cutOverTimeStr, time.Now())
+// shouldCutOverPtr is a global variable used to determine if a cut over is in progress. It is initialized by the first call evaluateCutOver.
+var shouldCutOverPtr *bool
+
+// shouldCutOver uses the global variable to determine if a cut over is in progress. It assumes evaluateCutOver has already been called, so will panic if the pointer is nil.
+func shouldCutOver() bool {
+	if shouldCutOverPtr == nil {
+		panic("shouldCutOverPtr is nil")
+	}
+
+	return *shouldCutOverPtr
+}
+
+// evaluateCutOver determines if a cut over is in progress. The first time it is called, it sets the global variable shouldCutOverPtr. It may be called more than once.
+func evaluateCutOver(logger *zap.Logger, networkID string, bootstrapPeers string) error {
+	if err := validateBootstrapPeers(bootstrapPeers); err != nil {
+		logger.Error(`bootstrap peers string is invalid:`, zap.String("bootstrapPeers", bootstrapPeers), zap.Error(err), zap.String("component", "p2pco"))
+		return fmt.Errorf("unexpected format of bootstrap peers: %w", err)
+	}
+
+	if shouldCutOverPtr != nil {
+		return nil
+	}
+
+	cutOverTimeStr := getCutOverTimeStr(networkID)
+
+	sco, delay, err := evaluateCutOverImpl(logger, cutOverTimeStr, time.Now())
+	if err != nil {
+		return err
+	}
+
+	shouldCutOverPtr = &sco
 
 	if delay != time.Duration(0) {
-		// Wait for the cut over time and then panic so we restart with the new quic-v1. TODO: Can we just restart p2p??
+		// Wait for the cut over time and then panic so we restart with the new quic-v1.
 		go func() {
 			time.Sleep(delay)
 			logger.Info("time to cut over to new quic-v1", zap.String("cutOverTime", cutOverTimeStr), zap.String("component", "p2pco"))
@@ -27,112 +55,77 @@ func checkForCutOver(logger *zap.Logger, bootstrapPeers string, ccqBootstrapPeer
 		}()
 	}
 
-	return newBootstrapPeers, newCcqBootstrapPeers, err
+	return nil
 }
 
-func checkForCutOverImpl(logger *zap.Logger, bootstrapPeers string, ccqBootstrapPeers string, components *Components, coTimeStr string, now time.Time) (newBootstrapPeers string, newCcqBootstrapPeers string, delay time.Duration, err error) {
-	newBootstrapPeers = bootstrapPeers
-	newCcqBootstrapPeers = ccqBootstrapPeers
-
-	if coTimeStr == "" {
-		return
+// evaluateCutOverImpl performs the actual cut over check. It is a separate function for testing purposes.
+func evaluateCutOverImpl(logger *zap.Logger, cutOverTimeStr string, now time.Time) (bool, time.Duration, error) {
+	if cutOverTimeStr == "" {
+		return false, 0, nil
 	}
 
-	bootstrapIsV1, err := validateQuic(bootstrapPeers)
+	cutOverTime, err := time.Parse(cutOverFmtStr, cutOverTimeStr)
 	if err != nil {
-		logger.Error(`bootstrap peers string is invalid:`, zap.String("bootstrapPeers", bootstrapPeers), zap.Error(err), zap.String("component", "p2pco"))
-		err = fmt.Errorf("unexpected format of bootstrap peers: %w", err)
-		return
-	}
-
-	if ccqBootstrapPeers != "" {
-		ccqBootstrapIsV1, ccqerr := validateQuic(ccqBootstrapPeers)
-		if ccqerr != nil {
-			logger.Error(`ccq bootstrap peers string is invalid:`, zap.String("ccqBootstrapPeers", ccqBootstrapPeers), zap.Error(ccqerr), zap.String("component", "p2pco"))
-			err = fmt.Errorf("unexpected format of ccq bootstrap peers: %w", ccqerr)
-			return
-		}
-
-		if bootstrapIsV1 != ccqBootstrapIsV1 {
-			logger.Error(`there is a mismatch between bootstrap peers and ccq bootstrap peers:`,
-				zap.Bool("bootstrapIsV1", bootstrapIsV1),
-				zap.Bool("ccqBootstrapIsV1", ccqBootstrapIsV1),
-				zap.String("bootstrapPeers", bootstrapPeers),
-				zap.String("ccqBootstrapPeers", ccqBootstrapPeers),
-				zap.Error(err), zap.String("component", "p2pco"),
-			)
-			err = fmt.Errorf("quic version mismatch between bootstrap peers and ccq bootstrap peers")
-			return
-		}
-	}
-
-	if bootstrapIsV1 {
-		for _, la := range components.ListeningAddressesPatterns {
-			if strings.Contains(la, "quic") && !strings.Contains(la, "quic-v1") {
-				err = fmt.Errorf("bootstrapPeers has been updated to quic-v1, but components.ListeningAddressesPatterns has not: %s", la)
-				return
-			}
-		}
-		logger.Info("bootstrap peers parameter is already using quic-v1, cut over is not necessary", zap.String("bootstrapPeers", bootstrapPeers), zap.String("component", "p2pco"))
-		delay = 0
-		return
-	}
-
-	cutOverTime, err := time.Parse(cutOverFmtStr, coTimeStr)
-	if err != nil {
-		logger.Error("failed to parse p2p cut over time", zap.String("cutOverTimeStr", coTimeStr), zap.Error(err), zap.String("component", "p2pco"))
-		err = fmt.Errorf("failed to parse cut over time: %w", err)
-		return
+		return false, 0, fmt.Errorf(`failed to parse cut over time: %w`, err)
 	}
 
 	if cutOverTime.Before(now) {
-		// We should already be using the new quic-v1.
-		newBootstrapPeers = strings.ReplaceAll(bootstrapPeers, "quic", "quic-v1")
-		newCcqBootstrapPeers = strings.ReplaceAll(ccqBootstrapPeers, "quic", "quic-v1")
-
-		for idx, la := range components.ListeningAddressesPatterns {
-			components.ListeningAddressesPatterns[idx] = strings.ReplaceAll(la, "quic", "quic-v1")
-		}
-
-		logger.Info("cut over time has passed, using new quic-v1",
-			zap.String("cutOverTime", cutOverTime.Format(cutOverFmtStr)),
-			zap.String("now", now.Format(cutOverFmtStr)),
-			zap.String("oldBootstrapPeers", bootstrapPeers),
-			zap.String("newBootstrapPeers", newBootstrapPeers),
-			zap.String("oldCcqBootstrapPeers", ccqBootstrapPeers),
-			zap.String("newCcqBootstrapPeers", newCcqBootstrapPeers),
-			zap.Any("newComponents", components),
-			zap.String("component", "p2pco"))
-
-		delay = 0
-		return
+		logger.Info("cut over time has passed, should use new quic-v1", zap.String("cutOverTime", cutOverTime.Format(cutOverFmtStr)), zap.String("now", now.Format(cutOverFmtStr)), zap.String("component", "p2pco"))
+		return true, 0, nil
 	}
 
 	// If we get here, we need to wait for the cutover and then force a restart.
-	delay = cutOverTime.Sub(now)
+	delay := cutOverTime.Sub(now)
 	logger.Info("still waiting for cut over time",
 		zap.Stringer("cutOverTime", cutOverTime),
 		zap.String("now", now.Format(cutOverFmtStr)),
 		zap.Stringer("delay", delay),
 		zap.String("component", "p2pco"))
 
-	return
+	return false, delay, nil
 }
 
-func validateQuic(bootstrapPeers string) (bool, error) {
-	if !strings.Contains(bootstrapPeers, "quic") {
-		return false, fmt.Errorf(`unexpected format, does not contain "quic"`)
+// getCutOverTimeStr returns the cut over time string based on the network ID passed in.
+func getCutOverTimeStr(networkID string) string {
+	if strings.Contains(networkID, "/mainnet/") {
+		return mainnetCutOverTimeStr
+	}
+	if strings.Contains(networkID, "/testnet/") {
+		return testnetCutOverTimeStr
+	}
+	return devnetCutOverTimeStr
+}
+
+// cutOverBootstrapPeers checks to see if we are supposed to cut over, and if so updates the bootstrap peers. It assumes that the string has previously been validated.
+func cutOverBootstrapPeers(bootstrapPeers string) string {
+	if shouldCutOver() {
+		bootstrapPeers = strings.ReplaceAll(bootstrapPeers, "/quic/", "/quic-v1/")
 	}
 
-	if !strings.Contains(bootstrapPeers, "quic-v1") {
-		return false, nil
+	return bootstrapPeers
+}
+
+// cutOverAddressPattern checks to see if we are supposed to cut over, and if so updates the address patterns. It assumes that the string is valid.
+func cutOverAddressPattern(pattern string) string {
+	if shouldCutOver() {
+		if !strings.Contains(pattern, "/quic-v1") {
+			// These patterns are hardcoded so we are not worried about invalid values.
+			pattern = strings.ReplaceAll(pattern, "/quic", "/quic-v1")
+		}
 	}
 
-	// If it contains any references to "quic-v1", make sure it doesn't have any references to "quic".
-	// Do this by removing all the references to "quic-v1" and seeing if there are any remaining references to "quic".
-	if strings.Contains(strings.ReplaceAll(bootstrapPeers, "quic-v1", ""), "quic") {
-		return false, fmt.Errorf(`contains a mix of "quic" and "quic-v1"`)
+	return pattern
+}
+
+// validateBootstrapPeers ensures that the quic parameters in a bootstrap peers string are consistent. It is a separate function for testing purposes.
+func validateBootstrapPeers(bootstrapPeers string) error {
+	if !strings.Contains(bootstrapPeers, "/quic/") && !strings.Contains(bootstrapPeers, "/quic-v1/") {
+		return fmt.Errorf(`unexpected format, does not contain "/quic/" or  "/quic-v1/"`)
 	}
 
-	return true, nil
+	if strings.Contains(bootstrapPeers, "/quic/") && strings.Contains(bootstrapPeers, "/quic-v1/") {
+		return fmt.Errorf(`unexpected format, contains both "/quic/" or  "/quic-v1/"`)
+	}
+
+	return nil
 }
