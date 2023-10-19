@@ -72,7 +72,6 @@ func (ccq *ccqP2p) run(
 	networkID string,
 	bootstrapPeers string,
 	port uint,
-	listeningAddressesPatterns []string,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
 	errC chan error,
@@ -84,9 +83,6 @@ func (ccq *ccqP2p) run(
 		return fmt.Errorf("components is not initialized")
 	}
 	components.Port = port
-
-	// If we have already cut over, the default listen addresses may be out of date. Use the updated ones passed in.
-	copy(components.ListeningAddressesPatterns, listeningAddressesPatterns)
 
 	ccq.h, err = NewHost(ccq.logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {

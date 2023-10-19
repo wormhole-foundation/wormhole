@@ -27,12 +27,7 @@ func shouldCutOver() bool {
 }
 
 // evaluateCutOver determines if a cut over is in progress. The first time it is called, it sets the global variable shouldCutOverPtr. It may be called more than once.
-func evaluateCutOver(logger *zap.Logger, networkID string, bootstrapPeers string) error {
-	if err := validateBootstrapPeers(bootstrapPeers); err != nil {
-		logger.Error(`bootstrap peers string is invalid:`, zap.String("bootstrapPeers", bootstrapPeers), zap.Error(err), zap.String("component", "p2pco"))
-		return fmt.Errorf("unexpected format of bootstrap peers: %w", err)
-	}
-
+func evaluateCutOver(logger *zap.Logger, networkID string) error {
 	if shouldCutOverPtr != nil {
 		return nil
 	}
@@ -115,17 +110,4 @@ func cutOverAddressPattern(pattern string) string {
 	}
 
 	return pattern
-}
-
-// validateBootstrapPeers ensures that the quic parameters in a bootstrap peers string are consistent. It is a separate function for testing purposes.
-func validateBootstrapPeers(bootstrapPeers string) error {
-	if !strings.Contains(bootstrapPeers, "/quic/") && !strings.Contains(bootstrapPeers, "/quic-v1/") {
-		return fmt.Errorf(`unexpected format, does not contain "/quic/" or  "/quic-v1/"`)
-	}
-
-	if strings.Contains(bootstrapPeers, "/quic/") && strings.Contains(bootstrapPeers, "/quic-v1/") {
-		return fmt.Errorf(`unexpected format, contains both "/quic/" or  "/quic-v1/"`)
-	}
-
-	return nil
 }

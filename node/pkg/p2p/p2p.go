@@ -193,7 +193,7 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
-	if err := evaluateCutOver(logger, networkID, bootstrapPeers); err != nil {
+	if err := evaluateCutOver(logger, networkID); err != nil {
 		return nil, err
 	}
 	h, err := libp2p.New(
@@ -357,7 +357,7 @@ func Run(
 		if ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
-			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, components.ListeningAddressesPatterns, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()

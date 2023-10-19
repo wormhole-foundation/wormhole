@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -8,6 +10,33 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+// We want to be able to test the cutover conversion stuff so force us into cutover mode.
+func TestMain(m *testing.M) {
+	sco := true
+	shouldCutOverPtr = &sco
+	os.Exit(m.Run())
+}
+
+func TestCutOverBootstrapAddrs(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	bootstrappers, isBootstrapNode := bootstrapAddrs(logger, oldBootstrapPeers, "12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu")
+	assert.Equal(t, 2, len(bootstrappers))
+	assert.False(t, isBootstrapNode)
+	for _, ba := range bootstrappers {
+		assert.True(t, strings.Contains(ba.String(), "/quic-v1"))
+	}
+}
+
+func TestCutOverListeningAddresses(t *testing.T) {
+	components := DefaultComponents()
+
+	las := components.ListeningAddresses()
+	require.Equal(t, len(components.ListeningAddressesPatterns), len(las))
+	for _, la := range las {
+		assert.True(t, strings.Contains(la, "/quic-v1"))
+	}
+}
 
 func TestVerifyCutOverTime(t *testing.T) {
 	if mainnetCutOverTimeStr != "" {
@@ -25,25 +54,11 @@ func TestVerifyCutOverTime(t *testing.T) {
 }
 
 const oldBootstrapPeers = "/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw,/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jx"
-const newBootstrapPeers = "/dns4/guardian-0.guardian/udp/8999/quic-v1/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw,/dns4/guardian-0.guardian/udp/8999/quic-v1/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jx"
 
 func TestGetCutOverTimeStr(t *testing.T) {
 	assert.Equal(t, mainnetCutOverTimeStr, getCutOverTimeStr("blah/blah/mainnet/blah"))
 	assert.Equal(t, testnetCutOverTimeStr, getCutOverTimeStr("blah/blah/testnet/blah"))
 	assert.Equal(t, devnetCutOverTimeStr, getCutOverTimeStr("blah/blah/devnet/blah"))
-}
-
-func TestValidateBootstrapPeers(t *testing.T) {
-	assert.NoError(t, validateBootstrapPeers(oldBootstrapPeers)) // All old quic should work.
-	assert.NoError(t, validateBootstrapPeers(newBootstrapPeers)) // All new quic-v1 should work.
-
-	// No quics should fail.
-	err := validateBootstrapPeers("HelloWorld")
-	assert.EqualError(t, err, `unexpected format, does not contain "/quic/" or  "/quic-v1/"`)
-
-	// A mix of quics should fail.
-	err = validateBootstrapPeers("/quic/quic-v1/")
-	assert.EqualError(t, err, `unexpected format, contains both "/quic/" or  "/quic-v1/"`)
 }
 
 func TestCutOverDisabled(t *testing.T) {
