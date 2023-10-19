@@ -1235,6 +1235,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("failed to process eth_call_by_timestamp query request",
 			zap.Error(err),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1246,6 +1247,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("failed to process eth_call_by_timestamp query target block request",
 			zap.Error(blockError),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1256,6 +1258,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("invalid eth_call_by_timestamp query target block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1266,6 +1269,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("target block number too large for eth_call_by_timestamp",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1277,6 +1281,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("failed to process eth_call_by_timestamp query following block request",
 			zap.Error(nextBlockError),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1287,6 +1292,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("invalid eth_call_by_timestamp query following block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1297,6 +1303,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		logger.Error("following block number too large for eth_call_by_timestamp",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
@@ -1351,10 +1358,10 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	}
 
 	resp := query.EthCallByTimestampQueryResponse{
-		TargetBlockNumber:    blockResult.Number.ToInt().Uint64(),
+		TargetBlockNumber:    targetBlockNum,
 		TargetBlockHash:      blockResult.Hash,
 		TargetBlockTime:      time.Unix(int64(blockResult.Time), 0),
-		FollowingBlockNumber: nextBlockResult.Number.ToInt().Uint64(),
+		FollowingBlockNumber: followingBlockNum,
 		FollowingBlockHash:   nextBlockResult.Hash,
 		FollowingBlockTime:   time.Unix(int64(nextBlockResult.Time), 0),
 		Results:              [][]byte{},
@@ -1366,6 +1373,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 			logger.Error("failed to process eth_call_by_timestamp query call request",
 				zap.Error(evmCallData[idx].callErr),
 				zap.String("block", block),
+				zap.String("nextBlock", nextBlock),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
@@ -1380,6 +1388,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 			logger.Error("invalid call result for eth_call_by_timestamp",
 				zap.String("eth_network", w.networkName),
 				zap.String("block", block),
+				zap.String("nextBlock", nextBlock),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
