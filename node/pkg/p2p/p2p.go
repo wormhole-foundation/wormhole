@@ -110,6 +110,7 @@ type Components struct {
 func (f *Components) ListeningAddresses() []string {
 	la := make([]string, 0, len(f.ListeningAddressesPatterns))
 	for _, pattern := range f.ListeningAddressesPatterns {
+		pattern = cutOverAddressPattern(pattern)
 		la = append(la, fmt.Sprintf(pattern, f.Port))
 	}
 	return la
@@ -152,6 +153,7 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 // bootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
 // if `self` is part of `bootstrapPeers`, return isBootstrapNode=true
 func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
+	bootstrapPeers = cutOverBootstrapPeers(bootstrapPeers)
 	bootstrappers = make([]peer.AddrInfo, 0)
 	for _, addr := range strings.Split(bootstrapPeers, ",") {
 		if addr == "" {
@@ -191,6 +193,9 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
+	if err := evaluateCutOver(logger, networkID); err != nil {
+		return nil, err
+	}
 	h, err := libp2p.New(
 		// Use the keypair we generated
 		libp2p.Identity(priv),
