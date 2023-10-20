@@ -192,7 +192,7 @@ pub fn convert_cw20_to_bank_and_send(
         .append_string(4, env.contract.address) // sender
         .append_string(5, recipient) // receiver
         .append_message(6, &Anybuf::new().append_uint64(1, 0).append_uint64(2, 0)) // TimeoutHeight
-        .append_uint64(7, env.block.time.plus_days(14).nanos()) // TimeoutTimestamp
+        .append_uint64(7, env.block.time.plus_days(365).nanos()) // TimeoutTimestamp
         .append_string(8, payload_decoded); // Memo
 
     response = response.add_message(Stargate {
