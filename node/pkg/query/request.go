@@ -84,6 +84,25 @@ func (ecr *EthCallByTimestampQueryRequest) CallDataList() []*EthCallData {
 	return ecr.CallData
 }
 
+// EthCallWithFinalityQueryRequestType is the type of an EVM eth_call_with_finality query request.
+const EthCallWithFinalityQueryRequestType ChainSpecificQueryType = 3
+
+// EthCallWithFinalityQueryRequest implements ChainSpecificQuery for an EVM eth_call_with_finality query request.
+type EthCallWithFinalityQueryRequest struct {
+	// BlockId identifies the block to be queried. It must be a hex string starting with 0x. It may be a block number or a block hash.
+	BlockId string
+
+	// Finality is required. It identifies the level of finality the block must reach before the query is performed. Valid values are "finalized" and "safe".
+	Finality string
+
+	// CallData is an array of specific queries to be performed on the specified block, in a single RPC call.
+	CallData []*EthCallData
+}
+
+func (ecr *EthCallWithFinalityQueryRequest) CallDataList() []*EthCallData {
+	return ecr.CallData
+}
+
 // EthCallData specifies the parameters to a single EVM eth_call request.
 type EthCallData struct {
 	// To specifies the contract address to be queried.
@@ -296,6 +315,12 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 			return fmt.Errorf("failed to unmarshal eth call by timestamp request: %w", err)
 		}
 		perChainQuery.Query = &q
+	case EthCallWithFinalityQueryRequestType:
+		q := EthCallWithFinalityQueryRequest{}
+		if err := q.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal eth call with finality request: %w", err)
+		}
+		perChainQuery.Query = &q
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -357,6 +382,13 @@ func (left *PerChainQueryRequest) Equal(right *PerChainQueryRequest) bool {
 			return leftEcq.Equal(rightEcd)
 		default:
 			panic("unsupported query type on right, must be eth_call_by_timestamp")
+		}
+	case *EthCallWithFinalityQueryRequest:
+		switch rightEcd := right.Query.(type) {
+		case *EthCallWithFinalityQueryRequest:
+			return leftEcq.Equal(rightEcd)
+		default:
+			panic("unsupported query type on right, must be eth_call_with_finality")
 		}
 	default:
 		panic("unsupported query type on left")
@@ -599,11 +631,17 @@ func (ecd *EthCallByTimestampQueryRequest) Validate() error {
 	if len(ecd.TargetBlockIdHint) > math.MaxUint32 {
 		return fmt.Errorf("target block id hint too long")
 	}
+	if ecd.TargetBlockIdHint == "" {
+		return fmt.Errorf("target block id is required")
+	}
 	if !strings.HasPrefix(ecd.TargetBlockIdHint, "0x") {
 		return fmt.Errorf("target block id must be a hex number or hash starting with 0x")
 	}
 	if len(ecd.FollowingBlockIdHint) > math.MaxUint32 {
 		return fmt.Errorf("following block id hint too long")
+	}
+	if ecd.FollowingBlockIdHint == "" {
+		return fmt.Errorf("following block id is required")
 	}
 	if !strings.HasPrefix(ecd.FollowingBlockIdHint, "0x") {
 		return fmt.Errorf("following block id must be a hex number or hash starting with 0x")
@@ -658,8 +696,167 @@ func (left *EthCallByTimestampQueryRequest) Equal(right *EthCallByTimestampQuery
 	return true
 }
 
+//
+// Implementation of EthCallWithFinalityQueryRequest, which implements the ChainSpecificQuery interface.
+//
+
+func (e *EthCallWithFinalityQueryRequest) Type() ChainSpecificQueryType {
+	return EthCallWithFinalityQueryRequestType
+}
+
+// Marshal serializes the binary representation of an EVM eth_call_with_finality request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (ecd *EthCallWithFinalityQueryRequest) Marshal() ([]byte, error) {
+	if err := ecd.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
+	buf.Write([]byte(ecd.BlockId))
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.Finality)))
+	buf.Write([]byte(ecd.Finality))
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	for _, callData := range ecd.CallData {
+		buf.Write(callData.To)
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		buf.Write(callData.Data)
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes an EVM eth_call_with_finality query from a byte array
+func (ecd *EthCallWithFinalityQueryRequest) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return ecd.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes an EVM eth_call_with_finality query from a byte array
+func (ecd *EthCallWithFinalityQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
+	blockIdLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &blockIdLen); err != nil {
+		return fmt.Errorf("failed to read target block id len: %w", err)
+	}
+
+	blockId := make([]byte, blockIdLen)
+	if n, err := reader.Read(blockId[:]); err != nil || n != int(blockIdLen) {
+		return fmt.Errorf("failed to read target block id [%d]: %w", n, err)
+	}
+	ecd.BlockId = string(blockId[:])
+
+	finalityLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &finalityLen); err != nil {
+		return fmt.Errorf("failed to read finality len: %w", err)
+	}
+
+	finality := make([]byte, finalityLen)
+	if n, err := reader.Read(finality[:]); err != nil || n != int(finalityLen) {
+		return fmt.Errorf("failed to read finality [%d]: %w", n, err)
+	}
+	ecd.Finality = string(finality[:])
+
+	numCallData := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numCallData); err != nil {
+		return fmt.Errorf("failed to read number of call data entries: %w", err)
+	}
+
+	for count := 0; count < int(numCallData); count++ {
+		to := [EvmContractAddressLength]byte{}
+		if n, err := reader.Read(to[:]); err != nil || n != EvmContractAddressLength {
+			return fmt.Errorf("failed to read call To [%d]: %w", n, err)
+		}
+
+		dataLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
+			return fmt.Errorf("failed to read call Data len: %w", err)
+		}
+		data := make([]byte, dataLen)
+		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
+			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
+		}
+
+		callData := &EthCallData{
+			To:   to[:],
+			Data: data[:],
+		}
+
+		ecd.CallData = append(ecd.CallData, callData)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on an EVM eth_call_with_finality query.
+func (ecd *EthCallWithFinalityQueryRequest) Validate() error {
+	if len(ecd.BlockId) > math.MaxUint32 {
+		return fmt.Errorf("block id too long")
+	}
+	if ecd.BlockId == "" {
+		return fmt.Errorf("block id is required")
+	}
+	if !strings.HasPrefix(ecd.BlockId, "0x") {
+		return fmt.Errorf("block id must be a hex number or hash starting with 0x")
+	}
+	if len(ecd.Finality) > math.MaxUint32 {
+		return fmt.Errorf("finality too long")
+	}
+	if ecd.Finality == "" {
+		return fmt.Errorf("finality is required")
+	}
+	if ecd.Finality != "finalized" && ecd.Finality != "safe" {
+		return fmt.Errorf(`finality must be "finalized" or "safe", is "%s"`, ecd.Finality)
+	}
+	if len(ecd.CallData) <= 0 {
+		return fmt.Errorf("does not contain any call data")
+	}
+	if len(ecd.CallData) > math.MaxUint8 {
+		return fmt.Errorf("too many call data entries")
+	}
+	for _, callData := range ecd.CallData {
+		if callData.To == nil || len(callData.To) <= 0 {
+			return fmt.Errorf("no call data to")
+		}
+		if len(callData.To) != EvmContractAddressLength {
+			return fmt.Errorf("invalid length for To contract")
+		}
+		if callData.Data == nil || len(callData.Data) <= 0 {
+			return fmt.Errorf("no call data data")
+		}
+		if len(callData.Data) > math.MaxUint32 {
+			return fmt.Errorf("call data data too long")
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two EVM eth_call_with_finality queries are equal.
+func (left *EthCallWithFinalityQueryRequest) Equal(right *EthCallWithFinalityQueryRequest) bool {
+	if left.BlockId != right.BlockId {
+		return false
+	}
+	if left.Finality != right.Finality {
+		return false
+	}
+	if len(left.CallData) != len(right.CallData) {
+		return false
+	}
+	for idx := range left.CallData {
+		if !bytes.Equal(left.CallData[idx].To, right.CallData[idx].To) {
+			return false
+		}
+		if !bytes.Equal(left.CallData[idx].Data, right.CallData[idx].Data) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func ValidatePerChainQueryRequestType(qt ChainSpecificQueryType) error {
-	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType {
+	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType && qt != EthCallWithFinalityQueryRequestType {
 		return fmt.Errorf("invalid query request type: %d", qt)
 	}
 	return nil

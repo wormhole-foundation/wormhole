@@ -60,6 +60,21 @@ func createQueryResponseFromRequest(t *testing.T, queryRequest *QueryRequest) *Q
 					Results:              results,
 				},
 			})
+		case *EthCallWithFinalityQueryRequest:
+			results := [][]byte{}
+			for idx := range req.CallData {
+				result := []byte([]byte(fmt.Sprintf("Result %d", idx)))
+				results = append(results, result[:])
+			}
+			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
+				ChainId: pcr.ChainId,
+				Response: &EthCallWithFinalityQueryResponse{
+					BlockNumber: uint64(1000 + idx),
+					Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+					Time:        timeForTest(t, time.Now()),
+					Results:     results,
+				},
+			})
 		default:
 			panic("invalid query type!")
 		}

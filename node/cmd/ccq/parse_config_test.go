@@ -157,7 +157,7 @@ func TestParseConfigUnsupportedCallType(t *testing.T) {
 
 	_, err := parseConfig([]byte(str))
 	require.Error(t, err)
-	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall" or "ethCallByTimestamp"`, err.Error())
+	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall", "ethCallByTimestamp" or "ethCallWithFinality"`, err.Error())
 }
 
 func TestParseConfigInvalidContractAddress(t *testing.T) {
