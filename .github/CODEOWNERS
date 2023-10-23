@@ -84,3 +84,7 @@
 ## Watchers
 
 /node/pkg/watchers @evan-gray @bruce-riley @panoel @kev1n-peters
+
+## Hacks / Tools
+
+/node/hack/ @bruce-riley @panoel @kev1n-peters @evan-gray
