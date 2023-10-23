@@ -2,7 +2,6 @@ package guardiand
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -47,7 +46,6 @@ import (
 	"go.uber.org/zap"
 
 	ipfslog "github.com/ipfs/go-log/v2"
-	googleapi_option "google.golang.org/api/option"
 )
 
 var (
@@ -194,11 +192,6 @@ var (
 	disableHeartbeatVerify *bool
 
 	disableTelemetry *bool
-
-	// Google cloud logging parameters
-	telemetryKey                *string
-	telemetryServiceAccountFile *string
-	telemetryProject            *string
 
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
@@ -364,13 +357,6 @@ func init() {
 		"Disable heartbeat signature verification (useful during network startup)")
 	disableTelemetry = NodeCmd.Flags().Bool("disableTelemetry", false,
 		"Disable telemetry")
-
-	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
-		"Telemetry write key")
-	telemetryServiceAccountFile = NodeCmd.Flags().String("telemetryServiceAccountFile", "",
-		"Google Cloud credentials json for accessing Cloud Logging")
-	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
-		"Google Cloud Project to use for Telemetry logging")
 
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
@@ -750,10 +736,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if *telemetryKey != "" && *telemetryServiceAccountFile != "" {
-		logger.Fatal("Please do not specify both --telemetryKey and --telemetryServiceAccountFile")
-	}
-
 	// Determine execution mode
 	// TODO: refactor usage of these variables elsewhere. *unsafeDevMode and *testnetMode should not be accessed directly.
 	var env common.Environment
@@ -899,18 +881,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	}()
 
 	usingLoki := *telemetryLokiURL != ""
-	usingGCP := *telemetryKey != "" || *telemetryServiceAccountFile != ""
 
-	var hasTelemetryCredential bool = usingGCP || usingLoki
+	var hasTelemetryCredential bool = usingLoki
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
 		if !hasTelemetryCredential {
-			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryLokiURL or set --disableTelemetry=false")
-		}
-
-		if usingLoki && usingGCP {
-			logger.Fatal("May only enable one telemetry logger at a time, either specify --telemetryLokiURL or --telemetryKey/--telemetryServiceAccountFile")
+			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
 		// Get libp2p peer ID from private key
@@ -937,30 +914,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 
 			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", skipPrivateLogs, labels)
-			if err != nil {
-				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-			}
-		} else {
-			logger.Info("Using Google Cloud telemetry logger",
-				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
-				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
-
-			var options []googleapi_option.ClientOption
-
-			if *telemetryKey != "" {
-				creds, err := decryptTelemetryServiceAccount()
-				if err != nil {
-					logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
-				}
-
-				options = append(options, googleapi_option.WithCredentialsJSON(creds))
-			}
-
-			if *telemetryServiceAccountFile != "" {
-				options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
-			}
-
-			tm, err = telemetry.NewGoogleCloudLogger(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
 			if err != nil {
 				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 			}
@@ -1463,26 +1416,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	<-rootCtx.Done()
 	logger.Info("root context cancelled, exiting...")
-}
-
-func decryptTelemetryServiceAccount() ([]byte, error) {
-	// Decrypt service account credentials
-	key, err := base64.StdEncoding.DecodeString(*telemetryKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode: %w", err)
-	}
-
-	ciphertext, err := base64.StdEncoding.DecodeString(defaultTelemetryServiceAccountEnc)
-	if err != nil {
-		panic(err)
-	}
-
-	creds, err := common.DecryptAESGCM(ciphertext, key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt: %w", err)
-	}
-
-	return creds, err
 }
 
 func shouldStart(rpc *string) bool {
