@@ -119,6 +119,43 @@ describe("Core Bridge -- Legacy Instruction: Set Message Fee", () => {
       );
     });
 
+    it("Invoke `set_message_fee` with Claim Account Having Lamports", async () => {
+      // New fee amount.
+      const amount = new anchor.BN(6969);
+
+      // Fetch default VAA.
+      const signedVaa = defaultVaa(amount);
+
+      // Post the VAA.
+      await invokeVerifySignaturesAndPostVaa(program, payer, signedVaa);
+
+      // Parse the vaa and update the message fee.
+      const parsedVaa = parseVaa(signedVaa);
+
+      // Find the claim account and send some lamports to it.
+      const claim = coreBridge.Claim.address(
+        program.programId,
+        Array.from(parsedVaa.emitterAddress),
+        parsedVaa.emitterChain,
+        new anchor.BN(parsedVaa.sequence.toString())
+      );
+
+      const transferIx = anchor.web3.SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: claim,
+        lamports: 69,
+      });
+
+      // Create the instruction.
+      const ix = coreBridge.legacySetMessageFeeIx(
+        program,
+        { payer: payer.publicKey, claim },
+        parsedVaa
+      );
+
+      await expectIxOk(connection, [transferIx, ix], [payer]);
+    });
+
     it("Cannot Invoke `set_message_fee` with Invalid Governance Emitter", async () => {
       // Create a bad governance emitter.
       const governance = new GovernanceEmitter(
