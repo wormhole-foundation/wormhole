@@ -1,4 +1,4 @@
-SOLANA_CLI="v1.14.22"
+SOLANA_CLI="v1.16.16"
 ANCHOR_CLI="v0.28.0"
 
 out_mainnet=artifacts-mainnet
@@ -19,17 +19,17 @@ clean:
 node_modules:
 	npm ci
 
-prune_idl: scripts/prune_idl_types.ts
+prune_idl: node_modules scripts/prune_idl_types.ts
 	cd scripts && npx ts-node prune_idl_types.ts
 
 build: $(out_$(NETWORK))
 $(out_$(NETWORK)):
 ifdef out_$(NETWORK)
-	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features "$(NETWORK)" -- --no-default-features
-	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features "$(NETWORK)" -- --no-default-features
+	anchor build -p wormhole_core_bridge_solana --arch sbf -- --features "$(NETWORK),no-idl" -- --no-default-features
+	anchor build -p wormhole_token_bridge_solana --arch sbf -- --features "$(NETWORK),no-idl" -- --no-default-features
+	$(MAKE) prune_idl
 	mkdir -p $(out_$(NETWORK))
 	cp target/deploy/*.so $(out_$(NETWORK))/
-	$(MAKE) prune_idl
 endif
 
 test: node_modules

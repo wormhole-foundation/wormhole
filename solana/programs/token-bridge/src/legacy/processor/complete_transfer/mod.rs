@@ -4,7 +4,7 @@ pub use native::*;
 mod wrapped;
 pub use wrapped::*;
 
-use crate::{utils::fix_account_order, error::TokenBridgeError, state::RegisteredEmitter};
+use crate::{error::TokenBridgeError, state::RegisteredEmitter, utils::fix_account_order};
 use anchor_lang::prelude::*;
 use core_bridge_program::{
     legacy::utils::LegacyAnchorized,

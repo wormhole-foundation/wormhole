@@ -100,7 +100,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
           ),
         ],
         [payer],
-        "already in use"
+        "invalid account data for instruction"
       );
     });
 

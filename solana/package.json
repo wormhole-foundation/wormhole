@@ -5,10 +5,10 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.9.21",
-    "@coral-xyz/anchor": "^0.27.0",
+    "@coral-xyz/anchor": "^0.29.0",
     "@metaplex-foundation/mpl-token-metadata": "^2.12.0",
     "@solana/spl-token": "^0.3.8",
-    "@solana/web3.js": "^1.77.3",
+    "@solana/web3.js": "^1.87.2",
     "ethers": "^5.7.2",
     "ts-node": "^10.9.1",
     "ts-results": "^3.3.0"

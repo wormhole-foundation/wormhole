@@ -340,7 +340,9 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn try_attestation<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
-    where F: FnOnce(&Attestation) -> T {
+where
+    F: FnOnce(&Attestation) -> T,
+{
     let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
     let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
@@ -349,7 +351,9 @@ fn try_attestation<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
         .ok_or(error!(TokenBridgeError::InvalidTokenBridgeVaa))
 }
 
-fn cap_decimals(decimals: u8) -> u8 { std::cmp::min(decimals, MAX_DECIMALS) }
+fn cap_decimals(decimals: u8) -> u8 {
+    std::cmp::min(decimals, MAX_DECIMALS)
+}
 
 struct FixedMeta {
     symbol: String,

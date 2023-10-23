@@ -102,13 +102,19 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
           ),
         ],
         [payer],
-        "already in use"
+        "invalid account data for instruction"
       );
     });
 
     it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {
-      const implementation = anchor.web3.Keypair.generate().publicKey;
-      const anotherImplementation = anchor.web3.Keypair.generate().publicKey;
+      const implementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
+      const anotherImplementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
 
       // Create the signed VAA with a random implementation.
       const signedVaa = defaultVaa(anotherImplementation);
@@ -127,7 +133,10 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Invalid Governance Emitter", async () => {
-      const implementation = anchor.web3.Keypair.generate().publicKey;
+      const implementation = loadProgramBpf(
+        ARTIFACTS_PATH,
+        coreBridge.upgradeAuthorityPda(program.programId)
+      );
 
       // Create a bad governance emitter by using an invalid address.
       const governance = new GovernanceEmitter(
@@ -154,13 +163,6 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     it("Cannot Invoke `upgrade_contract` with Governance For Another Chain", async () => {
       const implementation = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 
-      // Create a bad governance emitter by using an invalid address.
-      const governance = new GovernanceEmitter(
-        Buffer.from(ETHEREUM_DEADBEEF_TOKEN_ADDRESS).toString("hex"),
-        GOVERNANCE_SEQUENCE - 1
-      );
-      const invalidGuardians = new MockGuardians(guardians.setIndex, GUARDIAN_KEYS);
-
       // Create a signed VAA with the wrong target chain ID.
       const timestamp = 294967295;
       const published = governance.publishWormholeUpgradeContract(
@@ -168,12 +170,12 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
         CHAIN_ID_ETH,
         implementation.toString()
       );
-      const signedVaa = invalidGuardians.addSignatures(
+      const signedVaa = guardians.addSignatures(
         published,
         [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14]
       );
 
-      await sendTx(program, payer, signedVaa, "InvalidGovernanceEmitter");
+      await sendTx(program, payer, signedVaa, "GovernanceForAnotherChain");
     });
 
     it("Cannot Invoke `upgrade_contract` with Invalid Governance Action", async () => {

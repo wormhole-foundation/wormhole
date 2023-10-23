@@ -107,7 +107,9 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
 }
 
 fn try_decree<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
-    where F: FnOnce(&wormhole_raw_vaas::token_bridge::RegisterChain) -> T {
+where
+    F: FnOnce(&wormhole_raw_vaas::token_bridge::RegisterChain) -> T,
+{
     let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
     let gov_payload = TokenBridgeGovPayload::try_from(vaa.try_payload()?)
         .map_err(|_| error!(TokenBridgeError::InvalidGovernanceVaa))?;
