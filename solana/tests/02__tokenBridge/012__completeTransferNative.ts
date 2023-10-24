@@ -7,7 +7,9 @@ import {
 import { MockGuardians, MockTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import * as anchor from "@coral-xyz/anchor";
 import {
+  ACCOUNT_SIZE,
   TOKEN_PROGRAM_ID,
+  createInitializeAccount2Instruction,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
@@ -19,6 +21,7 @@ import {
   MINT_INFO_8,
   MINT_INFO_9,
   MintInfo,
+  createAccountIx,
   createAssociatedTokenAccountOffCurve,
   expectDeepEqual,
   expectIxErr,
@@ -460,6 +463,59 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
         // Complete the transfer.
         await expectIxErr(connection, [ix], [payer], "InvalidRecipient");
+      });
+
+      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address without ATA)`, async () => {
+        // Create recipient token account.
+        const recipient = anchor.web3.Keypair.generate().publicKey;
+
+        const recipientTokenKeypair = anchor.web3.Keypair.generate();
+        const createIx = await createAccountIx(
+          connection,
+          TOKEN_PROGRAM_ID,
+          payer,
+          recipientTokenKeypair,
+          ACCOUNT_SIZE
+        );
+        const initTokenAccountIx = createInitializeAccount2Instruction(
+          recipientTokenKeypair.publicKey,
+          mint,
+          recipient
+        );
+
+        // Amounts.
+        let amount = BigInt(42069);
+
+        // Create the signed transfer VAA.
+        const signedVaa = getSignedTransferVaa(
+          mint,
+          amount,
+          BigInt(0),
+          recipient // Recipient is the wallet address, not the ATA.
+        );
+
+        // Post the VAA.
+        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
+
+        // Create instruction.
+        const ix = tokenBridge.legacyCompleteTransferNativeIx(
+          program,
+          {
+            payer: payer.publicKey,
+            recipientToken: recipientTokenKeypair.publicKey,
+            mint,
+            recipient,
+          },
+          parseVaa(signedVaa)
+        );
+
+        // Complete the transfer.
+        await expectIxErr(
+          connection,
+          [createIx, initTokenAccountIx, ix],
+          [payer, recipientTokenKeypair],
+          "InvalidAssociatedTokenAccount"
+        );
       });
 
       it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {

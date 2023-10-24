@@ -35,11 +35,9 @@ pub fn validate_token_transfer_vaa(
         TokenBridgeError::RecipientChainNotSolana
     );
 
-    // The encoded transfer recipient can either be a token account or the owner of the
-    // token account passed into this account context.
+    // The encoded transfer recipient can either be a token account or the owner of an ATA.
     //
-    // NOTE: Allowing the encoded transfer recipient to be the token account's owner is a
-    // patch.
+    // NOTE: Allowing the encoded transfer recipient to be an ATA's owner is a patch.
     let expected_recipient = Pubkey::from(transfer.recipient());
     if expected_recipient != recipient_token.key() {
         require!(recipient.is_some(), ErrorCode::ConstraintTokenOwner);
@@ -68,12 +66,15 @@ pub fn validate_token_transfer_vaa(
             TokenBridgeError::InvalidRecipient
         );
 
-        // Finally check that the owner of the recipient token account is the encoded recipient.
+        // Finally verify that the token account is an ATA belonging to the expected recipient.
         let token_account = crate::zero_copy::TokenAccount::load(recipient_token)?;
         require_keys_eq!(
-            token_account.owner(),
-            expected_recipient,
-            ErrorCode::ConstraintTokenOwner
+            recipient_token.key(),
+            anchor_spl::associated_token::get_associated_token_address(
+                &expected_recipient,
+                &token_account.mint()
+            ),
+            TokenBridgeError::InvalidAssociatedTokenAccount
         );
     }
 

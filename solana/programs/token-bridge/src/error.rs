@@ -86,6 +86,9 @@ pub enum TokenBridgeError {
     #[msg("InvalidRecipient")]
     InvalidRecipient = 0x48,
 
+    #[msg("InvalidAssociatedTokenAccount")]
+    InvalidAssociatedTokenAccount = 0x4a,
+
     #[msg("InvalidRelayerFee")]
     InvalidRelayerFee = 0x60,
 
