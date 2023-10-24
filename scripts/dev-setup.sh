@@ -56,14 +56,14 @@ esac
 
 # Install dependencies
 case "$DISTRO" in
-    Debian-*|Ubuntu-*)             sudo apt-get -y install bash-completion git git-review vim ;;
+    Debian-*|Ubuntu-*)    sudo apt-get -y install bash-completion git git-review vim  ;;
     RedHatEnterprise-8.*) sudo dnf -y install curl bash-completion git git-review vim ;;
     *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
 esac
 
 # Install Go
 ARCH=amd64
-GO=1.20.8
+GO=1.20.10
 
 (
   if [[ -d /usr/local/go ]]; then
