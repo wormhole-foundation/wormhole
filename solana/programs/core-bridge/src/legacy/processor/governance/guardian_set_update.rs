@@ -120,6 +120,9 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
     let keys: Vec<[u8; 20]> = (0..usize::from(decree.num_guardians()))
         .map(|i| decree.guardian_at(i))
         .collect();
+    // We need at least one guardian for the initial guardian set.
+    require!(!keys.is_empty(), CoreBridgeError::ZeroGuardians);
+
     for (i, guardian) in keys.iter().take(keys.len() - 1).enumerate() {
         // We disallow guardian pubkeys that have zero address.
         require!(*guardian != [0; 20], CoreBridgeError::GuardianZeroAddress);
@@ -129,6 +132,13 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
             require!(guardian != other, CoreBridgeError::DuplicateGuardianAddress);
         }
     }
+
+    // We need to check the last guardian to see if it is the zero address (this guardian was missed
+    // in the loop above).
+    require!(
+        *keys.last().unwrap() != [0; 20],
+        CoreBridgeError::GuardianZeroAddress
+    );
 
     // Set new guardian set account fields.
     let creation_time = match &vaa {
