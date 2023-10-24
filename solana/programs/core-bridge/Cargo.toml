@@ -26,7 +26,7 @@ testnet = []
 
 [dependencies]
 wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "=0.0.0-alpha.9", features = ["ruint", "on-chain"], default-features = false }
+wormhole-raw-vaas = { version = "=0.0.0-alpha.10", features = ["ruint", "on-chain"], default-features = false }
 
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 solana-program = "1.16.16"
