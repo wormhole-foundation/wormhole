@@ -86,5 +86,11 @@ pub fn validate_token_transfer_with_payload_vaa(
 pub fn order_complete_transfer_with_payload_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
-    fix_account_order(account_infos, 14, true, false)
+    fix_account_order(
+        account_infos,
+        11,       // start_index
+        12,       // system_program_index
+        Some(13), // token_program_index
+        None,     // core_bridge_program_index
+    )
 }

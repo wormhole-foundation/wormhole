@@ -125,10 +125,12 @@ pub(super) fn order_post_message_account_infos<'info>(
     // We only need to order the account infos if there are more than 8 accounts.
     if infos.len() > NUM_ACCOUNTS {
         // System program needs to exist in these account infos.
-        let system_program_idx = infos
-            .iter()
-            .position(|info| info.key() == anchor_lang::system_program::ID)
-            .ok_or(error!(ErrorCode::InvalidProgramId))?;
+        let system_program_idx = SYSTEM_PROGRAM_IDX
+            + infos
+                .iter()
+                .skip(SYSTEM_PROGRAM_IDX)
+                .position(|info| info.key() == anchor_lang::system_program::ID)
+                .ok_or(error!(ErrorCode::InvalidProgramId))?;
 
         // Make sure System program is in the right index.
         if system_program_idx != SYSTEM_PROGRAM_IDX {

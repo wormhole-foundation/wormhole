@@ -36,5 +36,11 @@ use crate::utils::fix_account_order;
 pub(super) fn order_transfer_tokens_with_payload_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
-    fix_account_order(account_infos, 18, true, true)
+    fix_account_order(
+        account_infos,
+        14,       // start_index
+        15,       // system_program_index
+        Some(16), // token_program_index
+        Some(17), // core_bridge_program_index
+    )
 }

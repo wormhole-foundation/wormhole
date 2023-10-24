@@ -109,7 +109,13 @@ impl<'info>
     fn order_account_infos<'a>(
         account_infos: &'a [AccountInfo<'info>],
     ) -> Result<Vec<AccountInfo<'info>>> {
-        utils::fix_account_order(account_infos, 14, false, true)
+        utils::fix_account_order(
+            account_infos,
+            11,       // start_index
+            12,       // system_program_index
+            None,     // token_program_index
+            Some(13), // core_bridge_program_index
+        )
     }
 }
 

@@ -108,5 +108,11 @@ pub fn validate_token_transfer_vaa(
 pub fn order_complete_transfer_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
-    fix_account_order(account_infos, 13, true, false)
+    fix_account_order(
+        account_infos,
+        10,       // start_index
+        11,       // system_program_index
+        Some(12), // token_program_index
+        None,     // core_bridge_program_index
+    )
 }
