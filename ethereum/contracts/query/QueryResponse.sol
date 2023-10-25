@@ -54,6 +54,7 @@ abstract contract QueryResponse {
     using BytesParsing for bytes;
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
+    uint8 public constant VERSION = 1;
     uint8 public constant QT_ETH_CALL = 1;
 
     /// @dev getResponseHash computes the hash of the specified query response.
@@ -73,12 +74,13 @@ abstract contract QueryResponse {
         uint index = 0;
         
         (r.version, index) = response.asUint8Unchecked(index);
-        if (r.version != 1) {
+        if (r.version != VERSION) {
             revert InvalidResponseVersion();
         }
 
         (r.senderChainId, index) = response.asUint16Unchecked(index);
 
+        // For off chain requests (chainID zero), the requestId is the 65 byte signature. For on chain requests, it is the 32 byte VAA hash.
         if (r.senderChainId == 0) {
             (r.requestId, index) = response.sliceUnchecked(index, 65);
         } else {
@@ -200,7 +202,7 @@ abstract contract QueryResponse {
      */
     function verifyQueryResponseSignatures(address _wormhole, bytes memory response, IWormhole.Signature[] memory signatures) public view {
         IWormhole wormhole = IWormhole(_wormhole);
-        // TODO: make a verifyCurrentQuorum call on the core bridge so that there is only 1 cross call instead of 4
+        // It might be worth adding a verifyCurrentQuorum call on the core bridge so that there is only 1 cross call instead of 4.
         uint32 gsi = wormhole.getCurrentGuardianSetIndex();
         IWormhole.GuardianSet memory guardianSet = wormhole.getGuardianSet(gsi);
 
