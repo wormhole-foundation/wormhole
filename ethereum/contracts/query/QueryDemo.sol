@@ -84,15 +84,16 @@ contract QueryDemo is QueryResponse {
         return ret;
     }
 
-    // @notice Takes the cross chain query response for the two other counters, stores the results for the other chains, and updates the counter for this chain.
+    // @notice Takes the cross chain query response for the other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
         uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
-        if (r.responses.length != foreignChainIDs.length) {
+        uint numResponses = r.responses.length;
+        if (numResponses != foreignChainIDs.length) {
             revert UnexpectedResultLength();
         }
 
-        for (uint i=0; i < r.responses.length;) {
+        for (uint i=0; i < numResponses;) {
             // Create a storage pointer for frequently read and updated data stored on the blockchain
             ChainEntry storage chainEntry = counters[r.responses[i].chainId];
             if (chainEntry.chainID != foreignChainIDs[i]) {
