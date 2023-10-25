@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"math/rand"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -1001,5 +1004,106 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRPCsRequest) (*nodev1.DumpRPCsResponse, error) {
 	return &nodev1.DumpRPCsResponse{
 		Response: s.rpcMap,
+	}, nil
+}
+
+func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, req *nodev1.GetAndObserveMissingVAAsRequest) (*nodev1.GetAndObserveMissingVAAsResponse, error) {
+	// Get URL and API key from the command line
+	url := req.GetUrl()
+	apiKey := req.GetApiKey()
+
+	// Create the body of the request
+	jsonBody := []byte(`{"apiKey": "` + apiKey + `"}`)
+	jsonBodyReader := bytes.NewReader(jsonBody)
+
+	// Create the actual request
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, jsonBodyReader)
+	if err != nil {
+		fmt.Printf("GetAndObserveMissingVAAs: could not create request: %s\n", err)
+		return nil, err
+	}
+
+	httpRequest.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Call the cloud function to get the missing VAAs
+	results, err := client.Do(httpRequest)
+	if err != nil {
+		fmt.Printf("GetAndObserveMissingVAAs: error making http request: %s\n", err)
+		return nil, err
+	}
+
+	// Collect the results
+	resBody, err := io.ReadAll(results.Body)
+	if err != nil {
+		fmt.Printf("GetAndObserveMissingVAAs: could not read response body: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("client: response body: %s\n", resBody)
+	type MissingVAA struct {
+		chain  int
+		txhash string
+		vaaKey string // "<chain>/<emitter>/<sequence>"
+	}
+	var missingVAAs []MissingVAA
+	err = json.Unmarshal(resBody, &missingVAAs)
+	if err != nil {
+		fmt.Printf("GetAndObserveMissingVAAs: could not unmarshal response body: %s\n", err)
+		return nil, err
+	}
+
+	MAX_VAAS_TO_PROCESS := 25
+	// Only do a max of 25 at a time so as to not overload the node
+	numVaas := len(missingVAAs)
+	processingLen := numVaas
+	if processingLen > MAX_VAAS_TO_PROCESS {
+		processingLen = MAX_VAAS_TO_PROCESS
+	}
+
+	// Start injecting the VAAs
+	obsCounter := 0
+	errCounter := 0
+	for i := 0; i < processingLen; i++ {
+		missingVAA := missingVAAs[i]
+		// First check to see if this VAA has already been signed
+		// Convert vaaKey to VAAID
+		splits := strings.Split(missingVAA.vaaKey, "|")
+		chainID, err := strconv.Atoi(splits[0])
+		if err != nil {
+			errCounter++
+			continue
+		}
+		sequence, err := strconv.ParseUint(splits[2], 10, 64)
+		if err != nil {
+			errCounter++
+			continue
+		}
+		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence}
+		hasVaa, err := s.db.HasVAA(vaaKey)
+		if err != nil || hasVaa {
+			continue
+		}
+		var obsvReq gossipv1.ObservationRequest
+		obsvReq.ChainId = uint32(missingVAA.chain)
+		obsvReq.TxHash = []byte(missingVAA.txhash)
+		// Call the following function to send the observation request
+		if err := common.PostObservationRequest(s.obsvReqSendC, &obsvReq); err != nil {
+			errCounter++
+			continue
+		}
+		obsCounter++
+	}
+	response := "There were no missing VAAs to recover."
+	if processingLen > 0 {
+		response = fmt.Sprintf("Successfully injected %d of %d VAAs. %d errors were encountered.", errCounter, obsCounter, processingLen)
+		if numVaas > MAX_VAAS_TO_PROCESS {
+			response += fmt.Sprintf("\nOnly %d of the %d missing VAAs were processed.  Run the command again to process more.", MAX_VAAS_TO_PROCESS, numVaas)
+		}
+	}
+	return &nodev1.GetAndObserveMissingVAAsResponse{
+		Response: response,
 	}, nil
 }
