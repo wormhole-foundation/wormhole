@@ -121,8 +121,19 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, errC chan er
 					continue
 				}
 				sink <- &NewBlock{
-					Number: ev.Number,
-					Hash:   ev.Hash(),
+					Number:   ev.Number,
+					Hash:     ev.Hash(),
+					Finality: Finalized,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     ev.Hash(),
+					Finality: Safe,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     ev.Hash(),
+					Finality: Latest,
 				}
 			}
 		}

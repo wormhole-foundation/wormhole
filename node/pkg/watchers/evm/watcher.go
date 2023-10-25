@@ -59,6 +59,16 @@ var (
 			Name: "wormhole_eth_current_height",
 			Help: "Current Ethereum block height",
 		}, []string{"eth_network"})
+	currentEthSafeHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_eth_current_safe_height",
+			Help: "Current Ethereum safe block height",
+		}, []string{"eth_network"})
+	currentEthFinalizedHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_eth_current_finalized_height",
+			Help: "Current Ethereum finalized block height",
+		}, []string{"eth_network"})
 	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_eth_query_latency",
@@ -121,9 +131,12 @@ type (
 		maxWaitConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
-		ethConn       connectors.Connector
-		unsafeDevMode bool
+		ethConn             connectors.Connector
+		unsafeDevMode       bool
+		safeBlocksSupported bool
 
+		latestBlockNumber          uint64
+		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
 		latestSafeBlockNumber      uint64
 		l1Finalizer                interfaces.L1Finalizer
@@ -228,7 +241,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, w.safeBlocksSupported)
+		w.ethConn, err = connectors.NewBatchPollConnector(ctx, baseConnector, 250*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -255,7 +268,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewNeonFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
+		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -559,7 +572,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	// Watch headers
-	headSink := make(chan *connectors.NewBlock, 2)
+	headSink := make(chan *connectors.NewBlock, 100)
 	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, errC, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "header_subscribe_error").Inc()
@@ -584,7 +597,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					continue
 				}
 				if ev.Number == nil {
-					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName), zap.Bool("is_safe_block", ev.Safe))
+					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName), zap.Stringer("finality", ev.Finality))
 					continue
 				}
 
@@ -593,35 +606,42 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
-					zap.Bool("is_safe_block", ev.Safe),
+					zap.Stringer("finality", ev.Finality),
 					zap.String("eth_network", w.networkName))
 				readiness.SetReady(w.readinessSync)
 
-				w.pendingMu.Lock()
-
 				blockNumberU := ev.Number.Uint64()
-				if ev.Safe {
-					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
-				} else {
-					p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
-						Height:          ev.Number.Int64(),
-						ContractAddress: w.contract.Hex(),
-					})
-					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
-					currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
+				if ev.Finality == connectors.Latest {
+					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
+					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+					w.updateRegistry()
+					continue
 				}
 
+				// The only blocks that get here are safe and finalized.
+
+				if ev.Finality == connectors.Safe {
+					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
+					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+				} else {
+					atomic.StoreUint64(&currentBlockNumber, blockNumberU)
+					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
+					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+				}
+				w.updateRegistry()
+
+				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
 					// If this block is safe, only process messages wanting safe.
 					// If it's not safe, only process messages wanting finalized.
 					if w.safeBlocksSupported {
-						if ev.Safe != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
+						if (ev.Finality == connectors.Safe) != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
 							continue
 						}
 					}
 
 					var expectedConfirmations uint64
-					if w.waitForConfirmations && !ev.Safe {
+					if w.waitForConfirmations && ev.Finality != connectors.Safe {
 						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
 					}
 
@@ -633,7 +653,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("emitter_address", key.EmitterAddress),
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
-							zap.Bool("is_safe_block", ev.Safe),
+							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName),
 							zap.Uint64("expectedConfirmations", expectedConfirmations),
@@ -665,7 +685,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -684,7 +704,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -701,7 +721,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -718,7 +738,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName))
 							delete(w.pending, key)
@@ -732,7 +752,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("emitter_address", key.EmitterAddress),
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
-							zap.Bool("is_safe_block", ev.Safe),
+							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName))
 						delete(w.pending, key)
@@ -744,7 +764,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				w.pendingMu.Unlock()
 				logger.Debug("processed new header",
 					zap.Stringer("current_block", ev.Number),
-					zap.Bool("is_safe_block", ev.Safe),
+					zap.Stringer("finality", ev.Finality),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),
 					zap.String("eth_network", w.networkName))
@@ -909,4 +929,13 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+func (w *Watcher) updateRegistry() {
+	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+		Height:          int64(atomic.LoadUint64(&w.latestBlockNumber)),
+		SafeHeight:      int64(atomic.LoadUint64(&w.latestSafeBlockNumber)),
+		FinalizedHeight: int64(atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
+		ContractAddress: w.contract.Hex(),
+	})
 }

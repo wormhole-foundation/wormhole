@@ -1045,19 +1045,17 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(polygonRPC) {
-		// Checkpointing is required in mainnet, so we don't need to wait for confirmations.
-		waitForConfirmations := *unsafeDevMode || *testnetMode
-		if !waitForConfirmations && *polygonRootChainRpc == "" {
+		// Checkpointing is required in mainnet and testnet.
+		if !*unsafeDevMode && *polygonRootChainRpc == "" {
 			log.Fatal("Polygon checkpointing is required in mainnet")
 		}
 		wc := &evm.WatcherConfig{
-			NetworkID:            "polygon",
-			ChainID:              vaa.ChainIDPolygon,
-			Rpc:                  *polygonRPC,
-			Contract:             *polygonContract,
-			WaitForConfirmations: waitForConfirmations,
-			RootChainRpc:         *polygonRootChainRpc,
-			RootChainContract:    *polygonRootChainContractAddress,
+			NetworkID:         "polygon",
+			ChainID:           vaa.ChainIDPolygon,
+			Rpc:               *polygonRPC,
+			Contract:          *polygonContract,
+			RootChainRpc:      *polygonRootChainRpc,
+			RootChainContract: *polygonRootChainContractAddress,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
