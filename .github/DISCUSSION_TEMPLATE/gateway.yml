@@ -1,10 +1,6 @@
 title: "[Cosmos chain onboarding proposal] "
 labels: ["gateway"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-       "# Overview"
   - type: input 
     id: website 
     attributes:
@@ -39,19 +35,17 @@ body:
     id: stats 
     attributes:
       label: Community stats 
-      description: "Community Stats"
       value: |
+        <!---
+        Please include at least the following stats:
         - <X> Followers on Twitter 
         - <X> Followers on Telegram 
         - <X> Users on Discord
+        -->
     validations:
       required: true
 
 
-  - type: markdown
-    attributes:
-      value: |
-       "# Short Summary"
   - type: textarea 
     id: summary 
     attributes:
@@ -60,96 +54,61 @@ body:
     validations:
       required: true
 
-  - type: markdown 
-    attributes:
-      value: |
-       "# Why should Wormhole add this chain?"
   - type: textarea 
     id: why 
     attributes:
       label: Why should Wormhole add this chain?
-      placeholder: |
+      value: |
+        <!---
         - Please include specific use cases for Wormhole messaging and/or token bridging, as many metrics as possible, and other details such as:
         - **Light lift for Guardians** - Guardians are not required to run a full node for <chain> - connectivity will be via a Gateway IBC connection.
         - Other bridges that are already connected to the network.
         - Details and specific metrics about the ecosystem (dApps, users, etc).
         - Details about how your chain will use Wormhole messaging or token bridging.
         - Details around incentivized liquidity programs (if any) for your chain's native token and/or Wormhole-wrapped tokens.
+        -->
     validations:
       required: true
 
-
-  - type: markdown 
-    attributes:
-      value: |
-       "# Technology and Features"
   - type: textarea 
     id: technology 
     attributes:
       label: Technology and Features 
-      placeholder: |
-        Please include a short summary (max 5 dot points) about your chain's technology.
+      description: "Please include a short summary (max 5 dot points) about your chain's technology."
     validations:
       required: true
 
-  - type: markdown 
-    attributes:
-      value: |
-       "# Native token"
   - type: textarea 
     id: token 
     attributes:
       label: Native token details 
-      description: "Details about the native token and tokenomics"
+      description: "Details about the native token and tokenomics."
       value: |
+        <!---
+        Please include at least:
         - The max supply of tokens.
         - Use cases for the token (i.e. governance, fees, etc).
+        -->
     validations:
       required: true
 
-
-  - type: markdown 
-    attributes:
-      value: |
-       "# Node operators"
   - type: textarea 
     id:  node-operators 
     attributes:
       label: Technical requirements for running a node 
-      description: "Any extra requirements for Guardians"
-      value: |
-        If there are no extra requirements for guardians, please use the message below: 
-        None - [chain] will emit messages to Gateway via IBC. Guardians should not have to run anything additional (except for guardians who may run IBC relayers). 
+      description: "If there are no extra requirements for guardians, please use the following message: `None - [chain] will emit messages to Gateway via IBC. Guardians should not have to run anything additional (except for guardians who may run IBC relayers).`"
     validations:
       required: true
 
-
-  - type: markdown 
-    attributes:
-      value: |
-       "# IBC Relaying Strategy"
   - type: textarea 
     id: ibc-relaying 
     attributes:
       label: IBC Relaying Strategy 
-      description: "Any extra requirements for Guardians"
+      description: "Please describe how IBC relaying between Wormhole Gateway and your chain will be handled."
       value: |
-        Please describe how IBC relaying between Wormhole Gateway and your chain will be handled.
+        <!---
         - Are you asking one of the Wormhole Guardians to handle IBC relaying?
         - Do you already have an IBC relaying provider who is not a Wormhole Guardian? If so, please include as much information as possible on who they are and what kind of service agreement you have with them.
-    validations:
-      required: true
-
-  - type: markdown 
-    attributes:
-      value: |
-       "# RPC"
-  - type: textarea 
-    id: rpc 
-    attributes:
-      label: RPC 
-      description: "Describe which dedicated RPCs are for both mainnet and testnet are available"
-      value: |
-        Wormhole marquee UIs such as [Portal Bridge](https://portalbridge.com/) and [Connect](https://wormhole.com/connect/) require dedicated RPCs to provide the best user experience. We ask that you coordinate with an RPC provider to set these up for the Wormhole UIs to use.
+        -->
     validations:
       required: true
