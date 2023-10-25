@@ -159,6 +159,87 @@ contract TestQueryResponse is Test {
         assertEq(callSignature, bytes4(keccak256("getMyCounter()")));
         assertEq(eqr.result[0].result, hex"0000000000000000000000000000000000000000000000000000000000000004");
         assertEq(abi.decode(eqr.result[0].result, (uint256)), 4);
+    }
 
+    function test_parseEthCallByTimestampQueryResponse() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 2,
+            queryType: 2,
+            request: hex"00000003f4810cc0000000063078343237310000000630783432373202ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000418160ddd",
+            response: hex"0000000000004271ec70d2f70cf1933770ae760050a75334ce650aa091665ee43a6ed488cd154b0800000003f4810cc000000000000042720b1608c2cddfd9d7fb4ec94f79ec1389e2410e611a2c2bbde94e9ad37519ebbb00000003f4904f0002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
+            });
+
+        EthCallByTimestampQueryResponse memory eqr = queryResponse.parseEthCallByTimestampQueryResponse(r);
+        assertEq(eqr.requestTargetBlockIdHint, hex"307834323731");
+        assertEq(eqr.requestFollowingBlockIdHint, hex"307834323732");
+        assertEq(eqr.requestTargetTimestamp, 0x03f4810cc0);
+        assertEq(eqr.targetBlockNum, 0x0000000000004271);
+        assertEq(eqr.targetBlockHash, hex"ec70d2f70cf1933770ae760050a75334ce650aa091665ee43a6ed488cd154b08");
+        assertEq(eqr.targetBlockTime, 0x03f4810cc0);
+        assertEq(eqr.followingBlockNum, 0x0000000000004272);
+        assertEq(eqr.followingBlockHash, hex"0b1608c2cddfd9d7fb4ec94f79ec1389e2410e611a2c2bbde94e9ad37519ebbb");
+        assertEq(eqr.followingBlockTime, 0x03f4904f00);        
+        assertEq(eqr.result.length, 2);
+
+        assertEq(eqr.result[0].contractAddress, address(0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E));
+        assertEq(eqr.result[0].callData, hex"06fdde03");
+        assertEq(eqr.result[0].result, hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000");
+
+        assertEq(eqr.result[1].contractAddress, address(0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E));
+        assertEq(eqr.result[1].callData, hex"18160ddd");
+        assertEq(eqr.result[1].result, hex"0000000000000000000000000000000000000000000000000000000000000000");
+    }
+
+    function test_parseEthCallByTimestampQueryResponseRevertWrongQueryType() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 2,
+            queryType: 1,
+            request: hex"00000003f4810cc0000000063078343237310000000630783432373202ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000418160ddd",
+            response: hex"0000000000004271ec70d2f70cf1933770ae760050a75334ce650aa091665ee43a6ed488cd154b0800000003f4810cc000000000000042720b1608c2cddfd9d7fb4ec94f79ec1389e2410e611a2c2bbde94e9ad37519ebbb00000003f4904f0002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
+            });
+
+        vm.expectRevert(UnsupportedQueryType.selector);
+        queryResponse.parseEthCallByTimestampQueryResponse(r);
+    }
+
+    function test_parseEthCallWithFinalityQueryResponse() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 2,
+            queryType: 3,
+            request: hex"000000063078363032390000000966696e616c697a656402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000418160ddd",
+            response: hex"00000000000060299eb9c56ffdae81214867ed217f5ab37e295c196b4f04b23a795d3e4aea6ff3d700000005bb1bd58002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
+            });
+
+        EthCallWithFinalityQueryResponse memory eqr = queryResponse.parseEthCallWithFinalityQueryResponse(r);
+        assertEq(eqr.requestBlockId, hex"307836303239");
+        assertEq(eqr.requestFinality, hex"66696e616c697a6564");
+        assertEq(eqr.blockNum, 0x6029);
+        assertEq(eqr.blockHash, hex"9eb9c56ffdae81214867ed217f5ab37e295c196b4f04b23a795d3e4aea6ff3d7");
+        assertEq(eqr.blockTime, 0x05bb1bd580);
+        assertEq(eqr.result.length, 2);
+
+        assertEq(eqr.result[0].contractAddress, address(0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E));
+        assertEq(eqr.result[0].callData, hex"06fdde03");
+        assertEq(eqr.result[0].result, hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000");
+
+        assertEq(eqr.result[1].contractAddress, address(0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E));
+        assertEq(eqr.result[1].callData, hex"18160ddd");
+        assertEq(eqr.result[1].result, hex"0000000000000000000000000000000000000000000000000000000000000000");
+    }
+
+    function test_parseEthCallWithFinalityQueryResponseRevertWrongQueryType() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 2,
+            queryType: 1,
+            request: hex"000000063078363032390000000966696e616c697a656402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000418160ddd",
+            response: hex"00000000000060299eb9c56ffdae81214867ed217f5ab37e295c196b4f04b23a795d3e4aea6ff3d700000005bb1bd58002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
+            });
+
+        vm.expectRevert(UnsupportedQueryType.selector);
+        queryResponse.parseEthCallWithFinalityQueryResponse(r);
     }
 }
