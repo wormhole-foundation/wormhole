@@ -36,7 +36,6 @@ pub struct PublishHelloWorld<'info> {
     core_program_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account will be created by the Core Bridge program using a generated keypair.
@@ -184,7 +183,6 @@ pub struct PublishHelloWorld<'info> {
     core_program_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account will be created by the Core Bridge program using a generated keypair.

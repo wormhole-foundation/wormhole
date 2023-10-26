@@ -15,7 +15,12 @@ export async function expectEqualBridgeAccounts(
     Config.fromPda(connection, program.programId),
     Config.fromPda(connection, forkedProgram.programId),
   ]);
-  expectDeepEqual(bridgeData, forkBridgeData);
+
+  // Do not check last lamports because these two values will diverge due to the change in message
+  // fee handling.
+  const { lastLamports, ...otherBridgeData } = bridgeData;
+  const { lastLamports: forkedLastLamports, ...otherForkBridgeData } = forkBridgeData;
+  expectDeepEqual(otherBridgeData, otherForkBridgeData);
 }
 
 export async function expectEqualMessageAccounts(
@@ -150,12 +155,6 @@ export async function expectOkPostMessage(
     nullAccounts = { feeCollector: false, clock: false, rent: false };
   }
 
-  const connection = program.provider.connection;
-  const { feeLamports, lastLamports: lastLamportsBefore } = await coreBridge.Config.fromPda(
-    connection,
-    program.programId
-  );
-
   const { payer, message: messageSigner, emitter: emitterSigner } = signers;
   const txSigners = [payer];
 
@@ -199,6 +198,8 @@ export async function expectOkPostMessage(
     expectDeepEqual(ix.keys[8].pubkey, program.programId);
   }
 
+  const connection = program.provider.connection;
+
   const txDetails = await expectIxOkDetails(
     connection,
     createTransferFeeIx
@@ -233,7 +234,6 @@ export async function expectOkPostMessage(
   expectDeepEqual(emitterSequenceData, { sequence: sequence.addn(1) });
 
   const config = await coreBridge.Config.fromPda(connection, program.programId);
-  expectDeepEqual(lastLamportsBefore.add(feeLamports), config.lastLamports);
 
   return { postedMessageData, emitterSequence, config };
 }

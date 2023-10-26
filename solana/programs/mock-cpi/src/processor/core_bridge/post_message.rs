@@ -35,7 +35,6 @@ pub struct MockPostMessage<'info> {
     core_custom_emitter: Option<AccountInfo<'info>>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.

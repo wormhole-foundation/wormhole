@@ -19,9 +19,9 @@ use anchor_lang::{prelude::*, system_program};
 #[derive(Accounts)]
 #[instruction(args: PostMessageArgs)]
 pub struct PostMessage<'info> {
-    /// This account is needed to determine whether the Core Bridge fee has been paid.
+    /// This account is needed to determine how many lamports to transfer from the payer for the
+    /// message fee (if there is one).
     #[account(
-        mut,
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
@@ -153,7 +153,7 @@ pub(super) struct MessageFeeContext<'ctx, 'info> {
 /// returns the posted message data, which will be serialized to either `PostedMessageV1` or
 /// `PostedMessageV1Unreliable` depending on which instruction handler called this method.
 pub(super) fn new_posted_message_info<'info>(
-    config: &mut Account<'info, LegacyAnchorized<0, Config>>,
+    config: &Account<'info, LegacyAnchorized<0, Config>>,
     message_fee_ctx: MessageFeeContext<'_, 'info>,
     emitter_sequence: &mut Account<'info, LegacyAnchorized<0, EmitterSequence>>,
     consistency_level: u8,
@@ -226,7 +226,7 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     }
 
     let info = new_posted_message_info(
-        &mut ctx.accounts.config,
+        &ctx.accounts.config,
         MessageFeeContext {
             payer: &ctx.accounts.payer,
             fee_collector: &ctx.accounts.fee_collector,
@@ -279,7 +279,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     };
 
     let info = new_posted_message_info(
-        &mut ctx.accounts.config,
+        &ctx.accounts.config,
         MessageFeeContext {
             payer: &ctx.accounts.payer,
             fee_collector: &ctx.accounts.fee_collector,
@@ -302,7 +302,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
 
 /// If there is a fee, check the fee collector account to ensure that the fee has been paid.
 fn handle_message_fee<'info>(
-    config: &mut Account<'info, LegacyAnchorized<0, Config>>,
+    config: &Account<'info, LegacyAnchorized<0, Config>>,
     message_fee_ctx: MessageFeeContext<'_, 'info>,
 ) -> Result<()> {
     if config.fee_lamports > 0 {
@@ -332,16 +332,11 @@ fn handle_message_fee<'info>(
                 },
             ),
             config.fee_lamports,
-        )?;
-
-        // Sync the config to reflect paid fees. Because fees are now paid within the instruction
-        // handler, this last lamports value is not useful anymore. We can consider removing this
-        // step.
-        config.last_lamports = fee_collector.lamports();
+        )
+    } else {
+        // Nothing to do.
+        Ok(())
     }
-
-    // Done.
-    Ok(())
 }
 
 /// For posting a message, either a message has been prepared beforehand or this account is created

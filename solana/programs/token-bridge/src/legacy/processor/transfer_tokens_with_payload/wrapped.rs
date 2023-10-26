@@ -56,7 +56,6 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     transfer_authority: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.

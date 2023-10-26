@@ -163,7 +163,7 @@ pub struct TransferTokensNative {
     /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
     /// token_bridge_program).
     pub custody_authority: Pubkey,
-    /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\], seeds::program =
+    /// CHECK: Core Bridge Program Data (read-only, seeds = \["Bridge"\], seeds::program =
     /// core_bridge_program).
     pub core_bridge_config: Pubkey,
     /// CHECK: Core Bridge Message (mut).
@@ -195,7 +195,7 @@ impl ToAccountMetas for TransferTokensNative {
             AccountMeta::new(self.custody_token, false),
             AccountMeta::new_readonly(self.transfer_authority, false),
             AccountMeta::new_readonly(self.custody_authority, false),
-            AccountMeta::new(self.core_bridge_config, false),
+            AccountMeta::new_readonly(self.core_bridge_config, false),
             AccountMeta::new(self.core_message, true),
             AccountMeta::new_readonly(self.core_emitter, false),
             AccountMeta::new(self.core_emitter_sequence, false),
@@ -223,7 +223,7 @@ pub struct TransferTokensWrapped {
     /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
     /// token_bridge_program).
     pub transfer_authority: Pubkey,
-    /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\], seeds::program =
+    /// CHECK: Core Bridge Program Data (read-only, seeds = \["Bridge"\], seeds::program =
     /// core_bridge_program).
     pub core_bridge_config: Pubkey,
     /// CHECK: Core Bridge Message (mut).
@@ -258,7 +258,7 @@ impl ToAccountMetas for TransferTokensWrapped {
             AccountMeta::new(self.wrapped_mint, false),
             AccountMeta::new_readonly(self.wrapped_asset, false),
             AccountMeta::new_readonly(self.transfer_authority, false),
-            AccountMeta::new(self.core_bridge_config, false),
+            AccountMeta::new_readonly(self.core_bridge_config, false),
             AccountMeta::new(self.core_message, true),
             AccountMeta::new_readonly(self.core_emitter, false),
             AccountMeta::new(self.core_emitter_sequence, false),
@@ -300,7 +300,7 @@ impl ToAccountMetas for TransferTokensWithPayloadNative {
             AccountMeta::new(self.custody_token, false),
             AccountMeta::new_readonly(self.transfer_authority, false),
             AccountMeta::new_readonly(self.custody_authority, false),
-            AccountMeta::new(self.core_bridge_config, false),
+            AccountMeta::new_readonly(self.core_bridge_config, false),
             AccountMeta::new(self.core_message, true),
             AccountMeta::new_readonly(self.core_emitter, false),
             AccountMeta::new(self.core_emitter_sequence, false),
@@ -342,7 +342,7 @@ impl ToAccountMetas for TransferTokensWithPayloadWrapped {
             AccountMeta::new(self.wrapped_mint, false),
             AccountMeta::new_readonly(self.wrapped_asset, false),
             AccountMeta::new_readonly(self.transfer_authority, false),
-            AccountMeta::new(self.core_bridge_config, false),
+            AccountMeta::new_readonly(self.core_bridge_config, false),
             AccountMeta::new(self.core_message, true),
             AccountMeta::new_readonly(self.core_emitter, false),
             AccountMeta::new(self.core_emitter_sequence, false),

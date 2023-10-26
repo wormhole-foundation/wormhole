@@ -305,7 +305,7 @@ async function parallelEverythingOk(
     ),
   ]);
 
-  for (const key of ["postedMessageData", "emitterSequence", "config"]) {
+  for (const key of ["postedMessageData", "emitterSequence"]) {
     expectDeepEqual(out[key], forkOut[key]);
   }
 

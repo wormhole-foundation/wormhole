@@ -36,7 +36,6 @@ pub struct AttestToken<'info> {
     token_metadata: Account<'info, metadata::MetadataAccount>,
 
     /// CHECK: This account is needed for the Core Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.

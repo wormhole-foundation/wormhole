@@ -40,7 +40,6 @@ pub struct MockLegacyTransferTokensNative<'info> {
     token_bridge_custody_authority: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.

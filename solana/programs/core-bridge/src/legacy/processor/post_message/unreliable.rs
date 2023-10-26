@@ -9,9 +9,9 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 #[instruction(_nonce: u32, payload_len: u32)]
 pub struct PostMessageUnreliable<'info> {
-    /// This account is needed to determine whether the Core Bridge fee has been paid.
+    /// This account is needed to determine how many lamports to transfer from the payer for the
+    /// message fee (if there is one).
     #[account(
-        mut,
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
@@ -120,7 +120,7 @@ fn post_message_unreliable(
     );
 
     let info = super::new_posted_message_info(
-        &mut ctx.accounts.config,
+        &ctx.accounts.config,
         super::MessageFeeContext {
             payer: &ctx.accounts.payer,
             fee_collector: &ctx.accounts.fee_collector,

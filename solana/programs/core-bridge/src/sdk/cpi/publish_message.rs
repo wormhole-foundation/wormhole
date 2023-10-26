@@ -16,7 +16,7 @@ pub trait PublishMessage<'info>: super::system_program::CreateAccount<'info> {
     /// message before it is posted.
     fn core_emitter_authority(&self) -> AccountInfo<'info>;
 
-    /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
+    /// Core Bridge Program Data (read-only, seeds = \["Bridge"\]).
     fn core_bridge_config(&self) -> AccountInfo<'info>;
 
     /// Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\]).

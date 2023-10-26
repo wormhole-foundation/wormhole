@@ -36,7 +36,6 @@ pub struct MockLegacyTransferTokensWrapped<'info> {
     token_bridge_transfer_authority: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.

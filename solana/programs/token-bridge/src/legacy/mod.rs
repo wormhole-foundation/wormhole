@@ -430,7 +430,7 @@ pub mod cpi {
         /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\], seeds::program =
+        /// CHECK: Core Bridge Config (read-only, seeds = \["Bridge"\], seeds::program =
         /// core_bridge_program).
         pub core_bridge_config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
@@ -467,7 +467,7 @@ pub mod cpi {
         /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
         /// token_bridge_program).
         pub transfer_authority: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program Data (mut, seeds = \["Bridge"\], seeds::program =
+        /// CHECK: Core Bridge Config (read-only, seeds = \["Bridge"\], seeds::program =
         /// core_bridge_program).
         pub core_bridge_config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
@@ -506,7 +506,7 @@ pub mod cpi {
         /// CHECK: Custody Authority (read-only, seeds = ["custody_signer"], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program Data (mut, seeds = ["Bridge"], seeds::program =
+        /// CHECK: Core Bridge Config (read-only, seeds = ["Bridge"], seeds::program =
         /// core_bridge_program).
         pub core_bridge_config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).
@@ -548,7 +548,7 @@ pub mod cpi {
         /// CHECK: Transfer Authority (read-only, seeds = ["authority_signer"], seeds::program =
         /// token_bridge_program).
         pub transfer_authority: AccountInfo<'info>,
-        /// CHECK: Core Bridge Program Data (mut, seeds = ["Bridge"], seeds::program =
+        /// CHECK: Core Bridge Config (read-only, seeds = ["Bridge"], seeds::program =
         /// core_bridge_program).
         pub core_bridge_config: AccountInfo<'info>,
         /// CHECK: Core Bridge Message (mut).

@@ -9,7 +9,7 @@ use solana_program::instruction::AccountMeta;
 
 /// Context to post a new Core Bridge message.
 pub struct PostMessage {
-    /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
+    /// Core Bridge Config (read-only, seeds = \["Bridge"\]).
     pub config: Pubkey,
     /// Core Bridge Message (mut).
     pub message: Pubkey,
@@ -39,7 +39,7 @@ impl ToAccountMetas for PostMessage {
         };
 
         vec![
-            AccountMeta::new(self.config, false),
+            AccountMeta::new_readonly(self.config, false),
             AccountMeta::new(self.message, message_is_signer.unwrap_or(true)),
             AccountMeta::new_readonly(emitter, emitter_is_signer),
             AccountMeta::new(self.emitter_sequence, false),
@@ -53,7 +53,7 @@ impl ToAccountMetas for PostMessage {
 
 /// Context to post a new or reuse an existing Core Bridge message.
 pub struct PostMessageUnreliable {
-    /// Core Bridge Program Data (mut, seeds = \["Bridge"\]).
+    /// Core Bridge Config (read-only, seeds = \["Bridge"\]).
     pub config: Pubkey,
     /// Core Bridge Message (mut).
     pub message: Pubkey,
@@ -72,7 +72,7 @@ pub struct PostMessageUnreliable {
 impl ToAccountMetas for PostMessageUnreliable {
     fn to_account_metas(&self, _is_signer: Option<bool>) -> Vec<AccountMeta> {
         vec![
-            AccountMeta::new(self.config, false),
+            AccountMeta::new_readonly(self.config, false),
             AccountMeta::new(self.message, true),
             AccountMeta::new_readonly(self.emitter, true),
             AccountMeta::new(self.emitter_sequence, false),

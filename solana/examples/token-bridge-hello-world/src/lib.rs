@@ -178,7 +178,6 @@ pub struct TransferHelloWorld<'info> {
     token_bridge_core_emitter: UncheckedAccount<'info>,
 
     /// CHECK: This account is needed for the Token Bridge program.
-    #[account(mut)]
     core_bridge_config: UncheckedAccount<'info>,
 
     /// CHECK: This account will be created using a generated keypair.
