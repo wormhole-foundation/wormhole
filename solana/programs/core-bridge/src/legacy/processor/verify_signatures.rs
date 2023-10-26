@@ -5,6 +5,7 @@ use crate::{
     types::MessageHash,
 };
 use anchor_lang::{prelude::*, solana_program::sysvar};
+use solana_program::program_memory::sol_memcpy;
 
 /// Offset schema used by the Sig Verify native program.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, InitSpace)]
@@ -122,33 +123,25 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // It would have been nice to be able to perform this check in `access_control`, but there
     // is no data from the instruction sysvar loaded by that point. We have to load it and perform
     // the safety checks in this instruction handler.
-    let instruction_sysvar_data = ctx.accounts.instructions.data.borrow();
+    let instructions_sysvar = &ctx.accounts.instructions;
 
     // We grab the index of the instruction before this instruction, which should be the sig verify
-    // program. To avoid a redundant Instructions sysvar check, we allow this deprecated method.
-    //
-    // NOTE: To avoid a redundant instructions sysvar check, we allow the deprecated method to
-    // load the instruction data.
-    #[allow(deprecated)]
+    // program.
     let sig_verify_index = u16::checked_sub(
-        sysvar::instructions::load_current_index(&instruction_sysvar_data),
+        sysvar::instructions::load_current_index_checked(instructions_sysvar)?,
         1,
     )
     .ok_or(CoreBridgeError::InstructionAtWrongIndex)?;
 
     // And here we verify that the previous instruction is actually the Sig Verify native program.
-    //
-    // NOTE: To avoid a redundant instructions sysvar check, we allow the deprecated method to
-    // load the instruction data.
-    #[allow(deprecated)]
     let SigVerifyParameters {
         eth_pubkeys: signers,
         message,
-    } = sysvar::instructions::load_instruction_at(
+    } = sysvar::instructions::load_instruction_at_checked(
         usize::from(sig_verify_index),
-        &instruction_sysvar_data,
+        instructions_sysvar,
     )
-    .map_err(|_| ProgramError::InvalidInstructionData.into())
+    .map_err(Into::into)
     .and_then(|ix| deserialize_secp256k1_ix(sig_verify_index, &ix))?;
 
     // Number of specified signers must equal the number of signatures verified in the Sig Verify
@@ -274,7 +267,7 @@ fn deserialize_secp256k1_ix(
 
         let eth_pubkey_offset = usize::from(eth_pubkey_offset);
         let mut eth_pubkey = [0; 20];
-        eth_pubkey.copy_from_slice(&ix_data[eth_pubkey_offset..(eth_pubkey_offset + 20)]);
+        sol_memcpy(&mut eth_pubkey, &ix_data[eth_pubkey_offset..], 20);
 
         // The message offset should be the same for each sig verify offsets since each signature is
         // for the same message.
@@ -293,7 +286,7 @@ fn deserialize_secp256k1_ix(
 
     if let Some(message_offset) = expected_message_offset {
         let mut message = [0; 32];
-        message.copy_from_slice(&ix_data[message_offset..(message_offset + 32)]);
+        sol_memcpy(&mut message, &ix_data[message_offset..], 32);
 
         Ok(SigVerifyParameters {
             eth_pubkeys,

@@ -5,7 +5,7 @@ use crate::{
     zero_copy::EncodedVaa,
 };
 use anchor_lang::prelude::*;
-use solana_program::{keccak, secp256k1_recover::secp256k1_recover};
+use solana_program::{keccak, program_memory::sol_memcpy, secp256k1_recover::secp256k1_recover};
 use wormhole_raw_vaas::{GuardianSetSig, Vaa};
 
 #[derive(Accounts)]
@@ -145,7 +145,7 @@ fn verify_guardian_signature(
         let hashed = keccak::hash(&pubkey.to_bytes());
 
         let mut eth_pubkey = [0; 20];
-        eth_pubkey.copy_from_slice(&hashed.0[12..]);
+        sol_memcpy(&mut eth_pubkey, &hashed.0[12..], 20);
 
         eth_pubkey
     };

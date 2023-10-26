@@ -1,5 +1,6 @@
 use crate::{error::CoreBridgeError, state::ProcessingStatus, zero_copy::EncodedVaa};
 use anchor_lang::prelude::*;
+use solana_program::program_memory::sol_memcpy;
 
 #[derive(Accounts)]
 pub struct WriteEncodedVaa<'info> {
@@ -57,11 +58,17 @@ pub fn write_encoded_vaa(ctx: Context<WriteEncodedVaa>, args: WriteEncodedVaaArg
     };
 
     let index = usize::try_from(index).unwrap();
-    let end = index.saturating_add(data.len());
-    require!(end <= vaa_size, CoreBridgeError::DataOverflow);
+    require!(
+        index.saturating_add(data.len()) <= vaa_size,
+        CoreBridgeError::DataOverflow
+    );
 
     let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
-    acc_data[(EncodedVaa::VAA_START + index)..(EncodedVaa::VAA_START + end)].copy_from_slice(&data);
+    sol_memcpy(
+        &mut acc_data[(EncodedVaa::VAA_START + index)..],
+        &data,
+        data.len(),
+    );
 
     // Done.
     Ok(())

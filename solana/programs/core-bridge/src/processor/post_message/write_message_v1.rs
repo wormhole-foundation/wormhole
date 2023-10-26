@@ -4,6 +4,7 @@ use crate::{
     zero_copy::{LoadZeroCopy, PostedMessageV1},
 };
 use anchor_lang::prelude::*;
+use solana_program::program_memory::sol_memcpy;
 
 #[derive(Accounts)]
 pub struct WriteMessageV1<'info> {
@@ -61,12 +62,17 @@ pub fn write_message_v1(ctx: Context<WriteMessageV1>, args: WriteMessageV1Args) 
     };
 
     let index = usize::try_from(index).unwrap();
-    let end = index.saturating_add(data.len());
-    require!(end <= msg_length, CoreBridgeError::DataOverflow);
+    require!(
+        index.saturating_add(data.len()) <= msg_length,
+        CoreBridgeError::DataOverflow
+    );
 
     let acc_data = &mut ctx.accounts.draft_message.data.borrow_mut();
-    acc_data[(PostedMessageV1::PAYLOAD_START + index)..(PostedMessageV1::PAYLOAD_START + end)]
-        .copy_from_slice(&data);
+    sol_memcpy(
+        &mut acc_data[(PostedMessageV1::PAYLOAD_START + index)..],
+        &data,
+        data.len(),
+    );
 
     // Done.
     Ok(())

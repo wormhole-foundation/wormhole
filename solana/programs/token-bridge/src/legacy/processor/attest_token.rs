@@ -4,6 +4,7 @@ use crate::{
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
 use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
+use solana_program::program_memory::sol_memcpy;
 
 #[derive(Accounts)]
 pub struct AttestToken<'info> {
@@ -158,9 +159,9 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
 pub(crate) fn string_to_fixed32(s: &String) -> [u8; 32] {
     let mut bytes = [0; 32];
     if s.len() > 32 {
-        bytes.copy_from_slice(&s.as_bytes()[..32]);
+        sol_memcpy(&mut bytes, &s.as_bytes(), 32);
     } else {
-        bytes[..s.len()].copy_from_slice(s.as_bytes());
+        sol_memcpy(&mut bytes, &s.as_bytes(), s.len());
     }
     bytes
 }
