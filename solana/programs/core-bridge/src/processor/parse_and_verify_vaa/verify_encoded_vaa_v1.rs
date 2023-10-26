@@ -87,7 +87,6 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
 
         // Only verify as many as we need (up to quorum).
         let mut last_guardian_index = None;
-        let mut num_verified = 0;
         for sig in vaa.signatures() {
             // We do not allow for non-increasing guardian signature indices.
             let index = usize::from(sig.guardian_index());
@@ -102,12 +101,6 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
 
             // Now verify that the signature agrees with the expected Guardian's pubkey.
             verify_guardian_signature(&sig, guardian_pubkey, digest.as_ref())?;
-            num_verified += 1;
-
-            // If we have reached quorum, no need to spend compute units to verify other signatures.
-            if num_verified == quorum {
-                break;
-            }
 
             last_guardian_index = Some(index);
         }
