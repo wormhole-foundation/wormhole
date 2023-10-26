@@ -180,6 +180,7 @@ func NewEthWatcher(
 }
 
 func (w *Watcher) Run(parentCtx context.Context) error {
+	var err error
 	logger := supervisor.Logger(parentCtx)
 
 	logger.Info("Starting watcher",
@@ -197,16 +198,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
 	defer watcherContextCancelFunc()
 
-	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
-	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
-		ufb, err := w.getAcalaMode(ctx)
-		if err != nil {
-			return err
-		}
-
-		if ufb {
-			useFinalizedBlocks = true
-		}
+	var useFinalizedBlocks, safeBlocksSupported bool
+	useFinalizedBlocks, safeBlocksSupported, err = w.getFinality(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine finality: %w", err)
 	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
@@ -217,21 +212,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	safeBlocksSupported := false
-
-	var err error
-	if w.chainID == vaa.ChainIDCelo && !w.unsafeDevMode {
-		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
-		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
-		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-	} else if useFinalizedBlocks {
-		if (w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && !w.unsafeDevMode {
-			safeBlocksSupported = true
+	if useFinalizedBlocks {
+		if safeBlocksSupported {
 			logger.Info("using finalized blocks, will publish safe blocks")
 		} else {
 			logger.Info("using finalized blocks")
@@ -249,21 +231,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDMoonbeam && !w.unsafeDevMode {
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+	} else if w.chainID == vaa.ChainIDCelo {
+		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
+		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
+		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		finalizer := finalizers.NewMoonbeamFinalizer(logger, baseConnector)
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDNeon && !w.unsafeDevMode {
+	} else if w.chainID == vaa.ChainIDNeon {
+		// Neon needs special handling to read log events.
 		if w.l1Finalizer == nil {
 			return fmt.Errorf("unable to create neon watcher because the l1 finalizer is not set")
 		}
@@ -286,41 +264,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDArbitrum && !w.unsafeDevMode {
-		if w.l1Finalizer == nil {
-			return fmt.Errorf("unable to create arbitrum watcher because the l1 finalizer is not set")
-		}
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating arbitrum connector failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
-		// This only supports Bedrock mode
-		useFinalizedBlocks = true
-		safeBlocksSupported = true
-		logger.Info("using finalized blocks, will publish safe blocks")
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating optimism connector failed: %w", err)
-		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
+		// Polygon polls the root contract on Ethereum.
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
@@ -337,22 +282,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to create polygon connector: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDBase && !w.unsafeDevMode {
-		useFinalizedBlocks = true
-		safeBlocksSupported = true
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating base connector failed: %w", err)
-		}
 	} else {
+		// Everything else is instant finality.
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
@@ -889,41 +820,56 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	return currentIndex, &gs, nil
 }
 
-func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, errRet error) {
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	c, err := rpc.DialContext(timeout, w.url)
-	if err != nil {
-		errRet = fmt.Errorf("failed to connect to url %s to check acala mode: %w", w.url, err)
-		return
+// getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
+// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
+func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
+	var finalized, safe bool
+	if w.unsafeDevMode {
+		// Devnet supports finalized and safe (although they returns the same value as latest).
+		finalized = true
+		safe = true
+	} else if w.chainID == vaa.ChainIDAcala ||
+		w.chainID == vaa.ChainIDArbitrum ||
+		w.chainID == vaa.ChainIDBase ||
+		w.chainID == vaa.ChainIDBSC ||
+		w.chainID == vaa.ChainIDEthereum ||
+		w.chainID == vaa.ChainIDKarura ||
+		w.chainID == vaa.ChainIDMoonbeam ||
+		w.chainID == vaa.ChainIDOptimism ||
+		w.chainID == vaa.ChainIDSepolia {
+		finalized = true
+		safe = true
 	}
 
-	// First check to see if polling for finalized blocks is suported.
-	type Marshaller struct {
-		Number *eth_hexutil.Big
+	// If finalized / safe should be supported, read the RPC to make sure they actually are.
+	if finalized {
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+
+		c, err := rpc.DialContext(timeout, w.url)
+		if err != nil {
+			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
+		}
+
+		type Marshaller struct {
+			Number *eth_hexutil.Big
+		}
+		var m Marshaller
+
+		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
+		if err != nil {
+			return false, false, fmt.Errorf("finalized not supported by the node when it should be: %w", err)
+		}
+
+		if safe {
+			err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
+			if err != nil {
+				return false, false, fmt.Errorf("safe not supported by the node when it should be: %w", err)
+			}
+		}
 	}
 
-	var m Marshaller
-	err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
-	if err == nil {
-		useFinalizedBlocks = true
-		return
-	}
-
-	// If finalized blocks are not supported, then we had better be in safe mode!
-	var safe bool
-	err = c.CallContext(ctx, &safe, "net_isSafeMode")
-	if err != nil {
-		errRet = fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
-		return
-	}
-
-	if !safe {
-		errRet = fmt.Errorf("url %s does not support finalized blocks and is not using safe mode", w.url)
-	}
-
-	return
+	return finalized, safe, nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.
