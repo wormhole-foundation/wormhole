@@ -72,7 +72,11 @@ async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
   let targetBlockNumber = BigInt(0);
   let targetBlockTime = BigInt(0);
   while (targetBlockNumber === BigInt(0)) {
-    const followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    let followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    while (Number(followingBlock) <= 0) {
+      await sleep(1000);
+      followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    }
     const targetBlock = await web3.eth.getBlock(
       (Number(followingBlockNumber) - 1).toString()
     );
@@ -84,6 +88,10 @@ async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
     }
   }
   return [targetBlockTime, targetBlockNumber, followingBlockNumber];
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe("eth call", () => {
