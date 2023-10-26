@@ -159,7 +159,8 @@ async function everythingOk(
       emitter: emitterAuthority.publicKey,
     },
     undefined,
-    emitterSequence
+    emitterSequence,
+    false // createTransferFeeIx
   );
 
   sequence.iaddn(1);

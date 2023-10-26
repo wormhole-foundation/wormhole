@@ -424,7 +424,6 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const message = anchor.web3.Keypair.generate();
       const forkMessage = anchor.web3.Keypair.generate();
 
-      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
       const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
         forkedProgram,
         payer.publicKey
@@ -450,7 +449,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await expectIxOk(
         connection,
-        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [forkTransferFeeIx, ix, forkIx],
         [payer, emitter, message, forkMessage]
       );
     });
@@ -460,7 +459,6 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const message = anchor.web3.Keypair.generate();
       const forkMessage = anchor.web3.Keypair.generate();
 
-      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
       const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
         forkedProgram,
         payer.publicKey
@@ -484,26 +482,13 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await expectIxOk(
         connection,
-        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [forkTransferFeeIx, ix, forkIx],
         [payer, emitter, message, forkMessage]
       );
     });
   });
 
   describe("New implementation", () => {
-    it("Cannot Invoke `post_message_unreliable` Without Paying Fee", async () => {
-      // Create the post message instruction.
-      const messageSigner = anchor.web3.Keypair.generate();
-      const emitter = anchor.web3.Keypair.generate();
-      const accounts = {
-        message: messageSigner.publicKey,
-        emitter: emitter.publicKey,
-        payer: payer.publicKey,
-      };
-      const ix = coreBridge.legacyPostMessageUnreliableIx(program, accounts, defaultArgs());
-      await expectIxErr(connection, [ix], [payer, emitter, messageSigner], "InsufficientFees");
-    });
-
     it("Cannot Invoke `post_message_unreliable` With Invalid Payload", async () => {
       // Create the post message instruction.
       const messageSigner = anchor.web3.Keypair.generate();
@@ -581,25 +566,13 @@ async function parallelTxDetails(
     postUnreliableArgs
   );
 
-  // Pay the fee collector prior to publishing each message.
-  await Promise.all([
-    expectIxOkDetails(
-      connection,
-      [await transferMessageFeeIx(args.new.program, payer.publicKey)],
-      [payer]
-    ),
-    expectIxOkDetails(
-      connection,
-      [await transferMessageFeeIx(args.fork.program, payer.publicKey)],
-      [payer]
-    ),
-  ]);
+  const forkTransferFeeIx = await transferMessageFeeIx(args.fork.program, payer.publicKey);
 
   return Promise.all([
     expectIxOkDetails(connection, [ix], [payer, args.new.emitterSigner, args.new.messageSigner]),
     expectIxOkDetails(
       connection,
-      [forkedIx],
+      [forkTransferFeeIx, forkedIx],
       [payer, args.fork.emitterSigner, args.fork.messageSigner]
     ),
   ]);

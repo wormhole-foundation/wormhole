@@ -143,7 +143,8 @@ export async function expectOkPostMessage(
     emitter?: PublicKey;
   },
   nullAccounts?: { feeCollector: boolean; clock: boolean; rent: boolean },
-  emitterSequence?: PublicKey
+  emitterSequence?: PublicKey,
+  createTransferFeeIx: boolean = true
 ) {
   if (nullAccounts === undefined) {
     nullAccounts = { feeCollector: false, clock: false, rent: false };
@@ -165,8 +166,6 @@ export async function expectOkPostMessage(
   if (emitterSigner !== null) {
     txSigners.push(emitterSigner);
   }
-
-  const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
 
   let { message, emitter } = expected;
   if (message === undefined) {
@@ -200,7 +199,13 @@ export async function expectOkPostMessage(
     expectDeepEqual(ix.keys[8].pubkey, program.programId);
   }
 
-  const txDetails = await expectIxOkDetails(connection, [transferFeeIx, ix], txSigners);
+  const txDetails = await expectIxOkDetails(
+    connection,
+    createTransferFeeIx
+      ? [await coreBridge.transferMessageFeeIx(program, payer.publicKey), ix]
+      : [ix],
+    txSigners
+  );
 
   const postedMessageData = await coreBridge.PostedMessageV1.fromAccountAddress(
     connection,

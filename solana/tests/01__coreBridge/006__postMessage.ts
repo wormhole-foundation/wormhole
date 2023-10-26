@@ -110,7 +110,6 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
       const message = anchor.web3.Keypair.generate();
       const forkMessage = anchor.web3.Keypair.generate();
 
-      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
       const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
         forkedProgram,
         payer.publicKey
@@ -136,7 +135,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
 
       await expectIxOk(
         connection,
-        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [forkTransferFeeIx, ix, forkIx],
         [payer, emitter, message, forkMessage]
       );
     });
@@ -146,7 +145,6 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
       const message = anchor.web3.Keypair.generate();
       const forkMessage = anchor.web3.Keypair.generate();
 
-      const transferFeeIx = await coreBridge.transferMessageFeeIx(program, payer.publicKey);
       const forkTransferFeeIx = await coreBridge.transferMessageFeeIx(
         forkedProgram,
         payer.publicKey
@@ -170,7 +168,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
 
       await expectIxOk(
         connection,
-        [transferFeeIx, forkTransferFeeIx, ix, forkIx],
+        [forkTransferFeeIx, ix, forkIx],
         [payer, emitter, message, forkMessage]
       );
     });
@@ -210,19 +208,6 @@ describe("Core Bridge -- Legacy Instruction: Post Message", () => {
         );
       });
     }
-
-    it("Cannot Invoke `post_message` Without Paying Fee", async () => {
-      // Create the post message instruction.
-      const message = anchor.web3.Keypair.generate();
-      const emitter = anchor.web3.Keypair.generate();
-      const accounts = {
-        message: message.publicKey,
-        emitter: emitter.publicKey,
-        payer: payer.publicKey,
-      };
-      const ix = coreBridge.legacyPostMessageIx(program, accounts, defaultArgs());
-      await expectIxErr(connection, [ix], [payer, emitter, message], "InsufficientFees");
-    });
 
     it("Cannot Invoke `post_message` With Invalid Payload", async () => {
       // Create the post message instruction.
@@ -307,7 +292,9 @@ async function parallelEverythingOk(
       args,
       sequence,
       { nonce, consistencyLevel, payload },
-      nullAccounts
+      nullAccounts,
+      undefined, // emitterSequence
+      false // createTransferFeeIx
     ),
     coreBridge.expectOkPostMessage(
       forkedProgram,

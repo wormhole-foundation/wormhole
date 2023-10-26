@@ -44,7 +44,7 @@ impl ToAccountMetas for PostMessage {
             AccountMeta::new_readonly(emitter, emitter_is_signer),
             AccountMeta::new(self.emitter_sequence, false),
             AccountMeta::new(self.payer, true),
-            AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
+            AccountMeta::new(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
         ]
@@ -77,7 +77,7 @@ impl ToAccountMetas for PostMessageUnreliable {
             AccountMeta::new_readonly(self.emitter, true),
             AccountMeta::new(self.emitter_sequence, false),
             AccountMeta::new(self.payer, true),
-            AccountMeta::new_readonly(self.fee_collector.unwrap_or(crate::ID), false),
+            AccountMeta::new(self.fee_collector.unwrap_or(crate::ID), false),
             AccountMeta::new_readonly(crate::ID, false), // _clock
             AccountMeta::new_readonly(self.system_program, false),
         ]

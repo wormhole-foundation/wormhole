@@ -90,26 +90,6 @@ pub fn publish_message<'info, A>(
 where
     A: PublishMessage<'info>,
 {
-    // If there is a fee, transfer it. But only try if the fee collector is provided because the
-    // post message instruction will fail if there is actually a fee but no fee collector.
-    if let Some(fee_collector) = accounts.core_fee_collector() {
-        let fee_lamports = crate::zero_copy::Config::parse(&accounts.core_bridge_config())
-            .map(|config| config.fee_lamports())?;
-
-        if fee_lamports > 0 {
-            anchor_lang::system_program::transfer(
-                CpiContext::new(
-                    accounts.system_program(),
-                    anchor_lang::system_program::Transfer {
-                        from: accounts.payer(),
-                        to: fee_collector,
-                    },
-                ),
-                fee_lamports,
-            )?;
-        }
-    }
-
     match directive {
         PublishMessageDirective::Message {
             nonce,

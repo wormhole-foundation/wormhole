@@ -14,7 +14,7 @@ use crate::{
     utils,
     zero_copy::LoadZeroCopy,
 };
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program};
 
 #[derive(Accounts)]
 #[instruction(args: PostMessageArgs)]
@@ -65,6 +65,7 @@ pub struct PostMessage<'info> {
     /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
     /// last lamports on this account.
     #[account(
+        mut,
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
@@ -141,23 +142,26 @@ pub(super) fn order_post_message_account_infos<'info>(
     Ok(infos)
 }
 
+pub(super) struct MessageFeeContext<'ctx, 'info> {
+    pub payer: &'ctx AccountInfo<'info>,
+    pub fee_collector: &'ctx Option<AccountInfo<'info>>,
+    pub system_program: &'ctx Program<'info, System>,
+}
+
 /// This method is used by both `post_message` and `post_message_unreliable` instruction handlers.
 /// It handles the message fee check on the fee collector, upticks the emitter sequence number and
 /// returns the posted message data, which will be serialized to either `PostedMessageV1` or
 /// `PostedMessageV1Unreliable` depending on which instruction handler called this method.
-pub(super) fn new_posted_message_info(
-    config: &mut Account<LegacyAnchorized<0, Config>>,
-    fee_collector: &Option<AccountInfo>,
-    emitter_sequence: &mut Account<LegacyAnchorized<0, EmitterSequence>>,
+pub(super) fn new_posted_message_info<'info>(
+    config: &mut Account<'info, LegacyAnchorized<0, Config>>,
+    message_fee_ctx: MessageFeeContext<'_, 'info>,
+    emitter_sequence: &mut Account<'info, LegacyAnchorized<0, EmitterSequence>>,
     consistency_level: u8,
     nonce: u32,
     emitter: &Pubkey,
 ) -> Result<PostedMessageV1Info> {
-    // Determine whether fee has been paid. Update core bridge config account if so.
-    //
-    // NOTE: This is inconsistent with other Core Bridge implementations, where we would check that
-    // the change would equal exactly the fee amount.
-    handle_message_fee(config, fee_collector)?;
+    // Take the message fee amount from the payer.
+    handle_message_fee(config, message_fee_ctx)?;
 
     // Sequence number will be used later on.
     let sequence = emitter_sequence.value;
@@ -223,7 +227,11 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
 
     let info = new_posted_message_info(
         &mut ctx.accounts.config,
-        &ctx.accounts.fee_collector,
+        MessageFeeContext {
+            payer: &ctx.accounts.payer,
+            fee_collector: &ctx.accounts.fee_collector,
+            system_program: &ctx.accounts.system_program,
+        },
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
@@ -272,7 +280,11 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
 
     let info = new_posted_message_info(
         &mut ctx.accounts.config,
-        &ctx.accounts.fee_collector,
+        MessageFeeContext {
+            payer: &ctx.accounts.payer,
+            fee_collector: &ctx.accounts.fee_collector,
+            system_program: &ctx.accounts.system_program,
+        },
         &mut ctx.accounts.emitter_sequence,
         consistency_level,
         nonce,
@@ -289,24 +301,43 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
 }
 
 /// If there is a fee, check the fee collector account to ensure that the fee has been paid.
-fn handle_message_fee(
-    config: &mut Account<LegacyAnchorized<0, Config>>,
-    fee_collector: &Option<AccountInfo>,
+fn handle_message_fee<'info>(
+    config: &mut Account<'info, LegacyAnchorized<0, Config>>,
+    message_fee_ctx: MessageFeeContext<'_, 'info>,
 ) -> Result<()> {
     if config.fee_lamports > 0 {
+        let MessageFeeContext {
+            payer,
+            fee_collector,
+            system_program,
+        } = message_fee_ctx;
+
         let fee_collector = fee_collector
             .as_ref()
             .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?;
 
-        let collector_lamports = fee_collector.lamports();
-        require_eq!(
-            collector_lamports,
-            config.last_lamports.saturating_add(config.fee_lamports),
-            CoreBridgeError::InsufficientFees
-        );
+        // In the old implementation, integrators were expected to pay the fee outside of this
+        // instruction and this instruction handler had to check that the lamports on the fee
+        // collector account were at least as much as the last lamports in the config plus the fee
+        // amount.
+        //
+        // Now we just transfer the lamports from the payer to the fee collector for the exact fee
+        // amount.
+        system_program::transfer(
+            CpiContext::new(
+                system_program.to_account_info(),
+                system_program::Transfer {
+                    from: payer.to_account_info(),
+                    to: fee_collector.to_account_info(),
+                },
+            ),
+            config.fee_lamports,
+        )?;
 
-        // Update core bridge config to reflect paid fees.
-        config.last_lamports = collector_lamports;
+        // Sync the config to reflect paid fees. Because fees are now paid within the instruction
+        // handler, this last lamports value is not useful anymore. We can consider removing this
+        // step.
+        config.last_lamports = fee_collector.lamports();
     }
 
     // Done.

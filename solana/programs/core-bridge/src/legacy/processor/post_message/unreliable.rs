@@ -121,7 +121,11 @@ fn post_message_unreliable(
 
     let info = super::new_posted_message_info(
         &mut ctx.accounts.config,
-        &ctx.accounts.fee_collector,
+        super::MessageFeeContext {
+            payer: &ctx.accounts.payer,
+            fee_collector: &ctx.accounts.fee_collector,
+            system_program: &ctx.accounts.system_program,
+        },
         &mut ctx.accounts.emitter_sequence,
         commitment.into(),
         nonce,
