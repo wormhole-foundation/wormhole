@@ -39,6 +39,10 @@
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
 /deployments @evan-gray @kev1n-peters @panoel @bruce-riley
 
+# Protobuf for node
+
+/proto/node/ @evan-gray @bruce-riley
+
 # Guardiand node
 
 ## Fallback
