@@ -17,11 +17,6 @@ impl<'a> Config<'a> {
         u32::from_le_bytes(self.0[..4].try_into().unwrap())
     }
 
-    /// Lamports in the collection account
-    pub fn last_lamports(&self) -> u64 {
-        u64::from_le_bytes(self.0[4..12].try_into().unwrap())
-    }
-
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
     /// this period we still trust the old guardian set.

@@ -20,7 +20,6 @@ pub struct TransferFees<'info> {
     /// For governance VAAs, we need to make sure that the current guardian set was used to attest
     /// for this governance decree.
     #[account(
-        mut,
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
@@ -151,9 +150,6 @@ fn transfer_fees(ctx: Context<TransferFees>, _args: EmptyArgs) -> Result<()> {
         ),
         to_u64_unchecked(&U256::from_be_bytes(decree.amount())),
     )?;
-
-    // Set the config program data to reflect removing collected fees.
-    ctx.accounts.config.last_lamports = fee_collector.lamports();
 
     // Done.
     Ok(())

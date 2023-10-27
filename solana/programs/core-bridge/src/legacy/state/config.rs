@@ -9,8 +9,9 @@ pub struct Config {
     /// The current guardian set index, used to decide which signature sets to accept.
     pub guardian_set_index: u32,
 
-    /// Lamports in the collection account
-    pub last_lamports: u64,
+    /// Gap. In the old implementation, this was an amount that kept track of message fees that
+    /// were paid to the program's fee collector.
+    pub _gap_0: [u8; 8],
 
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In

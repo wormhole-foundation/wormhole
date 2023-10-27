@@ -107,9 +107,9 @@ fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     ctx.accounts.config.set_inner(
         Config {
             guardian_set_index: INDEX_ZERO,
-            last_lamports: ctx.accounts.fee_collector.to_account_info().lamports(),
             guardian_set_ttl: guardian_set_ttl_seconds.into(),
             fee_lamports,
+            _gap_0: Default::default(),
         }
         .into(),
     );
