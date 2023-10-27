@@ -11,11 +11,14 @@ pub struct ClosePostedVaaV1<'info> {
     sol_destination: Signer<'info>,
 
     /// Posted VAA.
-    ///
-    /// NOTE: Account will attempt to deserialize discriminator so there is no need to check seeds.
     #[account(
         mut,
         close = sol_destination,
+        seeds = [
+            PostedVaaV1::SEED_PREFIX,
+            posted_vaa.message_hash().as_ref()
+        ],
+        bump,
     )]
     posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
 
