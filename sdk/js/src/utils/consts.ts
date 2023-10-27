@@ -35,6 +35,7 @@ export const CHAINS = {
   cosmoshub: 4000,
   evmos: 4001,
   kujira: 4002,
+  celestia: 4004,
   sepolia: 10002,
 } as const;
 
@@ -86,6 +87,7 @@ export const CosmWasmChainNames = [
   "evmos",
   "cosmoshub",
   "kujira",
+  "celestia",
 ] as const;
 export type CosmWasmChainName = typeof CosmWasmChainNames[number];
 
@@ -299,6 +301,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  celestia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 const TESTNET = {
@@ -490,6 +497,11 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   kujira: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celestia: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -687,6 +699,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  celestia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 /**
@@ -764,6 +781,7 @@ export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
 export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];
 export const CHAIN_ID_EVMOS = CHAINS["evmos"];
 export const CHAIN_ID_KUJIRA = CHAINS["kujira"];
+export const CHAIN_ID_CELESTIA = CHAINS["celestia"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id

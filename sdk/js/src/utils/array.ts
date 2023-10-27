@@ -35,6 +35,7 @@ import {
   CHAIN_ID_COSMOSHUB,
   CHAIN_ID_EVMOS,
   CHAIN_ID_KUJIRA,
+  CHAIN_ID_CELESTIA,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -129,6 +130,8 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Evmos not supported yet.");
   } else if (chainId === CHAIN_ID_KUJIRA) {
     throw Error("uint8ArrayToNative: Kujira not supported yet.");
+  } else if (chainId === CHAIN_ID_CELESTIA) {
+    throw Error("uint8ArrayToNative: Celestia not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -272,6 +275,8 @@ export const tryNativeToHexString = (
     throw Error("nativeToHexString: Evmos not supported yet.");
   } else if (chainId === CHAIN_ID_KUJIRA) {
     throw Error("nativeToHexString: Kujira not supported yet.");
+  } else if (chainId === CHAIN_ID_CELESTIA) {
+    throw Error("nativeToHexString: Celestia not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     if (!isValidSuiType(address) && isValidSuiAddress(address)) {
       return uint8ArrayToHex(
