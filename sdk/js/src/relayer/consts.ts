@@ -247,5 +247,7 @@ export const CCTP_DOMAIN_TO_NAME = [
   "avalanche",
   "optimism",
   "arbitrum",
+  "",
+  "",
   "base",
 ];
