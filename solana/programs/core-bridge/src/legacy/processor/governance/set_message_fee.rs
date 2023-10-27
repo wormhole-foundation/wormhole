@@ -89,7 +89,7 @@ fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    crate::utils::vaa::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+    crate::utils::vaa::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
 
     let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload().unwrap())
         .unwrap()

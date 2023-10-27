@@ -10,6 +10,7 @@ pub fn claim_vaa<'info, A>(
     claim_acc_info: &AccountInfo<'info>,
     program_id: &Pubkey,
     vaa: &VaaAccount,
+    claim_seed_prefix: Option<&[u8]>,
 ) -> Result<()>
 where
     A: super::cpi::CreateAccount<'info>,
@@ -20,14 +21,25 @@ where
     };
 
     // First make sure the claim address is derived as what we expect.
-    let (expected_addr, claim_bump) = Pubkey::find_program_address(
-        &[
-            emitter_address.as_ref(),
-            emitter_chain.as_ref(),
-            sequence.as_ref(),
-        ],
-        program_id,
-    );
+    let (expected_addr, claim_bump) = match claim_seed_prefix {
+        Some(prefix) => Pubkey::find_program_address(
+            &[
+                prefix,
+                emitter_address.as_ref(),
+                emitter_chain.as_ref(),
+                sequence.as_ref(),
+            ],
+            program_id,
+        ),
+        None => Pubkey::find_program_address(
+            &[
+                emitter_address.as_ref(),
+                emitter_chain.as_ref(),
+                sequence.as_ref(),
+            ],
+            program_id,
+        ),
+    };
     require_keys_eq!(
         claim_acc_info.key(),
         expected_addr,

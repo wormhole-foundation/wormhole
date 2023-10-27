@@ -103,23 +103,6 @@ impl<'info> VerifySignatures<'info> {
 /// guardian pubkeys to be provided in order to perform its signature verification.
 #[access_control(VerifySignatures::constraints(&ctx))]
 fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs) -> Result<()> {
-    let VerifySignaturesArgs { signer_indices } = args;
-
-    // Collected guardian indices (to be used later).
-    let guardian_indices: Vec<_> = signer_indices
-        .iter()
-        .enumerate()
-        .filter_map(|(i, &value)| if value >= 0 { Some(i) } else { None })
-        .collect();
-
-    // Before we continue, check that the array argument passed into this instruction is valid.
-    let guardian_set = &ctx.accounts.guardian_set;
-    let guardians = &guardian_set.keys;
-    require!(
-        !guardian_indices.is_empty() && *guardian_indices.last().unwrap() < guardians.len(),
-        CoreBridgeError::InvalidInstructionArgument
-    );
-
     // It would have been nice to be able to perform this check in `access_control`, but there
     // is no data from the instruction sysvar loaded by that point. We have to load it and perform
     // the safety checks in this instruction handler.
@@ -144,8 +127,15 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     .map_err(Into::into)
     .and_then(|ix| deserialize_secp256k1_ix(sig_verify_index, &ix))?;
 
+    let VerifySignaturesArgs { signer_indices } = args;
+
     // Number of specified signers must equal the number of signatures verified in the Sig Verify
     // native program instruction.
+    let guardian_indices: Vec<_> = signer_indices
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &value)| if value >= 0 { Some(i) } else { None })
+        .collect();
     require_eq!(
         signers.len(),
         guardian_indices.len(),
@@ -155,6 +145,8 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // We use this message hash later on.
     let message_hash = MessageHash::from(message);
     let signature_set = &mut ctx.accounts.signature_set;
+    let guardian_set = &ctx.accounts.guardian_set;
+    let guardians = &guardian_set.keys;
 
     // If the signature set account has not been initialized yet, establish the expected account
     // data (guardian set index used, hash and which indices have been verified).
@@ -192,7 +184,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // Attempt to write `true` to represent verified guardian eth pubkey.
     for (i, &signer_index) in guardian_indices.iter().enumerate() {
         require!(
-            signers[i] == guardians[signer_index],
+            signers.get(i) == guardians.get(signer_index),
             CoreBridgeError::InvalidGuardianKeyRecovery
         );
 

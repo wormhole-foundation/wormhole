@@ -82,7 +82,7 @@ pub fn register_chain(ctx: Context<RegisterChain>) -> Result<()> {
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
 
     // Deserialize and set data in registered emitter accounts.
     {

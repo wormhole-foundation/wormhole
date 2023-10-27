@@ -158,9 +158,9 @@ fn attest_token(ctx: Context<AttestToken>, args: LegacyAttestTokenArgs) -> Resul
 pub(crate) fn string_to_fixed32(s: &String) -> [u8; 32] {
     let mut bytes = [0; 32];
     if s.len() > 32 {
-        sol_memcpy(&mut bytes, &s.as_bytes(), 32);
+        sol_memcpy(&mut bytes, s.as_bytes(), 32);
     } else {
-        sol_memcpy(&mut bytes, &s.as_bytes(), s.len());
+        sol_memcpy(&mut bytes, s.as_bytes(), s.len());
     }
     bytes
 }

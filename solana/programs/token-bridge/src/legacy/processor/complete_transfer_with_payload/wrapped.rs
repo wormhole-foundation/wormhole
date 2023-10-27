@@ -162,7 +162,7 @@ fn complete_transfer_with_payload_wrapped(
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
 
     // Take transfer amount as-is.
     let mint_amount = TokenBridgeMessage::try_from(vaa.try_payload().unwrap())

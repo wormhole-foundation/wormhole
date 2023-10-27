@@ -29,25 +29,33 @@ pub struct UpgradeContract<'info> {
     )]
     upgrade_authority: AccountInfo<'info>,
 
-    /// CHECK: This account is needed for the BPF Loader Upgradeable program.
+    /// CHECK: This account receives any lamports after the result of the upgrade.
     #[account(mut)]
-    spill: UncheckedAccount<'info>,
+    spill: AccountInfo<'info>,
 
     /// CHECK: Deployed implementation. The pubkey of this account is checked in access control
     /// against the one encoded in the governance VAA.
     buffer: AccountInfo<'info>,
 
-    /// CHECK: This account is needed for the BPF Loader Upgradeable program.
-    program_data: UncheckedAccount<'info>,
+    /// CHECK: Token Bridge program data needed for BPF Loader Upgradable program.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = solana_program::bpf_loader_upgradeable::id(),
+    )]
+    program_data: AccountInfo<'info>,
 
-    /// CHECK: Unnecessary account.
-    _this_program: UncheckedAccount<'info>,
+    /// CHECK: This must equal the Token Bridge program ID for the BPF Loader Upgradeable program.
+    #[account(address = crate::ID)]
+    this_program: AccountInfo<'info>,
 
-    /// CHECK: Previously needed sysvar.
-    _rent: UncheckedAccount<'info>,
+    /// CHECK: BPF Loader Upgradeable program needs this sysvar.
+    #[account(address = solana_program::sysvar::rent::id())]
+    rent: AccountInfo<'info>,
 
-    /// CHECK: Previously needed sysvar.
-    _clock: UncheckedAccount<'info>,
+    /// CHECK: BPF Loader Upgradeable program needs this sysvar.
+    #[account(address = solana_program::sysvar::clock::id())]
+    clock: AccountInfo<'info>,
 
     /// CHECK: BPF Loader Upgradeable program.
     #[account(address = solana_program::bpf_loader_upgradeable::id())]
@@ -113,7 +121,7 @@ fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<(
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
 
     // Finally upgrade.
     invoke_signed(

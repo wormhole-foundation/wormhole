@@ -168,29 +168,6 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
       );
     });
 
-    it("Cannot Invoke `verify_signatures` with Empty Signer Indices", async () => {
-      const signerIndices = new Array(19).fill(-1);
-
-      const { signatureSet } = new SignatureSets();
-      const verifyIx = coreBridge.legacyVerifySignaturesIx(
-        program,
-        {
-          payer: payer.publicKey,
-          guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
-          signatureSet: signatureSet.publicKey,
-        },
-        {
-          signerIndices,
-        }
-      );
-      await expectIxErr(
-        connection,
-        [verifyIx],
-        [payer, signatureSet],
-        "InvalidInstructionArgument"
-      );
-    });
-
     it("Cannot Invoke `verify_signatures` with Signer Indices Mismatch", async () => {
       const { signatureSet } = new SignatureSets();
       const message = Buffer.from("Maybe legitimate.");

@@ -164,7 +164,7 @@ fn complete_transfer_with_payload_native(
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa)?;
+    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
 
     // Denormalize transfer amount based on this mint's decimals. When these transfers were made
     // outbound, the amounts were normalized, so it is safe to unwrap these operations.
