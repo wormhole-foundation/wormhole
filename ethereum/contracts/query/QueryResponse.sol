@@ -82,7 +82,7 @@ abstract contract QueryResponse {
     uint8 public constant QT_ETH_CALL = 1;
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
-    uint8 public constant QT_ETH_CALL_MAX = 4; // Keep this last
+    uint8 public constant QT_MAX = 4; // Keep this last
 
     /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
@@ -156,7 +156,7 @@ abstract contract QueryResponse {
                 revert RequestTypeMismatch();
             }
             
-            if (r.responses[idx].queryType < QT_ETH_CALL || r.responses[idx].queryType >= QT_ETH_CALL_MAX) {
+            if (r.responses[idx].queryType < QT_ETH_CALL || r.responses[idx].queryType >= QT_MAX) {
                 revert UnsupportedQueryType();
             }
 
