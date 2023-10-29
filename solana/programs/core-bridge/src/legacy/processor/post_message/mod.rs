@@ -38,7 +38,8 @@ pub struct PostMessage<'info> {
 
     /// The emitter of the Core Bridge message. This account is typically an integrating program's
     /// PDA which signs for this instruction. But if a message is already prepared by this point
-    /// using `init_message_v1` and `process_message_v1`, then this account is not checked.
+    /// using `init_message_v1`, `write_message_v1` and `finalize_message_v1`, then this account is
+    /// not checked.
     emitter: Option<AccountInfo<'info>>,
 
     /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique

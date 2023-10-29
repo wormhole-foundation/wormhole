@@ -11,8 +11,10 @@ pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 /// Status of a message. When a message is posetd, its status is [Unset](MessageStatus::Unset).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
+    // TODO: Rename to "Published".
     Unset,
     Writing,
+    // TODO: Rename to "ReadyForPublishing".
     Finalized,
 }
 
@@ -26,8 +28,10 @@ pub struct PostedMessageV1Info {
     /// posted.
     pub emitter_authority: Pubkey,
 
-    /// If a large message is been written, this is the expected length of the message. When this
-    /// message is posted, this value will be overwritten as zero.
+    /// If a message is being written to, this status is used to determine which state this
+    /// account is in (e.g. [MessageStatus::Writing] indicates that the emitter authority is still
+    /// writing its message to this account). When this message is posted, this value will be
+    /// set to [MessageStatus::Unset].
     pub status: MessageStatus,
 
     /// No data is stored here.

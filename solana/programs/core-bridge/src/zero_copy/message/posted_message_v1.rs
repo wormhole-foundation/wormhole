@@ -1,6 +1,9 @@
 use std::cell::Ref;
 
-use crate::{state, types::Timestamp};
+use crate::{
+    state::{self, MessageStatus},
+    types::Timestamp,
+};
 use anchor_lang::prelude::{
     error, require, require_eq, require_keys_eq, AccountInfo, ErrorCode, Pubkey, Result,
 };
@@ -30,9 +33,11 @@ impl<'a> PostedMessageV1<'a> {
         Pubkey::try_from(&self.0[5..37]).unwrap()
     }
 
-    /// If a large message is been written, this is the expected length of the message. When this
-    /// message is posted, this value will be overwritten as zero.
-    pub fn status(&self) -> state::MessageStatus {
+    /// If a message is being written to, this status is used to determine which state this
+    /// account is in (e.g. [MessageStatus::Writing] indicates that the emitter authority is still
+    /// writing its message to this account). When this message is posted, this value will be
+    /// set to [MessageStatus::Unset].
+    pub fn status(&self) -> MessageStatus {
         anchor_lang::AnchorDeserialize::deserialize(&mut &self.0[37..38]).unwrap()
     }
 

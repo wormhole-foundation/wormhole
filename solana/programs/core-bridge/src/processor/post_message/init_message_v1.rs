@@ -38,10 +38,10 @@ impl<'info> InitMessageV1<'info> {
             CoreBridgeError::ExceedsMaxPayloadSize
         );
 
-        // Checking that the message account is completely zeroed out. By doing this, we make the
-        // assumption that no other Core Bridge account that is currently used will have all zeros.
-        // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
-        // mess around like this. But here we are.
+        // Check that the message account header is completely zeroed out. By doing this, we make
+        // the assumption that no other Core Bridge account that is currently used will have all
+        // zeros. Ideally all of the Core Bridge accounts should have a discriminator so we do not
+        // have to mess around like this. But here we are.
         let msg_acc_data: &[_] = &ctx.accounts.draft_message.try_borrow_data()?;
         require!(
             msg_acc_data[..PostedMessageV1::PAYLOAD_START] == [0; PostedMessageV1::PAYLOAD_START],

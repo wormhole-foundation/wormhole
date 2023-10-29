@@ -28,10 +28,10 @@ impl<'info> InitEncodedVaa<'info> {
             CoreBridgeError::InvalidCreatedAccountSize
         );
 
-        // Checking that the message account is completely zeroed out. By doing this, we make the
-        // assumption that no other Core Bridge account that is currently used will have all zeros.
-        // Ideally all of the Core Bridge accounts should have a discriminator so we do not have to
-        // mess around like this. But here we are.
+        // Check that the encoded VAA account header is completely zeroed out. By doing this, we
+        // make the assumption that no other Core Bridge account that is currently used will have
+        // all zeros. Ideally all of the Core Bridge accounts should have a discriminator so we do
+        // not have to mess around like this. But here we are.
         let msg_acc_data: &[_] = &ctx.accounts.encoded_vaa.try_borrow_data()?;
         require!(
             msg_acc_data[..EncodedVaa::VAA_START] == [0; EncodedVaa::VAA_START],

@@ -167,10 +167,10 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
             CoreBridgeError::MessageMismatch
         );
     } else {
-        // We're assuming that the hashed Wormhole message is not zero bytes.
-        // So if the account data is all zeros, we're assuming that the account
-        // is created at this instruction call. Save the guardian set index and
-        // message hash.
+        // We are assuming that the signature set has not been "initialized" if there is no
+        // indication of verified signatures (via `sig_verify_successes`) written to this account
+        // yet. If we reach this condition, we set the message hash and guardian set index because
+        // we are assuming that the account is created with this instruction invocation.
         signature_set.set_inner(
             SignatureSet {
                 sig_verify_successes: vec![false; guardians.len()],

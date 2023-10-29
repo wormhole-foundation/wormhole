@@ -44,9 +44,10 @@ pub mod wormhole_core_bridge_solana {
     /// argument). **Be aware that the emitter authority's seeds must only be \[b"emitter"\] in this
     /// case.**
     ///
-    /// This instruction should be followed up with `process_message_v1` to write and finalize the
-    /// message account (to prepare it for publishing via the
-    /// [post message instruction](crate::legacy::instruction::LegacyInstruction)).
+    /// This instruction should be followed up with `write_message_v1` and `finalize_message_v1` to
+    /// write and indicate that the message is ready for publishing respectively (to prepare it for
+    /// publishing via the
+    /// [post message instruction](crate::legacy::instruction::LegacyInstruction::PostMessage)).
     ///
     /// NOTE: If you wish to publish a small message (one where the data does not overflow the
     /// Solana transaction size), it is recommended that you use an [sdk](crate::sdk::cpi) method to

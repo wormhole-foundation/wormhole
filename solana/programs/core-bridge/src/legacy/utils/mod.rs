@@ -145,9 +145,10 @@ pub trait ProcessLegacyInstruction<'info, T: AnchorDeserialize>:
     /// this example, making sure the System program is #9 (and not caring about where Rent ends up
     /// because it is not needed anymore).
     ///
-    /// Ordering matters because Anchor requires that all the necessary accounts are defined in its
-    /// account contexts. So this includes the System program (whereas with the legacy
-    /// implementation did not require this to be defined in its context).
+    /// Ordering matters for accounts defined in Anchor account contexts. An example of one of these
+    /// contextual accounts is the System program, which Anchor requires to be defined when an
+    /// account macro directive like `init` is used (while the old implementation basically treated
+    /// the System program as a remaining account).
     fn order_account_infos<'a>(
         account_infos: &'a [AccountInfo<'info>],
     ) -> Result<Vec<AccountInfo<'info>>> {
