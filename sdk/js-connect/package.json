@@ -29,11 +29,13 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
-    "@wormhole-foundation/connect-sdk": "0.1.8-beta.1"
+    "@wormhole-foundation/connect-sdk": "0.1.8-beta.3"
   },
   "sideEffects": false,
   "workspaces":[
     "core/evm",
-    "token_bridge/evm"
+    "core/solana",
+    "token_bridge/evm",
+    "token_bridge/solana"
   ]
 }

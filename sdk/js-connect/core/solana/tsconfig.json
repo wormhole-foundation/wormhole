@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "outDir": "./lib/esm",
+    "strict": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
+  },
+  "include": ["src", "../../../js/types/buffer-layout.d.ts"],
+  "exclude": ["node_modules", "**/*.test.*", "**/__tests__/*"]
+}
