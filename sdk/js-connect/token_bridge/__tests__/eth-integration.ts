@@ -12,7 +12,6 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { ethers } from "ethers";
-
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
@@ -220,12 +219,10 @@ describe("Ethereum to Solana and Back", () => {
         const tokenFilter: TokenAccountsFilter = {
           programId: TOKEN_PROGRAM_ID,
         };
-
         let results = await connection.getParsedTokenAccountsByOwner(
           keypair.publicKey,
           tokenFilter
         );
-
         let initialSolanaBalance: number = 0;
         for (const item of results.value) {
           const tokenInfo = item.account.data.parsed.info;

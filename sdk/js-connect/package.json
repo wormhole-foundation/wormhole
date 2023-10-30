@@ -29,7 +29,11 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@wormhole-foundation/connect-sdk": "0.1.8-beta.4"
+=======
+    "@wormhole-foundation/connect-sdk": "0.1.8-beta.3"
+>>>>>>> 6bdf60c6f (SDK: add protocol packages for evm and solana)
   },
   "sideEffects": false,
   "workspaces":[
