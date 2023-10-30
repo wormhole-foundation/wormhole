@@ -573,6 +573,14 @@ if ci_tests:
             sync("./testing", "/app/testing"),
         ],
     )
+    docker_build(
+        ref = "connect-sdk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.connectsdk.test",
+        only = [],
+        live_update = [
+        ],
+    )
 
     k8s_yaml_with_ns(encode_yaml_stream(set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians))))
 
@@ -603,6 +611,12 @@ if ci_tests:
     )
     k8s_resource(
         "query-sdk-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
+    )
+    k8s_resource(
+        "connect-sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier

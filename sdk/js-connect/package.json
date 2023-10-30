@@ -1,0 +1,39 @@
+{
+  "name": "@wormhole-foundation/wormhole-connect-sdk",
+  "version": "0.0.1",
+  "homepage": "https://wormhole.com",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./lib/types/index.d.ts",
+  "files": [
+    "lib/"
+  ],
+  "scripts": {
+    "test": "jest --verbose",
+    "test-ci": "jest --verbose --setupFiles ./ci-config.js --forceExit",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "keywords": [
+    "wormhole",
+    "sdk",
+    "cross-chain",
+    "query"
+  ],
+  "author": "Wormhole Foundation",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "prettier": "^2.3.2",
+    "typescript": "^5.1.3",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.1"
+  },
+  "dependencies": {
+    "@wormhole-foundation/connect-sdk": "0.1.8-beta.1"
+  },
+  "sideEffects": false,
+  "workspaces":[
+    "evm/core",
+    "evm/tokenBridge"
+  ]
+}
