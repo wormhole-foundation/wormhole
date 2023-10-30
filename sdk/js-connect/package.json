@@ -33,7 +33,7 @@
   },
   "sideEffects": false,
   "workspaces":[
-    "evm/core",
-    "evm/tokenBridge"
+    "core/evm",
+    "token_bridge/evm"
   ]
 }
