@@ -38,9 +38,9 @@ struct EthCallByTimestampQueryResponse {
     bytes requestFollowingBlockIdHint;
     uint64 requestTargetTimestamp;
     uint64 targetBlockNum;
-    bytes32 targetBlockHash;
     uint64 targetBlockTime;
     uint64 followingBlockNum;
+    bytes32 targetBlockHash;
     bytes32 followingBlockHash;
     uint64 followingBlockTime;
     EthCallData [] result;
@@ -274,7 +274,6 @@ abstract contract QueryResponse {
 
         checkLength(pcr.request, reqIdx);
         checkLength(pcr.response, respIdx);
-        return r;
     }
 
     /// @dev parseEthCallWithFinalityQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
@@ -325,7 +324,6 @@ abstract contract QueryResponse {
 
         checkLength(pcr.request, reqIdx);
         checkLength(pcr.response, respIdx);
-        return r;
     }
 
     /**
