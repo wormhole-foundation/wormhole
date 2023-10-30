@@ -9,8 +9,8 @@
     "lib/"
   ],
   "scripts": {
-    "test": "jest --verbose",
-    "test-ci": "jest --verbose --setupFiles ./ci-config.js --forceExit",
+    "test": "jest --config jest.config.ts  --verbose",
+    "test-ci": "jest --config jest.config.ts --verbose --setupFiles ./ci-config.js --forceExit",
     "build": "npm run build --workspaces --if-present"
   },
   "keywords": [

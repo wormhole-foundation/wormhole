@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "esnext",
+    "types":["node", "jest"],
     "moduleResolution": "node",
     "outDir": "./lib/esm",
     "strict": true,

@@ -1,7 +1,20 @@
-import type { Config } from "@jest/types";
+import type { JestConfigWithTsJest } from "ts-jest";
 
-const config: Config.InitialOptions = {
+const jestConfig: JestConfigWithTsJest = {
   preset: "ts-jest",
-  testEnvironment: "node",
+  verbose: true,
+  modulePathIgnorePatterns: ["mocks", "helpers", "staging"],
+  moduleNameMapper: {
+    "@noble/secp256k1": require.resolve("@noble/secp256k1"),
+  },
+  transform: {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        isolatedModules: true,
+      },
+    ],
+  },
 };
-export default config;
+
+export default jestConfig;
