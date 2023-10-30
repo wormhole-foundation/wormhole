@@ -6,10 +6,14 @@ RUN apt-get update && apt-get -y install \
 RUN mkdir -p /app
 WORKDIR /app
 
-COPY sdk/js-connect/package.json sdk/js-connect/package-lock.json ./sdk/js-connect/
+COPY sdk/js-connect/package.json sdk/js-connect/ci-config.js sdk/js-connect/package-lock.json sdk/js-connect/buffer-layout.d.ts ./sdk/js-connect/
+
+COPY sdk/js-connect/core ./sdk/js-connect/core
+COPY sdk/js-connect/token_bridge ./sdk/js-connect/token_bridge
+
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-    npm ci --prefix sdk/js-connect
-COPY sdk/js-connect ./sdk/js-connect
+    npm ci --workspaces --prefix sdk/js-connect
+
 RUN npm run build --prefix sdk/js-connect
 
 COPY testing ./testing

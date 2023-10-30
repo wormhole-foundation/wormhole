@@ -55,8 +55,8 @@
     "@project-serum/borsh": "0.2.5",
     "@solana/spl-token": "0.3.5",
     "@solana/web3.js": "1.66.2",
-    "@wormhole-foundation/connect-sdk": "^0.1.8-beta.3",
-    "@wormhole-foundation/connect-sdk-solana": "^0.1.8-beta.3",
+    "@wormhole-foundation/connect-sdk": "^0.1.8-beta.4",
+    "@wormhole-foundation/connect-sdk-solana": "^0.1.8-beta.4",
     "lodash": "^4.17.21"
   }
 }

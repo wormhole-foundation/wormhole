@@ -29,9 +29,9 @@
   "dependencies": {
     "ethers": "^6.5.1",
     "@typechain/ethers-v6": "^0.4.0",
-    "@wormhole-foundation/connect-sdk": "0.1.8-beta.3",
-    "@wormhole-foundation/connect-sdk-evm": "0.1.8-beta.3",
-    "@wormhole-foundation/wormhole-connect-sdk-evm-core": "*"
+    "@wormhole-foundation/connect-sdk": "0.1.8-beta.4",
+    "@wormhole-foundation/connect-sdk-evm": "0.1.8-beta.4",
+    "@wormhole-foundation/wormhole-connect-sdk-core-evm": "*"
   },
   "sideEffects": false
 }

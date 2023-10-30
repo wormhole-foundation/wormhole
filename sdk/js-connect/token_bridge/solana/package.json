@@ -49,8 +49,8 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
-    "@wormhole-foundation/connect-sdk": "^0.1.8-beta.3",
-    "@wormhole-foundation/connect-sdk-solana": "^0.1.8-beta.3",
+    "@wormhole-foundation/connect-sdk": "^0.1.8-beta.4",
+    "@wormhole-foundation/connect-sdk-solana": "^0.1.8-beta.4",
     "@wormhole-foundation/wormhole-connect-sdk-core-solana": "*",
     "@coral-xyz/borsh": "0.2.6",
     "@project-serum/anchor": "0.25.0",

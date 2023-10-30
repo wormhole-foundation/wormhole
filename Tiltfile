@@ -579,6 +579,8 @@ if ci_tests:
         dockerfile = "testing/Dockerfile.connectsdk.test",
         only = [],
         live_update = [
+            sync("./sdk/js/src", "/app/sdk/js-connect/src"),
+            sync("./testing", "/app/testing"),
         ],
     )
 
