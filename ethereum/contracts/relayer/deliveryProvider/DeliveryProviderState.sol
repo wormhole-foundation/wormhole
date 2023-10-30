@@ -59,7 +59,7 @@ struct SupportedMessageKeyTypes {
     uint256 bitmap;
 }
 
-//keccak256("DefaultDeliveryProviderState") - 1
+//keccak256("SupportedMessageKeyTypes") - 1
 bytes32 constant SUPPORTED_MESSAGE_KEY_TYPES_SLOT =
     0x5e6997bab73a9a9b8f33ae518f391b0426896f5c5f2d9fdce4ddbda5f4773406;
 
