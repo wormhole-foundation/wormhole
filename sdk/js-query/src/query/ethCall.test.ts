@@ -12,6 +12,7 @@ import {
   EthCallData,
   EthCallQueryRequest,
   EthCallByTimestampQueryRequest,
+  EthCallWithFinalityQueryRequest,
   PerChainQueryRequest,
   QueryRequest,
   sign,
@@ -71,7 +72,11 @@ async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
   let targetBlockNumber = BigInt(0);
   let targetBlockTime = BigInt(0);
   while (targetBlockNumber === BigInt(0)) {
-    const followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    let followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    while (Number(followingBlock) <= 0) {
+      await sleep(1000);
+      followingBlock = await web3.eth.getBlock(followingBlockNumber);
+    }
     const targetBlock = await web3.eth.getBlock(
       (Number(followingBlockNumber) - 1).toString()
     );
@@ -83,6 +88,10 @@ async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
     }
   }
   return [targetBlockTime, targetBlockNumber, followingBlockNumber];
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe("eth call", () => {
@@ -493,7 +502,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target block id must be a hex number or hash starting with 0x\n`
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target block id is required\n`
         );
       });
     expect(err).toBe(true);
@@ -537,7 +546,136 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: following block id must be a hex number or hash starting with 0x\n`
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: following block id is required\n`
+        );
+      });
+    expect(err).toBe(true);
+  });
+  test("serialize eth_call_with_finality request", () => {
+    const toAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
+    const nameCallData = createTestEthCallData(toAddress, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      toAddress,
+      "totalSupply",
+      "uint256"
+    );
+    const ethCall = new EthCallWithFinalityQueryRequest(
+      "0x28d9630",
+      "finalized",
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 5;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    expect(Buffer.from(serialized).toString("hex")).toEqual(
+      "01000000010100050300000053000000093078323864393633300000000966696e616c697a6564020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd"
+    );
+  });
+  test("successful eth_call_with_finality query", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    // Jump into the future a bit so the watcher has to wait for finality.
+    const blockNumber =
+      Number(await web3.eth.getBlockNumber(ETH_DATA_FORMAT)) + 10;
+    const ethCall = new EthCallWithFinalityQueryRequest(
+      blockNumber.toString(16),
+      "finalized",
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key" } }
+    );
+    expect(response.status).toBe(200);
+  });
+  test("eth_call_with_finality query without finality should fail", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const ethCall = new EthCallWithFinalityQueryRequest("0x28d9630", "", [
+      nameCallData,
+      totalSupplyCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    const response = await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: finality is required\n`
+        );
+      });
+    expect(err).toBe(true);
+  });
+  test("eth_call_with_finality query with bad finality should fail", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const ethCall = new EthCallWithFinalityQueryRequest(
+      "0x28d9630",
+      "HelloWorld",
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    let err = false;
+    const response = await axios
+      .put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      )
+      .catch(function (error) {
+        err = true;
+        expect(error.response.status).toBe(400);
+        expect(error.response.data).toBe(
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: finality must be "finalized" or "safe", is "HelloWorld"\n`
         );
       });
     expect(err).toBe(true);

@@ -67,9 +67,20 @@ func createQueryRequestForTesting(t *testing.T, chainId vaa.ChainID) *QueryReque
 		Query:   callRequest2,
 	}
 
+	callRequest3 := &EthCallWithFinalityQueryRequest{
+		BlockId:  "0x28d9630",
+		Finality: "finalized",
+		CallData: callData,
+	}
+
+	perChainQuery3 := &PerChainQueryRequest{
+		ChainId: chainId,
+		Query:   callRequest3,
+	}
+
 	queryRequest := &QueryRequest{
 		Nonce:           1,
-		PerChainQueries: []*PerChainQueryRequest{perChainQuery1, perChainQuery2},
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery1, perChainQuery2, perChainQuery3},
 	}
 
 	return queryRequest
@@ -488,7 +499,222 @@ func TestMarshalOfEthCallByTimestampQueryWithWrongToLengthShouldFail(t *testing.
 	require.Error(t, err)
 }
 
-///////////// End of EthCallByTimestamp tests /////////////////////////////////
+///////////// EthCallWithFinality tests ////////////////////////////////////////
+
+func TestMarshalOfEthCallWithFinalityQueryWithNilToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "finalized",
+			CallData: []*EthCallData{
+				{
+					To:   nil,
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithEmptyToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "safe",
+			CallData: []*EthCallData{
+				{
+					To:   []byte{},
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithWrongLengthToShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "finalized",
+			CallData: []*EthCallData{
+				{
+					To:   []byte("TooShort"),
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithNilDataShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "safe",
+			CallData: []*EthCallData{
+				{
+					To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d", 0))),
+					Data: nil,
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithEmptyDataShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "finalized",
+			CallData: []*EthCallData{
+				{
+					To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d", 0))),
+					Data: []byte{},
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithWrongToLengthShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "safe",
+			CallData: []*EthCallData{
+				{
+					To:   []byte("This is too short!"),
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithBadFinality(t *testing.T) {
+	to, err := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
+	require.NoError(t, err)
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "HelloWorld",
+			CallData: []*EthCallData{
+				{
+					To:   to,
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err = queryRequest.Marshal()
+	require.Error(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithFinalizedShouldSucceed(t *testing.T) {
+	to, err := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
+	require.NoError(t, err)
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "finalized",
+			CallData: []*EthCallData{
+				{
+					To:   to,
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err = queryRequest.Marshal()
+	require.NoError(t, err)
+}
+
+func TestMarshalOfEthCallWithFinalityQueryWithSafeShouldSucceed(t *testing.T) {
+	to, err := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
+	require.NoError(t, err)
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query: &EthCallWithFinalityQueryRequest{
+			BlockId:  "0x28d9630",
+			Finality: "safe",
+			CallData: []*EthCallData{
+				{
+					To:   to,
+					Data: []byte("This can't be zero length"),
+				},
+			},
+		},
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err = queryRequest.Marshal()
+	require.NoError(t, err)
+}
+
+///////////// End of EthCallWithFinality tests /////////////////////////////////
 
 func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {
 	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)

@@ -45,14 +45,16 @@ export class EthCallByTimestampQueryRequest implements ChainSpecificQuery {
 
 function parseBlockHint(blockHint: BlockTag): string {
   // Block hints are not required.
-  if (blockHint != "") {
+  if (blockHint !== "") {
     if (typeof blockHint === "number") {
+      if (blockHint < 0) {
+        throw new Error(`block tag must be positive`);
+      }
       blockHint = `0x${blockHint.toString(16)}`;
     } else if (isValidHexString(blockHint)) {
       if (!blockHint.startsWith("0x")) {
         blockHint = `0x${blockHint}`;
       }
-      blockHint = blockHint;
     } else {
       throw new Error(`Invalid block tag: ${blockHint}`);
     }
