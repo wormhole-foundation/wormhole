@@ -242,10 +242,13 @@ export const getWormscanAPI = (_network: Network) => {
   }
 };
 
-export const CCTP_DOMAIN_TO_NAME = [
-  "ethereum",
-  "avalanche",
-  "optimism",
-  "arbitrum",
-  "base",
-];
+export const getNameFromCCTPDomain = (
+  domain: number
+): ChainName | undefined => {
+  if (domain === 0) return "ethereum";
+  else if (domain === 1) return "avalanche";
+  else if (domain === 2) return "optimism";
+  else if (domain === 3) return "arbitrum";
+  else if (domain === 6) return "base";
+  else return undefined;
+};
