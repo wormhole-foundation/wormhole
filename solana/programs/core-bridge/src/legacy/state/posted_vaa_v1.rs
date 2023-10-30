@@ -51,8 +51,8 @@ pub struct PostedVaaV1 {
     pub payload: Vec<u8>,
 }
 
-impl crate::legacy::utils::LegacyAccount<4> for PostedVaaV1 {
-    const DISCRIMINATOR: [u8; 4] = POSTED_VAA_V1_DISCRIMINATOR;
+impl crate::legacy::utils::LegacyAccount for PostedVaaV1 {
+    const DISCRIMINATOR: &'static [u8] = &POSTED_VAA_V1_DISCRIMINATOR;
 
     fn program_id() -> Pubkey {
         crate::ID

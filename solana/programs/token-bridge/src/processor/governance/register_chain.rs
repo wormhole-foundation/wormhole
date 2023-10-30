@@ -27,7 +27,7 @@ pub struct RegisterChain<'info> {
         seeds = [try_decree(&vaa, |decree| decree.foreign_chain())?.to_be_bytes().as_ref()],
         bump,
     )]
-    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
 
     /// This account should be created using only the emitter chain ID as its seed. Instead, it uses
     /// both emitter chain and address to derive this PDA address. Having both of these as seeds
@@ -43,7 +43,7 @@ pub struct RegisterChain<'info> {
         ],
         bump,
     )]
-    legacy_registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
+    legacy_registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
 
     system_program: Program<'info, System>,
     core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,

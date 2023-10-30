@@ -14,7 +14,7 @@ use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 pub fn validate_token_transfer_vaa(
     vaa_acc_info: &AccountInfo,
-    registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: &Account<LegacyAnchorized<RegisteredEmitter>>,
     recipient_token: &AccountInfo,
     recipient: &Option<AccountInfo>,
 ) -> Result<(u16, [u8; 32])> {

@@ -7,9 +7,9 @@ use anchor_lang::prelude::*;
 /// be used for any legacy program). A legacy account requires a defined discriminator (if there is
 /// none, yikes, then it will be an empty array) and a program ID, which will usually just be
 /// `crate::ID` (defined using [declare_id](anchor_lang::prelude::declare_id)).
-pub trait LegacyAccount<const N: usize>: AnchorSerialize + AnchorDeserialize + Clone {
-    /// Account discriminator. If there is none, use an empty array (N == 0).
-    const DISCRIMINATOR: [u8; N];
+pub trait LegacyAccount: AnchorSerialize + AnchorDeserialize + Clone {
+    /// Account discriminator. If there is none, use an empty slice.
+    const DISCRIMINATOR: &'static [u8];
 
     /// Owner of the account.
     fn program_id() -> Pubkey;
@@ -18,38 +18,38 @@ pub trait LegacyAccount<const N: usize>: AnchorSerialize + AnchorDeserialize + C
 /// Wrapper for legacy accounts implementing [LegacyAccount]. This wrapper provides the convenience
 /// of not having to implement [AccountSerialize] and [AccountDeserialize] for each legacy account.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyAnchorized<const N: usize, T: LegacyAccount<N>>(T);
+pub struct LegacyAnchorized<T: LegacyAccount>(T);
 
-impl<const N: usize, T> AsRef<T> for LegacyAnchorized<N, T>
+impl<T> AsRef<T> for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn as_ref(&self) -> &T {
         &self.0
     }
 }
 
-impl<const N: usize, T> From<T> for LegacyAnchorized<N, T>
+impl<T> From<T> for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn from(acct: T) -> Self {
         Self(acct)
     }
 }
 
-impl<const N: usize, T> Owner for LegacyAnchorized<N, T>
+impl<T> Owner for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn owner() -> Pubkey {
         T::program_id()
     }
 }
 
-impl<const N: usize, T> std::ops::Deref for LegacyAnchorized<N, T>
+impl<T> std::ops::Deref for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     type Target = T;
 
@@ -58,45 +58,104 @@ where
     }
 }
 
-impl<const N: usize, T> std::ops::DerefMut for LegacyAnchorized<N, T>
+impl<T> std::ops::DerefMut for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<const N: usize, T> AccountSerialize for LegacyAnchorized<N, T>
+impl<T> AccountSerialize for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
         writer
-            .write_all(&T::DISCRIMINATOR)
+            .write_all(T::DISCRIMINATOR)
             .and_then(|_| self.0.serialize(writer))
             .map_err(|_| error!(ErrorCode::AccountDidNotSerialize))
     }
 }
 
-impl<const N: usize, T> AccountDeserialize for LegacyAnchorized<N, T>
+impl<T> AccountDeserialize for LegacyAnchorized<T>
 where
-    T: LegacyAccount<N>,
+    T: LegacyAccount,
 {
     fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        if buf.len() < N {
+        let disc_len = T::DISCRIMINATOR.len();
+        if buf.len() < disc_len {
             return err!(ErrorCode::AccountDidNotDeserialize);
         };
-        let given_disc = &buf[..N];
-        if T::DISCRIMINATOR != *given_disc {
+        if *T::DISCRIMINATOR != buf[..disc_len] {
             return err!(ErrorCode::AccountDidNotDeserialize);
         }
         Self::try_deserialize_unchecked(buf)
     }
 
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        let mut data = &buf[N..];
+        let mut data = &buf[T::DISCRIMINATOR.len()..];
         Ok(Self(T::deserialize(&mut data)?))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum AccountVariant<T>
+where
+    T: LegacyAccount + AccountSerialize + AccountDeserialize + anchor_lang::Discriminator,
+{
+    Anchor(T),
+    Legacy(T),
+}
+
+impl<T> AccountVariant<T>
+where
+    T: LegacyAccount + AccountSerialize + AccountDeserialize + anchor_lang::Discriminator,
+{
+    pub fn inner(&self) -> &T {
+        match self {
+            Self::Anchor(inner) => inner,
+            Self::Legacy(inner) => inner,
+        }
+    }
+
+    pub fn inner_mut(&mut self) -> &mut T {
+        match self {
+            Self::Anchor(inner) => inner,
+            Self::Legacy(inner) => inner,
+        }
+    }
+}
+
+impl<T> AccountDeserialize for AccountVariant<T>
+where
+    T: LegacyAccount + AccountSerialize + AccountDeserialize + anchor_lang::Discriminator,
+{
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        require!(buf.len() >= 8, ErrorCode::AccountDidNotDeserialize);
+        if buf[..8] == <T as anchor_lang::Discriminator>::DISCRIMINATOR {
+            AccountDeserialize::try_deserialize_unchecked(buf).map(Self::Anchor)
+        } else {
+            LegacyAnchorized::try_deserialize(buf)
+                .map(|acc| acc.0)
+                .map(Self::Legacy)
+        }
+    }
+}
+
+impl<T> AccountSerialize for AccountVariant<T>
+where
+    T: LegacyAccount + AccountSerialize + AccountDeserialize + anchor_lang::Discriminator,
+{
+    fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
+        match self {
+            Self::Anchor(inner) => AccountSerialize::try_serialize(inner, writer),
+            Self::Legacy(inner) => writer
+                .write_all(<T as LegacyAccount>::DISCRIMINATOR)
+                .and_then(|_| inner.serialize(writer))
+                .map_err(|_| error!(ErrorCode::AccountDidNotSerialize)),
+        }
     }
 }
 

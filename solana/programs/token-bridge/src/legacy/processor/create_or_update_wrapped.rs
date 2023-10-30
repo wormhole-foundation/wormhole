@@ -29,7 +29,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
@@ -280,7 +280,7 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let wrapped_asset = {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =
-            LegacyAnchorized::<0, WrappedAsset>::try_deserialize(&mut acc_data.as_ref())?;
+            LegacyAnchorized::<WrappedAsset>::try_deserialize(&mut acc_data.as_ref())?;
         require!(
             updated_sequence > wrapped_asset.last_updated_sequence,
             TokenBridgeError::AttestationOutOfSequence

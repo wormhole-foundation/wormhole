@@ -35,7 +35,7 @@ pub struct CompleteTransferNative<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we check the mint of the custody token account, we
     /// can be sure that this token account is the same mint since the Token Program transfer

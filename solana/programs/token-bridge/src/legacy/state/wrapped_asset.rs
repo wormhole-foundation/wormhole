@@ -16,8 +16,8 @@ pub struct LegacyWrappedAsset {
     pub native_decimals: u8,
 }
 
-impl core_bridge_program::legacy::utils::LegacyAccount<0> for LegacyWrappedAsset {
-    const DISCRIMINATOR: [u8; 0] = [];
+impl core_bridge_program::legacy::utils::LegacyAccount for LegacyWrappedAsset {
+    const DISCRIMINATOR: &'static [u8] = &[];
 
     fn program_id() -> Pubkey {
         crate::ID
@@ -60,8 +60,8 @@ impl WrappedAsset {
     pub const SEED_PREFIX: &'static [u8] = LegacyWrappedAsset::SEED_PREFIX;
 }
 
-impl core_bridge_program::legacy::utils::LegacyAccount<0> for WrappedAsset {
-    const DISCRIMINATOR: [u8; 0] = LegacyWrappedAsset::DISCRIMINATOR;
+impl core_bridge_program::legacy::utils::LegacyAccount for WrappedAsset {
+    const DISCRIMINATOR: &'static [u8] = LegacyWrappedAsset::DISCRIMINATOR;
 
     fn program_id() -> Pubkey {
         crate::ID

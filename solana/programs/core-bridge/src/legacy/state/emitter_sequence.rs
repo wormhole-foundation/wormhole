@@ -7,8 +7,8 @@ pub struct EmitterSequence {
     pub value: u64,
 }
 
-impl crate::legacy::utils::LegacyAccount<0> for EmitterSequence {
-    const DISCRIMINATOR: [u8; 0] = [];
+impl crate::legacy::utils::LegacyAccount for EmitterSequence {
+    const DISCRIMINATOR: &'static [u8] = &[];
 
     fn program_id() -> Pubkey {
         crate::ID

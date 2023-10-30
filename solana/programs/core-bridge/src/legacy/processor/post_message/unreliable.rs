@@ -15,7 +15,7 @@ pub struct PostMessageUnreliable<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// CHECK: This message account is observed by the Guardians.
     ///
@@ -26,7 +26,7 @@ pub struct PostMessageUnreliable<'info> {
         payer = payer,
         space = try_compute_size(message, payload_len)?,
     )]
-    message: Account<'info, LegacyAnchorized<4, PostedMessageV1Unreliable>>,
+    message: Account<'info, LegacyAnchorized<PostedMessageV1Unreliable>>,
 
     /// The emitter of the Core Bridge message. This account is typically an integrating program's
     /// PDA which signs for this instruction.
@@ -44,7 +44,7 @@ pub struct PostMessageUnreliable<'info> {
         ],
         bump,
     )]
-    emitter_sequence: Account<'info, LegacyAnchorized<0, EmitterSequence>>,
+    emitter_sequence: Account<'info, LegacyAnchorized<EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,

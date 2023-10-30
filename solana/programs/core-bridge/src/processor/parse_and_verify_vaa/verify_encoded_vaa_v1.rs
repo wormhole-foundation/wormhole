@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::utils::LegacyAnchorized,
+    legacy::utils::AccountVariant,
     state::{GuardianSet, Header, ProcessingStatus},
     zero_copy::EncodedVaa,
 };
@@ -17,12 +17,16 @@ pub struct VerifyEncodedVaaV1<'info> {
     #[account(mut)]
     encoded_vaa: AccountInfo<'info>,
 
-    /// Guardian set account, which is only needed for signature verification.
+    /// Guardian set account, which should be the same one that was used to attest for the VAA. The
+    /// signatures in the encoded VAA are verified against this guardian set.
     #[account(
-        seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            guardian_set.inner().index.to_be_bytes().as_ref()
+        ],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    guardian_set: Account<'info, AccountVariant<GuardianSet>>,
 }
 
 impl<'info> VerifyEncodedVaaV1<'info> {
@@ -30,7 +34,7 @@ impl<'info> VerifyEncodedVaaV1<'info> {
         // Guardian set must be active.
         let timestamp = Clock::get().map(Into::into)?;
         require!(
-            ctx.accounts.guardian_set.is_active(&timestamp),
+            ctx.accounts.guardian_set.inner().is_active(&timestamp),
             CoreBridgeError::GuardianSetExpired
         );
 
@@ -49,7 +53,7 @@ impl<'info> VerifyEncodedVaaV1<'info> {
 
 #[access_control(VerifyEncodedVaaV1::constraints(&ctx))]
 pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
-    let guardian_set = &ctx.accounts.guardian_set;
+    let guardian_set = &ctx.accounts.guardian_set.inner();
 
     let write_authority = {
         let encoded_vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa).unwrap();

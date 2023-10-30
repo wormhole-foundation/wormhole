@@ -5,8 +5,6 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 
-const INDEX_ZERO: u32 = 0;
-
 #[derive(Accounts)]
 #[instruction(args: InitializeArgs)]
 pub struct Initialize<'info> {
@@ -20,7 +18,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// New guardian set account acting as the active guardian set.
     ///
@@ -32,10 +30,13 @@ pub struct Initialize<'info> {
         init,
         payer = payer,
         space = GuardianSet::compute_size(args.initial_guardians.len()),
-        seeds = [GuardianSet::SEED_PREFIX, &INDEX_ZERO.to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            u32::to_be_bytes(0).as_ref()
+        ],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    guardian_set: Account<'info, LegacyAnchorized<GuardianSet>>,
 
     /// CHECK: System account that collects lamports whenever a new message is posted (published).
     #[account(
@@ -106,7 +107,7 @@ fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     // Set Bridge data account fields.
     ctx.accounts.config.set_inner(
         Config {
-            guardian_set_index: INDEX_ZERO,
+            guardian_set_index: 0,
             guardian_set_ttl: guardian_set_ttl_seconds.into(),
             fee_lamports,
             _gap_0: Default::default(),
@@ -117,7 +118,7 @@ fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     // Set guardian set account fields.
     ctx.accounts.guardian_set.set_inner(
         GuardianSet {
-            index: INDEX_ZERO,
+            index: 0,
             creation_time: Clock::get().map(Into::into)?,
             keys,
             expiration_time: Default::default(),

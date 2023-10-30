@@ -38,7 +38,7 @@ pub struct CompleteTransferWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
 
     /// CHECK: Recipient token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
@@ -68,7 +68,7 @@ pub struct CompleteTransferWrapped<'info> {
         seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>,
+    wrapped_asset: Account<'info, LegacyAnchorized<LegacyWrappedAsset>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(

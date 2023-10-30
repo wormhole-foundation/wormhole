@@ -21,7 +21,7 @@ pub struct SetMessageFee<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to

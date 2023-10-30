@@ -22,8 +22,8 @@ pub struct Config {
     pub fee_lamports: u64,
 }
 
-impl crate::legacy::utils::LegacyAccount<0> for Config {
-    const DISCRIMINATOR: [u8; 0] = [];
+impl crate::legacy::utils::LegacyAccount for Config {
+    const DISCRIMINATOR: &'static [u8] = &[];
 
     fn program_id() -> Pubkey {
         crate::ID

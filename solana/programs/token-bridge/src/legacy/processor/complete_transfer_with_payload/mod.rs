@@ -14,7 +14,7 @@ use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 pub fn validate_token_transfer_with_payload_vaa(
     vaa_acc_info: &AccountInfo,
-    registered_emitter: &Account<LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: &Account<LegacyAnchorized<RegisteredEmitter>>,
     redeemer_authority: &Signer,
     dst_token: &AccountInfo,
 ) -> Result<(u16, [u8; 32])> {

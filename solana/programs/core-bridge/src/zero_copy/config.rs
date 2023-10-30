@@ -29,9 +29,7 @@ impl<'a> Config<'a> {
         u64::from_le_bytes(self.0[16..24].try_into().unwrap())
     }
 
-    pub fn parse(acc_info: &'a AccountInfo) -> Result<Self> {
-        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
-
+    pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {
         let data = acc_info.try_borrow_data()?;
         require_eq!(
             data.len(),
@@ -39,5 +37,13 @@ impl<'a> Config<'a> {
             ErrorCode::AccountDidNotDeserialize
         );
         Ok(Self(data))
+    }
+}
+
+impl<'a> crate::zero_copy::LoadZeroCopy<'a> for Config<'a> {
+    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
+        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+
+        Self::new(acc_info)
     }
 }

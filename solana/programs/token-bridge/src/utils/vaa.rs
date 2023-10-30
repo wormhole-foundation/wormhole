@@ -33,7 +33,7 @@ pub fn require_valid_vaa_key(acc_key: &Pubkey) -> Result<()> {
 pub fn require_valid_token_bridge_vaa<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
     vaa: &'ctx core_bridge_sdk::VaaAccount<'ctx>,
-    registered_emitter: &'ctx Account<'_, LegacyAnchorized<0, RegisteredEmitter>>,
+    registered_emitter: &'ctx Account<'_, LegacyAnchorized<RegisteredEmitter>>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
     require_valid_vaa_key(vaa_acc_key)?;
 

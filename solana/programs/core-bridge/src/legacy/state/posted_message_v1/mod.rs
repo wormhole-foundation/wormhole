@@ -117,8 +117,8 @@ impl From<PostedMessageV1Data> for PostedMessageV1 {
     }
 }
 
-impl crate::legacy::utils::LegacyAccount<4> for PostedMessageV1 {
-    const DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_DISCRIMINATOR;
+impl crate::legacy::utils::LegacyAccount for PostedMessageV1 {
+    const DISCRIMINATOR: &'static [u8] = &POSTED_MESSAGE_V1_DISCRIMINATOR;
 
     fn program_id() -> Pubkey {
         crate::ID

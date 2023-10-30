@@ -24,7 +24,7 @@ pub struct PostVaaV1<'info> {
         ],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
+    posted_vaa: Account<'info, LegacyAnchorized<PostedVaaV1>>,
 
     system_program: Program<'info, System>,
 }

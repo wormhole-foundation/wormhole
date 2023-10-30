@@ -48,14 +48,7 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-    /// In case we encounter the year 2038 problem, this method will return the max value for u32.
-    pub fn saturating_add(&self, duration: &Duration) -> Timestamp {
-        Timestamp {
-            value: self.value.saturating_add(duration.seconds),
-        }
-    }
-
-    /// Return the memory representation of this integer as a byte array in big-endian (network)
+    /// Return the memory representation of this underlying u32 value as a byte array in big-endian
     /// byte order.
     pub fn to_be_bytes(self) -> [u8; 4] {
         self.value.to_be_bytes()
@@ -78,6 +71,16 @@ impl From<Clock> for Timestamp {
     fn from(clock: Clock) -> Self {
         Self {
             value: clock.unix_timestamp.try_into().expect("timestamp overflow"),
+        }
+    }
+}
+
+impl core::ops::Add<Duration> for Timestamp {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        Self {
+            value: self.value + rhs.seconds,
         }
     }
 }

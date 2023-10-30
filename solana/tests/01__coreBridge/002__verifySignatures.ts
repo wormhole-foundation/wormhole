@@ -36,12 +36,6 @@ describe("Core Bridge -- Legacy Instruction: Verify Signatures", () => {
         contextName: "instructions",
         errorMsg: "AccountSysvarMismatch",
       },
-      {
-        label: "guardian_set",
-        contextName: "guardianSet",
-        errorMsg: "ConstraintSeeds",
-        dataLength: 4 + 4 + 20 * 19 + 4 + 4,
-      },
     ];
 
     for (const cfg of accountConfigs) {

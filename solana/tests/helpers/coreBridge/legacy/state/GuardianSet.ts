@@ -38,7 +38,12 @@ export class GuardianSet {
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): GuardianSet {
-    return GuardianSet.deserialize(info.data);
+    const data = info.data;
+    if (data.subarray(0, 8).equals(Uint8Array.from([120, 77, 74, 98, 34, 83, 96, 125]))) {
+      return GuardianSet.deserialize(data.subarray(8));
+    } else {
+      return GuardianSet.deserialize(data);
+    }
   }
 
   static async fromAccountAddress(

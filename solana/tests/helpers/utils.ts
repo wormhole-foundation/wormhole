@@ -1,10 +1,10 @@
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  ParsedVaa,
   parseVaa,
   tryNativeToUint8Array,
 } from "@certusone/wormhole-sdk";
-import { createVerifySignaturesInstructions } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { BN } from "@coral-xyz/anchor";
 import { MockGuardians, MockEmitter } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
@@ -34,6 +34,10 @@ import { ethers } from "ethers";
 import * as coreBridge from "./coreBridge";
 import * as tokenBridge from "./tokenBridge";
 import { createSecp256k1Instruction, GOVERNANCE_EMITTER_ADDRESS } from "./";
+import {
+  createReadOnlyWormholeProgramInterface,
+  getVerifySignatureAccounts,
+} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
 export type InvalidAccountConfig = {
   label: string;
@@ -586,4 +590,77 @@ export function createInvalidCoreGovernanceVaaFromEth(
     1 // Finality.
   );
   return guardians.addSignatures(published, signatureIndices);
+}
+
+export async function createVerifySignaturesInstructions(
+  connection: Connection,
+  coreBridgeProgramId: PublicKey,
+  payer: PublicKey,
+  vaa: Buffer,
+  signatureSet: PublicKey
+): Promise<TransactionInstruction[]> {
+  const parsed = parseVaa(vaa);
+
+  const guardianSetData = await coreBridge.GuardianSet.fromPda(
+    connection,
+    coreBridgeProgramId,
+    parsed.guardianSetIndex
+  );
+
+  const guardianSignatures = parsed.guardianSignatures;
+  const guardianKeys = guardianSetData.keys;
+
+  const batchSize = 7;
+  const instructions: TransactionInstruction[] = [];
+  for (let i = 0; i < Math.ceil(guardianSignatures.length / batchSize); ++i) {
+    const start = i * batchSize;
+    const end = Math.min(guardianSignatures.length, (i + 1) * batchSize);
+
+    const signatureStatus = new Array(19).fill(-1);
+    const signatures: Buffer[] = [];
+    const keys: Buffer[] = [];
+    for (let j = 0; j < end - start; ++j) {
+      const item = guardianSignatures.at(j + start)!;
+      signatures.push(item.signature);
+
+      const key = guardianKeys.at(item.index)!;
+      keys.push(Buffer.from(key));
+
+      signatureStatus[item.index] = j;
+    }
+
+    instructions.push(createSecp256k1Instruction(signatures, keys, parsed.hash));
+    instructions.push(
+      createVerifySignaturesInstruction(
+        coreBridgeProgramId,
+        payer,
+        parsed,
+        signatureSet,
+        signatureStatus
+      )
+    );
+  }
+  return instructions;
+}
+
+function createVerifySignaturesInstruction(
+  coreBridgeProgramId: PublicKey,
+  payer: PublicKey,
+  vaa: ParsedVaa,
+  signatureSet: PublicKey,
+  signatureStatus: number[]
+): TransactionInstruction {
+  const methods =
+    createReadOnlyWormholeProgramInterface(coreBridgeProgramId).methods.verifySignatures(
+      signatureStatus
+    );
+
+  // @ts-ignore
+  return methods._ixFn(...methods._args, {
+    accounts: getVerifySignatureAccounts(coreBridgeProgramId, payer, signatureSet, vaa) as any,
+    signers: undefined,
+    remainingAccounts: undefined,
+    preInstructions: undefined,
+    postInstructions: undefined,
+  });
 }

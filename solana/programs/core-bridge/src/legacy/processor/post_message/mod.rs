@@ -25,7 +25,7 @@ pub struct PostMessage<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// CHECK: This message account is observed by the Guardians.
     ///
@@ -58,7 +58,7 @@ pub struct PostMessage<'info> {
         ],
         bump
     )]
-    emitter_sequence: Account<'info, LegacyAnchorized<0, EmitterSequence>>,
+    emitter_sequence: Account<'info, LegacyAnchorized<EmitterSequence>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -154,9 +154,9 @@ pub(super) struct MessageFeeContext<'ctx, 'info> {
 /// returns the posted message data, which will be serialized to either `PostedMessageV1` or
 /// `PostedMessageV1Unreliable` depending on which instruction handler called this method.
 pub(super) fn new_posted_message_info<'info>(
-    config: &Account<'info, LegacyAnchorized<0, Config>>,
+    config: &Account<'info, LegacyAnchorized<Config>>,
     message_fee_ctx: MessageFeeContext<'_, 'info>,
-    emitter_sequence: &mut Account<'info, LegacyAnchorized<0, EmitterSequence>>,
+    emitter_sequence: &mut Account<'info, LegacyAnchorized<EmitterSequence>>,
     consistency_level: u8,
     nonce: u32,
     emitter: &Pubkey,
@@ -295,7 +295,8 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
-    (PostedMessageV1::DISCRIMINATOR, info).serialize(&mut writer)?;
+    std::io::Write::write_all(&mut writer, PostedMessageV1::DISCRIMINATOR)?;
+    info.serialize(&mut writer)?;
 
     // Done.
     Ok(())
@@ -303,7 +304,7 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
 
 /// If there is a fee, check the fee collector account to ensure that the fee has been paid.
 fn handle_message_fee<'info>(
-    config: &Account<'info, LegacyAnchorized<0, Config>>,
+    config: &Account<'info, LegacyAnchorized<Config>>,
     message_fee_ctx: MessageFeeContext<'_, 'info>,
 ) -> Result<()> {
     if config.fee_lamports > 0 {

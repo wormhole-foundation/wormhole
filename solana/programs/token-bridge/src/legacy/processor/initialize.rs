@@ -14,7 +14,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,

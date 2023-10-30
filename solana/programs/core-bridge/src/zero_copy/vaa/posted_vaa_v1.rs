@@ -6,7 +6,6 @@ use anchor_lang::{
         error, require, require_eq, require_keys_eq, AccountInfo, ErrorCode, Pubkey, Result,
     },
     solana_program::keccak,
-    Key,
 };
 use state::POSTED_VAA_V1_SEED_PREFIX;
 
@@ -114,7 +113,7 @@ impl<'a> PostedVaaV1<'a> {
             &[POSTED_VAA_V1_SEED_PREFIX, parsed.message_hash().as_ref()],
             &crate::ID,
         );
-        require_keys_eq!(acc_info.key(), expected_address, ErrorCode::ConstraintSeeds);
+        require_keys_eq!(*acc_info.key, expected_address, ErrorCode::ConstraintSeeds);
 
         Ok(parsed)
     }

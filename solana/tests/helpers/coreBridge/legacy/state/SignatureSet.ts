@@ -22,7 +22,12 @@ export class SignatureSet {
   }
 
   static fromAccountInfo(info: AccountInfo<Buffer>): SignatureSet {
-    return SignatureSet.deserialize(info.data);
+    const data = info.data;
+    if (data.subarray(0, 8).equals(Uint8Array.from([17, 212, 246, 114, 183, 159, 65, 246]))) {
+      return SignatureSet.deserialize(data.subarray(8));
+    } else {
+      return SignatureSet.deserialize(data);
+    }
   }
 
   static async fromAccountAddress(

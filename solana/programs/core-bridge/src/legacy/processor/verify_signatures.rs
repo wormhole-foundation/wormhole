@@ -1,6 +1,6 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::VerifySignaturesArgs, utils::LegacyAnchorized},
+    legacy::{instruction::VerifySignaturesArgs, utils::AccountVariant},
     state::{GuardianSet, SignatureSet},
     types::MessageHash,
 };
@@ -40,18 +40,21 @@ pub struct VerifySignatures<'info> {
     /// Guardian set used for signature verification. These pubkeys were passed into the Sig Verify
     /// native program to do its signature verification.
     #[account(
-        seeds = [GuardianSet::SEED_PREFIX, &guardian_set.index.to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            guardian_set.inner().index.to_be_bytes().as_ref()
+        ],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    guardian_set: Account<'info, AccountVariant<GuardianSet>>,
 
     /// Stores signature validation from Sig Verify native program.
     #[account(
         init_if_needed,
         payer = payer,
-        space = SignatureSet::compute_size(guardian_set.keys.len())
+        space = SignatureSet::compute_size(guardian_set.inner().keys.len())
     )]
-    signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
+    signature_set: Account<'info, SignatureSet>,
 
     /// CHECK: Instruction sysvar used to read Sig Verify native program instruction data.
     #[account(
@@ -83,7 +86,7 @@ impl<'info> VerifySignatures<'info> {
         // handler.
         let timestamp = Clock::get().map(Into::into)?;
         require!(
-            ctx.accounts.guardian_set.is_active(&timestamp),
+            ctx.accounts.guardian_set.inner().is_active(&timestamp),
             CoreBridgeError::GuardianSetExpired
         );
 
@@ -145,7 +148,7 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
     // We use this message hash later on.
     let message_hash = MessageHash::from(message);
     let signature_set = &mut ctx.accounts.signature_set;
-    let guardian_set = &ctx.accounts.guardian_set;
+    let guardian_set = ctx.accounts.guardian_set.inner();
     let guardians = &guardian_set.keys;
 
     // If the signature set account has not been initialized yet, establish the expected account
@@ -171,14 +174,11 @@ fn verify_signatures(ctx: Context<VerifySignatures>, args: VerifySignaturesArgs)
         // indication of verified signatures (via `sig_verify_successes`) written to this account
         // yet. If we reach this condition, we set the message hash and guardian set index because
         // we are assuming that the account is created with this instruction invocation.
-        signature_set.set_inner(
-            SignatureSet {
-                sig_verify_successes: vec![false; guardians.len()],
-                message_hash,
-                guardian_set_index: guardian_set.index,
-            }
-            .into(),
-        );
+        signature_set.set_inner(SignatureSet {
+            sig_verify_successes: vec![false; guardians.len()],
+            message_hash,
+            guardian_set_index: guardian_set.index,
+        });
     }
 
     // Attempt to write `true` to represent verified guardian eth pubkey.

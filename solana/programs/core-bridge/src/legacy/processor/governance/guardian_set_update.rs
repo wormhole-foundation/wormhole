@@ -1,6 +1,9 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
+    legacy::{
+        instruction::EmptyArgs,
+        utils::{AccountVariant, LegacyAnchorized},
+    },
     state::{Config, GuardianSet},
     types::Timestamp,
     zero_copy::{LoadZeroCopy, VaaAccount},
@@ -20,7 +23,7 @@ pub struct GuardianSetUpdate<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<0, Config>>,
+    config: Account<'info, LegacyAnchorized<Config>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
@@ -33,15 +36,19 @@ pub struct GuardianSetUpdate<'info> {
     claim: AccountInfo<'info>,
 
     /// Existing guardian set, whose guardian set index is the same one found in the [Config].
+    ///
+    /// CHECK: This address is derived using the guardian set account's encoded index. Because this
+    /// account is loaded via [LoadZeroCopy], the address is verified when it is loaded in access
+    /// control.
     #[account(
         mut,
         seeds = [
             GuardianSet::SEED_PREFIX,
-            &config.guardian_set_index.to_be_bytes()
+            config.guardian_set_index.to_be_bytes().as_ref()
         ],
         bump,
     )]
-    curr_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    curr_guardian_set: Account<'info, AccountVariant<GuardianSet>>,
 
     /// New guardian set created from the encoded guardians in the posted governance VAA. This
     /// account's guardian set index must be the next value after the current guardian set index.
@@ -51,11 +58,11 @@ pub struct GuardianSetUpdate<'info> {
         space = try_compute_size(&vaa)?,
         seeds = [
             GuardianSet::SEED_PREFIX,
-            &curr_guardian_set.index.saturating_add(1).to_be_bytes()
+            &config.guardian_set_index.saturating_add(1).to_be_bytes()
         ],
         bump,
     )]
-    new_guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    new_guardian_set: Account<'info, GuardianSet>,
 
     system_program: Program<'info, System>,
 }
@@ -153,23 +160,20 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
         VaaAccount::PostedVaaV1(inner) => inner.timestamp(),
     };
 
-    ctx.accounts.new_guardian_set.set_inner(
-        GuardianSet {
-            index: ctx.accounts.curr_guardian_set.index + 1,
-            creation_time,
-            keys,
-            expiration_time: Default::default(),
-        }
-        .into(),
-    );
-
     // Set the new index on the config program data.
     let config = &mut ctx.accounts.config;
     config.guardian_set_index += 1;
 
+    ctx.accounts.new_guardian_set.set_inner(GuardianSet {
+        index: config.guardian_set_index,
+        creation_time,
+        keys,
+        expiration_time: Default::default(),
+    });
+
     // Now set the expiration time for the current guardian.
     let now = Clock::get().map(Timestamp::from)?;
-    ctx.accounts.curr_guardian_set.expiration_time = now.saturating_add(&config.guardian_set_ttl);
+    ctx.accounts.curr_guardian_set.inner_mut().expiration_time = now + config.guardian_set_ttl;
 
     // Done.
     Ok(())

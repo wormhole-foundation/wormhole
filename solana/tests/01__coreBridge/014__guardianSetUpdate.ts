@@ -419,7 +419,7 @@ describe("Core Bridge -- Legacy Instruction: Guardian Set Update", () => {
           ),
         ],
         [payer],
-        "already in use"
+        "ConstraintSeeds"
       );
     });
   });

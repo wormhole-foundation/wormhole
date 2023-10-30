@@ -45,7 +45,7 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
         seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Account<'info, LegacyAnchorized<0, LegacyWrappedAsset>>,
+    wrapped_asset: Account<'info, LegacyAnchorized<LegacyWrappedAsset>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.

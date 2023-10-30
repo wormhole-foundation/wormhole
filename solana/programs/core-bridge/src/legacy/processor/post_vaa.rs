@@ -1,6 +1,9 @@
 use crate::{
     error::CoreBridgeError,
-    legacy::{instruction::PostVaaArgs, utils::LegacyAnchorized},
+    legacy::{
+        instruction::PostVaaArgs,
+        utils::{AccountVariant, LegacyAnchorized},
+    },
     state::{GuardianSet, PostedVaaV1, PostedVaaV1Info, SignatureSet},
     types::MessageHash,
     utils,
@@ -29,22 +32,22 @@ const INVALID_SIGNATURE_SET_KEYS: [&str; 16] = [
 #[derive(Accounts)]
 #[instruction(args: PostVaaArgs)]
 pub struct PostVaa<'info> {
-    /// Guardian set used for signature verification. This PDA address is derived using the guardian
-    /// set index found in the signature set account.
+    /// Guardian set used for signature verification (whose index should agree with the signature
+    /// set account's guardian set index).
     #[account(
-        seeds = [GuardianSet::SEED_PREFIX, &signature_set.guardian_set_index.to_be_bytes()],
+        seeds = [
+            GuardianSet::SEED_PREFIX,
+            signature_set.guardian_set_index.to_be_bytes().as_ref()
+        ],
         bump,
     )]
-    guardian_set: Account<'info, LegacyAnchorized<0, GuardianSet>>,
+    guardian_set: Account<'info, AccountVariant<GuardianSet>>,
 
     /// CHECK: Core Bridge never needed this account for this instruction.
     _config: UncheckedAccount<'info>,
 
     /// Signature set, which stores signature validation from Sig Verify native program.
-    ///
-    /// NOTE: We prefer to make this account mutable so we have the ability to close this account
-    /// once this VAA is posted. But we are prserving read-only to not alter the existing behavior.
-    signature_set: Account<'info, LegacyAnchorized<0, SignatureSet>>,
+    signature_set: Account<'info, SignatureSet>,
 
     /// Posted VAA created by this instruction handler.
     ///
@@ -60,7 +63,7 @@ pub struct PostVaa<'info> {
         ],
         bump,
     )]
-    posted_vaa: Account<'info, LegacyAnchorized<4, PostedVaaV1>>,
+    posted_vaa: Account<'info, LegacyAnchorized<PostedVaaV1>>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -82,10 +85,12 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostVaaArgs> f
 
 impl<'info> PostVaa<'info> {
     pub fn constraints(ctx: &Context<Self>, args: &PostVaaArgs) -> Result<()> {
+        let guardian_set = ctx.accounts.guardian_set.inner();
+
         // Check that the guardian set is still active.
         let timestamp = Clock::get().map(Into::into)?;
         require!(
-            ctx.accounts.guardian_set.is_active(&timestamp),
+            guardian_set.is_active(&timestamp),
             CoreBridgeError::GuardianSetExpired
         );
 
@@ -98,7 +103,7 @@ impl<'info> PostVaa<'info> {
         // Number of verified signatures in the signature set account must be at least quorum with
         // the guardian set.
         require!(
-            signature_set.num_verified() >= utils::quorum(ctx.accounts.guardian_set.keys.len()),
+            signature_set.num_verified() >= utils::quorum(guardian_set.keys.len()),
             CoreBridgeError::NoQuorum
         );
 
@@ -145,13 +150,14 @@ fn post_vaa(ctx: Context<PostVaa>, args: PostVaaArgs) -> Result<()> {
     } = args;
 
     // Set the posted VAA account with this instruction data.
+    let signature_set = &ctx.accounts.signature_set;
     ctx.accounts.posted_vaa.set_inner(
         PostedVaaV1 {
             info: PostedVaaV1Info {
                 consistency_level,
                 timestamp: timestamp.into(),
-                signature_set: ctx.accounts.signature_set.key(),
-                guardian_set_index: ctx.accounts.guardian_set.index,
+                signature_set: signature_set.key(),
+                guardian_set_index: signature_set.guardian_set_index,
                 nonce,
                 sequence,
                 emitter_chain,

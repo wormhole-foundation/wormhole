@@ -12,8 +12,8 @@ pub struct PostedMessageV1Unreliable {
     pub data: PostedMessageV1Data,
 }
 
-impl crate::legacy::utils::LegacyAccount<4> for PostedMessageV1Unreliable {
-    const DISCRIMINATOR: [u8; 4] = POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
+impl crate::legacy::utils::LegacyAccount for PostedMessageV1Unreliable {
+    const DISCRIMINATOR: &'static [u8] = &POSTED_MESSAGE_V1_UNRELIABLE_DISCRIMINATOR;
 
     fn program_id() -> Pubkey {
         crate::ID

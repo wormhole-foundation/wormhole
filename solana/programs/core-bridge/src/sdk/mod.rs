@@ -9,7 +9,7 @@ pub use crate::{
     legacy::instruction::PostMessageArgs,
     processor::{InitMessageV1Args, WriteEncodedVaaArgs, WriteMessageV1Args},
     types,
-    zero_copy::{Config, LoadZeroCopy, MessageAccount, PostedMessageV1, VaaAccount},
+    zero_copy::{Config, LoadZeroCopy, MessageAccount, VaaAccount},
 };
 
 /// Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
@@ -27,9 +27,9 @@ pub mod instruction {
     pub use crate::{instruction::*, legacy::instruction as legacy};
 }
 
-/// Convenient method to determine the space required for a [PostedMessageV1] account before the
-/// account is initialized via
-/// [init_message_v1](crate::wormhole_core_bridge_solana::init_message_v1).
+/// Convenient method to determine the space required for a
+/// [PostedMessageV1](crate::zero_copy::PostedMessageV1) account before the account is initialized
+/// via [init_message_v1](crate::wormhole_core_bridge_solana::init_message_v1).
 pub fn compute_prepared_message_space(payload_size: usize) -> usize {
     crate::state::PostedMessageV1::BYTES_START + payload_size
 }
