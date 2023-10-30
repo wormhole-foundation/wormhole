@@ -16,16 +16,7 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
   blockTag: string;
 
   constructor(blockTag: BlockTag, public callData: EthCallData[]) {
-    if (typeof blockTag === "number") {
-      this.blockTag = `0x${blockTag.toString(16)}`;
-    } else if (isValidHexString(blockTag)) {
-      if (!blockTag.startsWith("0x")) {
-        blockTag = `0x${blockTag}`;
-      }
-      this.blockTag = blockTag;
-    } else {
-      throw new Error(`Invalid block tag: ${blockTag}`);
-    }
+    this.blockTag = parseBlockId(blockTag);
   }
 
   type(): ChainQueryType {
@@ -46,4 +37,25 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
     });
     return writer.data();
   }
+}
+
+export function parseBlockId(blockId: BlockTag): string {
+  if (!blockId || blockId === "") {
+    throw new Error(`block tag is required`);
+  }
+
+  if (typeof blockId === "number") {
+    if (blockId < 0) {
+      throw new Error(`block tag must be positive`);
+    }
+    blockId = `0x${blockId.toString(16)}`;
+  } else if (isValidHexString(blockId)) {
+    if (!blockId.startsWith("0x")) {
+      blockId = `0x${blockId}`;
+    }
+  } else {
+    throw new Error(`Invalid block tag: ${blockId}`);
+  }
+
+  return blockId;
 }

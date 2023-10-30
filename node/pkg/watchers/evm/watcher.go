@@ -125,7 +125,10 @@ type (
 		unsafeDevMode bool
 
 		latestFinalizedBlockNumber uint64
+		latestSafeBlockNumber      uint64
 		l1Finalizer                interfaces.L1Finalizer
+
+		safeBlocksSupported bool
 
 		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
 		rootChainRpc      string
@@ -198,8 +201,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
 	defer watcherContextCancelFunc()
 
-	var useFinalizedBlocks, safeBlocksSupported bool
-	useFinalizedBlocks, safeBlocksSupported, err = w.getFinality(ctx)
+	var useFinalizedBlocks bool
+	useFinalizedBlocks, w.safeBlocksSupported, err = w.getFinality(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine finality: %w", err)
 	}
@@ -213,7 +216,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer cancel()
 
 	if useFinalizedBlocks {
-		if safeBlocksSupported {
+		if w.safeBlocksSupported {
 			logger.Info("using finalized blocks, will publish safe blocks")
 		} else {
 			logger.Info("using finalized blocks")
@@ -225,7 +228,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, safeBlocksSupported)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, w.safeBlocksSupported)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -327,11 +330,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	// Track the current block numbers so we can compare it to the block number of
-	// the message publication for observation requests.
-	var currentBlockNumber uint64
-	var currentSafeBlockNumber uint64
-
 	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
 		for {
 			select {
@@ -356,8 +354,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				// In the primary watcher flow, this is of no concern since we assume the node
 				// always sends the head before it sends the logs (implicit synchronization
 				// by relying on the same websocket connection).
-				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
-				safeBlockNumberU := atomic.LoadUint64(&currentSafeBlockNumber)
+				blockNumberU := atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+				safeBlockNumberU := atomic.LoadUint64(&w.latestSafeBlockNumber)
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 				blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
@@ -385,7 +383,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe && safeBlocksSupported {
+					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe && w.safeBlocksSupported {
 						if safeBlockNumberU == 0 {
 							logger.Error("no safe block number available, ignoring observation request",
 								zap.String("eth_network", w.networkName))
@@ -603,13 +601,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 				blockNumberU := ev.Number.Uint64()
 				if ev.Safe {
-					atomic.StoreUint64(&currentSafeBlockNumber, blockNumberU)
+					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
 				} else {
 					p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 						Height:          ev.Number.Int64(),
 						ContractAddress: w.contract.Hex(),
 					})
-					atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
 				}
@@ -617,7 +614,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				for key, pLock := range w.pending {
 					// If this block is safe, only process messages wanting safe.
 					// If it's not safe, only process messages wanting finalized.
-					if safeBlocksSupported {
+					if w.safeBlocksSupported {
 						if ev.Safe != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
 							continue
 						}
@@ -881,6 +878,11 @@ func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
 // get the latest finalized block number from this watcher.
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+}
+
+// getLatestSafeBlockNumber() returns the latest safe block seen by this watcher..
+func (w *Watcher) getLatestSafeBlockNumber() uint64 {
+	return atomic.LoadUint64(&w.latestSafeBlockNumber)
 }
 
 // SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles

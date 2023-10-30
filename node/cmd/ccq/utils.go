@@ -65,8 +65,9 @@ type User struct {
 }
 
 type AllowedCall struct {
-	EthCall            *EthCall            `json:"ethCall"`
-	EthCallByTimestamp *EthCallByTimestamp `json:"ethCallByTimestamp"`
+	EthCall             *EthCall             `json:"ethCall"`
+	EthCallByTimestamp  *EthCallByTimestamp  `json:"ethCallByTimestamp"`
+	EthCallWithFinality *EthCallWithFinality `json:"ethCallWithFinality"`
 }
 
 type EthCall struct {
@@ -76,6 +77,12 @@ type EthCall struct {
 }
 
 type EthCallByTimestamp struct {
+	Chain           int    `json:"chain"`
+	ContractAddress string `json:"contractAddress"`
+	Call            string `json:"call"`
+}
+
+type EthCallWithFinality struct {
 	Chain           int    `json:"chain"`
 	ContractAddress string `json:"contractAddress"`
 	Call            string `json:"call"`
@@ -152,8 +159,13 @@ func parseConfig(byteValue []byte) (Permissions, error) {
 				chain = ac.EthCallByTimestamp.Chain
 				contractAddressStr = ac.EthCallByTimestamp.ContractAddress
 				callStr = ac.EthCallByTimestamp.Call
+			} else if ac.EthCallWithFinality != nil {
+				callType = "ethCallWithFinality"
+				chain = ac.EthCallWithFinality.Chain
+				contractAddressStr = ac.EthCallWithFinality.ContractAddress
+				callStr = ac.EthCallWithFinality.Call
 			} else {
-				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall" or "ethCallByTimestamp"`, user.UserName)
+				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall", "ethCallByTimestamp" or "ethCallWithFinality"`, user.UserName)
 			}
 
 			// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
@@ -260,19 +272,6 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 			}
 		case *query.EthCallByTimestampQueryRequest:
 			for _, callData := range q.CallData {
-				if q.TargetTimestamp == 0 {
-					logger.Debug("eth call by timestamp must have a non-zero timestamp", zap.String("userName", permsForUser.userName))
-					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have a non-zero timestamp")
-				}
-				// TODO: For now, the block hints are required!
-				if q.TargetBlockIdHint == "" {
-					logger.Debug("eth call by timestamp must have the target block hint", zap.String("userName", permsForUser.userName))
-					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have the target block hint")
-				}
-				if q.FollowingBlockIdHint == "" {
-					logger.Debug("eth call by timestamp must have the following block hint", zap.String("userName", permsForUser.userName))
-					return http.StatusBadRequest, fmt.Errorf("eth call by timestamp must have the following block hint")
-				}
 				contractAddress, err := vaa.BytesToAddress(callData.To)
 				if err != nil {
 					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
@@ -284,6 +283,24 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 				}
 				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
 				callKey := fmt.Sprintf("ethCallByTimestamp:%d:%s:%s", pcq.ChainId, contractAddress, call)
+				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+				}
+			}
+		case *query.EthCallWithFinalityQueryRequest:
+			for _, callData := range q.CallData {
+				contractAddress, err := vaa.BytesToAddress(callData.To)
+				if err != nil {
+					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
+					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
+				}
+				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
+					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
+					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
+				}
+				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
+				callKey := fmt.Sprintf("ethCallWithFinality:%d:%s:%s", pcq.ChainId, contractAddress, call)
 				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
