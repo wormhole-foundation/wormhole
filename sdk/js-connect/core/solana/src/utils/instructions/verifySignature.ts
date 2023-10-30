@@ -16,7 +16,6 @@ import {
 } from '../accounts';
 import { createReadOnlyWormholeProgramInterface } from '../program';
 import { VAA } from '@wormhole-foundation/connect-sdk';
-import { signatureItem } from '@wormhole-foundation/sdk-definitions/src/layout-items';
 
 const MAX_LEN_GUARDIAN_KEYS = 19;
 
@@ -77,7 +76,7 @@ export async function createVerifySignaturesInstructions(
     for (let j = 0; j < end - start; ++j) {
       const item = guardianSignatures.at(j + start)!;
 
-      signatures.push(Buffer.from(signatureItem.custom.from(item.signature)));
+      signatures.push(Buffer.from(item.signature.encode()));
       keys.push(guardianKeys.at(item.guardianIndex)!);
 
       signatureStatus[item.guardianIndex] = j;
