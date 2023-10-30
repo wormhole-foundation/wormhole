@@ -12,6 +12,8 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { ethers } from "ethers";
+
+// Borrow consts
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
@@ -31,6 +33,12 @@ import {
   encoding,
   WormholeMessageId
 } from "@wormhole-foundation/connect-sdk";
+import { SolanaTokenBridge } from "../solana/src";
+import { EvmTokenBridge } from "../evm/src";
+import { EvmPlatform, getEvmSigner } from "@wormhole-foundation/connect-sdk-evm";
+import { SolanaPlatform, getSolanaSigner } from "@wormhole-foundation/connect-sdk-solana";
+
+import { CONFIG as CONNECT_CONFIG, TokenBridge, nativeChainAddress, normalizeAmount, signSendWait, api, encoding, isSignOnlySigner, WormholeMessageId } from "@wormhole-foundation/connect-sdk";
 import { SolanaTokenBridge } from "../solana/src";
 import { EvmTokenBridge } from "../evm/src";
 import { EvmPlatform, getEvmSigner } from "@wormhole-foundation/connect-sdk-evm";
@@ -219,10 +227,12 @@ describe("Ethereum to Solana and Back", () => {
         const tokenFilter: TokenAccountsFilter = {
           programId: TOKEN_PROGRAM_ID,
         };
+
         let results = await connection.getParsedTokenAccountsByOwner(
           keypair.publicKey,
           tokenFilter
         );
+
         let initialSolanaBalance: number = 0;
         for (const item of results.value) {
           const tokenInfo = item.account.data.parsed.info;
