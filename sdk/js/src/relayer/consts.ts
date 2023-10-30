@@ -232,9 +232,9 @@ export const getCircleAPI = (environment: Network) => {
 export const getWormscanAPI = (_network: Network) => {
   switch (_network) {
     case "MAINNET":
-      return "https://api.wormscan.io/";
+      return "https://api.wormholescan.io/";
     case "TESTNET":
-      return "https://api.testnet.wormscan.io/";
+      return "https://api.testnet.wormholescan.io/";
     default:
       // possible extension for tilt/ci - search through the guardian api
       // at localhost:7071 (tilt) or guardian:7071 (ci)
