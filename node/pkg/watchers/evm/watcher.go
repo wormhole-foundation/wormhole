@@ -144,6 +144,7 @@ type (
 		rootChainContract string
 
 		ccqMaxBlockNumber *big.Int
+		ccqTimestampCache *BlocksByTimestamp
 	}
 
 	pendingKey struct {
@@ -171,6 +172,10 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
+	var ccqTimestampCache *BlocksByTimestamp
+	if query.SupportsTimestampCaching(chainID) {
+		ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	}
 
 	return &Watcher{
 		url:                  url,
@@ -188,6 +193,7 @@ func NewEthWatcher(
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
 		ccqMaxBlockNumber:    big.NewInt(0).SetUint64(math.MaxUint64),
+		ccqTimestampCache:    ccqTimestampCache,
 	}
 }
 
@@ -616,6 +622,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU)
 					w.updateNetworkStats(&stats)
+					w.ccqAddLatestBlock(logger, ev)
 					continue
 				}
 
