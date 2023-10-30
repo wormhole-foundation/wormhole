@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "esnext",
+    "lib": ["es2022"],
+    "target": "ES2022",
     "types":["node", "jest"],
     "moduleResolution": "node",
     "outDir": "./lib/esm",
@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "downlevelIteration": true,
     "skipLibCheck": true,
-    "allowJs": true,
-    "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
-  }
+    "resolveJsonModule": true
+  },
+  "include": ["jest.config.ts"]
 }

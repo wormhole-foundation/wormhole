@@ -1,17 +1,5 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "outDir": "./lib/esm",
-    "strict": true,
-    "esModuleInterop": true,
-    "downlevelIteration": true,
-    "skipLibCheck": true,
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
-  },
+  "extends":"../../tsconfig.json",
   "include": ["src", "../../buffer-layout.d.ts"],
   "exclude": ["node_modules", "**/*.test.*", "**/__tests__/*"]
 }

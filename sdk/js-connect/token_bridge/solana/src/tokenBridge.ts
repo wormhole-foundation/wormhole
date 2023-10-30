@@ -96,7 +96,7 @@ export class SolanaTokenBridge implements TokenBridge<'Solana'> {
     );
   }
 
-  static async fromProvider(
+  static async fromRpc(
     connection: RpcConnection<'Solana'>,
     config: ChainsConfig,
   ): Promise<SolanaTokenBridge> {

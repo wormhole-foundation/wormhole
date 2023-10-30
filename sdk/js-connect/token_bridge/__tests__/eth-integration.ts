@@ -1,15 +1,12 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import {
-  createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Connection,
   Keypair,
-  PublicKey,
   TokenAccountsFilter,
-  Transaction,
 } from "@solana/web3.js";
 import { ethers } from "ethers";
 
@@ -38,20 +35,19 @@ import { EvmTokenBridge } from "../evm/src";
 import { EvmPlatform, getEvmSigner } from "@wormhole-foundation/connect-sdk-evm";
 import { SolanaPlatform, getSolanaSigner } from "@wormhole-foundation/connect-sdk-solana";
 
-import { CONFIG as CONNECT_CONFIG, TokenBridge, nativeChainAddress, normalizeAmount, signSendWait, api, encoding, isSignOnlySigner, WormholeMessageId } from "@wormhole-foundation/connect-sdk";
-import { SolanaTokenBridge } from "../solana/src";
-import { EvmTokenBridge } from "../evm/src";
-import { EvmPlatform, getEvmSigner } from "@wormhole-foundation/connect-sdk-evm";
-import { SolanaPlatform, getSolanaSigner } from "@wormhole-foundation/connect-sdk-solana";
+// import "@wormhole-foundation/wormhole-connect-sdk-tokenbridge-evm";
+import "@wormhole-foundation/wormhole-connect-sdk-core-evm";
+// import "@wormhole-foundation/wormhole-connect-sdk-tokenbridge-solana";
+import "@wormhole-foundation/wormhole-connect-sdk-core-solana";
 
 jest.setTimeout(60000);
 
 async function getEthTokenBridge(provider: ethers.Provider): Promise<TokenBridge<'Evm'>> {
-  return EvmTokenBridge.fromProvider(provider, CONNECT_CONFIG.Devnet.chains)
+  return EvmTokenBridge.fromRpc(provider, CONNECT_CONFIG.Devnet.chains)
 }
 
 async function getSolTokenBridge(connection: Connection): Promise<TokenBridge<'Solana'>> {
-  return SolanaTokenBridge.fromProvider(connection, CONNECT_CONFIG.Devnet.chains)
+  return SolanaTokenBridge.fromRpc(connection, CONNECT_CONFIG.Devnet.chains)
 }
 
 async function transferFromEthToSolana(): Promise<WormholeMessageId> {
@@ -70,27 +66,6 @@ async function transferFromEthToSolana(): Promise<WormholeMessageId> {
     solanaMintKey,
     keypair.publicKey
   );
-
-  // create the associated token account if it doesn't exist
-  const associatedAddressInfo = await connection.getAccountInfo(recipient);
-
-  if (!associatedAddressInfo) {
-    const transaction = new Transaction().add(
-      createAssociatedTokenAccountInstruction(
-        keypair.publicKey, // payer
-        recipient,
-        keypair.publicKey, // owner
-        solanaMintKey
-      )
-    );
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = keypair.publicKey;
-    // sign, send, and confirm transaction
-    transaction.partialSign(keypair);
-    const txid = await connection.sendRawTransaction(transaction.serialize());
-    await connection.confirmTransaction(txid);
-  }
 
   const provider = new ethers.WebSocketProvider(ETH_NODE_URL);
 
@@ -168,56 +143,33 @@ describe("Ethereum to Solana and Back", () => {
       try {
         const DECIMALS: number = 18;
 
-        const solChain = SolanaPlatform.getChain("Solana")
         const ethChain = EvmPlatform.getChain("Ethereum")
+        const solChain = SolanaPlatform.getChain("Solana")
 
-        // create a keypair for Solana
-        const connection = new Connection(SOLANA_HOST, "confirmed");
-        const solSigner = await getSolanaSigner(connection, encoding.b58.encode(SOLANA_PRIVATE_KEY))
-
-        const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
-        const payerAddress = keypair.publicKey.toString();
-
-        // determine destination address - an associated token account
-        const tokenId = nativeChainAddress(["Ethereum", TEST_ERC20])
-
-        const solTb = await getSolTokenBridge(connection)
-
-        const SolanaForeignAsset = await solTb.getWrappedAsset(tokenId);
-        const solanaMintKey = new PublicKey(SolanaForeignAsset || "");
-        const recipient = await getAssociatedTokenAddress(
-          solanaMintKey,
-          keypair.publicKey,
-        );
-
-        // create the associated token account if it doesn't exist
-        const associatedAddressInfo = await connection.getAccountInfo(
-          recipient
-        );
-
-        if (!associatedAddressInfo) {
-          const transaction = new Transaction().add(
-            createAssociatedTokenAccountInstruction(
-              keypair.publicKey, // payer
-              recipient,
-              keypair.publicKey, // owner
-              solanaMintKey
-            )
-          );
-          const { blockhash } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = keypair.publicKey;
-          // sign, send, and confirm transaction
-          transaction.partialSign(keypair);
-          const txid = await connection.sendRawTransaction(
-            transaction.serialize()
-          );
-          await connection.confirmTransaction(txid);
-        }
         // create a signer for Eth
         const provider = new ethers.WebSocketProvider(ETH_NODE_URL);
         const ethSigner = await getEvmSigner(provider, ETH_PRIVATE_KEY);
         const amount = normalizeAmount("1", BigInt(DECIMALS));
+
+        // create a keypair for Solana
+        const connection = new Connection(SOLANA_HOST, "confirmed");
+        const solSigner = await getSolanaSigner(connection, encoding.b58.encode(SOLANA_PRIVATE_KEY))
+        const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+        const payerAddress = keypair.publicKey.toString();
+
+        // Get the token bridge clients
+        const ethTb = await getEthTokenBridge(provider);
+        const solTb = await getSolTokenBridge(connection)
+
+        // determine destination address - an associated token account
+        const tokenId = nativeChainAddress(["Ethereum", TEST_ERC20])
+
+        const solanaForeignAsset = await solTb.getWrappedAsset(tokenId);
+        const solanaMintKey = solanaForeignAsset.unwrap();
+        const recipient = await getAssociatedTokenAddress(
+          solanaMintKey,
+          keypair.publicKey,
+        );
 
         // Get the initial wallet balance of ERC20 on Eth
         const token = EvmPlatform.getTokenImplementation(provider, TEST_ERC20)
@@ -233,41 +185,38 @@ describe("Ethereum to Solana and Back", () => {
           tokenFilter
         );
 
+        //const initialSolanaBalance = await solChain.getBalance(solSigner.address(), solanaForeignAsset.toUniversalAddress())
         let initialSolanaBalance: number = 0;
         for (const item of results.value) {
           const tokenInfo = item.account.data.parsed.info;
-          const address = tokenInfo.mint;
           const amount = tokenInfo.tokenAmount.uiAmount;
-          if (tokenInfo.mint === SolanaForeignAsset) {
+          if (tokenInfo.mint === solanaMintKey.toBase58()) {
             initialSolanaBalance = amount;
           }
         }
 
-        const ethTb = await getEthTokenBridge(provider);
+        // Send the transfer
         const xfer = ethTb.transfer(ethSigner.address(), nativeChainAddress(["Solana", recipient.toBase58()]), TEST_ERC20, amount)
-
         const txids = await signSendWait(ethChain, xfer, ethSigner)
 
+        // Get the VAA from the wormhole message emitted in events
         const [whm] = await ethChain.parseTransaction(txids[txids.length - 1].txid)
-
+        console.log(whm)
         const vaa = await api.getVaaWithRetry(WORMHOLE_RPC_HOSTS[0], whm, "TokenBridge:Transfer")
 
         expect(await solTb.isTransferCompleted(vaa!)).toBe(false);
 
         // redeem tokens on solana
         const redeemTxs = solTb.redeem(payerAddress, vaa!)
-
-        // sign, send, and confirm transaction
         await signSendWait(solChain, redeemTxs, solSigner)
-
 
         expect(await solTb.isTransferCompleted(vaa!)).toBe(true);
 
         // Get the final wallet balance of ERC20 on Eth
         const finalErc20BalOnEth = await token.balanceOf(ethSigner.address());
+        expect(initialErc20BalOnEth - finalErc20BalOnEth).toEqual(amount);
 
-        expect(initialErc20BalOnEth - finalErc20BalOnEth === amount).toBe(true);
-
+        //const finalSolanaBalance = await solChain.getBalance(solSigner.address(), solanaForeignAsset.toUniversalAddress())
         // Get final balance on Solana
         results = await connection.getParsedTokenAccountsByOwner(
           keypair.publicKey,
@@ -276,13 +225,12 @@ describe("Ethereum to Solana and Back", () => {
         let finalSolanaBalance: number = 0;
         for (const item of results.value) {
           const tokenInfo = item.account.data.parsed.info;
-          const address = tokenInfo.mint;
           const amount = tokenInfo.tokenAmount.uiAmount;
-          if (tokenInfo.mint === SolanaForeignAsset) {
+          if (tokenInfo.mint === solanaMintKey.toBase58()) {
             finalSolanaBalance = amount;
           }
         }
-        expect(finalSolanaBalance - initialSolanaBalance === 1).toBe(true);
+        expect(finalSolanaBalance - initialSolanaBalance).toEqual(1);
         provider.destroy();
         done();
       } catch (e) {
@@ -291,6 +239,7 @@ describe("Ethereum to Solana and Back", () => {
       }
     })();
   });
+
   // describe("Post VAA with retry", () => {
   //   test("postVAA with retry, no failures", (done) => {
   //     (async () => {

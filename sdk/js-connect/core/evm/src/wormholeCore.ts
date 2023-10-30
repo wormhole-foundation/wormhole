@@ -51,7 +51,7 @@ export class EvmWormholeCore implements WormholeCore<'Evm'> {
     );
   }
 
-  static async fromProvider(
+  static async fromRpc(
     provider: Provider,
     config: ChainsConfig,
   ): Promise<EvmWormholeCore> {

@@ -7,6 +7,7 @@ import {
   SystemProgram,
   Connection,
 } from '@solana/web3.js';
+import { BN } from '@project-serum/anchor';
 import { createReadOnlyWormholeProgramInterface } from '../program';
 import {
   deriveWormholeBridgeDataKey,
@@ -45,13 +46,13 @@ export function createPostVaaInstruction(
     connection,
   ).methods.postVaa(
     1, // TODO: hardcoded VAA version
-    vaa.guardianSet,
+    new BN(vaa.guardianSet),
     vaa.timestamp,
     vaa.nonce,
     toChainId(vaa.emitterChain),
     [...vaa.emitterAddress.toUint8Array()],
-    BigInt(vaa.sequence.toString()),
-    vaa.consistencyLevel,
+    new BN(vaa.sequence),
+    new BN(vaa.consistencyLevel),
     // Note: This _must_ be a Buffer, a Uint8Array does not work
     Buffer.from(serializePayload(vaa.payloadLiteral, vaa.payload)),
   );

@@ -1,16 +1,5 @@
 {
-  "compilerOptions": {
-    "target": "es6",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "outDir": "./lib/esm",
-    "strict": true,
-    "esModuleInterop": true,
-    "downlevelIteration": true,
-    "skipLibCheck": true,
-    "allowJs": true,
-    "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
-  },
+  "extends":"../../tsconfig.json",
   "include": ["src"],
-  "exclude": ["node_modules", "**/*.test.*", "**/__tests__/*"]
+  "exclude": ["node_modules", "lib", "**/*.test.*", "**/__tests__/*"]
 }

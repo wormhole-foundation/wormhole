@@ -80,7 +80,7 @@ export class EvmAutomaticTokenBridge implements AutomaticTokenBridge<'Evm'> {
     );
   }
 
-  static async fromProvider(
+  static async fromRpc(
     provider: Provider,
     config: ChainsConfig,
   ): Promise<EvmAutomaticTokenBridge> {
