@@ -81,7 +81,7 @@ func (b *FinalizerPollConnector) runFromSupervisor(ctx context.Context) error {
 }
 
 func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) error {
-	prevLatest, err := getBlockByFinality(ctx, logger, b.Connector, Latest)
+	prevLatest, err := getLatestBlock(ctx, logger, b.Connector)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) er
 // pollBlock poll for the latest block, compares them to the last one, and publishes any new ones.
 // In the case of an error, it returns the last block that were passed in, otherwise it returns the new block.
 func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
-	newLatest, err = getBlockByFinality(ctx, logger, b.Connector, Latest)
+	newLatest, err = getLatestBlock(ctx, logger, b.Connector)
 	if err != nil {
 		err = fmt.Errorf("failed to get latest block: %w", err)
 		newLatest = prevLatest
@@ -187,6 +187,10 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 	}
 
 	return
+}
+
+func getLatestBlock(ctx context.Context, logger *zap.Logger, conn Connector) (*NewBlock, error) {
+	return getBlockByFinality(ctx, logger, conn, Latest)
 }
 
 func getBlockByFinality(ctx context.Context, logger *zap.Logger, conn Connector, blockFinality FinalityLevel) (*NewBlock, error) {

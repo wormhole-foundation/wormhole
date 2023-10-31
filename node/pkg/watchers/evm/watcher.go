@@ -137,7 +137,6 @@ type (
 		latestBlockNumber          uint64
 		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
-		latestSafeBlockNumber      uint64
 		l1Finalizer                interfaces.L1Finalizer
 
 		safeBlocksSupported bool
@@ -628,7 +627,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.SafeHeight = int64(blockNumberU)
 				} else {
-					atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.FinalizedHeight = int64(blockNumberU)
