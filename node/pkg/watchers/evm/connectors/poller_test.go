@@ -199,7 +199,7 @@ func TestBlockPoller(t *testing.T) {
 	finalizer := newMockFinalizerForPoller(true) // Start by assuming blocks are finalized.
 	assert.NotNil(t, finalizer)
 
-	poller := &BlockPollConnector{
+	poller := &FinalizerPollConnector{
 		Connector: &baseConnector,
 		Delay:     1 * time.Millisecond,
 		finalizer: finalizer,

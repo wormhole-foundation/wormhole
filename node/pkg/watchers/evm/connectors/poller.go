@@ -20,9 +20,8 @@ type PollFinalizer interface {
 	IsBlockFinalized(ctx context.Context, block *NewBlock) (bool, error)
 }
 
-// BlockPollConnector polls for new blocks instead of subscribing when using SubscribeForBlocks. It allows to specify a
-// finalizer which will be used to only return finalized blocks on subscriptions.
-type BlockPollConnector struct {
+// FinalizerPollConnector polls for new blocks. It takes a finalizer which will be used to determine when a block is finalized.
+type FinalizerPollConnector struct {
 	Connector
 	Delay     time.Duration
 	finalizer PollFinalizer
@@ -30,11 +29,11 @@ type BlockPollConnector struct {
 	errFeed   ethEvent.Feed
 }
 
-func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration) (*BlockPollConnector, error) {
+func NewFinalizerPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration) (*FinalizerPollConnector, error) {
 	if finalizer == nil {
-		panic("finalizer must not be nil; Use finalizers.NewDefaultFinalizer() if you want to have no finalizer.")
+		panic("finalizer must not be nil")
 	}
-	connector := &BlockPollConnector{
+	connector := &FinalizerPollConnector{
 		Connector: baseConnector,
 		Delay:     delay,
 		finalizer: finalizer,
@@ -46,7 +45,7 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 	return connector, nil
 }
 
-func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (b *FinalizerPollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	sub := NewPollSubscription()
 	blockSub := b.blockFeed.Subscribe(sink)
 
@@ -75,18 +74,19 @@ func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	return sub, nil
 }
 
-func (b *BlockPollConnector) runFromSupervisor(ctx context.Context) error {
+func (b *FinalizerPollConnector) runFromSupervisor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx).With(zap.String("eth_network", b.Connector.NetworkName()))
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 	return b.run(ctx, logger)
 }
 
-func (b *BlockPollConnector) run(ctx context.Context, logger *zap.Logger) error {
-	prevLatest, err := getBlockByTag(ctx, logger, b.Connector, "latest", Latest)
+func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) error {
+	prevLatest, err := getBlockByFinality(ctx, logger, b.Connector, Latest)
 	if err != nil {
 		return err
 	}
 
+	// Initialize the previous finalized block to latest. This is used to determine where to start looking for finalized blocks. We don't actually publish it.
 	prevFinalized := &NewBlock{
 		Number:   prevLatest.Number,
 		Hash:     prevLatest.Hash,
@@ -108,6 +108,7 @@ func (b *BlockPollConnector) run(ctx context.Context, logger *zap.Logger) error 
 				logger.Error("polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 				if errCount > 3 {
 					b.errFeed.Send(fmt.Sprint("polling encountered an error: ", err))
+					errCount = 0
 				}
 			} else {
 				errCount = 0
@@ -120,8 +121,8 @@ func (b *BlockPollConnector) run(ctx context.Context, logger *zap.Logger) error 
 
 // pollBlock poll for the latest block, compares them to the last one, and publishes any new ones.
 // In the case of an error, it returns the last block that were passed in, otherwise it returns the new block.
-func (b *BlockPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
-	newLatest, err = getBlockByTag(ctx, logger, b.Connector, "latest", Latest)
+func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
+	newLatest, err = getBlockByFinality(ctx, logger, b.Connector, Latest)
 	if err != nil {
 		err = fmt.Errorf("failed to get latest block: %w", err)
 		newLatest = prevLatest
@@ -129,10 +130,10 @@ func (b *BlockPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, 
 		return
 	}
 
-	// First see if there might be some newly finalized ones to publish
+	// First see if there new latest ones to publish.
 	var block *NewBlock
 	if newLatest.Number.Cmp(prevLatest.Number) > 0 {
-		// If there is a gap between prev and new, we have to look up the transaction hashes for the missing ones. Do that in batches.
+		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevLatest.Number.Uint64() + 1; blockNum < newBlockNum; blockNum++ {
 			block, err = getBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Latest)
@@ -148,14 +149,15 @@ func (b *BlockPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, 
 
 		b.blockFeed.Send(newLatest)
 	} else if newLatest.Number.Cmp(prevLatest.Number) < 0 {
-		logger.Error("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
+		logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
 		newLatest = prevLatest
 	}
 
+	// Now see if there might be some newly finalized ones to publish.
 	newFinalized = prevFinalized
 	if newLatest.Number.Cmp(prevFinalized.Number) > 0 {
 		var finalized bool
-		// If there is a gap between prev and new, we have to look up the transaction hashes for the missing ones. Do that in batches.
+		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevFinalized.Number.Uint64() + 1; blockNum <= newBlockNum; blockNum++ {
 			block, err = getBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Finalized)
@@ -187,28 +189,32 @@ func (b *BlockPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, 
 	return
 }
 
-func getBlockByNumberUint64(ctx context.Context, logger *zap.Logger, conn Connector, blockNum uint64, desiredFinality FinalityLevel) (*NewBlock, error) {
-	return getBlockByTag(ctx, logger, conn, "0x"+fmt.Sprintf("%x", blockNum), desiredFinality)
+func getBlockByFinality(ctx context.Context, logger *zap.Logger, conn Connector, blockFinality FinalityLevel) (*NewBlock, error) {
+	return getBlock(ctx, logger, conn, blockFinality.String(), blockFinality)
 }
 
-func getBlockByNumberBigInt(ctx context.Context, logger *zap.Logger, conn Connector, blockNum *big.Int, desiredFinality FinalityLevel) (*NewBlock, error) {
-	return getBlockByTag(ctx, logger, conn, ethHexUtils.EncodeBig(blockNum), desiredFinality)
+func getBlockByNumberUint64(ctx context.Context, logger *zap.Logger, conn Connector, blockNum uint64, blockFinality FinalityLevel) (*NewBlock, error) {
+	return getBlock(ctx, logger, conn, "0x"+fmt.Sprintf("%x", blockNum), blockFinality)
 }
 
-func getBlockByTag(ctx context.Context, logger *zap.Logger, conn Connector, tag string, desiredFinality FinalityLevel) (*NewBlock, error) {
+func getBlockByNumberBigInt(ctx context.Context, logger *zap.Logger, conn Connector, blockNum *big.Int, blockFinality FinalityLevel) (*NewBlock, error) {
+	return getBlock(ctx, logger, conn, ethHexUtils.EncodeBig(blockNum), blockFinality)
+}
+
+func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, str string, blockFinality FinalityLevel) (*NewBlock, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	var m BlockMarshaller
-	err := conn.RawCallContext(timeout, &m, "eth_getBlockByNumber", tag, false)
+	err := conn.RawCallContext(timeout, &m, "eth_getBlockByNumber", str, false)
 	if err != nil {
 		logger.Error("failed to get block",
-			zap.String("requested_block", tag), zap.Error(err))
+			zap.String("requested_block", str), zap.Error(err))
 		return nil, err
 	}
 	if m.Number == nil {
 		logger.Error("failed to unmarshal block",
-			zap.String("requested_block", tag),
+			zap.String("requested_block", str),
 		)
 		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
 	}
@@ -224,11 +230,11 @@ func getBlockByTag(ctx context.Context, logger *zap.Logger, conn Connector, tag 
 		Number:        &n,
 		Hash:          m.Hash,
 		L1BlockNumber: l1bn,
-		Finality:      desiredFinality,
+		Finality:      blockFinality,
 	}, nil
 }
 
-func (b *BlockPollConnector) isBlockFinalized(ctx context.Context, block *NewBlock) (bool, error) {
+func (b *FinalizerPollConnector) isBlockFinalized(ctx context.Context, block *NewBlock) (bool, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	return b.finalizer.IsBlockFinalized(timeout, block)

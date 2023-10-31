@@ -118,6 +118,7 @@ func (b *BatchPollConnector) run(ctx context.Context, logger *zap.Logger) error 
 				logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 				if errCount > 3 {
 					b.errFeed.Send(fmt.Sprint("polling encountered an error: ", err))
+					errCount = 0
 				}
 			} else {
 				errCount = 0
@@ -162,7 +163,7 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 			b.blockFeed.Send(newBlock)
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			logger.Error("latest block number went backwards, ignoring it", zap.Any("newLatest", newBlock.Number), zap.Any("prevLatest", prevBlocks[idx].Number))
+			logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newBlock.Number), zap.Any("prevLatest", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
 		}
 	}
