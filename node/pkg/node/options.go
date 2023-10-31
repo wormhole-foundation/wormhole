@@ -260,9 +260,10 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 }
 
 type IbcWatcherConfig struct {
-	Websocket string
-	Lcd       string
-	Contract  string
+	Websocket      string
+	Lcd            string
+	BlockHeightURL string
+	Contract       string
 }
 
 // GuardianOptionWatchers configues all normal watchers and all IBC watchers. They need to be all configured at the same time because they may depend on each other.
@@ -421,7 +422,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				if len(chainConfig) > 0 {
 					logger.Info("Starting IBC watcher")
 					readiness.RegisterComponent(common.ReadinessIBCSyncing)
-					g.runnablesWithScissors["ibcwatch"] = ibc.NewWatcher(ibcWatcherConfig.Websocket, ibcWatcherConfig.Lcd, ibcWatcherConfig.Contract, chainConfig).Run
+					g.runnablesWithScissors["ibcwatch"] = ibc.NewWatcher(ibcWatcherConfig.Websocket, ibcWatcherConfig.Lcd, ibcWatcherConfig.BlockHeightURL, ibcWatcherConfig.Contract, chainConfig).Run
 				} else {
 					return errors.New("although IBC is enabled, there are no chains for it to monitor")
 				}
