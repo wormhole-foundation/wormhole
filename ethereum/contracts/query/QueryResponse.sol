@@ -32,6 +32,30 @@ struct EthCallQueryResponse {
     EthCallData [] result;
 }
 
+// @dev EthCallByTimestampQueryResponse describes an ETH call by timestamp per-chain query.
+struct EthCallByTimestampQueryResponse {
+    bytes requestTargetBlockIdHint;
+    bytes requestFollowingBlockIdHint;
+    uint64 requestTargetTimestamp;
+    uint64 targetBlockNum;
+    uint64 targetBlockTime;
+    uint64 followingBlockNum;
+    bytes32 targetBlockHash;
+    bytes32 followingBlockHash;
+    uint64 followingBlockTime;
+    EthCallData [] result;
+}
+
+// @dev EthCallWithFinalityQueryResponse describes an ETH call with finality per-chain query.
+struct EthCallWithFinalityQueryResponse {
+    bytes requestBlockId;
+    bytes requestFinality;
+    uint64 blockNum;
+    uint64 blockTime;
+    bytes32 blockHash;
+    EthCallData [] result;
+}
+
 // @dev EthCallData describes a single ETH call query / response pair.
 struct EthCallData {
     address contractAddress;
@@ -56,6 +80,9 @@ abstract contract QueryResponse {
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
     uint8 public constant VERSION = 1;
     uint8 public constant QT_ETH_CALL = 1;
+    uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
+    uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
+    uint8 public constant QT_MAX = 4; // Keep this last
 
     /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
@@ -129,7 +156,7 @@ abstract contract QueryResponse {
                 revert RequestTypeMismatch();
             }
             
-            if (r.responses[idx].queryType != QT_ETH_CALL) {
+            if (r.responses[idx].queryType < QT_ETH_CALL || r.responses[idx].queryType >= QT_MAX) {
                 revert UnsupportedQueryType();
             }
 
@@ -193,6 +220,110 @@ abstract contract QueryResponse {
         checkLength(pcr.request, reqIdx);
         checkLength(pcr.response, respIdx);
         return r;
+    }
+
+    /// @dev parseEthCallByTimestampQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
+    function parseEthCallByTimestampQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallByTimestampQueryResponse memory r) {
+        if (pcr.queryType != QT_ETH_CALL_BY_TIMESTAMP) {
+                revert UnsupportedQueryType();
+        }
+
+        uint reqIdx = 0;
+        uint respIdx = 0;
+        uint32 len;
+
+        (r.requestTargetTimestamp, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request target_time_us
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request target_block_id_hint_len
+        (r.requestTargetBlockIdHint, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request target_block_id_hint
+                
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // following_block_id_hint_len
+        (r.requestFollowingBlockIdHint, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request following_block_id_hint
+
+        uint8 numBatchCallData;
+        (numBatchCallData, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_batch_call_data
+
+        (r.targetBlockNum, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response target_block_number
+        (r.targetBlockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response target_block_hash
+        (r.targetBlockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response target_block_time_us
+
+        (r.followingBlockNum, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response following_block_number
+        (r.followingBlockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response following_block_hash
+        (r.followingBlockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response following_block_time_us
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numBatchCallData) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.result = new EthCallData[](numBatchCallData);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx = 0; idx < numBatchCallData;) {
+            (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
+
+            (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
+            (r.result[idx].callData, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
+    }
+
+    /// @dev parseEthCallWithFinalityQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
+    function parseEthCallWithFinalityQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallWithFinalityQueryResponse memory r) {
+        if (pcr.queryType != QT_ETH_CALL_WITH_FINALITY) {
+                revert UnsupportedQueryType();
+        }
+
+        uint reqIdx = 0;
+        uint respIdx = 0;
+        uint32 len;
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request block_id_len
+        (r.requestBlockId, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request block_id
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request finality_len
+        (r.requestFinality, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request finality        
+
+        uint8 numBatchCallData;
+        (numBatchCallData, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_batch_call_data
+
+        (r.blockNum, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_number
+
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
+
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numBatchCallData) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.result = new EthCallData[](numBatchCallData);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx = 0; idx < numBatchCallData;) {
+            (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
+
+            (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
+            (r.result[idx].callData, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len);
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
     }
 
     /**
