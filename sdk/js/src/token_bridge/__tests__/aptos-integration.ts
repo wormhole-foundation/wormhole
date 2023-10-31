@@ -95,9 +95,7 @@ describe("Aptos SDK tests", () => {
       sequence!,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(attestVAA).toBeTruthy();
 
@@ -162,9 +160,7 @@ describe("Aptos SDK tests", () => {
       sequence!,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(transferVAA).toBeTruthy();
 
@@ -230,9 +226,7 @@ describe("Aptos SDK tests", () => {
       sequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(attestVAA).toBeTruthy();
 
@@ -336,9 +330,7 @@ describe("Aptos SDK tests", () => {
       sequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(transferVAA).toBeTruthy();
 
@@ -415,9 +407,7 @@ describe("Aptos SDK tests", () => {
       sequence!,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(attestVAA).toBeTruthy();
 
@@ -485,9 +475,7 @@ describe("Aptos SDK tests", () => {
       sequence!,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(transferVAA).toBeTruthy();
     const { tokenTransferPayload } = parseTokenTransferVaa(transferVAA);
