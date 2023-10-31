@@ -24,16 +24,70 @@ async function run() {
   console.log("Start! " + processName);
 
   // TODO: to send txs concurrently, the cross-registrations need to be separated out
-  for (const operatingChain of operation.operatingChains) {
-    await registerChainsWormholeRelayer(operatingChain);
-    await registerOnExistingChainsWormholeRelayer(operatingChain);
+  // for (const operatingChain of operation.operatingChains) {
+  // await registerChainsWormholeRelayer(operatingChain);
+  // await registerOnExistingChainsWormholeRelayer(operatingChain);
+  //}
+  for (const myChain of allChains) {
+    registerChainsWormholeRelayerIfUnregistered(myChain);
   }
+}
+
+async function registerChainsWormholeRelayerIfUnregistered(
+  operatingChain: ChainInfo
+) {
+  console.log(
+    "[START] Registering all the wormhole relayers onto Wormhole Relayer " +
+      operatingChain.chainId
+  );
+
+  const wormholeRelayer = await getWormholeRelayer(operatingChain);
+  for (const targetChain of allChains) {
+    let currentRegisteredContract;
+    try {
+      currentRegisteredContract = (await wormholeRelayer.getRegisteredWormholeRelayerContract(
+        targetChain.chainId
+      ))
+    } catch (e) {
+      console.log(`Error getting the wormhole relayer for chain ${operatingChain.chainId}, rpc ${operatingChain.rpc}`)
+    }
+    if (
+       currentRegisteredContract === zeroBytes32
+    ) {
+      console.log(
+        `[start] This chain ${targetChain.chainId} is not registered onto chain ${operatingChain.chainId} yet`
+      );
+      try {
+        await registerWormholeRelayer(
+          wormholeRelayer,
+          operatingChain,
+          targetChain
+        );
+      } catch(error) {
+        console.log(`[error] Registering ${targetChain.chainId} onto ${operatingChain.chainId} failed`)
+        console.log(`The error was ${error}`)
+      }
+      console.log(
+        `[done] Now this chain ${targetChain.chainId} is registered onto chain ${operatingChain.chainId}`
+      );
+    } else {
+      // This doesn't check that the registered address is correct - only that it exists and is not zero
+      console.log(
+        `This chain ${targetChain.chainId} is already registered onto chain ${operatingChain.chainId}`
+      );
+    }
+  }
+
+  console.log(
+    "Did all contract registrations for the core relayer on " +
+      operatingChain.chainId
+  );
 }
 
 async function registerChainsWormholeRelayer(operatingChain: ChainInfo) {
   console.log(
     "Registering all the wormhole relayers onto Wormhole Relayer " +
-      operatingChain.chainId,
+      operatingChain.chainId
   );
 
   const wormholeRelayer = await getWormholeRelayer(operatingChain);
@@ -43,7 +97,7 @@ async function registerChainsWormholeRelayer(operatingChain: ChainInfo) {
 
   console.log(
     "Did all contract registrations for the core relayer on " +
-      operatingChain.chainId,
+      operatingChain.chainId
   );
 }
 
@@ -51,19 +105,19 @@ async function registerOnExistingChainsWormholeRelayer(targetChain: ChainInfo) {
   console.log(
     "Registering Wormhole Relayer " +
       targetChain.chainId +
-      " onto all the wormhole relayers",
+      " onto all the wormhole relayers"
   );
   const tasks = await Promise.allSettled(
     operation.supportedChains.map(async (operatingChain) => {
       const coreRelayer = await getWormholeRelayer(operatingChain);
 
       return registerWormholeRelayer(coreRelayer, operatingChain, targetChain);
-    }),
+    })
   );
   for (const task of tasks) {
     if (task.status === "rejected") {
       console.log(
-        `Failed cross registration. ${task.reason?.stack || task.reason}`,
+        `Failed cross registration. ${task.reason?.stack || task.reason}`
       );
     }
   }
@@ -71,18 +125,18 @@ async function registerOnExistingChainsWormholeRelayer(targetChain: ChainInfo) {
   console.log(
     "Did all contract registrations of the core relayer on " +
       targetChain.chainId +
-      " onto the existing (non operating) chains",
+      " onto the existing (non operating) chains"
   );
 }
 
 async function registerWormholeRelayer(
   wormholeRelayer: WormholeRelayer,
   operatingChain: ChainInfo,
-  targetChain: ChainInfo,
+  targetChain: ChainInfo
 ) {
   const registration =
     await wormholeRelayer.getRegisteredWormholeRelayerContract(
-      targetChain.chainId,
+      targetChain.chainId
     );
   if (registration !== zeroBytes32) {
     const registrationAddress = await getWormholeRelayerAddress(targetChain);
@@ -95,7 +149,7 @@ Actual: ${registration}`);
     }
 
     console.log(
-      `Chain ${targetChain.chainId} on chain ${operatingChain.chainId} is already registered`,
+      `Chain ${targetChain.chainId} on chain ${operatingChain.chainId} is already registered`
     );
     return;
   }
@@ -103,19 +157,19 @@ Actual: ${registration}`);
   const vaa = await createRegisterChainVAA(targetChain);
 
   console.log(
-    `Registering chain ${targetChain.chainId} onto chain ${operatingChain.chainId}`,
+    `Registering chain ${targetChain.chainId} onto chain ${operatingChain.chainId}`
   );
   try {
     const overrides = await buildOverrides(
       () => wormholeRelayer.estimateGas.registerWormholeRelayerContract(vaa),
-      operatingChain,
+      operatingChain
     );
     await wormholeRelayer
       .registerWormholeRelayerContract(vaa, overrides)
       .then(wait);
   } catch (error) {
     console.log(
-      `Error in registering chain ${targetChain.chainId} onto ${operatingChain.chainId}`,
+      `Error in registering chain ${targetChain.chainId} onto ${operatingChain.chainId}`
     );
     console.log((error as any)?.stack || error);
   }
