@@ -27,7 +27,7 @@
       "description": "Mumbai",
       "evmNetworkId": 80001,
       "chainId": 5,
-      "rpc": "https://polygon-testnet.public.blastapi.io",
+      "rpc": "https://rpc.ankr.com/polygon_mumbai",
       "wormholeAddress": "0x0CBE91CF822c73C2315FB05100C2F714765d5c20"
     },
     {

@@ -69,7 +69,7 @@
       "description": "Optimism",
       "evmNetworkId": 10,
       "chainId": 24,
-      "rpc": "https://optimism.api.onfinality.io/public",
+      "rpc": "https://mainnet.optimism.io",
       "wormholeAddress": "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"
     },
     {
