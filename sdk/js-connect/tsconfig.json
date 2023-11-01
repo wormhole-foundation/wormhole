@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "lib": ["es2022"],
+    "target": "ES2022",
+    "types":["node", "jest"],
+    "outDir": "./lib",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["jest.config.ts", "src/*"],
+  "exclude": ["./node_modules"]
+}
