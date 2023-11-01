@@ -42,7 +42,7 @@ NONCE=2 source ./forge-scripts/incrementNonce.sh
 
 source ./forge-scripts/deployNFTBridge.sh
 
-NONCE=34 source ./forge-scripts/incrementNonce.sh
+NONCE=18 source ./forge-scripts/incrementNonce.sh
 
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 
