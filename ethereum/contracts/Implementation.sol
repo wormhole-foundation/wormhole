@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 contract Implementation is Governance {
     event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
 
-    // Publish a message to be attested by the Wormhole network
+    /// @notice Publish a message to be attested by the Wormhole network
     function publishMessage(
         uint32 nonce,
         bytes memory payload,

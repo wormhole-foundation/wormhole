@@ -78,6 +78,11 @@ interface IWormhole {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
+    /// @notice Publish a message to be attested by the Wormhole network
+    /// @param nonce A free integer field that can be used however the developer would like
+    /// @param payload The content of the emitted message, an arbitrary byte array
+    /// @param consistencyLevel The level of finality to reach before the guardians will observe and attest the emitted event
+    /// @return sequence number that is unique and increments for every message for a given emitter (and implicitly chain)
     function publishMessage(
         uint32 nonce,
         bytes memory payload,
