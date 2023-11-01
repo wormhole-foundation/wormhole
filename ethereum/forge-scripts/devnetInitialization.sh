@@ -27,22 +27,22 @@ NETWORK='devnet'
 
 npm run build:forge
 
-NONCE=2 source ./forge-scripts/incrementNonce.sh
+NONCE=4 source ./forge-scripts/incrementNonce.sh
 
 source ./forge-scripts/deployCoreBridge.sh
 
 returnInfo=$(cat ./deployment-addresses/$NETWORK/$INIT_CHAIN_ID/CoreBridge/latest.json)
 WORMHOLE_ADDRESS=$(jq -r '.WORMHOLE_ADDRESS' <<< "$returnInfo")
 
-NONCE=1 source ./forge-scripts/incrementNonce.sh
+NONCE=2 source ./forge-scripts/incrementNonce.sh
 
 source ./forge-scripts/deployTokenBridge.sh
 
-NONCE=1 source ./forge-scripts/incrementNonce.sh
+NONCE=2 source ./forge-scripts/incrementNonce.sh
 
 source ./forge-scripts/deployNFTBridge.sh
 
-NONCE=17 source ./forge-scripts/incrementNonce.sh
+NONCE=34 source ./forge-scripts/incrementNonce.sh
 
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 
