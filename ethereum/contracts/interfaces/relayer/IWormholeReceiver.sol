@@ -12,36 +12,34 @@ interface IWormholeReceiver {
      *
      * NOTE: This function should be restricted such that only the Wormhole Relayer contract can call it.
      *
-     * We also recommend that this function:
-     *   - Stores all received `deliveryHash`s in a mapping `(bytes32 => bool)`, and
-     *       on every call, checks that deliveryHash has not already been stored in the
-     *       map (This is to prevent other users maliciously trying to relay the same message)
-     *   - Checks that `sourceChain` and `sourceAddress` are indeed who
+     * We also recommend that this function checks that `sourceChain` and `sourceAddress` are indeed who
      *       you expect to have requested the calling of `send` on the source chain
      *
      * The invocation of this function corresponding to the `send` request will have msg.value equal
      *   to the receiverValue specified in the send request.
      *
-     * If the invocation of this function reverts or exceeds the gas limit 
+     * If the invocation of this function reverts or exceeds the gas limit
      *   specified by the send requester, this delivery will result in a `ReceiverFailure`.
      *
      * @param payload - an arbitrary message which was included in the delivery by the
-     *     requester.
-     * @param additionalVaas - Additional VAAs which were requested to be included in this delivery.
-     *   They are guaranteed to all be included and in the same order as was specified in the
-     *     delivery request.
+     *     requester. This message's signature will already have been verified (as long as msg.sender is the Wormhole Relayer contract)
+     * @param additionalMessages - Additional messages which were requested to be included in this delivery.
+     *      Note: There are no contract-level guarantees that the messages in this array are what was requested
+     *      - so any sensitive information here should be verified!
+     *      This field can be used to perform and relay TokenBridge or CCTP transfers, and there are example
+     *      usages of this at
+     *         https://github.com/wormhole-foundation/hello-token
+     *         https://github.com/wormhole-foundation/hello-cctp
+     *
      * @param sourceAddress - the (wormhole format) address on the sending chain which requested
      *     this delivery.
      * @param sourceChain - the wormhole chain ID where this delivery was requested.
      * @param deliveryHash - the VAA hash of the deliveryVAA.
      *
-     * NOTE: These signedVaas are NOT verified by the Wormhole core contract prior to being provided
-     *     to this call. Always make sure `parseAndVerify()` is called on the Wormhole core contract
-     *     before trusting the content of a raw VAA, otherwise the VAA may be invalid or malicious.
      */
     function receiveWormholeMessages(
         bytes memory payload,
-        bytes[] memory additionalVaas,
+        bytes[] memory additionalMessages,
         bytes32 sourceAddress,
         uint16 sourceChain,
         bytes32 deliveryHash
