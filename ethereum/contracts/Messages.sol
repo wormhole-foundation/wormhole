@@ -12,7 +12,10 @@ import "./libraries/external/BytesLib.sol";
 contract Messages is Getters {
     using BytesLib for bytes;
 
-    /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
+    /// @notice parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
+    /// @return vm a decoded VM struct
+    /// @return valid if the VM is valid or not
+    /// @return reason if the VM is not valid, the reason is contained in this string
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
         /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
@@ -20,13 +23,16 @@ contract Messages is Getters {
     }
 
    /**
-    * @dev `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
+    * @notice `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
     *  - it aims to make sure the VM is for a known guardianSet
     *  - it aims to ensure the guardianSet is not expired
     *  - it aims to ensure the VM has reached quorum
     *  - it aims to verify the signatures provided against the guardianSet
     *  - it aims to verify the hash field provided against the contents of the vm
+    * @return valid if the VM is valid or not
+    * @return reason if the VM is not valid, the reason is contained in this string
     */
+
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
         (valid, reason) = verifyVMInternal(vm, true);    
     }
@@ -105,9 +111,12 @@ contract Messages is Getters {
     /**
      * @dev verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
      *  - it intentionally does not solve for expectations within guardianSet (you should use verifyVM if you need these protections)
-     *  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
+     *  - it intentionally does not solve for quorum (you should use verifyVM if you need these protections)
      *  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
+     * @return valid if the signatures are valid or not
+     * @return reason if the signatures are not valid, the reason is contained in this string
      */
+     /// 
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
         uint8 lastIndex = 0;
         uint256 guardianCount = guardianSet.keys.length;
@@ -143,6 +152,7 @@ contract Messages is Getters {
     /**
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
+     * @return vm a decoded VM struct
      */
     function parseVM(bytes memory encodedVM) public pure virtual returns (Structs.VM memory vm) {
         uint index = 0;
@@ -208,7 +218,8 @@ contract Messages is Getters {
     }
 
     /**
-     * @dev quorum serves solely to determine the number of signatures required to acheive quorum
+     * @dev quorum serves solely to determine the number of signatures required to achieve quorum
+     * @return numSignaturesRequiredForQuorum The number of signatures required to achieve quorum
      */
     function quorum(uint numGuardians) public pure virtual returns (uint numSignaturesRequiredForQuorum) {
         // The max number of guardians is 255
