@@ -108,14 +108,14 @@ interface IWormhole {
     /// @dev Should only be called once, upon contract deployment or upgrade
     function initialize() external;
 
-    /// @dev Parses and verifies a Wormhole message (VM)
+    /// @dev Parses and verifies a verifiable message (VM)
     /// @param encodedVM An encoded VM in bytes
     /// @return vm A decoded VM struct
     /// @return valid True if the VM is valid and false if not
     /// @return reason If the VM is not valid, the reason is contained in this string
     function parseAndVerifyVM(bytes calldata encodedVM) external view returns (VM memory vm, bool valid, string memory reason);
 
-    /// @dev Validates an arbitrary Wormhole message (VM) against an arbitrary guardian set
+    /// @dev Validates an arbitrary verifiable message (VM) against an arbitrary guardian set
     /// @param vm A decoded VM struct
     /// @return valid True if the VM is valid and false if not
     /// @return reason If the VM is not valid, the reason is contained in this string
