@@ -7,8 +7,6 @@ import {
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
 
-import { extractChainToBeRegisteredFromRegisterChainVaa } from "../helpers/vaa";
-
 import { inspect } from "util";
 
 const processName = "registerWormholeRelayer";
@@ -67,7 +65,7 @@ async function submitWormholeRelayerUpgradeVaa(
     );
   }
   console.log(
-    "Successfully upgraded the core relayer contract on " + chain.chainId,
+    "Successfully upgraded the wormhole relayer contract on " + chain.chainId,
   );
   return chain.chainId;
 }
