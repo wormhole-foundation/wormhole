@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
@@ -70,6 +71,10 @@ func (m mockEVMConnector) RawCallContext(ctx context.Context, result interface{}
 }
 
 func (m mockEVMConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	panic("unimplemented")
+}
+
+func (c mockEVMConnector) Client() *ethclient.Client {
 	panic("unimplemented")
 }
 

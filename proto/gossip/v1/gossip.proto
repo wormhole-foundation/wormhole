@@ -50,6 +50,10 @@ message Heartbeat {
     string contract_address = 3;
     // Connection error count
     uint64 error_count = 4;
+    // Safe block height of the node, if supported.
+    int64 safe_height = 5;    
+    // Finalized block height of the node, if supported.
+    int64 finalized_height = 6;
   }
   repeated Network networks = 4;
 
