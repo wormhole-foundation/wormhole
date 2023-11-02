@@ -25,7 +25,11 @@ interface IWormholeReceiver {
      *     requester. This message's signature will already have been verified (as long as msg.sender is the Wormhole Relayer contract)
      * @param additionalMessages - Additional messages which were requested to be included in this delivery.
      *      Note: There are no contract-level guarantees that the messages in this array are what was requested
-     *      - so any sensitive information here should be verified!
+     *      so **you should verify any sensitive information given here!**
+     *
+     *      For example, if a 'VaaKey' was specified on the source chain, then MAKE SURE the corresponding message here
+     *      has valid signatures (by calling `parseAndVerifyVM(message)` on the Wormhole core contract)
+     *
      *      This field can be used to perform and relay TokenBridge or CCTP transfers, and there are example
      *      usages of this at
      *         https://github.com/wormhole-foundation/hello-token
