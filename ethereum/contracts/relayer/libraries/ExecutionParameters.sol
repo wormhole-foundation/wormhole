@@ -18,6 +18,7 @@ error TargetChainAndExecutionInfoVersionMismatch(
     uint8 version
 );
 error VersionMismatchOverride(uint8 instructionVersion, uint8 overrideVersion);
+error InvalidExecutionInfo(bytes executionParams, bytes executionInfo);
 
 using BytesParsing for bytes;
 
@@ -74,6 +75,10 @@ function decodeEvmExecutionParamsV1(
     }
 }
 
+// Note: This function MUST be a super-string (i.e. a strict extension) of the
+// encoding of the ExecutionParams!
+//
+// This will be checked before every send
 function encodeEvmExecutionInfoV1(
     EvmExecutionInfoV1 memory executionInfo
 ) pure returns (bytes memory) {
@@ -100,6 +105,19 @@ function decodeEvmExecutionInfoV1(
             version,
             uint8(ExecutionInfoVersion.EVM_V1)
         );
+    }
+}
+
+function checkValidExecutionInfo(
+    bytes memory executionParams,
+    bytes memory executionInfo
+) pure {
+    (bytes memory executionParamsFromInfo, ) = executionInfo.slice(
+        0,
+        executionParams.length
+    );
+    if (keccak256(executionParamsFromInfo) != keccak256(executionParams)) {
+        revert InvalidExecutionInfo(executionParams, executionInfo);
     }
 }
 

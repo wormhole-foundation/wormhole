@@ -19,6 +19,9 @@ interface IDeliveryProvider {
      * version EVM_V1 of ExecutionParameters specifies the gas limit,
      * and version EVM_V1 of ExecutionInfo specifies the gas limit and the amount that this delivery provider
      * will refund per unit of gas unused
+     *
+     * Note: encodedExecutionInfo *MUST* be of the form 'encodedExecutionParams' along with extra bytes
+     * This will be checked upon every delivery, and if it is not the case, the delivery will fail
      */
     function quoteDeliveryPrice(
         uint16 targetChain,

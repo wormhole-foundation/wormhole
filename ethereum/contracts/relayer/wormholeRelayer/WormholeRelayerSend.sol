@@ -298,6 +298,12 @@ abstract contract WormholeRelayerSend is
                 sendParams.encodedExecutionParameters
             );
 
+        // Verify that the execution info contains the correct execution parameters
+        checkValidExecutionInfo(
+            sendParams.encodedExecutionParameters,
+            encodedExecutionInfo
+        );
+
         // Check if user passed in 'one wormhole message fee' + 'delivery provider's fee'
         LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(
@@ -397,6 +403,12 @@ abstract contract WormholeRelayerSend is
                 newReceiverValue,
                 newEncodedExecutionParameters
             );
+
+        // Verify that the execution info contains the correct execution parameters
+        checkValidExecutionInfo(
+            newEncodedExecutionParameters,
+            encodedExecutionInfo
+        );
 
         // Check if user passed in 'one wormhole message fee' + 'delivery provider's fee'
         LocalNative wormholeMessageFee = getWormholeMessageFee();
