@@ -168,7 +168,7 @@ interface IWormhole {
     /// @dev Returns the governance chain ID
     function governanceChainId() external view returns (uint16);
 
-    /// @dev Returns the address of the governance contract
+    /// @dev Returns the address of the governance contract in bytes32
     function governanceContract() external view returns (bytes32);
 
     /// @dev Gets the current message fee
