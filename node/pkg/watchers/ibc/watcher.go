@@ -98,6 +98,7 @@ type (
 	Watcher struct {
 		wsUrl           string
 		lcdUrl          string
+		blockHeightUrl  string
 		contractAddress string
 		logger          *zap.Logger
 
@@ -128,6 +129,7 @@ type (
 func NewWatcher(
 	wsUrl string,
 	lcdUrl string,
+	blockHeightUrl string,
 	contractAddress string,
 	chainConfig ChainConfig,
 ) *Watcher {
@@ -162,6 +164,7 @@ func NewWatcher(
 	return &Watcher{
 		wsUrl:                 wsUrl,
 		lcdUrl:                lcdUrl,
+		blockHeightUrl:        blockHeightUrl,
 		contractAddress:       contractAddress,
 		chainMap:              chainMap,
 		channelIdToChainIdMap: make(map[string]vaa.ChainID),
@@ -205,12 +208,17 @@ func (w *Watcher) Run(ctx context.Context) error {
 		zap.String("watcher_name", "ibc"),
 		zap.String("wsUrl", w.wsUrl),
 		zap.String("lcdUrl", w.lcdUrl),
+		zap.String("blockHeightUrl", w.blockHeightUrl),
 		zap.String("contractAddress", w.contractAddress),
 	)
 
 	errC := make(chan error)
 
-	blockHeightUrl := convertWsUrlToHttpUrl(w.wsUrl) + "/abci_info"
+	blockHeightUrl := w.blockHeightUrl
+	if blockHeightUrl == "" {
+		blockHeightUrl = convertWsUrlToHttpUrl(w.wsUrl)
+	}
+	blockHeightUrl = blockHeightUrl + "/abci_info"
 
 	w.logger.Info("creating watcher",
 		zap.String("wsUrl", w.wsUrl),
@@ -350,8 +358,8 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 // convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
 // used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
 func convertWsUrlToHttpUrl(url string) string {
-	//
 	url = strings.TrimPrefix(url, "ws://")
+	url = strings.TrimPrefix(url, "wss://")
 	url = strings.TrimSuffix(url, "/websocket")
 	return "http://" + url
 }

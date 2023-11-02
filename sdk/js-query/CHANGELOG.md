@@ -1,3 +1,7 @@
+## 0.0.4
+
+Add ethCallWithFinality support
+
 ## 0.0.3
 
 Explicitly import buffer

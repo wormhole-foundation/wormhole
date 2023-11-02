@@ -218,6 +218,8 @@ func TestParseIbcAllChannelChainsQueryResults(t *testing.T) {
 func TestConvertingWsUrlToHttpUrl(t *testing.T) {
 	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("ws://wormchain:26657/websocket"))
 	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("ws://wormchain:26657"))
+	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("wss://wormchain:26657/websocket"))
+	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("wss://wormchain:26657"))
 	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("wormchain:26657"))
 }
 
