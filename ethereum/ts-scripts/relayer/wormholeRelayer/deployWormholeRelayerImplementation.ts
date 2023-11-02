@@ -1,25 +1,19 @@
 import {
-  buildOverrides,
   deployWormholeRelayerImplementation,
 } from "../helpers/deployments";
 import {
   init,
-  ChainInfo,
-  getWormholeRelayer,
   writeOutputFiles,
   getOperatingChains,
-  GovernanceDeployment,
+  Deployment,
 } from "../helpers/env";
-import { createWormholeRelayerUpgradeVAA } from "../helpers/vaa";
 
 const processName = "upgradeWormholeRelayerSelfSign";
 init();
 const operatingChains = getOperatingChains();
 
-
-
 interface WormholeRelayerUpgrade {
-  wormholeRelayerImplementations: GovernanceDeployment[];
+  wormholeRelayerImplementations: Deployment[];
 }
 
 async function run() {
@@ -32,11 +26,7 @@ async function run() {
   const tasks = await Promise.allSettled(
     operatingChains.map(async (chain) => {
       const implementation = await deployWormholeRelayerImplementation(chain);
-      const vaa = createWormholeRelayerUpgradeVAA(chain, implementation.address);
-
-      console.log(`Upgrade wormhole relayer implementation on ${chain.chainId}:\n${vaa}`);
-
-      return { ...implementation, vaa };
+      return implementation;
     }),
   );
 
