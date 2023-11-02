@@ -30,6 +30,7 @@ type BlockMarshaller struct {
 type NewBlock struct {
 	Number        *big.Int
 	Hash          common.Hash
+	Time          uint64
 	L1BlockNumber *big.Int // This is only populated on some chains (Arbitrum)
 	Finality      FinalityLevel
 }
@@ -38,6 +39,7 @@ func (b *NewBlock) Copy(f FinalityLevel) *NewBlock {
 	return &NewBlock{
 		Number:        b.Number,
 		Hash:          b.Hash,
+		Time:          b.Time,
 		L1BlockNumber: b.L1BlockNumber,
 		Finality:      f,
 	}

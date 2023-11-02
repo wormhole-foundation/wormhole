@@ -47,21 +47,15 @@ func (c *InstantFinalityConnector) SubscribeForBlocks(ctx context.Context, errC 
 					c.logger.Error("new header block number is nil")
 					continue
 				}
-				sink <- &NewBlock{
+				block := &NewBlock{
 					Number:   ev.Number,
+					Time:     ev.Time,
 					Hash:     ev.Hash(),
 					Finality: Finalized,
 				}
-				sink <- &NewBlock{
-					Number:   ev.Number,
-					Hash:     ev.Hash(),
-					Finality: Safe,
-				}
-				sink <- &NewBlock{
-					Number:   ev.Number,
-					Hash:     ev.Hash(),
-					Finality: Latest,
-				}
+				sink <- block
+				sink <- block.Copy(Safe)
+				sink <- block.Copy(Latest)
 			}
 		}
 	})

@@ -604,6 +604,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				currentHash := ev.Hash
 				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
+					zap.Uint64("block_time", ev.Time),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Stringer("finality", ev.Finality),
 					zap.String("eth_network", w.networkName))
