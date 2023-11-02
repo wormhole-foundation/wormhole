@@ -6,18 +6,19 @@ pragma solidity ^0.8.0;
 import "./libraries/external/BytesLib.sol";
 import "./Structs.sol";
 
-/**
- * @dev `GovernanceStructs` defines a set of structs and parsing functions
- * for minimal struct validation
- */
+
+/// @title Governance Structures for Wormhole
+/// @notice Defines governance structs and parsing functions for minimal struct validation.
 contract GovernanceStructs {
     using BytesLib for bytes;
 
+    /// @dev Enum representing different types of governance actions.
     enum GovernanceAction {
         UpgradeContract,
         UpgradeGuardianset
     }
 
+    /// @dev Represents a contract upgrade action.
     struct ContractUpgrade {
         bytes32 module;
         uint8 action;
@@ -26,6 +27,7 @@ contract GovernanceStructs {
         address newContract;
     }
 
+    /// @dev Represents a guardian set upgrade action.
     struct GuardianSetUpgrade {
         bytes32 module;
         uint8 action;
@@ -35,6 +37,7 @@ contract GovernanceStructs {
         uint32 newGuardianSetIndex;
     }
 
+    /// @dev Represents an action to set a new message fee.
     struct SetMessageFee {
         bytes32 module;
         uint8 action;
@@ -43,6 +46,7 @@ contract GovernanceStructs {
         uint256 messageFee;
     }
 
+    /// @dev Represents an action to transfer fees to a recipient.
     struct TransferFees {
         bytes32 module;
         uint8 action;
@@ -52,6 +56,7 @@ contract GovernanceStructs {
         bytes32 recipient;
     }
 
+    /// @dev Represents an action to recover the chain ID.
     struct RecoverChainId {
         bytes32 module;
         uint8 action;
@@ -60,7 +65,10 @@ contract GovernanceStructs {
         uint16 newChainId;
     }
 
-    /// @dev Parse a contract upgrade (action 1) with minimal validation
+    /// @notice Parse a ContractUpgrade (action 1) from bytes.
+    /// @dev Performs minimal validation.
+    /// @param encodedUpgrade The bytes containing the encoded ContractUpgrade.
+    /// @return cu The parsed ContractUpgrade struct.
     function parseContractUpgrade(bytes memory encodedUpgrade) public pure returns (ContractUpgrade memory cu) {
         uint index = 0;
 
@@ -81,7 +89,10 @@ contract GovernanceStructs {
         require(encodedUpgrade.length == index, "invalid ContractUpgrade");
     }
 
-    /// @dev Parse a guardianSet upgrade (action 2) with minimal validation
+    /// @notice Parses a GuardianSetUpgrade (action 2) from bytes.
+    /// @dev Performs minimal validation.
+    /// @param encodedUpgrade The bytes containing the encoded GuardianSetUpgrade.
+    /// @return gsu The parsed GuardianSetUpgrade struct.
     function parseGuardianSetUpgrade(bytes memory encodedUpgrade) public pure returns (GuardianSetUpgrade memory gsu) {
         uint index = 0;
 
@@ -115,7 +126,10 @@ contract GovernanceStructs {
         require(encodedUpgrade.length == index, "invalid GuardianSetUpgrade");
     }
 
-    /// @dev Parse a setMessageFee (action 3) with minimal validation
+    /// @notice Parses a setMessageFee (action 3) from bytes.
+    /// @dev Performs minimal validation.
+    /// @param encodedSetMessageFee The bytes containing the encoded SetMessageFee.
+    /// @return smf The parsed SetMessageFee struct.
     function parseSetMessageFee(bytes memory encodedSetMessageFee) public pure returns (SetMessageFee memory smf) {
         uint index = 0;
 
@@ -136,7 +150,10 @@ contract GovernanceStructs {
         require(encodedSetMessageFee.length == index, "invalid SetMessageFee");
     }
 
-    /// @dev Parse a transferFees (action 4) with minimal validation
+    /// @notice Parses a transferFees (action 4) from bytes.
+    /// @dev Performs minimal validation.
+    /// @param encodedTransferFees The bytes containing the encoded encodedTransferFees.
+    /// @return tf The parsed TransferFees struct.
     function parseTransferFees(bytes memory encodedTransferFees) public pure returns (TransferFees memory tf) {
         uint index = 0;
 
@@ -160,7 +177,10 @@ contract GovernanceStructs {
         require(encodedTransferFees.length == index, "invalid TransferFees");
     }
 
-    /// @dev Parse a recoverChainId (action 5) with minimal validation
+    /// @notice Parses a recoverChainId (action 5) from bytes.
+    /// @dev Performs minimal validation.
+    /// @param encodedRecoverChainId The bytes containing the encoded RecoverChainId.
+    /// @return rci The parsed RecoverChainId struct.
     function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (RecoverChainId memory rci) {
         uint index = 0;
 
