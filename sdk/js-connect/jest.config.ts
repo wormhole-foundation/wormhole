@@ -5,7 +5,6 @@ const jestConfig: JestConfigWithTsJest = {
     extensionsToTreatAsEsm: ['.ts'],
     testPathIgnorePatterns: [
         "utils",
-        "solana-integration.ts",
         "algorand-integration.ts",
         "aptos-integration.ts",
         "near-integration.ts",
