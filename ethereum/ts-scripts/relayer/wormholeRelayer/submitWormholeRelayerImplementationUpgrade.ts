@@ -16,7 +16,7 @@ init();
 const chains = getOperatingChains();
 
 /**
- * These are the registration VAAs for mainnet.
+ * These are wormhole-relayer implementation upgrade VAAs for mainnet.
  */
 const implementationUpgradeVaas: Partial<Record<ChainId, string>> = {
   // [chainId:number]: vaa
