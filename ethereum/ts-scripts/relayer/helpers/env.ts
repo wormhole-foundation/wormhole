@@ -26,6 +26,12 @@ export type Deployment = {
   address: string;
 };
 
+// A deployment that requires a governance VAA to be
+// submitted signed by the guardians and submitted
+export type GovernanceDeployment = Deployment & {
+  vaa: string;
+}
+
 export interface OperationDescriptor {
   /**
    * Txs will be signed for these chains

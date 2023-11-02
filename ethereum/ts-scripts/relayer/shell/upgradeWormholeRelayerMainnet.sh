@@ -1,0 +1,1 @@
+npx tsx ./ts-scripts/relayer/wormholeRelayer/submitWormholeRelayerImplementation.ts
