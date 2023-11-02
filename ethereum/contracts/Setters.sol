@@ -30,6 +30,7 @@ contract Setters is State {
     }
 
     /// @notice sets the implemented contract as initialized
+    /// @dev https://github.com/wormhole-foundation/wormhole/issues/1930
     /// @param implementatiom the address of the implementation
     function setInitialized(address implementatiom) internal {
         _state.initializedImplementations[implementatiom] = true;
