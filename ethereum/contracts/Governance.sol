@@ -11,8 +11,9 @@ import "./Setters.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 /**
- * @dev `Governance` defines a means to enacting changes to the core bridge contract,
- * guardianSets, message fees, and transfer fees
+ * @title Wormhole Governance Abstract Contract
+ * @notice Provides functionality for governance actions such as contract upgrades, fee setting, and guardian set updates to the core bridge contract.
+ * @dev This abstract contract inherits from GovernanceStructs, Messages, Setters, and the standard ERC1967Upgrade.
  */
 abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
@@ -23,6 +24,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Upgrades a contract via Governance VAA/VM
+     * @param _vm The encoded VAA/VM data
      */
     function submitContractUpgrade(bytes memory _vm) public {
         require(!isFork(), "invalid fork");
@@ -50,6 +52,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Sets a `messageFee` via Governance VAA/VM
+     * @param _vm The encoded VAA/VM data
      */
     function submitSetMessageFee(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -75,6 +78,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Deploys a new `guardianSet` via Governance VAA/VM
+     * @param _vm The encoded VAA/VM data
      */
     function submitNewGuardianSet(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -113,6 +117,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Submits transfer fees to the recipient via Governance VAA/VM
+     * @param _vm The encoded VAA/VM data
      */
     function submitTransferFees(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -142,6 +147,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+    * @param _vm The encoded VAA/VM data
     */
     function submitRecoverChainId(bytes memory _vm) public {
         require(isFork(), "not a fork");
@@ -170,6 +176,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Upgrades the `currentImplementation` with a `newImplementation`
+     * @param newImplementation The address of the new contract implementation
      */
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
@@ -186,6 +193,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
     /**
      * @dev Verifies a Governance VAA/VM is valid
+     * @param vm The governance VAA/VM to verify
+     * @return isValid True if the VAA/VM is valid
+     * @return reason The reason string if the VAA/VM is not valid
      */
     function verifyGovernanceVM(Structs.VM memory vm) internal view returns (bool, string memory){
         // Verify the VAA is valid
