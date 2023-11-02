@@ -615,7 +615,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU)
-					p2p.DefaultRegistry.SetNetworkStats(w.chainID, &stats)
+					w.updateNetworkStats(&stats)
 					continue
 				}
 
@@ -630,7 +630,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.FinalizedHeight = int64(blockNumberU)
 				}
-				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &stats)
+				w.updateNetworkStats(&stats)
 
 				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
@@ -925,4 +925,13 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+func (w *Watcher) updateNetworkStats(stats *gossipv1.Heartbeat_Network) {
+	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+		Height:          stats.Height,
+		SafeHeight:      stats.SafeHeight,
+		FinalizedHeight: stats.FinalizedHeight,
+		ContractAddress: w.contract.Hex(),
+	})
 }
