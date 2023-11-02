@@ -219,6 +219,7 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 
 		ret[idx] = &NewBlock{
 			Number:        &n,
+			Time:          uint64(m.Time),
 			Hash:          m.Hash,
 			L1BlockNumber: l1bn,
 			Finality:      finality,
@@ -276,6 +277,7 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 
 		ret[idx] = &NewBlock{
 			Number:        &n,
+			Time:          uint64(m.Time),
 			Hash:          m.Hash,
 			L1BlockNumber: l1bn,
 			Finality:      finality,

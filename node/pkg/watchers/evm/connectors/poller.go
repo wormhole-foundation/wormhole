@@ -232,6 +232,7 @@ func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, str strin
 
 	return &NewBlock{
 		Number:        &n,
+		Time:          uint64(m.Time),
 		Hash:          m.Hash,
 		L1BlockNumber: l1bn,
 		Finality:      blockFinality,

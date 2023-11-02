@@ -147,6 +147,7 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan err
 				}
 				sink <- &NewBlock{
 					Number:   ev.Number,
+					Time:     ev.Time,
 					Hash:     ev.Hash(),
 					Finality: Latest,
 				}
