@@ -6,10 +6,10 @@ import {
   Connection
 } from "@solana/web3.js";
 import { api, encoding, nativeChainAddress, normalizeAmount, signSendWait } from "@wormhole-foundation/connect-sdk";
-import { EvmChain, EvmPlatform, getEvmSigner } from "@wormhole-foundation/connect-sdk-evm";
+import { EvmChain, EvmPlatform } from "@wormhole-foundation/connect-sdk-evm";
 import { SolanaAddress, SolanaChain, SolanaPlatform, getSolanaSigner } from "@wormhole-foundation/connect-sdk-solana";
 import { ethers } from "ethers";
-import { getEthTokenBridge, getSolTokenBridge } from "../../src";
+import { getEthTokenBridge, getSolTokenBridge, getEvmSigner } from "../../src";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY3,
@@ -44,7 +44,6 @@ describe("Solana to Ethereum", () => {
         // create a signer for Eth
         const provider = new ethers.WebSocketProvider(ETH_NODE_URL);
         const ethSigner = await getEvmSigner(provider, ETH_PRIVATE_KEY3);
-
         const ethChain = EvmPlatform.getChain("Ethereum") as EvmChain;
         const ethTb = await getEthTokenBridge(provider);
         try {
