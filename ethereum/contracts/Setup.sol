@@ -8,6 +8,11 @@ import "./Governance.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
+/**
+@title Setup Contract
+@dev This contract is used to setup a wormhole contract.
+     It inherits from the standard ERC1967Upgrade, as well as the Setters contract.
+*/
 contract Setup is Setters, ERC1967Upgrade {
     /// @notice sets up a wormhole contract
     /// @param implementation the address of the wormhole contract
