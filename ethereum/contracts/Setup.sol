@@ -9,6 +9,13 @@ import "./Governance.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 contract Setup is Setters, ERC1967Upgrade {
+    /// @notice sets up a wormhole contract
+    /// @param implementation the address of the wormhole contract
+    /// @param initialGuardians the initial guardian set
+    /// @param chainId the chain id
+    /// @param governanceChainId the chain id of the governance
+    /// @param governanceContract the contract of the governance
+    /// @param evmChainId the EVM chain id
     function setup(
         address implementation,
         address[] memory initialGuardians,
