@@ -139,8 +139,6 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
-		safeBlocksSupported bool
-
 		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
 		rootChainRpc      string
 		rootChainContract string
