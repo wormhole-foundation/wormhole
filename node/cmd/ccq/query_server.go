@@ -14,6 +14,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
+	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
 	"github.com/certusone/wormhole/node/pkg/version"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ipfslog "github.com/ipfs/go-log/v2"
@@ -39,6 +40,7 @@ var (
 	telemetryLokiURL  *string
 	telemetryNodeName *string
 	statusAddr        *string
+	promRemoteURL     *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -58,6 +60,7 @@ func init() {
 	telemetryLokiURL = QueryServerCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
 	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
+	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 }
 
 var QueryServerCmd = &cobra.Command{
@@ -181,6 +184,24 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
 			}
 		}()
+	}
+
+	// Start the Prometheus scraper
+	usingPromRemoteWrite := *promRemoteURL != ""
+	if usingPromRemoteWrite {
+		var info promremotew.PromTelemetryInfo
+		info.PromRemoteURL = *promRemoteURL
+		info.Labels = map[string]string{
+			"node_name": *telemetryNodeName,
+			"network":   *p2pNetworkID,
+			"version":   version.Version(),
+			"product":   "ccq_server",
+		}
+
+		err := RunPrometheusScraper(ctx, logger, info)
+		if err != nil {
+			logger.Fatal("Failed to start prometheus scraper", zap.Error(err))
+		}
 	}
 
 	// Handle SIGTERM
