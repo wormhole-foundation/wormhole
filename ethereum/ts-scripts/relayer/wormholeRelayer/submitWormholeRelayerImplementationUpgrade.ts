@@ -9,7 +9,7 @@ import { buildOverrides } from "../helpers/deployments";
 
 import { inspect } from "util";
 
-const processName = "registerWormholeRelayer";
+const processName = "submitWormholeRelayerImplementationUpgrade";
 init();
 const chains = getOperatingChains();
 
