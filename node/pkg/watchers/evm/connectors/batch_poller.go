@@ -143,38 +143,43 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 	for idx, newBlock := range newBlocks {
 		if newBlock.Number.Cmp(prevBlocks[idx].Number) > 0 {
-			// If there is a gap between prev and new, we have to look up the transaction hashes for the missing ones. Do that in batches.
+			// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 			newBlockNum := newBlock.Number.Uint64()
 			blockNum := prevBlocks[idx].Number.Uint64() + 1
-			for blockNum < newBlockNum {
+			errorFound := false
+			lastPublishedBlock := prevBlocks[idx]
+			for blockNum < newBlockNum && !errorFound {
 				batchSize := newBlockNum - blockNum
 				if batchSize > MAX_GAP_BATCH_SIZE {
 					batchSize = MAX_GAP_BATCH_SIZE
 				}
 				gapBlocks, err := b.getBlockRange(ctx, logger, blockNum, batchSize, b.batchData[idx].finality)
 				if err != nil {
-					return prevBlocks, fmt.Errorf("failed to get gap blocks: %w", err)
-				}
-				prevBlock := prevBlocks[idx]
-				errorFound := false
-				for _, block := range gapBlocks {
-					if block.Number.Uint64() == 0 {
-						errorFound = true
-						break
+					// We don't return an error here because we want to go on and check the other finalities.
+					logger.Error("failed to get gap blocks", zap.Stringer("finality", b.batchData[idx].finality), zap.Error(err))
+					errorFound = true
+				} else {
+					// Play out the blocks in this batch. If the block number is zero, that means we failed to retrieve it, so we should stop there.
+					for _, block := range gapBlocks {
+						if block.Number.Uint64() == 0 {
+							errorFound = true
+							break
+						}
+
+						b.blockFeed.Send(block)
+						lastPublishedBlock = block
 					}
-
-					b.blockFeed.Send(block)
-					prevBlock = block
 				}
 
-				if errorFound {
-					newBlocks[idx] = prevBlock
-					continue
-				}
 				blockNum += batchSize
 			}
 
-			b.blockFeed.Send(newBlock)
+			if !errorFound {
+				// The original value of newBlocks is still good.
+				b.blockFeed.Send(newBlock)
+			} else {
+				newBlocks[idx] = lastPublishedBlock
+			}
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
 			logger.Debug("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
