@@ -16,6 +16,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
@@ -167,9 +168,21 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 					c.logger.Error("new header block number is nil")
 					continue
 				}
+				hash := ethCommon.BytesToHash(ev.Hash().Bytes())
 				sink <- &NewBlock{
-					Number: ev.Number,
-					Hash:   ethCommon.BytesToHash(ev.Hash().Bytes()),
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Finalized,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Safe,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Latest,
 				}
 			}
 		}
@@ -193,6 +206,10 @@ func (c *CeloConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.Batc
 		}
 	}
 	return c.rawClient.BatchCallContext(ctx, celoB)
+}
+
+func (c *CeloConnector) Client() *ethClient.Client {
+	panic("unimplemented")
 }
 
 func convertCeloEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {

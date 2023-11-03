@@ -474,13 +474,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 	)
 
 	safeMode := req.Finality == "safe"
-	if safeMode {
-		// If a chain does not support safe mode, treat this as finalized.
-		if !w.safeBlocksSupported {
-			logger.Debug(`eth_call_with_finality query request for safe mode, but the chain does not support it, treating as "finalized"`, zap.String("block", block))
-			safeMode = false
-		}
-	} else if req.Finality != "finalized" {
+	if req.Finality != "finalized" && !safeMode {
 		logger.Error("invalid finality in eth_call_with_finality query request", zap.String("block", block), zap.String("finality", req.Finality), zap.String("block", block))
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
 		return
