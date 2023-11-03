@@ -17,7 +17,7 @@ const chains = getOperatingChains();
  * These are wormhole-relayer implementation upgrade VAAs for mainnet.
  */
 const implementationUpgradeVaas: Partial<Record<ChainId, string>> = {
-  // [chainId:number]: vaa
+  // [chainId:number]: [vaa:string] (base64 encoded)
 }
 
 async function run() {
@@ -29,8 +29,9 @@ async function run() {
       if (!vaa) {
         throw new Error("No implementation upgrade VAA found for chain " + chain.chainId);
       }
+      
       console.log(`Submitting upgrade VAA ${vaa} to chain ${chain.chainId}`);
-      return submitWormholeRelayerUpgradeVaa(chain, vaa)
+      return submitWormholeRelayerUpgradeVaa(chain, Buffer.from(vaa, "base64"));
     }),
   );
 
@@ -45,7 +46,7 @@ async function run() {
 
 async function submitWormholeRelayerUpgradeVaa(
   chain: ChainInfo,
-  vaa: string,
+  vaa: Uint8Array,
 ) {
   console.log(`Upgrading WormholeRelayer in chain ${chain.chainId}...`);
 
