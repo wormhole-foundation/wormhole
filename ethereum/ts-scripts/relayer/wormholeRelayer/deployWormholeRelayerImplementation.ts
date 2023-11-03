@@ -8,7 +8,7 @@ import {
   Deployment,
 } from "../helpers/env";
 
-const processName = "upgradeWormholeRelayerSelfSign";
+const processName = "deployWormholeRelayerImplementation";
 init();
 const operatingChains = getOperatingChains();
 
