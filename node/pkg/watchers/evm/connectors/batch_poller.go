@@ -155,15 +155,28 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 				if err != nil {
 					return prevBlocks, fmt.Errorf("failed to get gap blocks: %w", err)
 				}
+				prevBlock := prevBlocks[idx]
+				errorFound := false
 				for _, block := range gapBlocks {
+					if block.Number.Uint64() == 0 {
+						errorFound = true
+						break
+					}
+
 					b.blockFeed.Send(block)
+					prevBlock = block
+				}
+
+				if errorFound {
+					newBlocks[idx] = prevBlock
+					continue
 				}
 				blockNum += batchSize
 			}
 
 			b.blockFeed.Send(newBlock)
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newBlock.Number), zap.Any("prevLatest", prevBlocks[idx].Number))
+			logger.Debug("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
 		}
 	}
@@ -204,12 +217,13 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {
@@ -262,12 +276,13 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil")
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {

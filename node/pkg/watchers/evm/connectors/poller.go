@@ -149,7 +149,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 
 		b.blockFeed.Send(newLatest)
 	} else if newLatest.Number.Cmp(prevLatest.Number) < 0 {
-		logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
+		logger.Debug("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
 		newLatest = prevLatest
 	}
 
