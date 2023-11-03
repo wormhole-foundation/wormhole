@@ -61,12 +61,12 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
 
 const DEVNET: { [K in ChainName]?: AddressInfo } = {
   ethereum: {
-    wormholeRelayerAddress: "0xBc5d928882CaD633fC53d717A329ACD491B3f3Cd",
+    wormholeRelayerAddress: "0x72F046Dd6705013ca609B649567F15ed2559253e",
     mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
   bsc: {
-    wormholeRelayerAddress: "0xBc5d928882CaD633fC53d717A329ACD491B3f3Cd",
+    wormholeRelayerAddress: "0x72F046Dd6705013ca609B649567F15ed2559253e",
     mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
