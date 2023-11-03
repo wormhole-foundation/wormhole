@@ -532,9 +532,13 @@ export async function getCCTPMessageLogURL(
   let cctpLog;
   let messageSentLog;
   const DepositForBurnTopic = ethers.utils.keccak256(
-    "DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)"
+    ethers.utils.toUtf8Bytes(
+      "DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)"
+    )
   );
-  const MessageSentTopic = ethers.utils.keccak256("MessageSent(bytes)");
+  const MessageSentTopic = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("MessageSent(bytes)")
+  );
   try {
     if (getNameFromCCTPDomain(cctpKey.domain) === sourceChain) {
       const cctpLogFilter = (log: ethers.providers.Log) => {
