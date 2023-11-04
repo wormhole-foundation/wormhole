@@ -4,26 +4,23 @@
 
 ## Connected chains
 
-In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to:
+In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to verify state transitions and pick up wormhole contract interactions:
 
 - **Solana**. There is no light client for Solana yet, so you'll have to run a full solana-validator node. It does not
-  have to actually be a validator - you can run solana-validator in non-validating mode if you are not a validator.
+  have actually to be a validator - you can run solana-validator in non-validating mode if you are not a validator.
 
   Refer to the [Solana documentation](https://docs.solana.com/running-validator) on how to run a validator. The validator
-  requirements as stated in their docs are excessive - for the current iteration for mainnet-beta, the "low end" config
+  requirements, as stated in their docs, are excessive - for the current iteration for mainnet-beta, the "low end" config
   with no GPU is perfectly adequate, and will have enough spare capacity.
   [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding validator ops.
 
 - **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
 
-- **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
-  pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
-  on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
-  to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
-  you set up a load balancer pointing to a set of nodes.
+- **Terra** -> [Terrad](https://docs.terra.money/develop/terrad/install-terrad/) serves as the command-line interface (CLI) and the node daemon essential for interfacing with the Terra blockchain. Terra Core represents the Golang-based reference implementation of the Terra node software.
+Use [Terra core](https://docs.terra.money/full-node/run-a-full-terra-node/build-terra-core/) to build full node from binary and check docs to join a [public network](https://docs.terra.money/full-node/run-a-full-terra-node/join-a-network). 
 
 - **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
-  roughly requires twice as many compute resources.
+  roughly requires twice as many computing resources.
 
 **Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
 you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
@@ -84,7 +81,7 @@ choice is geth, but for the sake of diversity, you may want to run something tha
 
 With RPC providers such as Alchemy, Infura, etc. you trust those operators to provide you with untampered chain data and
 have no way of verifying correctness. Therefore, Wormhole requires either an Ethereum full-node or a light-client. The
-node can be operated in the full, quick or light modes with no impact on security or performance of the bridge software.
+node can be operated in the full, quick or light modes with no impact on the security or performance of the bridge software.
 As long as the node supports the Ethereum JSON RPC API, it will be compatible with the bridge so all major
 implementations will work fine.
 
@@ -123,7 +120,7 @@ If you want to compile and deploy locally, you can run `sudo make install` to in
 
 If you deploy using a custom pipeline, you need to set the `CAP_IPC_LOCK` capability on the binary (e.g. doing the
 equivalent to `sudo setcap cap_ipc_lock=+ep`) to allow it to lock its memory pages to prevent them from being paged out.
-See below on why - this is a generic defense-in-depth mitigation which ensures that process memory is never swapped out
+See below on why - this is a generic defense-in-depth mitigation that ensures that process memory is never swapped out
 to disk. Please create a GitHub issue if this extra capability represents an operational or compliance concern.
 
 ## Key Generation
@@ -186,12 +183,12 @@ alerting will be documented here.
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
 **NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
-not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+not considered a stable API. Log messages may be added, modified, or removed without notice. Use the metrics :-)
 
 ## Running a public API endpoint
 
 Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).
-Instead, it relies on Guardian nodes exposing an API which web wallets and other clients can use to retrieve the signed VAA
+Instead, it relies on Guardian nodes exposing an API that web wallets and other clients can use to retrieve the signed VAA
 message for a given transaction.
 
 Guardian nodes are **strongly encouraged** to expose a public API endpoint to improve the protocol's robustness.
@@ -233,7 +230,7 @@ You'll have to manage the following keys:
 
 - The **guardian key**, which is the bridge consensus key. This key is very critical - your node uses it to certify
   VAA messages. The public key's hash is stored in the guardian set on all connected chains. It does not accrue rewards.
-  It's your share of the multisig mechanism that protect the Wormhole network. The guardian set can be replaced
+  It's your share of the multisig mechanism that protects the Wormhole network. The guardian set can be replaced
   if a majority of the guardians agree to sign and publish a new guardian set.
 
 - A **node key**, which identifies it on the gossip network, similar to Solana's node identity or a Tendermint
@@ -241,10 +238,10 @@ You'll have to manage the following keys:
   An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
   critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
   While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
-  node in monitoring data and improves p2p connectivity.
+  node in monitoring data and improve p2p connectivity.
 
-For production, we strongly recommend to either encrypt your disks, and/or take care to never have hot guardian keys touch the disk.
-One way to accomplish is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
+For production, we strongly recommend either encrypting your disks and/or taking care to never have hot guardian keys touch the disk.
+One way to accomplish this is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
 storage or an HSM/vault whenever the node is rebooted. You might want to disable swap altogether. None of that is
 specific to Wormhole - this applies to any hot keys.
 
