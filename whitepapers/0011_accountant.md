@@ -123,7 +123,7 @@ It will have the following accounts:
 
 Transferring a native token across the tokenbridge (locking) increases the balance on both the custody account and wrapped account on the destination chain.  Transferring a wrapped token back across the tokenbridge (burning) and subsequently unlocking its native asset decreases the balance on both the wrapped and custody accounts.  Any transfer causing the balance of an account to become negative is invalid and gets rejected.
 
-Each account is identified via a `(chain_id, token_chain, token_address)` tuple.  Custody accounts are those where `chain_id == token_chain`, while the rest are wrapped accounts. See the [governance](#governance) section below for futher clarification.
+Each account is identified via a `(chain_id, token_chain, token_address)` tuple.  Custody accounts are those where `chain_id == token_chain`, while the rest are wrapped accounts. See the [governance](#governance) section below for further clarification.
 
 #### Governance
 

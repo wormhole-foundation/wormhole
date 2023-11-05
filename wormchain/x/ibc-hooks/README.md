@@ -55,7 +55,7 @@ msg := MsgExecuteContract{
 
 ### ICS20 packet structure
 
-So given the details above, we propogate the implied ICS20 packet data structure.
+So given the details above, we propagate the implied ICS20 packet data structure.
 ICS20 is JSON native, so we use JSON for the memo format.
 
 ```json 
@@ -78,7 +78,7 @@ ICS20 is JSON native, so we use JSON for the memo format.
 }
 ```
 
-An ICS20 packet is formatted correctly for wasmhooks iff the following all hold:
+An ICS20 packet is formatted correctly for wasmhooks if the following all hold:
 
 * `memo` is not blank
 * `memo` is valid JSON
@@ -87,20 +87,20 @@ An ICS20 packet is formatted correctly for wasmhooks iff the following all hold:
 * `memo["wasm"]["msg"]` is a valid JSON object
 * `receiver == "" || receiver == memo["wasm"]["contract"]`
 
-We consider an ICS20 packet as directed towards wasmhooks iff all of the following hold:
+We consider an ICS20 packet as directed towards wasmhooks if all of the following hold:
 
 * `memo` is not blank
 * `memo` is valid JSON
 * `memo` has at least one key, with name `"wasm"`
 
 If an ICS20 packet is not directed towards wasmhooks, wasmhooks doesn't do anything.
-If an ICS20 packet is directed towards wasmhooks, and is formated incorrectly, then wasmhooks returns an error.
+If an ICS20 packet is directed towards wasmhooks, and is formatted incorrectly, then wasmhooks returns an error.
 
 ### Execution flow
 
 Pre wasm hooks:
 
-* Ensure the incoming IBC packet is cryptogaphically valid
+* Ensure the incoming IBC packet is cryptographically valid
 * Ensure the incoming IBC packet is not timed out.
 
 In Wasm hooks, pre packet execution:

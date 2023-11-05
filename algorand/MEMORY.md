@@ -115,7 +115,7 @@ Here are the two pop statements we looked at in the TEAL code. The pyTEAL compil
 
 `Tmpl.Int("TMPL_ADDR_IDX")` and `Tmpl.Bytes("TMPL_EMITTER_ID")` are _template variables_. Normally, they can be thought of as variables in a TEAL program that get replaced at compile time by the compiler, sort of like CPP macros. In fact, this already hints at how the LogicSig is going to be used: these variables will be programmatically replaced (albeit not just at compile time, but more on that later) with distinct values to generate distinct LogicSigs, with deterministic addresses. The wormhole contract will then be able to use the memory of the associated accounts of these LogicSigs. To see how, we’ll first go through what the LogicSig does in the first place.
 
-When using a LogicSig to sign a transaction (like in our case), the LogicSig program can query information about the transaction from the Algorand runtime. If the LogicSig doesn't revert, then the transaction will be executed on-chain. It is the LogicSig’s responsibility to decide whether it wants to approve this transaction, so it will perform a number of checks to ensure the transaction does what’s expected. Importantly, anyone can pass in their own transactions and use the LogicSig to sign it, so forgetting a check here could result in hijacking the LogicSig’s associated account. That's because (by default), transactions that are signed (that is, approved) by the LogicSig can acces the LogicSig’s account. In fact, that's what LogicSigs were designed for in the first place: to implement arbitrary logic for deciding who can spend money out of some account.
+When using a LogicSig to sign a transaction (like in our case), the LogicSig program can query information about the transaction from the Algorand runtime. If the LogicSig doesn't revert, then the transaction will be executed on-chain. It is the LogicSig’s responsibility to decide whether it wants to approve this transaction, so it will perform a number of checks to ensure the transaction does what’s expected. Importantly, anyone can pass in their own transactions and use the LogicSig to sign it, so forgetting a check here could result in hijacking the LogicSig’s associated account. That's because (by default), transactions that are signed (that is, approved) by the LogicSig can access the LogicSig’s account. In fact, that's what LogicSigs were designed for in the first place: to implement arbitrary logic for deciding who can spend money out of some account.
 
 The first instruction after the two `Pop`s above is
 
@@ -135,7 +135,7 @@ pushint 6 // appl
 assert
 ```
 
-The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made avaiable by the AVM runtime.
+The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made available by the AVM runtime.
 `pushint` pushes an integer to the stack, here the number 6, which corresponds to application call. `==` pops the top two elements from the stack and pushes 1 if they are equal, or 0 if they are not. Finally, `assert` pops the top of the stack, and reverts the transaction if it’s 0 (or if the stack is empty).
 
 Application calls are one of the built-in transaction types defined by Algorand, another one is Payment. We require that this one is an application call, because of the next check, opting in:

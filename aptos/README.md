@@ -215,7 +215,7 @@ simpler for users and integrators.
 
 `signer` objects can also be used for access control, because the existence of a
 `signer` value with a given address proves that the address authorised that
-transaction. The key observation is that a `signer` is an unforgable token of
+transaction. The key observation is that a `signer` is an unforgeable token of
 authority, also known as a _capability_. The issue is, as described in the above
 section, is that the `signer` capability is too general, as it can authorise
 arbitrary actions on behalf of the user. For this reason, we don't use `signer`s

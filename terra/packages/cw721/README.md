@@ -38,7 +38,7 @@ the owner of it, or have an allowance to transfer it.
 transfer or send the given token. This can only be performed when
 `env.sender` is the owner of the given `token_id` or an `operator`. 
 There can multiple spender accounts per token, and they are cleared once
-the token is transfered or sent.
+the token is transferred or sent.
 
 `Revoke{spender, token_id}` - This revokes a previously granted permission
 to transfer the given `token_id`. This can only be granted when
@@ -102,7 +102,7 @@ want both info to display one NFT.
 
 ### Queries
 
-Pagination is acheived via `start_after` and `limit`. Limit is a request
+Pagination is achieved via `start_after` and `limit`. Limit is a request
 set by the client, if unset, the contract will automatically set it to
 `DefaultLimit` (suggested 10). If set, it will be used up to a `MaxLimit`
 value (suggested 30). Contracts can define other `DefaultLimit` and `MaxLimit`

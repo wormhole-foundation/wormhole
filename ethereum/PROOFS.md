@@ -24,7 +24,7 @@ Use the following command to run the proofs using KEVM:
 ./run-kevm.sh
 ```
 
-The script first builds the tests with `forge build`, then kompiles them into a KEVM specification and runs the prover.
+The script first builds the tests with `forge build`, then compiles them into a KEVM specification and runs the prover.
 
 The script symbolically executes all tests added to the `tests` variable. By default, it is set to run all of the tests that have been verified using KEVM. To run a single test at a time, comment out the lines with the other tests. Tests can also be run in parallel by changing the value of the `workers` variable.
 
