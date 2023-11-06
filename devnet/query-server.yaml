@@ -41,6 +41,8 @@ spec:
             - node/cmd/ccq/devnet.signing.key
             - --listenAddr
             - "[::]:6069"
+            - --statusAddr
+            - "[::]:6068"
             - --permFile
             - "node/cmd/ccq/devnet.permissions.json"
             - --ethRPC
@@ -55,6 +57,10 @@ spec:
             - containerPort: 6069
               name: rest
               protocol: TCP
+            - containerPort: 6068
+              name: status
+              protocol: TCP
           readinessProbe:
-            tcpSocket:
-              port: rest
+            httpGet:
+              port: 6068
+              path: /health

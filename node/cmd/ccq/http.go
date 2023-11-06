@@ -53,6 +53,9 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
+	allQueryRequestsReceived.Inc()
+
 	// Decode the body first. This is because the library seems to hang if we receive a large body and return without decoding it.
 	// This could be a slight waste of resources, but should not be a DoS risk because we cap the max body size.
 
@@ -61,6 +64,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Debug("failed to decode body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_body").Inc()
 		return
 	}
 
@@ -69,6 +73,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if !exists || len(apiKeys) != 1 {
 		s.logger.Debug("received a request with the wrong number of api keys", zap.Stringer("url", r.URL), zap.Int("numApiKeys", len(apiKeys)))
 		http.Error(w, "api key is missing", http.StatusUnauthorized)
+		invalidQueryRequestReceived.WithLabelValues("missing_api_key").Inc()
 		return
 	}
 	apiKey := strings.ToLower(apiKeys[0])
@@ -78,6 +83,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		s.logger.Debug("invalid api key", zap.String("apiKey", apiKey))
 		http.Error(w, "invalid api key", http.StatusForbidden)
+		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
 		return
 	}
 
@@ -85,6 +91,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Debug("failed to decode request bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_request").Inc()
 		return
 	}
 
@@ -92,6 +99,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Debug("failed to decode signature bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_signature").Inc()
 		return
 	}
 
@@ -103,6 +111,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest); err != nil {
 		// Don't need to log here because the details were logged in the function.
 		http.Error(w, err.Error(), status)
+		// Metric has already been pegged.
 		return
 	}
 
@@ -116,6 +125,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Error("failed to marshal gossip message", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_gossip_msg").Inc()
 		return
 	}
 
@@ -123,6 +133,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
 		http.Error(w, "Duplicate request", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
 		return
 	}
 
@@ -130,6 +141,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Error("failed to publish gossip message", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_publish_gossip_msg").Inc()
 		s.pendingResponses.Remove(pendingResponse)
 		return
 	}
@@ -143,6 +155,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.logger.Error("failed to marshal response", zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
 			break
 		}
 		// Signature indices must be ascending for on-chain verification
@@ -163,16 +176,13 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.logger.Error("failed to encode response", zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
 		}
 	}
 
+	totalQueryTime.Observe(float64(time.Since(start).Milliseconds()))
+	validQueryRequestsReceived.Inc()
 	s.pendingResponses.Remove(pendingResponse)
-}
-
-func (s *httpServer) handleHealth(w http.ResponseWriter, r *http.Request) {
-	s.logger.Debug("health check")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "ok")
 }
 
 func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
@@ -186,7 +196,6 @@ func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signer
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT", "POST", "OPTIONS")
-	r.HandleFunc("/v1/health", s.handleHealth).Methods("GET")
 	return &http.Server{
 		Addr:              addr,
 		Handler:           r,

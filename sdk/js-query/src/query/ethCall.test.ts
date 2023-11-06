@@ -24,11 +24,10 @@ const CI = process.env.CI;
 const ENV = "DEVNET";
 const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-const CCQ_SERVER_URL = CI
-  ? "http://query-server:6069/v1"
-  : "http://localhost:6069/v1";
+const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
+const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
-const HEALTH_URL = CCQ_SERVER_URL + "/health";
+const HEALTH_URL = SERVER_URL + "6068/health";
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";

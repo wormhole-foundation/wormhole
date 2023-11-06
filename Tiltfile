@@ -924,7 +924,8 @@ if query_server:
         "query-server",
         resource_deps = ["guardian"],
         port_forwards = [
-            port_forward(6069, name = "REST [:6069]", host = webHost)
+            port_forward(6069, name = "REST [:6069]", host = webHost),
+            port_forward(6068, name = "REST [:6068]", host = webHost)
         ],
         labels = ["query-server"],
         trigger_mode = trigger_mode
