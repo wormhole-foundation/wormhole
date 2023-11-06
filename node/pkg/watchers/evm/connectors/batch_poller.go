@@ -143,27 +143,45 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 	for idx, newBlock := range newBlocks {
 		if newBlock.Number.Cmp(prevBlocks[idx].Number) > 0 {
-			// If there is a gap between prev and new, we have to look up the transaction hashes for the missing ones. Do that in batches.
+			// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 			newBlockNum := newBlock.Number.Uint64()
 			blockNum := prevBlocks[idx].Number.Uint64() + 1
-			for blockNum < newBlockNum {
+			errorFound := false
+			lastPublishedBlock := prevBlocks[idx]
+			for blockNum < newBlockNum && !errorFound {
 				batchSize := newBlockNum - blockNum
 				if batchSize > MAX_GAP_BATCH_SIZE {
 					batchSize = MAX_GAP_BATCH_SIZE
 				}
 				gapBlocks, err := b.getBlockRange(ctx, logger, blockNum, batchSize, b.batchData[idx].finality)
 				if err != nil {
-					return prevBlocks, fmt.Errorf("failed to get gap blocks: %w", err)
+					// We don't return an error here because we want to go on and check the other finalities.
+					logger.Error("failed to get gap blocks", zap.Stringer("finality", b.batchData[idx].finality), zap.Error(err))
+					errorFound = true
+				} else {
+					// Play out the blocks in this batch. If the block number is zero, that means we failed to retrieve it, so we should stop there.
+					for _, block := range gapBlocks {
+						if block.Number.Uint64() == 0 {
+							errorFound = true
+							break
+						}
+
+						b.blockFeed.Send(block)
+						lastPublishedBlock = block
+					}
 				}
-				for _, block := range gapBlocks {
-					b.blockFeed.Send(block)
-				}
+
 				blockNum += batchSize
 			}
 
-			b.blockFeed.Send(newBlock)
+			if !errorFound {
+				// The original value of newBlocks is still good.
+				b.blockFeed.Send(newBlock)
+			} else {
+				newBlocks[idx] = lastPublishedBlock
+			}
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newBlock.Number), zap.Any("prevLatest", prevBlocks[idx].Number))
+			logger.Debug("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
 		}
 	}
@@ -204,12 +222,13 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {
@@ -262,12 +281,13 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil")
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {
