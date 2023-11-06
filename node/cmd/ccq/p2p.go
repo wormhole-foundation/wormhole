@@ -175,7 +175,12 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 							Signatures: responses[requestSignature][digest],
 						}
 						delete(responses, requestSignature)
-						pendingResponse.ch <- s
+						select {
+						case pendingResponse.ch <- s:
+							logger.Debug("forwarded query response")
+						default:
+							logger.Error("failed to write query response to channel, dropping it")
+						}
 					}
 				} else {
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
