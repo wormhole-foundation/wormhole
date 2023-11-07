@@ -612,10 +612,11 @@ describe("eth call", () => {
       "totalSupply",
       "uint256"
     );
-    const ethCall = new EthCallWithFinalityQueryRequest("0x28d9630", "", [
-      nameCallData,
-      totalSupplyCallData,
-    ]);
+    const ethCall = new EthCallWithFinalityQueryRequest(
+      "0x28d9630",
+      "" as any,
+      [nameCallData, totalSupplyCallData]
+    );
     const chainId = 2;
     const ethQuery = new PerChainQueryRequest(chainId, ethCall);
     const nonce = 1;
@@ -651,7 +652,7 @@ describe("eth call", () => {
     );
     const ethCall = new EthCallWithFinalityQueryRequest(
       "0x28d9630",
-      "HelloWorld",
+      "HelloWorld" as any,
       [nameCallData, totalSupplyCallData]
     );
     const chainId = 2;
