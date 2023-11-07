@@ -1,6 +1,6 @@
 {
   "name": "@wormhole-foundation/sdk-base",
-  "version": "0.1.8-beta.10",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wormhole-foundation/connect-sdk.git"
@@ -25,15 +25,19 @@
   },
   "sideEffects": false,
   "scripts": {
-    "test": "jest --config ../../jest.config.ts __tests__/*.ts",
+    "typecheck": "cp ./__tests__/typechecks/index.test-d.ts ./lib/esm/ && tsd",
+    "test": "jest --config ../../jest.config.ts __tests__/*.ts && npm run typecheck",
+
+    "clean": "rm -rf ./lib && rm -f ./*.tsbuildinfo",
+
     "build:cjs": "tsc -p ./tsconfig.cjs.json",
     "build:esm": "tsc -p ./tsconfig.esm.json",
     "build": "npm run build:cjs && npm run build:esm",
     "rebuild": "npm run clean && npm run build:cjs && npm run build:esm",
-    "clean": "rm -rf ./lib && rm -f ./*.tsbuildinfo",
-    "typecheck": "cp ./__tests__/typechecks/index.test-d.ts ./lib/esm/ && tsd",
+
     "lint": "npm run prettier && eslint --fix",
-    "bump:beta": "bump prerelease",
-    "prettier": "prettier --write ./src"
+    "prettier": "prettier --write ./src",
+
+    "bump:beta": "bump prerelease"
   }
 }

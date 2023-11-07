@@ -2,7 +2,6 @@
   "name": "@wormhole-foundation/wormhole-sdk",
   "version": "0.0.1",
   "homepage": "https://wormhole.com",
-  "type":"module",
   "keywords": [
     "wormhole",
     "sdk",
@@ -38,8 +37,10 @@
     "clean": "npm run clean --workspaces --if-present",
     "prettier": "npm run prettier --workspaces --if-present",
     "bump:beta": "bump prerelease && npm run bump:beta --workspaces --if-present",
-    "test:tilt": "jest --verbose --config ./jest.config.ts --roots ./__tests__/tilt",
-    "test": "NETWORK=Mainnet npm run test --workspaces --if-present",
+
+    "test": "npm run test --workspaces --if-present",
+    "test-ci": "jest --verbose --config ./jest.config.ts --roots ./__tests__/tilt",
+
     "docs": "typedoc"
   },
   "workspaces": [

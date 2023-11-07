@@ -123,4 +123,28 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
 ---
-
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: connect-sdk-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: connect-sdk-ci-tests
+          image: connect-sdk-test-image
+          command:
+            - /bin/sh
+            - -c
+            - "bash /app/testing/connectsdk.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---

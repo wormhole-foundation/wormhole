@@ -44,5 +44,6 @@
     "suppressExcessPropertyErrors": false,
     "suppressImplicitAnyIndexErrors": false,
     "noStrictGenericChecks": false
-  }
+  },
+  "include": ["./jest.config.ts"]
 }
