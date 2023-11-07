@@ -1,3 +1,7 @@
+## 0.0.5
+
+Mock support
+
 ## 0.0.4
 
 Add ethCallWithFinality support

@@ -5,11 +5,11 @@ import { hexToUint8Array, isValidHexString } from "./utils";
 
 export class EthCallWithFinalityQueryRequest implements ChainSpecificQuery {
   blockId: string;
-  finality: string;
+  finality: "safe" | "finalized";
 
   constructor(
     blockId: BlockTag,
-    finality: string,
+    finality: "safe" | "finalized",
     public callData: EthCallData[]
   ) {
     this.blockId = parseBlockId(blockId);
