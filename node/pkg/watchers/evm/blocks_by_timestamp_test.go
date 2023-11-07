@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"go.uber.org/zap"
 )
 
 func cacheIsValid(t *testing.T, bts *BlocksByTimestamp) bool {
@@ -58,30 +60,46 @@ func TestBlocksByTimestamp_TestCacheIsValid(t *testing.T) {
 }
 
 func TestBlocksByTimestamp_AddLatest(t *testing.T) {
+	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 
-	assert.NoError(t, bts.AddLatest(1698621628, 420))
-	assert.NoError(t, bts.AddLatest(1698621628, 421))
-	assert.NoError(t, bts.AddLatest(1698621628, 422))
-	assert.Error(t, bts.AddLatest(1698621627, 423)) // The timestamp going down is an error.
-	assert.Error(t, bts.AddLatest(1698621629, 422)) // Even if the timestamp goes up, the block must also go up.
-	assert.NoError(t, bts.AddLatest(1698621629, 423))
-	assert.Equal(t, 4, len(bts.cache))
-	assert.True(t, cacheIsValid(t, bts))
+	bts.AddLatest(logger, 1698621628, 420)
+	bts.AddLatest(logger, 1698621628, 421)
+	bts.AddLatest(logger, 1698621628, 422)
+	bts.AddLatest(logger, 1698621629, 423)
+	bts.AddLatest(logger, 1698621630, 424)
+	bts.AddLatest(logger, 1698621630, 425)
+	require.Equal(t, 6, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+
+	// Timestamp going back should trim by timestamp.
+	bts.AddLatest(logger, 1698621629, 427)
+	require.Equal(t, 5, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(427), bts.cache[4].BlockNum)
+	assert.Equal(t, uint64(1698621629), bts.cache[4].Timestamp)
+
+	// Block number only going back should trim by block number only.
+	bts.AddLatest(logger, 1698621629, 426)
+	require.Equal(t, 5, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(426), bts.cache[4].BlockNum)
+	assert.Equal(t, uint64(1698621629), bts.cache[4].Timestamp)
 }
 
 func TestBlocksByTimestamp_AddLatestShouldTrimTheCache(t *testing.T) {
+	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(5)
 
-	require.NoError(t, bts.AddLatest(1698621628, 420))
-	require.NoError(t, bts.AddLatest(1698621628, 421))
-	require.NoError(t, bts.AddLatest(1698621628, 422))
-	require.NoError(t, bts.AddLatest(1698621628, 423))
-	require.NoError(t, bts.AddLatest(1698621629, 424))
+	bts.AddLatest(logger, 1698621628, 420)
+	bts.AddLatest(logger, 1698621628, 421)
+	bts.AddLatest(logger, 1698621628, 422)
+	bts.AddLatest(logger, 1698621628, 423)
+	bts.AddLatest(logger, 1698621629, 424)
 	require.Equal(t, 5, len(bts.cache), 5)
 	require.True(t, cacheIsValid(t, bts))
 
-	assert.NoError(t, bts.AddLatest(1698621629, 425))
+	bts.AddLatest(logger, 1698621629, 425)
 	assert.Equal(t, 5, len(bts.cache))
 
 	assert.True(t, cacheIsValid(t, bts))
@@ -93,14 +111,15 @@ func TestBlocksByTimestamp_AddLatestShouldTrimTheCache(t *testing.T) {
 }
 
 func TestBlocksByTimestamp_AddBatch(t *testing.T) {
+	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 
 	// First create a cache with some gaps in it.
-	require.NoError(t, bts.AddLatest(1698621628, 420))
-	require.NoError(t, bts.AddLatest(1698621628, 430))
-	require.NoError(t, bts.AddLatest(1698621728, 440))
-	require.NoError(t, bts.AddLatest(1698621729, 450))
-	require.NoError(t, bts.AddLatest(1698621828, 460))
+	bts.AddLatest(logger, 1698621628, 420)
+	bts.AddLatest(logger, 1698621628, 430)
+	bts.AddLatest(logger, 1698621728, 440)
+	bts.AddLatest(logger, 1698621729, 450)
+	bts.AddLatest(logger, 1698621828, 460)
 	require.Equal(t, 5, len(bts.cache))
 	require.True(t, cacheIsValid(t, bts))
 
@@ -123,14 +142,15 @@ func TestBlocksByTimestamp_AddBatch(t *testing.T) {
 }
 
 func TestBlocksByTimestamp_AddBatchShouldTrim(t *testing.T) {
+	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(8)
 
 	// First create a cache with some gaps in it.
-	require.NoError(t, bts.AddLatest(1698621628, 420))
-	require.NoError(t, bts.AddLatest(1698621628, 430))
-	require.NoError(t, bts.AddLatest(1698621728, 440))
-	require.NoError(t, bts.AddLatest(1698621729, 450))
-	require.NoError(t, bts.AddLatest(1698621828, 460))
+	bts.AddLatest(logger, 1698621628, 420)
+	bts.AddLatest(logger, 1698621628, 430)
+	bts.AddLatest(logger, 1698621728, 440)
+	bts.AddLatest(logger, 1698621729, 450)
+	bts.AddLatest(logger, 1698621828, 460)
 	require.Equal(t, 5, len(bts.cache))
 	require.True(t, cacheIsValid(t, bts))
 
@@ -179,6 +199,7 @@ func TestBlocksByTimestamp_SearchForTimestamp(t *testing.T) {
 }
 
 func TestBlocksByTimestamp_LookUp(t *testing.T) {
+	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 
 	// Empty cache.
@@ -187,12 +208,12 @@ func TestBlocksByTimestamp_LookUp(t *testing.T) {
 	assert.Equal(t, uint64(0), prev)
 	assert.Equal(t, uint64(0), next)
 
-	require.NoError(t, bts.AddLatest(1698621528, 420))
-	require.NoError(t, bts.AddLatest(1698621528, 421))
-	require.NoError(t, bts.AddLatest(1698621628, 422))
-	require.NoError(t, bts.AddLatest(1698621728, 423))
-	require.NoError(t, bts.AddLatest(1698621728, 424))
-	require.NoError(t, bts.AddLatest(1698621828, 426))
+	bts.AddLatest(logger, 1698621528, 420)
+	bts.AddLatest(logger, 1698621528, 421)
+	bts.AddLatest(logger, 1698621628, 422)
+	bts.AddLatest(logger, 1698621728, 423)
+	bts.AddLatest(logger, 1698621728, 424)
+	bts.AddLatest(logger, 1698621828, 426)
 	require.Equal(t, 6, len(bts.cache))
 	require.True(t, cacheIsValid(t, bts))
 

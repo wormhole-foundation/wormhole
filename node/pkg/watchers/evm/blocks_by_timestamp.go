@@ -1,9 +1,10 @@
 package evm
 
 import (
-	"fmt"
 	"sort"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -38,17 +39,24 @@ func NewBlocksByTimestamp(maxCacheSize int) *BlocksByTimestamp {
 	}
 }
 
-// AddLatest adds a block to the end of the cache. This is meant to be used in the normal scenario when a new latest block is received. It will return an error if the block should not go at the end.
-func (bts *BlocksByTimestamp) AddLatest(timestamp uint64, blockNum uint64) error {
+// AddLatest adds a block to the end of the cache. This is meant to be used in the normal scenario when a new latest block is received. If the specified
+// timestamp or block number is less than the latest in the cache (most likely a rollback), the cache will be truncated and the new value inserted.
+func (bts *BlocksByTimestamp) AddLatest(logger *zap.Logger, timestamp uint64, blockNum uint64) {
 	bts.mutex.Lock()
 	defer bts.mutex.Unlock()
-	if len(bts.cache) > 0 {
-		last := &bts.cache[len(bts.cache)-1]
-		if timestamp < last.Timestamp {
-			return fmt.Errorf("timestamp %d must be greater than or equal to the previous latest %d", timestamp, last.Timestamp)
-		}
-		if blockNum <= last.BlockNum {
-			return fmt.Errorf("block number %d must be greater than the previous latest %d", blockNum, last.BlockNum)
+	l := len(bts.cache)
+	if l > 0 && (blockNum <= bts.cache[l-1].BlockNum || timestamp < bts.cache[l-1].Timestamp) {
+		for idx := len(bts.cache) - 1; idx >= 0; idx-- {
+			if bts.cache[idx].BlockNum < blockNum && bts.cache[idx].Timestamp <= timestamp {
+				logger.Warn("rollback detected in timestamp cache",
+					zap.Uint64("oldLatestBlockNum", bts.cache[len(bts.cache)-1].BlockNum),
+					zap.Uint64("oldLatestTimestamp", bts.cache[len(bts.cache)-1].Timestamp),
+					zap.Uint64("newLatestBlockNum", blockNum),
+					zap.Uint64("newLatestTimestamp", timestamp),
+				)
+				bts.cache = bts.cache[:idx+1]
+				break
+			}
 		}
 	}
 
@@ -57,7 +65,7 @@ func (bts *BlocksByTimestamp) AddLatest(timestamp uint64, blockNum uint64) error
 	if len(bts.cache) > bts.maxCacheSize {
 		bts.cache = bts.cache[1:]
 	}
-	return nil
+	logger.Debug("cache updated", zap.Int("len", len(bts.cache)), zap.Uint64("lastTimestamp", timestamp), zap.Uint64("lastBlockNum", blockNum))
 }
 
 // AddBatch adds a batch of blocks to the cache. This is meant to be used for backfilling the cache. It makes sure there are no duplicate blocks and regenerates the cache in the correct order by timestamp.

@@ -231,18 +231,6 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses milliseconds, so we have to convert.
 		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(req.TargetTimestamp / 1000000)
 		if !found {
-			if blockNum == 0 {
-				logger.Error("block look up failed in eth_call_by_timestamp query request, timestamp is before the cache and that is not supported yet",
-					zap.Uint64("timestamp", req.TargetTimestamp),
-					zap.String("block", block),
-					zap.String("nextBlock", nextBlock),
-					zap.Uint64("blockNum", blockNum),
-					zap.Uint64("nextBlockNum", nextBlockNum),
-				)
-				w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
-				return
-			}
-
 			logger.Error("block look up failed in eth_call_by_timestamp query request, timestamp not in cache, will retry",
 				zap.Uint64("timestamp", req.TargetTimestamp),
 				zap.String("block", block),
@@ -774,10 +762,8 @@ func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([
 	return batch, evmCallData
 }
 
-func (w *Watcher) ccqAddLatestBlock(logger *zap.Logger, ev *connectors.NewBlock) {
+func (w *Watcher) ccqAddLatestBlock(ev *connectors.NewBlock) {
 	if w.ccqTimestampCache != nil {
-		if err := w.ccqTimestampCache.AddLatest(ev.Time, ev.Number.Uint64()); err != nil {
-			logger.Error("failed to add latest block to cache", zap.Any("event", ev), zap.String("component", "ccqevm"))
-		}
+		w.ccqTimestampCache.AddLatest(w.ccqLogger, ev.Time, ev.Number.Uint64())
 	}
 }

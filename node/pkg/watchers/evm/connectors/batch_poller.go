@@ -8,6 +8,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -19,6 +20,7 @@ import (
 // BatchPollConnector uses batch requests to poll for latest, safe and finalized blocks.
 type BatchPollConnector struct {
 	Connector
+	logger    *zap.Logger
 	Delay     time.Duration
 	blockFeed ethEvent.Feed
 	errFeed   ethEvent.Feed
@@ -41,16 +43,16 @@ type (
 
 const MAX_GAP_BATCH_SIZE uint64 = 5
 
-func NewBatchPollConnector(ctx context.Context, baseConnector Connector, delay time.Duration) (*BatchPollConnector, error) {
+func NewBatchPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, delay time.Duration) (*BatchPollConnector, error) {
 	// Create the batch data in the order we want to report them to the watcher, so finalized is most important, latest is least.
 	batchData := []BatchEntry{
 		{tag: "finalized", finality: Finalized},
 		{tag: "safe", finality: Safe},
-		{tag: "latest", finality: Latest},
 	}
 
 	connector := &BatchPollConnector{
 		Connector: baseConnector,
+		logger:    logger,
 		Delay:     delay,
 		batchData: batchData,
 	}
@@ -70,6 +72,15 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	innerErrSink := make(chan string, 10)
 	innerErrSub := b.errFeed.Subscribe(innerErrSink)
 
+	// Use the standard geth head sink to get latest blocks.
+	// https://ethereum.org/en/developers/tutorials/using-websockets/#subscription-types
+	headSink := make(chan *ethTypes.Header, 2)
+	_, err := b.Connector.SubscribeNewHead(ctx, headSink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe for latest blocks: %w", err)
+	}
+
+	// Use the poller for finalized and safe.
 	common.RunWithScissors(ctx, errC, "block_poll_subscribe_for_blocks", func(ctx context.Context) error {
 		for {
 			select {
@@ -84,6 +95,21 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 				return nil
 			case v := <-innerErrSink:
 				sub.err <- fmt.Errorf(v)
+			case ev := <-headSink:
+				if ev == nil {
+					b.logger.Error("new latest header event is nil")
+					continue
+				}
+				if ev.Number == nil {
+					b.logger.Error("new latest header block number is nil")
+					continue
+				}
+				b.blockFeed.Send(&NewBlock{
+					Number:   ev.Number,
+					Time:     ev.Time,
+					Hash:     ev.Hash(),
+					Finality: Latest,
+				})
 			}
 		}
 	})

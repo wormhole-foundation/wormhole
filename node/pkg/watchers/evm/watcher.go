@@ -145,6 +145,7 @@ type (
 
 		ccqMaxBlockNumber *big.Int
 		ccqTimestampCache *BlocksByTimestamp
+		ccqLogger         *zap.Logger
 	}
 
 	pendingKey struct {
@@ -210,6 +211,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
 
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
@@ -238,7 +241,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBatchPollConnector(ctx, baseConnector, 250*time.Millisecond)
+		w.ethConn, err = connectors.NewBatchPollConnector(ctx, logger, baseConnector, 1000*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -622,7 +625,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU)
 					w.updateNetworkStats(&stats)
-					w.ccqAddLatestBlock(logger, ev)
+					w.ccqAddLatestBlock(ev)
 					continue
 				}
 

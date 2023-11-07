@@ -59,6 +59,7 @@ type Connector interface {
 	RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
 	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	Client() *ethClient.Client
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 }
 
 type PollSubscription struct {
