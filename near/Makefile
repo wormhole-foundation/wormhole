@@ -11,8 +11,13 @@ artifacts:
 	@echo "Building artifacts for near"
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile.build -t near-builder -o type=local,dest=$@ .
 	cd $@ && ls | xargs sha256sum > checksums.txt
-	../scripts/contract-upgrade-governance.sh  -m token_bridge -c near -a `sha256sum artifacts/near_token_bridge.wasm | sed -e 's/ .*$//'` -o artifacts
-	../scripts/contract-upgrade-governance.sh  -m core         -c near -a `sha256sum artifacts/near_wormhole.wasm | sed -e 's/ .*$//'` -o artifacts > artifacts/README.md
+
+artifacts/GOVERNANCE.md: artifacts
+	../scripts/contract-upgrade-governance.sh --force -m token_bridge -c near -a `sha256sum artifacts/near_token_bridge.wasm | cut -d' ' -f1` -o artifacts
+	../scripts/contract-upgrade-governance.sh --force -m core         -c near -a `sha256sum artifacts/near_wormhole.wasm | cut -d' ' -f1` -o artifacts > $@
+
+.PHONY: governance
+governance: artifacts/GOVERNANCE.md
 
 build:    contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm \
           contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm \
