@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "lib": ["es2022"],
+    "target": "es2022",
+    "types": ["mocha", "chai", "node", "jest"],
+    "esModuleInterop": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "noErrorTruncation": true,
+    // Strict Checks
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": true,
+    "strictPropertyInitialization": false,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    // Linter Checks
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    // https://eslint.org/docs/rules/consistent-return ?
+    "noFallthroughCasesInSwitch": true,
+    // https://eslint.org/docs/rules/no-fallthrough
+    "noUnusedLocals": true,
+    // https://eslint.org/docs/rules/no-unused-vars
+    "noUnusedParameters": false,
+    // https://eslint.org/docs/rules/no-unused-vars#args
+    "allowUnreachableCode": false,
+    // https://eslint.org/docs/rules/no-unreachable ?
+    "allowUnusedLabels": false,
+    // https://eslint.org/docs/rules/no-unused-labels
+    // Base Strict Checks
+    "noImplicitUseStrict": false,
+    "suppressExcessPropertyErrors": false,
+    "suppressImplicitAnyIndexErrors": false,
+    "noStrictGenericChecks": false
+  }
+}
