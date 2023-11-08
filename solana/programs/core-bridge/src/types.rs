@@ -75,6 +75,7 @@ impl From<Clock> for Timestamp {
     }
 }
 
+// TODO: Remove this in favor for adding checked_add to Timestamp.
 impl core::ops::Add<Duration> for Timestamp {
     type Output = Self;
 

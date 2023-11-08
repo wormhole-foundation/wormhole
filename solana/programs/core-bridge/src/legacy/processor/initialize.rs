@@ -20,7 +20,8 @@ pub struct Initialize<'info> {
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// New guardian set account acting as the active guardian set.
+    /// New guardian set account acting as the active guardian set. This account is set up as the
+    /// legacy schema (without a discriminator) for local testing purposes.
     ///
     /// NOTE: There are other Core Bridge smart contracts that take an additional guardian set index
     /// parameter to initialize a present-day guardian set at initialization. But because the Core
