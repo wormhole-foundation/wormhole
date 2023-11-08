@@ -132,10 +132,6 @@ fn post_message_unreliable(
         &ctx.accounts.emitter.key(),
     )?;
 
-    // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
-    // able to remove this to save on compute units.
-    msg!("Sequence: {}", info.sequence);
-
     // Finally set the `message` account with posted data.
     ctx.accounts
         .message

@@ -239,10 +239,6 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         &ctx.accounts.emitter.as_ref().unwrap().key(),
     )?;
 
-    // NOTE: The legacy instruction had the note "DO NOT REMOVE - CRITICAL OUTPUT". But we may be
-    // able to remove this to save on compute units.
-    msg!("Sequence: {}", info.sequence);
-
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
