@@ -36,6 +36,7 @@ var (
 	logLevel          *string
 	telemetryLokiURL  *string
 	telemetryNodeName *string
+	statusAddr        *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -54,6 +55,7 @@ func init() {
 	logLevel = QueryServerCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	telemetryLokiURL = QueryServerCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
+	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 }
 
 var QueryServerCmd = &cobra.Command{
@@ -165,6 +167,18 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			logger.Fatal("Server closed unexpectedly", zap.Error(err))
 		}
 	}()
+
+	// Start the status server
+	if *statusAddr != "" {
+		go func() {
+			ss := NewStatusServer(*statusAddr, logger, env)
+			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
+			err := ss.ListenAndServe()
+			if err != nil && err != http.ErrServerClosed {
+				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
+			}
+		}()
+	}
 
 	<-ctx.Done()
 	logger.Info("Context cancelled, exiting...")

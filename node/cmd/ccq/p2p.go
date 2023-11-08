@@ -112,23 +112,26 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 			var msg gossipv1.GossipMessage
 			err = proto.Unmarshal(envelope.Data, &msg)
 			if err != nil {
-				logger.Error("received invalid message", zap.Binary("data", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
+				logger.Error("received invalid message", zap.Binary("data", envelope.Data), zap.String("from", envelope.GetFrom().String()))
+				inboundP2pError.WithLabelValues("failed_to_unmarshal_gossip_msg").Inc()
 				continue
 			}
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedQueryResponse:
 				logger.Debug("query response received", zap.Any("response", m.SignedQueryResponse))
+				queryResponsesReceived.WithLabelValues(envelope.GetFrom().String()).Inc()
 				var queryResponse query.QueryResponsePublication
 				err := queryResponse.Unmarshal(m.SignedQueryResponse.QueryResponse)
 				if err != nil {
 					logger.Error("failed to unmarshal response", zap.Error(err))
+					inboundP2pError.WithLabelValues("failed_to_unmarshal_response").Inc()
 					continue
 				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
 				if pendingResponse == nil {
+					// This will happen for responses that come in after quorum is reached.
 					logger.Debug("skipping query response for unknown request", zap.String("signature", requestSignature))
 					continue
 				}
@@ -144,6 +147,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						zap.String("digest", digest.Hex()),
 						zap.String("signature", hex.EncodeToString(m.SignedQueryResponse.Signature)),
 						zap.Error(err))
+					inboundP2pError.WithLabelValues("failed_to_verify_signature").Inc()
 					continue
 				}
 				signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
@@ -186,7 +190,12 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
 						zap.String("digest", digest.Hex()), zap.String("address", signerAddress.Hex()),
 					)
+					inboundP2pError.WithLabelValues("unknown_guardian").Inc()
 				}
+			default:
+				// Since CCQ gossip is isolated, this really shouldn't happen.
+				logger.Debug("unexpected gossip message type", zap.Any("msg", m))
+				inboundP2pError.WithLabelValues("unexpected_gossip_msg_type").Inc()
 			}
 		}
 	}()
