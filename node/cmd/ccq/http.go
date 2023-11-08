@@ -89,7 +89,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
 	if err != nil {
-		s.logger.Error("failed to decode request bytes", zap.Error(err))
+		s.logger.Error("failed to decode request bytes", zap.String("userId", permEntry.userName), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_request").Inc()
 		return
@@ -97,7 +97,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	signature, err := hex.DecodeString(q.Signature)
 	if err != nil {
-		s.logger.Error("failed to decode signature bytes", zap.Error(err))
+		s.logger.Error("failed to decode signature bytes", zap.String("userId", permEntry.userName), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_signature").Inc()
 		return
