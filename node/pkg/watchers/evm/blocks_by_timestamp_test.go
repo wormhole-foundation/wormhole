@@ -87,6 +87,55 @@ func TestBlocksByTimestamp_AddLatest(t *testing.T) {
 	assert.Equal(t, uint64(1698621629), bts.cache[4].Timestamp)
 }
 
+func TestBlocksByTimestamp_AddLatestRollbackEverything(t *testing.T) {
+	logger := zap.NewNop()
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+
+	bts.AddLatest(logger, 1698621628, 420)
+	require.Equal(t, 1, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+
+	// Rollback before only block in cache, but not before the timestamp.
+	bts.AddLatest(logger, 1698621628, 419)
+	require.Equal(t, 1, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(419), bts.cache[0].BlockNum)
+	assert.Equal(t, uint64(1698621628), bts.cache[0].Timestamp)
+
+	// Rollback before only timestamp and block in cache.
+	bts.AddLatest(logger, 1698621627, 418)
+	require.Equal(t, 1, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(418), bts.cache[0].BlockNum)
+	assert.Equal(t, uint64(1698621627), bts.cache[0].Timestamp)
+
+	// Add two more blocks at the end, giving a total of three entries.
+	bts.AddLatest(logger, 1698621628, 419)
+	bts.AddLatest(logger, 1698621629, 420)
+	require.Equal(t, 3, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+
+	// Rollback before first block in cache.
+	bts.AddLatest(logger, 1698621627, 417)
+	require.Equal(t, 1, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(417), bts.cache[0].BlockNum)
+	assert.Equal(t, uint64(1698621627), bts.cache[0].Timestamp)
+
+	// Add two more blocks at the end, giving a total of three entries.
+	bts.AddLatest(logger, 1698621628, 418)
+	bts.AddLatest(logger, 1698621629, 419)
+	require.Equal(t, 3, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+
+	// Rollback before first timestamp and block in cache.
+	bts.AddLatest(logger, 1698621626, 416)
+	require.Equal(t, 1, len(bts.cache))
+	require.True(t, cacheIsValid(t, bts))
+	assert.Equal(t, uint64(416), bts.cache[0].BlockNum)
+	assert.Equal(t, uint64(1698621626), bts.cache[0].Timestamp)
+}
+
 func TestBlocksByTimestamp_AddLatestShouldTrimTheCache(t *testing.T) {
 	logger := zap.NewNop()
 	bts := NewBlocksByTimestamp(5)

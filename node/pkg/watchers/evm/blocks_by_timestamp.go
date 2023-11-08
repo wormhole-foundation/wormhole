@@ -46,18 +46,22 @@ func (bts *BlocksByTimestamp) AddLatest(logger *zap.Logger, timestamp uint64, bl
 	defer bts.mutex.Unlock()
 	l := len(bts.cache)
 	if l > 0 && (blockNum <= bts.cache[l-1].BlockNum || timestamp < bts.cache[l-1].Timestamp) {
-		for idx := len(bts.cache) - 1; idx >= 0; idx-- {
+		// The cache is in order of both timestamp and block number. Search backwards until we find the entry where the block number is less than the one
+		// passed in and the timestamp is less than or equal to the one passed in. We then truncate everything after that before adding the new one.
+		idx := l - 1
+		for ; idx >= 0; idx-- {
 			if bts.cache[idx].BlockNum < blockNum && bts.cache[idx].Timestamp <= timestamp {
-				logger.Warn("rollback detected in timestamp cache",
-					zap.Uint64("oldLatestBlockNum", bts.cache[len(bts.cache)-1].BlockNum),
-					zap.Uint64("oldLatestTimestamp", bts.cache[len(bts.cache)-1].Timestamp),
-					zap.Uint64("newLatestBlockNum", blockNum),
-					zap.Uint64("newLatestTimestamp", timestamp),
-				)
-				bts.cache = bts.cache[:idx+1]
 				break
 			}
 		}
+
+		logger.Warn("rollback detected in timestamp cache",
+			zap.Uint64("oldLatestBlockNum", bts.cache[l-1].BlockNum),
+			zap.Uint64("oldLatestTimestamp", bts.cache[l-1].Timestamp),
+			zap.Uint64("newLatestBlockNum", blockNum),
+			zap.Uint64("newLatestTimestamp", timestamp),
+		)
+		bts.cache = bts.cache[:idx+1]
 	}
 
 	bts.cache = append(bts.cache, Block{Timestamp: timestamp, BlockNum: blockNum})

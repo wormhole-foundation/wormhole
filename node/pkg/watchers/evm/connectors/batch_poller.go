@@ -72,7 +72,9 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	innerErrSink := make(chan string, 10)
 	innerErrSub := b.errFeed.Subscribe(innerErrSink)
 
-	// Use the standard geth head sink to get latest blocks.
+	// Use the standard geth head sink to get latest blocks. We do this so that we will be notified of rollbacks. The following document
+	// indicates that the subscription will receive a replay of all blocks affected by a rollback. This is important for latest because the
+	// timestamp cache needs to be updated on a rollback. We can only consider polling for latest if we can guarantee that we won't miss rollbacks.
 	// https://ethereum.org/en/developers/tutorials/using-websockets/#subscription-types
 	headSink := make(chan *ethTypes.Header, 2)
 	_, err := b.Connector.SubscribeNewHead(ctx, headSink)
