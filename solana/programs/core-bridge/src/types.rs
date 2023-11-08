@@ -75,13 +75,15 @@ impl From<Clock> for Timestamp {
     }
 }
 
-// TODO: Remove this in favor for adding checked_add to Timestamp.
 impl core::ops::Add<Duration> for Timestamp {
     type Output = Self;
 
     fn add(self, rhs: Duration) -> Self::Output {
         Self {
-            value: self.value + rhs.seconds,
+            value: self
+                .value
+                .checked_add(rhs.seconds)
+                .expect("timestamp overflow"),
         }
     }
 }

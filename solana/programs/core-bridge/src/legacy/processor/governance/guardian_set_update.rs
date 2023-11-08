@@ -174,7 +174,7 @@ fn guardian_set_update(ctx: Context<GuardianSetUpdate>, _args: EmptyArgs) -> Res
     // Now set the expiration time for the current guardian.
     let now = Clock::get().map(Timestamp::from)?;
 
-    // TODO: Change this to checked_add.
+    // NOTE: This will panic after year 2038.
     ctx.accounts.curr_guardian_set.inner_mut().expiration_time = now + config.guardian_set_ttl;
 
     // Done.
