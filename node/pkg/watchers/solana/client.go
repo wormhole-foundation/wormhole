@@ -1,6 +1,7 @@
 package solana
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -94,16 +95,22 @@ type (
 	MessagePublicationAccount struct {
 		VaaVersion uint8
 		// Borsh does not seem to support booleans, so 0=false / 1=true
-		ConsistencyLevel    uint8
-		VaaTime             uint32
-		VaaSignatureAccount vaa.Address
-		SubmissionTime      uint32
-		Nonce               uint32
-		Sequence            uint64
-		EmitterChain        uint16
-		EmitterAddress      vaa.Address
-		Payload             []byte
+		ConsistencyLevel uint8
+		EmitterAuthority vaa.Address
+		MessageStatus    uint8
+		Gap              [3]byte
+		SubmissionTime   uint32
+		Nonce            uint32
+		Sequence         uint64
+		EmitterChain     uint16
+		EmitterAddress   vaa.Address
+		Payload          []byte
 	}
+)
+
+var (
+	emptyAddressBytes = vaa.Address{}.Bytes()
+	emptyGapBytes     = []byte{0, 0, 0}
 )
 
 var (
@@ -812,6 +819,16 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			zap.Stringer("account", acc),
 			zap.Binary("data", data),
 			zap.Error(err))
+		return
+	}
+
+	// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
+	if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
+		solanaAccountSkips.WithLabelValues(s.networkName, "unfinalized_account").Inc()
+		logger.Error(
+			"account is not finalized",
+			zap.Stringer("account", acc),
+			zap.Binary("data", data))
 		return
 	}
 
