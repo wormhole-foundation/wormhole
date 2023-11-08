@@ -137,14 +137,6 @@ impl<'info> CompleteTransferNative<'info> {
             ErrorCode::ConstraintTokenOwner
         );
 
-        // Make sure the mint authority is not the Token Bridge's. If it is, then this mint
-        // originated from a foreign network.
-        let mint = Mint::load(&ctx.accounts.mint)?;
-        require!(
-            !crate::utils::is_wrapped_mint(&mint),
-            TokenBridgeError::WrappedAsset
-        );
-
         let (token_chain, token_address) = super::validate_token_transfer_vaa(
             &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,

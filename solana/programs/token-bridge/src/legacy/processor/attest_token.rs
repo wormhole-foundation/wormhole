@@ -1,5 +1,6 @@
 use crate::{
-    error::TokenBridgeError, legacy::instruction::LegacyAttestTokenArgs, utils, zero_copy::Mint,
+    error::TokenBridgeError, legacy::instruction::LegacyAttestTokenArgs, state::WrappedAsset,
+    utils, zero_copy::Mint,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::metadata;
@@ -18,8 +19,19 @@ pub struct AttestToken<'info> {
     /// network in access control.
     mint: AccountInfo<'info>,
 
-    /// CHECK: Token Bridge never needed this account for this instruction.
-    _native_asset: UncheckedAccount<'info>,
+    /// Non-existent wrapped asset account.
+    ///
+    /// CHECK: This account should have zero data. Otherwise this mint was created by the Token
+    /// Bridge program.
+    #[account(
+        seeds = [
+            WrappedAsset::SEED_PREFIX,
+            mint.key().as_ref()
+        ],
+        bump,
+        constraint = non_existent_wrapped_asset.data_is_empty() @ TokenBridgeError::WrappedAsset
+    )]
+    non_existent_wrapped_asset: AccountInfo<'info>,
 
     /// We derive this PDA because we do not involve the Token Metadata program with this
     /// instruction handler. It is the Token Bridge's job to verify that the metadata attested for
