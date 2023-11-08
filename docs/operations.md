@@ -183,12 +183,12 @@ alerting will be documented here.
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
 **NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
-not considered a stable API. Log messages may be added, modified, or removed without notice. Use the metrics :-)
+not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
 
 ## Running a public API endpoint
 
 Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).
-Instead, it relies on Guardian nodes exposing an API that web wallets and other clients can use to retrieve the signed VAA
+Instead, it relies on Guardian nodes exposing an API which web wallets and other clients can use to retrieve the signed VAA
 message for a given transaction.
 
 Guardian nodes are **strongly encouraged** to expose a public API endpoint to improve the protocol's robustness.
@@ -238,7 +238,7 @@ You'll have to manage the following keys:
   An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
   critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
   While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
-  node in monitoring data and improve p2p connectivity.
+  node in monitoring data and improves p2p connectivity.
 
 For production, we strongly recommend either encrypting your disks and/or taking care to never have hot guardian keys touch the disk.
 One way to accomplish this is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
