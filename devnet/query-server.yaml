@@ -9,6 +9,9 @@ spec:
     - name: rest
       port: 6069
       protocol: TCP
+    - name: status
+      port: 6068
+      protocol: TCP
   selector:
     app: query-server
 ---
