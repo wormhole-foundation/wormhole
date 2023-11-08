@@ -420,3 +420,14 @@ func (pq *pendingQuery) numPendingRequests() int {
 
 	return numPending
 }
+
+func SupportsTimestampCaching(chainID vaa.ChainID) bool {
+	/*
+		- P1: Ethereum, Base, Optimism
+		- P1.5: Arbitrum, Polygon, Avalanche
+		- P2: BNB Chain, Moonbeam
+		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
+	*/
+
+	return chainID == vaa.ChainIDEthereum || chainID == vaa.ChainIDBase || chainID == vaa.ChainIDOptimism
+}
