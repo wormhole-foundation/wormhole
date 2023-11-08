@@ -173,6 +173,9 @@ var (
 	baseRPC      *string
 	baseContract *string
 
+	scrollRPC      *string
+	scrollContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -337,6 +340,9 @@ func init() {
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 
+	scrollRPC = NodeCmd.Flags().String("scrollRPC", "", "Scroll RPC URL")
+	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
+
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
@@ -489,6 +495,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
 		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
+		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 	}
 
 	// Verify flags
@@ -620,6 +627,15 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*baseRPC == "") != (*baseContract == "") {
 		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
+	}
+
+	// Scroll should not be allowed in mainnet until its finality policy is understood and implemented in the watcher.
+	if *scrollRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("scroll is currently only supported in devnet and testnet")
+	}
+
+	if (*scrollRPC == "") != (*scrollContract == "") {
+		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
 	}
 
 	if *gatewayWS != "" {
@@ -859,6 +875,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}
+	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["suiRPC"] = *suiRPC
 	rpcMap["terraWS"] = *terraWS
@@ -1189,6 +1206,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:   vaa.ChainIDBase,
 			Rpc:       *baseRPC,
 			Contract:  *baseContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(scrollRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "scroll",
+			ChainID:   vaa.ChainIDScroll,
+			Rpc:       *scrollRPC,
+			Contract:  *scrollContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
