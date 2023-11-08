@@ -8,14 +8,27 @@ use anchor_lang::prelude::*;
 
 pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
-/// Status of a message. When a message is posetd, its status is [Unset](MessageStatus::Unset).
+/// Status of a message. When a message is posted, its status is
+/// [Published](MessageStatus::Published).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum MessageStatus {
-    // TODO: Rename to "Published".
-    Unset,
+    /// When a message is posted, this status is set. When the guardians observe this message
+    /// account, it makes sure that this status is set before attesting to its observation.
+    ///
+    /// NOTE: This enum value being the first one is important for the legacy implementation.
+    /// Originally, where this value lives in the message account was always zero because this data
+    /// was never used for anything. This data is now repurposed for crafting large Wormhole
+    /// messages.
+    Published,
+    /// Message is still being written to by the emitter authority.
+    ///
+    /// NOTE: The message account can be closed when this status is set.
     Writing,
-    // TODO: Rename to "ReadyForPublishing".
-    Finalized,
+    /// Emitter authority is finished writing and this message is ready to be published via post
+    /// message instruction.
+    ///
+    /// NOTE: The message account cannot be closed when this status is set.
+    ReadyForPublishing,
 }
 
 /// Message metadata defining information about a published Wormhole message.
@@ -31,7 +44,7 @@ pub struct PostedMessageV1Info {
     /// If a message is being written to, this status is used to determine which state this
     /// account is in (e.g. [MessageStatus::Writing] indicates that the emitter authority is still
     /// writing its message to this account). When this message is posted, this value will be
-    /// set to [MessageStatus::Unset].
+    /// set to [MessageStatus::Published].
     pub status: MessageStatus,
 
     /// No data is stored here.

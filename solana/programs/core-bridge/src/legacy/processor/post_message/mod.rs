@@ -171,7 +171,7 @@ pub(super) fn new_posted_message_info<'info>(
     let info = PostedMessageV1Info {
         consistency_level,
         emitter_authority: Default::default(),
-        status: MessageStatus::Unset,
+        status: MessageStatus::Published,
         _gap_0: Default::default(),
         posted_timestamp: Clock::get().map(Into::into)?,
         nonce,
@@ -367,9 +367,9 @@ fn find_emitter_for_sequence(
         let msg = crate::zero_copy::PostedMessageV1::load(msg_acc_info)?;
 
         match msg.status() {
-            MessageStatus::Unset => err!(CoreBridgeError::MessageAlreadyPublished),
+            MessageStatus::Published => err!(CoreBridgeError::MessageAlreadyPublished),
             MessageStatus::Writing => err!(CoreBridgeError::InWritingStatus),
-            MessageStatus::Finalized => Ok(msg.emitter()),
+            MessageStatus::ReadyForPublishing => Ok(msg.emitter()),
         }
     }
 }

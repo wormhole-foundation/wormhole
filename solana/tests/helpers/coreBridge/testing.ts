@@ -106,7 +106,7 @@ export async function expectLegacyPostMessageAfterEffects(
 
   expect(consistencyLevel).equals(commitment === "confirmed" ? 1 : 32);
   expect(emitterAuthority.equals(PublicKey.default)).is.true;
-  expect(status).equals(coreBridge.MessageStatus.Unset);
+  expect(status).equals(coreBridge.MessageStatus.Published);
   expect(_gap0.equals(Buffer.alloc(3))).is.true;
   expect(postedTimestamp).equals(txDetails.blockTime!);
   expect(messageNonce).equals(nonce);
@@ -216,7 +216,7 @@ export async function expectOkPostMessage(
   expectDeepEqual(postedMessageData, {
     consistencyLevel,
     emitterAuthority: PublicKey.default,
-    status: coreBridge.MessageStatus.Unset,
+    status: coreBridge.MessageStatus.Published,
     _gap0: Buffer.alloc(3),
     postedTimestamp: txDetails!.blockTime!,
     nonce,

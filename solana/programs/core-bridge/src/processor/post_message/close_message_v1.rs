@@ -23,9 +23,10 @@ impl<'info> CloseMessageV1<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let message = PostedMessageV1::load(&ctx.accounts.draft_message)?;
 
+        // A message account cannot be closed unless it is still in writing status.
         require!(
-            message.status() != MessageStatus::Unset,
-            CoreBridgeError::MessageAlreadyPublished
+            message.status() == MessageStatus::Writing,
+            CoreBridgeError::NotInWritingStatus
         );
 
         require_keys_eq!(

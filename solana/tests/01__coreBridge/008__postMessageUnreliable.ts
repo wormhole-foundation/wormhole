@@ -107,7 +107,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
         program,
-        txDetails,
+        txDetails!,
         {
           payer: payer.publicKey,
           message: messageSigner.publicKey,
@@ -121,7 +121,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await coreBridge.expectLegacyPostMessageAfterEffects(
         forkedProgram,
-        forkTxDetails,
+        forkTxDetails!,
         {
           payer: payer.publicKey,
           message: forkedMessageSigner.publicKey,
@@ -144,7 +144,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const forkFeeCollectorData = await connection.getAccountInfo(
         coreBridge.feeCollectorPda(program.programId)
       );
-      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+      expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
     });
 
     it("Invoke `post_message_unreliable` Using Same Message Signer", async () => {
@@ -207,7 +207,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
         program,
-        txDetails,
+        txDetails!,
         {
           payer: payer.publicKey,
           message: messageSigner.publicKey,
@@ -221,7 +221,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await coreBridge.expectLegacyPostMessageAfterEffects(
         forkedProgram,
-        forkTxDetails,
+        forkTxDetails!,
         {
           payer: payer.publicKey,
           message: forkedMessageSigner.publicKey,
@@ -244,7 +244,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const forkFeeCollectorData = await connection.getAccountInfo(
         coreBridge.feeCollectorPda(program.programId)
       );
-      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+      expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
     });
 
     it("Invoke `post_message_unreliable` with New Message Signer", async () => {
@@ -291,7 +291,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
         program,
-        txDetails,
+        txDetails!,
         {
           payer: payer.publicKey,
           message: newMessageSigner.publicKey,
@@ -305,7 +305,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await coreBridge.expectLegacyPostMessageAfterEffects(
         forkedProgram,
-        forkTxDetails,
+        forkTxDetails!,
         {
           payer: payer.publicKey,
           message: newForkedMessageSigner.publicKey,
@@ -328,7 +328,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const forkFeeCollectorData = await connection.getAccountInfo(
         coreBridge.feeCollectorPda(program.programId)
       );
-      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+      expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
     });
 
     it("Invoke `post_message_unreliable` with Payer as Emitter", async () => {
@@ -382,7 +382,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       // Validate data in the message accounts.
       await coreBridge.expectLegacyPostMessageAfterEffects(
         program,
-        txDetails,
+        txDetails!,
         {
           payer: payer.publicKey,
           message: newMessageSigner.publicKey,
@@ -396,7 +396,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
 
       await coreBridge.expectLegacyPostMessageAfterEffects(
         forkedProgram,
-        forkTxDetails,
+        forkTxDetails!,
         {
           payer: payer.publicKey,
           message: newForkedMessageSigner.publicKey,
@@ -416,7 +416,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       const forkFeeCollectorData = await connection.getAccountInfo(
         coreBridge.feeCollectorPda(program.programId)
       );
-      expect(feeCollectorData.lamports).to.equal(forkFeeCollectorData.lamports);
+      expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
     });
 
     it("Invoke `post_message_unreliable` with System program at Index == 8", async () => {

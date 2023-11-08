@@ -8,9 +8,9 @@ import {
 } from "@solana/web3.js";
 
 export enum MessageStatus {
-  Unset = 0,
+  Published = 0,
   Writing = 1,
-  Finalized = 2,
+  ReadyForPublishing = 2,
 }
 
 export class PostedMessageV1 {
@@ -76,13 +76,13 @@ export class PostedMessageV1 {
     const status = (() => {
       switch (data.readUInt8(33)) {
         case 0: {
-          return MessageStatus.Unset;
+          return MessageStatus.Published;
         }
         case 1: {
           return MessageStatus.Writing;
         }
         case 2: {
-          return MessageStatus.Finalized;
+          return MessageStatus.ReadyForPublishing;
         }
         default: {
           throw new Error("Invalid MessageStatus");

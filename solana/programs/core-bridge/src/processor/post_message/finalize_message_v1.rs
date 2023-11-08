@@ -56,7 +56,7 @@ pub fn finalize_message_v1(ctx: Context<FinalizeMessageV1>) -> Result<()> {
         PostedMessageV1Info {
             consistency_level,
             emitter_authority: ctx.accounts.emitter_authority.key(),
-            status: MessageStatus::Finalized,
+            status: MessageStatus::ReadyForPublishing,
             _gap_0: Default::default(),
             posted_timestamp: Default::default(),
             nonce,

@@ -81,6 +81,30 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
     const message = Buffer.alloc(messageSize, "All your base are belong to us. ");
     const chunkSize = 912; // Max that can fit in a transaction.
 
+    it("Invoke `close_message_v1` to Close Message in Writing Status", async () => {
+      const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, 69);
+
+      const closeAccountDestination = anchor.web3.Keypair.generate().publicKey;
+      const balanceBefore = await connection.getBalance(closeAccountDestination);
+
+      const expectedLamports = await connection
+        .getAccountInfo(draftMessage)
+        .then((acct) => acct.lamports);
+
+      const ix = await coreBridge.closeMessageV1Ix(program, {
+        emitterAuthority: emitterAuthority.publicKey,
+        draftMessage,
+        closeAccountDestination,
+      });
+      await expectIxOk(connection, [ix], [payer, emitterAuthority]);
+
+      const balanceAfter = await connection.getBalance(closeAccountDestination);
+      expect(balanceAfter - balanceBefore).to.equal(expectedLamports);
+
+      const draftMessageData = await connection.getAccountInfo(draftMessage);
+      expect(draftMessageData).is.null;
+    });
+
     it(`Invoke \`init_message_v1\` on Message Size == ${messageSize}`, async () => {
       const { draftMessage, emitterAuthority } = await initMessageV1(program, payer, messageSize);
 
@@ -164,29 +188,18 @@ describe("Core Bridge -- Instruction: Process Message V1", () => {
       await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
     });
 
-    it("Invoke `close_message_v1` to Close Message", async () => {
+    it("Cannot Invoke `close_message_v1` to Close Message After Finalize", async () => {
       const emitterAuthority = localVariables.get("emitterAuthority") as anchor.web3.Keypair;
       const draftMessage = localVariables.get("draftMessage") as anchor.web3.PublicKey;
 
       const closeAccountDestination = anchor.web3.Keypair.generate().publicKey;
-      const balanceBefore = await connection.getBalance(closeAccountDestination);
-
-      const expectedLamports = await connection
-        .getAccountInfo(draftMessage)
-        .then((acct) => acct.lamports);
 
       const ix = await coreBridge.closeMessageV1Ix(program, {
         emitterAuthority: emitterAuthority.publicKey,
         draftMessage,
         closeAccountDestination,
       });
-      await expectIxOk(connection, [ix], [payer, emitterAuthority]);
-
-      const balanceAfter = await connection.getBalance(closeAccountDestination);
-      expect(balanceAfter - balanceBefore).to.equal(expectedLamports);
-
-      const draftMessageData = await connection.getAccountInfo(draftMessage);
-      expect(draftMessageData).is.null;
+      await expectIxErr(connection, [ix], [payer, emitterAuthority], "NotInWritingStatus");
     });
   });
 });
