@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -179,6 +181,15 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			}
 		}()
 	}
+
+	// Handle SIGTERM
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	go func() {
+		<-sigterm
+		logger.Info("Received sigterm. exiting.")
+		cancel()
+	}()
 
 	<-ctx.Done()
 	logger.Info("Context cancelled, exiting...")
