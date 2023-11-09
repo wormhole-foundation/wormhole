@@ -119,7 +119,8 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedQueryResponse:
 				logger.Debug("query response received", zap.Any("response", m.SignedQueryResponse))
-				queryResponsesReceived.WithLabelValues(envelope.GetFrom().String()).Inc()
+				peerId := envelope.GetFrom().String()
+				queryResponsesReceived.WithLabelValues(peerId).Inc()
 				var queryResponse query.QueryResponsePublication
 				err := queryResponse.Unmarshal(m.SignedQueryResponse.QueryResponse)
 				if err != nil {
@@ -128,6 +129,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 					continue
 				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
+				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
 				if pendingResponse == nil {
@@ -181,10 +183,22 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						delete(responses, requestSignature)
 						select {
 						case pendingResponse.ch <- s:
-							logger.Debug("forwarded query response")
+							logger.Info("forwarded query response",
+								zap.String("peerId", peerId),
+								zap.Any("requestId", requestSignature),
+								zap.Int("numSigners", len(responses[requestSignature][digest])),
+								zap.Int("quorum", quorum),
+							)
 						default:
-							logger.Error("failed to write query response to channel, dropping it")
+							logger.Error("failed to write query response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 						}
+					} else {
+						logger.Info("waiting for more query responses",
+							zap.String("peerId", peerId),
+							zap.Any("requestId", requestSignature),
+							zap.Int("numSigners", len(responses[requestSignature][digest])),
+							zap.Int("quorum", quorum),
+						)
 					}
 				} else {
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
