@@ -150,9 +150,9 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 	)
 }
 
-// bootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
+// BootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
 // if `self` is part of `bootstrapPeers`, return isBootstrapNode=true
-func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
+func BootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
 	bootstrapPeers = cutOverBootstrapPeers(bootstrapPeers)
 	bootstrappers = make([]peer.AddrInfo, 0)
 	for _, addr := range strings.Split(bootstrapPeers, ",") {
@@ -179,8 +179,8 @@ func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bo
 	return
 }
 
-// connectToPeers connects `h` to `peers` and returns the number of successful connections.
-func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
+// ConnectToPeers connects `h` to `peers` and returns the number of successful connections.
+func ConnectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
 	successes = 0
 	for _, p := range peers {
 		if err := h.Connect(ctx, p); err != nil {
@@ -219,7 +219,7 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
 
-			bootstrappers, _ := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+			bootstrappers, _ := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 
 			// TODO(leo): Persistent data store (i.e. address book)
 			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
@@ -298,7 +298,7 @@ func Run(
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
-		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 		gossipParams := pubsub.DefaultGossipSubParams()
 
 		if bootstrapNode {
@@ -340,7 +340,7 @@ func Run(
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
 
-		successes := connectToPeers(ctx, logger, h, bootstrappers)
+		successes := ConnectToPeers(ctx, logger, h, bootstrappers)
 
 		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
 			// If we fail to connect to any bootstrap peer, kill the service

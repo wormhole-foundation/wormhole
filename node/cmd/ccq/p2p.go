@@ -86,10 +86,15 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
+	bootstrappers, _ := p2p.BootstrapAddrs(logger, bootstrapPeers, h.ID())
+	successes := p2p.ConnectToPeers(ctx, logger, h, bootstrappers)
+	logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+
 	// Wait for peers
 	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
+	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
 
 	// Fetch the initial current guardian set
 	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)
@@ -107,7 +112,8 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 		for {
 			envelope, err := sub.Next(ctx)
 			if err != nil {
-				logger.Fatal("Failed to read next pubsub message", zap.Error(err))
+				logger.Error("Failed to read next pubsub message", zap.Error(err))
+				return
 			}
 			var msg gossipv1.GossipMessage
 			err = proto.Unmarshal(envelope.Data, &msg)
@@ -175,7 +181,8 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						Signature: hex.EncodeToString(m.SignedQueryResponse.Signature),
 					})
 					// quorum is reached when a super-majority of guardians have signed a response with the same digest
-					if len(responses[requestSignature][digest]) >= quorum {
+					numSigners := len(responses[requestSignature][digest])
+					if numSigners >= quorum {
 						s := &SignedResponse{
 							Response:   &queryResponse,
 							Signatures: responses[requestSignature][digest],
@@ -186,7 +193,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 							logger.Info("forwarded query response",
 								zap.String("peerId", peerId),
 								zap.Any("requestId", requestSignature),
-								zap.Int("numSigners", len(responses[requestSignature][digest])),
+								zap.Int("numSigners", numSigners),
 								zap.Int("quorum", quorum),
 							)
 						default:
@@ -196,7 +203,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						logger.Info("waiting for more query responses",
 							zap.String("peerId", peerId),
 							zap.Any("requestId", requestSignature),
-							zap.Int("numSigners", len(responses[requestSignature][digest])),
+							zap.Int("numSigners", numSigners),
 							zap.Int("quorum", quorum),
 						)
 					}
