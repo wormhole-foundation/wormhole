@@ -2,7 +2,7 @@ use crate::{
     constants::UPGRADE_SEED_PREFIX, error::TokenBridgeError, legacy::instruction::EmptyArgs,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk::{self as core_bridge_sdk, LoadZeroCopy};
+use core_bridge_program::sdk as core_bridge;
 use solana_program::{bpf_loader_upgradeable, program::invoke_signed};
 
 #[derive(Accounts)]
@@ -13,6 +13,7 @@ pub struct UpgradeContract<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
+    #[account(owner = core_bridge::id())]
     vaa: AccountInfo<'info>,
 
     /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
@@ -64,17 +65,7 @@ pub struct UpgradeContract<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for UpgradeContract<'info> {
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+impl<'info> core_bridge::legacy::ProcessLegacyInstruction<'info, EmptyArgs>
     for UpgradeContract<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyUpgradeContract";
@@ -86,7 +77,7 @@ impl<'info> UpgradeContract<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
         let vaa_acc_info = &ctx.accounts.vaa;
         let vaa_key = vaa_acc_info.key();
-        let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+        let vaa = core_bridge::VaaAccount::load(vaa_acc_info)?;
         let gov_payload = crate::processor::require_valid_governance_vaa(&vaa_key, &vaa)?;
 
         let decree = gov_payload
@@ -96,7 +87,7 @@ impl<'info> UpgradeContract<'info> {
         // Make sure that the contract upgrade is intended for this network.
         require_eq!(
             decree.chain(),
-            core_bridge_sdk::SOLANA_CHAIN,
+            core_bridge::SOLANA_CHAIN,
             TokenBridgeError::GovernanceForAnotherChain
         );
 
@@ -116,12 +107,23 @@ impl<'info> UpgradeContract<'info> {
 /// Loader Upgradeable program to upgrade this program's executable to the provided buffer.
 #[access_control(UpgradeContract::constraints(&ctx))]
 fn upgrade_contract(ctx: Context<UpgradeContract>, _args: EmptyArgs) -> Result<()> {
-    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+    let vaa = core_bridge::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
+    core_bridge::claim_vaa(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            core_bridge::ClaimVaa {
+                claim: ctx.accounts.claim.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            },
+        ),
+        &crate::ID,
+        &vaa,
+        None,
+    )?;
 
     // Finally upgrade.
     invoke_signed(

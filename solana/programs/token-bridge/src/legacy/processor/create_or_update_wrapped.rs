@@ -6,10 +6,7 @@ use crate::{
 };
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{metadata, token};
-use core_bridge_program::{
-    legacy::utils::LegacyAnchorized,
-    sdk::{self as core_bridge_sdk, LoadZeroCopy},
-};
+use core_bridge_program::sdk as core_bridge;
 use mpl_token_metadata::state::DataV2;
 use wormhole_raw_vaas::token_bridge::{Attestation, TokenBridgeMessage};
 
@@ -29,19 +26,20 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
+    registered_emitter: Account<'info, core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
 
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
     #[account(
+        owner = core_bridge::id(),
         constraint = try_attestation(&vaa, |attestation| attestation.token_chain())?
-                        != core_bridge_sdk::SOLANA_CHAIN @ TokenBridgeError::NativeAsset,
+                        != core_bridge_program::SOLANA_CHAIN @ TokenBridgeError::NativeAsset,
     )]
     vaa: AccountInfo<'info>,
 
     /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    /// [claim_vaa] is called.
     #[account(mut)]
     claim: AccountInfo<'info>,
 
@@ -112,19 +110,7 @@ pub struct CreateOrUpdateWrapped<'info> {
     mpl_token_metadata_program: Program<'info, metadata::Metadata>,
 }
 
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
-    for CreateOrUpdateWrapped<'info>
-{
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+impl<'info> core_bridge::legacy::ProcessLegacyInstruction<'info, EmptyArgs>
     for CreateOrUpdateWrapped<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyCreateOrUpdateWrapped";
@@ -138,9 +124,9 @@ impl<'info> CreateOrUpdateWrapped<'info> {
 
         // NOTE: Other attestation validation is performed using the try_attestation_* methods,
         // which were used in the accounts context.
-        crate::utils::require_valid_token_bridge_vaa(
+        crate::utils::vaa::require_valid_token_bridge_vaa(
             &vaa.key(),
-            &core_bridge_sdk::VaaAccount::load(vaa).unwrap(),
+            &core_bridge::VaaAccount::load(vaa).unwrap(),
             &ctx.accounts.registered_emitter,
         )?;
 
@@ -161,12 +147,23 @@ fn create_or_update_wrapped(ctx: Context<CreateOrUpdateWrapped>, _args: EmptyArg
 }
 
 fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+    let vaa = core_bridge::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
+    core_bridge::claim_vaa(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            core_bridge::ClaimVaa {
+                claim: ctx.accounts.claim.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            },
+        ),
+        &crate::ID,
+        &vaa,
+        None,
+    )?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
@@ -186,21 +183,26 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 
     // Create and set wrapped asset data.
     {
-        core_bridge_sdk::cpi::system_program::create_account(
-            ctx.accounts,
-            &ctx.accounts.wrapped_asset,
+        core_bridge::system_program::create_account_safe(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                core_bridge::system_program::CreateAccountSafe {
+                    new_account: ctx.accounts.wrapped_asset.to_account_info(),
+                    payer: ctx.accounts.payer.to_account_info(),
+                },
+                &[&[
+                    WrappedAsset::SEED_PREFIX,
+                    ctx.accounts.wrapped_mint.key().as_ref(),
+                    &[ctx.bumps["wrapped_asset"]],
+                ]],
+            ),
             WrappedAsset::INIT_SPACE,
             &crate::ID,
-            Some(&[&[
-                WrappedAsset::SEED_PREFIX,
-                ctx.accounts.wrapped_mint.key().as_ref(),
-                &[ctx.bumps["wrapped_asset"]],
-            ]]),
         )?;
 
         let acc_data: &mut [_] = &mut ctx.accounts.wrapped_asset.data.borrow_mut();
         let mut writer = std::io::Cursor::new(acc_data);
-        LegacyAnchorized::from(wrapped_asset).try_serialize(&mut writer)?;
+        core_bridge::legacy::LegacyAnchorized::from(wrapped_asset).try_serialize(&mut writer)?;
     }
 
     let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
@@ -235,12 +237,23 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
 }
 
 fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
-    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+    let vaa = core_bridge::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
+    core_bridge::claim_vaa(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            core_bridge::ClaimVaa {
+                claim: ctx.accounts.claim.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            },
+        ),
+        &crate::ID,
+        &vaa,
+        None,
+    )?;
 
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
@@ -280,7 +293,9 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let wrapped_asset = {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =
-            LegacyAnchorized::<WrappedAsset>::try_deserialize(&mut acc_data.as_ref())?;
+            core_bridge::legacy::LegacyAnchorized::<WrappedAsset>::try_deserialize(
+                &mut acc_data.as_ref(),
+            )?;
         require!(
             updated_sequence > wrapped_asset.last_updated_sequence,
             TokenBridgeError::AttestationOutOfSequence
@@ -343,7 +358,7 @@ fn try_attestation<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
 where
     F: FnOnce(&Attestation) -> T,
 {
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
+    let vaa = core_bridge::VaaAccount::load(vaa_acc_info)?;
     let msg = TokenBridgeMessage::try_from(vaa.try_payload()?)
         .map_err(|_| TokenBridgeError::InvalidTokenBridgePayload)?;
     msg.attestation()

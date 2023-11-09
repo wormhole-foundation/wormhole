@@ -457,7 +457,7 @@ export async function processVaa(
     program,
     {
       writeAuthority: payer.publicKey,
-      encodedVaa: encodedVaa.publicKey,
+      draftVaa: encodedVaa.publicKey,
     },
     { index: 0, data: signedVaa.subarray(0, endAfterInit) }
   );
@@ -477,7 +477,7 @@ export async function processVaa(
         program,
         {
           writeAuthority: payer.publicKey,
-          encodedVaa: encodedVaa.publicKey,
+          draftVaa: encodedVaa.publicKey,
         },
         { index: start, data: signedVaa.subarray(start, end) }
       );
@@ -486,7 +486,7 @@ export async function processVaa(
         const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
         const verifyIx = await coreBridge.verifyEncodedVaaV1Ix(program, {
           writeAuthority: payer.publicKey,
-          encodedVaa: encodedVaa.publicKey,
+          draftVaa: encodedVaa.publicKey,
           guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
         });
         await expectIxOk(connection, [computeIx, writeIx, verifyIx], [payer]);
@@ -498,7 +498,7 @@ export async function processVaa(
     const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 420_000 });
     const verifyIx = await coreBridge.verifyEncodedVaaV1Ix(program, {
       writeAuthority: payer.publicKey,
-      encodedVaa: encodedVaa.publicKey,
+      draftVaa: encodedVaa.publicKey,
       guardianSet: coreBridge.GuardianSet.address(program.programId, guardianSetIndex),
     });
 

@@ -41,7 +41,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
       const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
       const ix = await coreBridge.postVaaV1Ix(program, {
-        writeAuthority: payer.publicKey,
+        payer: payer.publicKey,
         encodedVaa,
         postedVaa: coreBridge.PostedVaaV1.address(program.programId, new Array(32)),
       });
@@ -62,7 +62,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
       expect(vaaData.status).not.equals(coreBridge.ProcessingStatus.Verified);
 
       const ix = await coreBridge.postVaaV1Ix(program, {
-        writeAuthority: payer.publicKey,
+        payer: payer.publicKey,
         encodedVaa,
       });
       await expectIxErr(connection, [ix], [payer], "UnverifiedVaa");
@@ -74,7 +74,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
       const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
       const ix = await coreBridge.postVaaV1Ix(program, {
-        writeAuthority: payer.publicKey,
+        payer: payer.publicKey,
         encodedVaa,
       });
       await expectIxOk(connection, [ix], [payer]);
@@ -105,7 +105,7 @@ describe("Core Bridge -- Instruction: Post VAA V1", () => {
       const encodedVaa = await processVaa(program, payer, signedVaa, GUARDIAN_SET_INDEX);
 
       const ix = await coreBridge.postVaaV1Ix(program, {
-        writeAuthority: payer.publicKey,
+        payer: payer.publicKey,
         encodedVaa,
       });
       await expectIxErr(connection, [ix], [payer], "already in use");

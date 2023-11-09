@@ -3,7 +3,7 @@ import { CoreBridgeProgram } from "../..";
 
 export type VerifyEncodedVaaV1 = {
   writeAuthority: PublicKey;
-  encodedVaa: PublicKey;
+  draftVaa: PublicKey;
   guardianSet: PublicKey;
 };
 

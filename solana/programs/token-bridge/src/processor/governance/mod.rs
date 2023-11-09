@@ -6,14 +6,14 @@ pub use secure_registered_emitter::*;
 
 use crate::error::TokenBridgeError;
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk::{self as core_bridge_sdk};
+use core_bridge_program::sdk as core_bridge;
 use wormhole_raw_vaas::token_bridge::{TokenBridgeDecree, TokenBridgeGovPayload};
 
 pub fn require_valid_governance_vaa<'ctx>(
     vaa_key: &'ctx Pubkey,
-    vaa: &'ctx core_bridge_sdk::VaaAccount<'ctx>,
+    vaa: &'ctx core_bridge::VaaAccount<'ctx>,
 ) -> Result<TokenBridgeDecree<'ctx>> {
-    crate::utils::require_valid_vaa_key(vaa_key)?;
+    crate::utils::vaa::require_valid_vaa_key(vaa_key)?;
 
     let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
     require!(

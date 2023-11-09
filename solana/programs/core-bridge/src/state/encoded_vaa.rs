@@ -43,6 +43,12 @@ impl<'a> VaaVersion<'a> {
             Self::V1(inner) => Some(inner),
         }
     }
+
+    pub fn to_v1(self) -> Result<Vaa<'a>> {
+        match self {
+            Self::V1(inner) => Ok(inner),
+        }
+    }
 }
 
 impl<'a> AsRef<[u8]> for VaaVersion<'a> {
@@ -77,8 +83,58 @@ impl EncodedVaa {
     pub fn as_vaa(&self) -> Result<VaaVersion> {
         match self.version {
             1 => Ok(VaaVersion::V1(Vaa::parse(&self.buf).unwrap())),
-            _ => err!(CoreBridgeError::InvalidVaaVersion),
+            _ => err!(CoreBridgeError::UnverifiedVaa),
         }
+    }
+
+    pub(crate) fn require_draft_vaa(
+        acc_info: &AccountInfo,
+        write_authority: &Signer,
+    ) -> Result<bool> {
+        let data = acc_info.try_borrow_data()?;
+        require!(
+            data.len() > 8 && data[..8] == <Self as anchor_lang::Discriminator>::DISCRIMINATOR,
+            ErrorCode::AccountDidNotDeserialize
+        );
+
+        require!(
+            Self::status_unsafe(&data) == ProcessingStatus::Writing,
+            CoreBridgeError::NotInWritingStatus
+        );
+
+        require_keys_eq!(
+            Self::write_authority_unsafe(&data),
+            write_authority.key(),
+            CoreBridgeError::WriteAuthorityMismatch
+        );
+
+        Ok(true)
+    }
+
+    pub(crate) fn status_unsafe(data: &[u8]) -> ProcessingStatus {
+        AnchorDeserialize::deserialize(&mut &data[8..9]).unwrap()
+    }
+
+    pub(crate) fn write_authority_unsafe(data: &[u8]) -> Pubkey {
+        TryFrom::try_from(&data[9..41]).unwrap()
+    }
+
+    pub(crate) fn payload_size_unsafe(data: &[u8]) -> u32 {
+        u32::from_le_bytes(
+            data[(Self::VAA_START - 4)..Self::VAA_START]
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    pub(crate) fn try_deserialize_header(acc_info: &AccountInfo) -> Result<Header> {
+        let data = acc_info.try_borrow_data()?;
+        require!(
+            data.len() > 8 && data[..8] == <Self as anchor_lang::Discriminator>::DISCRIMINATOR,
+            ErrorCode::AccountDidNotDeserialize
+        );
+
+        AnchorDeserialize::deserialize(&mut &data[8..]).map_err(Into::into)
     }
 }
 

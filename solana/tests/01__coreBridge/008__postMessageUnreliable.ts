@@ -147,7 +147,7 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
       expect(feeCollectorData!.lamports).to.equal(forkFeeCollectorData!.lamports);
     });
 
-    it("Invoke `post_message_unreliable` Using Same Message Signer", async () => {
+    it("Invoke `post_message_unreliable` Using Same Message", async () => {
       // Fetch existing message from the program. Since we are using the same
       // signer, the message data account should be the same.
       const [existingCommitment, existingNonce, existingPayload] =
@@ -489,6 +489,34 @@ describe("Core Bridge -- Instruction: Post Message Unreliable", () => {
   });
 
   describe("New implementation", () => {
+    it("Cannot Invoke `post_message_unreliable` Using Same Message and Different Payload Size", async () => {
+      // Fetch existing message from the program. Since we are using the same
+      // signer, the message data account should be the same.
+      const existingPayload = await coreBridge.PostedMessageV1Unreliable.fromAccountAddress(
+        connection,
+        messageSigner.publicKey
+      ).then((msg) => msg.payload);
+
+      // New payload is one byte shorter.
+      const payload = existingPayload.subarray(0, -1);
+      const { nonce, commitment } = defaultArgs();
+
+      const ix = coreBridge.legacyPostMessageUnreliableIx(
+        program,
+        {
+          message: messageSigner.publicKey,
+          emitter: commonEmitter.publicKey,
+          payer: payer.publicKey,
+        },
+        {
+          nonce,
+          payload,
+          commitment,
+        }
+      );
+      await expectIxErr(connection, [ix], [payer, commonEmitter, messageSigner], "ConstraintSpace");
+    });
+
     it("Cannot Invoke `post_message_unreliable` With Invalid Payload", async () => {
       // Create the post message instruction.
       const messageSigner = anchor.web3.Keypair.generate();

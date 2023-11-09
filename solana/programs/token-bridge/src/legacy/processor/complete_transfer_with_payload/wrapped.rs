@@ -3,13 +3,10 @@ use crate::{
     error::TokenBridgeError,
     legacy::instruction::EmptyArgs,
     state::{LegacyWrappedAsset, RegisteredEmitter},
-    utils,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    legacy::utils::LegacyAnchorized,
-    sdk::{self as core_bridge_sdk, LoadZeroCopy},
-};
+use anchor_spl::token;
+use core_bridge_program::sdk as core_bridge;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 #[derive(Accounts)]
@@ -23,6 +20,7 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
+    #[account(owner = core_bridge::id())]
     vaa: AccountInfo<'info>,
 
     /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
@@ -38,13 +36,16 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// checked via Anchor macro, but will be checked in the access control function instead.
     ///
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
-    registered_emitter: Account<'info, LegacyAnchorized<RegisteredEmitter>>,
+    registered_emitter: Account<'info, core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
 
     /// CHECK: Destination token account. Because we verify the wrapped mint, we can depend on the
     /// Token Program to mint the right tokens to this account because it requires that this mint
     /// equals the wrapped mint.
-    #[account(mut)]
-    dst_token: AccountInfo<'info>,
+    #[account(
+        mut,
+        token::mint = wrapped_mint
+    )]
+    dst_token: Account<'info, token::TokenAccount>,
 
     redeemer_authority: Signer<'info>,
 
@@ -64,10 +65,13 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     /// metadata were not attested again to realloc this account. So we must deserialize this as the
     /// legacy representation.
     #[account(
-        seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
+        seeds = [
+            LegacyWrappedAsset::SEED_PREFIX,
+            wrapped_mint.key().as_ref()
+        ],
         bump,
     )]
-    wrapped_asset: Account<'info, LegacyAnchorized<LegacyWrappedAsset>>,
+    wrapped_asset: Account<'info, core_bridge::legacy::LegacyAnchorized<LegacyWrappedAsset>>,
 
     /// CHECK: This account is the authority that can burn and mint wrapped assets.
     #[account(
@@ -80,36 +84,10 @@ pub struct CompleteTransferWithPayloadWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, anchor_spl::token::Token>,
+    token_program: Program<'info, token::Token>,
 }
 
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
-    for CompleteTransferWithPayloadWrapped<'info>
-{
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-}
-
-impl<'info> utils::cpi::MintTo<'info> for CompleteTransferWithPayloadWrapped<'info> {
-    fn token_program(&self) -> AccountInfo<'info> {
-        self.token_program.to_account_info()
-    }
-
-    fn mint(&self) -> AccountInfo<'info> {
-        self.wrapped_mint.to_account_info()
-    }
-
-    fn mint_authority(&self) -> AccountInfo<'info> {
-        self.mint_authority.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
+impl<'info> core_bridge::legacy::ProcessLegacyInstruction<'info, EmptyArgs>
     for CompleteTransferWithPayloadWrapped<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyCompleteTransferWithPayloadWrapped";
@@ -136,7 +114,7 @@ impl<'info> CompleteTransferWithPayloadWrapped<'info> {
         // For wrapped transfers, this token must have originated from another network.
         require_neq!(
             token_chain,
-            core_bridge_sdk::SOLANA_CHAIN,
+            core_bridge::SOLANA_CHAIN,
             TokenBridgeError::NativeAsset
         );
 
@@ -157,12 +135,23 @@ fn complete_transfer_with_payload_wrapped(
     ctx: Context<CompleteTransferWithPayloadWrapped>,
     _args: EmptyArgs,
 ) -> Result<()> {
-    let vaa = core_bridge_sdk::VaaAccount::load(&ctx.accounts.vaa).unwrap();
+    let vaa = core_bridge::VaaAccount::load(&ctx.accounts.vaa).unwrap();
 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    core_bridge_sdk::cpi::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
+    core_bridge::claim_vaa(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            core_bridge::ClaimVaa {
+                claim: ctx.accounts.claim.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            },
+        ),
+        &crate::ID,
+        &vaa,
+        None,
+    )?;
 
     // Take transfer amount as-is.
     let mint_amount = TokenBridgeMessage::try_from(vaa.try_payload().unwrap())
@@ -175,10 +164,16 @@ fn complete_transfer_with_payload_wrapped(
         .map_err(|_| TokenBridgeError::U64Overflow)?;
 
     // Finally transfer encoded amount by minting to the redeemer's token account.
-    utils::cpi::mint_to(
-        ctx.accounts,
-        &ctx.accounts.dst_token,
+    token::mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::MintTo {
+                mint: ctx.accounts.wrapped_mint.to_account_info(),
+                to: ctx.accounts.dst_token.to_account_info(),
+                authority: ctx.accounts.mint_authority.to_account_info(),
+            },
+            &[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]],
+        ),
         mint_amount,
-        Some(&[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]]),
     )
 }

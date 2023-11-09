@@ -1,26 +1,19 @@
 use std::cell::Ref;
 
-use crate::{state, types::Timestamp};
+use crate::{state::POSTED_VAA_V1_SEED_PREFIX, types::Timestamp};
 use anchor_lang::{
     prelude::{
         error, require, require_eq, require_keys_eq, AccountInfo, ErrorCode, Pubkey, Result,
     },
     solana_program::keccak,
 };
-use state::POSTED_VAA_V1_SEED_PREFIX;
+
+const PAYLOAD_START: usize = 95;
 
 /// Account used to store a verified VAA.
 pub struct PostedVaaV1<'a>(Ref<'a, &'a mut [u8]>);
 
 impl<'a> PostedVaaV1<'a> {
-    pub const DISC: [u8; 4] = state::POSTED_VAA_V1_DISCRIMINATOR;
-    pub const PAYLOAD_START: usize = 95;
-    pub const SEED_PREFIX: &'static [u8] = state::POSTED_VAA_V1_SEED_PREFIX;
-
-    pub fn discriminator(&self) -> [u8; 4] {
-        self.0[..4].try_into().unwrap()
-    }
-
     /// Level of consistency requested by the emitter.
     pub fn consistency_level(&self) -> u8 {
         self.0[4]
@@ -31,6 +24,7 @@ impl<'a> PostedVaaV1<'a> {
         u32::from_le_bytes(self.0[5..9].try_into().unwrap()).into()
     }
 
+    #[allow(dead_code)]
     /// Pubkey of `SignatureSet` account that represent this VAA's signature verification.
     pub fn signature_set(&self) -> Pubkey {
         Pubkey::try_from(&self.0[9..41]).unwrap()
@@ -68,14 +62,14 @@ impl<'a> PostedVaaV1<'a> {
     }
 
     pub fn payload_size(&self) -> usize {
-        u32::from_le_bytes(self.0[91..Self::PAYLOAD_START].try_into().unwrap())
+        u32::from_le_bytes(self.0[91..PAYLOAD_START].try_into().unwrap())
             .try_into()
             .unwrap()
     }
 
     /// Message payload.
     pub fn payload(&self) -> &[u8] {
-        &self.0[Self::PAYLOAD_START..]
+        &self.0[PAYLOAD_START..]
     }
 
     /// Recompute the message hash, which is used derive the [PostedVaaV1] PDA address.
@@ -91,6 +85,7 @@ impl<'a> PostedVaaV1<'a> {
         ])
     }
 
+    #[allow(dead_code)]
     /// Compute digest (hash of [message_hash](Self::message_hash)).
     pub fn digest(&self) -> keccak::Hash {
         keccak::hash(self.message_hash().as_ref())
@@ -99,12 +94,12 @@ impl<'a> PostedVaaV1<'a> {
     pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {
         let parsed = Self(acc_info.try_borrow_data()?);
         require!(
-            parsed.0.len() >= Self::PAYLOAD_START,
+            parsed.0.len() >= PAYLOAD_START,
             ErrorCode::AccountDidNotDeserialize
         );
         require_eq!(
             parsed.0.len(),
-            Self::PAYLOAD_START + parsed.payload_size(),
+            PAYLOAD_START + parsed.payload_size(),
             ErrorCode::AccountDidNotDeserialize
         );
 
@@ -114,20 +109,6 @@ impl<'a> PostedVaaV1<'a> {
             &crate::ID,
         );
         require_keys_eq!(*acc_info.key, expected_address, ErrorCode::ConstraintSeeds);
-
-        Ok(parsed)
-    }
-}
-
-impl<'a> crate::zero_copy::LoadZeroCopy<'a> for PostedVaaV1<'a> {
-    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
-        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
-
-        let parsed = Self::new(acc_info)?;
-        require!(
-            parsed.discriminator() == Self::DISC,
-            ErrorCode::AccountDidNotDeserialize
-        );
 
         Ok(parsed)
     }

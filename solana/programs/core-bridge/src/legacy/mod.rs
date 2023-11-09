@@ -11,7 +11,7 @@ pub(crate) use processor::*;
 
 pub mod state;
 
-pub mod utils;
+pub(crate) mod utils;
 
 /// Collection of methods to interact with the Core Bridge program via CPI. The structs defined in
 /// this module mirror the structs deriving [Accounts](anchor_lang::prelude::Accounts), where each

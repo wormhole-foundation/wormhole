@@ -1,7 +1,7 @@
 use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use token_bridge_program::sdk::{self as token_bridge_sdk, core_bridge_sdk};
+use token_bridge_program::sdk as token_bridge;
 
 use super::MockLegacyTransferTokensArgs;
 
@@ -63,84 +63,14 @@ pub struct MockLegacyTransferTokensNative<'info> {
 
     /// CHECK: This account is needed for the Token Bridge program.
     #[account(mut)]
-    core_fee_collector: Option<UncheckedAccount<'info>>,
+    core_fee_collector: Option<AccountInfo<'info>>,
 
     /// CHECK: This account is needed for the Token Bridge program.
     core_bridge_program: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_bridge_program: Program<'info, token_bridge_sdk::cpi::TokenBridge>,
+    token_bridge_program: Program<'info, token_bridge::TokenBridge>,
     token_program: Program<'info, token::Token>,
-}
-
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
-    for MockLegacyTransferTokensNative<'info>
-{
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockLegacyTransferTokensNative<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-
-    fn core_bridge_config(&self) -> AccountInfo<'info> {
-        self.core_bridge_config.to_account_info()
-    }
-
-    fn core_emitter_authority(&self) -> AccountInfo<'info> {
-        self.core_emitter.to_account_info()
-    }
-
-    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
-        self.core_emitter_sequence.to_account_info()
-    }
-
-    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
-    }
-}
-
-impl<'info> token_bridge_sdk::cpi::TransferTokens<'info> for MockLegacyTransferTokensNative<'info> {
-    fn token_bridge_program(&self) -> AccountInfo<'info> {
-        self.token_bridge_program.to_account_info()
-    }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.core_message.to_account_info()
-    }
-
-    fn mint(&self) -> AccountInfo<'info> {
-        self.mint.to_account_info()
-    }
-
-    fn src_token_account(&self) -> AccountInfo<'info> {
-        self.src_token.to_account_info()
-    }
-
-    fn token_program(&self) -> AccountInfo<'info> {
-        self.token_program.to_account_info()
-    }
-
-    fn token_bridge_transfer_authority(&self) -> AccountInfo<'info> {
-        self.token_bridge_transfer_authority.to_account_info()
-    }
-
-    fn token_bridge_custody_authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.token_bridge_custody_authority.to_account_info())
-    }
-
-    fn token_bridge_custody_token_account(&self) -> Option<AccountInfo<'info>> {
-        Some(self.token_bridge_custody_token.to_account_info())
-    }
 }
 
 pub fn mock_legacy_transfer_tokens_native(
@@ -159,21 +89,44 @@ pub fn mock_legacy_transfer_tokens_native(
 
     let sequence_number = ctx.accounts.payer_sequence.take_and_uptick();
 
-    token_bridge_sdk::cpi::transfer_tokens_specified(
-        ctx.accounts,
-        token_bridge_sdk::cpi::TransferTokensDirective::Transfer {
+    token_bridge::transfer_tokens_native(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_bridge_program.to_account_info(),
+            token_bridge::TransferTokensNative {
+                payer: ctx.accounts.payer.to_account_info(),
+                src_token: ctx.accounts.src_token.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                custody_token: ctx.accounts.token_bridge_custody_token.to_account_info(),
+                transfer_authority: ctx
+                    .accounts
+                    .token_bridge_transfer_authority
+                    .to_account_info(),
+                custody_authority: ctx
+                    .accounts
+                    .token_bridge_custody_authority
+                    .to_account_info(),
+                core_bridge_config: ctx.accounts.core_bridge_config.to_account_info(),
+                core_message: ctx.accounts.core_message.to_account_info(),
+                core_emitter: ctx.accounts.core_emitter.to_account_info(),
+                core_emitter_sequence: ctx.accounts.core_emitter_sequence.to_account_info(),
+                core_fee_collector: ctx.accounts.core_fee_collector.clone(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+                core_bridge_program: ctx.accounts.core_bridge_program.to_account_info(),
+            },
+            &[&[
+                MESSAGE_SEED_PREFIX,
+                ctx.accounts.payer.key().as_ref(),
+                sequence_number.as_ref(),
+                &[ctx.bumps["core_message"]],
+            ]],
+        ),
+        token_bridge::TransferTokensArgs {
             nonce,
             amount,
             relayer_fee,
             recipient,
             recipient_chain,
         },
-        false, // is_wrapped_asset
-        Some(&[&[
-            MESSAGE_SEED_PREFIX,
-            ctx.accounts.payer.key().as_ref(),
-            sequence_number.as_ref(),
-            &[ctx.bumps["core_message"]],
-        ]]),
     )
 }

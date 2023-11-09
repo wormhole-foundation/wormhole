@@ -11,7 +11,8 @@ cfg_if::cfg_if! {
     }
 }
 
-pub mod constants;
+mod constants;
+pub use constants::{MAX_MESSAGE_PAYLOAD_SIZE, PROGRAM_EMITTER_SEED_PREFIX, SOLANA_CHAIN};
 
 pub mod error;
 
@@ -20,6 +21,7 @@ pub mod legacy;
 mod processor;
 pub(crate) use processor::*;
 
+#[cfg(feature = "cpi")]
 pub mod sdk;
 
 pub mod state;
@@ -27,8 +29,6 @@ pub mod state;
 pub mod types;
 
 pub(crate) mod utils;
-
-pub(crate) mod zero_copy;
 
 use anchor_lang::prelude::*;
 

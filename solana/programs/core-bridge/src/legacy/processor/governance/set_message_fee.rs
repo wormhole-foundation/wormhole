@@ -3,7 +3,7 @@ use crate::{
     error::CoreBridgeError,
     legacy::{instruction::EmptyArgs, utils::LegacyAnchorized},
     state::Config,
-    zero_copy::{LoadZeroCopy, VaaAccount},
+    utils::{self, vaa::VaaAccount},
 };
 use anchor_lang::prelude::*;
 use ruint::aliases::U256;
@@ -26,6 +26,7 @@ pub struct SetMessageFee<'info> {
     /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
     /// instruction handler, which also checks this account discriminator (so there is no need to
     /// check PDA seeds here).
+    #[account(owner = crate::ID)]
     vaa: AccountInfo<'info>,
 
     /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
@@ -34,16 +35,6 @@ pub struct SetMessageFee<'info> {
     claim: AccountInfo<'info>,
 
     system_program: Program<'info, System>,
-}
-
-impl<'info> crate::utils::cpi::CreateAccount<'info> for SetMessageFee<'info> {
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, EmptyArgs>
@@ -89,7 +80,18 @@ fn set_message_fee(ctx: Context<SetMessageFee>, _args: EmptyArgs) -> Result<()> 
     // Create the claim account to provide replay protection. Because this instruction creates this
     // account every time it is executed, this account cannot be created again with this emitter
     // address, chain and sequence combination.
-    crate::utils::vaa::claim_vaa(ctx.accounts, &ctx.accounts.claim, &crate::ID, &vaa, None)?;
+    utils::vaa::claim_vaa(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            utils::vaa::ClaimVaa {
+                claim: ctx.accounts.claim.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            },
+        ),
+        &crate::ID,
+        &vaa,
+        None,
+    )?;
 
     let gov_payload = CoreBridgeGovPayload::try_from(vaa.try_payload().unwrap())
         .unwrap()

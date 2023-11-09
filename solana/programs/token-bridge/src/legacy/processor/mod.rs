@@ -23,7 +23,7 @@ mod transfer_tokens_with_payload;
 pub use transfer_tokens_with_payload::*;
 
 use anchor_lang::prelude::*;
-use core_bridge_program::legacy::utils::ProcessLegacyInstruction;
+use core_bridge_program::sdk::legacy::ProcessLegacyInstruction;
 
 use super::instruction::LegacyInstruction;
 

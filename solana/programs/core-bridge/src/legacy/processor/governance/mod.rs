@@ -13,7 +13,7 @@ pub use upgrade_contract::*;
 use crate::{
     error::CoreBridgeError,
     state::{Config, VaaVersion},
-    zero_copy::VaaAccount,
+    utils::vaa::VaaAccount,
 };
 use anchor_lang::prelude::*;
 use wormhole_raw_vaas::core::{CoreBridgeDecree, CoreBridgeGovPayload};

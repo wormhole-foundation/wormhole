@@ -1,4 +1,4 @@
-use crate::{error::CoreBridgeError, zero_copy::EncodedVaa};
+use crate::{error::CoreBridgeError, state::EncodedVaa};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -11,17 +11,25 @@ pub struct CloseEncodedVaa<'info> {
 
     /// CHECK: The encoded VAA account, which stores the VAA buffer. This buffer must first be
     /// written to and then verified.
-    #[account(mut)]
+    #[account(
+        mut,
+        owner = crate::ID
+    )]
     encoded_vaa: AccountInfo<'info>,
 }
 
 impl<'info> CloseEncodedVaa<'info> {
     fn constraints(ctx: &Context<Self>) -> Result<()> {
-        // Check write authority.
-        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa)?;
+        let acc_data = ctx.accounts.encoded_vaa.try_borrow_data()?;
+        require!(
+            acc_data.len() > 8
+                && acc_data[..8] == <EncodedVaa as anchor_lang::Discriminator>::DISCRIMINATOR,
+            ErrorCode::AccountDidNotDeserialize
+        );
+
         require_keys_eq!(
+            EncodedVaa::write_authority_unsafe(&acc_data),
             ctx.accounts.write_authority.key(),
-            vaa.write_authority(),
             CoreBridgeError::WriteAuthorityMismatch
         );
 

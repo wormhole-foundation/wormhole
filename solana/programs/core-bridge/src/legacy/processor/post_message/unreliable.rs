@@ -1,8 +1,10 @@
 use crate::{
     error::CoreBridgeError,
     legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
-    state::{Config, EmitterSequence, PostedMessageV1Data, PostedMessageV1Unreliable},
-    zero_copy::LoadZeroCopy,
+    state::{
+        Config, EmitterSequence, PostedMessageV1Data, PostedMessageV1Info,
+        PostedMessageV1Unreliable,
+    },
 };
 use anchor_lang::prelude::*;
 
@@ -17,14 +19,15 @@ pub struct PostMessageUnreliable<'info> {
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// CHECK: This message account is observed by the Guardians.
+    /// This message account is observed by the Guardians.
     ///
     /// NOTE: This space requirement enforces that the payload length is the same for every call to
-    /// this instruction handler.
+    /// this instruction handler. So for unreliable message accounts already created, this
+    /// implicitly prevents the payload size from changing.
     #[account(
         init_if_needed,
         payer = payer,
-        space = try_compute_size(message, payload_len)?,
+        space = PostedMessageV1Unreliable::compute_size(payload_len.try_into().unwrap()),
     )]
     message: Account<'info, LegacyAnchorized<PostedMessageV1Unreliable>>,
 
@@ -107,6 +110,14 @@ fn post_message_unreliable(
     ctx: Context<PostMessageUnreliable>,
     args: PostMessageArgs,
 ) -> Result<()> {
+    // Take the message fee amount from the payer.
+    super::handle_message_fee(
+        &ctx.accounts.config,
+        &ctx.accounts.payer,
+        &ctx.accounts.fee_collector,
+        &ctx.accounts.system_program,
+    )?;
+
     let PostMessageArgs {
         nonce,
         payload,
@@ -119,51 +130,28 @@ fn post_message_unreliable(
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let info = super::new_posted_message_info(
-        &ctx.accounts.config,
-        super::MessageFeeContext {
-            payer: &ctx.accounts.payer,
-            fee_collector: &ctx.accounts.fee_collector,
-            system_program: &ctx.accounts.system_program,
-        },
-        &mut ctx.accounts.emitter_sequence,
-        commitment.into(),
-        nonce,
-        &ctx.accounts.emitter.key(),
-    )?;
-
     // Finally set the `message` account with posted data.
-    ctx.accounts
-        .message
-        .set_inner(PostedMessageV1Unreliable::from(PostedMessageV1Data { info, payload }).into());
+    ctx.accounts.message.set_inner(
+        PostedMessageV1Unreliable::from(PostedMessageV1Data {
+            info: PostedMessageV1Info {
+                consistency_level: commitment.into(),
+                emitter_authority: Default::default(),
+                status: crate::legacy::state::MessageStatus::Published,
+                _gap_0: Default::default(),
+                posted_timestamp: Clock::get().map(Into::into)?,
+                nonce,
+                sequence: ctx.accounts.emitter_sequence.value,
+                solana_chain_id: Default::default(),
+                emitter: ctx.accounts.emitter.key(),
+            },
+            payload,
+        })
+        .into(),
+    );
+
+    // Increment emitter sequence value.
+    ctx.accounts.emitter_sequence.value += 1;
 
     // Done.
     Ok(())
-}
-
-/// This method is used to compute the size of the message account. Because Anchor's
-/// `init_if_needed` checks the size of this account whether it has been created or not, we need to
-/// yield either the size determined by the posted message's payload size or the size of the new
-/// payload. Instead of reverting with `ConstraintSpace`, we revert with a custom Core Bridge error
-/// saying that the payload size does not match the existing one (which is a requirement to reuse
-/// this message account).
-fn try_compute_size(msg_acc_info: &AccountInfo, payload_size: u32) -> Result<usize> {
-    let payload_size = usize::try_from(payload_size).unwrap();
-
-    if !msg_acc_info.data_is_empty() {
-        let msg = crate::zero_copy::MessageAccount::load(msg_acc_info)?;
-
-        match msg.v1_unreliable() {
-            Some(inner) => {
-                require_eq!(
-                    payload_size,
-                    inner.payload_size(),
-                    CoreBridgeError::PayloadSizeMismatch
-                )
-            }
-            _ => return err!(ErrorCode::AccountDidNotDeserialize),
-        }
-    }
-
-    Ok(PostedMessageV1Unreliable::compute_size(payload_size))
 }

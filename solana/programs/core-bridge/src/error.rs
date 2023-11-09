@@ -61,6 +61,12 @@ pub enum CoreBridgeError {
     #[msg("EmitterMismatch")]
     EmitterMismatch = 0x102,
 
+    #[msg("NotReadyForPublishing")]
+    NotReadyForPublishing = 0x104,
+
+    #[msg("InvalidPreparedMessage")]
+    InvalidPreparedMessage = 0x106,
+
     #[msg("InvalidSignatureSet")]
     InvalidSignatureSet = 0x200,
 

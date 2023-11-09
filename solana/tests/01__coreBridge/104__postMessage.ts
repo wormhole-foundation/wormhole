@@ -74,7 +74,7 @@ describe("Core Bridge -- Legacy Instruction: Post Message (Prepared)", () => {
         { nonce, commitment, payload: Buffer.alloc(0) },
         { message: false }
       );
-      await expectIxErr(connection, [ix], [payer], "MessageAlreadyPublished");
+      await expectIxErr(connection, [ix], [payer], "NotReadyForPublishing");
     });
 
     it("Invoke `post_message` With 30Kb Payload", async () => {

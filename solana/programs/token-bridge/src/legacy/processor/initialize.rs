@@ -1,6 +1,6 @@
 use crate::{legacy::instruction::InitializeArgs, state::Config};
 use anchor_lang::prelude::*;
-use core_bridge_program::legacy::utils::LegacyAnchorized;
+use core_bridge_program::sdk as core_bridge;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -14,7 +14,7 @@ pub struct Initialize<'info> {
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
-    config: Account<'info, LegacyAnchorized<Config>>,
+    config: Account<'info, core_bridge::legacy::LegacyAnchorized<Config>>,
 
     /// CHECK: Previously needed sysvar.
     _rent: UncheckedAccount<'info>,
@@ -22,7 +22,7 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, InitializeArgs>
+impl<'info> core_bridge::legacy::ProcessLegacyInstruction<'info, InitializeArgs>
     for Initialize<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyInitialize";

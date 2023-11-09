@@ -28,7 +28,7 @@ pub struct InitializeArgs {
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyAttestTokenArgs {
+pub struct AttestTokenArgs {
     pub nonce: u32,
 }
 

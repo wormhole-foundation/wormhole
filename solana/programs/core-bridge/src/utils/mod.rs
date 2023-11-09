@@ -12,7 +12,7 @@ pub fn quorum(num_guardians: usize) -> usize {
 }
 
 /// Close an account by transferring all its lamports to another account.
-pub fn close_account(info: &AccountInfo, sol_destination: &AccountInfo) -> Result<()> {
+pub(crate) fn close_account(info: &AccountInfo, sol_destination: &AccountInfo) -> Result<()> {
     // Transfer tokens from the account to the sol_destination.
     let dest_starting_lamports = sol_destination.lamports();
     **sol_destination.lamports.borrow_mut() =

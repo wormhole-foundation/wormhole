@@ -12,7 +12,6 @@ use crate::{
         PostedMessageV1Info,
     },
     utils,
-    zero_copy::LoadZeroCopy,
 };
 use anchor_lang::{prelude::*, system_program};
 
@@ -40,7 +39,7 @@ pub struct PostMessage<'info> {
     /// PDA which signs for this instruction. But if a message is already prepared by this point
     /// using `init_message_v1`, `write_message_v1` and `finalize_message_v1`, then this account is
     /// not checked.
-    emitter: Option<AccountInfo<'info>>,
+    emitter: Option<Signer<'info>>,
 
     /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
     /// sequence number.
@@ -54,7 +53,7 @@ pub struct PostMessage<'info> {
         space = EmitterSequence::INIT_SPACE,
         seeds = [
             EmitterSequence::SEED_PREFIX,
-            find_emitter_for_sequence(&emitter, &message)?.as_ref()
+            try_emitter_seed(&emitter, &message)?.as_ref()
         ],
         bump
     )]
@@ -76,16 +75,6 @@ pub struct PostMessage<'info> {
     _clock: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-}
-
-impl<'info> crate::utils::cpi::CreateAccount<'info> for PostMessage<'info> {
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
 }
 
 impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArgs>
@@ -116,7 +105,7 @@ impl<'info> crate::legacy::utils::ProcessLegacyInstruction<'info, PostMessageArg
 /// Because the legacy implementation did not require specifying where the System program should be,
 /// we ensure that it is account #8 because the Anchor account context requires it to be in this
 /// position.
-pub(super) fn order_post_message_account_infos<'info>(
+pub(self) fn order_post_message_account_infos<'info>(
     account_infos: &[AccountInfo<'info>],
 ) -> Result<Vec<AccountInfo<'info>>> {
     const NUM_ACCOUNTS: usize = 8;
@@ -143,56 +132,20 @@ pub(super) fn order_post_message_account_infos<'info>(
     Ok(infos)
 }
 
-pub(super) struct MessageFeeContext<'ctx, 'info> {
-    pub payer: &'ctx AccountInfo<'info>,
-    pub fee_collector: &'ctx Option<AccountInfo<'info>>,
-    pub system_program: &'ctx Program<'info, System>,
-}
-
-/// This method is used by both `post_message` and `post_message_unreliable` instruction handlers.
-/// It handles the message fee check on the fee collector, upticks the emitter sequence number and
-/// returns the posted message data, which will be serialized to either `PostedMessageV1` or
-/// `PostedMessageV1Unreliable` depending on which instruction handler called this method.
-pub(super) fn new_posted_message_info<'info>(
-    config: &Account<'info, LegacyAnchorized<Config>>,
-    message_fee_ctx: MessageFeeContext<'_, 'info>,
-    emitter_sequence: &mut Account<'info, LegacyAnchorized<EmitterSequence>>,
-    consistency_level: u8,
-    nonce: u32,
-    emitter: &Pubkey,
-) -> Result<PostedMessageV1Info> {
-    // Take the message fee amount from the payer.
-    handle_message_fee(config, message_fee_ctx)?;
-
-    // Sequence number will be used later on.
-    let sequence = emitter_sequence.value;
-
-    // Finally set the `message` account with posted data.
-    let info = PostedMessageV1Info {
-        consistency_level,
-        emitter_authority: Default::default(),
-        status: MessageStatus::Published,
-        _gap_0: Default::default(),
-        posted_timestamp: Clock::get().map(Into::into)?,
-        nonce,
-        sequence,
-        solana_chain_id: Default::default(),
-        emitter: *emitter,
-    };
-
-    // Increment emitter sequence value.
-    emitter_sequence.value += 1;
-
-    // Done.
-    Ok(info)
-}
-
 /// Processor to post (publish) a Wormhole message by setting up the message account for
 /// Guardian observation.
 ///
 /// A message is either created beforehand using the new Anchor instructions `init_message_v1`
 /// and `process_message_v1` or is created at this point.
 fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
+    // Take the message fee amount from the payer.
+    handle_message_fee(
+        &ctx.accounts.config,
+        &ctx.accounts.payer,
+        &ctx.accounts.fee_collector,
+        &ctx.accounts.system_program,
+    )?;
+
     if ctx.accounts.message.data_is_empty() {
         handle_post_new_message(ctx, args)
     } else {
@@ -203,6 +156,16 @@ fn post_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> 
 /// When posting a new message, the message account must first be created. The new message data is
 /// then serialized into this account.
 fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
+    let emitter = ctx
+        .accounts
+        .emitter
+        .as_ref()
+        .ok_or(error!(ErrorCode::AccountNotEnoughKeys).with_account_name("emitter"))?;
+
+    // Because this message will be newly created in this instruction, the emitter is
+    // required to be a signer to authorize posting this message.
+    //require!(emitter.is_signer, ErrorCode::AccountNotSigner);
+
     let PostMessageArgs {
         nonce,
         payload,
@@ -216,35 +179,42 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
     );
 
     // Create the account.
-    {
-        utils::cpi::create_account(
-            ctx.accounts,
-            &ctx.accounts.message,
-            PostedMessageV1::compute_size(payload.len()),
-            &crate::ID,
-            None,
-        )?;
-    }
-
-    let info = new_posted_message_info(
-        &ctx.accounts.config,
-        MessageFeeContext {
-            payer: &ctx.accounts.payer,
-            fee_collector: &ctx.accounts.fee_collector,
-            system_program: &ctx.accounts.system_program,
-        },
-        &mut ctx.accounts.emitter_sequence,
-        commitment.into(),
-        nonce,
-        &ctx.accounts.emitter.as_ref().unwrap().key(),
+    utils::cpi::create_account_safe(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            utils::cpi::CreateAccountSafe {
+                payer: ctx.accounts.payer.to_account_info(),
+                new_account: ctx.accounts.message.to_account_info(),
+            },
+        ),
+        PostedMessageV1::compute_size(payload.len()),
+        &crate::ID,
     )?;
+
+    // Prepare message data.
+    let message = PostedMessageV1::from(PostedMessageV1Data {
+        info: PostedMessageV1Info {
+            consistency_level: commitment.into(),
+            emitter_authority: Default::default(),
+            status: crate::legacy::state::MessageStatus::Published,
+            _gap_0: Default::default(),
+            posted_timestamp: Clock::get().map(Into::into)?,
+            nonce,
+            sequence: ctx.accounts.emitter_sequence.value,
+            solana_chain_id: Default::default(),
+            emitter: emitter.key(),
+        },
+        payload,
+    });
+
+    // Increment emitter sequence value.
+    ctx.accounts.emitter_sequence.value += 1;
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
 
     // Finally set the `message` account with posted data.
-    LegacyAnchorized::from(PostedMessageV1::from(PostedMessageV1Data { info, payload }))
-        .try_serialize(&mut writer)?;
+    LegacyAnchorized::from(message).try_serialize(&mut writer)?;
 
     // Done.
     Ok(())
@@ -255,7 +225,25 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
 /// used at this point, so we require that this argument be an empty vector. The message data is
 /// modified to reflect posting this message (timestamp, sequence number, etc.).
 fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> Result<()> {
-    msg!("MessageStatus: Finalized");
+    msg!("MessageStatus: ReadyForPublishing");
+
+    // Because the message account was prepared by the Core Bridge, we need to double-check that
+    // the Core Bridge is the owner.
+    require_keys_eq!(
+        *ctx.accounts.message.owner,
+        crate::ID,
+        ErrorCode::ConstraintOwner
+    );
+
+    // Check message header. This is mutable because we will rewrite to the mesasge account with
+    // some modified values later on.
+    let mut info = PostedMessageV1::try_deserialize_info(&ctx.accounts.message)?;
+
+    // Make sure the message is ready to be published.
+    require!(
+        info.status == MessageStatus::ReadyForPublishing,
+        CoreBridgeError::NotReadyForPublishing
+    );
 
     let PostMessageArgs {
         nonce: _,
@@ -269,24 +257,25 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
         CoreBridgeError::InvalidInstructionArgument
     );
 
-    let (consistency_level, nonce, emitter) = {
-        let msg = crate::zero_copy::PostedMessageV1::load(&ctx.accounts.message).unwrap();
+    // If the emitter is passed into the account context, revert if it does not agree with the one
+    // encoded in the message account. This check is important for deriving the correct emitter
+    // sequence PDA address, which is determined by the account passed into this context.
+    if let Some(emitter) = ctx.accounts.emitter.as_ref() {
+        require_keys_eq!(
+            emitter.key(),
+            info.emitter,
+            CoreBridgeError::EmitterMismatch
+        );
+    }
 
-        (msg.consistency_level(), msg.nonce(), msg.emitter())
-    };
+    // Set other values to reflect published state.
+    info.emitter_authority = Default::default();
+    info.status = MessageStatus::Published;
+    info.posted_timestamp = Clock::get().map(Into::into)?;
+    info.sequence = ctx.accounts.emitter_sequence.value;
 
-    let info = new_posted_message_info(
-        &ctx.accounts.config,
-        MessageFeeContext {
-            payer: &ctx.accounts.payer,
-            fee_collector: &ctx.accounts.fee_collector,
-            system_program: &ctx.accounts.system_program,
-        },
-        &mut ctx.accounts.emitter_sequence,
-        consistency_level,
-        nonce,
-        &emitter,
-    )?;
+    // Increment emitter sequence value.
+    ctx.accounts.emitter_sequence.value += 1;
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
@@ -299,20 +288,16 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
 }
 
 /// If there is a fee, check the fee collector account to ensure that the fee has been paid.
-fn handle_message_fee<'info>(
+pub(self) fn handle_message_fee<'info>(
     config: &Account<'info, LegacyAnchorized<Config>>,
-    message_fee_ctx: MessageFeeContext<'_, 'info>,
+    payer: &AccountInfo<'info>,
+    fee_collector: &Option<AccountInfo<'info>>,
+    system_program: &Program<'info, System>,
 ) -> Result<()> {
     if config.fee_lamports > 0 {
-        let MessageFeeContext {
-            payer,
-            fee_collector,
-            system_program,
-        } = message_fee_ctx;
-
         let fee_collector = fee_collector
             .as_ref()
-            .ok_or(error!(ErrorCode::AccountNotEnoughKeys))?;
+            .ok_or(error!(ErrorCode::AccountNotEnoughKeys).with_account_name("fee_collector"))?;
 
         // In the old implementation, integrators were expected to pay the fee outside of this
         // instruction and this instruction handler had to check that the lamports on the fee
@@ -337,39 +322,30 @@ fn handle_message_fee<'info>(
     }
 }
 
-/// For posting a message, either a message has been prepared beforehand or this account is created
-/// at this point in time. We make the assumption that if the status is unset, it is a message
-/// account created at this point, which is the way the legacy post message instruction handler
-/// worked.
+/// Determine the emitter seed for the emitter sequence account. This emitter will either come from
+/// the message account if it was prepared beforehand or will be the signer passed into the account
+/// context.
 ///
-/// The legacy post message instruction handler did not allow posting a message as a program,
-/// which `init_message_v1` now enables integrators to do. So the emitter sequence account, whose
-/// PDA address is derived using the emitter, is assigned to the emitter signer (now called the
-/// emitter authority). Whereas with the new prepared message, this emitter can be taken from the
-/// message account to re-derive the emitter sequence PDA address.
-fn find_emitter_for_sequence(
-    emitter: &Option<AccountInfo>,
-    msg_acc_info: &AccountInfo,
-) -> Result<Pubkey> {
-    if msg_acc_info.data_is_empty() {
-        // Message must be a signer in order to be created.
-        require!(msg_acc_info.is_signer, ErrorCode::AccountNotSigner);
+/// For posting a message, either a message has been prepared beforehand or this account is created
+/// at this point in time. With respect to the emitter passed into the account context, it is only
+/// a required signer if the message will be created in this instruction handler.
+fn try_emitter_seed(emitter: &Option<Signer>, message: &AccountInfo) -> Result<Pubkey> {
+    match emitter {
+        Some(emitter) => Ok(emitter.key()),
+        None => {
+            // Message account must exist. We are making an assumption at this point whether this
+            // account is actually a Core Bridge owned account with discriminator "msg\0". We will
+            // verify the integrity of this message in the prepared message handler.
+            require!(
+                message.data_len() > 91,
+                CoreBridgeError::InvalidPreparedMessage
+            );
 
-        // Because this message will be newly created in this instruction, the emitter is required
-        // and must be a signer to authorize posting this message.
-        let emitter = emitter
-            .as_ref()
-            .ok_or_else(|| error!(ErrorCode::AccountNotEnoughKeys))?;
-        require!(emitter.is_signer, ErrorCode::AccountNotSigner);
-
-        Ok(emitter.key())
-    } else {
-        let msg = crate::zero_copy::PostedMessageV1::load(msg_acc_info)?;
-
-        match msg.status() {
-            MessageStatus::Published => err!(CoreBridgeError::MessageAlreadyPublished),
-            MessageStatus::Writing => err!(CoreBridgeError::InWritingStatus),
-            MessageStatus::ReadyForPublishing => Ok(msg.emitter()),
+            // Return the emitter encoded in this account.
+            message
+                .try_borrow_data()
+                .map(|data| PostedMessageV1::emitter_unsafe(&data))
+                .map_err(Into::into)
         }
     }
 }

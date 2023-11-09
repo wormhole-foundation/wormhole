@@ -24,13 +24,12 @@ pub(crate) mod messages;
 mod processor;
 pub(crate) use processor::*;
 
+#[cfg(feature = "cpi")]
 pub mod sdk;
 
 pub mod state;
 
 pub(crate) mod utils;
-
-pub(crate) mod zero_copy;
 
 #[program]
 pub mod wormhole_token_bridge_solana {
@@ -53,34 +52,6 @@ pub mod wormhole_token_bridge_solana {
     /// the legacy account in the future.
     pub fn secure_registered_emitter(ctx: Context<SecureRegisteredEmitter>) -> Result<()> {
         processor::secure_registered_emitter(ctx)
-    }
-
-    pub fn transfer_tokens_native(
-        ctx: Context<TransferTokensNative>,
-        args: TransferTokensArgs,
-    ) -> Result<()> {
-        processor::transfer_tokens_native(ctx, args)
-    }
-
-    pub fn transfer_tokens_wrapped(
-        ctx: Context<TransferTokensWrapped>,
-        args: TransferTokensArgs,
-    ) -> Result<()> {
-        processor::transfer_tokens_wrapped(ctx, args)
-    }
-
-    pub fn transfer_tokens_with_payload_native(
-        ctx: Context<TransferTokensWithPayloadNative>,
-        args: TransferTokensWithPayloadArgs,
-    ) -> Result<()> {
-        processor::transfer_tokens_with_payload_native(ctx, args)
-    }
-
-    pub fn transfer_tokens_with_payload_wrapped(
-        ctx: Context<TransferTokensWithPayloadWrapped>,
-        args: TransferTokensWithPayloadArgs,
-    ) -> Result<()> {
-        processor::transfer_tokens_with_payload_wrapped(ctx, args)
     }
 
     /// Process legacy Token Bridge instructions. See [legacy](crate::legacy) for more info.

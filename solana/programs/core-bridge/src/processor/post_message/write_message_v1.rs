@@ -1,8 +1,4 @@
-use crate::{
-    error::CoreBridgeError,
-    state::MessageStatus,
-    zero_copy::{LoadZeroCopy, PostedMessageV1},
-};
+use crate::{error::CoreBridgeError, state::PostedMessageV1};
 use anchor_lang::prelude::*;
 use solana_program::program_memory::sol_memcpy;
 
@@ -12,18 +8,29 @@ pub struct WriteMessageV1<'info> {
 
     /// CHECK: Message account. The payload will be written to and then finalized. This message can
     /// only be published when the message is finalized.
-    #[account(mut)]
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = PostedMessageV1::require_draft_message(&draft_message, &emitter_authority)?
+    )]
     draft_message: AccountInfo<'info>,
 }
 
 impl<'info> WriteMessageV1<'info> {
-    fn constraints(ctx: &Context<Self>) -> Result<()> {
-        let message = PostedMessageV1::load(&ctx.accounts.draft_message)?;
+    fn constraints(ctx: &Context<Self>, args: &WriteMessageV1Args) -> Result<()> {
+        require!(
+            !args.data.is_empty(),
+            CoreBridgeError::InvalidInstructionArgument
+        );
 
-        require_keys_eq!(
-            ctx.accounts.emitter_authority.key(),
-            message.emitter_authority(),
-            CoreBridgeError::EmitterAuthorityMismatch
+        let msg_length =
+            PostedMessageV1::payload_size_unsafe(&ctx.accounts.draft_message.data.borrow());
+
+        require!(
+            args.index
+                .saturating_add(args.data.len().try_into().unwrap())
+                <= msg_length,
+            CoreBridgeError::DataOverflow
         );
 
         // Done.
@@ -41,35 +48,13 @@ pub struct WriteMessageV1Args {
     pub data: Vec<u8>,
 }
 
-#[access_control(WriteMessageV1::constraints(&ctx))]
+#[access_control(WriteMessageV1::constraints(&ctx, &args))]
 pub fn write_message_v1(ctx: Context<WriteMessageV1>, args: WriteMessageV1Args) -> Result<()> {
     let WriteMessageV1Args { index, data } = args;
 
-    require!(
-        !data.is_empty(),
-        CoreBridgeError::InvalidInstructionArgument
-    );
-
-    let msg_length = {
-        let message = PostedMessageV1::load(&ctx.accounts.draft_message).unwrap();
-
-        require!(
-            message.status() == MessageStatus::Writing,
-            CoreBridgeError::NotInWritingStatus
-        );
-
-        message.payload_size()
-    };
-
-    let index = usize::try_from(index).unwrap();
-    require!(
-        index.saturating_add(data.len()) <= msg_length,
-        CoreBridgeError::DataOverflow
-    );
-
     let acc_data = &mut ctx.accounts.draft_message.data.borrow_mut();
     sol_memcpy(
-        &mut acc_data[(PostedMessageV1::PAYLOAD_START + index)..],
+        &mut acc_data[(PostedMessageV1::PAYLOAD_START + usize::try_from(index).unwrap())..],
         &data,
         data.len(),
     );

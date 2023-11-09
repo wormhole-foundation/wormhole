@@ -1,7 +1,7 @@
 use crate::{
     error::CoreBridgeError,
+    state::EncodedVaa,
     state::{Header, ProcessingStatus},
-    zero_copy::EncodedVaa,
 };
 use anchor_lang::prelude::*;
 
@@ -53,7 +53,7 @@ pub fn init_encoded_vaa(ctx: Context<InitEncodedVaa>) -> Result<()> {
     // Finally initialize the encoded VAA account by serializing the discriminator, header and
     // expected VAA length.
     (
-        EncodedVaa::DISC,
+        <EncodedVaa as anchor_lang::Discriminator>::DISCRIMINATOR,
         Header {
             status: ProcessingStatus::Writing,
             write_authority: ctx.accounts.write_authority.key(),

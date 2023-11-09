@@ -6,21 +6,19 @@ pub use wrapped::*;
 
 use crate::{error::TokenBridgeError, legacy::state::RegisteredEmitter, utils::fix_account_order};
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    legacy::utils::LegacyAnchorized,
-    sdk::{self as core_bridge_sdk, LoadZeroCopy},
-};
+use core_bridge_program::sdk as core_bridge;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 pub fn validate_token_transfer_with_payload_vaa(
     vaa_acc_info: &AccountInfo,
-    registered_emitter: &Account<LegacyAnchorized<RegisteredEmitter>>,
+    registered_emitter: &Account<core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
     redeemer_authority: &Signer,
-    dst_token: &AccountInfo,
+    dst_token: &Account<anchor_spl::token::TokenAccount>,
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg = crate::utils::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
+    let vaa = core_bridge::VaaAccount::load(vaa_acc_info)?;
+    let msg =
+        crate::utils::vaa::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = if let TokenBridgeMessage::TransferWithMessage(inner) = msg {
         inner
@@ -31,7 +29,7 @@ pub fn validate_token_transfer_with_payload_vaa(
     // This token bridge transfer must be intended to be redeemed on Solana.
     require_eq!(
         transfer.redeemer_chain(),
-        core_bridge_sdk::SOLANA_CHAIN,
+        core_bridge::SOLANA_CHAIN,
         TokenBridgeError::RedeemerChainNotSolana
     );
 
@@ -55,8 +53,7 @@ pub fn validate_token_transfer_with_payload_vaa(
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.
-        let token = crate::zero_copy::TokenAccount::load(dst_token)?;
-        require_keys_eq!(redeemer, token.owner(), ErrorCode::ConstraintTokenOwner);
+        require_keys_eq!(redeemer, dst_token.owner, ErrorCode::ConstraintTokenOwner);
     }
 
     // Done.

@@ -3,7 +3,7 @@ import { CoreBridgeProgram } from "../..";
 
 export type WriteEncodedVaaContext = {
   writeAuthority: PublicKey;
-  encodedVaa: PublicKey;
+  draftVaa: PublicKey;
 };
 
 export type WriteEncodedVaaArgs = {

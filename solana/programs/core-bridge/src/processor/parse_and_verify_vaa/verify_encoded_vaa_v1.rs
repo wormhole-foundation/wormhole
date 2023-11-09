@@ -1,8 +1,7 @@
 use crate::{
     error::CoreBridgeError,
     legacy::utils::AccountVariant,
-    state::{GuardianSet, Header, ProcessingStatus},
-    zero_copy::EncodedVaa,
+    state::{EncodedVaa, GuardianSet, ProcessingStatus},
 };
 use anchor_lang::prelude::*;
 use solana_program::{keccak, program_memory::sol_memcpy, secp256k1_recover::secp256k1_recover};
@@ -14,8 +13,12 @@ pub struct VerifyEncodedVaaV1<'info> {
 
     /// CHECK: The encoded VAA account, which stores the VAA buffer. This buffer must first be
     /// written to and then verified.
-    #[account(mut)]
-    encoded_vaa: AccountInfo<'info>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = EncodedVaa::require_draft_vaa(&draft_vaa, &write_authority)?
+    )]
+    draft_vaa: AccountInfo<'info>,
 
     /// Guardian set account, which should be the same one that was used to attest for the VAA. The
     /// signatures in the encoded VAA are verified against this guardian set.
@@ -38,14 +41,6 @@ impl<'info> VerifyEncodedVaaV1<'info> {
             CoreBridgeError::GuardianSetExpired
         );
 
-        // Check write authority.
-        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa)?;
-        require_keys_eq!(
-            ctx.accounts.write_authority.key(),
-            vaa.write_authority(),
-            CoreBridgeError::WriteAuthorityMismatch
-        );
-
         // Done.
         Ok(())
     }
@@ -53,23 +48,21 @@ impl<'info> VerifyEncodedVaaV1<'info> {
 
 #[access_control(VerifyEncodedVaaV1::constraints(&ctx))]
 pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
-    let guardian_set = &ctx.accounts.guardian_set.inner();
+    let mut header = EncodedVaa::try_deserialize_header(&ctx.accounts.draft_vaa)?;
 
-    let write_authority = {
-        let encoded_vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa).unwrap();
-        require!(
-            encoded_vaa.status() == ProcessingStatus::Writing,
-            CoreBridgeError::VaaAlreadyVerified
-        );
+    // Verify signatures in encoded VAA against the guardian pubkeys in the guardian set.
+    {
+        let mut acc_data: &[_] = &ctx.accounts.draft_vaa.data.borrow();
+        acc_data = &acc_data[EncodedVaa::VAA_START..];
 
         // Parse and verify.
-        let vaa =
-            Vaa::parse(encoded_vaa.buf()).map_err(|_| error!(CoreBridgeError::CannotParseVaa))?;
+        let vaa = Vaa::parse(acc_data).map_err(|_| error!(CoreBridgeError::CannotParseVaa))?;
 
         // Must be V1.
         require_eq!(vaa.version(), 1, CoreBridgeError::InvalidVaaVersion);
 
         // Make sure the encoded guardian set index agrees with the guardian set account's index.
+        let guardian_set = ctx.accounts.guardian_set.inner();
         require_eq!(
             vaa.guardian_set_index(),
             guardian_set.index,
@@ -108,19 +101,18 @@ pub fn verify_encoded_vaa_v1(ctx: Context<VerifyEncodedVaaV1>) -> Result<()> {
 
             last_guardian_index = Some(index);
         }
+    }
 
-        encoded_vaa.write_authority()
-    };
+    // Revise the header.
+    header.status = ProcessingStatus::Verified;
+    header.version = 1;
 
-    let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
+    // Finally serialize.
+    let acc_data: &mut [_] = &mut ctx.accounts.draft_vaa.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acc_data);
     (
-        EncodedVaa::DISC,
-        Header {
-            status: ProcessingStatus::Verified,
-            write_authority,
-            version: 1,
-        },
+        <EncodedVaa as anchor_lang::Discriminator>::DISCRIMINATOR,
+        header,
     )
         .serialize(&mut writer)
         .map_err(Into::into)

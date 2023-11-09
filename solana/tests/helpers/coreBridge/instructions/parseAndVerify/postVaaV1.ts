@@ -4,13 +4,13 @@ import { PostedVaaV1 } from "../../legacy/state";
 import { ethers } from "ethers";
 
 export type PostVaaV1Context = {
-  writeAuthority: PublicKey;
+  payer: PublicKey;
   encodedVaa: PublicKey;
   postedVaa?: PublicKey;
 };
 
 export async function postVaaV1Ix(program: CoreBridgeProgram, accounts: PostVaaV1Context) {
-  let { writeAuthority, encodedVaa, postedVaa } = accounts;
+  let { payer, encodedVaa, postedVaa } = accounts;
 
   if (postedVaa === undefined) {
     const vaaBuf = await program.account.encodedVaa
@@ -25,8 +25,5 @@ export async function postVaaV1Ix(program: CoreBridgeProgram, accounts: PostVaaV
     );
   }
 
-  return program.methods
-    .postVaaV1()
-    .accounts({ writeAuthority, encodedVaa, postedVaa })
-    .instruction();
+  return program.methods.postVaaV1().accounts({ payer, encodedVaa, postedVaa }).instruction();
 }

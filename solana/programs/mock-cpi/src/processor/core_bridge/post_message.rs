@@ -1,6 +1,6 @@
 use crate::{constants::MESSAGE_SEED_PREFIX, state::SignerSequence};
 use anchor_lang::prelude::*;
-use core_bridge_program::{constants::PROGRAM_EMITTER_SEED_PREFIX, sdk as core_bridge_sdk};
+use core_bridge_program::sdk as core_bridge;
 
 const LEGACY_EMITTER_SEED_PREFIX: &[u8] = b"my_legacy_emitter";
 
@@ -21,7 +21,7 @@ pub struct MockPostMessage<'info> {
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages as
     /// its program ID.
     #[account(
-        seeds = [PROGRAM_EMITTER_SEED_PREFIX],
+        seeds = [core_bridge::PROGRAM_EMITTER_SEED_PREFIX],
         bump,
     )]
     core_program_emitter: Option<AccountInfo<'info>>,
@@ -55,47 +55,10 @@ pub struct MockPostMessage<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: Option<UncheckedAccount<'info>>,
+    core_fee_collector: Option<AccountInfo<'info>>,
 
     system_program: Program<'info, System>,
-    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
-}
-
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info> for MockPostMessage<'info> {
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for MockPostMessage<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-
-    fn core_bridge_config(&self) -> AccountInfo<'info> {
-        self.core_bridge_config.to_account_info()
-    }
-
-    fn core_emitter_authority(&self) -> AccountInfo<'info> {
-        match &self.core_program_emitter {
-            Some(program_emitter) => program_emitter.to_account_info(),
-            None => self.core_custom_emitter.as_ref().unwrap().to_account_info(),
-        }
-    }
-
-    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
-        self.core_emitter_sequence.to_account_info()
-    }
-
-    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
-    }
+    core_bridge_program: Program<'info, core_bridge::CoreBridge>,
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
@@ -113,48 +76,68 @@ pub fn mock_post_message(ctx: Context<MockPostMessage>, args: MockPostMessageArg
         &ctx.accounts.core_program_emitter,
         &ctx.accounts.core_custom_emitter,
     ) {
-        (Some(_), _) => core_bridge_sdk::cpi::publish_message(
-            ctx.accounts,
-            &ctx.accounts.core_message,
-            core_bridge_sdk::cpi::PublishMessageDirective::ProgramMessage {
+        (Some(authority), _) => core_bridge::publish_message(
+            CpiContext::new_with_signer(
+                ctx.accounts.core_bridge_program.to_account_info(),
+                core_bridge::PublishMessage {
+                    payer: ctx.accounts.payer.to_account_info(),
+                    message: ctx.accounts.core_message.to_account_info(),
+                    emitter_authority: authority.to_account_info(),
+                    config: ctx.accounts.core_bridge_config.to_account_info(),
+                    emitter_sequence: ctx.accounts.core_emitter_sequence.to_account_info(),
+                    fee_collector: ctx.accounts.core_fee_collector.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+                &[
+                    &[
+                        core_bridge::PROGRAM_EMITTER_SEED_PREFIX,
+                        &[ctx.bumps["core_program_emitter"]],
+                    ],
+                    &[
+                        MESSAGE_SEED_PREFIX,
+                        ctx.accounts.payer.key().as_ref(),
+                        sequence.as_ref(),
+                        &[ctx.bumps["core_message"]],
+                    ],
+                ],
+            ),
+            core_bridge::PublishMessageDirective::ProgramMessage {
                 program_id: crate::ID,
                 nonce,
                 payload,
-                commitment: core_bridge_sdk::types::Commitment::Finalized,
+                commitment: core_bridge::Commitment::Finalized,
             },
-            Some(&[
-                &[
-                    PROGRAM_EMITTER_SEED_PREFIX,
-                    &[ctx.bumps["core_program_emitter"]],
-                ],
-                &[
-                    MESSAGE_SEED_PREFIX,
-                    ctx.accounts.payer.key().as_ref(),
-                    sequence.as_ref(),
-                    &[ctx.bumps["core_message"]],
-                ],
-            ]),
         ),
-        (None, Some(_)) => core_bridge_sdk::cpi::publish_message(
-            ctx.accounts,
-            &ctx.accounts.core_message,
-            core_bridge_sdk::cpi::PublishMessageDirective::Message {
+        (None, Some(authority)) => core_bridge::publish_message(
+            CpiContext::new_with_signer(
+                ctx.accounts.core_bridge_program.to_account_info(),
+                core_bridge::PublishMessage {
+                    payer: ctx.accounts.payer.to_account_info(),
+                    message: ctx.accounts.core_message.to_account_info(),
+                    emitter_authority: authority.to_account_info(),
+                    config: ctx.accounts.core_bridge_config.to_account_info(),
+                    emitter_sequence: ctx.accounts.core_emitter_sequence.to_account_info(),
+                    fee_collector: ctx.accounts.core_fee_collector.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+                &[
+                    &[
+                        LEGACY_EMITTER_SEED_PREFIX,
+                        &[ctx.bumps["core_custom_emitter"]],
+                    ],
+                    &[
+                        MESSAGE_SEED_PREFIX,
+                        ctx.accounts.payer.key().as_ref(),
+                        sequence.as_ref(),
+                        &[ctx.bumps["core_message"]],
+                    ],
+                ],
+            ),
+            core_bridge::PublishMessageDirective::Message {
                 nonce,
                 payload,
-                commitment: core_bridge_sdk::types::Commitment::Finalized,
+                commitment: core_bridge::Commitment::Finalized,
             },
-            Some(&[
-                &[
-                    LEGACY_EMITTER_SEED_PREFIX,
-                    &[ctx.bumps["core_custom_emitter"]],
-                ],
-                &[
-                    MESSAGE_SEED_PREFIX,
-                    ctx.accounts.payer.key().as_ref(),
-                    sequence.as_ref(),
-                    &[ctx.bumps["core_message"]],
-                ],
-            ]),
         ),
         (None, None) => err!(ErrorCode::AccountNotEnoughKeys),
     }

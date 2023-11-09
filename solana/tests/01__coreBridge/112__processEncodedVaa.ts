@@ -53,14 +53,14 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     const chunkSize = 912; // Max that can fit in a transaction.
 
     it("Cannot Invoke `write_encoded_vaa` with Different Write Authority", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+      const draftVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const someoneElse = anchor.web3.Keypair.generate();
       const ix = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: someoneElse.publicKey,
-          encodedVaa,
+          draftVaa,
         },
         { index: 0, data: Buffer.from("Nope.") }
       );
@@ -79,27 +79,27 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Expired Guardian Set", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+      const draftVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const expiredGuardianSetIndex = 0;
       expect(GUARDIAN_SET_INDEX).is.greaterThan(expiredGuardianSetIndex);
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, expiredGuardianSetIndex),
       });
       await expectIxErr(connection, [ix], [payer], "GuardianSetExpired");
     });
 
     it("Cannot Invoke `write_encoded_vaa` with Nonsensical Index", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+      const draftVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const ix = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: payer.publicKey,
-          encodedVaa,
+          draftVaa,
         },
         { index: vaaSize, data: Buffer.from("Nope.") }
       );
@@ -108,13 +108,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
     it("Cannot Invoke `write_encoded_vaa` with Too Much Data", async () => {
       const smallVaaSize = 69;
-      const encodedVaa = await initEncodedVaa(program, payer, smallVaaSize);
+      const draftVaa = await initEncodedVaa(program, payer, smallVaaSize);
 
       const ix = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: payer.publicKey,
-          encodedVaa,
+          draftVaa,
         },
         { index: 0, data: Buffer.alloc(smallVaaSize + 1, "Nope.") }
       );
@@ -122,13 +122,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     });
 
     it("Cannot Invoke `write_encoded_vaa` with No Data", async () => {
-      const encodedVaa = await initEncodedVaa(program, payer, vaaSize);
+      const draftVaa = await initEncodedVaa(program, payer, vaaSize);
 
       const ix = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: payer.publicKey,
-          encodedVaa,
+          draftVaa,
         },
         { index: 0, data: Buffer.alloc(0) }
       );
@@ -136,12 +136,12 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Invalid VAA Version", async () => {
-      let signedVaa = defaultVaa();
+      const signedVaa = defaultVaa();
 
       // Spoof the VAA version number.
       signedVaa.writeUInt8(0x69, 0);
 
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -154,19 +154,19 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "InvalidVaaVersion");
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Non-Increasing Guardian Index", async () => {
-      let signedVaa = defaultVaa();
+      const signedVaa = defaultVaa();
 
       // Change the second guardian index to the same value as the first.
       signedVaa.writeUInt8(0x0, 72);
 
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -179,20 +179,20 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "InvalidGuardianIndex");
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Non-Existent Guardian Index", async () => {
-      let signedVaa = defaultVaa();
+      const signedVaa = defaultVaa();
 
       // Change the first guardian index to a value that doesn't exist in the
       // guardian set.
       signedVaa.writeUInt8(0x69, 6);
 
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -205,20 +205,20 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "InvalidGuardianIndex");
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Invalid Guardian Key Recovery", async () => {
-      let signedVaa = defaultVaa();
+      const signedVaa = defaultVaa();
 
       // Change the recovery key of the first signature to zero, this will cause the key
       // recovery to fail.
       signedVaa.writeUInt8(0x0, 71);
 
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -231,20 +231,20 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "InvalidGuardianKeyRecovery");
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` with Invalid Signature", async () => {
-      let signedVaa = defaultVaa();
+      const signedVaa = defaultVaa();
 
       // Change the recovery key of the first signature to an invalid value,
       // this will cause the signature verification to fail.
       signedVaa.writeUInt8(0x69, 71);
 
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -257,7 +257,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "InvalidSignature");
@@ -298,13 +298,13 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       const end = Math.min(start + chunkSize, vaaSize);
 
       it(`Invoke \`write_encoded_vaa\` to Write Part of VAA (Range: ${start}..${end})`, async () => {
-        const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
+        const draftVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
 
         const ix = await coreBridge.writeEncodedVaaIx(
           program,
           {
             writeAuthority: payer.publicKey,
-            encodedVaa,
+            draftVaa,
           },
           { index: start, data: signedVaa.subarray(start, end) }
         );
@@ -313,7 +313,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
         const expectedBuf = Buffer.alloc(vaaSize);
         expectedBuf.set(signedVaa.subarray(0, end));
 
-        const encodedVaaData = await coreBridge.EncodedVaa.fetch(program, encodedVaa);
+        const encodedVaaData = await coreBridge.EncodedVaa.fetch(program, draftVaa);
         expectDeepEqual(encodedVaaData, {
           status: coreBridge.ProcessingStatus.Writing,
           writeAuthority: payer.publicKey,
@@ -324,28 +324,28 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
     }
 
     it("Invoke `verify_encoded_vaa_v1` to Verify Signatures", async () => {
-      const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
+      const draftVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
 
       // This directive requires more than the usual 200k.
       const computeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 360_000 });
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
       await expectIxOk(connection, [computeIx, ix], [payer]);
     });
 
     it("Cannot Invoke `verify_encoded_vaa_v1` to Verify Signatures Again", async () => {
-      const encodedVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
+      const draftVaa = localVariables.get("encodedVaa") as anchor.web3.PublicKey;
 
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
-      await expectIxErr(connection, [ix], [payer], "VaaAlreadyVerified");
+      await expectIxErr(connection, [ix], [payer], "NotInWritingStatus");
     });
 
     it("Invoke `close_encoded_vaa` to Close Encoded VAA After Verifying Signatures", async () => {
@@ -367,21 +367,21 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       expect(guardianIndices).has.length.lessThan((2 * guardians.signers.length) / 3);
 
       const badVaa = defaultVaa({ payload: Buffer.from("Unverified."), guardianIndices });
-      const encodedVaa = await initEncodedVaa(program, payer, badVaa.length);
+      const draftVaa = await initEncodedVaa(program, payer, badVaa.length);
 
       const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
       const writeIx = await coreBridge.writeEncodedVaaIx(
         program,
         {
           writeAuthority: payer.publicKey,
-          encodedVaa,
+          draftVaa,
         },
         { index: 0, data: badVaa }
       );
 
       const verifyIx = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, GUARDIAN_SET_INDEX),
       });
 
@@ -390,7 +390,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
 
     it("Cannot Invoke `verify_encoded_vaa_v1` to Verify Signatures with Mismatching Guardian Set", async () => {
       // Sign a VAA with the current guardian set.
-      const encodedVaa = await processVaa(
+      const draftVaa = await processVaa(
         program,
         payer,
         signedVaa,
@@ -419,7 +419,7 @@ describe("Core Bridge -- Instruction: Process Encoded Vaa", () => {
       // Create the instruction using the newest guardian set.
       const ix = await coreBridge.verifyEncodedVaaV1Ix(program, {
         writeAuthority: payer.publicKey,
-        encodedVaa,
+        draftVaa,
         guardianSet: coreBridge.GuardianSet.address(program.programId, newGuardianSet),
       });
       await expectIxErr(connection, [computeIx, ix], [payer], "GuardianSetMismatch");

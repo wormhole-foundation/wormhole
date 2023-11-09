@@ -1,12 +1,13 @@
 use crate::{
-    constants::{TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
+    constants::{EMITTER_SEED_PREFIX, TRANSFER_AUTHORITY_SEED_PREFIX, WRAPPED_MINT_SEED_PREFIX},
     error::TokenBridgeError,
     legacy::instruction::TransferTokensArgs,
     state::LegacyWrappedAsset,
     utils,
 };
 use anchor_lang::prelude::*;
-use core_bridge_program::{legacy::utils::LegacyAnchorized, sdk as core_bridge_sdk};
+use anchor_spl::token;
+use core_bridge_program::sdk as core_bridge;
 use ruint::aliases::U256;
 
 #[derive(Accounts)]
@@ -46,7 +47,7 @@ pub struct TransferTokensWrapped<'info> {
         seeds = [LegacyWrappedAsset::SEED_PREFIX, wrapped_mint.key().as_ref()],
         bump,
     )]
-    wrapped_asset: Account<'info, LegacyAnchorized<LegacyWrappedAsset>>,
+    wrapped_asset: Account<'info, core_bridge::legacy::LegacyAnchorized<LegacyWrappedAsset>>,
 
     /// CHECK: This authority is whom the source token account owner delegates spending approval for
     /// transferring native assets or burning wrapped assets.
@@ -64,7 +65,11 @@ pub struct TransferTokensWrapped<'info> {
     core_message: Signer<'info>,
 
     /// CHECK: We need this emitter to invoke the Core Bridge program to send Wormhole messages.
-    /// This PDA address is checked in `post_token_bridge_message`.
+    /// This PDA address is checked in `publish_token_bridge_message`.
+    #[account(
+        seeds = [EMITTER_SEED_PREFIX],
+        bump
+    )]
     core_emitter: AccountInfo<'info>,
 
     /// CHECK: This account is needed for the Core Bridge program.
@@ -73,7 +78,7 @@ pub struct TransferTokensWrapped<'info> {
 
     /// CHECK: This account is needed for the Core Bridge program.
     #[account(mut)]
-    core_fee_collector: Option<UncheckedAccount<'info>>,
+    core_fee_collector: Option<AccountInfo<'info>>,
 
     /// CHECK: Previously needed sysvar.
     _clock: UncheckedAccount<'info>,
@@ -82,65 +87,11 @@ pub struct TransferTokensWrapped<'info> {
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
-    token_program: Program<'info, anchor_spl::token::Token>,
-    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
+    token_program: Program<'info, token::Token>,
+    core_bridge_program: Program<'info, core_bridge::CoreBridge>,
 }
 
-impl<'info> utils::cpi::Burn<'info> for TransferTokensWrapped<'info> {
-    fn token_program(&self) -> AccountInfo<'info> {
-        self.token_program.to_account_info()
-    }
-
-    fn mint(&self) -> AccountInfo<'info> {
-        self.wrapped_mint.to_account_info()
-    }
-
-    fn from(&self) -> Option<AccountInfo<'info>> {
-        Some(self.src_token.to_account_info())
-    }
-
-    fn authority(&self) -> Option<AccountInfo<'info>> {
-        Some(self.transfer_authority.to_account_info())
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::system_program::CreateAccount<'info>
-    for TransferTokensWrapped<'info>
-{
-    fn payer(&self) -> AccountInfo<'info> {
-        self.payer.to_account_info()
-    }
-
-    fn system_program(&self) -> AccountInfo<'info> {
-        self.system_program.to_account_info()
-    }
-}
-
-impl<'info> core_bridge_sdk::cpi::PublishMessage<'info> for TransferTokensWrapped<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-
-    fn core_bridge_config(&self) -> AccountInfo<'info> {
-        self.core_bridge_config.to_account_info()
-    }
-
-    fn core_emitter_authority(&self) -> AccountInfo<'info> {
-        self.core_emitter.to_account_info()
-    }
-
-    fn core_emitter_sequence(&self) -> AccountInfo<'info> {
-        self.core_emitter_sequence.to_account_info()
-    }
-
-    fn core_fee_collector(&self) -> Option<AccountInfo<'info>> {
-        self.core_fee_collector
-            .as_ref()
-            .map(|acc| acc.to_account_info())
-    }
-}
-
-impl<'info> core_bridge_program::legacy::utils::ProcessLegacyInstruction<'info, TransferTokensArgs>
+impl<'info> core_bridge::legacy::ProcessLegacyInstruction<'info, TransferTokensArgs>
     for TransferTokensWrapped<'info>
 {
     const LOG_IX_NAME: &'static str = "LegacyTransferTokensWrapped";
@@ -182,13 +133,20 @@ fn transfer_tokens_wrapped(
     } = args;
 
     // Burn wrapped assets from the sender's account.
-    utils::cpi::burn(
-        ctx.accounts,
+    token::burn(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::Burn {
+                mint: ctx.accounts.wrapped_mint.to_account_info(),
+                from: ctx.accounts.src_token.to_account_info(),
+                authority: ctx.accounts.transfer_authority.to_account_info(),
+            },
+            &[&[
+                TRANSFER_AUTHORITY_SEED_PREFIX,
+                &[ctx.bumps["transfer_authority"]],
+            ]],
+        ),
         amount,
-        Some(&[&[
-            TRANSFER_AUTHORITY_SEED_PREFIX,
-            &[ctx.bumps["transfer_authority"]],
-        ]]),
     )?;
 
     // Prepare Wormhole message. Amounts do not need to be normalized because we are working with
@@ -204,9 +162,20 @@ fn transfer_tokens_wrapped(
     };
 
     // Finally publish Wormhole message using the Core Bridge.
-    utils::cpi::post_token_bridge_message(
-        ctx.accounts,
-        &ctx.accounts.core_message,
+    utils::cpi::publish_token_bridge_message(
+        CpiContext::new_with_signer(
+            ctx.accounts.core_bridge_program.to_account_info(),
+            core_bridge::PublishMessage {
+                payer: ctx.accounts.payer.to_account_info(),
+                message: ctx.accounts.core_message.to_account_info(),
+                emitter_authority: ctx.accounts.core_emitter.to_account_info(),
+                config: ctx.accounts.core_bridge_config.to_account_info(),
+                emitter_sequence: ctx.accounts.core_emitter_sequence.to_account_info(),
+                fee_collector: ctx.accounts.core_fee_collector.clone(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+            },
+            &[&[EMITTER_SEED_PREFIX, &[ctx.bumps["core_emitter"]]]],
+        ),
         nonce,
         token_transfer,
     )

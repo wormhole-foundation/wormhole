@@ -1,4 +1,4 @@
-use crate::{error::CoreBridgeError, state::ProcessingStatus, zero_copy::EncodedVaa};
+use crate::{error::CoreBridgeError, state::EncodedVaa};
 use anchor_lang::prelude::*;
 use solana_program::program_memory::sol_memcpy;
 
@@ -9,18 +9,28 @@ pub struct WriteEncodedVaa<'info> {
 
     /// CHECK: The encoded VAA account, which stores the VAA buffer. This buffer must first be
     /// written to and then verified.
-    #[account(mut)]
-    encoded_vaa: AccountInfo<'info>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = EncodedVaa::require_draft_vaa(&draft_vaa, &write_authority)?
+    )]
+    draft_vaa: AccountInfo<'info>,
 }
 
 impl<'info> WriteEncodedVaa<'info> {
-    fn constraints(ctx: &Context<Self>) -> Result<()> {
-        // Check write authority.
-        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa)?;
-        require_keys_eq!(
-            ctx.accounts.write_authority.key(),
-            vaa.write_authority(),
-            CoreBridgeError::WriteAuthorityMismatch
+    fn constraints(ctx: &Context<Self>, args: &WriteEncodedVaaArgs) -> Result<()> {
+        require!(
+            !args.data.is_empty(),
+            CoreBridgeError::InvalidInstructionArgument
+        );
+
+        let msg_length = EncodedVaa::payload_size_unsafe(&ctx.accounts.draft_vaa.data.borrow());
+
+        require!(
+            args.index
+                .saturating_add(args.data.len().try_into().unwrap())
+                <= msg_length,
+            CoreBridgeError::DataOverflow
         );
 
         // Done.
@@ -38,34 +48,13 @@ pub struct WriteEncodedVaaArgs {
     pub data: Vec<u8>,
 }
 
-#[access_control(WriteEncodedVaa::constraints(&ctx))]
+#[access_control(WriteEncodedVaa::constraints(&ctx, &args))]
 pub fn write_encoded_vaa(ctx: Context<WriteEncodedVaa>, args: WriteEncodedVaaArgs) -> Result<()> {
     let WriteEncodedVaaArgs { index, data } = args;
 
-    require!(
-        !data.is_empty(),
-        CoreBridgeError::InvalidInstructionArgument
-    );
-
-    let vaa_size: usize = {
-        let vaa = EncodedVaa::parse_unverified(&ctx.accounts.encoded_vaa).unwrap();
-        require!(
-            vaa.status() == ProcessingStatus::Writing,
-            CoreBridgeError::NotInWritingStatus
-        );
-
-        vaa.vaa_size()
-    };
-
-    let index = usize::try_from(index).unwrap();
-    require!(
-        index.saturating_add(data.len()) <= vaa_size,
-        CoreBridgeError::DataOverflow
-    );
-
-    let acc_data: &mut [_] = &mut ctx.accounts.encoded_vaa.data.borrow_mut();
+    let acc_data: &mut [_] = &mut ctx.accounts.draft_vaa.data.borrow_mut();
     sol_memcpy(
-        &mut acc_data[(EncodedVaa::VAA_START + index)..],
+        &mut acc_data[(EncodedVaa::VAA_START + usize::try_from(index).unwrap())..],
         &data,
         data.len(),
     );

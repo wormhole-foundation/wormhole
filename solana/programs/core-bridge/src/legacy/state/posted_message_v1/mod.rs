@@ -3,14 +3,17 @@ pub use unreliable::*;
 
 use std::ops::{Deref, DerefMut};
 
-use crate::types::{ChainIdSolanaOnly, Timestamp};
+use crate::{
+    error::CoreBridgeError,
+    legacy::utils::LegacyAccount,
+    types::{ChainIdSolanaOnly, Timestamp},
+};
 use anchor_lang::prelude::*;
-
-pub const POSTED_MESSAGE_V1_DISCRIMINATOR: [u8; 4] = *b"msg\x00";
 
 /// Status of a message. When a message is posted, its status is
 /// [Published](MessageStatus::Published).
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+#[repr(u8)]
 pub enum MessageStatus {
     /// When a message is posted, this status is set. When the guardians observe this message
     /// account, it makes sure that this status is set before attesting to its observation.
@@ -114,13 +117,67 @@ pub struct PostedMessageV1 {
 }
 
 impl PostedMessageV1 {
-    pub const BYTES_START: usize = 4 // DISCRIMINATOR
+    pub const PAYLOAD_START: usize = 4 // DISCRIMINATOR
         + PostedMessageV1Info::INIT_SPACE
         + 4 // payload.len()
         ;
 
     pub(crate) fn compute_size(payload_len: usize) -> usize {
         PostedMessageV1Data::compute_size(payload_len)
+    }
+
+    pub(crate) fn require_draft_message(
+        acc_info: &AccountInfo,
+        emitter_authority: &Signer,
+    ) -> Result<bool> {
+        let data = acc_info.try_borrow_data()?;
+        require!(
+            data.len() > 4 && data[..4] == *Self::DISCRIMINATOR,
+            ErrorCode::AccountDidNotDeserialize
+        );
+
+        require_keys_eq!(
+            Self::emitter_authority_unsafe(&data),
+            emitter_authority.key(),
+            CoreBridgeError::EmitterAuthorityMismatch
+        );
+
+        require!(
+            Self::status_unsafe(&data) == MessageStatus::Writing,
+            CoreBridgeError::NotInWritingStatus
+        );
+
+        Ok(true)
+    }
+
+    pub(crate) fn emitter_authority_unsafe(data: &[u8]) -> Pubkey {
+        TryFrom::try_from(&data[5..37]).unwrap()
+    }
+
+    pub(crate) fn status_unsafe(data: &[u8]) -> MessageStatus {
+        AnchorDeserialize::deserialize(&mut &data[37..38]).unwrap()
+    }
+
+    pub(crate) fn payload_size_unsafe(data: &[u8]) -> u32 {
+        u32::from_le_bytes(
+            data[(Self::PAYLOAD_START - 4)..Self::PAYLOAD_START]
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    pub(crate) fn emitter_unsafe(data: &[u8]) -> Pubkey {
+        TryFrom::try_from(&data[59..91]).unwrap()
+    }
+
+    pub(crate) fn try_deserialize_info(acc_info: &AccountInfo) -> Result<PostedMessageV1Info> {
+        let data = acc_info.try_borrow_data()?;
+        require!(
+            data.len() > 4 && data[..4] == *Self::DISCRIMINATOR,
+            ErrorCode::AccountDidNotDeserialize
+        );
+
+        AnchorDeserialize::deserialize(&mut &data[4..]).map_err(Into::into)
     }
 }
 
@@ -130,8 +187,8 @@ impl From<PostedMessageV1Data> for PostedMessageV1 {
     }
 }
 
-impl crate::legacy::utils::LegacyAccount for PostedMessageV1 {
-    const DISCRIMINATOR: &'static [u8] = &POSTED_MESSAGE_V1_DISCRIMINATOR;
+impl LegacyAccount for PostedMessageV1 {
+    const DISCRIMINATOR: &'static [u8] = b"msg\x00";
 
     fn program_id() -> Pubkey {
         crate::ID

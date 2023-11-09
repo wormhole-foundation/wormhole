@@ -6,21 +6,19 @@ pub use wrapped::*;
 
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, utils::fix_account_order};
 use anchor_lang::prelude::*;
-use core_bridge_program::{
-    legacy::utils::LegacyAnchorized,
-    sdk::{self as core_bridge_sdk, LoadZeroCopy},
-};
+use core_bridge_program::sdk as core_bridge;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 pub fn validate_token_transfer_vaa(
     vaa_acc_info: &AccountInfo,
-    registered_emitter: &Account<LegacyAnchorized<RegisteredEmitter>>,
-    recipient_token: &AccountInfo,
+    registered_emitter: &Account<core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
+    recipient_token: &Account<anchor_spl::token::TokenAccount>,
     recipient: &Option<AccountInfo>,
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
-    let vaa = core_bridge_sdk::VaaAccount::load(vaa_acc_info)?;
-    let msg = crate::utils::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
+    let vaa = core_bridge::VaaAccount::load(vaa_acc_info)?;
+    let msg =
+        crate::utils::vaa::require_valid_token_bridge_vaa(&vaa_key, &vaa, registered_emitter)?;
 
     let transfer = if let TokenBridgeMessage::Transfer(inner) = msg {
         inner
@@ -31,7 +29,7 @@ pub fn validate_token_transfer_vaa(
     // This token bridge transfer must be intended to be redeemed on Solana.
     require_eq!(
         transfer.recipient_chain(),
-        core_bridge_sdk::SOLANA_CHAIN,
+        core_bridge::SOLANA_CHAIN,
         TokenBridgeError::RecipientChainNotSolana
     );
 
@@ -67,12 +65,11 @@ pub fn validate_token_transfer_vaa(
         );
 
         // Finally verify that the token account is an ATA belonging to the expected recipient.
-        let token_account = crate::zero_copy::TokenAccount::load(recipient_token)?;
         require_keys_eq!(
             recipient_token.key(),
             anchor_spl::associated_token::get_associated_token_address(
                 &expected_recipient,
-                &token_account.mint()
+                &recipient_token.mint
             ),
             TokenBridgeError::InvalidAssociatedTokenAccount
         );

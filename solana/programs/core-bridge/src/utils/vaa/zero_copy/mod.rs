@@ -4,12 +4,9 @@ pub use encoded_vaa::*;
 mod posted_vaa_v1;
 pub use posted_vaa_v1::*;
 
-use anchor_lang::prelude::{err, error, require, require_keys_eq, AccountInfo, ErrorCode, Result};
-use wormhole_raw_vaas::Payload;
-
 use crate::state::VaaVersion;
-
-use super::LoadZeroCopy;
+use anchor_lang::prelude::*;
+use wormhole_raw_vaas::Payload;
 
 #[non_exhaustive]
 pub enum VaaAccount<'a> {
@@ -18,6 +15,7 @@ pub enum VaaAccount<'a> {
 }
 
 impl<'a> VaaAccount<'a> {
+    #[allow(dead_code)]
     pub fn version(&'a self) -> u8 {
         match self {
             Self::EncodedVaa(inner) => inner.version(),
@@ -51,6 +49,7 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn encoded_vaa(&'a self) -> Option<&'a EncodedVaa<'a>> {
         match self {
             Self::EncodedVaa(inner) => Some(inner),
@@ -58,27 +57,20 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn posted_vaa_v1(&'a self) -> Option<&'a PostedVaaV1<'a>> {
         match self {
             Self::PostedVaaV1(inner) => Some(inner),
             _ => None,
         }
     }
-}
 
-impl<'a> LoadZeroCopy<'a> for VaaAccount<'a> {
-    fn load(acc_info: &'a AccountInfo) -> Result<Self> {
-        require_keys_eq!(*acc_info.owner, crate::ID, ErrorCode::ConstraintOwner);
+    pub fn load(acc_info: &'a AccountInfo) -> Result<Self> {
+        let data = acc_info.try_borrow_data()?;
+        require!(data.len() > 8, ErrorCode::AccountDidNotDeserialize);
 
-        let discriminator = {
-            let data = acc_info.try_borrow_data()?;
-            require!(data.len() > 8, ErrorCode::AccountDidNotDeserialize);
-
-            data[..8].try_into().unwrap()
-        };
-
-        match discriminator {
-            EncodedVaa::DISC => Ok(Self::EncodedVaa(EncodedVaa::new(acc_info)?)),
+        match <[u8; 8]>::try_from(&data[..8]).unwrap() {
+            ENCODED_VAA_DISCRIMINATOR => Ok(Self::EncodedVaa(EncodedVaa::new(acc_info)?)),
             [118, 97, 97, 1, _, _, _, _] => Ok(Self::PostedVaaV1(PostedVaaV1::new(acc_info)?)),
             _ => err!(ErrorCode::AccountDidNotDeserialize),
         }

@@ -1,6 +1,6 @@
 use crate::state::SignerSequence;
 use anchor_lang::prelude::*;
-use core_bridge_program::sdk as core_bridge_sdk;
+use core_bridge_program::sdk as core_bridge;
 
 const EMITTER_AUTHORITY_SEED_PREFIX: &[u8] = b"emitter";
 
@@ -23,7 +23,7 @@ pub struct MockPrepareMessageV1<'info> {
     #[account(
         init,
         payer = payer,
-        space = core_bridge_sdk::compute_prepared_message_space(data_len.try_into().unwrap()),
+        space = core_bridge::compute_prepared_message_space(data_len.try_into().unwrap()),
         seeds = [
             b"my_draft_message",
             payer.key().as_ref(),
@@ -41,22 +41,8 @@ pub struct MockPrepareMessageV1<'info> {
     )]
     emitter_authority: AccountInfo<'info>,
 
-    core_bridge_program: Program<'info, core_bridge_sdk::cpi::CoreBridge>,
+    core_bridge_program: Program<'info, core_bridge::CoreBridge>,
     system_program: Program<'info, System>,
-}
-
-impl<'info> core_bridge_sdk::cpi::PrepareMessage<'info> for MockPrepareMessageV1<'info> {
-    fn core_bridge_program(&self) -> AccountInfo<'info> {
-        self.core_bridge_program.to_account_info()
-    }
-
-    fn core_emitter_authority(&self) -> AccountInfo<'info> {
-        self.emitter_authority.to_account_info()
-    }
-
-    fn core_message(&self) -> AccountInfo<'info> {
-        self.message.to_account_info()
-    }
 }
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
@@ -71,17 +57,23 @@ pub fn mock_prepare_message_v1(
 ) -> Result<()> {
     let MockPrepareMessageV1Args { nonce, data } = args;
 
-    core_bridge_sdk::cpi::prepare_message(
-        ctx.accounts,
-        core_bridge_sdk::cpi::InitMessageV1Args {
+    core_bridge::prepare_message(
+        CpiContext::new_with_signer(
+            ctx.accounts.core_bridge_program.to_account_info(),
+            core_bridge::PrepareMessage {
+                emitter_authority: ctx.accounts.emitter_authority.to_account_info(),
+                message: ctx.accounts.message.to_account_info(),
+            },
+            &[&[
+                EMITTER_AUTHORITY_SEED_PREFIX,
+                &[ctx.bumps["emitter_authority"]],
+            ]],
+        ),
+        core_bridge::InitMessageV1Args {
             nonce,
             cpi_program_id: Some(crate::ID),
-            commitment: core_bridge_sdk::types::Commitment::Finalized,
+            commitment: core_bridge::Commitment::Finalized,
         },
         data,
-        Some(&[&[
-            EMITTER_AUTHORITY_SEED_PREFIX,
-            &[ctx.bumps["emitter_authority"]],
-        ]]),
     )
 }

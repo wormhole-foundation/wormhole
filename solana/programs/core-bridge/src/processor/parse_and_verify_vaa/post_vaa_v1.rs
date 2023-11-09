@@ -1,26 +1,50 @@
 use crate::{
     error::CoreBridgeError,
     legacy::utils::LegacyAnchorized,
-    state::{PostedVaaV1, PostedVaaV1Info},
-    zero_copy::{self, LoadZeroCopy},
+    state::{EncodedVaa, PostedVaaV1, PostedVaaV1Info, ProcessingStatus},
 };
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct PostVaaV1<'info> {
+    /// Payer to create the posted VAA account. This instruction allows anyone with an encoded VAA
+    /// to create a posted VAA account.
     #[account(mut)]
-    write_authority: Signer<'info>,
+    payer: Signer<'info>,
 
-    /// CHECK: Encoded VAA, whose body will be serialized into the posted VAA account.
-    encoded_vaa: AccountInfo<'info>,
+    /// Encoded VAA, whose body will be serialized into the posted VAA account.
+    ///
+    /// NOTE: This instruction handler only exists to support integrators that still rely on posted
+    /// VAA accounts. While we encourage integrators to use the encoded VAA account instead, we
+    /// allow a pathway to convert the encoded VAA into a posted VAA. However, the payload is
+    /// restricted to 9.5KB, which is much larger than what was possible with the old implementation
+    /// using the legacy post vaa instruction. The Core Bridge program will not support posting VAAs
+    /// larger than this payload size.
+    #[account(
+        constraint = encoded_vaa.status == ProcessingStatus::Verified @ CoreBridgeError::UnverifiedVaa
+    )]
+    encoded_vaa: Account<'info, EncodedVaa>,
 
     #[account(
         init,
-        payer = write_authority,
-        space = try_compute_size(&encoded_vaa)?,
+        payer = payer,
+        space = PostedVaaV1::compute_size(
+            encoded_vaa
+                .as_vaa()?
+                .to_v1()?
+                .body()
+                .payload()
+                .as_ref()
+                .len()
+        ),
         seeds = [
             PostedVaaV1::SEED_PREFIX,
-            try_message_hash(&encoded_vaa)?.as_ref(),
+            solana_program::keccak::hash(
+                encoded_vaa
+                    .as_vaa()?
+                    .to_v1()?
+                    .body().as_ref()
+            ).as_ref()
         ],
         bump,
     )]
@@ -29,12 +53,28 @@ pub struct PostVaaV1<'info> {
     system_program: Program<'info, System>,
 }
 
+impl<'info> PostVaaV1<'info> {
+    fn constraints(ctx: &Context<Self>) -> Result<()> {
+        // CPI to create the posted VAA account will fail if the size of the VAA payload is too large.
+        require!(
+            ctx.accounts.encoded_vaa.buf.len() <= 9_728,
+            CoreBridgeError::PostedVaaPayloadTooLarge
+        );
+
+        let encoded_vaa = ctx.accounts.encoded_vaa.as_vaa()?;
+        encoded_vaa
+            .v1()
+            .ok_or(error!(CoreBridgeError::InvalidVaaVersion))?;
+
+        // Done.
+        Ok(())
+    }
+}
+
+#[access_control(PostVaaV1::constraints(&ctx))]
 pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
     // This is safe because we checked that the VAA version in the encoded VAA account is V1.
-    let encoded_vaa = zero_copy::EncodedVaa::load(&ctx.accounts.encoded_vaa).unwrap();
-    let vaa = encoded_vaa.as_vaa().unwrap();
-    let v1 = vaa.v1().unwrap();
-
+    let v1 = ctx.accounts.encoded_vaa.as_vaa().unwrap().to_v1().unwrap();
     let body = v1.body();
 
     ctx.accounts.posted_vaa.set_inner(
@@ -56,37 +96,4 @@ pub fn post_vaa_v1(ctx: Context<PostVaaV1>) -> Result<()> {
 
     // Done.
     Ok(())
-}
-
-fn try_compute_size(vaa: &AccountInfo) -> Result<usize> {
-    let encoded_vaa = zero_copy::EncodedVaa::load(vaa)?;
-    let payload_size = encoded_vaa
-        .as_vaa()?
-        .v1()
-        .ok_or(error!(CoreBridgeError::InvalidVaaVersion))?
-        .body()
-        .payload()
-        .as_ref()
-        .len();
-
-    let acc_size = PostedVaaV1::compute_size(payload_size);
-
-    // CPI to create the posted VAA account will fail if the size of the VAA payload is too large.
-    require!(
-        acc_size <= 10_240,
-        CoreBridgeError::PostedVaaPayloadTooLarge
-    );
-
-    Ok(acc_size)
-}
-
-fn try_message_hash(vaa: &AccountInfo) -> Result<solana_program::keccak::Hash> {
-    let encoded_vaa = zero_copy::EncodedVaa::load(vaa)?;
-    let vaa = encoded_vaa.as_vaa()?;
-    let body = vaa
-        .v1()
-        .ok_or(error!(CoreBridgeError::InvalidVaaVersion))?
-        .body();
-
-    Ok(solana_program::keccak::hash(body.as_ref()))
 }

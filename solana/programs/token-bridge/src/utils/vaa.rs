@@ -1,6 +1,6 @@
 use crate::{error::TokenBridgeError, state::RegisteredEmitter, ID};
 use anchor_lang::prelude::*;
-use core_bridge_program::{legacy::utils::LegacyAnchorized, sdk as core_bridge_sdk};
+use core_bridge_program::sdk as core_bridge;
 use wormhole_raw_vaas::token_bridge::TokenBridgeMessage;
 
 // Static list of invalid VAA Message accounts.
@@ -32,8 +32,8 @@ pub fn require_valid_vaa_key(acc_key: &Pubkey) -> Result<()> {
 /// - Transfer with Message (Payload ID == 3)
 pub fn require_valid_token_bridge_vaa<'ctx>(
     vaa_acc_key: &'ctx Pubkey,
-    vaa: &'ctx core_bridge_sdk::VaaAccount<'ctx>,
-    registered_emitter: &'ctx Account<'_, LegacyAnchorized<RegisteredEmitter>>,
+    vaa: &'ctx core_bridge::VaaAccount<'ctx>,
+    registered_emitter: &'ctx Account<'_, core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
 ) -> Result<TokenBridgeMessage<'ctx>> {
     require_valid_vaa_key(vaa_acc_key)?;
 
