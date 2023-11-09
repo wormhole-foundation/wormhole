@@ -1,5 +1,11 @@
 #!/usr/bin/env fish
 
+# TODO:
+# This script is very similar to verifyDeliveryProxy.sh, but it only verifies the implementation contract
+# instead of all the contracts (implementation, setup and proxy). When performing an upgrade you'll only
+# need to verify the new implementation since the setup and proxy were already verified during the deployment
+# We should refactor this script to avoid code duplication.
+
 # To link Proxy and Implementation, go to the proxyContractChecker of the chain's etherscan
 
 # Equivalent to `set -x` in bash, this prints out commands with variables substituted before executing them
@@ -17,8 +23,7 @@ end
 set scan_tokens_file $_flag_scan_tokens
 
 set chains_file "ts-scripts/relayer/config/$ENV/chains.json"
-# TODO: add setup and implementation addresses to `contracts.json` to allow using it instead of lastrun.json
-set last_run_file "ts-scripts/relayer/output/$ENV/deployDeliveryProvider/lastrun.json"
+set last_run_file "ts-scripts/relayer/output/$ENV/upgradeDeliveryProvider/lastrun.json"
 if not test -e $last_run_file
     echo "$last_run_file does not exist. Delivery provider addresses are read from this file."
     exit 1
@@ -34,8 +39,6 @@ for chain in $chain_ids
 
     # We need addresses to be unquoted when passed to `cast` and `forge verify-contract`
     set implementation_address (jq --raw-output ".deliveryProviderImplementations[] | select(.chainId == $chain) | .address" $last_run_file)
-    set setup_address (jq --raw-output ".deliveryProviderSetups[] | select(.chainId == $chain) | .address" $last_run_file)
-    set proxy_address (jq --raw-output ".deliveryProviderProxies[] | select(.chainId == $chain) | .address" $last_run_file)
 
     # We need the token to be unquoted when passed to `forge verify-contract`
     set scan_token (jq --raw-output ".[] | select(.chainId == $chain) | .token" $scan_tokens_file)
@@ -46,26 +49,21 @@ for chain in $chain_ids
         continue
     end
 
+    echo "Verifying delivery provider contract ($implementation_address) on chain $chain"
+
     set evm_chain_id (jq ".chains[] | select(.chainId == $chain) | .evmNetworkId" $chains_file)
 
     # We're using the production profile for delivery providers on mainnet and testnet
     set --export FOUNDRY_PROFILE production
-    set proxy_constructor_args (cast abi-encode "constructor(address,bytes)" $setup_address (cast calldata "setup(address,uint16)" $implementation_address $chain))
 
     # Celo has a verification API but it currently doesn't work with `forge verify-contract`
     # We print the compiler input to a file instead for manual verification
     if test $chain -eq 14
         forge verify-contract $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderImplementation.compiler-input.json
-        forge verify-contract $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderSetup.compiler-input.json
-        forge verify-contract $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy --chain-id $evm_chain_id --watch --constructor-args $proxy_constructor_args --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderProxy.compiler-input.json
 
         echo "Please manually submit the compiler input files at celoscan.io"
         echo "- $implementation_address: DeliveryProviderImplementation.compiler-input.json"
-        echo "- $setup_address: DeliveryProviderSetup.compiler-input.json"
-        echo "- $proxy_address: DeliveryProviderProxy.compiler-input.json"
     else
         forge verify-contract $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token
-        forge verify-contract $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token
-        forge verify-contract $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy --chain-id $evm_chain_id --watch --constructor-args $proxy_constructor_args --etherscan-api-key $scan_token
     end
 end
