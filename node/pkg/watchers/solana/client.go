@@ -822,14 +822,17 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		return
 	}
 
-	// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
-	if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
-		solanaAccountSkips.WithLabelValues(s.networkName, "unfinalized_account").Inc()
-		logger.Error(
-			"account is not finalized",
-			zap.Stringer("account", acc),
-			zap.Binary("data", data))
-		return
+	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
+	if s.chainID != vaa.ChainIDPythNet {
+		// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
+		if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
+			solanaAccountSkips.WithLabelValues(s.networkName, "unfinalized_account").Inc()
+			logger.Error(
+				"account is not finalized",
+				zap.Stringer("account", acc),
+				zap.Binary("data", data))
+			return
+		}
 	}
 
 	var txHash eth_common.Hash
