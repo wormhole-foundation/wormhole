@@ -5,6 +5,7 @@ import * as nb from "./nftBridge";
 import * as r from "./relayer";
 import * as circle from "./circle";
 import * as g from "./cosmos";
+import * as rollup from "./rollupCheckpoint";
 
 import { constMap } from "../../utils";
 
@@ -15,6 +16,7 @@ export const nftBridge = constMap(nb.nftBridgeContracts);
 export const relayer = constMap(r.relayerContracts);
 export const gateway = constMap(g.gatewayContracts);
 export const translator = constMap(g.translatorContracts);
+export const rollupContracts = constMap(rollup.rollupContractAddresses);
 
 export { CircleContracts } from "./circle";
 export const circleContracts = constMap(circle.circleContracts);
