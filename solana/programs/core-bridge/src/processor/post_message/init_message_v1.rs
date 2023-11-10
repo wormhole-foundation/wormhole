@@ -7,8 +7,6 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 
-use super::new_emitter;
-
 #[derive(Accounts)]
 pub struct InitMessageV1<'info> {
     /// This authority is the only one who can write to the draft message account.
@@ -81,7 +79,32 @@ pub fn init_message_v1(ctx: Context<InitMessageV1>, args: InitMessageV1Args) -> 
     // This instruction allows a program to declare its own program ID as an emitter if we can
     // derive the emitter authority from seeds [b"emitter"]. This is useful for programs that do not
     // want to manage two separate addresses (program ID and emitter address) cross chain.
-    let emitter = new_emitter(&ctx.accounts.emitter_authority, cpi_program_id)?;
+    let emitter = match cpi_program_id {
+        Some(program_id) => {
+            let (expected_authority, _) = Pubkey::find_program_address(
+                &[crate::constants::PROGRAM_EMITTER_SEED_PREFIX],
+                &program_id,
+            );
+            require_eq!(
+                ctx.accounts.emitter_authority.key(),
+                expected_authority,
+                CoreBridgeError::InvalidProgramEmitter
+            );
+
+            program_id
+        }
+        None => {
+            // Make sure this emitter is not executable. This check is a security measure to prevent
+            // someone impersonating his program as the emitter address if he still holds the
+            // keypair used to deploy his program.
+            require!(
+                !ctx.accounts.emitter_authority.executable,
+                CoreBridgeError::ExecutableDisallowed
+            );
+
+            ctx.accounts.emitter_authority.key()
+        }
+    };
 
     let acc_data: &mut [_] = &mut ctx.accounts.draft_message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(acc_data);

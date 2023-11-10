@@ -2,6 +2,7 @@ pub mod cpi;
 
 pub mod vaa;
 
+use crate::error::TokenBridgeError;
 use anchor_lang::prelude::*;
 
 /// Determine the sender address based on whether an integrator provides his own program ID. If a
@@ -20,11 +21,21 @@ pub fn new_sender_address(
             require_eq!(
                 sender_authority.key(),
                 expected_authority,
-                crate::error::TokenBridgeError::InvalidProgramSender
+                TokenBridgeError::InvalidProgramSender
             );
             Ok(program_id)
         }
-        None => Ok(sender_authority.key()),
+        None => {
+            // Make sure this sender is not executable. This check is a security measure to prevent
+            // someone impersonating his program as the sender address if he still holds the
+            // keypair used to deploy his program.
+            require!(
+                !sender_authority.executable,
+                TokenBridgeError::ExecutableDisallowed
+            );
+
+            Ok(sender_authority.key())
+        }
     }
 }
 

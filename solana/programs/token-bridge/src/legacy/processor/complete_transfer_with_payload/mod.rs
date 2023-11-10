@@ -38,18 +38,25 @@ pub fn validate_token_transfer_with_payload_vaa(
     // is the program ID). If the former, the transfer redeemer can be any PDA that signs
     // for this instruction.
     let redeemer = Pubkey::from(transfer.redeemer());
-    let redeemer_authority = redeemer_authority.key();
-    if redeemer != redeemer_authority {
+    if redeemer != redeemer_authority.key() {
         let (expected_authority, _) = Pubkey::find_program_address(
             &[crate::constants::PROGRAM_REDEEMER_SEED_PREFIX],
             &redeemer,
         );
         require_keys_eq!(
-            redeemer_authority,
+            redeemer_authority.key(),
             expected_authority,
             TokenBridgeError::InvalidProgramRedeemer
         )
     } else {
+        // Make sure this redeemer is not executable. This check is a security measure to prevent
+        // someone impersonating his program as the redeemer address if he still holds the
+        // keypair used to deploy his program.
+        require!(
+            !redeemer_authority.executable,
+            TokenBridgeError::ExecutableDisallowed
+        );
+
         // The redeemer must be the token account owner if the redeemer authority is the
         // same as the redeemer (i.e. the signer of this transaction, which does not
         // represent a program's PDA.

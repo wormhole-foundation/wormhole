@@ -184,9 +184,6 @@ pub enum CoreBridgeError {
     #[msg("PostedVaaPayloadTooLarge")]
     PostedVaaPayloadTooLarge = 0x10bc,
 
-    #[msg("EmitterRequired")]
-    EmitterRequired = 0x2000,
-
-    #[msg("EmitterAuthorityRequired")]
-    EmitterAuthorityRequired = 0x2002,
+    #[msg("ExecutableDisallowed")]
+    ExecutableDisallowed = 0x10be,
 }

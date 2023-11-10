@@ -113,24 +113,6 @@ pub enum TokenBridgeError {
     #[msg("RegisteredEmitterMismatch")]
     RegisteredEmitterMismatch = 0x1604,
 
-    #[msg("CustodyTokenAccountRequired")]
-    CustodyTokenAccountRequired = 0x2002,
-
-    #[msg("CustodyAuthorityRequired")]
-    CustodyAuthorityRequired = 0x2004,
-
-    #[msg("WrappedAssetRequired")]
-    WrappedAssetRequired = 0x2006,
-
-    #[msg("SenderAuthorityRequired")]
-    SenderAuthorityRequired = 0x2008,
-
-    #[msg("PayerTokenRequired")]
-    PayerTokenRequired = 0x200a,
-
-    #[msg("MintAuthorityRequired")]
-    MintAuthorityRequired = 0x200c,
-
-    #[msg("RedeemerAuthorityRequired")]
-    RedeemerAuthorityRequired = 0x200e,
+    #[msg("ExecutableDisallowed")]
+    ExecutableDisallowed = 0x1606,
 }
