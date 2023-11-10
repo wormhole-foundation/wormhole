@@ -20,11 +20,12 @@ import (
 // BatchPollConnector uses batch requests to poll for latest, safe and finalized blocks.
 type BatchPollConnector struct {
 	Connector
-	logger    *zap.Logger
-	Delay     time.Duration
-	blockFeed ethEvent.Feed
-	errFeed   ethEvent.Feed
-	batchData []BatchEntry
+	logger       *zap.Logger
+	Delay        time.Duration
+	blockFeed    ethEvent.Feed
+	errFeed      ethEvent.Feed
+	batchData    []BatchEntry
+	generateSafe bool
 }
 
 type (
@@ -43,18 +44,22 @@ type (
 
 const MAX_GAP_BATCH_SIZE uint64 = 5
 
-func NewBatchPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, delay time.Duration) (*BatchPollConnector, error) {
+func NewBatchPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, safeSupported bool, delay time.Duration) (*BatchPollConnector, error) {
 	// Create the batch data in the order we want to report them to the watcher, so finalized is most important, latest is least.
 	batchData := []BatchEntry{
 		{tag: "finalized", finality: Finalized},
-		{tag: "safe", finality: Safe},
+	}
+
+	if safeSupported {
+		batchData = append(batchData, BatchEntry{tag: "safe", finality: Safe})
 	}
 
 	connector := &BatchPollConnector{
-		Connector: baseConnector,
-		logger:    logger,
-		Delay:     delay,
-		batchData: batchData,
+		Connector:    baseConnector,
+		logger:       logger,
+		Delay:        delay,
+		batchData:    batchData,
+		generateSafe: !safeSupported,
 	}
 	err := supervisor.Run(ctx, "batchPoller", common.WrapWithScissors(connector.runFromSupervisor, "batchPoller"))
 	if err != nil {
@@ -195,6 +200,9 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 						}
 
 						b.blockFeed.Send(block)
+						if b.generateSafe && b.batchData[idx].finality == Finalized {
+							b.blockFeed.Send(block.Copy(Safe))
+						}
 						lastPublishedBlock = block
 					}
 				}
@@ -205,6 +213,9 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 			if !errorFound {
 				// The original value of newBlocks is still good.
 				b.blockFeed.Send(newBlock)
+				if b.generateSafe && b.batchData[idx].finality == Finalized {
+					b.blockFeed.Send(newBlock.Copy(Safe))
+				}
 			} else {
 				newBlocks[idx] = lastPublishedBlock
 			}
