@@ -96,7 +96,7 @@ abstract contract QueryResponse {
     }
     
     /// @dev parseAndVerifyQueryResponse verifies the query response and returns the parsed response.
-    function parseAndVerifyQueryResponse(address wormhole, bytes memory response, IWormhole.Signature[] memory signatures) public view returns (ParsedQueryResponse memory r) {
+    function parseAndVerifyQueryResponse(address wormhole, bytes memory response, IWormhole.Signature[] memory signatures) internal view returns (ParsedQueryResponse memory r) {
         verifyQueryResponseSignatures(wormhole, response, signatures);
 
         uint index = 0;
@@ -346,7 +346,7 @@ abstract contract QueryResponse {
      * IWormhole.Signature expects the last byte to be bumped by 27 
      * see https://github.com/wormhole-foundation/wormhole/blob/637b1ee657de7de05f783cbb2078dd7d8bfda4d0/ethereum/contracts/Messages.sol#L174
      */
-    function verifyQueryResponseSignatures(address _wormhole, bytes memory response, IWormhole.Signature[] memory signatures) public view {
+    function verifyQueryResponseSignatures(address _wormhole, bytes memory response, IWormhole.Signature[] memory signatures) internal view {
         IWormhole wormhole = IWormhole(_wormhole);
         // It might be worth adding a verifyCurrentQuorum call on the core bridge so that there is only 1 cross call instead of 4.
         uint32 gsi = wormhole.getCurrentGuardianSetIndex();
