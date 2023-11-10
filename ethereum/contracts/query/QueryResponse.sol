@@ -66,6 +66,8 @@ struct EthCallData {
 // Custom errors
 error InvalidResponseVersion();
 error VersionMismatch();
+error ZeroQueries();
+error InvalidQueryRequestLength();
 error NumberOfResponsesMismatch();
 error ChainIdMismatch();
 error RequestTypeMismatch();
@@ -117,6 +119,11 @@ abstract contract QueryResponse {
         uint32 len;
         (len, index) = response.asUint32Unchecked(index); // query_request_len
         uint reqIdx = index;
+        
+        // A valid query request contains >6 bytes which we parse below
+        if (len < 7) {
+            revert InvalidQueryRequestLength();
+        }
 
         uint8 version;
         (version, reqIdx) = response.asUint8Unchecked(reqIdx);
@@ -128,6 +135,11 @@ abstract contract QueryResponse {
 
         uint8 numPerChainQueries;
         (numPerChainQueries, reqIdx) = response.asUint8Unchecked(reqIdx);
+        
+        // A valid query request has at least one per chain query
+        if (numPerChainQueries == 0) {
+            revert ZeroQueries();
+        }
 
         // The response starts after the request.
         uint respIdx = index + len;
