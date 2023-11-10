@@ -417,4 +417,39 @@ contract TestQueryResponse is Test {
         vm.expectRevert();
         queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
     }
+
+    function testFuzz_verifyQueryResponseSignatures_validSignature(bytes calldata resp) public view {
+        // This should pass with a valid signature of any payload
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_verifyQueryResponseSignatures_invalidSignature(bytes calldata resp, uint256 privateKey) public {
+        vm.assume(privateKey != DEVNET_GUARDIAN_PRIVATE_KEY);
+        // Less than secp256k1 curve
+        vm.assume(privateKey < 115792089237316195423570985008687907852837564279074904382605163141518161494337);
+        vm.assume(privateKey != 0);
+
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(privateKey, queryResponse.getResponseDigest(resp));
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert("VM signature invalid");
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_verifyQueryResponseSignatures_validSignatureWrongPrefix(bytes calldata responsePrefix) public {
+        vm.assume(keccak256(responsePrefix) != keccak256(queryResponse.responsePrefix()));
+      
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        bytes32 responseDigest = keccak256(abi.encodePacked(responsePrefix, keccak256(resp)));
+        
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(DEVNET_GUARDIAN_PRIVATE_KEY, responseDigest);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert("VM signature invalid");
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
 }
