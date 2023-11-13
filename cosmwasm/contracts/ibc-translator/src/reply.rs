@@ -203,7 +203,7 @@ pub fn convert_cw20_to_bank_and_send(
 }
 
 // Base58 allows the subdenom to be a maximum of 44 bytes (max subdenom length) for up to a 32 byte address
-fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
+pub fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
         "could not canonicalize contract address {contract_addr}"
