@@ -47,8 +47,8 @@ spec:
               protocol: TCP
           readinessProbe:
             httpGet:
-              port: 3000
-              path: /
+              port: 3001
+              path: /metrics
             periodSeconds: 1
       restartPolicy: Always
   serviceName: ibc-relayer
