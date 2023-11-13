@@ -179,7 +179,7 @@ pub fn convert_cw20_to_bank_and_send(
 
     // Create MsgTransfer protobuf message for Stargate
     // https://github.com/cosmos/ibc-go/blob/main/proto/ibc/applications/transfer/v1/tx.proto#L27
-    // TimeoutTimestamp is 14 days from now which is the trusting period of the counterparty light client
+    // TimeoutTimestamp is 1 year from now, which should effectively protect against packets timing out when sending from Gateway
     let ibc_msg_transfer = Anybuf::new()
         .append_string(1, "transfer") // source port
         .append_string(2, channel) // source channel
