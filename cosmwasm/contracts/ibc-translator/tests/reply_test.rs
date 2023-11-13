@@ -430,7 +430,7 @@ fn convert_cw20_to_bank_and_send_happy_path() {
     });
     expected_response = expected_response.add_message(Stargate {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
+        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2irKOC6IugFg==").unwrap(),
     });
 
     // 1. TokenMsg::MintTokens
@@ -533,7 +533,7 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
     });
     expected_response = expected_response.add_message(Stargate {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
+        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2irKOC6IugFg==").unwrap(),
     });
 
     // 1. TokenMsg::CreateDenom
