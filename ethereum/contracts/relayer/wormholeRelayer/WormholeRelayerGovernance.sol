@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {InvalidPayloadLength} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
-import {fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
-import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
+import {fromWormholeFormat} from "../../relayer/libraries/Utils.sol";
+import {BytesParsing} from "../../relayer/libraries/BytesParsing.sol";
 import {
     getGovernanceState,
     getRegisteredWormholeRelayersState,
@@ -54,8 +54,8 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      *   this chain. The equivalent to the core bridge's registerChain action.
      *
      * Action Parameters:
-     *   - uint16 foreignChainId 
-     *   - bytes32 foreignContractAddress 
+     *   - uint16 foreignChainId
+     *   - bytes32 foreignContractAddress
      */
     uint8 private constant GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT = 1;
 
@@ -72,7 +72,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      * Sets the default relay provider for the WormholeRelayer. Has no equivalent in the core bridge.
      *
      * Action Parameters:
-     *   - bytes32 newProvider 
+     *   - bytes32 newProvider
      */
     uint8 private constant GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER = 3;
 
@@ -98,7 +98,6 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     function submitContractUpgrade(bytes memory encodedVm) external {
-
         address currentImplementation = _getImplementation();
         address newImplementation = parseAndCheckContractUpgradeVm(encodedVm);
 
@@ -111,7 +110,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
             revert ContractUpgradeFailed(revertData);
         }
 
-         emit ContractUpgraded(currentImplementation, newImplementation);
+        emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
     function setDefaultDeliveryProvider(bytes memory encodedVm) external {
@@ -137,10 +136,11 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
 
         checkLength(payload, offset);
 
-        if(getRegisteredWormholeRelayerContract(foreignChainId) != bytes32(0)) {
-            revert ChainAlreadyRegistered(foreignChainId, getRegisteredWormholeRelayerContract(foreignChainId));
+        if (getRegisteredWormholeRelayerContract(foreignChainId) != bytes32(0)) {
+            revert ChainAlreadyRegistered(
+                foreignChainId, getRegisteredWormholeRelayerContract(foreignChainId)
+            );
         }
-
     }
 
     function parseAndCheckContractUpgradeVm(bytes memory encodedVm)
@@ -174,7 +174,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
 
         checkLength(payload, offset);
 
-        if(newProvider == address(0)) {
+        if (newProvider == address(0)) {
             revert InvalidDefaultDeliveryProvider(newProviderWhFmt);
         }
     }

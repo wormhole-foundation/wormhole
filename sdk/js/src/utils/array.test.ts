@@ -33,10 +33,49 @@ test("wormchain address conversion", () => {
   expect(tryNativeToHexString(human, "wormchain")).toBe(canonical);
 });
 
+test("wormchain address conversion2", () => {
+  const human =
+    "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh";
+  const canonical =
+    "aeb534c45c3049d380b9d9b966f9895f53abd4301bfaff407fa09dea8ae7a924";
+  const native = tryUint8ArrayToNative(
+    new Uint8Array(Buffer.from(canonical, "hex")),
+    "wormchain"
+  );
+  expect(native).toBe(human);
+
+  expect(tryNativeToHexString(human, "wormchain")).toBe(canonical);
+});
+
+test("wormchain address conversion no leading 0s", () => {
+  const human = "wormhole1yre8d0ek4vp0wjlec407525zjctq7t32z930fp";
+  const canonical = "20f276bf36ab02f74bf9c55fea2a8296160f2e2a";
+  const native = tryUint8ArrayToNative(
+    new Uint8Array(Buffer.from(canonical, "hex")),
+    "wormchain"
+  );
+  expect(native).toBe(human);
+
+  // Can't do the reverse because the supplied canonical does not have leading 0s
+  // expect(tryNativeToHexString(human, "wormchain")).toBe(canonical);
+});
+
 test("injective address conversion", () => {
   const human = "inj180rl9ezc4389t72pc3vvlkxxs5d9jx60w9eeu3";
   const canonical = canonicalAddress(human);
   const lpadCanonical = zeroPad(canonical, 32);
   const native = tryUint8ArrayToNative(lpadCanonical, "injective");
+  expect(native).toBe(human);
+});
+
+test("sei address conversion", () => {
+  const human =
+    "sei189adguawugk3e55zn63z8r9ll29xrjwca636ra7v7gxuzn98sxyqwzt47l";
+  const canonical =
+    "397ad473aee22d1cd2829ea2238cbffa8a61c9d8eea3a1f7ccf20dc14ca78188";
+  const native = tryUint8ArrayToNative(
+    new Uint8Array(Buffer.from(canonical, "hex")),
+    "sei"
+  );
   expect(native).toBe(human);
 });

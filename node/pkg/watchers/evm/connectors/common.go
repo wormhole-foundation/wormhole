@@ -10,15 +10,39 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
 )
+
+type BlockMarshaller struct {
+	Number *hexutil.Big
+	Hash   common.Hash    `json:"hash"`
+	Time   hexutil.Uint64 `json:"timestamp"`
+
+	// L1BlockNumber is the L1 block number in which an Arbitrum batch containing this block was submitted.
+	// This field is only populated when connecting to Arbitrum.
+	L1BlockNumber *hexutil.Big
+}
 
 type NewBlock struct {
 	Number        *big.Int
 	Hash          common.Hash
+	Time          uint64
 	L1BlockNumber *big.Int // This is only populated on some chains (Arbitrum)
-	Safe          bool
+	Finality      FinalityLevel
+}
+
+func (b *NewBlock) Copy(f FinalityLevel) *NewBlock {
+	return &NewBlock{
+		Number:        b.Number,
+		Hash:          b.Hash,
+		Time:          b.Time,
+		L1BlockNumber: b.L1BlockNumber,
+		Finality:      f,
+	}
 }
 
 // Connector exposes Wormhole-specific interactions with an EVM-based network
@@ -33,6 +57,9 @@ type Connector interface {
 	ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error)
 	SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error)
 	RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
+	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
+	Client() *ethClient.Client
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 }
 
 type PollSubscription struct {

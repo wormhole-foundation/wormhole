@@ -190,7 +190,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, cfg.p2pPort, func() string { return "" }),
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, cfg.p2pPort, "", 0, "", func() string { return "" }),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
@@ -913,10 +913,10 @@ func TestGuardianConfigs(t *testing.T) {
 		{
 			name: "double-configuration",
 			opts: []*GuardianOption{
-				GuardianOptionBigTablePersistence(nil),
-				GuardianOptionBigTablePersistence(nil),
+				GuardianOptionDatabase(nil),
+				GuardianOptionDatabase(nil),
 			},
-			err: "Component bigtable is already configured and cannot be configured a second time",
+			err: "Component db is already configured and cannot be configured a second time",
 		},
 	}
 	runGuardianConfigTests(t, tc)
@@ -1061,6 +1061,44 @@ func BenchmarkCrypto(b *testing.B) {
 		})
 	})
 
+	/*
+		RSA is an option for libp2p.
+		In an optimized RSA implementation, signature verification in RSA can be faster than with elliptic curves, while signature generation is always slower.
+		Since libp2p is verification-heavy, this might overall still be a faster option.
+		This benchmarks show that the libp2p RSA sigverify seems to be unoptimized and is actually slower than ED25519, as of go-libp2p v0.29.2:
+			libp2p_(Ed25519)/sign-64		36178 ns/op
+			libp2p_(Ed25519)/verify-64		85326 ns/op
+			libp2p_(RSA)/sign-64		  2226550 ns/op
+			libp2p_(RSA)/verify-64		   327945 ns/op
+	*/
+	b.Run("libp2p (RSA)", func(b *testing.B) {
+
+		r := math_rand.New(math_rand.NewSource(0)) //#nosec G404 testnet / devnet keys are public knowledge
+		p2pKey, _, err := libp2p_crypto.GenerateKeyPairWithReader(libp2p_crypto.RSA, 2048, r)
+		if err != nil {
+			panic(err)
+		}
+
+		b.Run("sign", func(b *testing.B) {
+			msgs := signingMsgs(b.N)
+			b.ResetTimer()
+			signMsgsP2p(p2pKey, msgs)
+		})
+
+		b.Run("verify", func(b *testing.B) {
+			msgs := signingMsgs(b.N)
+			signatures := signMsgsP2p(p2pKey, msgs)
+			b.ResetTimer()
+
+			// RSA.Verify
+			for i := 0; i < b.N; i++ {
+				ok, err := p2pKey.GetPublic().Verify(msgs[i], signatures[i])
+				assert.NoError(b, err)
+				assert.True(b, ok)
+			}
+		})
+	})
+
 	b.Run("ethcrypto (secp256k1)", func(b *testing.B) {
 
 		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), 0)
@@ -1093,12 +1131,14 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	runConsensusBenchmark(b, "1", 19, 1000, 10) // ~10s
+	runConsensusBenchmark(b, "1", 19, 1000, 50) // ~7.5s
 	//runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
 	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
+	const vaaCheckGuardianIndex = 1 // we will query this Guardian for VAAs.
+
 	t.Run(name, func(t *testing.B) {
 		require.Equal(t, t.N, 1)
 		testId := getTestId()
@@ -1161,12 +1201,12 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			logger.Info("All Guardians have received at least one heartbeat.")
 
 			// Wait for publicrpc to come online.
-			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[0].config.publicRpc)).Len() == 0 {
+			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[vaaCheckGuardianIndex].config.publicRpc)).Len() == 0 {
 				logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
 				time.Sleep(time.Microsecond * 100)
 			}
 			// now that it's online, connect to publicrpc of guardian-0
-			conn, err := grpc.DialContext(ctx, gs[0].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer conn.Close()
 			c := publicrpcv1.NewPublicRPCServiceClient(conn)

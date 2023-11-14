@@ -99,6 +99,10 @@ func NewG(t *testing.T, nodeName string) *G {
 // TestWatermark runs 4 different guardians one of which does not send its P2PID in the signed part of the heartbeat.
 // The expectation is that hosts that send this information will become "protected" by the Connection Manager.
 func TestWatermark(t *testing.T) {
+	logger := zap.NewNop()
+	err := evaluateCutOver(logger, "/wormhole/dev")
+	require.NoError(t, err)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -185,5 +189,11 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.components,
 			nil,   // ibc feature string
 			false, // gateway relayer enabled
+			false, // ccqEnabled
+			nil,   // signed query request channel
+			nil,   // query response channel
+			"",    // query bootstrap peers
+			0,     // query port
+			"",    // query allowed peers
 		))
 }

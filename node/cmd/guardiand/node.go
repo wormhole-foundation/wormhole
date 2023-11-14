@@ -2,7 +2,6 @@ package guardiand
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -39,7 +38,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/node"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -48,7 +46,6 @@ import (
 	"go.uber.org/zap"
 
 	ipfslog "github.com/ipfs/go-log/v2"
-	googleapi_option "google.golang.org/api/option"
 )
 
 var (
@@ -142,9 +139,10 @@ var (
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
 
-	ibcWS       *string
-	ibcLCD      *string
-	ibcContract *string
+	ibcWS             *string
+	ibcLCD            *string
+	ibcBlockHeightURL *string
+	ibcContract       *string
 
 	accountantContract      *string
 	accountantWS            *string
@@ -175,6 +173,9 @@ var (
 	baseRPC      *string
 	baseContract *string
 
+	scrollRPC      *string
+	scrollContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -196,22 +197,16 @@ var (
 
 	disableTelemetry *bool
 
-	// Google cloud logging parameters
-	telemetryKey                *string
-	telemetryServiceAccountFile *string
-	telemetryProject            *string
-
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
 
-	bigTablePersistenceEnabled *bool
-	bigTableGCPProject         *string
-	bigTableInstanceName       *string
-	bigTableTableName          *string
-	bigTableTopicName          *string
-	bigTableKeyPath            *string
-
 	chainGovernorEnabled *bool
+
+	ccqEnabled           *bool
+	ccqAllowedRequesters *string
+	ccqP2pPort           *uint
+	ccqP2pBootstrap      *string
+	ccqAllowedPeers      *string
 
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
@@ -313,6 +308,7 @@ func init() {
 
 	ibcWS = NodeCmd.Flags().String("ibcWS", "", "Websocket used to listen to the IBC receiver smart contract on wormchain")
 	ibcLCD = NodeCmd.Flags().String("ibcLCD", "", "Path to LCD service root for http calls")
+	ibcBlockHeightURL = NodeCmd.Flags().String("ibcBlockHeightURL", "", "Optional URL to query for the block height (generated from ibcWS if not specified)")
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
@@ -344,6 +340,9 @@ func init() {
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 
+	scrollRPC = NodeCmd.Flags().String("scrollRPC", "", "Scroll RPC URL")
+	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
+
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
@@ -367,23 +366,15 @@ func init() {
 	disableTelemetry = NodeCmd.Flags().Bool("disableTelemetry", false,
 		"Disable telemetry")
 
-	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
-		"Telemetry write key")
-	telemetryServiceAccountFile = NodeCmd.Flags().String("telemetryServiceAccountFile", "",
-		"Google Cloud credentials json for accessing Cloud Logging")
-	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
-		"Google Cloud Project to use for Telemetry logging")
-
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
-	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
-	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
-	bigTableInstanceName = NodeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
-	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
-	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
-	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
-
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+
+	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
+	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
+	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
+	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (comma-separated)")
+	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
 
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
@@ -484,6 +475,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Use the first guardian node as bootstrap
 		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
+		*ccqP2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *ccqP2pPort, g0key.String())
 
 		// Deterministic ganache ETH devnet address.
 		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
@@ -503,6 +495,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
 		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
+		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 	}
 
 	// Verify flags
@@ -636,6 +629,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
 	}
 
+	// Scroll should not be allowed in mainnet until its finality policy is understood and implemented in the watcher.
+	if *scrollRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("scroll is currently only supported in devnet and testnet")
+	}
+
+	if (*scrollRPC == "") != (*scrollContract == "") {
+		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
+	}
+
 	if *gatewayWS != "" {
 		if *gatewayLCD == "" || *gatewayContract == "" {
 			logger.Fatal("If --gatewayWS is specified, then --gatewayLCD and --gatewayContract must be specified")
@@ -737,6 +739,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *pythnetRPC == "" {
 			logger.Fatal("Please specify --pythnetRPC")
 		}
+		if *pythnetWS == "" {
+			logger.Fatal("Please specify --pythnetWS")
+		}
 
 		if *injectiveWS == "" {
 			logger.Fatal("Please specify --injectiveWS")
@@ -747,28 +752,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
-	}
-
-	if *bigTablePersistenceEnabled {
-		if *bigTableGCPProject == "" {
-			logger.Fatal("Please specify --bigTableGCPProject")
-		}
-		if *bigTableInstanceName == "" {
-			logger.Fatal("Please specify --bigTableInstanceName")
-		}
-		if *bigTableTableName == "" {
-			logger.Fatal("Please specify --bigTableTableName")
-		}
-		if *bigTableTopicName == "" {
-			logger.Fatal("Please specify --bigTableTopicName")
-		}
-		if *bigTableKeyPath == "" {
-			logger.Fatal("Please specify --bigTableKeyPath")
-		}
-	}
-
-	if *telemetryKey != "" && *telemetryServiceAccountFile != "" {
-		logger.Fatal("Please do not specify both --telemetryKey and --telemetryServiceAccountFile")
 	}
 
 	// Determine execution mode
@@ -811,14 +794,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if *unsafeDevMode {
-		gk, err := generateDevnetGuardianKey()
+		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
 		if err != nil {
 			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
-		}
-
-		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *guardianKeyPath, true)
-		if err != nil {
-			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
 	}
 
@@ -827,7 +805,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	defer db.Close()
 
 	// Guardian key
-	gk, err := loadGuardianKey(*guardianKeyPath)
+	gk, err := common.LoadGuardianKey(*guardianKeyPath, *unsafeDevMode)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -880,6 +858,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["ethRPC"] = *ethRPC
 	rpcMap["fantomRPC"] = *fantomRPC
+	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
 	rpcMap["ibcLCD"] = *ibcLCD
 	rpcMap["ibcWS"] = *ibcWS
 	rpcMap["karuraRPC"] = *karuraRPC
@@ -896,6 +875,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}
+	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["suiRPC"] = *suiRPC
 	rpcMap["terraWS"] = *terraWS
@@ -921,18 +901,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	}()
 
 	usingLoki := *telemetryLokiURL != ""
-	usingGCP := *telemetryKey != "" || *telemetryServiceAccountFile != ""
 
-	var hasTelemetryCredential bool = usingGCP || usingLoki
+	var hasTelemetryCredential bool = usingLoki
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
 		if !hasTelemetryCredential {
-			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryLokiURL or set --disableTelemetry=false")
-		}
-
-		if usingLoki && usingGCP {
-			logger.Fatal("May only enable one telemetry logger at a time, either specify --telemetryLokiURL or --telemetryKey/--telemetryServiceAccountFile")
+			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
 		// Get libp2p peer ID from private key
@@ -959,30 +934,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 
 			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", skipPrivateLogs, labels)
-			if err != nil {
-				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-			}
-		} else {
-			logger.Info("Using Google Cloud telemetry logger",
-				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
-				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
-
-			var options []googleapi_option.ClientOption
-
-			if *telemetryKey != "" {
-				creds, err := decryptTelemetryServiceAccount()
-				if err != nil {
-					logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
-				}
-
-				options = append(options, googleapi_option.WithCredentialsJSON(creds))
-			}
-
-			if *telemetryServiceAccountFile != "" {
-				options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
-			}
-
-			tm, err = telemetry.NewGoogleCloudLogger(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
 			if err != nil {
 				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 			}
@@ -1101,30 +1052,27 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(bscRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:            "bsc",
-			ChainID:              vaa.ChainIDBSC,
-			Rpc:                  *bscRPC,
-			Contract:             *bscContract,
-			WaitForConfirmations: true,
+			NetworkID: "bsc",
+			ChainID:   vaa.ChainIDBSC,
+			Rpc:       *bscRPC,
+			Contract:  *bscContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
 	if shouldStart(polygonRPC) {
-		// Checkpointing is required in mainnet, so we don't need to wait for confirmations.
-		waitForConfirmations := *unsafeDevMode || *testnetMode
-		if !waitForConfirmations && *polygonRootChainRpc == "" {
-			log.Fatal("Polygon checkpointing is required in mainnet")
+		// Checkpointing is required in mainnet and testnet.
+		if !*unsafeDevMode && *polygonRootChainRpc == "" {
+			log.Fatal("Polygon checkpointing is required in mainnet and testnet")
 		}
 		wc := &evm.WatcherConfig{
-			NetworkID:            "polygon",
-			ChainID:              vaa.ChainIDPolygon,
-			Rpc:                  *polygonRPC,
-			Contract:             *polygonContract,
-			WaitForConfirmations: waitForConfirmations,
-			RootChainRpc:         *polygonRootChainRpc,
-			RootChainContract:    *polygonRootChainContractAddress,
+			NetworkID:         "polygon",
+			ChainID:           vaa.ChainIDPolygon,
+			Rpc:               *polygonRPC,
+			Contract:          *polygonContract,
+			RootChainRpc:      *polygonRootChainRpc,
+			RootChainContract: *polygonRootChainContractAddress,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1258,6 +1206,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:   vaa.ChainIDBase,
 			Rpc:       *baseRPC,
 			Contract:  *baseContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(scrollRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "scroll",
+			ChainID:   vaa.ChainIDScroll,
+			Rpc:       *scrollRPC,
+			Contract:  *scrollContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1440,9 +1399,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
 	if shouldStart(ibcWS) {
 		ibcWatcherConfig = &node.IbcWatcherConfig{
-			Websocket: *ibcWS,
-			Lcd:       *ibcLCD,
-			Contract:  *ibcContract,
+			Websocket:      *ibcWS,
+			Lcd:            *ibcLCD,
+			BlockHeightURL: *ibcBlockHeightURL,
+			Contract:       *ibcContract,
 		}
 	}
 
@@ -1457,8 +1417,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, accountantWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
+		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionProcessor(),
 	}
@@ -1477,18 +1438,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if *bigTablePersistenceEnabled {
-		bigTableConnectionConfig := &reporter.BigTableConnectionConfig{
-			GcpProjectID:    *bigTableGCPProject,
-			GcpInstanceName: *bigTableInstanceName,
-			TableName:       *bigTableTableName,
-			TopicName:       *bigTableTopicName,
-			GcpKeyFilePath:  *bigTableKeyPath,
-		}
-
-		guardianOptions = append(guardianOptions, node.GuardianOptionBigTablePersistence(bigTableConnectionConfig))
-	}
-
 	// Run supervisor with Guardian Node as root.
 	supervisor.New(rootCtx, logger, guardianNode.Run(rootCtxCancel, guardianOptions...),
 		// It's safer to crash and restart the process in case we encounter a panic,
@@ -1497,26 +1446,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	<-rootCtx.Done()
 	logger.Info("root context cancelled, exiting...")
-}
-
-func decryptTelemetryServiceAccount() ([]byte, error) {
-	// Decrypt service account credentials
-	key, err := base64.StdEncoding.DecodeString(*telemetryKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode: %w", err)
-	}
-
-	ciphertext, err := base64.StdEncoding.DecodeString(defaultTelemetryServiceAccountEnc)
-	if err != nil {
-		panic(err)
-	}
-
-	creds, err := common.DecryptAESGCM(ciphertext, key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt: %w", err)
-	}
-
-	return creds, err
 }
 
 func shouldStart(rpc *string) bool {

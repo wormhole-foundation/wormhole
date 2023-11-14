@@ -179,7 +179,7 @@ pub fn convert_cw20_to_bank_and_send(
 
     // Create MsgTransfer protobuf message for Stargate
     // https://github.com/cosmos/ibc-go/blob/main/proto/ibc/applications/transfer/v1/tx.proto#L27
-    // TimeoutTimestamp is 14 days from now which is the trusting period of the counterparty light client
+    // TimeoutTimestamp is 1 year from now, which should effectively protect against packets timing out when sending from Gateway
     let ibc_msg_transfer = Anybuf::new()
         .append_string(1, "transfer") // source port
         .append_string(2, channel) // source channel
@@ -192,7 +192,7 @@ pub fn convert_cw20_to_bank_and_send(
         .append_string(4, env.contract.address) // sender
         .append_string(5, recipient) // receiver
         .append_message(6, &Anybuf::new().append_uint64(1, 0).append_uint64(2, 0)) // TimeoutHeight
-        .append_uint64(7, env.block.time.plus_days(14).nanos()) // TimeoutTimestamp
+        .append_uint64(7, env.block.time.plus_days(365).nanos()) // TimeoutTimestamp
         .append_string(8, payload_decoded); // Memo
 
     response = response.add_message(Stargate {
@@ -203,7 +203,7 @@ pub fn convert_cw20_to_bank_and_send(
 }
 
 // Base58 allows the subdenom to be a maximum of 44 bytes (max subdenom length) for up to a 32 byte address
-fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
+pub fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
         "could not canonicalize contract address {contract_addr}"

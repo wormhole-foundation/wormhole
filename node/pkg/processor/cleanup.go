@@ -163,6 +163,12 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					break
 				}
 
+				// Reobservation requests should not be resubmitted but we will keep waiting for more observations.
+				if s.ourObservation.IsReobservation() {
+					p.logger.Debug("not submitting reobservation request for reobservation", zap.String("digest", hash), zap.Duration("delta", delta))
+					break
+				}
+
 				// If we have already stored this VAA, there is no reason for us to request reobservation.
 				alreadyInDB, err := p.signedVaaAlreadyInDB(hash, s)
 				if err != nil {

@@ -3,6 +3,7 @@ package watchers
 import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -20,6 +21,8 @@ type WatcherConfig interface {
 	Create(
 		msgC chan<- *common.MessagePublication,
 		obsvReqC <-chan *gossipv1.ObservationRequest,
+		queryReqC <-chan *query.PerChainQueryInternal,
+		queryResponseC chan<- *query.PerChainQueryResponseInternal,
 		setC chan<- *common.GuardianSet,
 		env common.Environment,
 	) (interfaces.L1Finalizer, supervisor.Runnable, error)

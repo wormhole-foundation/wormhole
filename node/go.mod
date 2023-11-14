@@ -3,14 +3,13 @@ module github.com/certusone/wormhole/node
 go 1.20
 
 require (
-	cloud.google.com/go/bigtable v1.18.1
 	github.com/celo-org/celo-blockchain v1.5.5
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/ethereum/go-ethereum v1.10.21
-	github.com/gagliardetto/solana-go v1.7.1
+	github.com/gagliardetto/solana-go v1.8.4
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
@@ -45,8 +44,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/logging v1.7.0
-	cloud.google.com/go/pubsub v1.33.0
 	github.com/CosmWasm/wasmd v0.30.0
 	github.com/algorand/go-algorand-sdk v1.23.0
 	github.com/benbjohnson/clock v1.3.5
@@ -69,11 +66,8 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.110.6 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
-	cloud.google.com/go/iam v1.1.1 // indirect
-	cloud.google.com/go/longrunning v0.5.1 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.11 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -89,7 +83,6 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/aws/aws-sdk-go v1.44.187 // indirect
-	github.com/aybabtme/rgbterm v0.0.0-20170906152045-cc83f3b3ce59 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/btcsuite/btcd v0.22.1 // indirect
@@ -97,7 +90,6 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20200112174442-28bbd4740fee // indirect
 	github.com/celo-org/celo-bls-go v0.2.4 // indirect
-	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
@@ -133,14 +125,12 @@ require (
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
-	github.com/envoyproxy/go-control-plane v0.11.1-0.20230524094728-9239064ad72f // indirect
-	github.com/envoyproxy/protoc-gen-validate v0.10.1 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/gagliardetto/binary v0.7.3 // indirect
+	github.com/gagliardetto/binary v0.7.7 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -179,7 +169,6 @@ require (
 	github.com/google/pprof v0.0.0-20230808223545-4887780b67fb // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
-	github.com/googleapis/gax-go/v2 v2.11.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/grafana/loki/pkg/push v0.0.0-20230127102416-571f88bc5765 // indirect
 	github.com/grafana/regexp v0.0.0-20221122212121-6b5c0a4cb7fd // indirect
@@ -354,7 +343,6 @@ require (
 	golang.org/x/term v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/tools v0.12.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gonum.org/v1/gonum v0.12.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230807174057-1744710a1577 // indirect

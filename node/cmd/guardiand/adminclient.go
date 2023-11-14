@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -39,6 +40,7 @@ import (
 var (
 	clientSocketPath *string
 	shouldBackfill   *bool
+	unsafeDevnetMode *bool
 )
 
 func init() {
@@ -67,6 +69,11 @@ func init() {
 	PurgePythNetVaasCmd.Flags().AddFlagSet(pf)
 	SignExistingVaaCmd.Flags().AddFlagSet(pf)
 	SignExistingVaasFromCSVCmd.Flags().AddFlagSet(pf)
+	GetAndObserveMissingVAAs.Flags().AddFlagSet(pf)
+
+	adminClientSignWormchainAddressFlags := pflag.NewFlagSet("adminClientSignWormchainAddressFlags", pflag.ContinueOnError)
+	unsafeDevnetMode = adminClientSignWormchainAddressFlags.Bool("unsafeDevMode", false, "Run in unsafe devnet mode")
+	AdminClientSignWormchainAddress.Flags().AddFlagSet(adminClientSignWormchainAddressFlags)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -85,6 +92,7 @@ func init() {
 	AdminCmd.AddCommand(SignExistingVaaCmd)
 	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
 	AdminCmd.AddCommand(Keccak256Hash)
+	AdminCmd.AddCommand(GetAndObserveMissingVAAs)
 }
 
 var AdminCmd = &cobra.Command{
@@ -190,6 +198,13 @@ var DumpRPCs = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 }
 
+var GetAndObserveMissingVAAs = &cobra.Command{
+	Use:   "get-and-observe-missing-vaas [URL] [API_KEY]",
+	Short: "Get the list of missing VAAs from a cloud function and try to reobserve them.",
+	Run:   runGetAndObserveMissingVAAs,
+	Args:  cobra.ExactArgs(2),
+}
+
 var Keccak256Hash = &cobra.Command{
 	Use:   "keccak256",
 	Short: "Compute legacy keccak256 hash",
@@ -225,7 +240,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
 		return fmt.Errorf("must provide a bech32 address that has 'wormhole' prefix")
 	}
-	gk, err := loadGuardianKey(guardianKeyPath)
+	gk, err := common.LoadGuardianKey(guardianKeyPath, *unsafeDevnetMode)
 	if err != nil {
 		return fmt.Errorf("failed to load guardian key: %w", err)
 	}
@@ -412,6 +427,36 @@ func runDumpRPCs(cmd *cobra.Command, args []string) {
 	for parm, rpc := range resp.Response {
 		fmt.Println(parm, " = [", rpc, "]")
 	}
+}
+
+func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
+	url := args[0]
+	if !strings.HasPrefix(url, "https://") {
+		log.Fatalf("invalid url: %s", url)
+	}
+	apiKey := args[1]
+	if len(apiKey) == 0 {
+		log.Fatalf("missing api key")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	cmdInfo := nodev1.GetAndObserveMissingVAAsRequest{
+		Url:    url,
+		ApiKey: apiKey,
+	}
+	resp, err := c.GetAndObserveMissingVAAs(ctx, &cmdInfo)
+	if err != nil {
+		log.Fatalf("failed to run get-missing-vaas: %s", err)
+	}
+
+	fmt.Println(resp.GetResponse())
 }
 
 func runChainGovernorStatus(cmd *cobra.Command, args []string) {

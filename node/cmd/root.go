@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/certusone/wormhole/node/cmd/ccq"
 	"github.com/certusone/wormhole/node/cmd/debug"
 	"github.com/certusone/wormhole/node/cmd/spy"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -48,6 +49,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.guardiand.yaml)")
 	rootCmd.AddCommand(guardiand.NodeCmd)
 	rootCmd.AddCommand(spy.SpyCmd)
+	rootCmd.AddCommand(ccq.QueryServerCmd)
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
 	rootCmd.AddCommand(guardiand.TemplateCmd)

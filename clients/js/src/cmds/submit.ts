@@ -184,6 +184,14 @@ async function executeSubmit(
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
+  } else if (chain === "cosmoshub") {
+    throw Error("Cosmoshub is not supported yet");
+  } else if (chain === "evmos") {
+    throw Error("Evmos is not supported yet");
+  } else if (chain === "kujira") {
+    throw Error("kujira is not supported yet");
+  } else if (chain === "rootstock") {
+    throw Error("rootstock is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled

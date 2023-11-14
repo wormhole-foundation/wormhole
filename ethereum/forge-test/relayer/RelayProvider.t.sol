@@ -387,4 +387,21 @@ contract TestDeliveryProvider is Test {
         require(expectedGasCost + expectedOverheadCost + expectedReceiverValueCost == LocalNative.unwrap(nativePriceQuote), "deliveryProvider price quote is not what is expected");
 
     }
+
+    function testIsMessageKeyTypeSupported(uint8 keyType) public {
+        initializeDeliveryProvider();
+
+        assertFalse(deliveryProvider.isMessageKeyTypeSupported(keyType));
+        deliveryProvider.updateSupportedMessageKeyTypes(keyType, true);
+        assertTrue(deliveryProvider.isMessageKeyTypeSupported(keyType));
+        deliveryProvider.updateSupportedMessageKeyTypes(keyType, false);
+        assertFalse(deliveryProvider.isMessageKeyTypeSupported(keyType));
+
+        assertFalse(deliveryProvider.isMessageKeyTypeSupported(15));
+        deliveryProvider.updateSupportedMessageKeyTypes(15, true);
+        assertTrue(deliveryProvider.isMessageKeyTypeSupported(15));
+        deliveryProvider.updateSupportedMessageKeyTypes(15, false);
+        assertFalse(deliveryProvider.isMessageKeyTypeSupported(15));
+        assertFalse(deliveryProvider.isMessageKeyTypeSupported(15));
+    }
 }

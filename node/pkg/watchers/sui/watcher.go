@@ -173,7 +173,7 @@ func NewWatcher(
 	}
 }
 
-func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
+func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservation bool) error {
 	if body.ID.TxDigest == nil {
 		return errors.New("Missing TxDigest field")
 	}
@@ -249,6 +249,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 		EmitterAddress:   emitter,
 		Payload:          fields.Payload,
 		ConsistencyLevel: *fields.ConsistencyLevel,
+		IsReobservation:  isReobservation,
 	}
 
 	suiMessagesConfirmed.Inc()
@@ -374,7 +375,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				if res.Params != nil && (*res.Params).Result != nil {
-					err := e.inspectBody(logger, *(*res.Params).Result)
+					err := e.inspectBody(logger, *(*res.Params).Result, false)
 					if err != nil {
 						logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 					}
@@ -491,7 +492,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for i, chunk := range res.Result {
-					err := e.inspectBody(logger, chunk)
+					err := e.inspectBody(logger, chunk, true)
 					if err != nil {
 						logger.Info("skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(err))
 					}

@@ -15,8 +15,11 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
@@ -166,9 +169,21 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 					c.logger.Error("new header block number is nil")
 					continue
 				}
+				hash := ethCommon.BytesToHash(ev.Hash().Bytes())
 				sink <- &NewBlock{
-					Number: ev.Number,
-					Hash:   ethCommon.BytesToHash(ev.Hash().Bytes()),
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Finalized,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Safe,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Finality: Latest,
 				}
 			}
 		}
@@ -179,6 +194,27 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 
 func (c *CeloConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	return c.rawClient.CallContext(ctx, result, method, args...)
+}
+
+func (c *CeloConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	celoB := make([]celoRpc.BatchElem, len(b))
+	for i, v := range b {
+		celoB[i] = celoRpc.BatchElem{
+			Method: v.Method,
+			Args:   v.Args,
+			Result: v.Result,
+			Error:  v.Error,
+		}
+	}
+	return c.rawClient.BatchCallContext(ctx, celoB)
+}
+
+func (c *CeloConnector) Client() *ethClient.Client {
+	panic("unimplemented")
+}
+
+func (c *CeloConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	panic("unimplemented")
 }
 
 func convertCeloEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {

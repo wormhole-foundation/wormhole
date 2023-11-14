@@ -165,7 +165,7 @@ module token_bridge::wrapped_test {
     use wrapped_coin::coin::T;
     use wormhole::external_address::{Self};
 
-    /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    /// Registration VAA for the ethereum token bridge 0xdeadbeef
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
     /// Attestation VAA sent from the ethereum token bridge 0xdeadbeef
@@ -211,7 +211,7 @@ module token_bridge::wrapped_test {
 
     // This test ensures that I can't take a valid attestation VAA and trick the
     // token bridge to register my own type. I think what that could lead to is
-    // a denial of service in case the 3rd party type is belongs to a module
+    // a denial of service in case the 3rd party type belongs to a module
     // with an 'arbitrary' upgrade policy which can be deleted in the future.
     // This upgrade policy is not enabled in the VM as of writing, but that
     // might well change in the future, so we future proof ourselves here.

@@ -1,56 +1,156 @@
 #!/bin/bash
 
+# This is a script for upgrading contracts on the Aptos network.
+# It supports all of devnet (localhost), testnet, and mainnet.
+#
+# A VAA may be provided, in which case the script uses that.
+# Otherwise, in devnet, it generates a VAA using the devnet guardian secret.
+# In testnet, it generates a VAA using the testnet guardian secret as long as
+# it's set in the environment variable GUARDIAN_SECRET.
+# In mainnet, a VAA is required.
+
 set -eo pipefail
 
-function usage() {
-cat <<EOF >&2
-Usage:
+usage() {
+  cat <<-EOF >&2
+	Usage: ${0##*/} <network> <module> [OPTIONS]
 
-  $(basename "$0") <devnet|testnet> <Core|TokenBridge> -- Perform a contract upgrade
+	Perform a contract upgrade.
+
+	Positional arguments:
+	  <network>           Network to deploy to (devnet, testnet, mainnet)
+	  <module>            Module to upgrade (Core, TokenBridge, NFTBridge)
+
+	Options:
+	  --vaa               VAA to submit (required for mainnet)
+	  --yes               Skip confirmation prompt
 EOF
-exit 1
+  exit 1
 }
 
-NETWORK=$1 || usage
-MODULE=$2 || usage
+# cd to script directory so that we can run this script from anywhere
+cd "$(dirname "$0")"
 
-if [ "$NETWORK" = testnet ]; then
-    # This script upgrades the core bridge in local devnet by generating a
-    # governance VAA and submitting it
-
-    DEPLOYER_ADDR=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b
-    [ -z "$GUARDIAN_SECRET" ] && echo "GUARDIAN_SECRET unset" >&2 && exit 1
-
-elif [ "$NETWORK" = devnet ]; then
-    GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
-    DEPLOYER_ADDR=0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b
-else
-    usage
+# Check if the jq binary is available.
+if ! command -v jq >/dev/null; then
+  echo "jq not found, please install it"
+  exit 1
 fi
 
-WORMHOLE_ADDR=$(worm info contract "$NETWORK" aptos Core)
-TOKEN_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos TokenBridge)
-NFT_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos NFTBridge)
+# If positional args are missing, print help message and exit
+if [ $# -lt 2 ]; then
+  usage
+fi
 
-NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR,nft_bridge=$NFT_BRIDGE_ADDR"
+# Get positional arguments
+NETWORK="$1"
+shift
+MODULE="$1"
+shift
+
+yes=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --vaa)
+        VAA="$2"
+        shift 2
+        ;;
+    --yes)
+        yes=true
+        shift
+        ;;
+    --) # end of options
+        shift
+        break
+        ;;
+    -*)
+        echo "Error: Unsupported option $1" >&2
+        usage
+        ;;
+    *) # anything else
+        echo "Error: Unsupported argument $1" >&2
+        usage
+        ;;
+  esac
+done
 
 case "$MODULE" in
     Core)
         DIR="../wormhole"
+        LOWER_MODULE="wormhole"
     ;;
     TokenBridge)
         DIR="../token_bridge"
+        LOWER_MODULE="token_bridge"
     ;;
     NFTBridge)
         DIR="../nft_bridge"
+        LOWER_MODULE="nft_bridge"
     ;;
     *) echo "unsupported module $MODULE" >&2
        usage
        ;;
 esac
 
+NAMED_ADDRS="$(./named_addresses $NETWORK)"
 HASH=$(worm aptos hash-contracts $DIR --named-addresses "$NAMED_ADDRS")
-VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET)
+
+if [ "$NETWORK" = testnet ]; then
+    [ -z "$GUARDIAN_SECRET" ] && echo "GUARDIAN_SECRET unset" >&2 && exit 1
+
+elif [ "$NETWORK" = devnet ]; then
+    GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+
+elif [ "$NETWORK" = mainnet ]; then
+    # VAA is required for mainnet
+    if [ -z "$VAA" ]; then
+        echo "VAA required for mainnet. Pass it in with the --vaa flag." >&2
+        echo "To generate a draft governance proposal, run" >&2
+        echo "    ../../scripts/contract-upgrade-governance.sh -c aptos --address $HASH --module $LOWER_MODULE" >&2
+        exit 1
+    fi
+else
+    usage
+fi
+
+# if VAA is not set, generate it
+[ -z "$VAA" ] && VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET)
+
+# parse VAA
+VAA_JSON=$(worm parse "$VAA")
+
+# sanity check VAA
+check_payload_value() {
+  key="$1"
+  expected_value="$2"
+
+  payload_value=$(echo "$VAA_JSON" | jq -r ".payload.$key")
+
+  if [ "$payload_value" != "$expected_value" ]; then
+    echo "VAA payload: expected $key $expected_value, got $payload_value" >&2
+    exit 1
+  fi
+}
+
+# here we make sure the VAA is for the hash we expect
+check_payload_value "type" "ContractUpgrade"
+check_payload_value "chain" "$(worm info chain-id aptos)"
+check_payload_value "module" "$MODULE"
+check_payload_value "address" "0x$HASH"
+
+echo "VAA is a valid ContractUpgrade VAA for $MODULE"
+
+# Ask for confirmation
+if [ "$yes" = false ]; then
+    read -p "Upgrade $MODULE to $HASH? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborting"
+        exit 1
+    fi
+fi
 
 echo "Submitting VAA: $VAA"
 
@@ -59,3 +159,8 @@ CONTRACT_ADDR=$(worm info contract "$NETWORK" aptos "$MODULE")
 worm submit --network "$NETWORK" "$VAA" --contract-address "$CONTRACT_ADDR"
 worm aptos upgrade $DIR --network "$NETWORK" --contract-address "$CONTRACT_ADDR" --named-addresses "$NAMED_ADDRS"
 worm aptos migrate --network "$NETWORK" --contract-address "$CONTRACT_ADDR"
+
+echo "Successfully upgraded $MODULE to $HASH"
+# if network is mainnet or testnet, print explorer link
+[ "$NETWORK" = mainnet ] || [ "$NETWORK" = testnet ] &&
+    echo "Check it out at https://explorer.aptoslabs.com/account/$CONTRACT_ADDR?network=$NETWORK"

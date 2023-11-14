@@ -7,6 +7,9 @@ metadata:
     app: guardian
 spec:
   ports:
+    - port: 8996
+      name: ccq-p2p
+      protocol: UDP
     - port: 8999
       name: p2p
       protocol: UDP
@@ -44,30 +47,25 @@ spec:
         # mount shared between containers for runtime state
         - name: node-rundir
           emptyDir: {}
-        - name: node-bigtable-key
-          secret:
-            secretName: node-bigtable-key
-            optional: true
-            items:
-              - key: bigtable-key.json
-                path: bigtable-key.json
         - name: node-wormchain-key
           secret:
             secretName: node-wormchain-key
             optional: false
             items:
-              - key: wormchainKey0
-                path: wormchainKey0
-              - key: wormchainKey1
-                path: wormchainKey1
+              - key: accountantKey0
+                path: accountantKey0
+              - key: accountantKey1
+                path: accountantKey1
+              - key: gwrelayerKey0
+                path: gwrelayerKey0
+              - key: gwrelayerKey1
+                path: gwrelayerKey1
       containers:
         - name: guardiand
           image: guardiand-image
           volumeMounts:
             - mountPath: /run/node
               name: node-rundir
-            - mountPath: /tmp/mounted-keys/bigtable
-              name: node-bigtable-key
             - mountPath: /tmp/mounted-keys/wormchain
               name: node-wormchain-key
           command:
@@ -105,11 +103,13 @@ spec:
             - ws://eth-devnet:8545
             - --baseRPC
             - ws://eth-devnet:8545
+            - --scrollRPC
+            - ws://eth-devnet:8545
             # - --wormchainURL
             # - wormchain:9090
-            # - --wormchainKeyPath
-            # - /tmp/mounted-keys/wormchain/wormchainKey
-            # - --wormchainKeyPassPhrase
+            # - --accountantKeyPath
+            # - /tmp/mounted-keys/wormchain/accountantKey
+            # - --accountantKeyPassPhrase
             # - test0000
             # - --accountantWS
             # - http://wormchain:26657
@@ -165,7 +165,11 @@ spec:
             - /tmp/data
             - --publicRpcLogDetail
             - "full"
-          # - --chainGovernorEnabled=true
+            # - --chainGovernorEnabled=true
+            - --ccqEnabled=true
+            - --ccqAllowedRequesters=beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe,25021A4FCAf61F2EADC8202D3833Df48B2Fa0D54
+            - --ccqAllowedPeers=12D3KooWSnju8zhywCYVi2JwTqky1sySPnmtYLsHHzc4WerMnDQH,12D3KooWM6WqedfR6ehtTd1y6rJu3ZUrEkTjcJJnJZYesjd89zj8
+            # - --logLevel=debug
           securityContext:
             capabilities:
               add:
@@ -176,6 +180,9 @@ spec:
               port: 6060
               path: /readyz
           ports:
+            - containerPort: 8996
+              name: ccq-p2p
+              protocol: UDP
             - containerPort: 8999
               name: p2p
               protocol: UDP
@@ -198,5 +205,7 @@ metadata:
   name: node-wormchain-key
 type: Opaque
 data:
-  wormchainKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
-  wormchainKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  accountantKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  accountantKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  gwrelayerKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0KdHlwZTogc2VjcDI1NmsxCmtkZjogYmNyeXB0CnNhbHQ6IDc4OUYzRTBCMkVGNDcyNjAyQzNFMUE0OUI2OENFQzlBCgpGWHAvSllPS3E4WmZtOWxHZ3ZFNEM3NXFyUXFNZFp2RHNWRjhObTdMQU1oR2dHbXBnZnpoZjUrZ3IwZ1hjYjVWCmtSTXA2c0p0NkxCVzRPYWF2ckk3ay84Vml2NWhMVU1la1dPMHg5bz0KPUxrb1MKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  gwrelayerKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc5RDk3RDE2OTE0QkQ4QjlFNUUwQzkzMDA0RDA4RUEKdHlwZTogc2VjcDI1NmsxCgpvTEJ0aUkwT2pudXo5bHlzeVlZOFhQeEVkTnpwYUJOVWFkL0UySlJld2pFWFZNVVNTWll2QVZKbERiN3hEQjlSCmEvdm45SFNPM2hKOFc1QTBKOVFqUVZXRzVoZXBNZVpQUEI4M1FCUT0KPVJuTGEKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t

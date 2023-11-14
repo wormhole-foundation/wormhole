@@ -50,6 +50,8 @@ type NodePrivilegedServiceClient interface {
 	SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error)
 	// DumpRPCs returns the RPCs being used by the guardian
 	DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error)
+	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
+	GetAndObserveMissingVAAs(ctx context.Context, in *GetAndObserveMissingVAAsRequest, opts ...grpc.CallOption) (*GetAndObserveMissingVAAsResponse, error)
 }
 
 type nodePrivilegedServiceClient struct {
@@ -159,6 +161,15 @@ func (c *nodePrivilegedServiceClient) DumpRPCs(ctx context.Context, in *DumpRPCs
 	return out, nil
 }
 
+func (c *nodePrivilegedServiceClient) GetAndObserveMissingVAAs(ctx context.Context, in *GetAndObserveMissingVAAsRequest, opts ...grpc.CallOption) (*GetAndObserveMissingVAAsResponse, error) {
+	out := new(GetAndObserveMissingVAAsResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/GetAndObserveMissingVAAs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodePrivilegedServiceServer is the server API for NodePrivilegedService service.
 // All implementations must embed UnimplementedNodePrivilegedServiceServer
 // for forward compatibility
@@ -195,6 +206,8 @@ type NodePrivilegedServiceServer interface {
 	SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error)
 	// DumpRPCs returns the RPCs being used by the guardian
 	DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error)
+	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
+	GetAndObserveMissingVAAs(context.Context, *GetAndObserveMissingVAAsRequest) (*GetAndObserveMissingVAAsResponse, error)
 	mustEmbedUnimplementedNodePrivilegedServiceServer()
 }
 
@@ -234,6 +247,9 @@ func (UnimplementedNodePrivilegedServiceServer) SignExistingVAA(context.Context,
 }
 func (UnimplementedNodePrivilegedServiceServer) DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpRPCs not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) GetAndObserveMissingVAAs(context.Context, *GetAndObserveMissingVAAsRequest) (*GetAndObserveMissingVAAsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAndObserveMissingVAAs not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) mustEmbedUnimplementedNodePrivilegedServiceServer() {}
 
@@ -446,6 +462,24 @@ func _NodePrivilegedService_DumpRPCs_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodePrivilegedService_GetAndObserveMissingVAAs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAndObserveMissingVAAsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).GetAndObserveMissingVAAs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/GetAndObserveMissingVAAs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).GetAndObserveMissingVAAs(ctx, req.(*GetAndObserveMissingVAAsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodePrivilegedService_ServiceDesc is the grpc.ServiceDesc for NodePrivilegedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -496,6 +530,10 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DumpRPCs",
 			Handler:    _NodePrivilegedService_DumpRPCs_Handler,
+		},
+		{
+			MethodName: "GetAndObserveMissingVAAs",
+			Handler:    _NodePrivilegedService_GetAndObserveMissingVAAs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

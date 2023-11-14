@@ -1,0 +1,114 @@
+title: "[Cosmos chain onboarding proposal] "
+labels: ["gateway"]
+body:
+  - type: input 
+    id: website 
+    attributes:
+      label: Website 
+      description: "Website for chain"
+      placeholder: |
+        https://... 
+    validations:
+      required: true
+  - type: input 
+    id: github 
+    attributes:
+      label: Github 
+      description: "Github Organization"
+    validations:
+      required: true
+  - type: input 
+    id: blog 
+    attributes:
+      label: Blog 
+      description: "URL for blog site"
+    validations:
+      required: true
+  - type: input 
+    id: documentation 
+    attributes:
+      label: Documentation 
+      description: "URL for documentation site"
+    validations:
+      required: true
+  - type: textarea 
+    id: stats 
+    attributes:
+      label: Community stats 
+      value: |
+        <!---
+        Please include at least the following stats:
+        - <X> Followers on Twitter 
+        - <X> Followers on Telegram 
+        - <X> Users on Discord
+        -->
+    validations:
+      required: true
+
+
+  - type: textarea 
+    id: summary 
+    attributes:
+      label: Short Summary 
+      description: "Short summary about the chain"
+    validations:
+      required: true
+
+  - type: textarea 
+    id: why 
+    attributes:
+      label: Why should Wormhole add this chain?
+      value: |
+        <!---
+        - Please include specific use cases for Wormhole messaging and/or token bridging, as many metrics as possible, and other details such as:
+        - **Light lift for Guardians** - Guardians are not required to run a full node for <chain> - connectivity will be via a Gateway IBC connection.
+        - Other bridges that are already connected to the network.
+        - Details and specific metrics about the ecosystem (dApps, users, etc).
+        - Details about how your chain will use Wormhole messaging or token bridging.
+        - Details around incentivized liquidity programs (if any) for your chain's native token and/or Wormhole-wrapped tokens.
+        -->
+    validations:
+      required: true
+
+  - type: textarea 
+    id: technology 
+    attributes:
+      label: Technology and Features 
+      description: "Please include a short summary (max 5 dot points) about your chain's technology."
+    validations:
+      required: true
+
+  - type: textarea 
+    id: token 
+    attributes:
+      label: Native token details 
+      description: "Details about the native token and tokenomics."
+      value: |
+        <!---
+        Please include at least:
+        - The max supply of tokens.
+        - Use cases for the token (i.e. governance, fees, etc).
+        -->
+    validations:
+      required: true
+
+  - type: textarea 
+    id:  node-operators 
+    attributes:
+      label: Technical requirements for running a node 
+      description: "If there are no extra requirements for guardians, please use the following message: `None - [chain] will emit messages to Gateway via IBC. Guardians should not have to run anything additional (except for guardians who may run IBC relayers).`"
+    validations:
+      required: true
+
+  - type: textarea 
+    id: ibc-relaying 
+    attributes:
+      label: IBC Relaying Strategy 
+      description: "Please describe how IBC relaying between Wormhole Gateway and your chain will be handled."
+      value: |
+        <!---
+        - Are you asking one of the Wormhole Guardians to handle IBC relaying?
+        - Do you already have an IBC relaying provider who is not a Wormhole Guardian? If so, please include as much information as possible on who they are and what kind of service agreement you have with them.
+        -->
+    validations:
+      required: true

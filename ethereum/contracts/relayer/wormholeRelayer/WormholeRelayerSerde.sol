@@ -6,14 +6,17 @@ import {
     InvalidPayloadId,
     InvalidPayloadLength,
     InvalidVaaKeyType,
+    TooManyMessageKeys,
+    MessageKey,
+    VAA_KEY_TYPE,
     VaaKey
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
     DeliveryOverride,
     DeliveryInstruction,
     RedeliveryInstruction
-} from "../../libraries/relayer/RelayerInternalStructs.sol";
-import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
+} from "../../relayer/libraries/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../relayer/libraries/BytesParsing.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
 library WormholeRelayerSerde {
@@ -30,6 +33,8 @@ library WormholeRelayerSerde {
     uint8 private constant VERSION_DELIVERY_OVERRIDE = 1;
     uint8 private constant PAYLOAD_ID_DELIVERY_INSTRUCTION = 1;
     uint8 private constant PAYLOAD_ID_REDELIVERY_INSTRUCTION = 2;
+
+    uint256 constant VAA_KEY_TYPE_LENGTH = 2 + 32 + 8;
 
     // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
 
@@ -58,7 +63,7 @@ library WormholeRelayerSerde {
             strct.refundDeliveryProvider,
             strct.sourceDeliveryProvider,
             strct.senderAddress,
-            encodeVaaKeyArray(strct.vaaKeys)
+            encodeMessageKeyArray(strct.messageKeys)
         );
     }
 
@@ -83,7 +88,7 @@ library WormholeRelayerSerde {
         (strct.refundDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.sourceDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.senderAddress, offset) = encoded.asBytes32Unchecked(offset);
-        (strct.vaaKeys, offset) = decodeVaaKeyArray(encoded, offset);
+        (strct.messageKeys, offset) = decodeMessageKeyArray(encoded, offset);
 
         strct.requestedReceiverValue = TargetNative.wrap(requestedReceiverValue);
         strct.extraReceiverValue = TargetNative.wrap(extraReceiverValue);
@@ -96,7 +101,7 @@ library WormholeRelayerSerde {
         pure
         returns (bytes memory encoded)
     {
-        bytes memory vaaKey = encodeVaaKey(strct.deliveryVaaKey);
+        bytes memory vaaKey = abi.encodePacked(VAA_KEY_TYPE, encodeVaaKey(strct.deliveryVaaKey));
         encoded = abi.encodePacked(
             PAYLOAD_ID_REDELIVERY_INSTRUCTION,
             vaaKey,
@@ -116,7 +121,7 @@ library WormholeRelayerSerde {
         uint256 offset = checkUint8(encoded, 0, PAYLOAD_ID_REDELIVERY_INSTRUCTION);
 
         uint256 newRequestedReceiverValue;
-
+        offset = checkUint8(encoded, offset, VAA_KEY_TYPE);
         (strct.deliveryVaaKey, offset) = decodeVaaKey(encoded, offset);
         (strct.targetChain, offset) = encoded.asUint16Unchecked(offset);
         (newRequestedReceiverValue, offset) = encoded.asUint256Unchecked(offset);
@@ -156,53 +161,92 @@ library WormholeRelayerSerde {
         checkLength(encoded, offset);
     }
 
-    // ------------------------------------------ private --------------------------------------------
-
-    function encodeVaaKeyArray(VaaKey[] memory vaaKeys)
-        private
+    function vaaKeyArrayToMessageKeyArray(VaaKey[] memory vaaKeys)
+        internal
         pure
-        returns (bytes memory encoded)
+        returns (MessageKey[] memory msgKeys)
     {
-        assert(vaaKeys.length < type(uint8).max);
-        encoded = abi.encodePacked(uint8(vaaKeys.length));
-        for (uint256 i = 0; i < vaaKeys.length;) {
-            encoded = abi.encodePacked(encoded, encodeVaaKey(vaaKeys[i]));
+        msgKeys = new MessageKey[](vaaKeys.length);
+        uint256 len = vaaKeys.length;
+        for (uint256 i = 0; i < len;) {
+            msgKeys[i] = MessageKey(VAA_KEY_TYPE, encodeVaaKey(vaaKeys[i]));
             unchecked {
                 ++i;
             }
         }
     }
 
-    function decodeVaaKeyArray(
+    function encodeMessageKey(
+        MessageKey memory msgKey
+    ) internal pure returns (bytes memory encoded) {
+        if (msgKey.keyType == VAA_KEY_TYPE) {
+            // known length
+            encoded = abi.encodePacked(msgKey.keyType, msgKey.encodedKey);
+        } else {
+            encoded = abi.encodePacked(msgKey.keyType, encodeBytes(msgKey.encodedKey));
+        }
+    }
+
+    function decodeMessageKey(
         bytes memory encoded,
         uint256 startOffset
-    ) private pure returns (VaaKey[] memory vaaKeys, uint256 offset) {
-        uint8 vaaKeysLength;
-        (vaaKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
-        vaaKeys = new VaaKey[](vaaKeysLength);
-        for (uint256 i = 0; i < vaaKeys.length;) {
-            (vaaKeys[i], offset) = decodeVaaKey(encoded, offset);
-            unchecked {
-                ++i;
-            }
+    ) internal pure returns (MessageKey memory msgKey, uint256 offset) {
+        (msgKey.keyType, offset) = encoded.asUint8Unchecked(startOffset);
+        if (msgKey.keyType == VAA_KEY_TYPE) {
+            (msgKey.encodedKey, offset) = encoded.sliceUnchecked(offset, VAA_KEY_TYPE_LENGTH);
+        } else {
+            (msgKey.encodedKey, offset) = decodeBytes(encoded, offset);
         }
     }
 
-    function encodeVaaKey(VaaKey memory vaaKey) private pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(
-            encoded, VERSION_VAAKEY, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence
-        );
+    function encodeVaaKey(VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
     }
 
     function decodeVaaKey(
         bytes memory encoded,
         uint256 startOffset
-    ) private pure returns (VaaKey memory vaaKey, uint256 offset) {
-        offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
+    ) internal pure returns (VaaKey memory vaaKey, uint256 offset) {
+        offset = startOffset;
         (vaaKey.chainId, offset) = encoded.asUint16Unchecked(offset);
         (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
         (vaaKey.sequence, offset) = encoded.asUint64Unchecked(offset);
     }
+
+    function encodeMessageKeyArray(MessageKey[] memory msgKeys)
+        internal
+        pure
+        returns (bytes memory encoded)
+    {
+        uint256 len = msgKeys.length;
+        if (len > type(uint8).max) {
+            revert TooManyMessageKeys(len);
+        }
+        encoded = abi.encodePacked(uint8(msgKeys.length));
+        for (uint256 i = 0; i < len;) {
+            encoded = abi.encodePacked(encoded, encodeMessageKey(msgKeys[i]));
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function decodeMessageKeyArray(
+        bytes memory encoded,
+        uint256 startOffset
+    ) internal pure returns (MessageKey[] memory msgKeys, uint256 offset) {
+        uint8 msgKeysLength;
+        (msgKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
+        msgKeys = new MessageKey[](msgKeysLength);
+        for (uint256 i = 0; i < msgKeysLength;) {
+            (msgKeys[i], offset) = decodeMessageKey(encoded, offset);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    // ------------------------------------------ private --------------------------------------------
 
     function encodeBytes(bytes memory payload) private pure returns (bytes memory encoded) {
         //casting payload.length to uint32 is safe because you'll be hard-pressed to allocate 4 GB of

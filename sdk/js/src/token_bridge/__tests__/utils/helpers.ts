@@ -51,9 +51,7 @@ export async function getSignedVAABySequence(
     sequence,
     {
       transport: NodeHttpTransport(), //This should only be needed when running in node.
-    },
-    1000, //retryTimeout
-    1000 //Maximum retry attempts
+    }
   );
 
   return vaaBytes;
