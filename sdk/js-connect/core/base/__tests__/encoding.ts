@@ -1,5 +1,5 @@
 import { test, describe, expect } from "@jest/globals";
-import { toUint8Array, hex, b64, b58 } from "../src/utils/encoding";
+import { bytes, hex, b64, b58 } from "../src/utils/encoding";
 
 // A table of base64 encoded strings and their decoded string equivalents
 const base64Table = [
@@ -45,7 +45,7 @@ describe("codec Tests", function () {
 
         test.each(base64Table)("decodes properly", function (expected, encoded) {
             const actual = b64.decode(encoded)
-            expect(actual).toEqual(toUint8Array(expected))
+            expect(actual).toEqual(bytes.encode(expected))
         });
     })
 
@@ -57,7 +57,7 @@ describe("codec Tests", function () {
 
         test.each(hexTable)("decodes properly", function (expected, encoded) {
             const actual = hex.decode(encoded)
-            expect(actual).toEqual(toUint8Array(expected))
+            expect(actual).toEqual(bytes.encode(expected))
         });
     })
 
@@ -70,7 +70,7 @@ describe("codec Tests", function () {
 
         test.each(base58Table)("decodes properly", function (expected, encoded) {
             const actual = b58.decode(encoded)
-            expect(actual).toEqual(toUint8Array(expected))
+            expect(actual).toEqual(bytes.encode(expected))
         });
     })
 });

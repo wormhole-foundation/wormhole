@@ -1,5 +1,5 @@
 import { expectAssignable, expectType } from 'tsd';
-import { ChainName, Network, RoArray, constMap } from "../../src";
+import { Chain, Network, RoArray, constMap } from "../../src";
 
 
 
@@ -16,7 +16,7 @@ const sample = [
             ["Sepolia", 11155111n],
         ]
     ]
-] as const satisfies RoArray<readonly [Network, RoArray<readonly [ChainName, bigint]>]>;
+] as const satisfies RoArray<readonly [Network, RoArray<readonly [Chain, bigint]>]>;
 
 const test1 = constMap(sample);
 const test1Entry1 = test1("Testnet", "Sepolia");
