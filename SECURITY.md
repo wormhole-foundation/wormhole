@@ -33,38 +33,28 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
 - **[October 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
 - **[October 2022 - Hacken](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
+- **[October 2022 - Coinspect](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-10_Coinspect_Wormhole_Algorand.pdf)**: _Algorand Contracts_
 - **[November 2022 - Zellic](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
 - **[February 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
+- **[March 2023 - CertiK](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-03-08_CertiK_Wormhole_EVM.pdf)**: _EVM Contracts_
 - **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
 - **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
-- **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
-- **Q4 2022 - Halborn (DRAFT)**: _Accounting_
-- **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
-- **Q4 2022 - Certik (DRAFT)**: _Solana Contracts_
-- **Q4 2022 - Certik (DRAFT)**: _Terra Contracts_
-- **Q4 2022 - Certik (DRAFT)**: _Guardian_
-- **Q4 2022 - Certik (DRAFT)**: _Solitaire_
-- **Q4 2022 - Coinspect (DRAFT)**: _Algorand Contracts_
-- **Q4 2022 - Hacken (DRAFT)**: _NEAR Contracts_
-- **Q2 2023 - Runtime Verification (IN PROGRESS)**: _Guardian_
-
+- **[May 2023 - Runtime Verification](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-05_Runtime_Verification_Wormhole_EVM.pdf)**: _Formal Verification of EVM contracts_
+- **Q4 2023 - Neodyme (In Process)**: _Solana Contracts_
+- **Q1 2024 - OtterSec (Planned)**: _Solana Contracts_
 
 ## Bug Bounty Program
 
-The Wormhole project operates two bug bounty programs to financially incentivize independent researchers for finding and responsibly disclosing security issues.
+The Wormhole project operates a bug bounty program to financially incentivize independent researchers for finding and responsibly disclosing security issues.
 
-- [Self-Hosted Program](https://wormhole.com/bounty/)
-  - **Scopes**: Guardian and Smart Contracts
-  - **Rewards**: Up to $2,500,000 USDC
-  - **KYC**: Required
 - [Immunefi-Hosted Program](https://immunefi.com/bounty/wormhole/)
   - **Scopes**: Guardian and Smart Contracts
   - **Rewards**: Up to $2,500,000 USDC
   - **KYC**: Required
 
-If you find a security issue in Wormhole, please report the issue immediately using one of the two bug bounty programs above.
+If you find a security issue in Wormhole, please report the issue immediately using the bug bounty program above.
 
-If there is a duplicate report, either the same reporter or different reporters, the first of the two by timestamp will be accepted as the official bug report and will be subject to the specific terms of the submitting program.
+If there is a duplicate report, either the same reporter or different reporters, the first of the two by timestamp will be accepted as the official bug report and will be subject to the specific terms of the  program.
 
 ## Trust Assumptions
 

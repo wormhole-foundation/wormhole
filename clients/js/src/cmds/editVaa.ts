@@ -3,14 +3,14 @@
 // take a guardian secret as input.
 //
 // Sign a VAA using signatures from wormscan:
-//   worm edit-vaa -n mainnet --vaa $VAA --wormscanurl https://api.wormscan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
+//   worm edit-vaa -n mainnet --vaa $VAA --wormscanurl https://api.wormholescan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
 //
 // Create the same VAA from scratch:
 //   worm edit-vaa -n mainnet \
 //     --ec 1 --ea 0x0000000000000000000000000000000000000000000000000000000000000004 \
 //     --gsi 3 --sequence 651169458827220885 --nonce 2166843495 --cl 32 \
 //     --payload 000000000000000000000000000000436972636c65496e746567726174696f6e020002000600000000000000000000000009fb06a271faff70a651047395aaeb6265265f1300000001 \
-//     --wormscanurl https://api.wormscan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
+//     --wormscanurl https://api.wormholescan.io/api/v1/observations/1/0000000000000000000000000000000000000000000000000000000000000004/651169458827220885
 //
 // Sign a VAA using the testnet guardian key:
 //   worm edit-vaa --vaa $VAA --gs $TESTNET_GUARDIAN_SECRET
@@ -52,11 +52,11 @@ export const builder = (y: typeof yargs) =>
       describe: "url to wormscan entry for the vaa that includes signatures",
       type: "string",
     })
-    .option("wormscanfile", {
-      alias: "wsf",
+    .option("wormscan", {
+      alias: "ws",
       describe:
-        "json file containing wormscan entry for the vaa that includes signatures",
-      type: "string",
+        "if specified, will query the wormscan entry for the vaa to get the signatures",
+      type: "boolean",
     })
     .option("emitter-chain-id", {
       alias: "ec",
@@ -110,7 +110,7 @@ export const handler = async (
     numSigs += 1;
   }
 
-  if (argv.wormscanfile) {
+  if (argv.wormscan) {
     numSigs += 1;
   }
 
@@ -124,7 +124,7 @@ export const handler = async (
 
   if (numSigs > 1) {
     throw new Error(
-      `may only specify one of "--signatures", "--wormscanfile", "--wormscanurl" or "--guardian-secret"`
+      `may only specify one of "--signatures", "--wormscan", "--wormscanurl" or "--guardian-secret"`
     );
   }
 
@@ -170,10 +170,20 @@ export const handler = async (
       signature: s,
       guardianSetIndex: i,
     }));
-  } else if (argv.wormscanfile) {
-    const wormscanData = require(argv.wormscanfile);
+  } else if (argv.wormscan) {
+    const wormscanurl =
+      "https://api.wormscan.io/api/v1/observations/" +
+      vaa.emitterChain.toString() +
+      "/" +
+      vaa.emitterAddress.replace(/^(0x)/, "") +
+      "/" +
+      vaa.sequence.toString();
+    const wormscanData = await axios.get(wormscanurl);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
-    vaa.signatures = await getSigsFromWormscanData(wormscanData, guardianSet);
+    vaa.signatures = await getSigsFromWormscanData(
+      wormscanData.data,
+      guardianSet
+    );
   } else if (argv.wormscanurl) {
     const wormscanData = await axios.get(argv.wormscanurl);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);

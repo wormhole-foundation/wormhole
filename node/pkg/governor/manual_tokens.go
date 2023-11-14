@@ -4,9 +4,8 @@ package governor
 func manualTokenList() []tokenConfigEntry {
 	return []tokenConfigEntry{
 		{chain: 2, addr: "000000000000000000000000ef19f4e48830093ce5bc8b3ff7f903a0ae3e9fa1", symbol: "BOTX", coinGeckoId: "botxcoin", decimals: 8, price: 0.02053366},
-		{chain: 2, addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85},         // Near on ethereum
-		{chain: 8, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "ALGO", coinGeckoId: "algorand", decimals: 6, price: 0.220141}, // Addr: 0, Notional: 145.799824582
-		{chain: 8, addr: "000000000000000000000000000000000000000000000000000000000004c5c1", symbol: "USDt", coinGeckoId: "tether", decimals: 6, price: 1.002},      // Addr: 312769, Notional: 22.31747085
+		{chain: 2, addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85},    // Near on ethereum
+		{chain: 8, addr: "000000000000000000000000000000000000000000000000000000000004c5c1", symbol: "USDt", coinGeckoId: "tether", decimals: 6, price: 1.002}, // Addr: 312769, Notional: 22.31747085
 		{chain: 8, addr: "0000000000000000000000000000000000000000000000000000000001e1ab70", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 0.998934},
 		{chain: 9, addr: "000000000000000000000000e4b9e004389d91e4134a28f19bd833cba1d994b6", symbol: "FRAX", coinGeckoId: "frax", decimals: 8, price: 1.00},
 		{chain: 9, addr: "000000000000000000000000c42c30ac6cc15fac9bd938618bcaa1a1fae8501d", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85}, // Near on aurora. 24 decimals
@@ -15,7 +14,6 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 13, addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", symbol: "WEMIX", coinGeckoId: "wemix-token", decimals: 8, price: 1.74},
 		{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85},
 		{chain: 19, addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", symbol: "INJ", coinGeckoId: "injective-protocol", decimals: 8, price: 1.64},
-		{chain: 30, addr: "0000000000000000000000004200000000000000000000000000000000000006", symbol: "WETH", coinGeckoId: "weth", decimals: 18, price: 1994.41},
 		{chain: 32, addr: "00881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", symbol: "Sei", coinGeckoId: "sei-network", decimals: 6, price: 0.0},
 	}
 }

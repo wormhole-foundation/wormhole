@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.10.2",
+  "version": "0.10.6",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -28,7 +28,9 @@
     "prepublishOnly": "echo \"disabled: npm test && npm run lint\"",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "test-relayer-status": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'Checks the status of a message'",
+    "test-relayer-manual-delivery": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'custom manual delivery'"
   },
   "keywords": [
     "wormhole",
@@ -37,7 +39,7 @@
     "sdk",
     "solana",
     "ethereum",
-    "terra",
+    "terra", 
     "bsc"
   ],
   "author": "certusone",

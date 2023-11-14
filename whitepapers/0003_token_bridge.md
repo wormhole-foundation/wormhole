@@ -204,11 +204,11 @@ RegisterChain:
 ```
 // Gov Header
 // Module Identifier  ("TokenBridge" left-padded)
-Module [32]byte 
+Module [32]byte
 // Governance Action ID (1 for RegisterChain)
 Action uint8 = 1
 // Target Chain (Where the governance action should be applied)
-// (0 is a valid value for all chains) 
+// (0 is a valid value for all chains)
 ChainId uint16
 
 // Packet
@@ -223,7 +223,7 @@ UpgradeContract:
 ```
 // Header
 // Module Identifier  ("TokenBridge" left-padded)
-Module [32]byte 
+Module [32]byte
 // Governance Action ID (2 for UpgradeContract)
 Action uint8 = 2
 // Target Chain  (Where the governance action should be applied)
@@ -236,10 +236,15 @@ NewContract [32]uint8
 
 ## Caveats
 
-There is no guarantee for completion of transfers. If a user initiates a transfer and doesn't call `completeTransfer`
-on the target chain, a transfer might not be completed. In case a guardian set change happens in-between and the
-original signer guardian set expires, the transfer will be stuck indefinitely.
+### Transfer completion
+A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
 
+If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
+1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
+2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan prodives an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
+3. A Guardian may send a signed re-observation request to the network using the `send-observation-request` admin command. A new valid VAA with an updated Guardian Set Index is generated once enough Guardians have re-observed the old message. Note that this is only possible if a quorum of Guardians is running archive nodes that still include this transaction.
+
+### Setup of wrapped assets
 Since there is no way for a token bridge endpoint to know which other chain already has wrapped assets set up for the
 native asset on its chain, there may be transfers initiated for assets that don't have wrapped assets set up yet on the
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time).

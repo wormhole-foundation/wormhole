@@ -10,7 +10,7 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
 
 # Environment variables used by install.sh
 ARG URL=https://github.com/algorand/indexer
-ARG BRANCH=master
+ARG BRANCH=2.15.4
 ARG SHA=""
 
 ENV HOME /opt/indexer

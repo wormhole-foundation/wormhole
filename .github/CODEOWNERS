@@ -9,10 +9,10 @@
 /bitcoin/ @evan-gray
 /cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @gator-boi @kcsongor
-/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth
-/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth
-/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth
-/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth
+/ethereum/contracts/relayer @derpy-duck @JoeHowarth @gator-boi
+/ethereum/contracts/interfaces/relayer @derpy-duck @JoeHowarth @gator-boi
+/ethereum/forge-test/relayer @derpy-duck @JoeHowarth @gator-boi
+/ethereum/ts-scripts/relayer @derpy-duck @JoeHowarth @gator-boi
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi
@@ -23,21 +23,25 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/spy_relayer @evan-gray @kev1n-peters
-/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth
+/relayer/generic_relayer @derpy-duck @JoeHowarth @gator-boi
 /scripts/ @evan-gray @kcsongor
-/sdk/ @bruce-riley @evan-gray
+/sdk/ @bruce-riley @evan-gray @kev1n-peters @SEJeff
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
+/sdk/js-query/ @evan-gray @kev1n-peters
 /sdk/js-wasm/ @evan-gray @kev1n-peters
-/sdk/js/ @evan-gray @kev1n-peters
+/sdk/js/ @evan-gray @kev1n-peters @barnjamin
 /sdk/rust/ @a5-pickle
-/sdk/vaa/ @bruce-riley
+/sdk/vaa/ @bruce-riley @SEJeff
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
 /deployments @evan-gray @kev1n-peters @panoel @bruce-riley
+
+# Protobuf for node
+
+/proto/node/ @evan-gray @bruce-riley
 
 # Guardiand node
 
@@ -51,15 +55,15 @@
 
 ## DB
 
-/node/pkg/db/ @bruce-riley @kev1n-peters
+/node/pkg/db/ @bruce-riley @kev1n-peters @panoel
 
 ## Accountant
 
-/node/pkg/accountant/ @bruce-riley @evan-gray
+/node/pkg/accountant/ @bruce-riley @evan-gray @panoel
 
 ## Governor
 
-/node/pkg/governor/ @bruce-riley @claudijd @tbjump @SEJeff
+/node/pkg/governor/ @bruce-riley @claudijd @SEJeff
 
 ## Gateway Relayer
 
@@ -67,15 +71,15 @@
 
 ## P2P
 
-/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters
+/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @panoel
 
 ## Consensus / Processor
 
-/node/pkg/processor/ @bruce-riley @evan-gray
+/node/pkg/processor/ @bruce-riley @evan-gray @panoel
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @bruce-riley @kev1n-peters
+/node/pkg/publicrpc/ @bruce-riley @kev1n-peters @panoel
 
 ## Supervisor Framework
 
@@ -84,3 +88,7 @@
 ## Watchers
 
 /node/pkg/watchers @evan-gray @bruce-riley @panoel @kev1n-peters
+
+## Hacks / Tools
+
+/node/hack/ @bruce-riley @panoel @kev1n-peters @evan-gray

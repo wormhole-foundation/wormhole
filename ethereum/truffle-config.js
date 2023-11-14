@@ -366,6 +366,15 @@ module.exports = {
       },
       network_id: 84531,
     },
+    scroll_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://sepolia-rpc.scroll.io"
+        );
+      },
+      network_id: 534351,
+    },
     rootstock: {
       provider: () => {
         return new HDWalletProvider(

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -eo pipefail
+
+usage() {
+  cat <<-EOF >&2
+	Usage: ${0##*/} <network>
+
+	Print the named addresses for the given network.
+EOF
+  exit 1
+}
+
+if [ $# -lt 1 ]; then
+  usage
+fi
+
+NETWORK="$1"
+
+case "$NETWORK" in
+  testnet)
+    DEPLOYER=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b
+    ;;
+  devnet)
+    DEPLOYER=0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b
+    ;;
+  mainnet)
+    DEPLOYER=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b
+    ;;
+  *)
+    echo "Unknown network $NETWORK" >&2
+    usage
+    ;;
+esac
+
+WORMHOLE=$(worm info contract "$NETWORK" aptos Core)
+TOKEN_BRIDGE=$(worm info contract "$NETWORK" aptos TokenBridge)
+NFT_BRIDGE=$(worm info contract "$NETWORK" aptos NFTBridge)
+
+NAMED_ADDRS="wormhole=$WORMHOLE,deployer=$DEPLOYER,token_bridge=$TOKEN_BRIDGE,nft_bridge=$NFT_BRIDGE"
+
+echo "$NAMED_ADDRS"

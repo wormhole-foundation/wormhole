@@ -41,7 +41,9 @@ func NewWatcherRunnable(
 				logger.Info("Received obsv request", zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", hash.Hex()))
 				msg, ok := c.ObservationDb[hash]
 				if ok {
-					msgC <- msg
+					msg2 := *msg
+					msg2.IsReobservation = true
+					msgC <- &msg2
 				}
 			}
 		}

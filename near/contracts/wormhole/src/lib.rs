@@ -26,6 +26,8 @@ pub mod byte_utils;
 
 pub mod state;
 
+use std::cmp::max;
+
 use crate::byte_utils::{
     get_string_from_32,
     ByteUtils,
@@ -582,6 +584,8 @@ impl Wormhole {
     ) {
         let delta = (env::storage_usage() as i128 - storage_used as i128)
             * env::storage_byte_cost() as i128;
+        let delta = max(0, delta);
+
         let refund = attached_deposit as i128 - delta;
         if refund > 0 {
             env::log_str(&format!(

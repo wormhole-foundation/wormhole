@@ -4,37 +4,68 @@
 
 ## Objective
 
-Provide an optional security layer that enables Guardians to limit the amount of notional value that can be transferred out of a given chain within a sliding time period, with the aim of protecting against external risk such as smart contract exploits or runtime vulnerabilities.
+Limit the impact of certain exploits by giving Guardians the option to delay Wormhole messages from registered token bridges if their aggregate notional value is extraordinarily large.
 
 ## Background
 
-Bridge security is incredibly high stakes — beyond core trust assumptions and high code quality, it is important to have defense in depth to minimize the potential for user harm. Under the assumption of smart contract bugs, the Governor is designed to be a passive security check that individual Guardians can implement to rate limit the notional value of assets that can be transferred out of a given chain to ensure the integrity of the value stored within a token bridge.
+A single integrity failure of the core messaging bridge can have disastrous consequences for users of token bridges built ontop of Wormhole, if no additional safety mitigations are in place. For example, on Feb 2, 2022 [a vulnerability in the Solana core smart contract was exploited](https://wormholecrypto.medium.com/wormhole-incident-report-02-02-22-ad9b8f21eec6) to maliciously mint wETH on Solana and it was subsequently bridged back to Ethereum.
+
+There are multiple potential failure modes of the bridge:
+* In scope of the Wormhole security program:
+  * Bugs in the smart contract
+  * Bugs in the Guardian software
+  * Guardian key compromise
+* Out of scope of the Wormhole security program:
+  * Bugs in the blockchain smart contract runtime or rpc nodes
+  * Forks
+
+Even if Wormhole's code and operations are flawless, it might still produce "invalid" messages if there is an exploit of the origin chain: "Bugs" in the origin-chain smart contract runtime that produced undesirable Wormhole messages could be patched by the community, effectively leading to a fork that reverts these Wormhole messages. And bugs in the rpc nodes could lead to the Guardians not having an accurate view of the on-chain state.
+
+If token bridge transfers are unlimited and instantaneous, a bug in a single connected chain could cause the entire token bridge to be drained.
 
 ## Goals
 
-- Implement an optional security check for Guardians to incorporate in a message verification process based on notional value processed by chain
-- Limit the notional movement of value out of a given chain over a period of time
+If a Guardian decides to enable this feature:
+* Delay Wormhole messages from registered token bridges for 24h, if their notional value is excessively large.
+* This gives the Guardian the opportunity to delete pending messages, if they were created through a software bug and not accurately represent the state of the origin chain.
+* Protect against sybil attacks, i.e. this feature should work even if an attacker tries to make one large transfer look like organic activity by splitting it into many small transfers.
 
 ## Non-Goals
 
-- Set a blanket rate limiting on all supported chains for all tokens
-- Prevent any single "bad actor" from blocking other value transfer by intentionally exceeding the transfer limit for the given time period
+* Synchronize state between Guardians. Each Guardian may have a slightly different view of the network, including Governor configuration, ordering and completeness of token bridge transfers, etc. The Governor is a local feature that makes decisions based on each Guardian's individual view of the network.
+* Prevent quality-of-service degradation attacks where one bad actor causes a majority of transfers to be delayed.
 
-## Overview
+## High-Level Design
 
-Each individual Guardian within the Guardian network should employ a set of strategies to verify the validity of a VAA. The Governor is designed to check VAAs that transfer tokens by enforcing limits on the notional value that can be transferred from a given chain over a specific period of time.
+### Delay Decision Logic
+*Configuration*:
+* For each chain, a _single-transaction-threshold_ and a *24h-threshold* denominated in a base currency (U.S. Dollar) is specified in [mainnet_chains.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go).
+* A list of prominent tokens is specified in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). Tokens that are not on this list are not being tracked by the Governor. This list is opt-in in order to prevent thinly-traded tokens with unreliable price feeds to count towards the thresholds.
 
-The current implementation works on two classes of transaction (large and small) and current configuration can be found [here](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go):
+Governor divides token-based transactions into two categories: small transactions, and large transactions.
 
-- **Large Transactions**
-  - A transaction is large if it is greater than or equal to the `bigTransactionSize` for a given origin chain.
-  - All large transactions will have a mandatory 24-hour finality delay and will have no affect on the `dailyLimit`.
-- **Small Transactions**
-  - A transaction is small if it is less than the `bigTransactionSize` for a given origin chain.
-  - All small transactions will have no additional finality delay up to the `dailyLimit` defined within a 24hr sliding window.
-  - If a small transaction exceeds the `dailyLimit`it will be delayed until it either
-    - fits inside the `dailyLimit` and will be counted toward the `dailyLimit`
-    - has been delayed for 24-hours and will have no affect on the `dailyLimit`.
+- **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artifically split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
+- **Large Transactions:** Transactions larger than the single-transaction threshold of the chain where the transfer is originating from are considered large transactions.  All large transactions have an imposed 24h finality delay before Wormhole Guardians sign them. These transactions do not affect the 24h threshold counter.
+
+### Asset pricing
+
+Since the thresholds are denominated in the base currency, the Governor must know the notional value of transfers in this base currency. To determine the price of a token it uses the *maximum* of:
+1. **Hardcoded Floor Price**: This price is hard coded into the governor and is based on a fixed point in time (usually during a Wormhole Guardian release) which polls CoinGecko for a known set of known tokens that are governed.
+2. **Dynamic Price:** This price is dynamically polled from CoinGecko at 5-10min intervals.
+
+The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go).
+
+If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hardcoded floor price instead.
+
+### Visibility
+Each Guardian publishes its Governor configuration and status on the Wormhole gossip network, which anyone can subscribe to via a guardian spy ([instructions](https://github.com/wormhole-foundation/wormhole/blob/main/docs/operations.md)). Some Guardians also make the Governor status available through a public API, which can be visualized on the [Wormhole Dashboard](https://wormhole-foundation.github.io/wormhole-dashboard/). A more feature-rich [Wormhole Explorer](https://github.com/wormhole-foundation/wormhole-explorer) that will aggregate Governor status across all Guardians is work-in-progress.
+
+### Security Considerations
+* The Governor can only reduce the impact of an exploit, but not prevent it.
+* Excessively high transfer activity, even if manufactured and not organic, will cause transactions to be delayed by up to 24h.
+* If CoinGecko reports an unreasonably high price for a token, the 24h threshold will be exhausted sooner.
+* Guardians need to manually respond to erroneous messages within the 24h time window. It is expected that all Guardians operate collateralization monitoring for the protocol, taking into account the Governor queue. All Guardians should have alerting and incident response procedures in case of an undercollateralization.
+* An attacker could utilize liquidity pools and other bridges to launder illicitly minted wrapped assets.
 
 ## Detailed Design
 
@@ -69,6 +100,14 @@ In this design, there are three mechanisms for enqueued messages to be published
   - _Messages released through this mechanism WOULD be added to the list of processed transactions and thus be counted toward the daily notional limit._
 - Messages will be automatically released after a maximum time limit (this time limit can be adjusted through governance and is currently set to 24 hours).
   - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window._
+
+
+## Operational Considerations
+### Extending the release time to have more time to investigate
+Guardian operators can use the `ChainGovernorResetReleaseTimer` admin RPC or `governor-reset-release-timer [VAA_ID]` admin command to reset the delay to 24h.
+
+### Dropping messages from the Governor
+Guardian operators can use the `ChainGovernorDropPendingVAA` admin RPC or `governor-drop-pending-vaa [VAA_ID]` admin command to remove a VAA from the Governor queue. Note that in most cases this should be done in conjunction with disconnecting a chain or block-listing certain messages because otherwise the message may just get re-observed through automatic observation requests.
 
 ## Potential Improvements
 

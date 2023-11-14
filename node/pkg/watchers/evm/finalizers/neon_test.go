@@ -15,6 +15,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// mockL1Finalizer implements the L1Finalizer interface for testing purposes.
+type mockL1Finalizer struct {
+	LatestFinalizedBlockNumber uint64
+}
+
+func (m *mockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
+	return m.LatestFinalizedBlockNumber
+}
+
 func TestNeonErrorReturnedIfBlockIsNil(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()

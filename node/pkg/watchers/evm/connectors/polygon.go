@@ -31,6 +31,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
@@ -115,6 +116,13 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan err
 		return nil, fmt.Errorf("failed to post initial block: %w", err)
 	}
 
+	// Use the standard geth head sink to get latest blocks.
+	headSink := make(chan *ethTypes.Header, 2)
+	_, err = c.Connector.Client().SubscribeNewHead(ctx, headSink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe for latest blocks: %w", err)
+	}
+
 	common.RunWithScissors(ctx, errC, "polygon_subscribe_for_block", func(ctx context.Context) error {
 		for {
 			select {
@@ -127,6 +135,21 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan err
 			case checkpoint := <-messageC:
 				if err := c.processCheckpoint(ctx, sink, checkpoint); err != nil {
 					sub.err <- fmt.Errorf("failed to process checkpoint: %w", err)
+				}
+			case ev := <-headSink:
+				if ev == nil {
+					c.logger.Error("new latest header event is nil")
+					continue
+				}
+				if ev.Number == nil {
+					c.logger.Error("new latest header block number is nil")
+					continue
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Time:     ev.Time,
+					Hash:     ev.Hash(),
+					Finality: Latest,
 				}
 			case <-sub.quit:
 				messageSub.Unsubscribe()
@@ -157,11 +180,16 @@ func (c *PolygonConnector) postBlock(ctx context.Context, blockNum *big.Int, sin
 		return fmt.Errorf("blockNum is nil")
 	}
 
-	block, err := getBlock(ctx, c.logger, c.Connector, blockNum, false, false)
+	block, err := getBlockByNumberBigInt(ctx, c.logger, c.Connector, blockNum, Finalized)
 	if err != nil {
 		return fmt.Errorf("failed to get block %s: %w", blockNum.String(), err)
 	}
 
+	// Publish the finalized block.
 	sink <- block
+
+	// Publish same thing for the safe block.
+	sink <- block.Copy(Safe)
+
 	return nil
 }

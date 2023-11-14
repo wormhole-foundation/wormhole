@@ -4,9 +4,10 @@ pragma solidity ^0.8.19;
 
 import "./DeliveryProviderGovernance.sol";
 import "./DeliveryProviderStructs.sol";
+import {getSupportedMessageKeyTypes} from "./DeliveryProviderState.sol";
 import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
-import "../../libraries/relayer/ExecutionParameters.sol";
+import "../../relayer/libraries/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 
 contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
@@ -33,21 +34,22 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         view
         returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
     {
+        // Calculates the amount to refund user on the target chain, for each unit of target chain gas unused
+        // by multiplying the price of that amount of gas (in target chain currency)
+        // by a target-chain-specific constant 'denominator'/('denominator' + 'buffer'), which will be close to 1
+
         (uint16 buffer, uint16 denominator) = assetConversionBuffer(targetChain);
         targetChainRefundPerUnitGasUnused = GasPrice.wrap(gasPrice(targetChain).unwrap() * (denominator) / (uint256(denominator) + buffer));
-        
-        TargetNative maxRefund = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
-        TargetNative gasLimitCost = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
-        LocalNative maxRefundInSourceCurrency = quoteAssetCost(targetChain, maxRefund);
+
+        // Calculates the cost of performing a delivery with 'gasLimit' units of gas and 'receiverValue' wei delivered to the target contract
+
         LocalNative gasLimitCostInSourceCurrency = quoteGasCost(targetChain, gasLimit);
-        LocalNative receiverValueCost = quoteAssetCost(targetChain, receiverValue);
-        nativePriceQuote = quoteDeliveryOverhead(targetChain) + gasLimitCostInSourceCurrency + receiverValueCost;
-        if(maxRefundInSourceCurrency.unwrap() > gasLimitCostInSourceCurrency.unwrap()) {
-            revert MaxRefundGreaterThanGasLimitCostOnSourceChain(maxRefundInSourceCurrency.unwrap(), gasLimitCostInSourceCurrency.unwrap());
-        } 
-        if(maxRefund.unwrap() > gasLimitCost.unwrap()) {
-            revert MaxRefundGreaterThanGasLimitCost(maxRefund.unwrap(), gasLimitCost.unwrap());
-        }
+        LocalNative receiverValueCostInSourceCurrency = quoteAssetCost(targetChain, receiverValue);
+        nativePriceQuote = quoteDeliveryOverhead(targetChain) + gasLimitCostInSourceCurrency + receiverValueCostInSourceCurrency;
+  
+        // Checks that the amount of wei that needs to be sent into the target chain is <= the 'maximum budget' for the target chain
+        
+        TargetNative gasLimitCost = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
         if(receiverValue.asNative() + gasLimitCost.asNative() > maximumBudget(targetChain).asNative()) {
             revert ExceedsMaximumBudget(targetChain, receiverValue.unwrap() + gasLimitCost.unwrap(), maximumBudget(targetChain).unwrap());
         }
@@ -98,12 +100,20 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     }
 
     //Returns the address on this chain that rewards should be sent to
-    function getRewardAddress() public view override returns (address payable) {
+    function getRewardAddress() public view returns (address payable) {
         return rewardAddress();
     }
 
-    function isChainSupported(uint16 targetChain) public view override returns (bool supported) {
+    function isChainSupported(uint16 targetChain) public view returns (bool supported) {
         return _state.supportedChains[targetChain];
+    }
+
+    function getSupportedKeys() public view returns (uint256 bitmap) {
+        return getSupportedMessageKeyTypes().bitmap;
+    }
+
+    function isMessageKeyTypeSupported(uint8 keyType) public view returns (bool supported) {
+        return getSupportedMessageKeyTypes().bitmap & (1 << keyType) > 0;
     }
 
     function getTargetChainAddress(uint16 targetChain)
@@ -145,19 +155,19 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function assetConversion(
-        uint16 sourceChain,
-        Wei sourceAmount,
-        uint16 targetChain
+        uint16 fromChain,
+        Wei fromAmount,
+        uint16 toChain
     ) internal view returns (Wei targetAmount) {
-        if(nativeCurrencyPrice(sourceChain).unwrap() == 0) {
-            revert PriceIsZero(sourceChain);
+        if(nativeCurrencyPrice(fromChain).unwrap() == 0) {
+            revert PriceIsZero(fromChain);
         } 
-        if(nativeCurrencyPrice(targetChain).unwrap() == 0) {
-            revert PriceIsZero(targetChain);
+        if(nativeCurrencyPrice(toChain).unwrap() == 0) {
+            revert PriceIsZero(toChain);
         }
-        return sourceAmount.convertAsset(
-            nativeCurrencyPrice(sourceChain),
-            nativeCurrencyPrice(targetChain),
+        return fromAmount.convertAsset(
+            nativeCurrencyPrice(fromChain),
+            nativeCurrencyPrice(toChain),
             1,
             1,
             // round up
