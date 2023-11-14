@@ -94,8 +94,8 @@ Options:
       --signatures, --sigs         comma separated list of signatures   [string]
       --wormscanurl, --wsu         url to wormscan entry for the vaa that
                                    includes signatures                  [string]
-      --wormscanfile, --wsf        json file containing wormscan entry for the
-                                   vaa that includes signatures         [string]
+      --wormscan, --ws             if specified, will query the wormscan entry
+                                   for the vaa to get the signatures   [boolean]
       --emitter-chain-id, --ec     emitter chain id to be used in the vaa
                                                                         [number]
       --emitter-address, --ea      emitter address to be used in the vaa[string]
@@ -255,7 +255,8 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -a, --contract-address  Contract to submit VAA to (override config)   [string]
@@ -310,13 +311,15 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
       --dst-chain   destination chain
            [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
       --amount      token amount                             [string] [required]
@@ -342,16 +345,15 @@ Options:
 
 ```sh
 Positionals:
-  network      Network                 [choices: "mainnet", "testnet", "devnet"]
-  chain        Source chain
+  network  Network                     [choices: "mainnet", "testnet", "devnet"]
+  chain    Source chain
              [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
-  tx           Source transaction hash                                  [string]
-  block-start  Starting Block Range, i.e. -2048                         [string]
-  block-end    Ending Block Range, i.e. latest                          [string]
+   "xpla", "btc", "base", "sei", "rootstock", "wormchain", "cosmoshub", "evmos",
+                                                            "kujira", "sepolia"]
+  tx       Source transaction hash                                      [string]
 
 Options:
   --help     Show help                                                 [boolean]

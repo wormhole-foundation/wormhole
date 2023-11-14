@@ -122,7 +122,7 @@ func NewWatcher(
 	latestBlockURL := "blocks/latest"
 
 	// Terra2 and Injective do things slightly differently than terra classic
-	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
+	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 || (chainID == vaa.ChainIDTerra && env != common.UnsafeDevNet) {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
@@ -304,6 +304,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey)
 				for _, msg := range msgs {
+					msg.IsReobservation = true
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}

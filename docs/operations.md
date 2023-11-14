@@ -254,3 +254,29 @@ is why it requires extra capabilities. Yes, other chains might want to do this t
 Storing keys on an HSM or using remote signers only partially mitigates the risk of server compromise - it means the key
 can't get stolen, but an attacker could still cause the HSM to sign malicious payloads. Future iterations of Wormhole
 may include support for remote signing using a signer like [SignOS](https://certus.one/sign-os/).
+
+## Run the Guardian Spy
+
+The spy connects to the wormhole guardian peer to peer network and listens for new VAAs. It publishes those via a socket and websocket that applications can subscribe to. If you want to run the spy built from source, change `ghcr.io/wormhole-foundation/guardiand:latest` to `guardian` after building the `guardian` image.
+
+Start the spy against the testnet wormhole guardian:
+
+```bash
+docker run \
+    --platform=linux/amd64 \
+    -p 7073:7073 \
+    --entrypoint /guardiand \
+    ghcr.io/wormhole-foundation/guardiand:latest \
+spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap "/dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i,/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK"
+```
+
+To run the spy against mainnet:
+
+```bash
+docker run \
+    --platform=linux/amd64 \
+    -p 7073:7073 \
+    --entrypoint /guardiand \
+    ghcr.io/wormhole-foundation/guardiand:latest \
+spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7,/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC
+```

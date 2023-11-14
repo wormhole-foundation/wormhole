@@ -720,7 +720,7 @@ fn query_batch_transfer_status(
         .map(|key| {
             let status = match query_transfer_status(deps, &key) {
                 Ok(s) => Some(s),
-                Err(e) if matches!(e, StdError::NotFound { .. }) => None,
+                Err(StdError::NotFound { .. }) => None,
                 Err(e) => return Err(e),
             };
             Ok(TransferDetails { key, status })

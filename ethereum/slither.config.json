@@ -1,0 +1,4 @@
+{
+    "filter_paths": "(lib/openzeppelin-contracts|contracts/libraries/external/BytesLib.sol|contracts/(bridge|nft)/mock|contracts/mock|node_modules)",
+    "solc_remaps": "@=node_modules/@"
+}

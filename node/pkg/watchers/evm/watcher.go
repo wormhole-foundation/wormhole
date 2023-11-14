@@ -3,6 +3,8 @@ package evm
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -55,6 +58,16 @@ var (
 		prometheus.GaugeOpts{
 			Name: "wormhole_eth_current_height",
 			Help: "Current Ethereum block height",
+		}, []string{"eth_network"})
+	currentEthSafeHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_eth_current_safe_height",
+			Help: "Current Ethereum safe block height",
+		}, []string{"eth_network"})
+	currentEthFinalizedHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_eth_current_finalized_height",
+			Help: "Current Ethereum finalized block height",
 		}, []string{"eth_network"})
 	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -94,6 +107,13 @@ type (
 		// include requests for our chainID.
 		obsvReqC <-chan *gossipv1.ObservationRequest
 
+		// Incoming query requests from the network. Pre-filtered to only
+		// include requests for our chainID.
+		queryReqC <-chan *query.PerChainQueryInternal
+
+		// Outbound query responses to query requests
+		queryResponseC chan<- *query.PerChainQueryResponseInternal
+
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
 
@@ -114,12 +134,18 @@ type (
 		ethConn       connectors.Connector
 		unsafeDevMode bool
 
+		latestBlockNumber          uint64
+		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
 		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
 		rootChainRpc      string
 		rootChainContract string
+
+		ccqMaxBlockNumber *big.Int
+		ccqTimestampCache *BlocksByTimestamp
+		ccqLogger         *zap.Logger
 	}
 
 	pendingKey struct {
@@ -143,8 +169,14 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
+	queryReqC <-chan *query.PerChainQueryInternal,
+	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
+	var ccqTimestampCache *BlocksByTimestamp
+	if query.SupportsTimestampCaching(chainID) {
+		ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	}
 
 	return &Watcher{
 		url:                  url,
@@ -157,12 +189,17 @@ func NewEthWatcher(
 		msgC:                 msgC,
 		setC:                 setC,
 		obsvReqC:             obsvReqC,
+		queryReqC:            queryReqC,
+		queryResponseC:       queryResponseC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
+		ccqMaxBlockNumber:    big.NewInt(0).SetUint64(math.MaxUint64),
+		ccqTimestampCache:    ccqTimestampCache,
 	}
 }
 
 func (w *Watcher) Run(parentCtx context.Context) error {
+	var err error
 	logger := supervisor.Logger(parentCtx)
 
 	logger.Info("Starting watcher",
@@ -174,23 +211,13 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
 
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
 	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
 	defer watcherContextCancelFunc()
-
-	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
-	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
-		ufb, err := w.getAcalaMode(ctx)
-		if err != nil {
-			return err
-		}
-
-		if ufb {
-			useFinalizedBlocks = true
-		}
-	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
@@ -200,10 +227,30 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	safeBlocksSupported := false
+	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine finality: %w", err)
+	}
 
-	var err error
-	if w.chainID == vaa.ChainIDCelo && !w.unsafeDevMode {
+	if finalizedPollingSupported {
+		if safePollingSupported {
+			logger.Info("polling for finalized and safe blocks")
+		} else {
+			logger.Info("polling for finalized blocks, will generate safe blocks")
+		}
+		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDCelo {
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
 		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -212,52 +259,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-	} else if useFinalizedBlocks {
-		if (w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && !w.unsafeDevMode {
-			safeBlocksSupported = true
-			logger.Info("using finalized blocks, will publish safe blocks")
-		} else {
-			logger.Info("using finalized blocks")
-		}
-
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, safeBlocksSupported)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDMoonbeam && !w.unsafeDevMode {
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		finalizer := finalizers.NewMoonbeamFinalizer(logger, baseConnector)
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDNeon && !w.unsafeDevMode {
+	} else if w.chainID == vaa.ChainIDNeon {
+		// Neon needs special handling to read log events.
 		if w.l1Finalizer == nil {
 			return fmt.Errorf("unable to create neon watcher because the l1 finalizer is not set")
 		}
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewNeonFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
+		pollConnector, err := connectors.NewFinalizerPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -269,42 +283,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDArbitrum && !w.unsafeDevMode {
-		if w.l1Finalizer == nil {
-			return fmt.Errorf("unable to create arbitrum watcher because the l1 finalizer is not set")
-		}
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating arbitrum connector failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
-		// This only supports Bedrock mode
-		useFinalizedBlocks = true
-		safeBlocksSupported := true
-		logger.Info("using finalized blocks, will publish safe blocks")
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating optimism connector failed: %w", err)
-		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		// Polygon polls the root contract on Ethereum.
+		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -320,25 +301,20 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to create polygon connector: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDBase && !w.unsafeDevMode {
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating base connector failed: %w", err)
-		}
 	} else {
-		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		// Everything else is instant finality.
+		logger.Info("assuming instant finality")
+		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewInstantFinalityConnector(baseConnector, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to connect to polygon: %w", err)
 		}
 	}
 
@@ -377,11 +353,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	// Track the current block numbers so we can compare it to the block number of
-	// the message publication for observation requests.
-	var currentBlockNumber uint64
-	var currentSafeBlockNumber uint64
-
 	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
 		for {
 			select {
@@ -406,8 +377,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				// In the primary watcher flow, this is of no concern since we assume the node
 				// always sends the head before it sends the logs (implicit synchronization
 				// by relying on the same websocket connection).
-				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
-				safeBlockNumberU := atomic.LoadUint64(&currentSafeBlockNumber)
+				blockNumberU := atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+				safeBlockNumberU := atomic.LoadUint64(&w.latestSafeBlockNumber)
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 				blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
@@ -421,6 +392,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				for _, msg := range msgs {
+					msg.IsReobservation = true
 					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
 							zap.Stringer("tx", msg.TxHash),
@@ -434,7 +406,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe && safeBlocksSupported {
+					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe {
 						if safeBlockNumberU == 0 {
 							logger.Error("no safe block number available, ignoring observation request",
 								zap.String("eth_network", w.networkName))
@@ -508,6 +480,21 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						)
 					}
 				}
+			}
+		}
+	})
+
+	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
+		ccqLogger := logger.With(
+			zap.String("eth_network", w.networkName),
+			zap.String("component", "ccqevm"),
+		)
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case queryRequest := <-w.queryReqC:
+				w.ccqHandleQuery(ccqLogger, ctx, queryRequest)
 			}
 		}
 	})
@@ -595,7 +582,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	// Watch headers
-	headSink := make(chan *connectors.NewBlock, 2)
+	headSink := make(chan *connectors.NewBlock, 100)
 	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, errC, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "header_subscribe_error").Inc()
@@ -604,6 +591,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
+		stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
 		for {
 			select {
 			case <-ctx.Done():
@@ -620,7 +608,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					continue
 				}
 				if ev.Number == nil {
-					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName), zap.Bool("is_safe_block", ev.Safe))
+					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName), zap.Stringer("finality", ev.Finality))
 					continue
 				}
 
@@ -628,37 +616,45 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				currentHash := ev.Hash
 				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
+					zap.Uint64("block_time", ev.Time),
 					zap.Stringer("current_blockhash", currentHash),
-					zap.Bool("is_safe_block", ev.Safe),
+					zap.Stringer("finality", ev.Finality),
 					zap.String("eth_network", w.networkName))
-				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
 				readiness.SetReady(w.readinessSync)
-				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
-					Height:          ev.Number.Int64(),
-					ContractAddress: w.contract.Hex(),
-				})
-
-				w.pendingMu.Lock()
 
 				blockNumberU := ev.Number.Uint64()
-				if ev.Safe {
-					atomic.StoreUint64(&currentSafeBlockNumber, blockNumberU)
-				} else {
-					atomic.StoreUint64(&currentBlockNumber, blockNumberU)
-					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
+				if ev.Finality == connectors.Latest {
+					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
+					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+					stats.Height = int64(blockNumberU)
+					w.updateNetworkStats(&stats)
+					w.ccqAddLatestBlock(ev)
+					continue
 				}
 
+				// The only blocks that get here are safe and finalized.
+
+				if ev.Finality == connectors.Safe {
+					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
+					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+					stats.SafeHeight = int64(blockNumberU)
+				} else {
+					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
+					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
+					stats.FinalizedHeight = int64(blockNumberU)
+				}
+				w.updateNetworkStats(&stats)
+
+				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
 					// If this block is safe, only process messages wanting safe.
 					// If it's not safe, only process messages wanting finalized.
-					if safeBlocksSupported {
-						if ev.Safe != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
-							continue
-						}
+					if (ev.Finality == connectors.Safe) != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
+						continue
 					}
 
 					var expectedConfirmations uint64
-					if w.waitForConfirmations && !ev.Safe {
+					if w.waitForConfirmations && ev.Finality == connectors.Finalized {
 						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
 					}
 
@@ -670,7 +666,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("emitter_address", key.EmitterAddress),
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
-							zap.Bool("is_safe_block", ev.Safe),
+							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName),
 							zap.Uint64("expectedConfirmations", expectedConfirmations),
@@ -702,7 +698,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -721,7 +717,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -738,7 +734,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName),
 								zap.Error(err))
@@ -755,7 +751,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("emitter_address", key.EmitterAddress),
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
-								zap.Bool("is_safe_block", ev.Safe),
+								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", w.networkName))
 							delete(w.pending, key)
@@ -769,7 +765,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("emitter_address", key.EmitterAddress),
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
-							zap.Bool("is_safe_block", ev.Safe),
+							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName))
 						delete(w.pending, key)
@@ -781,7 +777,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				w.pendingMu.Unlock()
 				logger.Debug("processed new header",
 					zap.Stringer("current_block", ev.Number),
-					zap.Bool("is_safe_block", ev.Safe),
+					zap.Stringer("finality", ev.Finality),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),
 					zap.String("eth_network", w.networkName))
@@ -854,41 +850,59 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	return currentIndex, &gs, nil
 }
 
-func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, errRet error) {
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	c, err := rpc.DialContext(timeout, w.url)
-	if err != nil {
-		errRet = fmt.Errorf("failed to connect to url %s to check acala mode: %w", w.url, err)
-		return
+// getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
+// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
+func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
+	finalized := false
+	safe := false
+	if w.unsafeDevMode {
+		// Devnet supports finalized and safe (although they returns the same value as latest).
+		finalized = true
+	} else if w.chainID == vaa.ChainIDAcala ||
+		w.chainID == vaa.ChainIDArbitrum ||
+		w.chainID == vaa.ChainIDBase ||
+		w.chainID == vaa.ChainIDBSC ||
+		w.chainID == vaa.ChainIDEthereum ||
+		w.chainID == vaa.ChainIDKarura ||
+		w.chainID == vaa.ChainIDMoonbeam ||
+		w.chainID == vaa.ChainIDOptimism ||
+		w.chainID == vaa.ChainIDSepolia {
+		finalized = true
+		safe = true
+	} else if w.chainID == vaa.ChainIDScroll {
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+		finalized = true
 	}
 
-	// First check to see if polling for finalized blocks is suported.
-	type Marshaller struct {
-		Number *eth_hexutil.Big
+	// If finalized / safe should be supported, read the RPC to make sure they actually are.
+	if finalized {
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+
+		c, err := rpc.DialContext(timeout, w.url)
+		if err != nil {
+			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
+		}
+
+		type Marshaller struct {
+			Number *eth_hexutil.Big
+		}
+		var m Marshaller
+
+		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
+		if err != nil || m.Number == nil {
+			return false, false, fmt.Errorf("finalized not supported by the node when it should be")
+		}
+
+		if safe {
+			err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
+			if err != nil || m.Number == nil {
+				return false, false, fmt.Errorf("safe not supported by the node when it should be")
+			}
+		}
 	}
 
-	var m Marshaller
-	err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
-	if err == nil {
-		useFinalizedBlocks = true
-		return
-	}
-
-	// If finalized blocks are not supported, then we had better be in safe mode!
-	var safe bool
-	err = c.CallContext(ctx, &safe, "net_isSafeMode")
-	if err != nil {
-		errRet = fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
-		return
-	}
-
-	if !safe {
-		errRet = fmt.Errorf("url %s does not support finalized blocks and is not using safe mode", w.url)
-	}
-
-	return
+	return finalized, safe, nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.
@@ -900,6 +914,11 @@ func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
 // get the latest finalized block number from this watcher.
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+}
+
+// getLatestSafeBlockNumber() returns the latest safe block seen by this watcher..
+func (w *Watcher) getLatestSafeBlockNumber() uint64 {
+	return atomic.LoadUint64(&w.latestSafeBlockNumber)
 }
 
 // SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles
@@ -926,4 +945,13 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+func (w *Watcher) updateNetworkStats(stats *gossipv1.Heartbeat_Network) {
+	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+		Height:          stats.Height,
+		SafeHeight:      stats.SafeHeight,
+		FinalizedHeight: stats.FinalizedHeight,
+		ContractAddress: w.contract.Hex(),
+	})
 }

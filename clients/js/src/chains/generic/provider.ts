@@ -154,6 +154,10 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
     case "osmosis":
     case "pythnet":
     case "wormchain":
+    case "cosmoshub":
+    case "evmos":
+    case "kujira":
+    case "rootstock":
       throw new Error(`${chainName} not supported`);
     default:
       impossible(chainName);

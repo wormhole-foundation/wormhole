@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.10.5
+
+### Changes
+
+Auto relayer better status command
+
+## 0.10.4
+
+### Changes
+
+AutoRelayer: v1.1 Release
+
+Redeem on Algorand dynamic cost budget fix
+
+Fixes id check in token helper for sui
+
+## 0.10.3
+
+### Added
+
+Kujira chain support
+
 ## 0.10.2
 
 ### Added

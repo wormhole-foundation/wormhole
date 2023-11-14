@@ -146,7 +146,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if !data.Exists() {
 					break
 				}
-				e.observeData(logger, data, nativeSeq)
+				e.observeData(logger, data, nativeSeq, true)
 			}
 
 		case <-timer.C:
@@ -201,7 +201,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if !data.Exists() {
 					continue
 				}
-				e.observeData(logger, data, eventSequence.Uint())
+				e.observeData(logger, data, eventSequence.Uint(), false)
 			}
 
 			health, err := e.retrievePayload(aptosHealth)
@@ -250,7 +250,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	return body, err
 }
 
-func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64) {
+func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, isReobservation bool) {
 	em := data.Get("sender")
 	if !em.Exists() {
 		logger.Error("sender field missing")
@@ -313,6 +313,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		EmitterAddress:   a,
 		Payload:          pl,
 		ConsistencyLevel: uint8(consistencyLevel.Uint()),
+		IsReobservation:  isReobservation,
 	}
 
 	aptosMessagesConfirmed.Inc()

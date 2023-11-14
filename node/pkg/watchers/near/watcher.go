@@ -56,6 +56,7 @@ type (
 		creationTime    time.Time
 		retryCounter    uint
 		delay           time.Duration
+		isReobservation bool
 
 		// set during processing
 		hasWormholeMsg bool // set during processing; whether this transaction emitted a Wormhole message
@@ -111,13 +112,14 @@ func NewWatcher(
 	}
 }
 
-func newTransactionProcessingJob(txHash string, senderAccountId string) *transactionProcessingJob {
+func newTransactionProcessingJob(txHash string, senderAccountId string, isReobservation bool) *transactionProcessingJob {
 	return &transactionProcessingJob{
 		txHash,
 		senderAccountId,
 		time.Now(),
 		0,
 		initialTxProcDelay,
+		isReobservation,
 		false,
 	}
 }
@@ -204,7 +206,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 			// This value is used by NEAR to determine which shard to query. An incorrect value here is not a security risk but could lead to reobservation requests failing.
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
-			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
+			job := newTransactionProcessingJob(txHash, e.wormholeAccount, true)
 			err := e.schedule(ctx, job, time.Nanosecond)
 			if err != nil {
 				// Error-level logging here because this is after an re-observation request already, which should be infrequent

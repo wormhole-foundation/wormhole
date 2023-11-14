@@ -17,7 +17,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -41,6 +40,8 @@ type (
 		SigningDigest() ethcommon.Hash
 		// IsReliable returns whether this message is considered reliable meaning it can be reobserved.
 		IsReliable() bool
+		// IsReobservation returns whether this message is the result of a reobservation request.
+		IsReobservation() bool
 		// HandleQuorum finishes processing the observation once a quorum of signatures have
 		// been received for it.
 		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)
@@ -105,8 +106,6 @@ type Processor struct {
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
-	attestationEvents *reporter.AttestationEventReporter
-
 	logger *zap.Logger
 
 	db *db.Database
@@ -158,7 +157,6 @@ func NewProcessor(
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
-	attestationEvents *reporter.AttestationEventReporter,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
@@ -175,8 +173,6 @@ func NewProcessor(
 		gk:           gk,
 		gst:          gst,
 		db:           db,
-
-		attestationEvents: attestationEvents,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},

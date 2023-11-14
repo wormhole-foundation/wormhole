@@ -31,7 +31,12 @@ export const CHAINS = {
   base: 30,
   sei: 32,
   rootstock: 33,
+  scroll: 34,
   wormchain: 3104,
+  cosmoshub: 4000,
+  evmos: 4001,
+  kujira: 4002,
+  celestia: 4004,
   sepolia: 10002,
 } as const;
 
@@ -61,6 +66,7 @@ export const EVMChainNames = [
   "gnosis",
   "base",
   "rootstock",
+  "scroll",
   "sepolia",
 ] as const;
 export type EVMChainName = typeof EVMChainNames[number];
@@ -78,6 +84,12 @@ export const CosmWasmChainNames = [
   "injective",
   "xpla",
   "sei",
+  "wormchain",
+  "osmosis",
+  "evmos",
+  "cosmoshub",
+  "kujira",
+  "celestia",
 ] as const;
 export type CosmWasmChainName = typeof CosmWasmChainNames[number];
 
@@ -264,6 +276,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqaqfk2j",
     token_bridge:
@@ -272,6 +289,26 @@ const MAINNET = {
   },
   sepolia: {
     // This is testnet only.
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  cosmoshub: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  evmos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  kujira: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celestia: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -373,7 +410,8 @@ const TESTNET = {
     core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
     token_bridge:
       "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-    nft_bridge: undefined,
+    nft_bridge:
+      "0x1bdffae984043833ed7fe223f7af7a3f8902d04129b14f801823e64827da7130",
   },
   sui: {
     core: "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790",
@@ -444,6 +482,11 @@ const TESTNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: "0x055F47F1250012C6B20c436570a76e52c17Af2D5",
+    token_bridge: "0x22427d90B7dA3fA4642F7025A854c7254E4e45BF",
+    nft_bridge: "0x47B9a1406BEe29a3001BFEB7e45aE45fFFB40c18",
+  },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
     token_bridge:
@@ -454,6 +497,26 @@ const TESTNET = {
     core: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78",
     token_bridge: "0xDB5492265f6038831E89f495670FF909aDe94bd9",
     nft_bridge: "0x6a0B52ac198e4870e5F3797d5B403838a5bbFD99",
+  },
+  cosmoshub: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  evmos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  kujira: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celestia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
   },
 };
 
@@ -622,6 +685,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  scroll: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
     token_bridge:
@@ -629,6 +697,26 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   sepolia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  cosmoshub: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  evmos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  kujira: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celestia: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -705,7 +793,13 @@ export const CHAIN_ID_BTC = CHAINS["btc"];
 export const CHAIN_ID_BASE = CHAINS["base"];
 export const CHAIN_ID_SEI = CHAINS["sei"];
 export const CHAIN_ID_ROOTSTOCK = CHAINS["rootstock"];
+export const CHAIN_ID_SCROLL = CHAINS["scroll"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
+export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
+export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];
+export const CHAIN_ID_EVMOS = CHAINS["evmos"];
+export const CHAIN_ID_KUJIRA = CHAINS["kujira"];
+export const CHAIN_ID_CELESTIA = CHAINS["celestia"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
