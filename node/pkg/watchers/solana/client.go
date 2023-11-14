@@ -490,7 +490,6 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 	s.updateLatestBlock(slot)
 
-OUTER:
 	for txNum, txRpc := range out.Transactions {
 		if txRpc.Meta.Err != nil {
 			logger.Debug("Transaction failed, skipping it",
@@ -561,47 +560,27 @@ OUTER:
 					zap.Uint64("slot", slot),
 					zap.String("commitment", string(s.commitment)),
 					zap.Binary("data", inst.Data))
-				continue OUTER
-			}
-			if found {
-				continue OUTER
+			} else if found {
+				logger.Debug("found a top-level Wormhole instruction",
+					zap.Int("idx", i),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)))
 			}
 		}
 
-		// Call GetConfirmedTransaction to get at innerTransactions
-		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-		start := time.Now()
-		maxSupportedTransactionVersion := uint64(0)
-		tr, err := s.rpcClient.GetTransaction(rCtx, signature, &rpc.GetTransactionOpts{
-			Encoding:                       solana.EncodingBase64, // solana-go doesn't support json encoding.
-			Commitment:                     s.commitment,
-			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
-		})
-		cancel()
-		queryLatency.WithLabelValues(s.networkName, "get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
-		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_transaction_error").Inc()
-			logger.Error("failed to request transaction",
-				zap.Error(err),
-				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)),
-				zap.Stringer("signature", signature))
-			return false
-		}
-
-		logger.Debug("fetched transaction",
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
-			zap.Stringer("signature", signature),
-			zap.Duration("took", time.Since(start)))
-
-		for _, inner := range tr.Meta.InnerInstructions {
+		for _, inner := range txRpc.Meta.InnerInstructions {
 			for i, inst := range inner.Instructions {
-				_, err = s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
+				found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
 				if err != nil {
 					logger.Error("malformed Wormhole instruction",
 						zap.Error(err),
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				} else if found {
+					logger.Debug("found an inner Wormhole instruction",
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
