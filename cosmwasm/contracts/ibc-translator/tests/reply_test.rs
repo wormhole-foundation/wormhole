@@ -495,7 +495,7 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
         + "/"
         + token_info_response.decimals.to_string().as_str();
     let tf_denom_unit_scaled = DenomUnit {
-        denom: tf_scaled_denom,
+        denom: tf_scaled_denom.clone(),
         exponent: u32::from(token_info_response.decimals),
         aliases: vec![],
     };
@@ -503,7 +503,7 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
         description: Some(tf_description),
         base: Some(tokenfactory_denom.clone()),
         denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-        display: Some(tokenfactory_denom.clone()),
+        display: Some(tf_scaled_denom),
         name: Some(token_info_response.name),
         symbol: Some(token_info_response.symbol),
     };
@@ -609,7 +609,7 @@ fn convert_cw20_to_bank_happy_path_create_denom_empty_symbol() {
         description: Some(tf_description),
         base: Some(tokenfactory_denom.clone()),
         denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-        display: Some(tokenfactory_denom.clone()),
+        display: Some(tf_scaled_denom.clone()),
         name: Some(token_info_response.name),
         symbol: Some(tf_scaled_denom), // CW20 symbol is empty, use tf_scaled_denom
     };
