@@ -66,6 +66,7 @@ struct EthCallData {
 // Custom errors
 error InvalidResponseVersion();
 error VersionMismatch();
+error ZeroQueries();
 error NumberOfResponsesMismatch();
 error ChainIdMismatch();
 error RequestTypeMismatch();
@@ -118,19 +119,28 @@ abstract contract QueryResponse {
         (len, index) = response.asUint32Unchecked(index); // query_request_len
         uint reqIdx = index;
 
-        uint8 version;
-        (version, reqIdx) = response.asUint8Unchecked(reqIdx);
-        if (version != r.version) {
-            revert VersionMismatch();
+        // Scope to avoid stack-too-deep error
+        {
+            uint8 version;
+            (version, reqIdx) = response.asUint8Unchecked(reqIdx);
+            if (version != r.version) {
+                revert VersionMismatch();
+            }
         }
 
         (r.nonce, reqIdx) = response.asUint32Unchecked(reqIdx);
 
         uint8 numPerChainQueries;
         (numPerChainQueries, reqIdx) = response.asUint8Unchecked(reqIdx);
+        
+        // A valid query request has at least one per chain query
+        if (numPerChainQueries == 0) {
+            revert ZeroQueries();
+        }
 
         // The response starts after the request.
         uint respIdx = index + len;
+        uint startOfResponse = respIdx;
 
         uint8 respNumPerChainQueries;
         (respNumPerChainQueries, respIdx) = response.asUint8Unchecked(respIdx);
@@ -167,6 +177,11 @@ abstract contract QueryResponse {
             (r.responses[idx].response, respIdx) = response.sliceUnchecked(respIdx, len);
 
             unchecked { ++idx; }
+        }
+
+        // End of request body should align with start of response body
+        if (startOfResponse != reqIdx) {
+            revert InvalidPayloadLength(startOfResponse, reqIdx);
         }
 
         checkLength(response, respIdx);

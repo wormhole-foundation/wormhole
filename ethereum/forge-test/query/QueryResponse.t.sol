@@ -14,11 +14,20 @@ import "forge-std/Test.sol";
 contract QueryResponseContract is QueryResponse { }
 
 contract TestQueryResponse is Test {
-    bytes resp = hex"010000ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f2000000005301dd9914c6010005010000004600000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd01000501000000b90000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a";
+    // Some happy case defaults
+    uint8 version = 0x01;
+    uint16 senderChainId = 0x0000;
+    bytes signature = hex"ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f200";
+    uint32 queryRequestLen = 0x00000053;
+    uint8 queryRequestVersion = 0x01;
+    uint32 queryRequestNonce = 0xdd9914c6;
+    uint8 numPerChainQueries = 0x01;
+    bytes perChainQueries = hex"0005010000004600000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd";
+    bytes perChainQueriesInner = hex"00000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd";
+    uint8 numPerChainResponses = 0x01;
+    bytes perChainResponses = hex"000501000000b90000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a";
+    bytes perChainResponsesInner = hex"00000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd";
 
-    bytes32 sigR = hex"ba36cd576a0f9a8a37ec5ea6a174857922f2f170cd7ec62edcbe74b1cc7258d3";
-    bytes32 sigS = hex"01e8690cfd627e608d63b5d165e2190ba081bb84f5cf473fd353109e152f72fa";
-    uint8 sigV = 27; // last byte plus magic 27
     uint8 sigGuardianIndex = 0;
 
     Wormhole wormhole;
@@ -31,8 +40,40 @@ contract TestQueryResponse is Test {
 
     uint16 constant TEST_CHAIN_ID = 2;
     address constant DEVNET_GUARDIAN = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
+    uint256 constant DEVNET_GUARDIAN_PRIVATE_KEY = 0xcfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0;
     uint16 constant GOVERNANCE_CHAIN_ID = 1;
     bytes32 constant GOVERNANCE_CONTRACT = 0x0000000000000000000000000000000000000000000000000000000000000004;
+
+    function getSignature(bytes memory response) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+        bytes32 responseDigest = queryResponse.getResponseDigest(response);
+        (v, r, s) = vm.sign(DEVNET_GUARDIAN_PRIVATE_KEY, responseDigest);
+    }
+
+    function concatenateQueryResponseBytesOffChain(
+        uint8 _version,
+        uint16 _senderChainId,
+        bytes memory _signature,
+        uint32 _queryRequestLen,
+        uint8 _queryRequestVersion,
+        uint32 _queryRequestNonce,
+        uint8 _numPerChainQueries,
+        bytes memory _perChainQueries,
+        uint8 _numPerChainResponses,
+        bytes memory _perChainResponses
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _version,
+            _senderChainId,
+            _signature,
+            _queryRequestLen,
+            _queryRequestVersion,
+            _queryRequestNonce,
+            _numPerChainQueries,
+            _perChainQueries,
+            _numPerChainResponses,
+            _perChainResponses
+        );
+    }
 
     function deployWormholeForTest() public returns (Wormhole) {
         // Deploy the Setup contract.
@@ -62,18 +103,22 @@ contract TestQueryResponse is Test {
     }
 
     function test_getResponseHash() public {
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
         bytes32 hash = queryResponse.getResponseHash(resp);
         bytes32 expectedHash = 0xed18e80906ffa80ce953a132a9cbbcf84186955f8fc8ce0322cd68622a58570e;
         assertEq(hash, expectedHash);
     }
 
     function test_getResponseDigest() public {
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
         bytes32 digest = queryResponse.getResponseDigest(resp);
         bytes32 expectedDigest = 0x5b84b19c68ee0b37899230175a92ee6eda4c5192e8bffca1d057d811bb3660e2;
         assertEq(digest, expectedDigest);
     }
 
     function test_verifyQueryResponseSignatures() public view {
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
@@ -81,6 +126,8 @@ contract TestQueryResponse is Test {
     }
 
     function test_parseAndVerifyQueryResponse() public {
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
@@ -242,4 +289,194 @@ contract TestQueryResponse is Test {
         vm.expectRevert(UnsupportedQueryType.selector);
         queryResponse.parseEthCallWithFinalityQueryResponse(r);
     }
+
+
+
+    /***********************************
+    *********** FUZZ TESTS *************
+    ***********************************/
+
+    
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzVersion(uint8 _version) public {
+        vm.assume(_version != 1);
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(_version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert(InvalidResponseVersion.selector);
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzSenderChainId(uint16 _senderChainId) public {
+        vm.assume(_senderChainId != 0);
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, _senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        // This could revert for multiple reasons. But the checkLength to ensure all the bytes are consumed is the backstop.
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzSignatureHappyCase(bytes memory _signature) public {
+        // This signature isn't validated in the QueryResponse library, therefore it could be an 65 byte hex string
+        vm.assume(_signature.length == 65);
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, _signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+
+        assertEq(r.requestId, _signature);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzSignatureUnhappyCase(bytes memory _signature) public {
+        // A signature that isn't 65 bytes long will always lead to a revert. The type of revert is unknown since it could be one of many.
+        vm.assume(_signature.length != 65);
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, _signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestLen(uint32 _queryRequestLen, bytes calldata _perChainQueries) public {
+        // We add 6 to account for version + nonce + numPerChainQueries
+        vm.assume(_queryRequestLen != _perChainQueries.length + 6); 
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, _queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, _perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestVersion(uint8 _version, uint8 _queryRequestVersion) public {
+        vm.assume(_version != _queryRequestVersion); 
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(_version, senderChainId, signature, queryRequestLen, _queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestNonce(uint32 _queryRequestNonce) public {
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, _queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        
+        assertEq(r.nonce, _queryRequestNonce);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzNumPerChainQueriesAndResponses(uint8 _numPerChainQueries, uint8 _numPerChainResponses) public {
+        vm.assume(_numPerChainQueries != _numPerChainResponses);
+
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, _numPerChainQueries, perChainQueries, _numPerChainResponses, perChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzChainIds(uint16 _requestChainId, uint16 _responseChainId, uint256 _requestQueryType) public {
+        vm.assume(_requestChainId != _responseChainId);
+        _requestQueryType = bound({x: _requestQueryType, min: queryResponse.QT_ETH_CALL(), max: queryResponse.QT_MAX() - 1});
+
+        bytes memory packedPerChainQueries = abi.encodePacked(_requestChainId, uint8(_requestQueryType), uint32(perChainQueriesInner.length), perChainQueriesInner);
+        bytes memory packedPerChainResponses = abi.encodePacked(_responseChainId, uint8(_requestQueryType), uint32(perChainResponsesInner.length),  perChainResponsesInner);
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, packedPerChainQueries, numPerChainResponses, packedPerChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert(ChainIdMismatch.selector);
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzMistmatchedRequestType(uint256 _requestQueryType, uint256 _responseQueryType) public {
+        _requestQueryType = bound({x: _requestQueryType, min: queryResponse.QT_ETH_CALL(), max: queryResponse.QT_MAX() - 1});
+        _responseQueryType = bound({x: _responseQueryType, min: queryResponse.QT_ETH_CALL(), max: queryResponse.QT_MAX() - 1});
+        vm.assume(_requestQueryType != _responseQueryType);
+
+        bytes memory packedPerChainQueries = abi.encodePacked(uint16(0x0005), uint8(_requestQueryType), uint32(perChainQueriesInner.length), perChainQueriesInner);
+        bytes memory packedPerChainResponses = abi.encodePacked(uint16(0x0005), uint8(_responseQueryType), uint32(perChainResponsesInner.length),  perChainResponsesInner);
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, packedPerChainQueries, numPerChainResponses, packedPerChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert(RequestTypeMismatch.selector);
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzUnsupportedRequestType(uint8 _requestQueryType) public {
+        vm.assume(_requestQueryType < queryResponse.QT_ETH_CALL() || _requestQueryType >= queryResponse.QT_MAX());
+
+        bytes memory packedPerChainQueries = abi.encodePacked(uint16(0x0005), uint8(_requestQueryType), uint32(perChainQueriesInner.length), perChainQueriesInner);
+        bytes memory packedPerChainResponses = abi.encodePacked(uint16(0x0005), uint8(_requestQueryType), uint32(perChainResponsesInner.length),  perChainResponsesInner);
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, packedPerChainQueries, numPerChainResponses, packedPerChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert(UnsupportedQueryType.selector);
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_parseAndVerifyQueryResponse_fuzzQueryBytesLength(uint32 _queryLength) public {
+        vm.assume(_queryLength != uint32(perChainQueriesInner.length));
+
+        bytes memory packedPerChainQueries = abi.encodePacked(uint16(0x0005), uint8(0x01), _queryLength, perChainQueriesInner);
+        bytes memory packedPerChainResponses = abi.encodePacked(uint16(0x0005), uint8(0x01), uint32(perChainResponsesInner.length),  perChainResponsesInner);
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, packedPerChainQueries, numPerChainResponses, packedPerChainResponses);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert();
+        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_verifyQueryResponseSignatures_validSignature(bytes calldata resp) public view {
+        // This should pass with a valid signature of any payload
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_verifyQueryResponseSignatures_invalidSignature(bytes calldata resp, uint256 privateKey) public {
+        vm.assume(privateKey != DEVNET_GUARDIAN_PRIVATE_KEY);
+        // Less than secp256k1 curve
+        vm.assume(privateKey < 115792089237316195423570985008687907852837564279074904382605163141518161494337);
+        vm.assume(privateKey != 0);
+
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(privateKey, queryResponse.getResponseDigest(resp));
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert("VM signature invalid");
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
+    function testFuzz_verifyQueryResponseSignatures_validSignatureWrongPrefix(bytes calldata responsePrefix) public {
+        vm.assume(keccak256(responsePrefix) != keccak256(queryResponse.responsePrefix()));
+      
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, signature, queryRequestLen, queryRequestVersion, queryRequestNonce, numPerChainQueries, perChainQueries, numPerChainResponses, perChainResponses);
+        bytes32 responseDigest = keccak256(abi.encodePacked(responsePrefix, keccak256(resp)));
+        
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(DEVNET_GUARDIAN_PRIVATE_KEY, responseDigest);
+        IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
+        signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
+        vm.expectRevert("VM signature invalid");
+        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+    }
+
 }

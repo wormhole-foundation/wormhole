@@ -29,6 +29,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1092,7 +1093,14 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		}
 		var obsvReq gossipv1.ObservationRequest
 		obsvReq.ChainId = uint32(missingVAA.Chain)
-		obsvReq.TxHash = []byte(missingVAA.Txhash)
+		obsvReq.TxHash, err = hex.DecodeString(missingVAA.Txhash)
+		if err != nil {
+			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)
+			if err != nil {
+				errMsgs += "Invalid transaction hash (neither hex nor base58)"
+				continue
+			}
+		}
 		errMsgs += fmt.Sprintf("\nAttempting to observe %s", obsvReq.String())
 		// Call the following function to send the observation request
 		if err := common.PostObservationRequest(s.obsvReqSendC, &obsvReq); err != nil {

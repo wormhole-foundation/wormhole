@@ -19,7 +19,7 @@ error UnexpectedCallData();
 error UnexpectedResultLength();
 error UnexpectedResultMismatch();
 
-/// @dev QueryDemo is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
+/// @dev QueryDemo is an example of using the QueryResponse library to parse and verify Cross Chain Query (CCQ) responses.
 contract QueryDemo is QueryResponse {
     using BytesLib for bytes;
 
