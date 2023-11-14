@@ -23,15 +23,12 @@ from pyteal.types import *
 from pyteal.compiler import *
 from pyteal.ir import  *
 from globals import *
-from inlineasm import *
 
 from algosdk.v2client.algod import AlgodClient
 
 from TmplSig import TmplSig
 
 from local_blob import LocalBlob
-
-import sys
 
 portal_transfer_selector = MethodSignature("portal_transfer(byte[])byte[]")
 
@@ -163,7 +160,7 @@ def approve_app():
         [Txn.on_completion() == OnComplete.NoOp, router]
     )
 
-def get_test_app(client: AlgodClient) -> Tuple[bytes, bytes]:
+def get_test_app() -> Tuple[bytes, bytes]:
     APPROVAL_PROGRAM = fullyCompileContract(client, approve_app())
     CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_app())
 

@@ -372,9 +372,9 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval1, clear1 = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        approval1, clear1 = getCoreContracts(False, self.args.core_approve, self.args.core_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
-        approval2, clear2 = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        approval2, clear2 = get_token_bridge(False, self.args.token_approve, self.args.token_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         return self.genUpgradePayloadBody(approval1, approval2)
 
@@ -387,8 +387,8 @@ class PortalCore:
         b += self.encoder("uint8", 1)
         b += self.encoder("uint16", 8)
 
-        b += decode_address(approval1["hash"]).hex()
-        print("core hash: " + decode_address(approval1["hash"]).hex())
+        b += approval1["hash"]
+        print("core hash: " + approval1["hash"])
 
         ret = [b]
 
@@ -407,8 +407,8 @@ class PortalCore:
 
         b += self.encoder("uint8", 2)  # action
         b += self.encoder("uint16", 8) # target chain
-        b += decode_address(approval2["hash"]).hex()
-        print("token hash: " + decode_address(approval2["hash"]).hex())
+        b += approval2["hash"]
+        print("token hash: " + approval2["hash"])
 
         ret.append(b)
         return ret
@@ -418,7 +418,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=40)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
@@ -428,8 +428,8 @@ class PortalCore:
         txn = transaction.ApplicationCreateTxn(
             sender=sender.getAddress(),
             on_complete=transaction.OnComplete.NoOpOC,
-            approval_program=b64decode(approval["result"]),
-            clear_program=b64decode(clear["result"]),
+            approval_program=approval["result"],
+            clear_program=clear["result"],
             global_schema=globalSchema,
             local_schema=localSchema,
             extra_pages = 1,
@@ -456,9 +456,9 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
-        if len(b64decode(approval["result"])) > 4060:
+        if len(approval["result"]) > 4060:
             print("token bridge contract is too large... This might prevent updates later")
 
         globalSchema = transaction.StateSchema(num_uints=4, num_byte_slices=30)
@@ -469,8 +469,8 @@ class PortalCore:
         txn = transaction.ApplicationCreateTxn(
             sender=sender.getAddress(),
             on_complete=transaction.OnComplete.NoOpOC,
-            approval_program=b64decode(approval["result"]),
-            clear_program=b64decode(clear["result"]),
+            approval_program=approval["result"],
+            clear_program=clear["result"],
             global_schema=globalSchema,
             local_schema=localSchema,
             app_args=app_args,
@@ -1305,9 +1305,9 @@ class PortalCore:
     def updateCore(self) -> None:
         print("Updating the core contracts")
         if self.args.approve == "" and self.args.clear == "":
-            approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
-            print("core approval " + decode_address(approval["hash"]).hex())
-            print("core clear " + decode_address(clear["hash"]).hex())
+            approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+            print("core approval " + approval["hash"])
+            print("core clear " + clear["hash"])
         else:
             pprint.pprint([self.args.approve, self.args.clear])
             with open(self.args.approve, encoding = 'utf-8') as f:
@@ -1320,8 +1320,8 @@ class PortalCore:
         txn = transaction.ApplicationUpdateTxn(
             index=self.coreid,
             sender=self.foundation.getAddress(),
-            approval_program=b64decode(approval["result"]),
-            clear_program=b64decode(clear["result"]),
+            approval_program=approval["result"],
+            clear_program=clear["result"],
             app_args=[ ],
             sp=self.client.suggested_params(),
         )
@@ -1337,7 +1337,7 @@ class PortalCore:
 
     def updateToken(self) -> None:
         if self.args.approve == "" and self.args.clear == "":
-            approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+            approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         else:
             pprint.pprint([self.args.approve, self.args.clear])
             with open(self.args.approve, encoding = 'utf-8') as f:
@@ -1347,9 +1347,9 @@ class PortalCore:
                 clear = {"result": f.readlines()[0]}
                 pprint.pprint(clear)
 
-#        print("token " + decode_address(approval["hash"]).hex())
+#        print("token " + approval["hash"])
 
-        print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
+        print("Updating the token contracts: " + str(len(approval["result"])))
 
         state = self.read_global_state(self.client, self.foundation.addr, self.tokenid)
         pprint.pprint( { 
@@ -1360,8 +1360,8 @@ class PortalCore:
         txn = transaction.ApplicationUpdateTxn(
             index=self.tokenid,
             sender=self.foundation.getAddress(),
-            approval_program=b64decode(approval["result"]),
-            clear_program=b64decode(clear["result"]),
+            approval_program=approval["result"],
+            clear_program=clear["result"],
             app_args=[ ],
             sp=self.client.suggested_params(),
         )
@@ -1377,10 +1377,10 @@ class PortalCore:
     def genTeal(self) -> None:
         print((True, self.args.core_approve, self.args.core_clear, self.client, self.seed_amt, self.tsig, self.devnet or self.args.testnet))
         devmode = (self.devnet or self.args.testnet) and not self.args.prodTeal
-        approval1, clear1 = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
+        approval1, clear1 = getCoreContracts(True, self.args.core_approve, self.args.core_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
         print("Generating the teal for the core contracts")
-        approval2, clear2 = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
-        print("Generating the teal for the token contracts: " + str(len(b64decode(approval2["result"]))))
+        approval2, clear2 = get_token_bridge(True, self.args.token_approve, self.args.token_clear, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
+        print("Generating the teal for the token contracts: " + str(len(approval2["result"])))
 
         if self.devnet:
             v = self.genUpgradePayloadBody(approval1, approval2)

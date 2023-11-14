@@ -1,30 +1,50 @@
-from time import time, sleep
 from typing import List, Tuple, Dict, Any, Optional, Union
-from base64 import b64decode
-import base64
-import random
-import hashlib
-import uuid
 import sys
-import json
-import uvarint
 
 from local_blob import LocalBlob
 from TmplSig import TmplSig
 
-from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
-from algosdk.encoding import decode_address
-from algosdk.future import transaction
-from pyteal import compileTeal, Mode, Expr
-from pyteal import *
-from algosdk.logic import get_application_address
+from pyteal import (
+    Expr,
+    Subroutine,
+    TealType,
+    App,
+    Bytes,
+    Txn,
+    Seq,
+    Reject,
+    Cond,
+    ScratchVar,
+    Gtxn,
+    Int,
+    Assert,
+    TxnType,
+    Global,
+    Itob,
+    Btoi,
+    Pop,
+    Log,
+    Approve,
+    Extract,
+    Or,
+    And,
+    InnerTxnBuilder,
+    TxnField,
+    Return,
+    Keccak256,
+    Len,
+    If,
+    While,
+    Break,
+    GetBit,
+    SetBit,
+    Concat,
+    OnComplete,
+    Sha512_256,
+)
+from teal import fullyCompileContract, AssemblyResult
 
-from algosdk.future.transaction import LogicSigAccount
 from inspect import currentframe
-
-import pprint
 
 max_keys = 15
 max_bytes_per_key = 127
@@ -34,36 +54,11 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, devmode) -> bytes:
-    if genTeal:
-        if devmode:
-            teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
-        else:
-            teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
-
-        with open(name, "w") as f:
-            print("Writing " + name)
-            f.write(teal)
-    else:
-        with open(name, "r") as f:
-            print("Reading " + name)
-            teal = f.read()
-
-    response = client.compile(teal)
-
-    with open(name + ".bin", "w") as fout:
-        fout.write(response["result"])
-    with open(name + ".hash", "w") as fout:
-        fout.write(decode_address(response["hash"]).hex())
-
-    return response
-
 def getCoreContracts(   genTeal, approve_name, clear_name,
-                        client: AlgodClient,
                         seed_amt: int,
                         tmpl_sig: TmplSig,
                         devMode: bool
-                        ) -> Tuple[bytes, bytes]:
+                        ) -> Tuple[AssemblyResult, AssemblyResult]:
 
     def vaa_processor_program(seed_amt: int, tmpl_sig: TmplSig):
         blob = LocalBlob()
@@ -591,10 +586,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
     def clear_state_program():
         return Int(1)
 
-    if not devMode:
-        client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
-    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, vaa_processor_program(seed_amt, tmpl_sig), approve_name, devMode)
-    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_state_program(), clear_name, devMode)
+    APPROVAL_PROGRAM = fullyCompileContract(genTeal, vaa_processor_program(seed_amt, tmpl_sig), approve_name, devMode)
+    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, clear_state_program(), clear_name, devMode)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM
 
@@ -602,9 +595,7 @@ def cli(output_approval, output_clear):
     seed_amt = 1002000
     tmpl_sig = TmplSig("sig")
 
-    client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
-
-    approval, clear = getCoreContracts(True, output_approval, output_clear, client, seed_amt, tmpl_sig, True)
+    approval, clear = getCoreContracts(True, output_approval, output_clear, seed_amt, tmpl_sig, True)
 
 if __name__ == "__main__":
     cli(sys.argv[1], sys.argv[2])
