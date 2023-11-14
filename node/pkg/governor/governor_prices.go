@@ -12,8 +12,10 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -128,7 +130,13 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 // not been updated will be assigned their pre-configured price.
 func (gov *ChainGovernor) queryCoinGecko() error {
 	result := make(map[string]interface{})
+
+	// Cache buster of Unix timestamp concatenated with random number
+	params := url.Values{}
+	params.Add("bust", strconv.Itoa(int(time.Now().Unix()))+strconv.Itoa(rand.Int())) // #nosec G404
+
 	for queryIdx, query := range gov.coinGeckoQueries {
+		query := query + "&" + params.Encode()
 		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
 			gov.logger.Error("CoinGecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
