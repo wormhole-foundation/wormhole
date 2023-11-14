@@ -13,9 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// WARNING: Change me in ./node/governor as well
-const maxEnqueuedTime = time.Hour * 24
-
 type GovernorDB interface {
 	StoreTransfer(t *Transfer) error
 	StorePendingMsg(k *PendingTransfer) error
@@ -209,7 +206,7 @@ func (p *PendingTransfer) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func UnmarshalPendingTransfer(data []byte) (*PendingTransfer, error) {
+func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error) {
 	p := &PendingTransfer{}
 
 	reader := bytes.NewReader(data[:])
@@ -227,9 +224,14 @@ func UnmarshalPendingTransfer(data []byte) (*PendingTransfer, error) {
 		return nil, fmt.Errorf("failed to read pending transfer msg [%d]: %w", n, err)
 	}
 
-	msg, err := common.UnmarshalMessagePublication(buf)
+	var msg *common.MessagePublication
+	if isOld {
+		msg, err = common.UnmarshalOldMessagePublicationBeforeIsReobservation(buf)
+	} else {
+		msg, err = common.UnmarshalMessagePublication(buf)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal pending transfer msg: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal pending transfer msg, isOld: %t: %w", isOld, err)
 	}
 
 	p.Msg = *msg
@@ -243,13 +245,13 @@ const transfer = "GOV:XFER2:"
 const transferLen = len(transfer)
 
 // Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.
-// The first time we run this new release, any existing entries with the "GOV:PENDING" tag will get converted
-// to the new format and given the "GOV:PENDING2" format. In a future release, the "GOV:PENDING" code can be deleted.
+// The first time we run this new release, any existing entries with the "GOV:PENDING2" tag will get converted
+// to the new format and given the "GOV:PENDING3" format. In a future release, the "GOV:PENDING2" code can be deleted.
 
-const oldPending = "GOV:PENDING:"
+const oldPending = "GOV:PENDING2:"
 const oldPendingLen = len(oldPending)
 
-const pending = "GOV:PENDING2:"
+const pending = "GOV:PENDING3:"
 const pendingLen = len(pending)
 
 const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
@@ -308,20 +310,20 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 			}
 
 			if IsPendingMsg(key) {
-				p, err := UnmarshalPendingTransfer(val)
+				p, err := UnmarshalPendingTransfer(val, false)
 				if err != nil {
 					return err
 				}
 
-				if time.Until(p.ReleaseTime) > maxEnqueuedTime {
-					p.ReleaseTime = now.Add(maxEnqueuedTime)
-					err := d.StorePendingMsg(p)
-					if err != nil {
-						return fmt.Errorf("failed to write new pending msg for key [%v]: %w", p.Msg.MessageIDString(), err)
-					}
+				pending = append(pending, p)
+			} else if isOldPendingMsg(key) {
+				p, err := UnmarshalPendingTransfer(val, true)
+				if err != nil {
+					return err
 				}
 
 				pending = append(pending, p)
+				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			} else if IsTransfer(key) {
 				v, err := UnmarshalTransfer(val)
 				if err != nil {
@@ -329,15 +331,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				transfers = append(transfers, v)
-			} else if isOldPendingMsg(key) {
-				msg, err := common.UnmarshalMessagePublication(val)
-				if err != nil {
-					return err
-				}
 
-				p := &PendingTransfer{ReleaseTime: now.Add(maxEnqueuedTime), Msg: *msg}
-				pending = append(pending, p)
-				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			} else if isOldTransfer(key) {
 				v, err := unmarshalOldTransfer(val)
 				if err != nil {

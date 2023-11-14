@@ -52,6 +52,9 @@ service NodePrivilegedService {
 
   // DumpRPCs returns the RPCs being used by the guardian
   rpc DumpRPCs (DumpRPCsRequest) returns (DumpRPCsResponse);  
+
+  // GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
+  rpc GetAndObserveMissingVAAs (GetAndObserveMissingVAAsRequest) returns (GetAndObserveMissingVAAsResponse);  
 }
 
 message InjectGovernanceVAARequest {
@@ -389,4 +392,13 @@ message DumpRPCsRequest {}
 
 message DumpRPCsResponse {
   map<string, string> response = 1;
+}
+
+message GetAndObserveMissingVAAsRequest {
+  string url = 1;
+  string api_key = 2;
+}
+
+message GetAndObserveMissingVAAsResponse {
+  string response =1;
 }

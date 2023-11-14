@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -109,6 +110,7 @@ type Components struct {
 func (f *Components) ListeningAddresses() []string {
 	la := make([]string, 0, len(f.ListeningAddressesPatterns))
 	for _, pattern := range f.ListeningAddressesPatterns {
+		pattern = cutOverAddressPattern(pattern)
 		la = append(la, fmt.Sprintf(pattern, f.Port))
 	}
 	return la
@@ -148,9 +150,10 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 	)
 }
 
-// bootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
+// BootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
 // if `self` is part of `bootstrapPeers`, return isBootstrapNode=true
-func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
+func BootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
+	bootstrapPeers = cutOverBootstrapPeers(bootstrapPeers)
 	bootstrappers = make([]peer.AddrInfo, 0)
 	for _, addr := range strings.Split(bootstrapPeers, ",") {
 		if addr == "" {
@@ -176,8 +179,8 @@ func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bo
 	return
 }
 
-// connectToPeers connects `h` to `peers` and returns the number of successful connections.
-func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
+// ConnectToPeers connects `h` to `peers` and returns the number of successful connections.
+func ConnectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
 	successes = 0
 	for _, p := range peers {
 		if err := h.Connect(ctx, p); err != nil {
@@ -187,6 +190,48 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 		}
 	}
 	return successes
+}
+
+func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
+	if err := evaluateCutOver(logger, networkID); err != nil {
+		return nil, err
+	}
+	h, err := libp2p.New(
+		// Use the keypair we generated
+		libp2p.Identity(priv),
+
+		// Multiple listen addresses
+		libp2p.ListenAddrStrings(
+			components.ListeningAddresses()...,
+		),
+
+		// Enable TLS security as the only security protocol.
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+
+		// Enable QUIC transport as the only transport.
+		libp2p.Transport(libp2pquic.NewTransport),
+
+		// Let's prevent our peer from having too many
+		// connections by attaching a connection manager.
+		libp2p.ConnectionManager(components.ConnMgr),
+
+		// Let this host use the DHT to find other hosts
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
+
+			bootstrappers, _ := BootstrapAddrs(logger, bootstrapPeers, h.ID())
+
+			// TODO(leo): Persistent data store (i.e. address book)
+			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
+				// This intentionally makes us incompatible with the global IPFS DHT
+				dht.ProtocolPrefix(protocol.ID("/"+networkID)),
+				dht.BootstrapPeers(bootstrappers...),
+			)
+			return idht, err
+		}),
+	)
+
+	return h, err
 }
 
 func Run(
@@ -210,6 +255,12 @@ func Run(
 	components *Components,
 	ibcFeaturesFunc func() string,
 	gatewayRelayerEnabled bool,
+	ccqEnabled bool,
+	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
+	queryResponseReadC <-chan *query.QueryResponsePublication,
+	ccqBootstrapPeers string,
+	ccqPort uint,
+	ccqAllowedPeers string,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -229,41 +280,7 @@ func Run(
 			rootCtxCancel()
 		}()
 
-		h, err := libp2p.New(
-			// Use the keypair we generated
-			libp2p.Identity(priv),
-
-			// Multiple listen addresses
-			libp2p.ListenAddrStrings(
-				components.ListeningAddresses()...,
-			),
-
-			// Enable TLS security as the only security protocol.
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-			// Enable QUIC transport as the only transport.
-			libp2p.Transport(libp2pquic.NewTransport),
-
-			// Let's prevent our peer from having too many
-			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(components.ConnMgr),
-
-			// Let this host use the DHT to find other hosts
-			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-				logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
-
-				bootstrappers, _ := bootstrapAddrs(logger, bootstrapPeers, h.ID())
-
-				// TODO(leo): Persistent data store (i.e. address book)
-				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-					// This intentionally makes us incompatible with the global IPFS DHT
-					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-					dht.BootstrapPeers(bootstrappers...),
-				)
-				return idht, err
-			}),
-		)
-
+		h, err := NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 		if err != nil {
 			panic(err)
 		}
@@ -281,7 +298,7 @@ func Run(
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
-		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 		gossipParams := pubsub.DefaultGossipSubParams()
 
 		if bootstrapNode {
@@ -323,7 +340,7 @@ func Run(
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
 
-		successes := connectToPeers(ctx, logger, h, bootstrappers)
+		successes := ConnectToPeers(ctx, logger, h, bootstrappers)
 
 		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
 			// If we fail to connect to any bootstrap peer, kill the service
@@ -336,6 +353,27 @@ func Run(
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 		bootTime := time.Now()
+
+		if ccqEnabled {
+			ccqErrC := make(chan error)
+			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
+			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
+			}
+			defer ccq.close()
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case ccqErr := <-ccqErrC:
+						logger.Error("ccqp2p returned an error", zap.Error(ccqErr), zap.String("component", "ccqp2p"))
+						rootCtxCancel()
+						return
+					}
+				}
+			}()
+		}
 
 		// Periodically run guardian state set cleanup.
 		go func() {
@@ -397,6 +435,9 @@ func Run(
 						}
 						if gatewayRelayerEnabled {
 							features = append(features, "gwrelayer")
+						}
+						if ccqEnabled {
+							features = append(features, "ccq")
 						}
 
 						heartbeat := &gossipv1.Heartbeat{

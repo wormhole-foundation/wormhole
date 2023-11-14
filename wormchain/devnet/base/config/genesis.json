@@ -14,9 +14,7 @@
       "max_bytes": "1048576"
     },
     "validator": {
-      "pub_key_types": [
-        "ed25519"
-      ]
+      "pub_key_types": ["ed25519"]
     },
     "version": {}
   },
@@ -48,6 +46,20 @@
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
@@ -88,6 +100,32 @@
         },
         {
           "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
+          "coins": [
+            {
+              "denom": "utest",
+              "amount": "100000000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "200000000"
+            }
+          ]
+        },
+        {
+          "address": "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
+          "coins": [
+            {
+              "denom": "utest",
+              "amount": "100000000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "200000000"
+            }
+          ]
+        },
+        {
+          "address": "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
           "coins": [
             {
               "denom": "utest",
@@ -344,10 +382,7 @@
         "create_localhost": false,
         "next_client_sequence": "0",
         "params": {
-          "allowed_clients": [
-            "06-solomachine",
-            "07-tendermint"
-          ]
+          "allowed_clients": ["06-solomachine", "07-tendermint"]
         }
       },
       "connection_genesis": {
@@ -438,9 +473,7 @@
         {
           "expirationTime": 0,
           "index": 0,
-          "keys": [
-            "vvpCnVfNGLf4pNkaLamrSvBdD74="
-          ]
+          "keys": ["vvpCnVfNGLf4pNkaLamrSvBdD74="]
         }
       ],
       "guardianValidatorList": [

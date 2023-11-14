@@ -113,7 +113,7 @@ export class Secp256k1SignatureOffsets {
       serialized.writeUInt8(0, 6 + i * offsetSpan);
       serialized.writeUInt16LE(messageDataOffset, 7 + i * offsetSpan);
       serialized.writeUInt16LE(messageDataSize, 9 + i * offsetSpan);
-      serialized.writeUInt8(0, 10 + i * offsetSpan);
+      serialized.writeUInt8(0, 11 + i * offsetSpan);
 
       serialized.write(signature.toString("hex"), signatureOffset, "hex");
       serialized.write(key.toString("hex"), ethAddressOffset, "hex");

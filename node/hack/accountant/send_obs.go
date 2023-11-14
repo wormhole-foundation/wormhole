@@ -7,23 +7,14 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
-	"io"
-	"os"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
-	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-
-	"golang.org/x/crypto/openpgp/armor" //nolint
-	"google.golang.org/protobuf/proto"
 
 	"go.uber.org/zap"
 )
@@ -54,7 +45,7 @@ func main() {
 	)
 
 	logger.Info("Loading guardian key", zap.String("guardianKeyPath", guardianKeyPath))
-	gk, err := loadGuardianKey(guardianKeyPath)
+	gk, err := common.LoadGuardianKey(guardianKeyPath, true)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -447,43 +438,4 @@ func submit(
 	guardianIndex := uint32(0)
 
 	return accountant.SubmitObservationsToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, msgs)
-}
-
-const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
-)
-
-// loadGuardianKey loads a serialized guardian key from disk.
-func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	p, err := armor.Decode(f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read armored file: %w", err)
-	}
-
-	if p.Type != GuardianKeyArmoredBlock {
-		return nil, fmt.Errorf("invalid block type: %s", p.Type)
-	}
-
-	b, err := io.ReadAll(p.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var m nodev1.GuardianKey
-	err = proto.Unmarshal(b, &m)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
-	}
-
-	gk, err := ethCrypto.ToECDSA(m.Data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize raw key data: %w", err)
-	}
-
-	return gk, nil
 }

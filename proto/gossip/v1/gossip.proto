@@ -14,6 +14,8 @@ message GossipMessage {
     SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
     SignedChainGovernorConfig signed_chain_governor_config = 8;
     SignedChainGovernorStatus signed_chain_governor_status = 9;
+    SignedQueryRequest signed_query_request = 10;
+    SignedQueryResponse signed_query_response = 11;
   }
 }
 
@@ -48,6 +50,10 @@ message Heartbeat {
     string contract_address = 3;
     // Connection error count
     uint64 error_count = 4;
+    // Safe block height of the node, if supported.
+    int64 safe_height = 5;    
+    // Finalized block height of the node, if supported.
+    int64 finalized_height = 6;
   }
   repeated Network networks = 4;
 
@@ -230,4 +236,20 @@ message ChainGovernorStatus {
   int64 counter = 2;
   int64 timestamp = 3;
   repeated Chain chains = 4;
+}
+
+message SignedQueryRequest {
+  // Serialized QueryRequest message.
+  bytes query_request = 1;
+
+  // ECDSA signature using the requestor's public key.
+  bytes signature = 2;
+}
+
+message SignedQueryResponse {
+  // Serialized QueryResponse message.
+  bytes query_response = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
 }

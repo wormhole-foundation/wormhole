@@ -19,9 +19,8 @@ RUN dnf -y update
 RUN dnf -y install jq curl git make
 
 # Update nodejs version from 10.24.0 to 18.x
-RUN dnf remove -y nodejs npm
-RUN curl -sL https://rpm.nodesource.com/setup_18.x | bash -
-RUN dnf install -y nodejs
+RUN yum install https://rpm.nodesource.com/pub_18.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y
+RUN yum install nodejs -y --setopt=nodesource-nodejs.module_hotfixes=1
 
 COPY --from=sui-node /root/.cargo/bin/sui /bin/sui
 COPY --from=sui-node /root/.cargo/bin/sui-faucet /bin/sui-faucet

@@ -3,6 +3,9 @@ import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { keccak256 } from "ethers/lib/utils";
 import { isNativeDenom } from "../terra";
 import {
+  CHAIN_ID_COSMOSHUB,
+  CHAIN_ID_EVMOS,
+  CHAIN_ID_WORMCHAIN,
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_SEI,
   CHAIN_ID_TERRA,
@@ -11,11 +14,21 @@ import {
   CosmWasmChainId,
   CosmWasmChainName,
   isTerraChain,
+  CHAIN_ID_KUJIRA,
+  CHAIN_ID_OSMOSIS,
+  CHAIN_ID_CELESTIA,
 } from "../utils";
 
 export const isNativeDenomInjective = (denom: string) => denom === "inj";
 export const isNativeDenomXpla = (denom: string) => denom === "axpla";
 export const isNativeDenomSei = (denom: string) => denom === "usei";
+export const isNativeDenomWormchain = (denom: string) => denom === "uworm";
+export const isNativeDenomOsmosis = (denom: string) => denom === "uosmo";
+export const isNativeDenomCosmosHub = (denom: string) => denom === "uatom";
+export const isNativeDenomEvmos = (denom: string) =>
+  denom === "aevmos" || denom === "atevmos";
+export const isNativeDenomKujira = (denom: string) => denom === "ukuji";
+export const isNativeDenomCelestia = (denom: string) => denom === "utia";
 
 export function isNativeCosmWasmDenom(
   chainId: CosmWasmChainId,
@@ -25,7 +38,13 @@ export function isNativeCosmWasmDenom(
     (isTerraChain(chainId) && isNativeDenom(address)) ||
     (chainId === CHAIN_ID_INJECTIVE && isNativeDenomInjective(address)) ||
     (chainId === CHAIN_ID_XPLA && isNativeDenomXpla(address)) ||
-    (chainId === CHAIN_ID_SEI && isNativeDenomSei(address))
+    (chainId === CHAIN_ID_SEI && isNativeDenomSei(address)) ||
+    (chainId === CHAIN_ID_WORMCHAIN && isNativeDenomWormchain(address)) ||
+    (chainId === CHAIN_ID_OSMOSIS && isNativeDenomOsmosis(address)) ||
+    (chainId === CHAIN_ID_COSMOSHUB && isNativeDenomCosmosHub(address)) ||
+    (chainId === CHAIN_ID_EVMOS && isNativeDenomEvmos(address)) ||
+    (chainId === CHAIN_ID_KUJIRA && isNativeDenomKujira(address)) ||
+    (chainId === CHAIN_ID_CELESTIA && isNativeDenomCelestia(address))
   );
 }
 

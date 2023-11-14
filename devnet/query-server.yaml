@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: query-server
+  labels:
+    app: query-server
+spec:
+  ports:
+    - name: rest
+      port: 6069
+      protocol: TCP
+    - name: status
+      port: 6068
+      protocol: TCP
+  selector:
+    app: query-server
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: query-server
+spec:
+  selector:
+    matchLabels:
+      app: query-server
+  serviceName: query-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: query-server
+    spec:
+      containers:
+        - name: query-server
+          image: guardiand-image
+          command:
+            - /guardiand
+            - query-server
+            - --env
+            - dev
+            - --nodeKey
+            - node/cmd/ccq/devnet.p2p.key
+            - --signerKey
+            - node/cmd/ccq/devnet.signing.key
+            - --listenAddr
+            - "[::]:6069"
+            - --statusAddr
+            - "[::]:6068"
+            - --permFile
+            - "node/cmd/ccq/devnet.permissions.json"
+            - --ethRPC
+            - http://eth-devnet:8545
+            - --ethContract
+            - "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+            # Hardcoded devnet bootstrap (generated from deterministic key in guardiand)
+            - --bootstrap
+            - /dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
+            - --logLevel=info
+          ports:
+            - containerPort: 6069
+              name: rest
+              protocol: TCP
+            - containerPort: 6068
+              name: status
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: status
+              path: /health

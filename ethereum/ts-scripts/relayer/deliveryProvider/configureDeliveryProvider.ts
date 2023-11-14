@@ -62,8 +62,10 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
   const coreConfig: DeliveryProviderStructs.CoreConfigStruct = {
     updateWormholeRelayer: true,
     updateRewardAddress: true,
+    updateSupportedKeyTypes: true,
     coreRelayer,
     rewardAddress: thisChainsConfigInfo.rewardAddress,
+    supportedKeyTypesBitmap: 1 << 1 // VAA_KEY_TYPE
   };
   const updates: DeliveryProviderStructs.UpdateStruct[] = [];
 
