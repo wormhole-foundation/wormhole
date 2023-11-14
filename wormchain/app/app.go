@@ -113,9 +113,9 @@ import (
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
-	packetforward "github.com/strangelove-ventures/packet-forward-middleware/v4/router"
-	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
-	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v4/router"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v4/router/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v4/router/types"
 
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
@@ -218,7 +218,7 @@ var (
 
 	tokenFactoryCapabilities = []string{}
 
-	Upgrades = []Upgrade{V2_23_0_Upgrade}
+	Upgrades = []Upgrade{V2_23_0_Upgrade, V2_24_0_Upgrade}
 )
 
 var (

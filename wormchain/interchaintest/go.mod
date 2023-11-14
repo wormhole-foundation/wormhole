@@ -3,7 +3,7 @@ module github.com/wormhole-foundation/wormchain/interchaintest
 go 1.19
 
 require (
-	github.com/cosmos/cosmos-sdk v0.45.14
+	github.com/cosmos/cosmos-sdk v0.45.16
 	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
 	github.com/stretchr/testify v1.8.4
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
@@ -12,7 +12,7 @@ require (
 
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.3
-	github.com/cosmos/ibc-go/v4 v4.3.0
+	github.com/cosmos/ibc-go/v4 v4.4.2
 	github.com/docker/docker v20.10.19+incompatible
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230815125617-67bc301715ea
@@ -35,7 +35,7 @@ require (
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/StirlingMarketingGroup/go-namecase v1.0.0 // indirect
-	github.com/armon/go-metrics v0.4.0 // indirect
+	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/avast/retry-go/v4 v4.0.4 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -163,7 +163,7 @@ require (
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
-	github.com/tendermint/tendermint v0.34.26 // indirect
+	github.com/tendermint/tendermint v0.34.27 // indirect
 	github.com/tendermint/tm-db v0.6.7 // indirect
 	github.com/tidwall/btree v1.5.0 // indirect
 	github.com/vedhavyas/go-subkey v1.0.3 // indirect
