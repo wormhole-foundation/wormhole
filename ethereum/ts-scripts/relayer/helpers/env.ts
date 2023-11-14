@@ -256,6 +256,25 @@ export function loadMockIntegrations(): Deployment[] {
   }
 }
 
+export function loadWormholeRelayerImplementations(): Deployment[] {
+  const contracts = readContracts();
+
+  if (contracts.useLastRun) {
+    const lastRunFile = fs.readFileSync(
+      `./ts-scripts/relayer/output/${env}/deployWormholeRelayerImplementation/lastrun.json`,
+    );
+    if (!lastRunFile) {
+      throw Error(
+        "Failed to find last run file for the deployWormholeRelayerImplementation process!",
+      );
+    }
+    const lastRun = JSON.parse(lastRunFile.toString());
+    return lastRun.wormholeRelayerImplementations;
+  }
+
+  return contracts.wormholeRelayerImplementations;
+}
+
 export function loadCreate2Factories(): Deployment[] {
   const contracts = readContracts();
   if (contracts.useLastRun) {

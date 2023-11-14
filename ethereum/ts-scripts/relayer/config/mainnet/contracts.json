@@ -184,5 +184,51 @@
       "chainId": 30,
       "address": "0x51fEBFE97190a9825E98E04AF8Df60e269912Dd8"
     }
+  ],
+  "wormholeRelayerImplementations": [
+    {
+      "chainId": 2,
+      "address": "0x90995DBd1aae85872451b50A569dE947D34ac4ee"
+    },
+    {
+      "chainId": 4,
+      "address": "0xb6134890a64E9FFC54Ecc2702BdF41DeEdd4999C"
+    },
+    {
+      "chainId": 5,
+      "address": "0xE4451E8479115CeA6B785bf71C1CD4ADa963991c"
+    },
+    {
+      "chainId": 6,
+      "address": "0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD"
+    },
+    {
+      "chainId": 10,
+      "address": "0x1a8dD0FA61990Db5aef353DC122bc17Ac4F10358"
+    },
+    {
+      "chainId": 13,
+      "address": "0x60e36e6b28c18f47d0195ae2d28da1d03f96a16d"
+    },
+    {
+      "chainId": 14,
+      "address": "0x60e36E6B28c18F47d0195Ae2d28da1d03F96A16D"
+    },
+    {
+      "chainId": 16,
+      "address": "0x1a8dD0FA61990Db5aef353DC122bc17Ac4F10358"
+    },
+    {
+      "chainId": 23,
+      "address": "0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD"
+    },
+    {
+      "chainId": 24,
+      "address": "0x1EfA946b0Ac2e3357a38124Fd1bAa7139048d689"
+    },
+    {
+      "chainId": 30,
+      "address": "0x231Ca706096427Bd674bFaec28B34d8fCa26E2A1"
+    }
   ]
 }

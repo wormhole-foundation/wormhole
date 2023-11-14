@@ -12,6 +12,7 @@
     "@types/mocha": "^8.2.3",
     "@xlabs-xyz/ledger-signer": "0.0.3",
     "chai": "^4.3.7",
+    "chalk": "^4.0.0",
     "mocha": "^8.4.0",
     "truffle": "5.8.4",
     "truffle-flattener": "^1.6.0",
