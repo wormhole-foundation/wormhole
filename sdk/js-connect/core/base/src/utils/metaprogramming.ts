@@ -3,6 +3,7 @@ export type Extends<T, U> = [T] extends [U] ? true : false;
 export type Function<P extends any[] = any[], R = any> = (...args: P) => R;
 export type RoArray<T = unknown> = readonly T[];
 export type RoArray2D<T = unknown> = RoArray<RoArray<T>>;
+export type RoPair<T = unknown, U = unknown> = readonly [T, U];
 
 export type Widen<T> =
   T extends string ? string :

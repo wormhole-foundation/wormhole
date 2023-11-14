@@ -75,17 +75,19 @@ import {
   range,
   zip,
 } from "./array";
-import { Function, Widen, RoArray, RoArray2D, } from "./metaprogramming";
+import { Function, Widen, RoArray, RoArray2D, RoPair } from "./metaprogramming";
 
 export type ShallowMapping<M extends RoArray<readonly [PropertyKey, unknown]>> =
   { readonly [E in M[number]as E[0]]: E[1] };
 
 //symbol probably shouldn't be part of the union (but then our type isn't a superset of PropertyKey
 //  anymore which comes with its own set of headaches)
-type MappableKey = PropertyKey | bigint | boolean;
+export type MappableKey = PropertyKey | bigint | boolean;
 function isMappableKey(key: unknown): key is MappableKey {
   return ["string", "number", "symbol", "bigint", "boolean"].includes(typeof key);
 }
+
+export type MapLevel<K extends MappableKey, V> = RoArray<RoPair<K, V>>;
 
 type Depth = [never, 0, 1, 2, 3, 4];
 
@@ -103,7 +105,7 @@ type FromExtPropKey<T extends PropertyKey> =
   ? V
   : T;
 
-type MappingEntry<V = unknown> = readonly [MappableKey, V];
+type MappingEntry<V = unknown> = RoPair<MappableKey, V>;
 type MappingEntries<V = unknown> = RoArray<MappingEntry<V>>;
 
 //Recursively sifts through T combining all row indexes that have key K.
@@ -115,7 +117,10 @@ type CombineKeyRowIndexes<
   IA extends RoArray<number>, //all values associated with K
   U extends MappingEntries<number> = [], //rows that have been scanned and are not associated with K
 > =
-  T extends readonly [infer Head extends MappingEntry<number>, ...infer Tail extends MappingEntries<number>]
+  T extends readonly [
+    infer Head extends MappingEntry<number>,
+    ...infer Tail extends MappingEntries<number>
+  ]
   ? Head[0] extends K
   ? CombineKeyRowIndexes<K, Tail, [...IA, Head[1]], U>
   : CombineKeyRowIndexes<K, Tail, IA, [...U, Head]>
@@ -128,11 +133,11 @@ type CombineKeyRowIndexes<
 //into [["Mainnet", [0,1,2]], ["Testnet", [3,4]]].
 type ToMapEntries<KCI extends MappingEntries<number>, M extends MappingEntries = []> =
   KCI extends readonly [infer Head, ...infer Tail extends MappingEntries<number>]
-  ? Head extends readonly [infer K extends MappableKey, infer V extends number]
-  ? CombineKeyRowIndexes<K, Tail, [V]> extends readonly [
+  ? Head extends RoPair<infer K extends MappableKey, infer V extends number>
+  ? CombineKeyRowIndexes<K, Tail, [V]> extends RoPair<
     infer IA extends RoArray,
     infer KCIU extends MappingEntries<number>
-  ]
+  >
   ? ToMapEntries<KCIU, [...M, [K, IA]]>
   : never
   : never
@@ -149,7 +154,7 @@ type CartesianRightRecursive<M extends RoArray> =
   ? Cartesian<M[0], M[1]>
   : M;
 
-type Shape = readonly [IndexEs, IndexEs]; //key columns, value columns
+type Shape = RoPair<IndexEs, IndexEs>; //key columns, value columns
 type CartesianSet<T = unknown> = RoArray2D<T>; //CartesianSet is always rectangular
 type Transpose<T extends RoArray2D> = Zip<T>;
 
@@ -181,7 +186,7 @@ type ProcessNextKeyColmn<KC extends CartesianSet<MappableKey>, VR extends RoArra
 //  come from the user) and the actual value. This allows us to later distinguish wheter a value
 //  is a single (singleton) leaf value and hence whether the mapping is injective (= only one value
 //  per full key group) or not.
-type LeafValue<T = unknown> = readonly [void, T];
+type LeafValue<T = unknown> = RoPair<void, T>;
 
 //Takes the value columns and combines them into leaf value rows.
 type CombineValueColumnsToLeafValues<VC extends CartesianSet> =
@@ -464,8 +469,6 @@ const has = <const F extends Function>(f: F) =>
   (...args: WidenParams<F>) => f(...args) !== undefined;
 
 type MaybeReturnType<F extends Function> = ReturnType<F> | null;
-
-
 
 const get = <const F extends Function>(f: F) =>
   (...args: WidenParams<F>) => f(...args) as MaybeReturnType<F>;

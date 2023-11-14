@@ -1,13 +1,15 @@
-export * from "./networks";
-export * from "./chains";
-export * from "./platforms";
+export { Network } from "./networks";
+export { ProtocolName } from "./protocols";
+export { Chain, ChainId, isChain, toChainId, toChain, chains, chainToChainId, chainIdToChain } from "./chains";
+export { Platform, PlatformToChains, ChainToPlatform, PlatformAddressFormat, isPlatform, platformToChains, chainToPlatform } from "./platforms";
 
-export * from "./finality";
-export * from "./decimals";
-export * from "./explorer";
-export * from "./rpc";
-export * from "./protocols";
-export * from "./circle";
-
-export * as chainIds from "./chainIds";
+export * as platform from './platforms'
+export * as chain from './chains'
+export * as network from "./networks";
+export * as finality from "./finality";
+export * as decimals from "./decimals";
+export * as explorer from "./explorer";
+export * as rpc from "./rpc";
+export * as nativeChainIds from "./nativeChainIds";
+export * as circle from "./circle";
 export * as contracts from "./contracts";
