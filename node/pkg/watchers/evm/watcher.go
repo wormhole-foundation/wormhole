@@ -485,16 +485,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		ccqLogger := logger.With(
-			zap.String("eth_network", w.networkName),
-			zap.String("component", "ccqevm"),
-		)
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
 			case queryRequest := <-w.queryReqC:
-				w.ccqHandleQuery(ccqLogger, ctx, queryRequest)
+				w.ccqHandleQuery(ctx, queryRequest)
 			}
 		}
 	})
