@@ -37,6 +37,8 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 		panic("ccqevm: invalid chain ID")
 	}
 
+	start := time.Now()
+
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.EthCallQueryRequest:
 		w.ccqHandleEthCallQueryRequest(logger, ctx, queryRequest, req)
@@ -50,6 +52,8 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
 	}
+
+	query.TotalWatcherTime.WithLabelValues(w.chainID.String()).Observe(float64(time.Since(start).Milliseconds()))
 }
 
 // EvmCallData contains the details of a single query in the batch.

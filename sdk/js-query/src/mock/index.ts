@@ -3,21 +3,16 @@ import { Buffer } from "buffer";
 import {
   ChainQueryType,
   EthCallQueryRequest,
+  EthCallQueryResponse,
   EthCallWithFinalityQueryRequest,
+  EthCallWithFinalityQueryResponse,
+  PerChainQueryResponse,
+  QueryProxyQueryResponse,
   QueryRequest,
-  hexToUint8Array,
+  QueryResponse,
   sign,
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
-import { BytesLike } from "@ethersproject/bytes";
-import { keccak256 } from "@ethersproject/keccak256";
-
-export type QueryProxyQueryResponse = {
-  signatures: string[];
-  bytes: string;
-};
-
-const QUERY_RESPONSE_PREFIX = "query_response_0000000000000000000|";
 
 /**
  * Usage:
@@ -51,15 +46,8 @@ export class QueryProxyMock {
       "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
     ]
   ) {}
-  sign(serializedResponse: BytesLike) {
-    const digest = hexToUint8Array(
-      keccak256(
-        Buffer.concat([
-          Buffer.from(QUERY_RESPONSE_PREFIX),
-          hexToUint8Array(keccak256(serializedResponse)),
-        ])
-      )
-    );
+  sign(serializedResponse: Uint8Array) {
+    const digest = QueryResponse.digest(serializedResponse);
     return this.mockPrivateKeys.map(
       (key, idx) => `${sign(key, digest)}${idx.toString(16).padStart(2, "0")}`
     );
@@ -82,14 +70,11 @@ export class QueryProxyMock {
    * @returns a promise result matching the query proxy's query response
    */
   async mock(queryRequest: QueryRequest): Promise<QueryProxyQueryResponse> {
-    const serializedRequest = queryRequest.serialize();
-    const writer = new BinaryWriter()
-      .writeUint8(1) // version
-      .writeUint16(0) // source = off-chain
-      .writeUint8Array(new Uint8Array(new Array(65))) // empty signature for mock
-      .writeUint32(serializedRequest.length)
-      .writeUint8Array(serializedRequest)
-      .writeUint8(queryRequest.requests.length);
+    const queryResponse = new QueryResponse(
+      0, // source = off-chain
+      Buffer.from(new Array(65)).toString("hex"), // empty signature for mock
+      queryRequest
+    );
     for (const perChainRequest of queryRequest.requests) {
       const rpc = this.rpcMap[perChainRequest.chainId];
       if (!rpc) {
@@ -98,7 +83,6 @@ export class QueryProxyMock {
         );
       }
       const type = perChainRequest.query.type();
-      writer.writeUint16(perChainRequest.chainId).writeUint8(type);
       if (type === ChainQueryType.EthCall) {
         const query = perChainRequest.query as EthCallQueryRequest;
         const response = await axios.post(rpc, [
@@ -132,25 +116,18 @@ export class QueryProxyMock {
             `Invalid block result for chain ${perChainRequest.chainId} block ${query.blockTag}`
           );
         }
-        const results = callResults.map(
-          (callResult: any) =>
-            new Uint8Array(Buffer.from(callResult.result.substring(2), "hex"))
+        queryResponse.responses.push(
+          new PerChainQueryResponse(
+            perChainRequest.chainId,
+            new EthCallQueryResponse(
+              BigInt(parseInt(blockResult.number.substring(2), 16)), // block number
+              blockResult.hash, // hash
+              BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
+                BigInt("1000000"), // time in seconds -> microseconds
+              callResults.map((callResult: any) => callResult.result)
+            )
+          )
         );
-        const perChainWriter = new BinaryWriter()
-          .writeUint64(BigInt(parseInt(blockResult.number.substring(2), 16))) // block number
-          .writeUint8Array(
-            new Uint8Array(Buffer.from(blockResult.hash.substring(2), "hex"))
-          ) // hash
-          .writeUint64(
-            BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
-              BigInt("1000000")
-          ) // time in seconds -> microseconds
-          .writeUint8(results.length);
-        for (const result of results) {
-          perChainWriter.writeUint32(result.length).writeUint8Array(result);
-        }
-        const serialized = perChainWriter.data();
-        writer.writeUint32(serialized.length).writeUint8Array(serialized);
       } else if (type === ChainQueryType.EthCallWithFinality) {
         const query = perChainRequest.query as EthCallWithFinalityQueryRequest;
         const response = await axios.post(rpc, [
@@ -213,30 +190,23 @@ export class QueryProxyMock {
             `Requested block for eth_call_with_finality has not yet reached the requested finality. Block: ${blockNumber}, ${query.finality}: ${latestBlockNumberMatchingFinality}`
           );
         }
-        const results = callResults.map(
-          (callResult: any) =>
-            new Uint8Array(Buffer.from(callResult.result.substring(2), "hex"))
+        queryResponse.responses.push(
+          new PerChainQueryResponse(
+            perChainRequest.chainId,
+            new EthCallWithFinalityQueryResponse(
+              BigInt(parseInt(blockResult.number.substring(2), 16)), // block number
+              blockResult.hash, // hash
+              BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
+                BigInt("1000000"), // time in seconds -> microseconds
+              callResults.map((callResult: any) => callResult.result)
+            )
+          )
         );
-        const perChainWriter = new BinaryWriter()
-          .writeUint64(blockNumber) // block number
-          .writeUint8Array(
-            new Uint8Array(Buffer.from(blockResult.hash.substring(2), "hex"))
-          ) // hash
-          .writeUint64(
-            BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
-              BigInt("1000000")
-          ) // time in seconds -> microseconds
-          .writeUint8(results.length);
-        for (const result of results) {
-          perChainWriter.writeUint32(result.length).writeUint8Array(result);
-        }
-        const serialized = perChainWriter.data();
-        writer.writeUint32(serialized.length).writeUint8Array(serialized);
       } else {
         throw new Error(`Unsupported query type for mock: ${type}`);
       }
     }
-    const serializedResponse = writer.data();
+    const serializedResponse = queryResponse.serialize();
     return {
       signatures: this.sign(serializedResponse),
       bytes: Buffer.from(serializedResponse).toString("hex"),

@@ -1,3 +1,7 @@
+## 0.0.6
+
+Deserialization support
+
 ## 0.0.5
 
 Mock support
