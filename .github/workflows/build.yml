@@ -54,13 +54,31 @@ jobs:
 
   algorand:
     runs-on: ubuntu-20.04
+    env:
+      algorand-node-url: https://github.com/algorand/go-algorand/releases/download/v3.19.0-stable/node_stable_linux-amd64_3.19.0.tar.gz
+      ALGORAND_GOAL_BIN: ${{ github.workspace }}/algorand/tools/bin/goal
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          cache: "pip"
       - run: pip install -r algorand/requirements.txt
-      - run: cd algorand && make test
+      - uses: actions/cache@v3
+        id: cache-algorand-tools
+        with:
+          path: algorand/tools
+          key: ${{ env.algorand-node-url }}
+      - if: ${{ steps.cache-algorand-tools.outputs.cache-hit != 'true' }}
+        working-directory: algorand
+        run: |
+          mkdir -p tools
+          cd tools
+          wget ${{ env.algorand-node-url }}
+          tar --extract --file node_stable_linux-amd64_3.19.0.tar.gz bin/goal
+          rm node_stable_linux-amd64_3.19.0.tar.gz
+      - working-directory: algorand
+        run: make test
 
   ethereum:
     runs-on: ubuntu-latest
