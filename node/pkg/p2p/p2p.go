@@ -607,7 +607,7 @@ func Run(
 									zap.String("from", envelope.GetFrom().String()))
 							} else {
 								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-								if guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
+								if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
 									prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
 									if ok {
 										if prevPeerId != peerId {
