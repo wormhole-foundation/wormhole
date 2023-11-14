@@ -39,16 +39,18 @@ var (
 type ccqP2p struct {
 	logger *zap.Logger
 
-	h            host.Host
-	th_req       *pubsub.Topic
-	th_resp      *pubsub.Topic
-	sub          *pubsub.Subscription
-	allowedPeers map[string]struct{}
+	h             host.Host
+	th_req        *pubsub.Topic
+	th_resp       *pubsub.Topic
+	sub           *pubsub.Subscription
+	allowedPeers  map[string]struct{}
+	p2pComponents *Components
 }
 
 func newCcqRunP2p(
 	logger *zap.Logger,
 	allowedPeersStr string,
+	components *Components,
 ) *ccqP2p {
 	l := logger.With(zap.String("component", "ccqp2p"))
 	allowedPeers := make(map[string]struct{})
@@ -60,8 +62,9 @@ func newCcqRunP2p(
 	}
 
 	return &ccqP2p{
-		logger:       l,
-		allowedPeers: allowedPeers,
+		logger:        l,
+		allowedPeers:  allowedPeers,
+		p2pComponents: components,
 	}
 }
 
@@ -102,6 +105,13 @@ func (ccq *ccqP2p) run(
 			}
 			if _, found := ccq.allowedPeers[peerID.String()]; found {
 				return true
+			}
+			ccq.p2pComponents.ProtectedHostByGuardianKeyLock.Lock()
+			defer ccq.p2pComponents.ProtectedHostByGuardianKeyLock.Unlock()
+			for _, guardianPeerID := range ccq.p2pComponents.ProtectedHostByGuardianKey {
+				if peerID == guardianPeerID {
+					return true
+				}
 			}
 			ccq.logger.Info("Dropping subscribe attempt from unknown peer", zap.String("peerID", peerID.String()))
 			return false
