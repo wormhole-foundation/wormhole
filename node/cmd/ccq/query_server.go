@@ -68,6 +68,7 @@ var QueryServerCmd = &cobra.Command{
 
 func runQueryServer(cmd *cobra.Command, args []string) {
 	common.SetRestrictiveUmask()
+	networkID := *p2pNetworkID + "/ccq"
 
 	// Setup logging
 	lvl, err := ipfslog.LevelFromString(*logLevel)
@@ -85,7 +86,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			logger.Fatal("if --telemetryLokiURL is specified --telemetryNodeName must be specified")
 		}
 		labels := map[string]string{
-			"network":   *p2pNetworkID,
+			"network":   networkID,
 			"node_name": *telemetryNodeName,
 			"version":   version.Version(),
 		}
@@ -155,7 +156,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses()
-	p2p, err := runP2P(ctx, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger)
+	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}

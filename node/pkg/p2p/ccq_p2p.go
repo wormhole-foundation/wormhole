@@ -69,13 +69,14 @@ func (ccq *ccqP2p) run(
 	ctx context.Context,
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
-	networkID string,
+	p2pNetworkID string,
 	bootstrapPeers string,
 	port uint,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
 	errC chan error,
 ) error {
+	networkID := p2pNetworkID + "/ccq"
 	var err error
 
 	components := DefaultComponents()

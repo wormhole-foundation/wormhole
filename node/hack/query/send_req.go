@@ -75,7 +75,7 @@ func main() {
 	components := p2p.DefaultComponents()
 	components.Port = p2pPort
 	bootstrapPeers := p2pBootstrap
-	networkID := p2pNetworkID
+	networkID := p2pNetworkID + "/ccq"
 
 	h, err := p2p.NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
