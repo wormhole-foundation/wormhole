@@ -1067,7 +1067,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	// Start injecting the VAAs
 	obsCounter := 0
 	errCounter := 0
-	errMsgs := "Errors: "
+	errMsgs := "Messages: "
 	for i := 0; i < processingLen; i++ {
 		missingVAA := missingVAAs[i]
 		// First check to see if this VAA has already been signed
@@ -1101,7 +1101,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 				continue
 			}
 		}
-		errMsgs += fmt.Sprintf("\nAttempting to observe %s", obsvReq.String())
+		errMsgs += fmt.Sprintf("\nAttempting to observe %s", missingVAA.Txhash)
 		// Call the following function to send the observation request
 		if err := common.PostObservationRequest(s.obsvReqSendC, &obsvReq); err != nil {
 			errMsgs += fmt.Sprintf("\nPostObservationRequest error %s", err.Error())
