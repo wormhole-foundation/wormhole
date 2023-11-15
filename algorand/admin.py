@@ -2,18 +2,14 @@
 
 import os
 from os.path import exists
-from time import time, sleep
 from eth_abi import encode_single, encode_abi
 from typing import List, Tuple, Dict, Any, Optional, Union
-from base64 import b64decode
-import base64
+from base64 import b64decode, b64encode
 import random
 import time
 import hashlib
-import uuid
 import sys
 import json
-import uvarint
 from local_blob import LocalBlob
 from wormhole_core import getCoreContracts
 from TmplSig import TmplSig
@@ -25,7 +21,6 @@ from algosdk.kmd import KMDClient
 from algosdk import account, mnemonic, abi
 from algosdk.encoding import decode_address, encode_address
 from algosdk.future import transaction
-from pyteal import compileTeal, Mode, Expr
 from pyteal import *
 from algosdk.logic import get_application_address
 from vaa_verify import get_vaa_verify
@@ -278,22 +273,17 @@ class PortalCore:
     
         return balances
 
-    def fullyCompileContract(self, client: AlgodClient, contract: Expr) -> bytes:
-        teal = compileTeal(contract, mode=Mode.Application, version=6)
-        response = client.compile(teal)
-        return response
-
     # helper function that formats global state for printing
     def format_state(self, state):
         formatted = {}
         for item in state:
             key = item['key']
             value = item['value']
-            formatted_key = base64.b64decode(key).decode('utf-8')
+            formatted_key = b64decode(key).decode('utf-8')
             if value['type'] == 1:
                 # byte string
                 if formatted_key == 'voted':
-                    formatted_value = base64.b64decode(value['bytes']).decode('utf-8')
+                    formatted_value = b64decode(value['bytes']).decode('utf-8')
                 else:
                     formatted_value = value['bytes']
                 formatted[formatted_key] = formatted_value
@@ -357,7 +347,7 @@ class PortalCore:
 
     def getMessageFee(self):
         s = self.client.application_info(self.coreid)["params"]["global-state"]
-        k = base64.b64encode(b"MessageFee").decode('utf-8')
+        k = b64encode(b"MessageFee").decode('utf-8')
         for x in s:
             if x["key"] == k:
                 return x["value"]["uint"]
@@ -365,7 +355,7 @@ class PortalCore:
 
     def getGovSet(self):
         s = self.client.application_info(self.coreid)["params"]["global-state"]
-        k = base64.b64encode(b"currentGuardianSetIndex").decode('utf-8')
+        k = b64encode(b"currentGuardianSetIndex").decode('utf-8')
         for x in s:
             if x["key"] == k:
                 return x["value"]["uint"]
@@ -665,11 +655,11 @@ class PortalCore:
             vals = {}
             e = bytes.fromhex("00"*127)
             for kv in app_state:
-                k = base64.b64decode(kv["key"])
+                k = b64decode(kv["key"])
                 if k == "meta":
                     continue
                 key = int.from_bytes(k, "big")
-                v = base64.b64decode(kv["value"]["bytes"])
+                v = b64decode(kv["value"]["bytes"])
                 if v != e:
                     vals[key] = v
             for k in sorted(vals.keys()):
@@ -816,11 +806,11 @@ class PortalCore:
         s = int((seq - start) / bits_per_key)
         b = int(((seq - start) - (s * bits_per_key)) / 8)
 
-        k = base64.b64encode(s.to_bytes(1, "big")).decode('utf-8')
+        k = b64encode(s.to_bytes(1, "big")).decode('utf-8')
         for kv in app_state:
             if kv["key"] != k:
                 continue
-            v = base64.b64decode(kv["value"]["bytes"])
+            v = b64decode(kv["value"]["bytes"])
             bt = 1 << (seq%8)
             return ((v[b] & bt) != 0)
 
@@ -1499,7 +1489,7 @@ class PortalCore:
             c = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
             self.vaa_verify = c.compile(get_vaa_verify())
 
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+        self.vaa_verify["lsig"] = LogicSig(b64decode(self.vaa_verify["result"]))
 
         if args.genTeal or args.boot:
             self.genTeal()
