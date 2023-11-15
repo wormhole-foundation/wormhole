@@ -121,7 +121,21 @@ const knownRefs = {
     return uint16To32BytesBuffer(chain.chainId);
   },
 }
-
+/**
+ * The WormholeRelayer contract has two immutable references:
+ * 1. the wormhole core contract address on the respective chain
+ * 2. the wormhole chain id of the respective chain
+ * 
+ * The contract deployed bytecode will have this values replaced by the values for the respective chain.
+ * 
+ * The definitions of the references are in the WormholeRelayerBase contract, that's why we need the compiler
+ * output of both contracts to build the bytecode.
+ * @param chain wormhole chain id of the chain to build the bytecode for
+ * @param implementation the solidity compiler output of the WormholeRelayer contract
+ * @param baseImplementation the solidity compiler output of the WormholeRelayerBase contract
+ * @returns the bytecode for the WormholeRelayer contract with the immutable references replaced
+ *          by the values for the respective chain
+ */
 function buildByteCode(
   chain: ChainInfo,
   implementation: SolidityCompilerOutput,
