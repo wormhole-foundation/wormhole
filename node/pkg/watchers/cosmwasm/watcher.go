@@ -58,6 +58,9 @@ type (
 
 		// URL to get the latest block info from
 		latestBlockURL string
+
+		// b64Encoded indicates if transactions are base 64 encoded.
+		b64Encoded bool
 	}
 )
 
@@ -126,6 +129,10 @@ func NewWatcher(
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
+	// Injective does not base64 encode parameters (as of release v1.11.2).
+	// Terra2 no longer base64 encodes parameters.
+	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2)
+
 	return &Watcher{
 		urlWS:                    urlWS,
 		urlLCD:                   urlLCD,
@@ -137,6 +144,7 @@ func NewWatcher(
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
 		latestBlockURL:           latestBlockURL,
+		b64Encoded:               b64Encoded,
 	}
 }
 
@@ -302,7 +310,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 				}
 
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey)
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
 					msg.IsReobservation = true
 					e.msgC <- msg
@@ -343,7 +351,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
@@ -362,9 +370,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
-	// Injective does not base64 encode parameters (as of release v1.11.2).
-	b64Encoded := chainID != vaa.ChainIDInjective
+func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string, b64Encoded bool) []*common.MessagePublication {
 	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
