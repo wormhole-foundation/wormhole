@@ -24,15 +24,16 @@ async function run() {
   const implementationAddresses: Deployment[] = loadWormholeRelayerImplementations();
 
   for (const chain of operation.operatingChains) {
-    console.log(`Verifying deployed bytecode for chain ${chain.chainId}...`);
     const deployedImplementationAddress = implementationAddresses.find((deploy) => {
       return deploy.chainId === chain.chainId;
     });
-
+    
     if (!deployedImplementationAddress) {
       console.error("Failed to find implementation address for chain " + chain.chainId);
       continue;
     }
+    
+    console.log(`Verifying bytecode deployed at ${deployedImplementationAddress} on chain ${chain.chainId}...`);
 
     const provider = getProvider(chain);
 
