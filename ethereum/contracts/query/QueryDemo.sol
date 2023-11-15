@@ -10,12 +10,11 @@ import "./QueryResponse.sol";
 error InvalidOwner();
 // @dev for the onlyOwner modifier
 error InvalidCaller();
-error InvalidContractAddress();
+error InvalidCalldata();
 error InvalidWormholeAddress();
 error InvalidForeignChainID();
 error ObsoleteUpdate();
 error StaleUpdate();
-error UnexpectedCallData();
 error UnexpectedResultLength();
 error UnexpectedResultMismatch();
 
@@ -32,14 +31,13 @@ contract QueryDemo is QueryResponse {
     }
 
     address private immutable owner;
-    address private immutable wormhole;
     uint16 private immutable myChainID;
     mapping(uint16 => ChainEntry) private counters;
     uint16[] private foreignChainIDs;
 
     bytes4 GetMyCounter = bytes4(hex"916d5743");
 
-    constructor(address _owner, address _wormhole, uint16 _myChainID) {
+    constructor(address _owner, address _wormhole, uint16 _myChainID) QueryResponse(_wormhole) {
         if (_owner == address(0)) {
             revert InvalidOwner();
         }
@@ -48,7 +46,7 @@ contract QueryDemo is QueryResponse {
         if (_wormhole == address(0)) {
             revert InvalidWormholeAddress();
         }
-        wormhole = _wormhole;  
+
         myChainID = _myChainID;
         counters[_myChainID] = ChainEntry(_myChainID, address(this), 0, 0, 0);
     }
@@ -87,7 +85,7 @@ contract QueryDemo is QueryResponse {
     // @notice Takes the cross chain query response for the other counters, stores the results for the other chains, and updates the counter for this chain.
     function updateCounters(bytes memory response, IWormhole.Signature[] memory signatures) public {
         uint256 adjustedBlockTime;
-        ParsedQueryResponse memory r = parseAndVerifyQueryResponse(address(wormhole), response, signatures);
+        ParsedQueryResponse memory r = parseAndVerifyQueryResponse(response, signatures);
         uint numResponses = r.responses.length;
         if (numResponses != foreignChainIDs.length) {
             revert UnexpectedResultLength();
@@ -101,33 +99,24 @@ contract QueryDemo is QueryResponse {
             }
 
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
-            if (eqr.blockNum <= chainEntry.blockNum) {
-                revert ObsoleteUpdate();
-            }
 
-            // wormhole time is in microseconds, timestamp is in seconds
-            adjustedBlockTime = eqr.blockTime / 1_000_000;
-            if (adjustedBlockTime <= block.timestamp - 300) {
-                revert StaleUpdate();
-            }
+            // Validate that update is not obsolete
+            validateBlockNum(eqr.blockNum, chainEntry.blockNum, block.number);
+
+            // Validate that update is not stale
+            validateBlockTime(eqr.blockTime, block.timestamp - 300, block.timestamp);
 
             if (eqr.result.length != 1) {
                 revert UnexpectedResultMismatch();
             }
 
-            if (eqr.result[0].contractAddress != chainEntry.contractAddress) {
-                revert InvalidContractAddress();
-            }
+            // Validate addresses and function signatures
+            address[] memory validAddresses = new address[](1);
+            bytes4[] memory validFunctionSignatures = new bytes4[](1);
+            validAddresses[0] = chainEntry.contractAddress;
+            validFunctionSignatures[0] = GetMyCounter;
 
-            // TODO: Is there an easier way to verify that the call data is correct!
-            bytes memory callData = eqr.result[0].callData;
-            bytes4 result;
-            assembly {
-                    result := mload(add(callData, 32))
-            }
-            if (result != GetMyCounter) {
-                revert UnexpectedCallData();
-            }
+            validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
 
             require(eqr.result[0].result.length == 32, "result is not a uint256");
 
