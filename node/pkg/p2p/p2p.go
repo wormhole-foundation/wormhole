@@ -105,6 +105,8 @@ type Components struct {
 	WarnChannelOverflow bool
 	// SignedHeartbeatLogLevel is the log level at which SignedHeartbeatReceived events will be logged.
 	SignedHeartbeatLogLevel zapcore.Level
+	// GossipParams is used to configure the GossipSub instance used by the Guardian.
+	GossipParams pubsub.GossipSubParams
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -134,6 +136,7 @@ func DefaultComponents() *Components {
 		ConnMgr:                    mgr,
 		ProtectedHostByGuardianKey: make(map[eth_common.Address]peer.ID),
 		SignedHeartbeatLogLevel:    zapcore.DebugLevel,
+		GossipParams:               pubsub.DefaultGossipSubParams(),
 	}
 }
 
@@ -299,20 +302,19 @@ func Run(
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
 		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
-		gossipParams := pubsub.DefaultGossipSubParams()
 
 		if bootstrapNode {
 			logger.Info("We are a bootstrap node.")
 			if networkID == "/wormhole/testnet/2/1" {
-				gossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
-				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", gossipParams.Dhi))
+				components.GossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
+				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", components.GossipParams.Dhi))
 			}
 		}
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
-			pubsub.WithGossipSubParams(gossipParams),
+			pubsub.WithGossipSubParams(components.GossipParams),
 		)
 		if err != nil {
 			panic(err)
