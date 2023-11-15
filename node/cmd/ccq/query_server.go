@@ -86,7 +86,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			logger.Fatal("if --telemetryLokiURL is specified --telemetryNodeName must be specified")
 		}
 		labels := map[string]string{
-			"network":   networkID,
+			"network":   *p2pNetworkID,
 			"node_name": *telemetryNodeName,
 			"version":   version.Version(),
 		}
