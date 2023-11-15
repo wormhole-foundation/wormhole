@@ -15,8 +15,8 @@ const processName = "verifyWormholeRelayerDeployedByteCode";
 init();
 const operation = getOperationDescriptor();
 
-const WORMHOLE_RELAYER_ABI_PATH = "./build-forge/WormholeRelayer.sol/WormholeRelayer.json";
-const WORMHOLE_RELAYER_BASE_ABI_PATH = "./build-forge/WormholeRelayerBase.sol/WormholeRelayerBase.json";
+const WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT = "./build-forge/WormholeRelayer.sol/WormholeRelayer.json";
+const WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT = "./build-forge/WormholeRelayerBase.sol/WormholeRelayerBase.json";
 
 async function run() {
   console.log("Start! " + processName);
@@ -50,7 +50,7 @@ async function run() {
 
     let implementation: SolidityCompilerOutput;
     try {
-      implementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_ABI_PATH, "utf8"));
+      implementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT, "utf8"));
     } catch (e) {
       console.error(`Failed to read WormholeRelayer contract data. Error: ${e}`);
       continue;
@@ -58,7 +58,7 @@ async function run() {
 
     let baseImplementation: SolidityCompilerOutput;
     try {
-      baseImplementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_BASE_ABI_PATH, "utf8"));
+      baseImplementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT, "utf8"));
     } catch (e) {
       console.error(`Failed to read WormholeRelayerBase contract data. Error: ${e}`);
       continue;
