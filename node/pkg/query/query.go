@@ -179,8 +179,10 @@ func handleQueryRequestsImpl(
 			// - valid "block" strings
 
 			allQueryRequestsReceived.Inc()
-			requestID := hex.EncodeToString(signedRequest.Signature)
 			digest := QueryRequestDigest(env, signedRequest.QueryRequest)
+
+			// It's possible that the signature alone is not unique, and the digest alone is not unique, but the combination should be.
+			requestID := hex.EncodeToString(signedRequest.Signature) + ":" + digest.String()
 
 			qLogger.Info("received a query request", zap.String("requestID", requestID))
 
