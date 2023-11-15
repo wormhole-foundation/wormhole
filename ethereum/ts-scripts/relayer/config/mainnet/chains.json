@@ -41,7 +41,7 @@
       "description": "Klaytn",
       "evmNetworkId": 8217,
       "chainId": 13,
-      "rpc": "https://klaytn.blockpi.network/v1/rpc/public",
+      "rpc": "https://1rpc.io/klay",
       "wormholeAddress": "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"
     },
     {
@@ -76,7 +76,7 @@
       "description": "Base",
       "evmNetworkId": 8453,
       "chainId": 30,
-      "rpc": "https://base.blockpi.network/v1/rpc/public",
+      "rpc": "https://base.llamarpc.com",
       "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
     }
   ]
