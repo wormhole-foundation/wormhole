@@ -75,8 +75,8 @@ export async function query_contract_evm(
       ] = await Promise.all([
         core.getGuardianSetExpiry(),
         core.chainId(),
-        maybeUnsupported(core.evmChainId()),
-        maybeUnsupported(core.isFork()),
+        maybeUnsupported(core.evmChainId),
+        maybeUnsupported(core.isFork),
         core.governanceChainId(),
         core.governanceContract(),
         core.messageFee(),
@@ -140,8 +140,8 @@ export async function query_contract_evm(
         tb.tokenImplementation(),
         tb.chainId(),
         tb.finality(),
-        maybeUnsupported(tb.evmChainId()),
-        maybeUnsupported(tb.isFork()),
+        maybeUnsupported(tb.evmChainId),
+        maybeUnsupported(tb.isFork),
         tb.governanceChainId(),
         tb.governanceContract(),
         tb.WETH(),
@@ -201,8 +201,8 @@ export async function query_contract_evm(
         nb.tokenImplementation(),
         nb.chainId(),
         nb.finality(),
-        maybeUnsupported(nb.evmChainId()),
-        maybeUnsupported(nb.isFork()),
+        maybeUnsupported(nb.isFork),
+        maybeUnsupported(nb.evmChainId),
         nb.governanceChainId(),
         nb.governanceContract(),
         registrationsPromiseNb,
@@ -810,10 +810,10 @@ export async function setStorageAt(
 }
 
 const maybeUnsupported = async <T>(
-  query: Promise<T>
+  query: () => Promise<T>
 ): Promise<T | "unsupported"> => {
   try {
-    return query;
+    return await query();
   } catch (e) {
     if (isUnsupportedError(e)) {
       return "unsupported";
