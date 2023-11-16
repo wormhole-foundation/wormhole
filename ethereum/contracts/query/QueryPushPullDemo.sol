@@ -172,7 +172,8 @@ contract QueryPushPullDemo is QueryResponse {
         // encode the Message struct into bytes
         bytes memory encodedMessage = encodeMessage(parsedMessage);
 
-        bytes32 digest = keccak256(abi.encodePacked(keccak256(encodedMessage)));
+        // for consistency, match the inbound digest calculation
+        bytes32 digest = keccak256(abi.encodePacked(myChainID, bytes32(uint256(uint160(address(this)))), keccak256(encodedMessage)));
 
         ccqSent[digest] = true;
 
@@ -244,7 +245,8 @@ contract QueryPushPullDemo is QueryResponse {
                     revert InvalidContractAddress();
                 }
 
-                bytes32 digest = keccak256(abi.encodePacked(keccak256(messages[messageIndex])));
+                // add the chain id and contract to form a unique digest
+                bytes32 digest = keccak256(abi.encodePacked(requestChainID, chainRegistrations[requestChainID], keccak256(messages[messageIndex])));
 
                 if (ccqReceived[digest]) {
                     // This could also just skip 
@@ -255,7 +257,7 @@ contract QueryPushPullDemo is QueryResponse {
                     revert UnexpectedCallData();
                 }
 
-                require(eqr.result[resultIdx].result.length == 1, "result is not a bool");
+                require(eqr.result[resultIdx].result.length == 32, "result is not a bool");
 
                 bool wasSent = abi.decode(eqr.result[resultIdx].result, (bool));
                 require(wasSent, "result is not true");
