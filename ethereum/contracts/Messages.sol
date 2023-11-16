@@ -147,7 +147,7 @@ contract Messages is Getters {
 
 
     /**
-     * @dev verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
+     * @dev verifySignatures serves to validate arbitrary signatures against an arbitrary guardianSet
      *  - it intentionally does not solve for expectations within guardianSet (you should use verifyVM if you need these protections)
      *  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
      *  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
@@ -184,6 +184,44 @@ contract Messages is Getters {
         }
 
         /// If we are here, we've validated that the provided signatures are valid for the provided guardianSet
+        return (true, "");
+    }
+
+    /**
+     * @dev verifyCurrentQuorum serves to validate arbitrary signatures and check quorum against the current guardianSet
+     */
+    function verifyCurrentQuorum(bytes32 hash, Structs.Signature[] memory signatures) public view returns (bool valid, string memory response) {
+        uint32 gsi = getCurrentGuardianSetIndex();
+        Structs.GuardianSet memory guardianSet = getGuardianSet(gsi);
+
+       /**
+        * @dev Checks whether the guardianSet has zero keys
+        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
+        * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
+        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
+        * signature verification.
+        */
+        if(guardianSet.keys.length == 0){
+            return (false, "invalid guardian set");
+        }
+
+       /**
+        * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
+        *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
+        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
+        *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
+        */
+        if (signatures.length < quorum(guardianSet.keys.length)){
+            return (false, "no quorum");
+        }
+
+        /// @dev Verify the proposed vm.signatures against the guardianSet
+        (bool signaturesValid, string memory invalidReason) = verifySignatures(hash, signatures, guardianSet);
+        if(!signaturesValid){
+            return (false, invalidReason);
+        }
+
+        /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
         return (true, "");
     }
 
