@@ -330,4 +330,136 @@ contract TestMessages is Test {
       assertEq(vm_.signatures[i].v, vmOptimized.signatures[i].v);
     }
   }
+  /// @dev This test checks that quorum is reached in the happy path
+  function testFuzz_verifyCurrentQuorum(bytes memory encoded) public {
+    vm.assume(encoded.length > 0);
+
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    messages.storeGuardianSetPub(initialGuardianSet, uint32(0));
+
+    bytes32 message = keccak256(encoded);
+
+    // Generate legitimate signature.
+    Structs.Signature memory goodSignature;
+    (goodSignature.v, goodSignature.r, goodSignature.s) = vm.sign(testGuardian, message);
+    assertEq(ecrecover(message, goodSignature.v, goodSignature.r, goodSignature.s), vm.addr(testGuardian));
+    goodSignature.guardianIndex = 0;
+
+    // Attempt to verify signatures.
+    Structs.Signature[] memory sigs = new Structs.Signature[](1);
+    sigs[0] = goodSignature;
+
+    (bool valid, string memory reason) = messages.verifyCurrentQuorum(message, sigs);
+    assertEq(valid, true);
+    assertEq(bytes(reason).length, 0);
+  }
+
+  /// @dev This test checks that quorum will not be reached if there are no guardians in the current guardian set
+  function testFuzz_verifyCurrentQuorum_noGuardians(bytes memory encoded) public {
+    vm.assume(encoded.length > 0);
+    
+    bytes32 message = keccak256(encoded);
+
+    // Generate legitimate signature.
+    Structs.Signature memory goodSignature;
+    (goodSignature.v, goodSignature.r, goodSignature.s) = vm.sign(testGuardian, message);
+    assertEq(ecrecover(message, goodSignature.v, goodSignature.r, goodSignature.s), vm.addr(testGuardian));
+    goodSignature.guardianIndex = 0;
+
+    // Attempt to verify signatures.
+    Structs.Signature[] memory sigs = new Structs.Signature[](1);
+    sigs[0] = goodSignature;
+
+    (bool valid, string memory reason) = messages.verifyCurrentQuorum(message, sigs);
+    assertEq(valid, false);
+    assertEq(abi.encodePacked(reason), abi.encodePacked("invalid guardian set"));
+  }
+
+  /// @dev This test checks that quorum will not be reached if there is >0 invalid signatures in any position
+  function testFuzz_verifyCurrentQuorum_invalidSignature(bytes memory encoded, uint8 numSigs, uint256 invalidSigIndex) public {
+    vm.assume(encoded.length > 0);
+    vm.assume(numSigs != 0);
+    invalidSigIndex = bound(invalidSigIndex, 0, numSigs - 1);
+
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](numSigs);
+
+    bytes32 message = keccak256(encoded);
+
+    Structs.Signature[] memory signatures = new Structs.Signature[](numSigs);
+    
+    for (uint8 i = 0; i < numSigs; ++i) {
+      (address addr, uint256 key) = makeAddrAndKey(string(abi.encode(i))); 
+      initialGuardians[i] = addr;
+
+      // Create a single invalid signature
+      if (i == invalidSigIndex) {
+        (addr, key) = makeAddrAndKey(string(abi.encode(type(uint64).max)));
+        (signatures[i].v, signatures[i].r, signatures[i].s) = vm.sign(key, message);
+        signatures[i].guardianIndex = i;
+        continue;
+      }
+
+      (signatures[i].v, signatures[i].r, signatures[i].s) = vm.sign(key, message);
+      signatures[i].guardianIndex = i;
+    }
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    messages.storeGuardianSetPub(initialGuardianSet, uint32(0));
+
+    (bool valid, string memory reason) = messages.verifyCurrentQuorum(message, signatures);
+    assertEq(valid, false);
+    assertEq(abi.encodePacked(reason), abi.encodePacked("VM signature invalid"));
+  }
+
+  /// @dev This test checks that quorum will not be reached with <quorum valid signatures
+  function testFuzz_verifyCurrentQuorum_noQuorum(bytes memory encoded, uint256 numGuardians, uint256 numSigs) public {
+    vm.assume(encoded.length > 0);
+    numGuardians = bound(numGuardians, 1, type(uint8).max);
+    numSigs = bound(numSigs, 0, messages.quorum(numGuardians) - 1);
+
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](numGuardians);
+
+    bytes32 message = keccak256(encoded);
+
+    Structs.Signature[] memory signatures = new Structs.Signature[](numSigs);
+    
+    for (uint8 i = 0; i < numGuardians; ++i) {
+      (address addr, uint256 key) = makeAddrAndKey(string(abi.encode(i))); 
+      initialGuardians[i] = addr;
+
+      if (i < numSigs) {
+        (signatures[i].v, signatures[i].r, signatures[i].s) = vm.sign(key, message);
+        signatures[i].guardianIndex = i;
+      }
+    }
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    messages.storeGuardianSetPub(initialGuardianSet, uint32(0));
+
+    (bool valid, string memory reason) = messages.verifyCurrentQuorum(message, signatures);
+    assertEq(valid, false);
+    assertEq(abi.encodePacked(reason), abi.encodePacked("no quorum"));
+  }
+
 }
