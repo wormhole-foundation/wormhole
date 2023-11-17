@@ -792,8 +792,10 @@ contract TestGovernance is TestUtils {
         return
             // Avoid precompiled contracts
             addr <= address(0x9) ||
-            // Wormhole contract does not accept assets
+            // Wormhole implementation contract does not accept assets
             addr == address(impl) ||
+            // Wormhole proxy contract does not accept assets
+            addr == address(proxied) ||
 			// Setup contract
 			addr == address(setup) ||
 			// Test contract
