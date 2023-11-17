@@ -137,10 +137,10 @@ func (ccq *ccqP2p) run(
 		if len(ccq.allowedPeers) == 0 {
 			return true
 		}
-		if _, found := ccq.allowedPeers[from.String()]; found {
+		if _, found := ccq.allowedPeers[msg.GetFrom().String()]; found {
 			return true
 		}
-		ccq.logger.Info("Dropping message from unknown peer", zap.String("fromPeerID", from.String()))
+		ccq.logger.Info("Dropping message from unknown peer", zap.String("fromPeerID", from.String()), zap.String("msgPeerID", msg.ReceivedFrom.String()), zap.String("msgFrom", msg.GetFrom().String()))
 		return false
 	})
 	if err != nil {
