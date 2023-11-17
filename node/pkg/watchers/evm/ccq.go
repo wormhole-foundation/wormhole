@@ -19,17 +19,17 @@ import (
 )
 
 // ccqSendQueryResponseForError sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponseForError(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus) {
+func (w *Watcher) ccqSendQueryResponseForError(req *query.PerChainQueryInternal, status query.QueryStatus) {
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, nil)
 	select {
 	case w.queryResponseC <- queryResponse:
-		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+		w.ccqLogger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
 	default:
-		logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+		w.ccqLogger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
 	}
 }
 
-func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal) {
+func (w *Watcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
 
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.
@@ -41,16 +41,16 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.EthCallQueryRequest:
-		w.ccqHandleEthCallQueryRequest(logger, ctx, queryRequest, req)
+		w.ccqHandleEthCallQueryRequest(ctx, queryRequest, req)
 	case *query.EthCallByTimestampQueryRequest:
-		w.ccqHandleEthCallByTimestampQueryRequest(logger, ctx, queryRequest, req)
+		w.ccqHandleEthCallByTimestampQueryRequest(ctx, queryRequest, req)
 	case *query.EthCallWithFinalityQueryRequest:
-		w.ccqHandleEthCallWithFinalityQueryRequest(logger, ctx, queryRequest, req)
+		w.ccqHandleEthCallWithFinalityQueryRequest(ctx, queryRequest, req)
 	default:
-		logger.Warn("received unsupported request type",
+		w.ccqLogger.Warn("received unsupported request type",
 			zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 	}
 
 	query.TotalWatcherTime.WithLabelValues(w.chainID.String()).Observe(float64(time.Since(start).Milliseconds()))
@@ -65,20 +65,20 @@ type EvmCallData struct {
 	callErr            error
 }
 
-func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallQueryRequest) {
+func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallQueryRequest) {
 	block := req.BlockId
-	logger.Info("received eth_call query request",
+	w.ccqLogger.Info("received eth_call query request",
 		zap.String("block", block),
 		zap.Int("numRequests", len(req.CallData)),
 	)
 
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		logger.Error("invalid block id in eth_call query request",
+		w.ccqLogger.Error("invalid block id in eth_call query request",
 			zap.Error(err),
 			zap.String("block", block),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
@@ -103,44 +103,43 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.C
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
-
 	if err != nil {
-		logger.Error("failed to process eth_call query request",
+		w.ccqLogger.Error("failed to process eth_call query request",
 			zap.Error(err),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockError != nil {
-		logger.Error("failed to process eth_call query block request",
+		w.ccqLogger.Error("failed to process eth_call query block request",
 			zap.Error(blockError),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number == nil {
-		logger.Error("invalid eth_call query block result",
+		w.ccqLogger.Error("invalid eth_call query block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
-		logger.Error("block number too large for eth_call",
+		w.ccqLogger.Error("block number too large for eth_call",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
@@ -154,13 +153,13 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.C
 	errFound := false
 	for idx := range req.CallData {
 		if evmCallData[idx].callErr != nil {
-			logger.Error("failed to process eth_call query call request",
+			w.ccqLogger.Error("failed to process eth_call query call request",
 				zap.Error(evmCallData[idx].callErr),
 				zap.String("block", block),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
@@ -168,18 +167,18 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.C
 		// Nil or Empty results are not valid
 		// eth_call will return empty when the state doesn't exist for a block
 		if len(*evmCallData[idx].callResult) == 0 {
-			logger.Error("invalid call result for eth_call",
+			w.ccqLogger.Error("invalid call result for eth_call",
 				zap.String("eth_network", w.networkName),
 				zap.String("block", block),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
 
-		logger.Info("query result for eth_call",
+		w.ccqLogger.Info("query result for eth_call",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("blockNumber", blockResult.Number.String()),
@@ -198,17 +197,17 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(logger *zap.Logger, ctx context.C
 		queryResponse := query.CreatePerChainQueryResponseInternal(queryRequest.RequestID, queryRequest.RequestIdx, queryRequest.Request.ChainId, query.QuerySuccess, &resp)
 		select {
 		case w.queryResponseC <- queryResponse:
-			logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
 		default:
-			logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
 		}
 	}
 }
 
-func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallByTimestampQueryRequest) {
+func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallByTimestampQueryRequest) {
 	block := req.TargetBlockIdHint
 	nextBlock := req.FollowingBlockIdHint
-	logger.Info("received eth_call_by_timestamp query request",
+	w.ccqLogger.Info("received eth_call_by_timestamp query request",
 		zap.Uint64("timestamp", req.TargetTimestamp),
 		zap.String("block", block),
 		zap.String("nextBlock", nextBlock),
@@ -216,40 +215,40 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	)
 
 	if (block == "") != (nextBlock == "") {
-		logger.Error("invalid block id hints in eth_call_by_timestamp query request, if one is unset they both must be unset",
+		w.ccqLogger.Error("invalid block id hints in eth_call_by_timestamp query request, if one is unset they both must be unset",
 			zap.Uint64("timestamp", req.TargetTimestamp),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
 	if block == "" {
 		if w.ccqTimestampCache == nil {
-			logger.Error("error in block id hints in eth_call_by_timestamp query request, they are unset and chain does not support timestamp caching")
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+			w.ccqLogger.Error("error in block id hints in eth_call_by_timestamp query request, they are unset and chain does not support timestamp caching")
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 			return
 		}
 
 		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses milliseconds, so we have to convert.
 		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(req.TargetTimestamp / 1000000)
 		if !found {
-			logger.Error("block look up failed in eth_call_by_timestamp query request, timestamp not in cache, will retry",
+			w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp not in cache, will retry",
 				zap.Uint64("timestamp", req.TargetTimestamp),
 				zap.String("block", block),
 				zap.String("nextBlock", nextBlock),
 				zap.Uint64("blockNum", blockNum),
 				zap.Uint64("nextBlockNum", nextBlockNum),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			return
 		}
 
 		block = fmt.Sprintf("0x%x", blockNum)
 		nextBlock = fmt.Sprintf("0x%x", nextBlockNum)
 
-		logger.Info("cache look up in eth_call_by_timestamp query request mapped timestamp to blocks",
+		w.ccqLogger.Info("cache look up in eth_call_by_timestamp query request mapped timestamp to blocks",
 			zap.Uint64("timestamp", req.TargetTimestamp),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -260,23 +259,23 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		logger.Error("invalid target block id hint in eth_call_by_timestamp query request",
+		w.ccqLogger.Error("invalid target block id hint in eth_call_by_timestamp query request",
 			zap.Error(err),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
 	nextBlockMethod, _, err := ccqCreateBlockRequest(nextBlock)
 	if err != nil {
-		logger.Error("invalid following block id hint in eth_call_by_timestamp query request",
+		w.ccqLogger.Error("invalid following block id hint in eth_call_by_timestamp query request",
 			zap.Error(err),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
@@ -316,81 +315,81 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
 
 	if err != nil {
-		logger.Error("failed to process eth_call_by_timestamp query request",
+		w.ccqLogger.Error("failed to process eth_call_by_timestamp query request",
 			zap.Error(err),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	// Checks on the target block.
 	if blockError != nil {
-		logger.Error("failed to process eth_call_by_timestamp query target block request",
+		w.ccqLogger.Error("failed to process eth_call_by_timestamp query target block request",
 			zap.Error(blockError),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number == nil {
-		logger.Error("invalid eth_call_by_timestamp query target block result",
+		w.ccqLogger.Error("invalid eth_call_by_timestamp query target block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
-		logger.Error("target block number too large for eth_call_by_timestamp",
+		w.ccqLogger.Error("target block number too large for eth_call_by_timestamp",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	// Checks on the following block.
 	if nextBlockError != nil {
-		logger.Error("failed to process eth_call_by_timestamp query following block request",
+		w.ccqLogger.Error("failed to process eth_call_by_timestamp query following block request",
 			zap.Error(nextBlockError),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if nextBlockResult.Number == nil {
-		logger.Error("invalid eth_call_by_timestamp query following block result",
+		w.ccqLogger.Error("invalid eth_call_by_timestamp query following block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if nextBlockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
-		logger.Error("following block number too large for eth_call_by_timestamp",
+		w.ccqLogger.Error("following block number too large for eth_call_by_timestamp",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
@@ -408,7 +407,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	followingTimestamp := uint64(nextBlockResult.Time * 1000000)
 
 	if targetBlockNum+1 != followingBlockNum {
-		logger.Error(" eth_call_by_timestamp query blocks are not adjacent",
+		w.ccqLogger.Error(" eth_call_by_timestamp query blocks are not adjacent",
 			zap.String("eth_network", w.networkName),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
 			zap.Uint64("targetTimestamp", targetTimestamp),
@@ -420,12 +419,12 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 			zap.String("targetBlockTime", blockResult.Time.String()),
 			zap.String("followingBlockTime", nextBlockResult.Time.String()),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
 	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
-		logger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
+		w.ccqLogger.Error(" eth_call_by_timestamp desired timestamp falls outside of block range",
 			zap.String("eth_network", w.networkName),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
 			zap.Uint64("targetTimestamp", targetTimestamp),
@@ -437,7 +436,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 			zap.String("targetBlockTime", blockResult.Time.String()),
 			zap.String("followingBlockTime", nextBlockResult.Time.String()),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
@@ -454,14 +453,14 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 	errFound := false
 	for idx := range req.CallData {
 		if evmCallData[idx].callErr != nil {
-			logger.Error("failed to process eth_call_by_timestamp query call request",
+			w.ccqLogger.Error("failed to process eth_call_by_timestamp query call request",
 				zap.Error(evmCallData[idx].callErr),
 				zap.String("block", block),
 				zap.String("nextBlock", nextBlock),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
@@ -469,19 +468,19 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		// Nil or Empty results are not valid
 		// eth_call will return empty when the state doesn't exist for a block
 		if len(*evmCallData[idx].callResult) == 0 {
-			logger.Error("invalid call result for eth_call_by_timestamp",
+			w.ccqLogger.Error("invalid call result for eth_call_by_timestamp",
 				zap.String("eth_network", w.networkName),
 				zap.String("block", block),
 				zap.String("nextBlock", nextBlock),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
 
-		logger.Info(" eth_call_by_timestamp query result",
+		w.ccqLogger.Info(" eth_call_by_timestamp query result",
 			zap.String("eth_network", w.networkName),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
 			zap.Uint64("targetTimestamp", targetTimestamp),
@@ -505,16 +504,16 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		queryResponse := query.CreatePerChainQueryResponseInternal(queryRequest.RequestID, queryRequest.RequestIdx, queryRequest.Request.ChainId, query.QuerySuccess, &resp)
 		select {
 		case w.queryResponseC <- queryResponse:
-			logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
 		default:
-			logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
 		}
 	}
 }
 
-func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallWithFinalityQueryRequest) {
+func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.EthCallWithFinalityQueryRequest) {
 	block := req.BlockId
-	logger.Info("received eth_call_with_finality query request",
+	w.ccqLogger.Info("received eth_call_with_finality query request",
 		zap.String("block", block),
 		zap.String("finality", req.Finality),
 		zap.Int("numRequests", len(req.CallData)),
@@ -522,18 +521,18 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 
 	safeMode := req.Finality == "safe"
 	if req.Finality != "finalized" && !safeMode {
-		logger.Error("invalid finality in eth_call_with_finality query request", zap.String("block", block), zap.String("finality", req.Finality), zap.String("block", block))
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqLogger.Error("invalid finality in eth_call_with_finality query request", zap.String("block", block), zap.String("finality", req.Finality), zap.String("block", block))
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		logger.Error("invalid block id in eth_call_with_finality query request",
+		w.ccqLogger.Error("invalid block id in eth_call_with_finality query request",
 			zap.Error(err),
 			zap.String("block", block),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryFatalError)
 		return
 	}
 
@@ -560,42 +559,42 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
 
 	if err != nil {
-		logger.Error("failed to process eth_call_with_finality query request",
+		w.ccqLogger.Error("failed to process eth_call_with_finality query request",
 			zap.Error(err),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockError != nil {
-		logger.Error("failed to process eth_call_with_finality query block request",
+		w.ccqLogger.Error("failed to process eth_call_with_finality query block request",
 			zap.Error(blockError),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number == nil {
-		logger.Error("invalid eth_call_with_finality query block result",
+		w.ccqLogger.Error("invalid eth_call_with_finality query block result",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
 	if blockResult.Number.ToInt().Cmp(w.ccqMaxBlockNumber) > 0 {
-		logger.Error("block number too large for eth_call_with_finality",
+		w.ccqLogger.Error("block number too large for eth_call_with_finality",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
@@ -608,7 +607,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 	}
 
 	if blockNumber > latestBlockNum {
-		logger.Info("requested block for eth_call_with_finality has not yet reached the requested finality",
+		w.ccqLogger.Info("requested block for eth_call_with_finality has not yet reached the requested finality",
 			zap.String("finality", req.Finality),
 			zap.Uint64("requestedBlockNumber", blockNumber),
 			zap.Uint64("latestBlockNumber", latestBlockNum),
@@ -616,7 +615,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 			zap.String("block", block),
 			zap.Any("batch", batch),
 		)
-		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+		w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 		return
 	}
 
@@ -630,13 +629,13 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 	errFound := false
 	for idx := range req.CallData {
 		if evmCallData[idx].callErr != nil {
-			logger.Error("failed to process eth_call_with_finality query call request",
+			w.ccqLogger.Error("failed to process eth_call_with_finality query call request",
 				zap.Error(evmCallData[idx].callErr),
 				zap.String("block", block),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
@@ -644,18 +643,18 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 		// Nil or Empty results are not valid
 		// eth_call_with_finality will return empty when the state doesn't exist for a block
 		if len(*evmCallData[idx].callResult) == 0 {
-			logger.Error("invalid call result for eth_call_with_finality",
+			w.ccqLogger.Error("invalid call result for eth_call_with_finality",
 				zap.String("eth_network", w.networkName),
 				zap.String("block", block),
 				zap.Int("errorIdx", idx),
 				zap.Any("batch", batch),
 			)
-			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			w.ccqSendQueryResponseForError(queryRequest, query.QueryRetryNeeded)
 			errFound = true
 			break
 		}
 
-		logger.Info("query result for eth_call_with_finality",
+		w.ccqLogger.Info("query result for eth_call_with_finality",
 			zap.String("eth_network", w.networkName),
 			zap.String("block", block),
 			zap.String("finality", req.Finality),
@@ -676,9 +675,9 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(logger *zap.Logger, c
 		queryResponse := query.CreatePerChainQueryResponseInternal(queryRequest.RequestID, queryRequest.RequestIdx, queryRequest.Request.ChainId, query.QuerySuccess, &resp)
 		select {
 		case w.queryResponseC <- queryResponse:
-			logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
 		default:
-			logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+			w.ccqLogger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
 		}
 	}
 }
