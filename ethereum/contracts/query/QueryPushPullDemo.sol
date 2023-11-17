@@ -189,6 +189,10 @@ contract QueryPushPullDemo is QueryResponse {
         return ccqReceived[digest];
     }
 
+    function hasReceivedPushMessage(bytes32 digest) public view returns (bool) {
+        return coreReceived[digest];
+    }
+
     function receivePushMessage(bytes memory encodedMessage) public {
         // call the Wormhole core contract to parse and verify the encodedMessage
         (
@@ -253,7 +257,16 @@ contract QueryPushPullDemo is QueryResponse {
                     revert AlreadyReceived(digest);
                 }
 
-                if (!eqr.result[resultIdx].callData.equal(abi.encodeWithSelector(HasSentMessage, digest))) {
+                // 36 bytes for abi.encodeWithSelector(HasSentMessage, digest)
+                require(eqr.result[resultIdx].callData.length == 36, "invalid callData length");
+
+                // this works the first time but not the second within this loop
+                // if (!eqr.result[resultIdx].callData.equal(abi.encodeWithSelector(HasSentMessage, digest))) {
+                //     revert UnexpectedCallData();
+                // }
+
+                // this works
+                if (keccak256(eqr.result[resultIdx].callData) != keccak256(abi.encodeWithSelector(HasSentMessage, digest))) {
                     revert UnexpectedCallData();
                 }
 
