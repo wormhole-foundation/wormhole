@@ -15,6 +15,7 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
@@ -209,6 +210,10 @@ func (c *CeloConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.Batc
 }
 
 func (c *CeloConnector) Client() *ethClient.Client {
+	panic("unimplemented")
+}
+
+func (c *CeloConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	panic("unimplemented")
 }
 

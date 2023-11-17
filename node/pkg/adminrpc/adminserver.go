@@ -29,6 +29,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1044,9 +1045,9 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	}
 	fmt.Printf("client: response body: %s\n", resBody)
 	type MissingVAA struct {
-		chain  int
-		txhash string
-		vaaKey string // "<chain>/<emitter>/<sequence>"
+		Chain  int    `json:"chain"`
+		VaaKey string `json:"vaaKey"`
+		Txhash string `json:"txhash"`
 	}
 	var missingVAAs []MissingVAA
 	err = json.Unmarshal(resBody, &missingVAAs)
@@ -1066,31 +1067,44 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	// Start injecting the VAAs
 	obsCounter := 0
 	errCounter := 0
+	errMsgs := "Messages: "
 	for i := 0; i < processingLen; i++ {
 		missingVAA := missingVAAs[i]
 		// First check to see if this VAA has already been signed
 		// Convert vaaKey to VAAID
-		splits := strings.Split(missingVAA.vaaKey, "|")
+		splits := strings.Split(missingVAA.VaaKey, "/")
 		chainID, err := strconv.Atoi(splits[0])
 		if err != nil {
+			errMsgs += fmt.Sprintf("\nerror converting chainID [%s] to int", missingVAA.VaaKey)
 			errCounter++
 			continue
 		}
 		sequence, err := strconv.ParseUint(splits[2], 10, 64)
 		if err != nil {
+			errMsgs += fmt.Sprintf("\nerror converting sequence %s to uint64", splits[2])
 			errCounter++
 			continue
 		}
 		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence}
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
+			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)
 			continue
 		}
 		var obsvReq gossipv1.ObservationRequest
-		obsvReq.ChainId = uint32(missingVAA.chain)
-		obsvReq.TxHash = []byte(missingVAA.txhash)
+		obsvReq.ChainId = uint32(missingVAA.Chain)
+		obsvReq.TxHash, err = hex.DecodeString(missingVAA.Txhash)
+		if err != nil {
+			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)
+			if err != nil {
+				errMsgs += "Invalid transaction hash (neither hex nor base58)"
+				continue
+			}
+		}
+		errMsgs += fmt.Sprintf("\nAttempting to observe %s", missingVAA.Txhash)
 		// Call the following function to send the observation request
 		if err := common.PostObservationRequest(s.obsvReqSendC, &obsvReq); err != nil {
+			errMsgs += fmt.Sprintf("\nPostObservationRequest error %s", err.Error())
 			errCounter++
 			continue
 		}
@@ -1098,11 +1112,12 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	}
 	response := "There were no missing VAAs to recover."
 	if processingLen > 0 {
-		response = fmt.Sprintf("Successfully injected %d of %d VAAs. %d errors were encountered.", errCounter, obsCounter, processingLen)
+		response = fmt.Sprintf("Successfully injected %d of %d VAAs. %d errors were encountered.", obsCounter, processingLen, errCounter)
 		if numVaas > MAX_VAAS_TO_PROCESS {
 			response += fmt.Sprintf("\nOnly %d of the %d missing VAAs were processed.  Run the command again to process more.", MAX_VAAS_TO_PROCESS, numVaas)
 		}
 	}
+	response += "\n" + errMsgs
 	return &nodev1.GetAndObserveMissingVAAsResponse{
 		Response: response,
 	}, nil

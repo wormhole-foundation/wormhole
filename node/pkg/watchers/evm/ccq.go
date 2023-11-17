@@ -37,6 +37,8 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 		panic("ccqevm: invalid chain ID")
 	}
 
+	start := time.Now()
+
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.EthCallQueryRequest:
 		w.ccqHandleEthCallQueryRequest(logger, ctx, queryRequest, req)
@@ -50,6 +52,8 @@ func (w *Watcher) ccqHandleQuery(logger *zap.Logger, ctx context.Context, queryR
 		)
 		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
 	}
+
+	query.TotalWatcherTime.WithLabelValues(w.chainID.String()).Observe(float64(time.Since(start).Milliseconds()))
 }
 
 // EvmCallData contains the details of a single query in the batch.
@@ -210,6 +214,49 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(logger *zap.Logger, ct
 		zap.String("nextBlock", nextBlock),
 		zap.Int("numRequests", len(req.CallData)),
 	)
+
+	if (block == "") != (nextBlock == "") {
+		logger.Error("invalid block id hints in eth_call_by_timestamp query request, if one is unset they both must be unset",
+			zap.Uint64("timestamp", req.TargetTimestamp),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+		)
+		w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+		return
+	}
+
+	if block == "" {
+		if w.ccqTimestampCache == nil {
+			logger.Error("error in block id hints in eth_call_by_timestamp query request, they are unset and chain does not support timestamp caching")
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryFatalError)
+			return
+		}
+
+		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses milliseconds, so we have to convert.
+		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(req.TargetTimestamp / 1000000)
+		if !found {
+			logger.Error("block look up failed in eth_call_by_timestamp query request, timestamp not in cache, will retry",
+				zap.Uint64("timestamp", req.TargetTimestamp),
+				zap.String("block", block),
+				zap.String("nextBlock", nextBlock),
+				zap.Uint64("blockNum", blockNum),
+				zap.Uint64("nextBlockNum", nextBlockNum),
+			)
+			w.ccqSendQueryResponseForError(logger, queryRequest, query.QueryRetryNeeded)
+			return
+		}
+
+		block = fmt.Sprintf("0x%x", blockNum)
+		nextBlock = fmt.Sprintf("0x%x", nextBlockNum)
+
+		logger.Info("cache look up in eth_call_by_timestamp query request mapped timestamp to blocks",
+			zap.Uint64("timestamp", req.TargetTimestamp),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Uint64("blockNum", blockNum),
+			zap.Uint64("nextBlockNum", nextBlockNum),
+		)
+	}
 
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
@@ -717,4 +764,10 @@ func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([
 	}
 
 	return batch, evmCallData
+}
+
+func (w *Watcher) ccqAddLatestBlock(ev *connectors.NewBlock) {
+	if w.ccqTimestampCache != nil {
+		w.ccqTimestampCache.AddLatest(w.ccqLogger, ev.Time, ev.Number.Uint64())
+	}
 }

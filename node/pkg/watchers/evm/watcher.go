@@ -144,6 +144,8 @@ type (
 		rootChainContract string
 
 		ccqMaxBlockNumber *big.Int
+		ccqTimestampCache *BlocksByTimestamp
+		ccqLogger         *zap.Logger
 	}
 
 	pendingKey struct {
@@ -171,6 +173,10 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
+	var ccqTimestampCache *BlocksByTimestamp
+	if query.SupportsTimestampCaching(chainID) {
+		ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	}
 
 	return &Watcher{
 		url:                  url,
@@ -188,6 +194,7 @@ func NewEthWatcher(
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
 		ccqMaxBlockNumber:    big.NewInt(0).SetUint64(math.MaxUint64),
+		ccqTimestampCache:    ccqTimestampCache,
 	}
 }
 
@@ -204,17 +211,13 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
 
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
 	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
 	defer watcherContextCancelFunc()
-
-	var useFinalizedBlocks bool
-	useFinalizedBlocks, err = w.getFinality(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to determine finality: %w", err)
-	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
@@ -224,15 +227,24 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	if useFinalizedBlocks {
-		logger.Info("using finalized blocks")
+	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine finality: %w", err)
+	}
+
+	if finalizedPollingSupported {
+		if safePollingSupported {
+			logger.Info("polling for finalized and safe blocks")
+		} else {
+			logger.Info("polling for finalized blocks, will generate safe blocks")
+		}
 		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBatchPollConnector(ctx, baseConnector, 250*time.Millisecond)
+		w.ethConn, err = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -616,6 +628,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU)
 					w.updateNetworkStats(&stats)
+					w.ccqAddLatestBlock(ev)
 					continue
 				}
 
@@ -838,9 +851,10 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 }
 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
-// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using finalized mode but not safe mode.
-func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
+// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
+func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	finalized := false
+	safe := false
 	if w.unsafeDevMode {
 		// Devnet supports finalized and safe (although they returns the same value as latest).
 		finalized = true
@@ -854,6 +868,10 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 		w.chainID == vaa.ChainIDOptimism ||
 		w.chainID == vaa.ChainIDSepolia {
 		finalized = true
+		safe = true
+	} else if w.chainID == vaa.ChainIDScroll {
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+		finalized = true
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
@@ -863,7 +881,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 
 		c, err := rpc.DialContext(timeout, w.url)
 		if err != nil {
-			return false, fmt.Errorf("failed to connect to endpoint: %w", err)
+			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
 		}
 
 		type Marshaller struct {
@@ -872,17 +890,19 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 		var m Marshaller
 
 		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
-		if err != nil {
-			return false, fmt.Errorf("finalized not supported by the node when it should be: %w", err)
+		if err != nil || m.Number == nil {
+			return false, false, fmt.Errorf("finalized not supported by the node when it should be")
 		}
 
-		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
-		if err != nil {
-			return false, fmt.Errorf("safe not supported by the node when it should be: %w", err)
+		if safe {
+			err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
+			if err != nil || m.Number == nil {
+				return false, false, fmt.Errorf("safe not supported by the node when it should be")
+			}
 		}
 	}
 
-	return finalized, nil
+	return finalized, safe, nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.

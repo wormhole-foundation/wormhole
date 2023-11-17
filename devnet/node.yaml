@@ -103,6 +103,8 @@ spec:
             - ws://eth-devnet:8545
             - --baseRPC
             - ws://eth-devnet:8545
+            - --scrollRPC
+            - ws://eth-devnet:8545
             # - --wormchainURL
             # - wormchain:9090
             # - --accountantKeyPath

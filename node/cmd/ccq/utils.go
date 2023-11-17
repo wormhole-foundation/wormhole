@@ -211,6 +211,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 	permsForUser, exists := perms[apiKey]
 	if !exists {
 		logger.Debug("invalid api key", zap.String("apiKey", apiKey))
+		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
 		return http.StatusForbidden, fmt.Errorf("invalid api key")
 	}
 
@@ -223,6 +224,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 				zap.Bool("allowUnsigned", permsForUser.allowUnsigned),
 				zap.Bool("signerKeyConfigured", signerKey != nil),
 			)
+			invalidQueryRequestReceived.WithLabelValues("request_not_signed").Inc()
 			return http.StatusBadRequest, fmt.Errorf("request not signed")
 		}
 
@@ -232,6 +234,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 		qr.Signature, err = ethCrypto.Sign(digest.Bytes(), signerKey)
 		if err != nil {
 			logger.Debug("failed to sign request", zap.String("userName", permsForUser.userName), zap.Error(err))
+			invalidQueryRequestReceived.WithLabelValues("failed_to_sign_request").Inc()
 			return http.StatusInternalServerError, fmt.Errorf("failed to sign request: %w", err)
 		}
 	}
@@ -240,78 +243,68 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms Permissio
 	err := queryRequest.Unmarshal(qr.QueryRequest)
 	if err != nil {
 		logger.Debug("failed to unmarshal request", zap.String("userName", permsForUser.userName), zap.Error(err))
+		invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
 		return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Make sure the overall query request is sane.
 	if err := queryRequest.Validate(); err != nil {
 		logger.Debug("failed to validate request", zap.String("userName", permsForUser.userName), zap.Error(err))
+		invalidQueryRequestReceived.WithLabelValues("failed_to_validate_request").Inc()
 		return http.StatusBadRequest, fmt.Errorf("failed to validate request: %w", err)
 	}
 
 	// Make sure they are allowed to make all of the calls that they are asking for.
 	for _, pcq := range queryRequest.PerChainQueries {
+		var status int
+		var err error
 		switch q := pcq.Query.(type) {
 		case *query.EthCallQueryRequest:
-			for _, callData := range q.CallData {
-				contractAddress, err := vaa.BytesToAddress(callData.To)
-				if err != nil {
-					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
-					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
-				}
-				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
-					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
-					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
-				}
-				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
-				callKey := fmt.Sprintf("ethCall:%d:%s:%s", pcq.ChainId, contractAddress, call)
-				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
-				}
-			}
+			status, err = validateCallData(logger, permsForUser, "ethCall", pcq.ChainId, q.CallData)
 		case *query.EthCallByTimestampQueryRequest:
-			for _, callData := range q.CallData {
-				contractAddress, err := vaa.BytesToAddress(callData.To)
-				if err != nil {
-					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
-					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
-				}
-				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
-					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
-					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
-				}
-				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
-				callKey := fmt.Sprintf("ethCallByTimestamp:%d:%s:%s", pcq.ChainId, contractAddress, call)
-				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
-				}
-			}
+			status, err = validateCallData(logger, permsForUser, "ethCallByTimestamp", pcq.ChainId, q.CallData)
 		case *query.EthCallWithFinalityQueryRequest:
-			for _, callData := range q.CallData {
-				contractAddress, err := vaa.BytesToAddress(callData.To)
-				if err != nil {
-					logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(callData.To)), zap.Error(err))
-					return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
-				}
-				if len(callData.Data) < ETH_CALL_SIG_LENGTH {
-					logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(callData.Data)))
-					return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
-				}
-				call := hex.EncodeToString(callData.Data[0:ETH_CALL_SIG_LENGTH])
-				callKey := fmt.Sprintf("ethCallWithFinality:%d:%s:%s", pcq.ChainId, contractAddress, call)
-				if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
-				}
-			}
+			status, err = validateCallData(logger, permsForUser, "ethCallWithFinality", pcq.ChainId, q.CallData)
 		default:
 			logger.Debug("unsupported query type", zap.String("userName", permsForUser.userName), zap.Any("type", pcq.Query))
+			invalidQueryRequestReceived.WithLabelValues("unsupported_query_type").Inc()
 			return http.StatusBadRequest, fmt.Errorf("unsupported query type")
+		}
+
+		if err != nil {
+			// Metric is pegged below.
+			return status, err
 		}
 	}
 
 	logger.Debug("submitting query request", zap.String("userName", permsForUser.userName))
+	return http.StatusOK, nil
+}
+
+// validateCallData performs verification on all of the call data objects in a query.
+func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, callData []*query.EthCallData) (int, error) {
+	for _, cd := range callData {
+		contractAddress, err := vaa.BytesToAddress(cd.To)
+		if err != nil {
+			logger.Debug("failed to parse contract address", zap.String("userName", permsForUser.userName), zap.String("contract", hex.EncodeToString(cd.To)), zap.Error(err))
+			invalidQueryRequestReceived.WithLabelValues("invalid_contract_address").Inc()
+			return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
+		}
+		if len(cd.Data) < ETH_CALL_SIG_LENGTH {
+			logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(cd.Data)))
+			invalidQueryRequestReceived.WithLabelValues("bad_call_data").Inc()
+			return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
+		}
+		call := hex.EncodeToString(cd.Data[0:ETH_CALL_SIG_LENGTH])
+		callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainId, contractAddress, call)
+		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+			return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+		}
+
+		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+	}
+
 	return http.StatusOK, nil
 }

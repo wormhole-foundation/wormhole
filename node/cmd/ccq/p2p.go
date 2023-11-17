@@ -86,10 +86,15 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
+	bootstrappers, _ := p2p.BootstrapAddrs(logger, bootstrapPeers, h.ID())
+	successes := p2p.ConnectToPeers(ctx, logger, h, bootstrappers)
+	logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+
 	// Wait for peers
 	for len(th_req.ListPeers()) < 1 {
 		time.Sleep(time.Millisecond * 100)
 	}
+	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
 
 	// Fetch the initial current guardian set
 	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)
@@ -107,28 +112,34 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 		for {
 			envelope, err := sub.Next(ctx)
 			if err != nil {
-				logger.Fatal("Failed to read next pubsub message", zap.Error(err))
+				logger.Error("Failed to read next pubsub message", zap.Error(err))
+				return
 			}
 			var msg gossipv1.GossipMessage
 			err = proto.Unmarshal(envelope.Data, &msg)
 			if err != nil {
-				logger.Error("received invalid message", zap.Binary("data", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
+				logger.Error("received invalid message", zap.Binary("data", envelope.Data), zap.String("from", envelope.GetFrom().String()))
+				inboundP2pError.WithLabelValues("failed_to_unmarshal_gossip_msg").Inc()
 				continue
 			}
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedQueryResponse:
 				logger.Debug("query response received", zap.Any("response", m.SignedQueryResponse))
+				peerId := envelope.GetFrom().String()
+				queryResponsesReceived.WithLabelValues(peerId).Inc()
 				var queryResponse query.QueryResponsePublication
 				err := queryResponse.Unmarshal(m.SignedQueryResponse.QueryResponse)
 				if err != nil {
 					logger.Error("failed to unmarshal response", zap.Error(err))
+					inboundP2pError.WithLabelValues("failed_to_unmarshal_response").Inc()
 					continue
 				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
+				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
 				if pendingResponse == nil {
+					// This will happen for responses that come in after quorum is reached.
 					logger.Debug("skipping query response for unknown request", zap.String("signature", requestSignature))
 					continue
 				}
@@ -144,6 +155,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						zap.String("digest", digest.Hex()),
 						zap.String("signature", hex.EncodeToString(m.SignedQueryResponse.Signature)),
 						zap.Error(err))
+					inboundP2pError.WithLabelValues("failed_to_verify_signature").Inc()
 					continue
 				}
 				signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
@@ -169,19 +181,42 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						Signature: hex.EncodeToString(m.SignedQueryResponse.Signature),
 					})
 					// quorum is reached when a super-majority of guardians have signed a response with the same digest
-					if len(responses[requestSignature][digest]) >= quorum {
+					numSigners := len(responses[requestSignature][digest])
+					if numSigners >= quorum {
 						s := &SignedResponse{
 							Response:   &queryResponse,
 							Signatures: responses[requestSignature][digest],
 						}
 						delete(responses, requestSignature)
-						pendingResponse.ch <- s
+						select {
+						case pendingResponse.ch <- s:
+							logger.Info("forwarded query response",
+								zap.String("peerId", peerId),
+								zap.Any("requestId", requestSignature),
+								zap.Int("numSigners", numSigners),
+								zap.Int("quorum", quorum),
+							)
+						default:
+							logger.Error("failed to write query response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+						}
+					} else {
+						logger.Info("waiting for more query responses",
+							zap.String("peerId", peerId),
+							zap.Any("requestId", requestSignature),
+							zap.Int("numSigners", numSigners),
+							zap.Int("quorum", quorum),
+						)
 					}
 				} else {
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
 						zap.String("digest", digest.Hex()), zap.String("address", signerAddress.Hex()),
 					)
+					inboundP2pError.WithLabelValues("unknown_guardian").Inc()
 				}
+			default:
+				// Since CCQ gossip is isolated, this really shouldn't happen.
+				logger.Debug("unexpected gossip message type", zap.Any("msg", m))
+				inboundP2pError.WithLabelValues("unexpected_gossip_msg_type").Inc()
 			}
 		}
 	}()

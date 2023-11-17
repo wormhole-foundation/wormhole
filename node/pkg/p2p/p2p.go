@@ -105,6 +105,8 @@ type Components struct {
 	WarnChannelOverflow bool
 	// SignedHeartbeatLogLevel is the log level at which SignedHeartbeatReceived events will be logged.
 	SignedHeartbeatLogLevel zapcore.Level
+	// GossipParams is used to configure the GossipSub instance used by the Guardian.
+	GossipParams pubsub.GossipSubParams
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -134,6 +136,7 @@ func DefaultComponents() *Components {
 		ConnMgr:                    mgr,
 		ProtectedHostByGuardianKey: make(map[eth_common.Address]peer.ID),
 		SignedHeartbeatLogLevel:    zapcore.DebugLevel,
+		GossipParams:               pubsub.DefaultGossipSubParams(),
 	}
 }
 
@@ -150,9 +153,9 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 	)
 }
 
-// bootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
+// BootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
 // if `self` is part of `bootstrapPeers`, return isBootstrapNode=true
-func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
+func BootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bootstrappers []peer.AddrInfo, isBootstrapNode bool) {
 	bootstrapPeers = cutOverBootstrapPeers(bootstrapPeers)
 	bootstrappers = make([]peer.AddrInfo, 0)
 	for _, addr := range strings.Split(bootstrapPeers, ",") {
@@ -179,8 +182,8 @@ func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bo
 	return
 }
 
-// connectToPeers connects `h` to `peers` and returns the number of successful connections.
-func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
+// ConnectToPeers connects `h` to `peers` and returns the number of successful connections.
+func ConnectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers []peer.AddrInfo) (successes int) {
 	successes = 0
 	for _, p := range peers {
 		if err := h.Connect(ctx, p); err != nil {
@@ -219,7 +222,7 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
 
-			bootstrappers, _ := bootstrapAddrs(logger, bootstrapPeers, h.ID())
+			bootstrappers, _ := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 
 			// TODO(leo): Persistent data store (i.e. address book)
 			idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
@@ -298,21 +301,20 @@ func Run(
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
-		bootstrappers, bootstrapNode := bootstrapAddrs(logger, bootstrapPeers, h.ID())
-		gossipParams := pubsub.DefaultGossipSubParams()
+		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 
 		if bootstrapNode {
 			logger.Info("We are a bootstrap node.")
 			if networkID == "/wormhole/testnet/2/1" {
-				gossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
-				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", gossipParams.Dhi))
+				components.GossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
+				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", components.GossipParams.Dhi))
 			}
 		}
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
-			pubsub.WithGossipSubParams(gossipParams),
+			pubsub.WithGossipSubParams(components.GossipParams),
 		)
 		if err != nil {
 			panic(err)
@@ -340,7 +342,7 @@ func Run(
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
 
-		successes := connectToPeers(ctx, logger, h, bootstrappers)
+		successes := ConnectToPeers(ctx, logger, h, bootstrappers)
 
 		if successes == 0 && !bootstrapNode { // If we're a bootstrap node it's okay to not have any peers.
 			// If we fail to connect to any bootstrap peer, kill the service
@@ -356,7 +358,7 @@ func Run(
 
 		if ccqEnabled {
 			ccqErrC := make(chan error)
-			ccq := newCcqRunP2p(logger, ccqAllowedPeers)
+			ccq := newCcqRunP2p(logger, ccqAllowedPeers, components)
 			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
@@ -607,7 +609,7 @@ func Run(
 									zap.String("from", envelope.GetFrom().String()))
 							} else {
 								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-								if guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
+								if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
 									prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
 									if ok {
 										if prevPeerId != peerId {

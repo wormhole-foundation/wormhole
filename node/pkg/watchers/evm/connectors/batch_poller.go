@@ -8,6 +8,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -19,10 +20,12 @@ import (
 // BatchPollConnector uses batch requests to poll for latest, safe and finalized blocks.
 type BatchPollConnector struct {
 	Connector
-	Delay     time.Duration
-	blockFeed ethEvent.Feed
-	errFeed   ethEvent.Feed
-	batchData []BatchEntry
+	logger       *zap.Logger
+	Delay        time.Duration
+	blockFeed    ethEvent.Feed
+	errFeed      ethEvent.Feed
+	batchData    []BatchEntry
+	generateSafe bool
 }
 
 type (
@@ -41,18 +44,22 @@ type (
 
 const MAX_GAP_BATCH_SIZE uint64 = 5
 
-func NewBatchPollConnector(ctx context.Context, baseConnector Connector, delay time.Duration) (*BatchPollConnector, error) {
+func NewBatchPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, safeSupported bool, delay time.Duration) (*BatchPollConnector, error) {
 	// Create the batch data in the order we want to report them to the watcher, so finalized is most important, latest is least.
 	batchData := []BatchEntry{
 		{tag: "finalized", finality: Finalized},
-		{tag: "safe", finality: Safe},
-		{tag: "latest", finality: Latest},
+	}
+
+	if safeSupported {
+		batchData = append(batchData, BatchEntry{tag: "safe", finality: Safe})
 	}
 
 	connector := &BatchPollConnector{
-		Connector: baseConnector,
-		Delay:     delay,
-		batchData: batchData,
+		Connector:    baseConnector,
+		logger:       logger,
+		Delay:        delay,
+		batchData:    batchData,
+		generateSafe: !safeSupported,
 	}
 	err := supervisor.Run(ctx, "batchPoller", common.WrapWithScissors(connector.runFromSupervisor, "batchPoller"))
 	if err != nil {
@@ -70,6 +77,17 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	innerErrSink := make(chan string, 10)
 	innerErrSub := b.errFeed.Subscribe(innerErrSink)
 
+	// Use the standard geth head sink to get latest blocks. We do this so that we will be notified of rollbacks. The following document
+	// indicates that the subscription will receive a replay of all blocks affected by a rollback. This is important for latest because the
+	// timestamp cache needs to be updated on a rollback. We can only consider polling for latest if we can guarantee that we won't miss rollbacks.
+	// https://ethereum.org/en/developers/tutorials/using-websockets/#subscription-types
+	headSink := make(chan *ethTypes.Header, 2)
+	_, err := b.Connector.SubscribeNewHead(ctx, headSink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe for latest blocks: %w", err)
+	}
+
+	// Use the poller for finalized and safe.
 	common.RunWithScissors(ctx, errC, "block_poll_subscribe_for_blocks", func(ctx context.Context) error {
 		for {
 			select {
@@ -84,6 +102,21 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 				return nil
 			case v := <-innerErrSink:
 				sub.err <- fmt.Errorf(v)
+			case ev := <-headSink:
+				if ev == nil {
+					b.logger.Error("new latest header event is nil")
+					continue
+				}
+				if ev.Number == nil {
+					b.logger.Error("new latest header block number is nil")
+					continue
+				}
+				b.blockFeed.Send(&NewBlock{
+					Number:   ev.Number,
+					Time:     ev.Time,
+					Hash:     ev.Hash(),
+					Finality: Latest,
+				})
 			}
 		}
 	})
@@ -143,27 +176,51 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 	for idx, newBlock := range newBlocks {
 		if newBlock.Number.Cmp(prevBlocks[idx].Number) > 0 {
-			// If there is a gap between prev and new, we have to look up the transaction hashes for the missing ones. Do that in batches.
+			// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 			newBlockNum := newBlock.Number.Uint64()
 			blockNum := prevBlocks[idx].Number.Uint64() + 1
-			for blockNum < newBlockNum {
+			errorFound := false
+			lastPublishedBlock := prevBlocks[idx]
+			for blockNum < newBlockNum && !errorFound {
 				batchSize := newBlockNum - blockNum
 				if batchSize > MAX_GAP_BATCH_SIZE {
 					batchSize = MAX_GAP_BATCH_SIZE
 				}
 				gapBlocks, err := b.getBlockRange(ctx, logger, blockNum, batchSize, b.batchData[idx].finality)
 				if err != nil {
-					return prevBlocks, fmt.Errorf("failed to get gap blocks: %w", err)
+					// We don't return an error here because we want to go on and check the other finalities.
+					logger.Error("failed to get gap blocks", zap.Stringer("finality", b.batchData[idx].finality), zap.Error(err))
+					errorFound = true
+				} else {
+					// Play out the blocks in this batch. If the block number is zero, that means we failed to retrieve it, so we should stop there.
+					for _, block := range gapBlocks {
+						if block.Number.Uint64() == 0 {
+							errorFound = true
+							break
+						}
+
+						b.blockFeed.Send(block)
+						if b.generateSafe && b.batchData[idx].finality == Finalized {
+							b.blockFeed.Send(block.Copy(Safe))
+						}
+						lastPublishedBlock = block
+					}
 				}
-				for _, block := range gapBlocks {
-					b.blockFeed.Send(block)
-				}
+
 				blockNum += batchSize
 			}
 
-			b.blockFeed.Send(newBlock)
+			if !errorFound {
+				// The original value of newBlocks is still good.
+				b.blockFeed.Send(newBlock)
+				if b.generateSafe && b.batchData[idx].finality == Finalized {
+					b.blockFeed.Send(newBlock.Copy(Safe))
+				}
+			} else {
+				newBlocks[idx] = lastPublishedBlock
+			}
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newBlock.Number), zap.Any("prevLatest", prevBlocks[idx].Number))
+			logger.Debug("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
 		}
 	}
@@ -204,12 +261,13 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {
@@ -262,12 +320,13 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 			return nil, err
 		}
 
+		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Error("failed to unmarshal block: Number is nil")
-			return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+		} else {
+			n = big.Int(*m.Number)
 		}
-		n := big.Int(*m.Number)
 
 		var l1bn *big.Int
 		if m.L1BlockNumber != nil {

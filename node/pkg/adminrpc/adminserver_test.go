@@ -78,6 +78,10 @@ func (c mockEVMConnector) Client() *ethclient.Client {
 	panic("unimplemented")
 }
 
+func (c mockEVMConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	panic("unimplemented")
+}
+
 func generateGS(num int) (keys []*ecdsa.PrivateKey, addrs []common.Address) {
 	for i := 0; i < num; i++ {
 		key, err := ethcrypto.GenerateKey()

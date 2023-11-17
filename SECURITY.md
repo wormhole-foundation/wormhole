@@ -41,8 +41,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
 - **[May 2023 - Runtime Verification](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-05_Runtime_Verification_Wormhole_EVM.pdf)**: _Formal Verification of EVM contracts_
 - **Q4 2023 - Neodyme (In Process)**: _Solana Contracts_
-
-
+- **Q1 2024 - OtterSec (Planned)**: _Solana Contracts_
 
 ## Bug Bounty Program
 

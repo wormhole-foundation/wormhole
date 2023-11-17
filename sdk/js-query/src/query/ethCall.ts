@@ -2,7 +2,9 @@ import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { HexString } from "./consts";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
-import { hexToUint8Array, isValidHexString } from "./utils";
+import { coalesceUint8Array, hexToUint8Array, isValidHexString } from "./utils";
+import { BinaryReader } from "./BinaryReader";
+import { ChainSpecificResponse } from "./response";
 
 export interface EthCallData {
   to: string;
@@ -37,6 +39,25 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
     });
     return writer.data();
   }
+
+  static from(bytes: string | Uint8Array): EthCallQueryRequest {
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    return this.fromReader(reader);
+  }
+
+  static fromReader(reader: BinaryReader): EthCallQueryRequest {
+    const blockTagLength = reader.readUint32();
+    const blockTag = reader.readString(blockTagLength);
+    const callDataLength = reader.readUint8();
+    const callData: EthCallData[] = [];
+    for (let idx = 0; idx < callDataLength; idx++) {
+      const to = reader.readHex(20);
+      const dataLength = reader.readUint32();
+      const data = reader.readHex(dataLength);
+      callData.push({ to, data });
+    }
+    return new EthCallQueryRequest(blockTag, callData);
+  }
 }
 
 export function parseBlockId(blockId: BlockTag): string {
@@ -58,4 +79,49 @@ export function parseBlockId(blockId: BlockTag): string {
   }
 
   return blockId;
+}
+
+export class EthCallQueryResponse implements ChainSpecificResponse {
+  constructor(
+    public blockNumber: bigint,
+    public blockHash: string,
+    public blockTime: bigint,
+    public results: string[] = []
+  ) {}
+
+  type(): ChainQueryType {
+    return ChainQueryType.EthCall;
+  }
+
+  serialize(): Uint8Array {
+    const writer = new BinaryWriter()
+      .writeUint64(this.blockNumber)
+      .writeUint8Array(hexToUint8Array(this.blockHash))
+      .writeUint64(this.blockTime)
+      .writeUint8(this.results.length);
+    for (const result of this.results) {
+      const arr = hexToUint8Array(result);
+      writer.writeUint32(arr.length).writeUint8Array(arr);
+    }
+    return writer.data();
+  }
+
+  static from(bytes: string | Uint8Array): EthCallQueryResponse {
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    return this.fromReader(reader);
+  }
+
+  static fromReader(reader: BinaryReader): EthCallQueryResponse {
+    const blockNumber = reader.readUint64();
+    const blockHash = reader.readHex(32);
+    const blockTime = reader.readUint64();
+    const resultsLength = reader.readUint8();
+    const results: string[] = [];
+    for (let idx = 0; idx < resultsLength; idx++) {
+      const resultLength = reader.readUint32();
+      const result = reader.readHex(resultLength);
+      results.push(result);
+    }
+    return new EthCallQueryResponse(blockNumber, blockHash, blockTime, results);
+  }
 }

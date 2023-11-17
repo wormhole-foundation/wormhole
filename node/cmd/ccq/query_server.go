@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -36,6 +38,7 @@ var (
 	logLevel          *string
 	telemetryLokiURL  *string
 	telemetryNodeName *string
+	statusAddr        *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -54,6 +57,7 @@ func init() {
 	logLevel = QueryServerCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	telemetryLokiURL = QueryServerCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
+	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 }
 
 var QueryServerCmd = &cobra.Command{
@@ -64,6 +68,7 @@ var QueryServerCmd = &cobra.Command{
 
 func runQueryServer(cmd *cobra.Command, args []string) {
 	common.SetRestrictiveUmask()
+	networkID := *p2pNetworkID + "/ccq"
 
 	// Setup logging
 	lvl, err := ipfslog.LevelFromString(*logLevel)
@@ -151,7 +156,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses()
-	p2p, err := runP2P(ctx, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger)
+	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}
@@ -164,6 +169,27 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Server closed unexpectedly", zap.Error(err))
 		}
+	}()
+
+	// Start the status server
+	if *statusAddr != "" {
+		go func() {
+			ss := NewStatusServer(*statusAddr, logger, env)
+			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
+			err := ss.ListenAndServe()
+			if err != nil && err != http.ErrServerClosed {
+				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
+			}
+		}()
+	}
+
+	// Handle SIGTERM
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	go func() {
+		<-sigterm
+		logger.Info("Received sigterm. exiting.")
+		cancel()
 	}()
 
 	<-ctx.Done()

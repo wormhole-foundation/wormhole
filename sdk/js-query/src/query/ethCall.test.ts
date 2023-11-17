@@ -24,11 +24,10 @@ const CI = process.env.CI;
 const ENV = "DEVNET";
 const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 
-const CCQ_SERVER_URL = CI
-  ? "http://query-server:6069/v1"
-  : "http://localhost:6069/v1";
+const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
+const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
-const HEALTH_URL = CCQ_SERVER_URL + "/health";
+const HEALTH_URL = SERVER_URL + "6068/health";
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
@@ -73,9 +72,10 @@ async function getEthCallByTimestampArgs(): Promise<[bigint, bigint, bigint]> {
   let targetBlockTime = BigInt(0);
   while (targetBlockNumber === BigInt(0)) {
     let followingBlock = await web3.eth.getBlock(followingBlockNumber);
-    while (Number(followingBlock) <= 0) {
+    while (Number(followingBlock.number) <= 0) {
       await sleep(1000);
-      followingBlock = await web3.eth.getBlock(followingBlockNumber);
+      followingBlock = await web3.eth.getBlock(followingBlock.number);
+      followingBlockNumber = followingBlock.number;
     }
     const targetBlock = await web3.eth.getBlock(
       (Number(followingBlockNumber) - 1).toString()
@@ -386,7 +386,7 @@ describe("eth call", () => {
       "0100000001010005020000005b0006079bf7fad4800000000930783238643936333000000009307832386439363331020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd"
     );
   });
-  test("successful eth_call_by_timestamp query", async () => {
+  test("successful eth_call_by_timestamp query with block hints", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
     const totalSupplyCallData = createTestEthCallData(
       WETH_ADDRESS,
@@ -399,6 +399,38 @@ describe("eth call", () => {
       targetBlockTime,
       targetBlockNumber.toString(16),
       followingBlockNumber.toString(16),
+      [nameCallData, totalSupplyCallData]
+    );
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key" } }
+    );
+    expect(response.status).toBe(200);
+  });
+  test("successful eth_call_by_timestamp query without block hints", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const totalSupplyCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
+    const [targetBlockTime, targetBlockNumber, followingBlockNumber] =
+      await getEthCallByTimestampArgs();
+    const ethCall = new EthCallByTimestampQueryRequest(
+      targetBlockTime + BigInt(5000),
+      "",
+      "",
       [nameCallData, totalSupplyCallData]
     );
     const chainId = 2;
@@ -462,7 +494,7 @@ describe("eth call", () => {
       });
     expect(err).toBe(true);
   });
-  test("eth_call_by_timestamp query without target hint should fail for now", async () => {
+  test("eth_call_by_timestamp query with following hint but not target hint should fail", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
     const totalSupplyCallData = createTestEthCallData(
       WETH_ADDRESS,
@@ -502,12 +534,12 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target block id is required\n`
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
         );
       });
     expect(err).toBe(true);
   });
-  test("eth_call_by_timestamp query without following hint should fail for now", async () => {
+  test("eth_call_by_timestamp query with target hint but not following hint should fail", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
     const totalSupplyCallData = createTestEthCallData(
       WETH_ADDRESS,
@@ -546,7 +578,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: following block id is required\n`
+          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
         );
       });
     expect(err).toBe(true);
@@ -612,10 +644,11 @@ describe("eth call", () => {
       "totalSupply",
       "uint256"
     );
-    const ethCall = new EthCallWithFinalityQueryRequest("0x28d9630", "", [
-      nameCallData,
-      totalSupplyCallData,
-    ]);
+    const ethCall = new EthCallWithFinalityQueryRequest(
+      "0x28d9630",
+      "" as any,
+      [nameCallData, totalSupplyCallData]
+    );
     const chainId = 2;
     const ethQuery = new PerChainQueryRequest(chainId, ethCall);
     const nonce = 1;
@@ -651,7 +684,7 @@ describe("eth call", () => {
     );
     const ethCall = new EthCallWithFinalityQueryRequest(
       "0x28d9630",
-      "HelloWorld",
+      "HelloWorld" as any,
       [nameCallData, totalSupplyCallData]
     );
     const chainId = 2;

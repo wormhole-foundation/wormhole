@@ -1,6 +1,6 @@
 {
   "name": "@wormhole-foundation/wormhole-query-sdk",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "Wormhole cross-chain query SDK",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",

@@ -144,6 +144,7 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDArbitrum:  {},
 		vaa.ChainIDOptimism:  {},
 		vaa.ChainIDBase:      {},
+		vaa.ChainIDScroll:    {},
 		vaa.ChainIDSepolia:   {},
 	}
 
@@ -153,6 +154,9 @@ func handleQueryRequestsImpl(
 			delete(supportedChains, chainID)
 		} else {
 			logger.Info("queries supported on chain", zap.Stringer("chainID", chainID))
+
+			// Make sure we have a metric for every enabled chain, so we can see which ones are actually enabled.
+			totalRequestsByChain.WithLabelValues(chainID.String()).Add(0)
 		}
 	}
 
@@ -174,14 +178,18 @@ func handleQueryRequestsImpl(
 			// - length check on "to" address 20 bytes
 			// - valid "block" strings
 
-			requestID := hex.EncodeToString(signedRequest.Signature)
+			allQueryRequestsReceived.Inc()
 			digest := QueryRequestDigest(env, signedRequest.QueryRequest)
+
+			// It's possible that the signature alone is not unique, and the digest alone is not unique, but the combination should be.
+			requestID := hex.EncodeToString(signedRequest.Signature) + ":" + digest.String()
 
 			qLogger.Info("received a query request", zap.String("requestID", requestID))
 
 			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedRequest.Signature)
 			if err != nil {
 				qLogger.Error("failed to recover public key", zap.String("requestID", requestID))
+				invalidQueryRequestReceived.WithLabelValues("failed_to_recover_public_key").Inc()
 				continue
 			}
 
@@ -189,12 +197,14 @@ func handleQueryRequestsImpl(
 
 			if _, exists := allowedRequestors[signerAddress]; !exists {
 				qLogger.Error("invalid requestor", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID))
+				invalidQueryRequestReceived.WithLabelValues("invalid_requestor").Inc()
 				continue
 			}
 
 			// Make sure this is not a duplicate request. TODO: Should we do something smarter here than just dropping the duplicate?
 			if oldReq, exists := pendingQueries[requestID]; exists {
 				qLogger.Warn("dropping duplicate query request", zap.String("requestID", requestID), zap.Stringer("origRecvTime", oldReq.receiveTime))
+				invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
 				continue
 			}
 
@@ -202,11 +212,13 @@ func handleQueryRequestsImpl(
 			err = queryRequest.Unmarshal(signedRequest.QueryRequest)
 			if err != nil {
 				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
+				invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
 				continue
 			}
 
 			if err := queryRequest.Validate(); err != nil {
 				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
+				invalidQueryRequestReceived.WithLabelValues("invalid_request").Inc()
 				continue
 			}
 
@@ -220,6 +232,7 @@ func handleQueryRequestsImpl(
 				chainID := vaa.ChainID(pcq.ChainId)
 				if _, exists := supportedChains[chainID]; !exists {
 					qLogger.Error("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
+					invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
 					errorFound = true
 					break
 				}
@@ -227,6 +240,7 @@ func handleQueryRequestsImpl(
 				channel, channelExists := chainQueryReqC[chainID]
 				if !channelExists {
 					qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
+					invalidQueryRequestReceived.WithLabelValues("failed_to_look_up_channel").Inc()
 					errorFound = true
 					break
 				}
@@ -244,6 +258,8 @@ func handleQueryRequestsImpl(
 			if errorFound {
 				continue
 			}
+
+			validQueryRequestsReceived.Inc()
 
 			// Create the pending query and add it to the cache.
 			pq := &pendingQuery{
@@ -263,6 +279,7 @@ func handleQueryRequestsImpl(
 
 		case resp := <-queryResponseReadC: // Response from a watcher.
 			if resp.Status == QuerySuccess {
+				successfulQueryResponsesReceivedByChain.WithLabelValues(resp.ChainId.String()).Inc()
 				if resp.Response == nil {
 					qLogger.Error("received a successful query response with no results, dropping it!", zap.String("requestID", resp.RequestID))
 					continue
@@ -314,18 +331,21 @@ func handleQueryRequestsImpl(
 				select {
 				case queryResponseWriteC <- respPub:
 					qLogger.Info("forwarded query response to p2p", zap.String("requestID", resp.RequestID))
+					queryResponsesPublished.Inc()
 					delete(pendingQueries, resp.RequestID)
 				default:
 					qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", resp.RequestID))
 					pq.respPub = respPub
 				}
 			} else if resp.Status == QueryRetryNeeded {
+				retryNeededQueryResponsesReceivedByChain.WithLabelValues(resp.ChainId.String()).Inc()
 				if _, exists := pendingQueries[resp.RequestID]; exists {
 					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				} else {
 					qLogger.Warn("received a retry needed response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
 			} else if resp.Status == QueryFatalError {
+				fatalQueryResponsesReceivedByChain.WithLabelValues(resp.ChainId.String()).Inc()
 				qLogger.Error("received a fatal error response, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				delete(pendingQueries, resp.RequestID)
 			} else {
@@ -340,6 +360,7 @@ func handleQueryRequestsImpl(
 				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("timeout", timeout))
 				if timeout.Before(now) {
 					qLogger.Error("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
+					queryRequestsTimedOut.Inc()
 					delete(pendingQueries, reqId)
 				} else {
 					if pq.respPub != nil {
@@ -347,6 +368,7 @@ func handleQueryRequestsImpl(
 						select {
 						case queryResponseWriteC <- pq.respPub:
 							qLogger.Info("resend of query response to p2p succeeded", zap.String("requestID", reqId))
+							queryResponsesPublished.Inc()
 							delete(pendingQueries, reqId)
 						default:
 							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))
@@ -401,6 +423,7 @@ func (pcq *perChainQuery) ccqForwardToWatcher(qLogger *zap.Logger, receiveTime t
 	// TODO: only send the query request itself and reassemble in this module
 	case pcq.channel <- pcq.req:
 		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.Request.ChainId))
+		totalRequestsByChain.WithLabelValues(pcq.req.Request.ChainId.String()).Inc()
 		pcq.lastUpdateTime = receiveTime
 	default:
 		// By leaving lastUpdateTime unset, we will retry next interval.
@@ -418,4 +441,15 @@ func (pq *pendingQuery) numPendingRequests() int {
 	}
 
 	return numPending
+}
+
+func SupportsTimestampCaching(chainID vaa.ChainID) bool {
+	/*
+		- P1: Ethereum, Base, Optimism
+		- P1.5: Arbitrum, Polygon, Avalanche
+		- P2: BNB Chain, Moonbeam
+		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
+	*/
+
+	return chainID == vaa.ChainIDEthereum || chainID == vaa.ChainIDBase || chainID == vaa.ChainIDOptimism
 }
