@@ -1,11 +1,16 @@
 //@ts-nocheck
 /* eslint-disable */
-import { GuardianSet } from "../wormhole/guardian_set";
+import {
+  GuardianSet,
+  GuardianValidator,
+  ValidatorAllowedAddress,
+  WasmInstantiateAllowedContractCodeId,
+  IbcComposabilityMwContract,
+} from "../wormhole/guardian";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
 import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
-import { GuardianValidator } from "../wormhole/guardian_validator";
 import { Writer, Reader } from "protobufjs/minimal";
 
 export const protobufPackage = "wormhole_foundation.wormchain.wormhole";
@@ -17,8 +22,11 @@ export interface GenesisState {
   replayProtectionList: ReplayProtection[];
   sequenceCounterList: SequenceCounter[];
   consensusGuardianSetIndex: ConsensusGuardianSetIndex | undefined;
-  /** this line is used by starport scaffolding # genesis/proto/state */
   guardianValidatorList: GuardianValidator[];
+  allowedAddresses: ValidatorAllowedAddress[];
+  wasmInstantiateAllowlist: WasmInstantiateAllowedContractCodeId[];
+  /** this line is used by starport scaffolding # genesis/proto/state */
+  ibcComposabilityMwContract: IbcComposabilityMwContract | undefined;
 }
 
 const baseGenesisState: object = {};
@@ -46,6 +54,21 @@ export const GenesisState = {
     for (const v of message.guardianValidatorList) {
       GuardianValidator.encode(v!, writer.uint32(50).fork()).ldelim();
     }
+    for (const v of message.allowedAddresses) {
+      ValidatorAllowedAddress.encode(v!, writer.uint32(58).fork()).ldelim();
+    }
+    for (const v of message.wasmInstantiateAllowlist) {
+      WasmInstantiateAllowedContractCodeId.encode(
+        v!,
+        writer.uint32(66).fork()
+      ).ldelim();
+    }
+    if (message.ibcComposabilityMwContract !== undefined) {
+      IbcComposabilityMwContract.encode(
+        message.ibcComposabilityMwContract,
+        writer.uint32(74).fork()
+      ).ldelim();
+    }
     return writer;
   },
 
@@ -57,6 +80,8 @@ export const GenesisState = {
     message.replayProtectionList = [];
     message.sequenceCounterList = [];
     message.guardianValidatorList = [];
+    message.allowedAddresses = [];
+    message.wasmInstantiateAllowlist = [];
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -89,6 +114,22 @@ export const GenesisState = {
             GuardianValidator.decode(reader, reader.uint32())
           );
           break;
+        case 7:
+          message.allowedAddresses.push(
+            ValidatorAllowedAddress.decode(reader, reader.uint32())
+          );
+          break;
+        case 8:
+          message.wasmInstantiateAllowlist.push(
+            WasmInstantiateAllowedContractCodeId.decode(reader, reader.uint32())
+          );
+          break;
+        case 9:
+          message.ibcComposabilityMwContract = IbcComposabilityMwContract.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -103,6 +144,8 @@ export const GenesisState = {
     message.replayProtectionList = [];
     message.sequenceCounterList = [];
     message.guardianValidatorList = [];
+    message.allowedAddresses = [];
+    message.wasmInstantiateAllowlist = [];
     if (
       object.guardianSetList !== undefined &&
       object.guardianSetList !== null
@@ -150,6 +193,34 @@ export const GenesisState = {
         message.guardianValidatorList.push(GuardianValidator.fromJSON(e));
       }
     }
+    if (
+      object.allowedAddresses !== undefined &&
+      object.allowedAddresses !== null
+    ) {
+      for (const e of object.allowedAddresses) {
+        message.allowedAddresses.push(ValidatorAllowedAddress.fromJSON(e));
+      }
+    }
+    if (
+      object.wasmInstantiateAllowlist !== undefined &&
+      object.wasmInstantiateAllowlist !== null
+    ) {
+      for (const e of object.wasmInstantiateAllowlist) {
+        message.wasmInstantiateAllowlist.push(
+          WasmInstantiateAllowedContractCodeId.fromJSON(e)
+        );
+      }
+    }
+    if (
+      object.ibcComposabilityMwContract !== undefined &&
+      object.ibcComposabilityMwContract !== null
+    ) {
+      message.ibcComposabilityMwContract = IbcComposabilityMwContract.fromJSON(
+        object.ibcComposabilityMwContract
+      );
+    } else {
+      message.ibcComposabilityMwContract = undefined;
+    }
     return message;
   },
 
@@ -189,6 +260,24 @@ export const GenesisState = {
     } else {
       obj.guardianValidatorList = [];
     }
+    if (message.allowedAddresses) {
+      obj.allowedAddresses = message.allowedAddresses.map((e) =>
+        e ? ValidatorAllowedAddress.toJSON(e) : undefined
+      );
+    } else {
+      obj.allowedAddresses = [];
+    }
+    if (message.wasmInstantiateAllowlist) {
+      obj.wasmInstantiateAllowlist = message.wasmInstantiateAllowlist.map((e) =>
+        e ? WasmInstantiateAllowedContractCodeId.toJSON(e) : undefined
+      );
+    } else {
+      obj.wasmInstantiateAllowlist = [];
+    }
+    message.ibcComposabilityMwContract !== undefined &&
+      (obj.ibcComposabilityMwContract = message.ibcComposabilityMwContract
+        ? IbcComposabilityMwContract.toJSON(message.ibcComposabilityMwContract)
+        : undefined);
     return obj;
   },
 
@@ -198,6 +287,8 @@ export const GenesisState = {
     message.replayProtectionList = [];
     message.sequenceCounterList = [];
     message.guardianValidatorList = [];
+    message.allowedAddresses = [];
+    message.wasmInstantiateAllowlist = [];
     if (
       object.guardianSetList !== undefined &&
       object.guardianSetList !== null
@@ -244,6 +335,34 @@ export const GenesisState = {
       for (const e of object.guardianValidatorList) {
         message.guardianValidatorList.push(GuardianValidator.fromPartial(e));
       }
+    }
+    if (
+      object.allowedAddresses !== undefined &&
+      object.allowedAddresses !== null
+    ) {
+      for (const e of object.allowedAddresses) {
+        message.allowedAddresses.push(ValidatorAllowedAddress.fromPartial(e));
+      }
+    }
+    if (
+      object.wasmInstantiateAllowlist !== undefined &&
+      object.wasmInstantiateAllowlist !== null
+    ) {
+      for (const e of object.wasmInstantiateAllowlist) {
+        message.wasmInstantiateAllowlist.push(
+          WasmInstantiateAllowedContractCodeId.fromPartial(e)
+        );
+      }
+    }
+    if (
+      object.ibcComposabilityMwContract !== undefined &&
+      object.ibcComposabilityMwContract !== null
+    ) {
+      message.ibcComposabilityMwContract = IbcComposabilityMwContract.fromPartial(
+        object.ibcComposabilityMwContract
+      );
+    } else {
+      message.ibcComposabilityMwContract = undefined;
     }
     return message;
   },

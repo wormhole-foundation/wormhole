@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "Typescript SDK for interating with the Wormhole chain",
   "main": "lib/index.js",
+  "files": [
+    "lib/"
+  ],
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
     "build": "npm run genTypes && tsc",
