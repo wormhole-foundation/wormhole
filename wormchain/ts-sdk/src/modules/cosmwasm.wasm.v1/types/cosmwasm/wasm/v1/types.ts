@@ -12,10 +12,15 @@ export enum AccessType {
   ACCESS_TYPE_UNSPECIFIED = 0,
   /** ACCESS_TYPE_NOBODY - AccessTypeNobody forbidden */
   ACCESS_TYPE_NOBODY = 1,
-  /** ACCESS_TYPE_ONLY_ADDRESS - AccessTypeOnlyAddress restricted to an address */
+  /**
+   * ACCESS_TYPE_ONLY_ADDRESS - AccessTypeOnlyAddress restricted to a single address
+   * Deprecated: use AccessTypeAnyOfAddresses instead
+   */
   ACCESS_TYPE_ONLY_ADDRESS = 2,
   /** ACCESS_TYPE_EVERYBODY - AccessTypeEverybody unrestricted */
   ACCESS_TYPE_EVERYBODY = 3,
+  /** ACCESS_TYPE_ANY_OF_ADDRESSES - AccessTypeAnyOfAddresses allow any of the addresses */
+  ACCESS_TYPE_ANY_OF_ADDRESSES = 4,
   UNRECOGNIZED = -1,
 }
 
@@ -33,6 +38,9 @@ export function accessTypeFromJSON(object: any): AccessType {
     case 3:
     case "ACCESS_TYPE_EVERYBODY":
       return AccessType.ACCESS_TYPE_EVERYBODY;
+    case 4:
+    case "ACCESS_TYPE_ANY_OF_ADDRESSES":
+      return AccessType.ACCESS_TYPE_ANY_OF_ADDRESSES;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -50,6 +58,8 @@ export function accessTypeToJSON(object: AccessType): string {
       return "ACCESS_TYPE_ONLY_ADDRESS";
     case AccessType.ACCESS_TYPE_EVERYBODY:
       return "ACCESS_TYPE_EVERYBODY";
+    case AccessType.ACCESS_TYPE_ANY_OF_ADDRESSES:
+      return "ACCESS_TYPE_ANY_OF_ADDRESSES";
     default:
       return "UNKNOWN";
   }
@@ -116,7 +126,12 @@ export interface AccessTypeParam {
 /** AccessConfig access control type. */
 export interface AccessConfig {
   permission: AccessType;
+  /**
+   * Address
+   * Deprecated: replaced by addresses
+   */
   address: string;
+  addresses: string[];
 }
 
 /** Params defines the set of wasm parameters. */
@@ -145,11 +160,7 @@ export interface ContractInfo {
   admin: string;
   /** Label is optional metadata to be stored with a contract instance. */
   label: string;
-  /**
-   * Created Tx position when the contract was instantiated.
-   * This data should kept internal and not be exposed via query results. Just
-   * use for sorting
-   */
+  /** Created Tx position when the contract was instantiated. */
   created: AbsoluteTxPosition | undefined;
   ibc_port_id: string;
   /**
@@ -247,7 +258,7 @@ export const AccessTypeParam = {
   },
 };
 
-const baseAccessConfig: object = { permission: 0, address: "" };
+const baseAccessConfig: object = { permission: 0, address: "", addresses: "" };
 
 export const AccessConfig = {
   encode(message: AccessConfig, writer: Writer = Writer.create()): Writer {
@@ -257,6 +268,9 @@ export const AccessConfig = {
     if (message.address !== "") {
       writer.uint32(18).string(message.address);
     }
+    for (const v of message.addresses) {
+      writer.uint32(26).string(v!);
+    }
     return writer;
   },
 
@@ -264,6 +278,7 @@ export const AccessConfig = {
     const reader = input instanceof Uint8Array ? new Reader(input) : input;
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = { ...baseAccessConfig } as AccessConfig;
+    message.addresses = [];
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -272,6 +287,9 @@ export const AccessConfig = {
           break;
         case 2:
           message.address = reader.string();
+          break;
+        case 3:
+          message.addresses.push(reader.string());
           break;
         default:
           reader.skipType(tag & 7);
@@ -283,6 +301,7 @@ export const AccessConfig = {
 
   fromJSON(object: any): AccessConfig {
     const message = { ...baseAccessConfig } as AccessConfig;
+    message.addresses = [];
     if (object.permission !== undefined && object.permission !== null) {
       message.permission = accessTypeFromJSON(object.permission);
     } else {
@@ -293,6 +312,11 @@ export const AccessConfig = {
     } else {
       message.address = "";
     }
+    if (object.addresses !== undefined && object.addresses !== null) {
+      for (const e of object.addresses) {
+        message.addresses.push(String(e));
+      }
+    }
     return message;
   },
 
@@ -301,11 +325,17 @@ export const AccessConfig = {
     message.permission !== undefined &&
       (obj.permission = accessTypeToJSON(message.permission));
     message.address !== undefined && (obj.address = message.address);
+    if (message.addresses) {
+      obj.addresses = message.addresses.map((e) => e);
+    } else {
+      obj.addresses = [];
+    }
     return obj;
   },
 
   fromPartial(object: DeepPartial<AccessConfig>): AccessConfig {
     const message = { ...baseAccessConfig } as AccessConfig;
+    message.addresses = [];
     if (object.permission !== undefined && object.permission !== null) {
       message.permission = object.permission;
     } else {
@@ -315,6 +345,11 @@ export const AccessConfig = {
       message.address = object.address;
     } else {
       message.address = "";
+    }
+    if (object.addresses !== undefined && object.addresses !== null) {
+      for (const e of object.addresses) {
+        message.addresses.push(e);
+      }
     }
     return message;
   },

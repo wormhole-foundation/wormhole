@@ -1,6 +1,6 @@
 //@ts-nocheck
 /* eslint-disable */
-import { GuardianSet } from "../wormhole/guardian_set";
+import { GuardianSet } from "../wormhole/guardian";
 import { Writer, Reader } from "protobufjs/minimal";
 
 export const protobufPackage = "wormhole_foundation.wormchain.wormhole";

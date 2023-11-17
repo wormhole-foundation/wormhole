@@ -19,6 +19,20 @@ export interface StoreCodeProposal {
   wasm_byte_code: Uint8Array;
   /** InstantiatePermission to apply on contract creation, optional */
   instantiate_permission: AccessConfig | undefined;
+  /** UnpinCode code on upload, optional */
+  unpin_code: boolean;
+  /** Source is the URL where the code is hosted */
+  source: string;
+  /**
+   * Builder is the docker image used to build the code deterministically, used
+   * for smart contract verification
+   */
+  builder: string;
+  /**
+   * CodeHash is the SHA256 sum of the code outputted by builder, used for smart
+   * contract verification
+   */
+  code_hash: Uint8Array;
 }
 
 /**
@@ -167,10 +181,52 @@ export interface UpdateInstantiateConfigProposal {
   access_config_updates: AccessConfigUpdate[];
 }
 
+/**
+ * StoreAndInstantiateContractProposal gov proposal content type to store
+ * and instantiate the contract.
+ */
+export interface StoreAndInstantiateContractProposal {
+  /** Title is a short summary */
+  title: string;
+  /** Description is a human readable text */
+  description: string;
+  /** RunAs is the address that is passed to the contract's environment as sender */
+  run_as: string;
+  /** WASMByteCode can be raw or gzip compressed */
+  wasm_byte_code: Uint8Array;
+  /** InstantiatePermission to apply on contract creation, optional */
+  instantiate_permission: AccessConfig | undefined;
+  /** UnpinCode code on upload, optional */
+  unpin_code: boolean;
+  /** Admin is an optional address that can execute migrations */
+  admin: string;
+  /** Label is optional metadata to be stored with a constract instance. */
+  label: string;
+  /** Msg json encoded message to be passed to the contract on instantiation */
+  msg: Uint8Array;
+  /** Funds coins that are transferred to the contract on instantiation */
+  funds: Coin[];
+  /** Source is the URL where the code is hosted */
+  source: string;
+  /**
+   * Builder is the docker image used to build the code deterministically, used
+   * for smart contract verification
+   */
+  builder: string;
+  /**
+   * CodeHash is the SHA256 sum of the code outputted by builder, used for smart
+   * contract verification
+   */
+  code_hash: Uint8Array;
+}
+
 const baseStoreCodeProposal: object = {
   title: "",
   description: "",
   run_as: "",
+  unpin_code: false,
+  source: "",
+  builder: "",
 };
 
 export const StoreCodeProposal = {
@@ -192,6 +248,18 @@ export const StoreCodeProposal = {
         message.instantiate_permission,
         writer.uint32(58).fork()
       ).ldelim();
+    }
+    if (message.unpin_code === true) {
+      writer.uint32(64).bool(message.unpin_code);
+    }
+    if (message.source !== "") {
+      writer.uint32(74).string(message.source);
+    }
+    if (message.builder !== "") {
+      writer.uint32(82).string(message.builder);
+    }
+    if (message.code_hash.length !== 0) {
+      writer.uint32(90).bytes(message.code_hash);
     }
     return writer;
   },
@@ -220,6 +288,18 @@ export const StoreCodeProposal = {
             reader,
             reader.uint32()
           );
+          break;
+        case 8:
+          message.unpin_code = reader.bool();
+          break;
+        case 9:
+          message.source = reader.string();
+          break;
+        case 10:
+          message.builder = reader.string();
+          break;
+        case 11:
+          message.code_hash = reader.bytes();
           break;
         default:
           reader.skipType(tag & 7);
@@ -259,6 +339,24 @@ export const StoreCodeProposal = {
     } else {
       message.instantiate_permission = undefined;
     }
+    if (object.unpin_code !== undefined && object.unpin_code !== null) {
+      message.unpin_code = Boolean(object.unpin_code);
+    } else {
+      message.unpin_code = false;
+    }
+    if (object.source !== undefined && object.source !== null) {
+      message.source = String(object.source);
+    } else {
+      message.source = "";
+    }
+    if (object.builder !== undefined && object.builder !== null) {
+      message.builder = String(object.builder);
+    } else {
+      message.builder = "";
+    }
+    if (object.code_hash !== undefined && object.code_hash !== null) {
+      message.code_hash = bytesFromBase64(object.code_hash);
+    }
     return message;
   },
 
@@ -278,6 +376,13 @@ export const StoreCodeProposal = {
       (obj.instantiate_permission = message.instantiate_permission
         ? AccessConfig.toJSON(message.instantiate_permission)
         : undefined);
+    message.unpin_code !== undefined && (obj.unpin_code = message.unpin_code);
+    message.source !== undefined && (obj.source = message.source);
+    message.builder !== undefined && (obj.builder = message.builder);
+    message.code_hash !== undefined &&
+      (obj.code_hash = base64FromBytes(
+        message.code_hash !== undefined ? message.code_hash : new Uint8Array()
+      ));
     return obj;
   },
 
@@ -312,6 +417,26 @@ export const StoreCodeProposal = {
       );
     } else {
       message.instantiate_permission = undefined;
+    }
+    if (object.unpin_code !== undefined && object.unpin_code !== null) {
+      message.unpin_code = object.unpin_code;
+    } else {
+      message.unpin_code = false;
+    }
+    if (object.source !== undefined && object.source !== null) {
+      message.source = object.source;
+    } else {
+      message.source = "";
+    }
+    if (object.builder !== undefined && object.builder !== null) {
+      message.builder = object.builder;
+    } else {
+      message.builder = "";
+    }
+    if (object.code_hash !== undefined && object.code_hash !== null) {
+      message.code_hash = object.code_hash;
+    } else {
+      message.code_hash = new Uint8Array();
     }
     return message;
   },
@@ -1590,6 +1715,320 @@ export const UpdateInstantiateConfigProposal = {
       for (const e of object.access_config_updates) {
         message.access_config_updates.push(AccessConfigUpdate.fromPartial(e));
       }
+    }
+    return message;
+  },
+};
+
+const baseStoreAndInstantiateContractProposal: object = {
+  title: "",
+  description: "",
+  run_as: "",
+  unpin_code: false,
+  admin: "",
+  label: "",
+  source: "",
+  builder: "",
+};
+
+export const StoreAndInstantiateContractProposal = {
+  encode(
+    message: StoreAndInstantiateContractProposal,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.title !== "") {
+      writer.uint32(10).string(message.title);
+    }
+    if (message.description !== "") {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.run_as !== "") {
+      writer.uint32(26).string(message.run_as);
+    }
+    if (message.wasm_byte_code.length !== 0) {
+      writer.uint32(34).bytes(message.wasm_byte_code);
+    }
+    if (message.instantiate_permission !== undefined) {
+      AccessConfig.encode(
+        message.instantiate_permission,
+        writer.uint32(42).fork()
+      ).ldelim();
+    }
+    if (message.unpin_code === true) {
+      writer.uint32(48).bool(message.unpin_code);
+    }
+    if (message.admin !== "") {
+      writer.uint32(58).string(message.admin);
+    }
+    if (message.label !== "") {
+      writer.uint32(66).string(message.label);
+    }
+    if (message.msg.length !== 0) {
+      writer.uint32(74).bytes(message.msg);
+    }
+    for (const v of message.funds) {
+      Coin.encode(v!, writer.uint32(82).fork()).ldelim();
+    }
+    if (message.source !== "") {
+      writer.uint32(90).string(message.source);
+    }
+    if (message.builder !== "") {
+      writer.uint32(98).string(message.builder);
+    }
+    if (message.code_hash.length !== 0) {
+      writer.uint32(106).bytes(message.code_hash);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): StoreAndInstantiateContractProposal {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseStoreAndInstantiateContractProposal,
+    } as StoreAndInstantiateContractProposal;
+    message.funds = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.title = reader.string();
+          break;
+        case 2:
+          message.description = reader.string();
+          break;
+        case 3:
+          message.run_as = reader.string();
+          break;
+        case 4:
+          message.wasm_byte_code = reader.bytes();
+          break;
+        case 5:
+          message.instantiate_permission = AccessConfig.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        case 6:
+          message.unpin_code = reader.bool();
+          break;
+        case 7:
+          message.admin = reader.string();
+          break;
+        case 8:
+          message.label = reader.string();
+          break;
+        case 9:
+          message.msg = reader.bytes();
+          break;
+        case 10:
+          message.funds.push(Coin.decode(reader, reader.uint32()));
+          break;
+        case 11:
+          message.source = reader.string();
+          break;
+        case 12:
+          message.builder = reader.string();
+          break;
+        case 13:
+          message.code_hash = reader.bytes();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): StoreAndInstantiateContractProposal {
+    const message = {
+      ...baseStoreAndInstantiateContractProposal,
+    } as StoreAndInstantiateContractProposal;
+    message.funds = [];
+    if (object.title !== undefined && object.title !== null) {
+      message.title = String(object.title);
+    } else {
+      message.title = "";
+    }
+    if (object.description !== undefined && object.description !== null) {
+      message.description = String(object.description);
+    } else {
+      message.description = "";
+    }
+    if (object.run_as !== undefined && object.run_as !== null) {
+      message.run_as = String(object.run_as);
+    } else {
+      message.run_as = "";
+    }
+    if (object.wasm_byte_code !== undefined && object.wasm_byte_code !== null) {
+      message.wasm_byte_code = bytesFromBase64(object.wasm_byte_code);
+    }
+    if (
+      object.instantiate_permission !== undefined &&
+      object.instantiate_permission !== null
+    ) {
+      message.instantiate_permission = AccessConfig.fromJSON(
+        object.instantiate_permission
+      );
+    } else {
+      message.instantiate_permission = undefined;
+    }
+    if (object.unpin_code !== undefined && object.unpin_code !== null) {
+      message.unpin_code = Boolean(object.unpin_code);
+    } else {
+      message.unpin_code = false;
+    }
+    if (object.admin !== undefined && object.admin !== null) {
+      message.admin = String(object.admin);
+    } else {
+      message.admin = "";
+    }
+    if (object.label !== undefined && object.label !== null) {
+      message.label = String(object.label);
+    } else {
+      message.label = "";
+    }
+    if (object.msg !== undefined && object.msg !== null) {
+      message.msg = bytesFromBase64(object.msg);
+    }
+    if (object.funds !== undefined && object.funds !== null) {
+      for (const e of object.funds) {
+        message.funds.push(Coin.fromJSON(e));
+      }
+    }
+    if (object.source !== undefined && object.source !== null) {
+      message.source = String(object.source);
+    } else {
+      message.source = "";
+    }
+    if (object.builder !== undefined && object.builder !== null) {
+      message.builder = String(object.builder);
+    } else {
+      message.builder = "";
+    }
+    if (object.code_hash !== undefined && object.code_hash !== null) {
+      message.code_hash = bytesFromBase64(object.code_hash);
+    }
+    return message;
+  },
+
+  toJSON(message: StoreAndInstantiateContractProposal): unknown {
+    const obj: any = {};
+    message.title !== undefined && (obj.title = message.title);
+    message.description !== undefined &&
+      (obj.description = message.description);
+    message.run_as !== undefined && (obj.run_as = message.run_as);
+    message.wasm_byte_code !== undefined &&
+      (obj.wasm_byte_code = base64FromBytes(
+        message.wasm_byte_code !== undefined
+          ? message.wasm_byte_code
+          : new Uint8Array()
+      ));
+    message.instantiate_permission !== undefined &&
+      (obj.instantiate_permission = message.instantiate_permission
+        ? AccessConfig.toJSON(message.instantiate_permission)
+        : undefined);
+    message.unpin_code !== undefined && (obj.unpin_code = message.unpin_code);
+    message.admin !== undefined && (obj.admin = message.admin);
+    message.label !== undefined && (obj.label = message.label);
+    message.msg !== undefined &&
+      (obj.msg = base64FromBytes(
+        message.msg !== undefined ? message.msg : new Uint8Array()
+      ));
+    if (message.funds) {
+      obj.funds = message.funds.map((e) => (e ? Coin.toJSON(e) : undefined));
+    } else {
+      obj.funds = [];
+    }
+    message.source !== undefined && (obj.source = message.source);
+    message.builder !== undefined && (obj.builder = message.builder);
+    message.code_hash !== undefined &&
+      (obj.code_hash = base64FromBytes(
+        message.code_hash !== undefined ? message.code_hash : new Uint8Array()
+      ));
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<StoreAndInstantiateContractProposal>
+  ): StoreAndInstantiateContractProposal {
+    const message = {
+      ...baseStoreAndInstantiateContractProposal,
+    } as StoreAndInstantiateContractProposal;
+    message.funds = [];
+    if (object.title !== undefined && object.title !== null) {
+      message.title = object.title;
+    } else {
+      message.title = "";
+    }
+    if (object.description !== undefined && object.description !== null) {
+      message.description = object.description;
+    } else {
+      message.description = "";
+    }
+    if (object.run_as !== undefined && object.run_as !== null) {
+      message.run_as = object.run_as;
+    } else {
+      message.run_as = "";
+    }
+    if (object.wasm_byte_code !== undefined && object.wasm_byte_code !== null) {
+      message.wasm_byte_code = object.wasm_byte_code;
+    } else {
+      message.wasm_byte_code = new Uint8Array();
+    }
+    if (
+      object.instantiate_permission !== undefined &&
+      object.instantiate_permission !== null
+    ) {
+      message.instantiate_permission = AccessConfig.fromPartial(
+        object.instantiate_permission
+      );
+    } else {
+      message.instantiate_permission = undefined;
+    }
+    if (object.unpin_code !== undefined && object.unpin_code !== null) {
+      message.unpin_code = object.unpin_code;
+    } else {
+      message.unpin_code = false;
+    }
+    if (object.admin !== undefined && object.admin !== null) {
+      message.admin = object.admin;
+    } else {
+      message.admin = "";
+    }
+    if (object.label !== undefined && object.label !== null) {
+      message.label = object.label;
+    } else {
+      message.label = "";
+    }
+    if (object.msg !== undefined && object.msg !== null) {
+      message.msg = object.msg;
+    } else {
+      message.msg = new Uint8Array();
+    }
+    if (object.funds !== undefined && object.funds !== null) {
+      for (const e of object.funds) {
+        message.funds.push(Coin.fromPartial(e));
+      }
+    }
+    if (object.source !== undefined && object.source !== null) {
+      message.source = object.source;
+    } else {
+      message.source = "";
+    }
+    if (object.builder !== undefined && object.builder !== null) {
+      message.builder = object.builder;
+    } else {
+      message.builder = "";
+    }
+    if (object.code_hash !== undefined && object.code_hash !== null) {
+      message.code_hash = object.code_hash;
+    } else {
+      message.code_hash = new Uint8Array();
     }
     return message;
   },

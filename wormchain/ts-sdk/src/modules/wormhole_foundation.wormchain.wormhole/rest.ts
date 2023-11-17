@@ -103,6 +103,8 @@ export interface WormholeConsensusGuardianSetIndex {
   index?: number;
 }
 
+export type WormholeEmptyResponse = object;
+
 export interface WormholeGuardianSet {
   /** @format int64 */
   index?: number;
@@ -120,6 +122,8 @@ export interface WormholeGuardianValidator {
   validatorAddr?: string;
 }
 
+export type WormholeMsgAllowlistResponse = object;
+
 export type WormholeMsgExecuteGovernanceVAAResponse = object;
 
 export interface WormholeMsgInstantiateContractResponse {
@@ -130,12 +134,25 @@ export interface WormholeMsgInstantiateContractResponse {
   data?: string;
 }
 
+/**
+ * MsgMigrateContractResponse returns contract migration result data.
+ */
+export interface WormholeMsgMigrateContractResponse {
+  /** @format byte */
+  data?: string;
+}
+
 export type WormholeMsgRegisterAccountAsGuardianResponse = object;
 
 export interface WormholeMsgStoreCodeResponse {
   /** @format uint64 */
   code_id?: string;
+
+  /** @format byte */
+  checksum?: string;
 }
+
+export type WormholeMsgWasmInstantiateAllowlistResponse = object;
 
 export interface WormholeQueryAllGuardianSetResponse {
   GuardianSet?: WormholeGuardianSet[];
@@ -197,6 +214,36 @@ export interface WormholeQueryAllSequenceCounterResponse {
   pagination?: V1Beta1PageResponse;
 }
 
+export interface WormholeQueryAllValidatorAllowlistResponse {
+  allowlist?: WormholeValidatorAllowedAddress[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
+export interface WormholeQueryAllWasmInstantiateAllowlistResponse {
+  allowlist?: WormholeWasmInstantiateAllowedContractCodeId[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
 export interface WormholeQueryGetConfigResponse {
   Config?: WormholeConfig;
 }
@@ -221,9 +268,29 @@ export interface WormholeQueryGetSequenceCounterResponse {
   sequenceCounter?: WormholeSequenceCounter;
 }
 
+export interface WormholeQueryIbcComposabilityMwContractResponse {
+  contractAddress?: string;
+}
+
 export interface WormholeQueryLatestGuardianSetIndexResponse {
   /** @format int64 */
   latestGuardianSetIndex?: number;
+}
+
+export interface WormholeQueryValidatorAllowlistResponse {
+  validator_address?: string;
+  allowlist?: WormholeValidatorAllowedAddress[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
 }
 
 export interface WormholeReplayProtection {
@@ -235,6 +302,19 @@ export interface WormholeSequenceCounter {
 
   /** @format uint64 */
   sequence?: string;
+}
+
+export interface WormholeValidatorAllowedAddress {
+  validator_address?: string;
+  allowed_address?: string;
+  name?: string;
+}
+
+export interface WormholeWasmInstantiateAllowedContractCodeId {
+  contract_address?: string;
+
+  /** @format uint64 */
+  code_id?: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -437,6 +517,57 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * No description
    *
    * @tags Query
+   * @name QueryAllowlistAll
+   * @request GET:/wormhole_foundation/wormchain/wormhole/allowlist
+   */
+  queryAllowlistAll = (
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<WormholeQueryAllValidatorAllowlistResponse, RpcStatus>({
+      path: `/wormhole_foundation/wormchain/wormhole/allowlist`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryAllowlist
+   * @request GET:/wormhole_foundation/wormchain/wormhole/allowlist/{validator_address}
+   */
+  queryAllowlist = (
+    validator_address: string,
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<WormholeQueryValidatorAllowlistResponse, RpcStatus>({
+      path: `/wormhole_foundation/wormchain/wormhole/allowlist/${validator_address}`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
    * @name QueryConfig
    * @summary Queries a config by index.
    * @request GET:/wormhole_foundation/wormchain/wormhole/config
@@ -553,6 +684,21 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * No description
    *
    * @tags Query
+   * @name QueryIbcComposabilityMwContract
+   * @request GET:/wormhole_foundation/wormchain/wormhole/ibc_composability_mw_contract
+   */
+  queryIbcComposabilityMwContract = (params: RequestParams = {}) =>
+    this.request<WormholeQueryIbcComposabilityMwContractResponse, RpcStatus>({
+      path: `/wormhole_foundation/wormchain/wormhole/ibc_composability_mw_contract`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
    * @name QueryLatestGuardianSetIndex
    * @summary Queries a list of LatestGuardianSetIndex items.
    * @request GET:/wormhole_foundation/wormchain/wormhole/latest_guardian_set_index
@@ -645,6 +791,31 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     this.request<WormholeQueryGetSequenceCounterResponse, RpcStatus>({
       path: `/wormhole_foundation/wormchain/wormhole/sequenceCounter/${index}`,
       method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryWasmInstantiateAllowlistAll
+   * @request GET:/wormhole_foundation/wormchain/wormhole/wasm_instantiate_allowlist
+   */
+  queryWasmInstantiateAllowlistAll = (
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<WormholeQueryAllWasmInstantiateAllowlistResponse, RpcStatus>({
+      path: `/wormhole_foundation/wormchain/wormhole/wasm_instantiate_allowlist`,
+      method: "GET",
+      query: query,
       format: "json",
       ...params,
     });
