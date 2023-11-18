@@ -22,14 +22,24 @@ pub struct UpgradeContract<'info> {
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler, which also checks this account discriminator (so there is no need to
-    /// check PDA seeds here).
+    /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+    /// account.
+    ///
+    /// CHECK: This account will be read via zero-copy deserialization in the instruction
+    /// handler, which will determine which type of VAA account is being used. If this account
+    /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+    /// reader.
     #[account(owner = crate::ID)]
     vaa: AccountInfo<'info>,
 
-    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa](crate::utils::vaa::claim_vaa) is called.
+    /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+    /// account.
+    ///
+    /// Seeds: [emitter_address, emitter_chain, sequence],
+    /// seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is created via [claim_vaa](crate::utils::vaa::claim_vaa).
+    /// This account can only be created once for this VAA.
     #[account(mut)]
     claim: AccountInfo<'info>,
 
@@ -42,16 +52,23 @@ pub struct UpgradeContract<'info> {
     )]
     upgrade_authority: AccountInfo<'info>,
 
+    /// Spill account to collect excess lamports.
+    ///
     /// CHECK: This account receives any lamports after the result of the upgrade.
     #[account(mut)]
     spill: AccountInfo<'info>,
 
-    /// CHECK: Deployed implementation. The pubkey of this account is checked in access control
-    /// against the one encoded in the governance VAA.
+    /// Deployed implementation.
+    ///
+    /// CHECK: The pubkey of this account is checked in access control against the one encoded in
+    /// the governance VAA.
     #[account(mut)]
     buffer: AccountInfo<'info>,
 
-    /// CHECK: Core Bridge program data needed for BPF Loader Upgradable program.
+    /// Core Bridge program data needed for BPF Loader Upgradable program.
+    ///
+    /// CHECK: BPF Loader Upgradeable program needs this account to upgrade the program's
+    /// implementation.
     #[account(
         mut,
         seeds = [crate::ID.as_ref()],
@@ -75,7 +92,10 @@ pub struct UpgradeContract<'info> {
     #[account(address = solana_program::sysvar::clock::id())]
     clock: AccountInfo<'info>,
 
-    /// CHECK: BPF Loader Upgradeable program.
+    /// BPF Loader Upgradeable program.
+    ///
+    /// CHECK: In order to upgrade the program, we need to invoke the BPF Loader Upgradeable
+    /// program.
     #[account(address = solana_program::bpf_loader_upgradeable::id())]
     bpf_loader_upgradeable_program: AccountInfo<'info>,
 

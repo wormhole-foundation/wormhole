@@ -17,7 +17,9 @@ pub struct TransferTokensNative<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Token Bridge never needed this account for this instruction.
+    /// Previously needed config account.
+    ///
+    /// CHECK: This account is unchecked.
     _config: UncheckedAccount<'info>,
 
     /// CHECK: Source token account. Because we check the mint of the custody token account, we can
@@ -78,10 +80,14 @@ pub struct TransferTokensNative<'info> {
     #[account(mut)]
     core_fee_collector: Option<AccountInfo<'info>>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _clock: UncheckedAccount<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

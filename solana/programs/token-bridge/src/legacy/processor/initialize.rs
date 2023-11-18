@@ -16,7 +16,9 @@ pub struct Initialize<'info> {
     )]
     config: Account<'info, core_bridge::legacy::LegacyAnchorized<Config>>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

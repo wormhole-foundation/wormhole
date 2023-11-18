@@ -5,7 +5,8 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct ClaimVaa<'info> {
-    /// Claim account (mut). This account is used to prevent replay attacks.
+    /// Claim account, which acts as replay protection after consuming data from the VAA
+    /// account.
     ///
     /// PDA address can either be:
     /// * \[emitter_address, emitter_chain, sequence\]
@@ -17,7 +18,7 @@ pub struct ClaimVaa<'info> {
     /// CHECK: Only this account's PDA bump will be saved to this account.
     pub claim: AccountInfo<'info>,
 
-    /// Payer (mut signer).
+    /// Payer.
     ///
     /// CHECK: This account's lamports will be used to create the new account.
     pub payer: AccountInfo<'info>,

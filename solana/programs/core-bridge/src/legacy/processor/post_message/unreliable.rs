@@ -11,15 +11,20 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 #[instruction(_nonce: u32, payload_len: u32)]
 pub struct PostMessageUnreliable<'info> {
-    /// This account is needed to determine how many lamports to transfer from the payer for the
-    /// message fee (if there is one).
+    /// Core Bridge config account (mut).
+    ///
+    /// Seeds = \["Bridge"\], seeds::program = core_bridge_program.
+    ///
+    /// This account is used to determine how many lamports to transfer for Wormhole fee.
     #[account(
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// This message account is observed by the Guardians.
+    /// Core Bridge Message (mut).
+    ///
+    /// CHECK: This message will be created if it does not exist.
     ///
     /// NOTE: This space requirement enforces that the payload length is the same for every call to
     /// this instruction handler. So for unreliable message accounts already created, this
@@ -31,8 +36,9 @@ pub struct PostMessageUnreliable<'info> {
     )]
     message: Account<'info, LegacyAnchorized<PostedMessageV1Unreliable>>,
 
-    /// The emitter of the Core Bridge message. This account is typically an integrating program's
-    /// PDA which signs for this instruction.
+    /// Core Bridge Emitter (read-only signer).
+    ///
+    /// This account pubkey will be used as the emitter address.
     emitter: Signer<'info>,
 
     /// Core Bridge Emitter Sequence (mut).
@@ -55,20 +61,31 @@ pub struct PostMessageUnreliable<'info> {
     )]
     emitter_sequence: AccountInfo<'info>,
 
+    /// Payer (mut signer).
+    ///
+    /// This account pays for new accounts created and pays for the Wormhole fee.
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
-    /// last lamports on this account.
+    /// Core Bridge Fee Collector (optional, read-only).
+    ///
+    /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is used to collect fees.
     #[account(
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
         bump,
     )]
     fee_collector: Option<AccountInfo<'info>>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _clock: UncheckedAccount<'info>,
 
+    /// System Program.
+    ///
+    /// Required to create accounts and transfer lamports to the fee collector.
     system_program: Program<'info, System>,
 }
 

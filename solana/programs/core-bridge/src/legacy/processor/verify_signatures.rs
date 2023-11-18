@@ -56,13 +56,18 @@ pub struct VerifySignatures<'info> {
     )]
     signature_set: Account<'info, SignatureSet>,
 
-    /// CHECK: Instruction sysvar used to read Sig Verify native program instruction data.
+    /// Instruction sysvar.
+    ///
+    /// CHECK: This sysvar is used to read Sig Verify native program instruction data, which will
+    /// precede this instruction.
     #[account(
         address = sysvar::instructions::id() @ ErrorCode::AccountSysvarMismatch
     )]
     instructions: AccountInfo<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

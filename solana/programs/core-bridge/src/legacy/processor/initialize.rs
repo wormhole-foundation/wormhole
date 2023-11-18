@@ -39,7 +39,10 @@ pub struct Initialize<'info> {
     )]
     guardian_set: Account<'info, LegacyAnchorized<GuardianSet>>,
 
-    /// CHECK: System account that collects lamports whenever a new message is posted (published).
+    /// Account used to collect Wormhole fees.
+    ///
+    /// CHECK: This system account is created and will be used whenever the post message
+    /// instructions are invoked.
     #[account(
         init,
         payer = payer,
@@ -53,10 +56,14 @@ pub struct Initialize<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _clock: UncheckedAccount<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

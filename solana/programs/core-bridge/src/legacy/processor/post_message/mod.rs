@@ -18,15 +18,20 @@ use anchor_lang::{prelude::*, system_program};
 #[derive(Accounts)]
 #[instruction(args: PostMessageArgs)]
 pub struct PostMessage<'info> {
-    /// This account is needed to determine how many lamports to transfer from the payer for the
-    /// message fee (if there is one).
+    /// Core Bridge config account (mut).
+    ///
+    /// Seeds = \["Bridge"\], seeds::program = core_bridge_program.
+    ///
+    /// This account is used to determine how many lamports to transfer for Wormhole fee.
     #[account(
         seeds = [Config::SEED_PREFIX],
         bump,
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// CHECK: This message account is observed by the Guardians.
+    /// Core Bridge Message (mut).
+    ///
+    /// CHECK: This message will be created if it does not exist.
     ///
     /// NOTE: We do not use the convenient Anchor `init` account macro command here because a
     /// message can either be created at this point or prepared beforehand. If the message has not
@@ -35,14 +40,18 @@ pub struct PostMessage<'info> {
     #[account(mut)]
     message: AccountInfo<'info>,
 
-    /// The emitter of the Core Bridge message. This account is typically an integrating program's
-    /// PDA which signs for this instruction. But if a message is already prepared by this point
-    /// using `init_message_v1`, `write_message_v1` and `finalize_message_v1`, then this account is
-    /// not checked.
+    /// Core Bridge Emitter (optional, read-only signer).
+    ///
+    /// This account pubkey will be used as the emitter address. This account is required
+    /// if the message account has not been prepared beforehand.
     emitter: Option<Signer<'info>>,
 
-    /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
-    /// sequence number.
+    /// Core Bridge Emitter Sequence (mut).
+    ///
+    /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+    ///
+    /// This account is used to determine the sequence of the Wormhole message for the
+    /// provided emitter.
     ///
     /// NOTE: Because the emitter can either be the emitter defined in this account context (for new
     /// messages) or written to the message account when it was prepared beforehand, we use a custom
@@ -61,11 +70,17 @@ pub struct PostMessage<'info> {
     )]
     emitter_sequence: AccountInfo<'info>,
 
+    /// Payer (mut signer).
+    ///
+    /// This account pays for new accounts created and pays for the Wormhole fee.
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Fee collector, which is used to update the [Config] account with the most up-to-date
-    /// last lamports on this account.
+    /// Core Bridge Fee Collector (optional, read-only).
+    ///
+    /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is used to collect fees.
     #[account(
         mut,
         seeds = [crate::constants::FEE_COLLECTOR_SEED_PREFIX],
@@ -73,9 +88,14 @@ pub struct PostMessage<'info> {
     )]
     fee_collector: Option<AccountInfo<'info>>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _clock: UncheckedAccount<'info>,
 
+    /// System Program.
+    ///
+    /// Required to create accounts and transfer lamports to the fee collector.
     system_program: Program<'info, System>,
 }
 

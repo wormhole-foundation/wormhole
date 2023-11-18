@@ -25,22 +25,29 @@ pub struct GuardianSetUpdate<'info> {
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler, which also checks this account discriminator (so there is no need to
-    /// check PDA seeds here).
+    /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+    /// account.
+    ///
+    /// CHECK: This account will be read via zero-copy deserialization in the instruction
+    /// handler, which will determine which type of VAA account is being used. If this account
+    /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+    /// reader.
     #[account(owner = crate::ID)]
     vaa: AccountInfo<'info>,
 
-    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa](crate::utils::vaa::claim_vaa) is called.
+    /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+    /// account.
+    ///
+    /// Seeds: [emitter_address, emitter_chain, sequence],
+    /// seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is created via [claim_vaa](crate::utils::vaa::claim_vaa).
+    /// This account can only be created once for this VAA.
     #[account(mut)]
     claim: AccountInfo<'info>,
 
-    /// Existing guardian set, whose guardian set index is the same one found in the [Config].
-    ///
-    /// CHECK: This address is derived using the guardian set account's encoded index. Because this
-    /// account is loaded via [LoadZeroCopy], the address is verified when it is loaded in access
-    /// control.
+    /// Existing guardian set, whose guardian set index is the same one found in the [Config]. This
+    /// address is derived using the config's guardian set index.
     #[account(
         mut,
         seeds = [

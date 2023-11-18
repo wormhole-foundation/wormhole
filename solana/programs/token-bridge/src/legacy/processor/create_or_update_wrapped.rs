@@ -15,7 +15,9 @@ pub struct CreateOrUpdateWrapped<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Token Bridge never needed this account for this instruction.
+    /// Previously needed config account.
+    ///
+    /// CHECK: This account is unchecked.
     _config: UncheckedAccount<'info>,
 
     /// This account is a foreign token Bridge and is created via the Register Chain governance
@@ -28,9 +30,13 @@ pub struct CreateOrUpdateWrapped<'info> {
     /// See the `require_valid_token_bridge_vaa` instruction handler for more details.
     registered_emitter: Account<'info, core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
 
-    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler, which also checks this account discriminator (so there is no need to
-    /// check PDA seeds here).
+    /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+    /// account.
+    ///
+    /// CHECK: This account will be read via zero-copy deserialization in the instruction
+    /// handler, which will determine which type of VAA account is being used. If this account
+    /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+    /// reader.
     #[account(
         owner = core_bridge::id(),
         constraint = try_attestation(&vaa, |attestation| attestation.token_chain())?
@@ -38,8 +44,14 @@ pub struct CreateOrUpdateWrapped<'info> {
     )]
     vaa: AccountInfo<'info>,
 
-    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa] is called.
+    /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+    /// account.
+    ///
+    /// Seeds: [emitter_address, emitter_chain, sequence],
+    /// seeds::program = token_bridge_program.
+    ///
+    /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+    /// This account can only be created once for this VAA.
     #[account(mut)]
     claim: AccountInfo<'info>,
 
@@ -102,7 +114,9 @@ pub struct CreateOrUpdateWrapped<'info> {
     )]
     mint_authority: AccountInfo<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

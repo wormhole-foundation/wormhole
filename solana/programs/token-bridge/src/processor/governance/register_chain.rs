@@ -8,12 +8,24 @@ pub struct RegisterChain<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: We will be performing zero-copy deserialization in the instruction handler.
+    /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+    /// account.
+    ///
+    /// CHECK: This account will be read via zero-copy deserialization in the instruction
+    /// handler, which will determine which type of VAA account is being used. If this account
+    /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+    /// reader.
     #[account(owner = core_bridge::id())]
     vaa: AccountInfo<'info>,
 
-    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa](core_bridge_sdk::cpi::claim_vaa) is called.
+    /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+    /// account.
+    ///
+    /// Seeds: [emitter_address, emitter_chain, sequence],
+    /// seeds::program = token_bridge_program.
+    ///
+    /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+    /// This account can only be created once for this VAA.
     #[account(mut)]
     claim: AccountInfo<'info>,
 

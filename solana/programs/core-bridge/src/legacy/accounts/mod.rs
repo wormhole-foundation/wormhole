@@ -9,19 +9,12 @@ use solana_program::instruction::AccountMeta;
 
 /// Context to post a new Core Bridge message.
 pub struct PostMessage {
-    /// Core Bridge Config (read-only, seeds = \["Bridge"\]).
     pub config: Pubkey,
-    /// Core Bridge Message (mut).
     pub message: Pubkey,
-    /// Core Bridge Emitter (optional, read-only signer).
     pub emitter: Option<Pubkey>,
-    /// Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\]).
     pub emitter_sequence: Pubkey,
-    /// Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
     pub fee_collector: Option<Pubkey>,
-    /// System Program.
     pub system_program: Pubkey,
 }
 
@@ -53,19 +46,12 @@ impl ToAccountMetas for PostMessage {
 
 /// Context to post a new or reuse an existing Core Bridge message.
 pub struct PostMessageUnreliable {
-    /// Core Bridge Config (read-only, seeds = \["Bridge"\]).
     pub config: Pubkey,
-    /// Core Bridge Message (mut).
     pub message: Pubkey,
-    /// Core Bridge Emitter (read-only signer).
     pub emitter: Pubkey,
-    /// Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\]).
     pub emitter_sequence: Pubkey,
-    /// Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// Core Bridge Fee Collector (optional, read-only, seeds = \["fee_collector"\]).
     pub fee_collector: Option<Pubkey>,
-    /// System Program.
     pub system_program: Pubkey,
 }
 

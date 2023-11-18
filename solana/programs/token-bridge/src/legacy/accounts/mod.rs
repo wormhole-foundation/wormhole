@@ -146,40 +146,19 @@ impl ToAccountMetas for CompleteTransferWithPayloadWrapped {
 }
 
 pub struct TransferTokensNative {
-    /// CHECK: Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// CHECK: Source Token Account (mut).
     pub src_token: Pubkey,
-    /// CHECK: Mint (read-only).
     pub mint: Pubkey,
-    /// CHECK: Transfer Authority (mut, seeds = \[mint.key\], seeds::program =
-    /// token_bridge_program).
     pub custody_token: Pubkey,
-    /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
-    /// token_bridge_program).
     pub transfer_authority: Pubkey,
-    /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
-    /// token_bridge_program).
     pub custody_authority: Pubkey,
-    /// CHECK: Core Bridge Program Data (read-only, seeds = \["Bridge"\], seeds::program =
-    /// core_bridge_program).
     pub core_bridge_config: Pubkey,
-    /// CHECK: Core Bridge Message (mut).
     pub core_message: Pubkey,
-    /// CHECK: Core Bridge Emitter (read-only, seeds = \["emitter"\], seeds::program =
-    /// token_bridge_program).
     pub core_emitter: Pubkey,
-    /// CHECK: Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\],
-    /// seeds::program = core_bridge_program).
     pub core_emitter_sequence: Pubkey,
-    /// CHECK: Core Bridge Fee Collector (mut, seeds = \["fee_collector"\], seeds::program =
-    /// core_bridge_program).
     pub core_fee_collector: Option<Pubkey>,
-    /// CHECK: System Program.
     pub system_program: Pubkey,
-    /// CHECK: Token Program.
     pub token_program: Pubkey,
-    /// CHECK: Core Bridge Program.
     pub core_bridge_program: Pubkey,
 }
 
@@ -208,38 +187,18 @@ impl ToAccountMetas for TransferTokensNative {
 }
 
 pub struct TransferTokensWrapped {
-    /// CHECK: Transaction payer (mut signer).
     pub payer: Pubkey,
-    /// CHECK: Source Token Account (mut).
     pub src_token: Pubkey,
-    /// CHECK: Wrapped Mint (mut, seeds = \["wrapped", token_chain, token_address\],
-    /// seeds::program = token_bridge_program).
     pub wrapped_mint: Pubkey,
-    /// CHECK: Wrapped Asset (read-only, seeds = \[wrapped_mint.key\], seeds::program =
-    /// token_bridge_program).
     pub wrapped_asset: Pubkey,
-    /// CHECK: Transfer Authority (read-only, seeds = \["authority_signer"\], seeds::program =
-    /// token_bridge_program).
     pub transfer_authority: Pubkey,
-    /// CHECK: Core Bridge Program Data (read-only, seeds = \["Bridge"\], seeds::program =
-    /// core_bridge_program).
     pub core_bridge_config: Pubkey,
-    /// CHECK: Core Bridge Message (mut).
     pub core_message: Pubkey,
-    /// CHECK: Core Bridge Emitter (read-only, seeds = \["emitter"\], seeds::program =
-    /// token_bridge_program).
     pub core_emitter: Pubkey,
-    /// CHECK: Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\],
-    /// seeds::program = core_bridge_program).
     pub core_emitter_sequence: Pubkey,
-    /// CHECK: Core Bridge Fee Collector (mut, seeds = \["fee_collector"\], seeds::program =
-    /// core_bridge_program).
     pub core_fee_collector: Option<Pubkey>,
-    /// CHECK: System Program.
     pub system_program: Pubkey,
-    /// CHECK: Token Program.
     pub token_program: Pubkey,
-    /// CHECK: Core Bridge Program.
     pub core_bridge_program: Pubkey,
 }
 

@@ -258,13 +258,28 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct CompleteTransferNative<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created.
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = ["PostedVAA", message_hash],
-        /// seeds::program = core_bridge_program).
+
+        /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+        /// account.
+        ///
+        /// CHECK: This account will be read via zero-copy deserialization in the instruction
+        /// handler, which will determine which type of VAA account is being used. If this account
+        /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+        /// reader.
         pub vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = [emitter_address, emitter_chain, sequence],
-        /// seeds::program = token_bridge_program).
+
+        /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+        /// account.
+        ///
+        /// Seeds: [emitter_address, emitter_chain, sequence],
+        /// seeds::program = token_bridge_program.
+        ///
+        /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+        /// This account can only be created once for this VAA.
         pub claim: AccountInfo<'info>,
         /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
@@ -295,13 +310,28 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct CompleteTransferWrapped<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created.
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
-        /// seeds::program = core_bridge_program).
+
+        /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+        /// account.
+        ///
+        /// CHECK: This account will be read via zero-copy deserialization in the instruction
+        /// handler, which will determine which type of VAA account is being used. If this account
+        /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+        /// reader.
         pub vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
-        /// seeds::program = token_bridge_program).
+
+        /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+        /// account.
+        ///
+        /// Seeds: [emitter_address, emitter_chain, sequence],
+        /// seeds::program = token_bridge_program.
+        ///
+        /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+        /// This account can only be created once for this VAA.
         pub claim: AccountInfo<'info>,
         /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
@@ -333,13 +363,28 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct CompleteTransferWithPayloadNative<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created.
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
-        /// seeds::program = core_bridge_program).
+
+        /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+        /// account.
+        ///
+        /// CHECK: This account will be read via zero-copy deserialization in the instruction
+        /// handler, which will determine which type of VAA account is being used. If this account
+        /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+        /// reader.
         pub vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
-        /// seeds::program = token_bridge_program).
+
+        /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+        /// account.
+        ///
+        /// Seeds: [emitter_address, emitter_chain, sequence],
+        /// seeds::program = token_bridge_program.
+        ///
+        /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+        /// This account can only be created once for this VAA.
         pub claim: AccountInfo<'info>,
         /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
@@ -362,7 +407,10 @@ pub mod cpi {
         /// CHECK: Custody Authority (read-only, seeds = \["custody_signer"\], seeds::program =
         /// token_bridge_program).
         pub custody_authority: AccountInfo<'info>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
@@ -370,13 +418,28 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct CompleteTransferWithPayloadWrapped<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created.
         pub payer: AccountInfo<'info>,
-        /// CHECK: Posted VAA Account (read-only, seeds = \["PostedVAA", message_hash\],
-        /// seeds::program = core_bridge_program).
+
+        /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+        /// account.
+        ///
+        /// CHECK: This account will be read via zero-copy deserialization in the instruction
+        /// handler, which will determine which type of VAA account is being used. If this account
+        /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+        /// reader.
         pub vaa: AccountInfo<'info>,
-        /// CHECK: Claim Account (mut, seeds = \[emitter_address, emitter_chain, sequence\],
-        /// seeds::program = token_bridge_program).
+
+        /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+        /// account.
+        ///
+        /// Seeds: [emitter_address, emitter_chain, sequence],
+        /// seeds::program = token_bridge_program.
+        ///
+        /// CHECK: This account is created via [claim_vaa](core_bridge_program::sdk::claim_vaa).
+        /// This account can only be created once for this VAA.
         pub claim: AccountInfo<'info>,
         /// CHECK: Registered Emitter Account (mut, seeds = \[emitter_chain\], seeds::program =
         /// token_bridge_program).
@@ -400,14 +463,19 @@ pub mod cpi {
         /// CHECK: Mint Authority (read-only, seeds = \["mint_signer"\], seeds::program =
         /// token_bridge_program).
         pub mint_authority: AccountInfo<'info>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
     }
     #[derive(Accounts)]
     pub struct TransferTokensNative<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created and pays for the Wormhole fee.
         pub payer: AccountInfo<'info>,
         /// CHECK: Source Token Account (mut).
         pub src_token: AccountInfo<'info>,
@@ -430,13 +498,25 @@ pub mod cpi {
         /// CHECK: Core Bridge Emitter (read-only, seeds = \["emitter"\], seeds::program =
         /// token_bridge_program).
         pub core_emitter: AccountInfo<'info>,
-        /// CHECK: Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\],
-        /// seeds::program = core_bridge_program).
+
+        /// Core Bridge Emitter Sequence (mut).
+        ///
+        /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to determine the sequence of the Wormhole message for the
+        /// provided emitter.
         pub core_emitter_sequence: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (mut, seeds = \["fee_collector"\], seeds::program =
-        /// core_bridge_program).
+
+        /// Core Bridge Fee Collector (optional, read-only).
+        ///
+        /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to collect fees.
         pub core_fee_collector: Option<AccountInfo<'info>>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts and transfer lamports to the fee collector.
         pub system_program: AccountInfo<'info>,
         /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
@@ -446,7 +526,9 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct TransferTokensWrapped<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created and pays for the Wormhole fee.
         pub payer: AccountInfo<'info>,
         /// CHECK: Source Token Account (mut).
         pub src_token: AccountInfo<'info>,
@@ -467,13 +549,25 @@ pub mod cpi {
         /// CHECK: Core Bridge Emitter (read-only, seeds = \["emitter"\], seeds::program =
         /// token_bridge_program).
         pub core_emitter: AccountInfo<'info>,
-        /// CHECK: Core Bridge Emitter Sequence (mut, seeds = \["Sequence", emitter.key\],
-        /// seeds::program = core_bridge_program).
+
+        /// Core Bridge Emitter Sequence (mut).
+        ///
+        /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to determine the sequence of the Wormhole message for the
+        /// provided emitter.
         pub core_emitter_sequence: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (mut, seeds = \["fee_collector"\], seeds::program =
-        /// core_bridge_program).
+
+        /// Core Bridge Fee Collector (optional, read-only).
+        ///
+        /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to collect fees.
         pub core_fee_collector: Option<AccountInfo<'info>>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts and transfer lamports to the fee collector.
         pub system_program: AccountInfo<'info>,
         /// CHECK: SPL Token Program.
         pub token_program: AccountInfo<'info>,
@@ -483,7 +577,9 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct TransferTokensWithPayloadNative<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created and pays for the Wormhole fee.
         pub payer: AccountInfo<'info>,
         /// CHECK: Source Token Account (mut).
         pub src_token: AccountInfo<'info>,
@@ -506,18 +602,30 @@ pub mod cpi {
         /// CHECK: Core Bridge Emitter (read-only, seeds = ["emitter"], seeds::program =
         /// token_bridge_program).
         pub core_emitter: AccountInfo<'info>,
-        /// CHECK: Core Bridge Emitter Sequence (mut, seeds = ["Sequence", emitter.key],
-        /// seeds::program = core_bridge_program).
+
+        /// Core Bridge Emitter Sequence (mut).
+        ///
+        /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to determine the sequence of the Wormhole message for the
+        /// provided emitter.
         pub core_emitter_sequence: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (mut, seeds = ["fee_collector"], seeds::program =
-        /// core_bridge_program).
+
+        /// Core Bridge Fee Collector (optional, read-only).
+        ///
+        /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to collect fees.
         pub core_fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: Sender Authority (read-only signer).
         ///
         /// NOTE: In order for the program ID to be encoded as the sender address, use seeds =
         /// ["sender"] and specify cpi_program_id = Some(your_program_id).
         pub sender_authority: AccountInfo<'info>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts and transfer lamports to the fee collector.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,
@@ -527,7 +635,9 @@ pub mod cpi {
 
     #[derive(Accounts)]
     pub struct TransferTokensWithPayloadWrapped<'info> {
-        /// CHECK: Transaction payer (mut signer).
+        /// Payer (mut signer).
+        ///
+        /// CHECK: This account pays for new accounts created and pays for the Wormhole fee.
         pub payer: AccountInfo<'info>,
         /// CHECK: Source Token Account (mut).
         pub src_token: AccountInfo<'info>,
@@ -548,18 +658,30 @@ pub mod cpi {
         /// CHECK: Core Bridge Emitter (read-only, seeds = ["emitter"], seeds::program =
         /// token_bridge_program).
         pub core_emitter: AccountInfo<'info>,
-        /// CHECK: Core Bridge Emitter Sequence (mut, seeds = ["Sequence", emitter.key],
-        /// seeds::program = core_bridge_program).
+
+        /// Core Bridge Emitter Sequence (mut).
+        ///
+        /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to determine the sequence of the Wormhole message for the
+        /// provided emitter.
         pub core_emitter_sequence: AccountInfo<'info>,
-        /// CHECK: Core Bridge Fee Collector (mut, seeds = ["fee_collector"], seeds::program =
-        /// core_bridge_program).
+
+        /// Core Bridge Fee Collector (optional, read-only).
+        ///
+        /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+        ///
+        /// CHECK: This account is used to collect fees.
         pub core_fee_collector: Option<AccountInfo<'info>>,
         /// CHECK: Sender Authority (read-only signer).
         ///
         /// NOTE: In order for the program ID to be encoded as the sender address, use seeds =
         /// ["sender"] and specify cpi_program_id = Some(your_program_id).
         pub sender_authority: AccountInfo<'info>,
-        /// CHECK: System Program.
+
+        /// System Program.
+        ///
+        /// CHECK: Required to create accounts and transfer lamports to the fee collector.
         pub system_program: AccountInfo<'info>,
         /// CHECK: Token Program.
         pub token_program: AccountInfo<'info>,

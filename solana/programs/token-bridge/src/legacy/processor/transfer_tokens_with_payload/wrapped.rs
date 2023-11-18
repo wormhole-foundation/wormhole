@@ -14,7 +14,9 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Token Bridge never needed this account for this instruction.
+    /// Previously needed config account.
+    ///
+    /// CHECK: This account is unchecked.
     _config: UncheckedAccount<'info>,
 
     /// CHECK: Source token account. Because we verify the wrapped mint, we can depend on the Token
@@ -79,7 +81,9 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     #[account(mut)]
     core_fee_collector: Option<AccountInfo<'info>>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _clock: UncheckedAccount<'info>,
 
     /// This account is used to authorize sending the transfer with payload. This signer is either
@@ -87,7 +91,9 @@ pub struct TransferTokensWithPayloadWrapped<'info> {
     /// whose seeds are [b"sender"] (and the program ID will be encoded as the sender address).
     sender_authority: Signer<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,

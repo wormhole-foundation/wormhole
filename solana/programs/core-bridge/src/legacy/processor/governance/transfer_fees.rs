@@ -25,19 +25,32 @@ pub struct TransferFees<'info> {
     )]
     config: Account<'info, LegacyAnchorized<Config>>,
 
-    /// CHECK: Posted VAA account, which will be read via zero-copy deserialization in the
-    /// instruction handler, which also checks this account discriminator (so there is no need to
-    /// check PDA seeds here).
+    /// VAA account, which may either be the new EncodedVaa account or legacy PostedVaaV1
+    /// account.
+    ///
+    /// CHECK: This account will be read via zero-copy deserialization in the instruction
+    /// handler, which will determine which type of VAA account is being used. If this account
+    /// is the legacy PostedVaaV1 account, its PDA address will be verified by this zero-copy
+    /// reader.
     #[account(owner = crate::ID)]
     vaa: AccountInfo<'info>,
 
-    /// CHECK: Account representing that a VAA has been consumed. Seeds are checked when
-    /// [claim_vaa](crate::utils::vaa::claim_vaa) is called.
+    /// Claim account (mut), which acts as replay protection after consuming data from the VAA
+    /// account.
+    ///
+    /// Seeds: [emitter_address, emitter_chain, sequence],
+    /// seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is created via [claim_vaa](crate::utils::vaa::claim_vaa).
+    /// This account can only be created once for this VAA.
     #[account(mut)]
     claim: AccountInfo<'info>,
 
-    /// CHECK: Fee collector. Fees will be collected by transferring lamports from this account to
-    /// the recipient.
+    /// Core Bridge Fee Collector (optional, read-only).
+    ///
+    /// Seeds = \["fee_collector"\], seeds::program = core_bridge_program.
+    ///
+    /// CHECK: This account is used to transfer a portion of the collected fees to the recipient.
     #[account(
         mut,
         seeds = [FEE_COLLECTOR_SEED_PREFIX],
@@ -45,11 +58,16 @@ pub struct TransferFees<'info> {
     )]
     fee_collector: AccountInfo<'info>,
 
-    /// CHECK: This recipient account must equal the one encoded in the governance VAA.
+    /// Fee recipient.
+    ///
+    /// CHECK: This account will receive lamports from the fee collector by the specified (encoded)
+    /// amount in the governance VAA.
     #[account(mut)]
     recipient: AccountInfo<'info>,
 
-    /// CHECK: Previously needed sysvar.
+    /// Previously needed sysvar.
+    ///
+    /// CHECK: This account is unchecked.
     _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
