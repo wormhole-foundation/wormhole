@@ -9,7 +9,6 @@ import type {
   CallOverrides,
   ContractTransaction,
   Overrides,
-  PayableOverrides,
   PopulatedTransaction,
   Signer,
   utils,
@@ -160,17 +159,15 @@ export type EthCallWithFinalityQueryResponseStructOutput = [
   result: EthCallDataStructOutput[];
 };
 
-export declare namespace QueryPushPullDemo {
+export declare namespace QueryPullAllDemo {
   export type MessageStruct = {
     payloadID: PromiseOrValue<BigNumberish>;
-    sequence: PromiseOrValue<BigNumberish>;
     destinationChainID: PromiseOrValue<BigNumberish>;
     message: PromiseOrValue<string>;
   };
 
-  export type MessageStructOutput = [number, BigNumber, number, string] & {
+  export type MessageStructOutput = [number, number, string] & {
     payloadID: number;
-    sequence: BigNumber;
     destinationChainID: number;
     message: string;
   };
@@ -192,29 +189,27 @@ export declare namespace IWormhole {
   };
 }
 
-export interface QueryPushPullDemoInterface extends utils.Interface {
+export interface QueryPullAllDemoInterface extends utils.Interface {
   functions: {
     "QT_ETH_CALL()": FunctionFragment;
     "QT_ETH_CALL_BY_TIMESTAMP()": FunctionFragment;
     "QT_ETH_CALL_WITH_FINALITY()": FunctionFragment;
     "QT_MAX()": FunctionFragment;
     "VERSION()": FunctionFragment;
+    "chainRegistrations(uint16)": FunctionFragment;
     "decodeMessage(bytes)": FunctionFragment;
-    "encodeMessage((uint8,uint64,uint16,string))": FunctionFragment;
+    "encodeMessage((uint8,uint16,string))": FunctionFragment;
     "getResponseDigest(bytes)": FunctionFragment;
     "getResponseHash(bytes)": FunctionFragment;
-    "hasReceivedMessage(bytes32)": FunctionFragment;
-    "hasSentMessage(bytes32)": FunctionFragment;
+    "lastReceivedMessage(uint16)": FunctionFragment;
+    "latestSentMessage(uint16)": FunctionFragment;
     "parseAndVerifyQueryResponse(address,bytes,(bytes32,bytes32,uint8,uint8)[])": FunctionFragment;
     "parseEthCallByTimestampQueryResponse((uint16,uint8,bytes,bytes))": FunctionFragment;
     "parseEthCallQueryResponse((uint16,uint8,bytes,bytes))": FunctionFragment;
     "parseEthCallWithFinalityQueryResponse((uint16,uint8,bytes,bytes))": FunctionFragment;
     "receivePullMessages(bytes,(bytes32,bytes32,uint8,uint8)[],bytes[])": FunctionFragment;
-    "receivePushMessage(bytes)": FunctionFragment;
     "responsePrefix()": FunctionFragment;
     "sendPullMessage(uint16,string)": FunctionFragment;
-    "sendPushMessage(uint16,string)": FunctionFragment;
-    "sequence()": FunctionFragment;
     "updateRegistration(uint16,bytes32)": FunctionFragment;
     "verifyQueryResponseSignatures(address,bytes,(bytes32,bytes32,uint8,uint8)[])": FunctionFragment;
   };
@@ -226,22 +221,20 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
       | "QT_ETH_CALL_WITH_FINALITY"
       | "QT_MAX"
       | "VERSION"
+      | "chainRegistrations"
       | "decodeMessage"
       | "encodeMessage"
       | "getResponseDigest"
       | "getResponseHash"
-      | "hasReceivedMessage"
-      | "hasSentMessage"
+      | "lastReceivedMessage"
+      | "latestSentMessage"
       | "parseAndVerifyQueryResponse"
       | "parseEthCallByTimestampQueryResponse"
       | "parseEthCallQueryResponse"
       | "parseEthCallWithFinalityQueryResponse"
       | "receivePullMessages"
-      | "receivePushMessage"
       | "responsePrefix"
       | "sendPullMessage"
-      | "sendPushMessage"
-      | "sequence"
       | "updateRegistration"
       | "verifyQueryResponseSignatures"
   ): FunctionFragment;
@@ -261,12 +254,16 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
   encodeFunctionData(functionFragment: "QT_MAX", values?: undefined): string;
   encodeFunctionData(functionFragment: "VERSION", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "chainRegistrations",
+    values: [PromiseOrValue<BigNumberish>]
+  ): string;
+  encodeFunctionData(
     functionFragment: "decodeMessage",
     values: [PromiseOrValue<BytesLike>]
   ): string;
   encodeFunctionData(
     functionFragment: "encodeMessage",
-    values: [QueryPushPullDemo.MessageStruct]
+    values: [QueryPullAllDemo.MessageStruct]
   ): string;
   encodeFunctionData(
     functionFragment: "getResponseDigest",
@@ -277,12 +274,12 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     values: [PromiseOrValue<BytesLike>]
   ): string;
   encodeFunctionData(
-    functionFragment: "hasReceivedMessage",
-    values: [PromiseOrValue<BytesLike>]
+    functionFragment: "lastReceivedMessage",
+    values: [PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(
-    functionFragment: "hasSentMessage",
-    values: [PromiseOrValue<BytesLike>]
+    functionFragment: "latestSentMessage",
+    values: [PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(
     functionFragment: "parseAndVerifyQueryResponse",
@@ -313,10 +310,6 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     ]
   ): string;
   encodeFunctionData(
-    functionFragment: "receivePushMessage",
-    values: [PromiseOrValue<BytesLike>]
-  ): string;
-  encodeFunctionData(
     functionFragment: "responsePrefix",
     values?: undefined
   ): string;
@@ -324,11 +317,6 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     functionFragment: "sendPullMessage",
     values: [PromiseOrValue<BigNumberish>, PromiseOrValue<string>]
   ): string;
-  encodeFunctionData(
-    functionFragment: "sendPushMessage",
-    values: [PromiseOrValue<BigNumberish>, PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(functionFragment: "sequence", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "updateRegistration",
     values: [PromiseOrValue<BigNumberish>, PromiseOrValue<BytesLike>]
@@ -357,6 +345,10 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "QT_MAX", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "VERSION", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "chainRegistrations",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "decodeMessage",
     data: BytesLike
   ): Result;
@@ -373,11 +365,11 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "hasReceivedMessage",
+    functionFragment: "lastReceivedMessage",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "hasSentMessage",
+    functionFragment: "latestSentMessage",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -401,10 +393,6 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "receivePushMessage",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "responsePrefix",
     data: BytesLike
   ): Result;
@@ -412,11 +400,6 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
     functionFragment: "sendPullMessage",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(
-    functionFragment: "sendPushMessage",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "sequence", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "updateRegistration",
     data: BytesLike
@@ -427,24 +410,24 @@ export interface QueryPushPullDemoInterface extends utils.Interface {
   ): Result;
 
   events: {
-    "pullMessagePublished(uint8,uint64,uint16,string)": EventFragment;
-    "pullMessageReceived(uint16,uint8,uint64,uint16,string)": EventFragment;
-    "pushMessageReceived(uint16,uint8,uint64,uint16,string)": EventFragment;
+    "pullMessagePublished(bytes32,bytes32,uint16,uint8,uint16,string)": EventFragment;
+    "pullMessageReceived(bytes32,bytes32,uint16,uint8,uint16,string)": EventFragment;
   };
 
   getEvent(nameOrSignatureOrTopic: "pullMessagePublished"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "pullMessageReceived"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "pushMessageReceived"): EventFragment;
 }
 
 export interface pullMessagePublishedEventObject {
+  previousHash: string;
+  latestHash: string;
+  sourceChainID: number;
   payloadID: number;
-  sequence: BigNumber;
   destinationChainID: number;
   message: string;
 }
 export type pullMessagePublishedEvent = TypedEvent<
-  [number, BigNumber, number, string],
+  [string, string, number, number, number, string],
   pullMessagePublishedEventObject
 >;
 
@@ -452,41 +435,27 @@ export type pullMessagePublishedEventFilter =
   TypedEventFilter<pullMessagePublishedEvent>;
 
 export interface pullMessageReceivedEventObject {
-  sourceChain: number;
+  previousHash: string;
+  latestHash: string;
+  sourceChainID: number;
   payloadID: number;
-  sequence: BigNumber;
   destinationChainID: number;
   message: string;
 }
 export type pullMessageReceivedEvent = TypedEvent<
-  [number, number, BigNumber, number, string],
+  [string, string, number, number, number, string],
   pullMessageReceivedEventObject
 >;
 
 export type pullMessageReceivedEventFilter =
   TypedEventFilter<pullMessageReceivedEvent>;
 
-export interface pushMessageReceivedEventObject {
-  sourceChain: number;
-  payloadID: number;
-  sequence: BigNumber;
-  destinationChainID: number;
-  message: string;
-}
-export type pushMessageReceivedEvent = TypedEvent<
-  [number, number, BigNumber, number, string],
-  pushMessageReceivedEventObject
->;
-
-export type pushMessageReceivedEventFilter =
-  TypedEventFilter<pushMessageReceivedEvent>;
-
-export interface QueryPushPullDemo extends BaseContract {
+export interface QueryPullAllDemo extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
   deployed(): Promise<this>;
 
-  interface: QueryPushPullDemoInterface;
+  interface: QueryPullAllDemoInterface;
 
   queryFilter<TEvent extends TypedEvent>(
     event: TypedEventFilter<TEvent>,
@@ -518,17 +487,22 @@ export interface QueryPushPullDemo extends BaseContract {
 
     VERSION(overrides?: CallOverrides): Promise<[number]>;
 
+    chainRegistrations(
+      arg0: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[string]>;
+
     decodeMessage(
       encodedMessage: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<
-      [QueryPushPullDemo.MessageStructOutput] & {
-        parsedMessage: QueryPushPullDemo.MessageStructOutput;
+      [QueryPullAllDemo.MessageStructOutput] & {
+        parsedMessage: QueryPullAllDemo.MessageStructOutput;
       }
     >;
 
     encodeMessage(
-      parsedMessage: QueryPushPullDemo.MessageStruct,
+      parsedMessage: QueryPullAllDemo.MessageStruct,
       overrides?: CallOverrides
     ): Promise<[string] & { encodedMessage: string }>;
 
@@ -542,15 +516,15 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[string]>;
 
-    hasReceivedMessage(
-      digest: PromiseOrValue<BytesLike>,
+    lastReceivedMessage(
+      _sourceChainId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<[boolean]>;
+    ): Promise<[string]>;
 
-    hasSentMessage(
-      digest: PromiseOrValue<BytesLike>,
+    latestSentMessage(
+      _destinationChainID: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<[boolean]>;
+    ): Promise<[string]>;
 
     parseAndVerifyQueryResponse(
       wormhole: PromiseOrValue<string>,
@@ -595,11 +569,6 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
-    receivePushMessage(
-      encodedMessage: PromiseOrValue<BytesLike>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
-
     responsePrefix(overrides?: CallOverrides): Promise<[string]>;
 
     sendPullMessage(
@@ -607,14 +576,6 @@ export interface QueryPushPullDemo extends BaseContract {
       _message: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
-
-    sendPushMessage(
-      _destinationChainID: PromiseOrValue<BigNumberish>,
-      _message: PromiseOrValue<string>,
-      overrides?: PayableOverrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
-
-    sequence(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     updateRegistration(
       _chainID: PromiseOrValue<BigNumberish>,
@@ -640,13 +601,18 @@ export interface QueryPushPullDemo extends BaseContract {
 
   VERSION(overrides?: CallOverrides): Promise<number>;
 
+  chainRegistrations(
+    arg0: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<string>;
+
   decodeMessage(
     encodedMessage: PromiseOrValue<BytesLike>,
     overrides?: CallOverrides
-  ): Promise<QueryPushPullDemo.MessageStructOutput>;
+  ): Promise<QueryPullAllDemo.MessageStructOutput>;
 
   encodeMessage(
-    parsedMessage: QueryPushPullDemo.MessageStruct,
+    parsedMessage: QueryPullAllDemo.MessageStruct,
     overrides?: CallOverrides
   ): Promise<string>;
 
@@ -660,15 +626,15 @@ export interface QueryPushPullDemo extends BaseContract {
     overrides?: CallOverrides
   ): Promise<string>;
 
-  hasReceivedMessage(
-    digest: PromiseOrValue<BytesLike>,
+  lastReceivedMessage(
+    _sourceChainId: PromiseOrValue<BigNumberish>,
     overrides?: CallOverrides
-  ): Promise<boolean>;
+  ): Promise<string>;
 
-  hasSentMessage(
-    digest: PromiseOrValue<BytesLike>,
+  latestSentMessage(
+    _destinationChainID: PromiseOrValue<BigNumberish>,
     overrides?: CallOverrides
-  ): Promise<boolean>;
+  ): Promise<string>;
 
   parseAndVerifyQueryResponse(
     wormhole: PromiseOrValue<string>,
@@ -699,11 +665,6 @@ export interface QueryPushPullDemo extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
-  receivePushMessage(
-    encodedMessage: PromiseOrValue<BytesLike>,
-    overrides?: Overrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
   responsePrefix(overrides?: CallOverrides): Promise<string>;
 
   sendPullMessage(
@@ -711,14 +672,6 @@ export interface QueryPushPullDemo extends BaseContract {
     _message: PromiseOrValue<string>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
-
-  sendPushMessage(
-    _destinationChainID: PromiseOrValue<BigNumberish>,
-    _message: PromiseOrValue<string>,
-    overrides?: PayableOverrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
-  sequence(overrides?: CallOverrides): Promise<BigNumber>;
 
   updateRegistration(
     _chainID: PromiseOrValue<BigNumberish>,
@@ -744,13 +697,18 @@ export interface QueryPushPullDemo extends BaseContract {
 
     VERSION(overrides?: CallOverrides): Promise<number>;
 
+    chainRegistrations(
+      arg0: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<string>;
+
     decodeMessage(
       encodedMessage: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
-    ): Promise<QueryPushPullDemo.MessageStructOutput>;
+    ): Promise<QueryPullAllDemo.MessageStructOutput>;
 
     encodeMessage(
-      parsedMessage: QueryPushPullDemo.MessageStruct,
+      parsedMessage: QueryPullAllDemo.MessageStruct,
       overrides?: CallOverrides
     ): Promise<string>;
 
@@ -764,15 +722,15 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: CallOverrides
     ): Promise<string>;
 
-    hasReceivedMessage(
-      digest: PromiseOrValue<BytesLike>,
+    lastReceivedMessage(
+      _sourceChainId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<boolean>;
+    ): Promise<string>;
 
-    hasSentMessage(
-      digest: PromiseOrValue<BytesLike>,
+    latestSentMessage(
+      _destinationChainID: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<boolean>;
+    ): Promise<string>;
 
     parseAndVerifyQueryResponse(
       wormhole: PromiseOrValue<string>,
@@ -803,26 +761,13 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
-    receivePushMessage(
-      encodedMessage: PromiseOrValue<BytesLike>,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
     responsePrefix(overrides?: CallOverrides): Promise<string>;
 
     sendPullMessage(
       _destinationChainID: PromiseOrValue<BigNumberish>,
       _message: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    sendPushMessage(
-      _destinationChainID: PromiseOrValue<BigNumberish>,
-      _message: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    sequence(overrides?: CallOverrides): Promise<BigNumber>;
+    ): Promise<string>;
 
     updateRegistration(
       _chainID: PromiseOrValue<BigNumberish>,
@@ -839,48 +784,39 @@ export interface QueryPushPullDemo extends BaseContract {
   };
 
   filters: {
-    "pullMessagePublished(uint8,uint64,uint16,string)"(
+    "pullMessagePublished(bytes32,bytes32,uint16,uint8,uint16,string)"(
+      previousHash?: null,
+      latestHash?: null,
+      sourceChainID?: null,
       payloadID?: null,
-      sequence?: null,
       destinationChainID?: null,
       message?: null
     ): pullMessagePublishedEventFilter;
     pullMessagePublished(
+      previousHash?: null,
+      latestHash?: null,
+      sourceChainID?: null,
       payloadID?: null,
-      sequence?: null,
       destinationChainID?: null,
       message?: null
     ): pullMessagePublishedEventFilter;
 
-    "pullMessageReceived(uint16,uint8,uint64,uint16,string)"(
-      sourceChain?: null,
+    "pullMessageReceived(bytes32,bytes32,uint16,uint8,uint16,string)"(
+      previousHash?: null,
+      latestHash?: null,
+      sourceChainID?: null,
       payloadID?: null,
-      sequence?: null,
       destinationChainID?: null,
       message?: null
     ): pullMessageReceivedEventFilter;
     pullMessageReceived(
-      sourceChain?: null,
+      previousHash?: null,
+      latestHash?: null,
+      sourceChainID?: null,
       payloadID?: null,
-      sequence?: null,
       destinationChainID?: null,
       message?: null
     ): pullMessageReceivedEventFilter;
-
-    "pushMessageReceived(uint16,uint8,uint64,uint16,string)"(
-      sourceChain?: null,
-      payloadID?: null,
-      sequence?: null,
-      destinationChainID?: null,
-      message?: null
-    ): pushMessageReceivedEventFilter;
-    pushMessageReceived(
-      sourceChain?: null,
-      payloadID?: null,
-      sequence?: null,
-      destinationChainID?: null,
-      message?: null
-    ): pushMessageReceivedEventFilter;
   };
 
   estimateGas: {
@@ -894,13 +830,18 @@ export interface QueryPushPullDemo extends BaseContract {
 
     VERSION(overrides?: CallOverrides): Promise<BigNumber>;
 
+    chainRegistrations(
+      arg0: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     decodeMessage(
       encodedMessage: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
     encodeMessage(
-      parsedMessage: QueryPushPullDemo.MessageStruct,
+      parsedMessage: QueryPullAllDemo.MessageStruct,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -914,13 +855,13 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    hasReceivedMessage(
-      digest: PromiseOrValue<BytesLike>,
+    lastReceivedMessage(
+      _sourceChainId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    hasSentMessage(
-      digest: PromiseOrValue<BytesLike>,
+    latestSentMessage(
+      _destinationChainID: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -953,11 +894,6 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
-    receivePushMessage(
-      encodedMessage: PromiseOrValue<BytesLike>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
     responsePrefix(overrides?: CallOverrides): Promise<BigNumber>;
 
     sendPullMessage(
@@ -965,14 +901,6 @@ export interface QueryPushPullDemo extends BaseContract {
       _message: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
-
-    sendPushMessage(
-      _destinationChainID: PromiseOrValue<BigNumberish>,
-      _message: PromiseOrValue<string>,
-      overrides?: PayableOverrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    sequence(overrides?: CallOverrides): Promise<BigNumber>;
 
     updateRegistration(
       _chainID: PromiseOrValue<BigNumberish>,
@@ -1003,13 +931,18 @@ export interface QueryPushPullDemo extends BaseContract {
 
     VERSION(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
+    chainRegistrations(
+      arg0: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     decodeMessage(
       encodedMessage: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
     encodeMessage(
-      parsedMessage: QueryPushPullDemo.MessageStruct,
+      parsedMessage: QueryPullAllDemo.MessageStruct,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -1023,13 +956,13 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    hasReceivedMessage(
-      digest: PromiseOrValue<BytesLike>,
+    lastReceivedMessage(
+      _sourceChainId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    hasSentMessage(
-      digest: PromiseOrValue<BytesLike>,
+    latestSentMessage(
+      _destinationChainID: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -1062,11 +995,6 @@ export interface QueryPushPullDemo extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
-    receivePushMessage(
-      encodedMessage: PromiseOrValue<BytesLike>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
     responsePrefix(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     sendPullMessage(
@@ -1074,14 +1002,6 @@ export interface QueryPushPullDemo extends BaseContract {
       _message: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
-
-    sendPushMessage(
-      _destinationChainID: PromiseOrValue<BigNumberish>,
-      _message: PromiseOrValue<string>,
-      overrides?: PayableOverrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    sequence(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     updateRegistration(
       _chainID: PromiseOrValue<BigNumberish>,

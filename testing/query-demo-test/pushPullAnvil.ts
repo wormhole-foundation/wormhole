@@ -40,14 +40,14 @@ const mock = new QueryProxyMock({
 async function sendPullMessage(contract: QueryPushPullDemo, message: string) {
   const pullTx = await contract.sendPullMessage(2, message);
   const pullTxResult = await pullTx.wait();
-  // console.log(
-  //   "Sent pull message:",
-  //   pullTx.hash,
-  //   "block:",
-  //   pullTxResult.blockHash,
-  //   "gasUsed:",
-  //   pullTxResult.gasUsed.toString()
-  // );
+  console.log(
+    "Sent pull message:",
+    pullTx.hash,
+    "block:",
+    pullTxResult.blockHash,
+    "gasUsed:",
+    pullTxResult.gasUsed.toString()
+  );
   const pullLogs = pullTxResult.logs;
   const log = contract.interface.decodeEventLog(
     contract.interface.events[

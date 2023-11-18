@@ -13,6 +13,8 @@ error InvalidCaller();
 error InvalidContractAddress();
 error InvalidWormholeAddress();
 error InvalidForeignChainID();
+error InvalidDestinationChain();
+error InvalidFinality();
 error UnexpectedCallData();
 error AlreadyReceived(bytes32 digest);
 
@@ -32,8 +34,8 @@ contract QueryPushPullDemo is QueryResponse {
     }
 
     event pullMessagePublished(uint8 payloadID, uint64 sequence, uint16 destinationChainID, string message);
-    event pullMessageReceived(uint16 sourceChain, uint8 payloadID, uint64 sequence, uint16 destinationChainID, string message);
-    event pushMessageReceived(uint16 sourceChain, uint8 payloadID, uint64 sequence, uint16 destinationChainID, string message);
+    event pullMessageReceived(uint16 sourceChainID, uint8 payloadID, uint64 sequence, uint16 destinationChainID, string message);
+    event pushMessageReceived(uint16 sourceChainID, uint8 payloadID, uint64 sequence, uint16 destinationChainID, string message);
 
     address private immutable owner;
     address private immutable wormhole;
@@ -211,7 +213,7 @@ contract QueryPushPullDemo is QueryResponse {
         }
         if (wormholeMessage.emitterAddress != emitterAddress) {
             revert InvalidContractAddress();
-        }        
+        }
 
         if (coreReceived[wormholeMessage.hash]) {
             revert AlreadyReceived(wormholeMessage.hash);
@@ -223,6 +225,10 @@ contract QueryPushPullDemo is QueryResponse {
         Message memory parsedMessage = decodeMessage(
             wormholeMessage.payload
         );
+
+        if (parsedMessage.destinationChainID != myChainID) {
+            revert InvalidDestinationChain();
+        }
 
         emit pushMessageReceived(wormholeMessage.emitterChainId, parsedMessage.payloadID, wormholeMessage.sequence, parsedMessage.destinationChainID, parsedMessage.message);
     }
@@ -241,6 +247,10 @@ contract QueryPushPullDemo is QueryResponse {
             }
 
             EthCallWithFinalityQueryResponse memory eqr = parseEthCallWithFinalityQueryResponse(r.responses[i]);
+
+            if (eqr.requestFinality.length != 4 || keccak256(eqr.requestFinality) != keccak256("safe")) {
+                revert InvalidFinality();
+            }
 
             uint numCalls = eqr.result.length;
             for (uint resultIdx=0; resultIdx < numCalls;) {
@@ -280,6 +290,10 @@ contract QueryPushPullDemo is QueryResponse {
                 Message memory parsedMessage = decodeMessage(
                     messages[messageIndex]
                 );
+
+                if (parsedMessage.destinationChainID != myChainID) {
+                    revert InvalidDestinationChain();
+                }
 
                 emit pullMessageReceived(requestChainID, parsedMessage.payloadID, parsedMessage.sequence, parsedMessage.destinationChainID, parsedMessage.message);
 
