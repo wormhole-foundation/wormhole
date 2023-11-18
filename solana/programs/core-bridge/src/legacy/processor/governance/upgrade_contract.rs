@@ -48,10 +48,12 @@ pub struct UpgradeContract<'info> {
 
     /// CHECK: Deployed implementation. The pubkey of this account is checked in access control
     /// against the one encoded in the governance VAA.
+    #[account(mut)]
     buffer: AccountInfo<'info>,
 
     /// CHECK: Core Bridge program data needed for BPF Loader Upgradable program.
     #[account(
+        mut,
         seeds = [crate::ID.as_ref()],
         bump,
         seeds::program = solana_program::bpf_loader_upgradeable::id(),
@@ -59,7 +61,10 @@ pub struct UpgradeContract<'info> {
     program_data: AccountInfo<'info>,
 
     /// CHECK: This must equal the Core Bridge program ID for the BPF Loader Upgradeable program.
-    #[account(address = crate::ID)]
+    #[account(
+        mut,
+        address = crate::ID
+    )]
     this_program: AccountInfo<'info>,
 
     /// CHECK: BPF Loader Upgradeable program needs this sysvar.
