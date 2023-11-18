@@ -129,9 +129,11 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
-		ccqMaxBlockNumber *big.Int
-		ccqTimestampCache *BlocksByTimestamp
-		ccqLogger         *zap.Logger
+		ccqMaxBlockNumber  *big.Int
+		ccqTimestampCache  *BlocksByTimestamp
+		ccqBackfillChannel chan *ccqBackfillRequest
+		ccqBatchSize       int64
+		ccqLogger          *zap.Logger
 	}
 
 	pendingKey struct {
@@ -162,26 +164,22 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
-	var ccqTimestampCache *BlocksByTimestamp
-	if query.SupportsTimestampCaching(chainID) {
-		ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
-	}
-
 	return &Watcher{
-		url:               url,
-		contract:          contract,
-		networkName:       networkName,
-		readinessSync:     common.MustConvertChainIdToReadinessSyncing(chainID),
-		chainID:           chainID,
-		msgC:              msgC,
-		setC:              setC,
-		obsvReqC:          obsvReqC,
-		queryReqC:         queryReqC,
-		queryResponseC:    queryResponseC,
-		pending:           map[pendingKey]*pendingMessage{},
-		unsafeDevMode:     unsafeDevMode,
-		ccqMaxBlockNumber: big.NewInt(0).SetUint64(math.MaxUint64),
-		ccqTimestampCache: ccqTimestampCache,
+		url:                url,
+		contract:           contract,
+		networkName:        networkName,
+		readinessSync:      common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:            chainID,
+		msgC:               msgC,
+		setC:               setC,
+		obsvReqC:           obsvReqC,
+		queryReqC:          queryReqC,
+		queryResponseC:     queryResponseC,
+		pending:            map[pendingKey]*pendingMessage{},
+		unsafeDevMode:      unsafeDevMode,
+		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
+		ccqTimestampCache:  ccqTimestampCache,
+		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
 	}
 }
 
@@ -256,6 +254,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to connect to instant finality chain: %w", err)
 		}
+	}
+
+	if query.SupportsTimestampCaching(w.chainID) {
+		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 	}
 
 	errC := make(chan error)
@@ -416,6 +418,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 		}
 	})
+
+	if w.ccqTimestampCache != nil {
+		if err := supervisor.Run(ctx, "ccq_backfiller", common.WrapWithScissors(w.ccqBackfiller, "ccq_backfiller")); err != nil {
+			return fmt.Errorf("failed to start ccq_backfiller: %w", err)
+		}
+	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
 		for {

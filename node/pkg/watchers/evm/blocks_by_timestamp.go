@@ -159,3 +159,9 @@ func (lhs Block) Cmp(rhs Block) int {
 
 	return 0
 }
+
+func (bts *BlocksByTimestamp) GetStats() (int, Block, Block) {
+	bts.mutex.Lock()
+	defer bts.mutex.Unlock()
+	return len(bts.cache), bts.cache[0], bts.cache[len(bts.cache)-1]
+}
