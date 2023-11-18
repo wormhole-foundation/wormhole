@@ -1,4 +1,4 @@
-// This file is intended to test an already deployed QueryPushPullDemo
+// This file is intended to test an already deployed QueryPullAllDemo
 // You can set this up locally with the following commands
 //   anvil
 //   cd ../deploy-core
