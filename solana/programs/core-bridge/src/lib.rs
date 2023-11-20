@@ -118,11 +118,10 @@ pub mod wormhole_core_bridge_solana {
         processor::post_vaa_v1(ctx)
     }
 
-    /// Processor used to close a [PostedMessageV1](crate::state::PostedMessageV1) account. If a
-    /// [SignatureSet](crate::state::SignatureSet) were used to verify the VAA, that account will be
-    /// closed, too.
-    pub fn close_posted_vaa_v1(ctx: Context<ClosePostedVaaV1>) -> Result<()> {
-        processor::close_posted_vaa_v1(ctx)
+    /// Processor used to close a [SignatureSet](crate::state::SignatureSet), which was used to
+    /// verify the VAA using the legacy parse and verify procedure.
+    pub fn close_signature_set(ctx: Context<CloseSignatureSet>) -> Result<()> {
+        processor::close_signature_set(ctx)
     }
 
     /// Process legacy Core Bridge instructions. See [legacy](crate::legacy) for more info.

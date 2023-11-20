@@ -1,8 +1,8 @@
 mod close_encoded_vaa;
 pub use close_encoded_vaa::*;
 
-mod close_posted_vaa_v1;
-pub use close_posted_vaa_v1::*;
+mod close_signature_set;
+pub use close_signature_set::*;
 
 mod init_encoded_vaa;
 pub use init_encoded_vaa::*;
