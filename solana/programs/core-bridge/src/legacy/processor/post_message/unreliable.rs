@@ -2,7 +2,7 @@ use crate::{
     error::CoreBridgeError,
     legacy::{instruction::PostMessageArgs, utils::LegacyAnchorized},
     state::{
-        Config, EmitterSequence, PostedMessageV1Data, PostedMessageV1Info,
+        Config, LegacyEmitterSequence, PostedMessageV1Data, PostedMessageV1Info,
         PostedMessageV1Unreliable,
     },
 };
@@ -35,19 +35,25 @@ pub struct PostMessageUnreliable<'info> {
     /// PDA which signs for this instruction.
     emitter: Signer<'info>,
 
-    /// Sequence tracker for given emitter. Every Core Bridge message is tagged with a unique
-    /// sequence number.
+    /// Core Bridge Emitter Sequence (mut).
+    ///
+    /// Seeds = \["Sequence", emitter.key\], seeds::program = core_bridge_program.
+    ///
+    /// This account is used to determine the sequence of the Wormhole message for the
+    /// provided emitter.
+    ///
+    /// CHECK: This account will be created in the instruction handler if it does not exist. Because
+    /// legacy emitter sequence accounts are 8 bytes, these accounts need to be migrated to the new
+    /// schema, which just extends the account size to indicate the type of emitter.
     #[account(
-        init_if_needed,
-        payer = payer,
-        space = EmitterSequence::INIT_SPACE,
+        mut,
         seeds = [
-            EmitterSequence::SEED_PREFIX,
+            LegacyEmitterSequence::SEED_PREFIX,
             emitter.key().as_ref()
         ],
         bump,
     )]
-    emitter_sequence: Account<'info, LegacyAnchorized<EmitterSequence>>,
+    emitter_sequence: AccountInfo<'info>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -118,6 +124,16 @@ fn post_message_unreliable(
         &ctx.accounts.system_program,
     )?;
 
+    // Check emitter sequence account. If it does not exist, create it. Otherwise realloc the
+    // account if it is a legacy emitter sequence account.
+    let mut emitter_sequence = super::create_or_realloc_emitter_sequence(
+        &ctx.accounts.emitter_sequence,
+        &ctx.accounts.payer,
+        &ctx.accounts.system_program,
+        &ctx.accounts.emitter.key(),
+        ctx.bumps["emitter_sequence"],
+    )?;
+
     let PostMessageArgs {
         nonce,
         payload,
@@ -140,7 +156,7 @@ fn post_message_unreliable(
                 _gap_0: Default::default(),
                 posted_timestamp: Clock::get().map(Into::into)?,
                 nonce,
-                sequence: ctx.accounts.emitter_sequence.value,
+                sequence: emitter_sequence.value,
                 solana_chain_id: Default::default(),
                 emitter: ctx.accounts.emitter.key(),
             },
@@ -149,8 +165,14 @@ fn post_message_unreliable(
         .into(),
     );
 
-    // Increment emitter sequence value.
-    ctx.accounts.emitter_sequence.value += 1;
+    // Update emitter sequence account with incremented value.
+    {
+        emitter_sequence.value += 1;
+
+        let acc_data: &mut [_] = &mut ctx.accounts.emitter_sequence.data.borrow_mut();
+        let mut writer = std::io::Cursor::new(acc_data);
+        emitter_sequence.try_serialize(&mut writer)?;
+    }
 
     // Done.
     Ok(())

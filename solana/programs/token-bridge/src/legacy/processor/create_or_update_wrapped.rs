@@ -266,7 +266,7 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     //
     // Here we need to check whether the wrapped asset is the old schema. If it is, we need to
     // increase the size of the account by 8 bytes to account for the sequence.
-    if ctx.accounts.wrapped_asset.data_len() == WrappedAsset::INIT_SPACE - 8 {
+    if ctx.accounts.wrapped_asset.data_len() == LegacyWrappedAsset::INIT_SPACE {
         let acc_info = &ctx.accounts.wrapped_asset;
 
         let lamports_diff = Rent::get().map(|rent| {

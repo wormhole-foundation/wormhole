@@ -231,7 +231,7 @@ export async function expectOkPostMessage(
     program.programId,
     emitter!
   );
-  expectDeepEqual(emitterSequenceData, { sequence: sequence.addn(1) });
+  expect(emitterSequenceData.sequence.toString()).to.equal(sequence.addn(1).toString());
 
   const config = await coreBridge.Config.fromPda(connection, program.programId);
 

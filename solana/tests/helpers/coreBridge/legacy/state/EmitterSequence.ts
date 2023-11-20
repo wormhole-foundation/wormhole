@@ -7,11 +7,21 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 
+export enum EmitterType {
+  Unset,
+  Legacy,
+  Executable,
+}
+
 export class EmitterSequence {
   sequence: BN;
+  bump?: number;
+  emitterType?: EmitterType;
 
-  private constructor(sequence: BN) {
+  private constructor(sequence: BN, bump?: number, emitterType?: EmitterType) {
     this.sequence = sequence;
+    this.bump = bump;
+    this.emitterType = emitterType;
   }
 
   static address(programId: PublicKey, emitter: PublicKey): PublicKey {
@@ -49,11 +59,16 @@ export class EmitterSequence {
   }
 
   static deserialize(data: Buffer): EmitterSequence {
-    if (data.length != 8) {
-      throw new Error("data.length != 8");
+    if (data.length == 8) {
+      const sequence = new BN(data.subarray(0, 8), undefined, "le");
+      return new EmitterSequence(sequence);
+    } else if (data.length == 10) {
+      const sequence = new BN(data.subarray(0, 8), undefined, "le");
+      const bump = data[8];
+      const emitterType = data[9];
+      return new EmitterSequence(sequence, bump, emitterType);
+    } else {
+      throw new Error("data.length != 8 or data.length != 10");
     }
-
-    const sequence = new BN(data.subarray(0), undefined, "le");
-    return new EmitterSequence(sequence);
   }
 }

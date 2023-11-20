@@ -67,6 +67,12 @@ pub enum CoreBridgeError {
     #[msg("InvalidPreparedMessage")]
     InvalidPreparedMessage = 0x106,
 
+    #[msg("ExecutableEmitter")]
+    ExecutableEmitter = 0x108,
+
+    #[msg("LegacyEmitter")]
+    LegacyEmitter = 0x10a,
+
     #[msg("InvalidSignatureSet")]
     InvalidSignatureSet = 0x200,
 

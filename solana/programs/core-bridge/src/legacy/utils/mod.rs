@@ -18,7 +18,7 @@ pub trait LegacyAccount: AnchorSerialize + AnchorDeserialize + Clone {
 /// Wrapper for legacy accounts implementing [LegacyAccount]. This wrapper provides the convenience
 /// of not having to implement [AccountSerialize] and [AccountDeserialize] for each legacy account.
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct LegacyAnchorized<T: LegacyAccount>(T);
+pub struct LegacyAnchorized<T: LegacyAccount>(pub T);
 
 impl<T> AsRef<T> for LegacyAnchorized<T>
 where

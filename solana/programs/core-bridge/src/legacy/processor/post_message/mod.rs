@@ -8,8 +8,8 @@ use crate::{
         utils::{LegacyAccount, LegacyAnchorized},
     },
     state::{
-        Config, EmitterSequence, MessageStatus, PostedMessageV1, PostedMessageV1Data,
-        PostedMessageV1Info,
+        Config, EmitterSequence, EmitterType, LegacyEmitterSequence, MessageStatus,
+        PostedMessageV1, PostedMessageV1Data, PostedMessageV1Info,
     },
     utils,
 };
@@ -47,17 +47,19 @@ pub struct PostMessage<'info> {
     /// NOTE: Because the emitter can either be the emitter defined in this account context (for new
     /// messages) or written to the message account when it was prepared beforehand, we use a custom
     /// function to help determine this PDA's seeds.
+    ///
+    /// CHECK: This account will be created in the instruction handler if it does not exist. Because
+    /// legacy emitter sequence accounts are 8 bytes, these accounts need to be migrated to the new
+    /// schema, which just extends the account size to indicate the type of emitter.
     #[account(
-        init_if_needed,
-        payer = payer,
-        space = EmitterSequence::INIT_SPACE,
+        mut,
         seeds = [
             EmitterSequence::SEED_PREFIX,
             try_emitter_seed(&emitter, &message)?.as_ref()
         ],
         bump
     )]
-    emitter_sequence: Account<'info, LegacyAnchorized<EmitterSequence>>,
+    emitter_sequence: AccountInfo<'info>,
 
     #[account(mut)]
     payer: Signer<'info>,
@@ -162,9 +164,20 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         .as_ref()
         .ok_or(error!(ErrorCode::AccountNotEnoughKeys).with_account_name("emitter"))?;
 
-    // Because this message will be newly created in this instruction, the emitter is
-    // required to be a signer to authorize posting this message.
-    //require!(emitter.is_signer, ErrorCode::AccountNotSigner);
+    // Check emitter sequence account. If it does not exist, create it. Otherwise realloc the
+    // account if it is a legacy emitter sequence account.
+    let mut emitter_sequence = create_or_realloc_emitter_sequence(
+        &ctx.accounts.emitter_sequence,
+        &ctx.accounts.payer,
+        &ctx.accounts.system_program,
+        &emitter.key(),
+        ctx.bumps["emitter_sequence"],
+    )?;
+
+    require!(
+        emitter_sequence.emitter_type != EmitterType::Executable,
+        CoreBridgeError::ExecutableEmitter
+    );
 
     let PostMessageArgs {
         nonce,
@@ -200,15 +213,21 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
             _gap_0: Default::default(),
             posted_timestamp: Clock::get().map(Into::into)?,
             nonce,
-            sequence: ctx.accounts.emitter_sequence.value,
+            sequence: emitter_sequence.value,
             solana_chain_id: Default::default(),
             emitter: emitter.key(),
         },
         payload,
     });
 
-    // Increment emitter sequence value.
-    ctx.accounts.emitter_sequence.value += 1;
+    // Update emitter sequence account with incremented value.
+    {
+        emitter_sequence.value += 1;
+
+        let acc_data: &mut [_] = &mut ctx.accounts.emitter_sequence.data.borrow_mut();
+        let mut writer = std::io::Cursor::new(acc_data);
+        emitter_sequence.try_serialize(&mut writer)?;
+    }
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
@@ -245,6 +264,32 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
         CoreBridgeError::NotReadyForPublishing
     );
 
+    // Check emitter sequence account. If it does not exist, create it. Otherwise realloc the
+    // account if it is a legacy emitter sequence account.
+    let mut emitter_sequence = create_or_realloc_emitter_sequence(
+        &ctx.accounts.emitter_sequence,
+        &ctx.accounts.payer,
+        &ctx.accounts.system_program,
+        &info.emitter,
+        ctx.bumps["emitter_sequence"],
+    )?;
+
+    // If the emitter is the same as the emitter authority, this message's emitter is a legacy
+    // emitter. Otherwise it is an executable.
+    if info.emitter == info.emitter_authority {
+        require!(
+            emitter_sequence.emitter_type != EmitterType::Executable,
+            CoreBridgeError::ExecutableEmitter
+        );
+        emitter_sequence.emitter_type = EmitterType::Legacy;
+    } else {
+        require!(
+            emitter_sequence.emitter_type != EmitterType::Legacy,
+            CoreBridgeError::LegacyEmitter
+        );
+        emitter_sequence.emitter_type = EmitterType::Executable;
+    }
+
     let PostMessageArgs {
         nonce: _,
         payload: unnecessary_payload,
@@ -272,10 +317,16 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     info.emitter_authority = Default::default();
     info.status = MessageStatus::Published;
     info.posted_timestamp = Clock::get().map(Into::into)?;
-    info.sequence = ctx.accounts.emitter_sequence.value;
+    info.sequence = emitter_sequence.value;
 
-    // Increment emitter sequence value.
-    ctx.accounts.emitter_sequence.value += 1;
+    // Update emitter sequence account with incremented value.
+    {
+        emitter_sequence.value += 1;
+
+        let acc_data: &mut [_] = &mut ctx.accounts.emitter_sequence.data.borrow_mut();
+        let mut writer = std::io::Cursor::new(acc_data);
+        emitter_sequence.try_serialize(&mut writer)?;
+    }
 
     let msg_acc_data: &mut [_] = &mut ctx.accounts.message.data.borrow_mut();
     let mut writer = std::io::Cursor::new(msg_acc_data);
@@ -319,6 +370,80 @@ pub(self) fn handle_message_fee<'info>(
     } else {
         // Nothing to do.
         Ok(())
+    }
+}
+
+pub(self) fn create_or_realloc_emitter_sequence<'info>(
+    emitter_sequence: &AccountInfo<'info>,
+    payer: &AccountInfo<'info>,
+    system_program: &Program<'info, System>,
+    emitter: &Pubkey,
+    emitter_sequence_bump: u8,
+) -> Result<LegacyAnchorized<EmitterSequence>> {
+    if emitter_sequence.data_is_empty() {
+        // Create the emitter sequence account.
+        utils::cpi::create_account_safe(
+            CpiContext::new_with_signer(
+                system_program.to_account_info(),
+                utils::cpi::CreateAccountSafe {
+                    payer: payer.to_account_info(),
+                    new_account: emitter_sequence.to_account_info(),
+                },
+                &[&[
+                    EmitterSequence::SEED_PREFIX,
+                    emitter.as_ref(),
+                    &[emitter_sequence_bump],
+                ]],
+            ),
+            EmitterSequence::INIT_SPACE,
+            &crate::ID,
+        )?;
+
+        Ok(EmitterSequence {
+            legacy: LegacyEmitterSequence { value: 0 },
+            bump: emitter_sequence_bump,
+            emitter_type: EmitterType::Unset,
+        }
+        .into())
+    } else if emitter_sequence.data_len() == LegacyEmitterSequence::INIT_SPACE {
+        let legacy = LegacyAnchorized::<LegacyEmitterSequence>::try_deserialize(
+            &mut emitter_sequence.data.borrow().as_ref(),
+        )?;
+
+        // This account is the legacy emitter sequence size. To migrate to the new schema, we must
+        // transfer more lamports to the account and then realloc.
+        let lamports_diff = Rent::get().map(|rent| {
+            rent.minimum_balance(EmitterSequence::INIT_SPACE)
+                .saturating_sub(emitter_sequence.lamports())
+        })?;
+
+        system_program::transfer(
+            CpiContext::new(
+                system_program.to_account_info(),
+                system_program::Transfer {
+                    from: payer.to_account_info(),
+                    to: emitter_sequence.to_account_info(),
+                },
+            ),
+            lamports_diff,
+        )?;
+
+        emitter_sequence.realloc(EmitterSequence::INIT_SPACE, false)?;
+
+        // Because this account already existed, this account must have been created with the old
+        // implementation. Program emitters were not possible with the old implementation, so we
+        // will serialize the emitter type as legacy.
+        Ok(EmitterSequence {
+            legacy: legacy.0,
+            bump: emitter_sequence_bump,
+            emitter_type: EmitterType::Legacy,
+        }
+        .into())
+    } else {
+        // Nothing to do.
+        LegacyAnchorized::<EmitterSequence>::try_deserialize(
+            &mut emitter_sequence.data.borrow().as_ref(),
+        )
     }
 }
 
