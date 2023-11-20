@@ -35,6 +35,14 @@ pub(crate) mod utils;
 pub mod wormhole_token_bridge_solana {
     use super::*;
 
+    // This instruction exists only to fix the mint authority for a mint not controlled by the Token
+    // Bridge. The only mints Token Bridge controls are those it creates from foreign asset
+    // metadata attestations. Because this mint is not ours, we set the authority to None so that the
+    // outbound transfer methods are unaffected.
+    pub fn remove_wrapped_mint_authority(ctx: Context<RemoveWrappedMintAuthority>) -> Result<()> {
+        processor::remove_wrapped_mint_authority(ctx)
+    }
+
     /// Processor for registering a new foreign Token Bridge emitter. This instruction replaces the
     /// legacy register chain instruction (which is now deprecated). This instruction handler
     /// creates two [RegisteredEmitter](crate::legacy::state::RegisteredEmitter) accounts: one with
