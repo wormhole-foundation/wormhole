@@ -312,6 +312,7 @@ describe("Mock CPI -- Token Bridge", () => {
     it("Invoke `mock_legacy_complete_transfer_native`", async () => {
       const { mint } = MINT_INFO_9;
       const recipient = anchor.web3.Keypair.generate().publicKey;
+      const recipientToken = await createAssociatedTokenAccount(connection, payer, mint, recipient);
 
       const encodedAmount = new anchor.BN(694206);
 
@@ -324,7 +325,7 @@ describe("Mock CPI -- Token Bridge", () => {
           CHAIN_ID_SOLANA,
           BigInt(encodedAmount.toString()),
           CHAIN_ID_SOLANA,
-          recipient.toBuffer().toString("hex"),
+          recipientToken.toBuffer().toString("hex"),
           BigInt(encodedFee.toString())
         ),
         [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
@@ -338,8 +339,6 @@ describe("Mock CPI -- Token Bridge", () => {
       );
 
       const parsed = parseVaa(signedVaa);
-
-      const recipientToken = await createAssociatedTokenAccount(connection, payer, mint, recipient);
 
       const tokenBridgeProgram = mockCpi.getTokenBridgeProgram(program);
 
@@ -358,7 +357,6 @@ describe("Mock CPI -- Token Bridge", () => {
           payer: payer.publicKey,
           recipientToken,
           mint,
-          recipient,
         },
         parsed,
         {
@@ -371,7 +369,6 @@ describe("Mock CPI -- Token Bridge", () => {
         .accounts({
           payer: payer.publicKey,
           recipientToken,
-          recipient,
           payerToken,
           vaa: encodedVaa,
           tokenBridgeClaim,
@@ -557,8 +554,22 @@ describe("Mock CPI -- Token Bridge", () => {
 
     it("Invoke `mock_legacy_complete_transfer_wrapped`", async () => {
       const { chain, address } = WRAPPED_MINT_INFO_8;
+
+      const tokenBridgeProgram = mockCpi.getTokenBridgeProgram(program);
+      const wrappedMint = tokenBridge.wrappedMintPda(
+        tokenBridgeProgram.programId,
+        chain,
+        Array.from(address)
+      );
+
       const recipientSigner = anchor.web3.Keypair.generate();
       const recipient = recipientSigner.publicKey;
+      const recipientToken = await createAssociatedTokenAccount(
+        connection,
+        payer,
+        wrappedMint,
+        recipient
+      );
 
       const amount = new anchor.BN(6942069);
 
@@ -571,7 +582,7 @@ describe("Mock CPI -- Token Bridge", () => {
           chain,
           BigInt(amount.toString()),
           CHAIN_ID_SOLANA,
-          recipient.toBuffer().toString("hex"),
+          recipientToken.toBuffer().toString("hex"),
           BigInt(fee.toString())
         ),
         [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14]
@@ -585,21 +596,6 @@ describe("Mock CPI -- Token Bridge", () => {
       );
 
       const parsed = parseVaa(signedVaa);
-
-      const tokenBridgeProgram = mockCpi.getTokenBridgeProgram(program);
-      const wrappedMint = tokenBridge.wrappedMintPda(
-        tokenBridgeProgram.programId,
-        chain,
-        Array.from(address)
-      );
-
-      const recipientToken = await createAssociatedTokenAccount(
-        connection,
-        payer,
-        wrappedMint,
-        recipient
-      );
-
       // For the validator-loaded Token Bridge program, we have not registered Ethereum using the
       // new register chain instruction.
       const {
@@ -614,7 +610,6 @@ describe("Mock CPI -- Token Bridge", () => {
         {
           payer: payer.publicKey,
           recipientToken,
-          recipient,
         },
         parsed,
         {
@@ -627,7 +622,6 @@ describe("Mock CPI -- Token Bridge", () => {
         .accounts({
           payer: payer.publicKey,
           recipientToken,
-          recipient,
           payerToken,
           vaa: encodedVaa,
           tokenBridgeClaim,

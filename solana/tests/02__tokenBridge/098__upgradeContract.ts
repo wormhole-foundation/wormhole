@@ -142,7 +142,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       await expectIxErr(connection, [ix], [payer], "ImplementationMismatch");
     });
 
-    it("Cannot Invoke `register_chain` with Invalid Emitter Address", async () => {
+    it("Cannot Invoke `upgrade_contract` with Invalid Emitter Address", async () => {
       const invalidGovernanceEmitter = tryNativeToHexString(
         ETHEREUM_TOKEN_BRIDGE_ADDRESS,
         CHAIN_ID_ETH
@@ -165,7 +165,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       await sendTx(program, payer, signedVaa, "InvalidGovernanceEmitter");
     });
 
-    it("Cannot Invoke `register_chain` with Invalid Emitter Chain", async () => {
+    it("Cannot Invoke `upgrade_contract` with Invalid Emitter Chain", async () => {
       const invalidGovernanceChain = CHAIN_ID_ETH;
       const sequence = 2;
       const implementation = loadProgramBpf(
@@ -184,7 +184,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       await sendTx(program, payer, signedVaa, "InvalidGovernanceEmitter");
     });
 
-    it("Cannot Invoke `register_chain` with Invalid Governance Module", async () => {
+    it("Cannot Invoke `upgrade_contract` with Invalid Governance Module", async () => {
       const governanceChain = CHAIN_ID_SOLANA;
       const sequence = 3;
       const invalidGovernanceModule = Buffer.from(
@@ -208,7 +208,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       await sendTx(program, payer, signedVaa, "InvalidGovernanceVaa");
     });
 
-    it("Cannot Invoke `register_chain` with Invalid Governance Action", async () => {
+    it("Cannot Invoke `upgrade_contract` with Invalid Governance Action", async () => {
       const governanceChain = CHAIN_ID_SOLANA;
       const sequence = 4;
       const invalidGovernanceAction = 69;

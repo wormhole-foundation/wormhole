@@ -13,7 +13,6 @@ pub fn validate_token_transfer_vaa(
     vaa_acc_info: &AccountInfo,
     registered_emitter: &Account<core_bridge::legacy::LegacyAnchorized<RegisteredEmitter>>,
     recipient_token: &Account<anchor_spl::token::TokenAccount>,
-    recipient: &Option<AccountInfo>,
 ) -> Result<(u16, [u8; 32])> {
     let vaa_key = vaa_acc_info.key();
     let vaa = core_bridge::VaaAccount::load(vaa_acc_info)?;
@@ -33,47 +32,12 @@ pub fn validate_token_transfer_vaa(
         TokenBridgeError::RecipientChainNotSolana
     );
 
-    // The encoded transfer recipient can either be a token account or the owner of an ATA.
-    //
-    // NOTE: Allowing the encoded transfer recipient to be an ATA's owner is a patch.
-    let expected_recipient = Pubkey::from(transfer.recipient());
-    if expected_recipient != recipient_token.key() {
-        require!(recipient.is_some(), ErrorCode::ConstraintTokenOwner);
-
-        let recipient = recipient.as_ref().unwrap();
-
-        // If the owner of this token account is the token program, someone is trolling by calling
-        // the complete transfer instruction with an ATA owned by the encoded recipient,
-        // which itself is an ATA. Go away.
-        require_keys_neq!(
-            *recipient.owner,
-            anchor_spl::token::ID,
-            TokenBridgeError::NestedTokenAccount
-        );
-
-        // Check that the recipient provided is the expected recipient.
-        //
-        // NOTE: If the provided account is the rent sysvar, this means an integrator is calling
-        // complete transfer with an old integration but expecting the redemption to be successful
-        // if the encoded VAA recipient is a token account owner. It is expected for integrators to
-        // handle this case by providing the recipient account info instead of the rent sysvar if he
-        // expects to redeem transfers to token accounts whose owner is encoded in the VAA.
-        require_keys_eq!(
-            recipient.key(),
-            expected_recipient,
-            TokenBridgeError::InvalidRecipient
-        );
-
-        // Finally verify that the token account is an ATA belonging to the expected recipient.
-        require_keys_eq!(
-            recipient_token.key(),
-            anchor_spl::associated_token::get_associated_token_address(
-                &expected_recipient,
-                &recipient_token.mint
-            ),
-            TokenBridgeError::InvalidAssociatedTokenAccount
-        );
-    }
+    // The encoded transfer recipient can only be a token account.
+    require_keys_eq!(
+        recipient_token.key(),
+        Pubkey::from(transfer.recipient()),
+        TokenBridgeError::InvalidRecipient
+    );
 
     // Done.
     Ok((transfer.token_chain(), transfer.token_address()))

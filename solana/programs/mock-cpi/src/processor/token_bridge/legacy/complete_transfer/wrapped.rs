@@ -10,12 +10,8 @@ pub struct MockLegacyCompleteTransferWrapped<'info> {
     #[account(
         mut,
         token::mint = token_bridge_wrapped_mint,
-        token::authority = recipient,
     )]
     recipient_token: Account<'info, token::TokenAccount>,
-
-    /// CHECK: VAA recipient (i.e. recipient token owner).
-    recipient: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -69,7 +65,6 @@ pub fn mock_legacy_complete_transfer_wrapped(
             wrapped_mint: ctx.accounts.token_bridge_wrapped_mint.to_account_info(),
             wrapped_asset: ctx.accounts.token_bridge_wrapped_asset.to_account_info(),
             mint_authority: ctx.accounts.token_bridge_mint_authority.to_account_info(),
-            recipient: Some(ctx.accounts.recipient.to_account_info()),
             system_program: ctx.accounts.system_program.to_account_info(),
             token_program: ctx.accounts.token_program.to_account_info(),
         },

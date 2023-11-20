@@ -304,7 +304,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         );
       });
 
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Self Redeemption no fee)`, async () => {
+      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Self Redeemption No Fee)`, async () => {
         // Create recipient token account.
         const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
@@ -384,7 +384,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
     });
 
     for (const { mint, decimals } of mints) {
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address with Rent Sysvar)`, async () => {
+      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals with Invalid Recipient)`, async () => {
         // Create recipient token account.
         const recipient = anchor.web3.Keypair.generate().publicKey;
         const recipientToken = await getOrCreateAssociatedTokenAccount(
@@ -398,12 +398,7 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
         let amount = BigInt(42069);
 
         // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(
-          mint,
-          amount,
-          BigInt(0),
-          recipient // Recipient is the wallet address, not the ATA.
-        );
+        const signedVaa = getSignedTransferVaa(mint, amount, BigInt(0), recipient);
 
         // Post the VAA.
         await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
@@ -421,167 +416,6 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
         // Complete the transfer.
         await expectIxErr(connection, [ix], [payer], "InvalidRecipient");
-      });
-
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address with an Invalid Recipient)`, async () => {
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate().publicKey;
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient
-        );
-
-        // Amounts.
-        let amount = BigInt(42069);
-
-        // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(
-          mint,
-          amount,
-          BigInt(0),
-          recipient // Recipient is the wallet address, not the ATA.
-        );
-
-        // Post the VAA.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        const anotherGuy = anchor.web3.Keypair.generate().publicKey;
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferNativeIx(
-          program,
-          {
-            payer: payer.publicKey,
-            recipientToken: recipientToken.address,
-            mint,
-            recipient: anotherGuy,
-          },
-          parseVaa(signedVaa)
-        );
-
-        // Complete the transfer.
-        await expectIxErr(connection, [ix], [payer], "InvalidRecipient");
-      });
-
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address without ATA)`, async () => {
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate().publicKey;
-
-        const recipientTokenKeypair = anchor.web3.Keypair.generate();
-        const createIx = await createAccountIx(
-          connection,
-          TOKEN_PROGRAM_ID,
-          payer,
-          recipientTokenKeypair,
-          ACCOUNT_SIZE
-        );
-        const initTokenAccountIx = createInitializeAccount2Instruction(
-          recipientTokenKeypair.publicKey,
-          mint,
-          recipient
-        );
-
-        // Amounts.
-        let amount = BigInt(42069);
-
-        // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(
-          mint,
-          amount,
-          BigInt(0),
-          recipient // Recipient is the wallet address, not the ATA.
-        );
-
-        // Post the VAA.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferNativeIx(
-          program,
-          {
-            payer: payer.publicKey,
-            recipientToken: recipientTokenKeypair.publicKey,
-            mint,
-            recipient,
-          },
-          parseVaa(signedVaa)
-        );
-
-        // Complete the transfer.
-        await expectIxErr(
-          connection,
-          [createIx, initTokenAccountIx, ix],
-          [payer, recipientTokenKeypair],
-          "InvalidAssociatedTokenAccount"
-        );
-      });
-
-      it(`Invoke \`complete_transfer_native\` (${decimals} Decimals, Recipient == Wallet Address)`, async () => {
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate().publicKey;
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient
-        );
-        const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
-
-        // Amounts.
-        let amount = BigInt(42069);
-        let fee = BigInt(1669);
-
-        // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(
-          mint,
-          amount,
-          fee,
-          recipient // Recipient is the wallet address, not the ATA.
-        );
-
-        // Fetch balances before.
-        const [recipientBalancesBefore, relayerBalancesBefore] = await Promise.all([
-          getTokenBalances(program, forkedProgram, recipientToken.address),
-          getTokenBalances(program, forkedProgram, payerToken),
-        ]);
-
-        // Post the VAA.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferNativeIx(
-          program,
-          {
-            payer: payer.publicKey,
-            recipientToken: recipientToken.address,
-            mint,
-            payerToken,
-            recipient,
-          },
-          parseVaa(signedVaa)
-        );
-
-        // Complete the transfer.
-        await expectIxOkDetails(connection, [ix], [payer]);
-
-        // Denormalize the fee and amount.
-        fee = fee * BigInt(10 ** (decimals - 8));
-        amount = amount * BigInt(10 ** (decimals - 8));
-
-        // Fetch balances after.
-        const [recipientBalancesAfter, relayerBalancesAfter] = await Promise.all([
-          getTokenBalances(program, forkedProgram, recipientToken.address),
-          getTokenBalances(program, forkedProgram, payerToken),
-        ]);
-
-        // Check recipient and relayer token balance changes.
-        expect(recipientBalancesAfter.token - recipientBalancesBefore.token).to.equal(amount - fee);
-        expect(recipientBalancesBefore.custodyToken - recipientBalancesAfter.custodyToken).to.equal(
-          amount
-        );
-        expect(relayerBalancesAfter.token - relayerBalancesBefore.token).to.equal(fee);
       });
 
       it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Target Chain)`, async () => {
@@ -628,51 +462,6 @@ describe("Token Bridge -- Legacy Instruction: Complete Transfer (Native)", () =>
 
         // Complete the transfer.
         await expectIxErr(connection, [ix], [payer], "RecipientChainNotSolana");
-      });
-
-      it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Recipent ATA)`, async () => {
-        // Create recipient token account.
-        const recipient = anchor.web3.Keypair.generate();
-        const recipientToken = await getOrCreateAssociatedTokenAccount(
-          connection,
-          payer,
-          mint,
-          recipient.publicKey
-        );
-        const trollToken = await createAssociatedTokenAccountOffCurve(
-          connection,
-          payer,
-          mint,
-          recipientToken.address
-        );
-
-        const payerToken = getAssociatedTokenAddressSync(mint, payer.publicKey);
-
-        // Amounts.
-        let amount = BigInt(42069);
-        let fee = BigInt(1669);
-
-        // Create the signed transfer VAA.
-        const signedVaa = getSignedTransferVaa(mint, amount, fee, recipientToken.address);
-
-        // Post the VAA.
-        await invokeVerifySignaturesAndPostVaa(wormholeProgram, payer, signedVaa);
-
-        // Create instruction.
-        const ix = tokenBridge.legacyCompleteTransferNativeIx(
-          program,
-          {
-            payer: payer.publicKey,
-            recipientToken: trollToken, // Pass an invalid recipient ATA.
-            mint,
-            payerToken,
-            recipient: recipientToken.address,
-          },
-          parseVaa(signedVaa)
-        );
-
-        // Complete the transfer.
-        await expectIxErr(connection, [ix], [payer], "NestedTokenAccount");
       });
 
       it(`Cannot Invoke \`complete_transfer_native\` (${decimals} Decimals, Invalid Mint)`, async () => {

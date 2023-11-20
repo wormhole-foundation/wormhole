@@ -17,7 +17,6 @@ pub struct CompleteTransferNative {
     pub custody_token: Pubkey,
     pub mint: Pubkey,
     pub custody_authority: Pubkey,
-    pub recipient: Option<Pubkey>,
     pub system_program: Pubkey,
     pub token_program: Pubkey,
 }
@@ -35,7 +34,7 @@ impl ToAccountMetas for CompleteTransferNative {
             AccountMeta::new(self.custody_token, false),
             AccountMeta::new_readonly(self.mint, false),
             AccountMeta::new_readonly(self.custody_authority, false),
-            AccountMeta::new_readonly(self.recipient.unwrap_or(crate::ID), false),
+            AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]
@@ -52,7 +51,6 @@ pub struct CompleteTransferWrapped {
     pub wrapped_mint: Pubkey,
     pub wrapped_asset: Pubkey,
     pub mint_authority: Pubkey,
-    pub recipient: Option<Pubkey>,
     pub system_program: Pubkey,
     pub token_program: Pubkey,
 }
@@ -70,7 +68,7 @@ impl ToAccountMetas for CompleteTransferWrapped {
             AccountMeta::new(self.wrapped_mint, false),
             AccountMeta::new_readonly(self.wrapped_asset, false),
             AccountMeta::new_readonly(self.mint_authority, false),
-            AccountMeta::new_readonly(self.recipient.unwrap_or(crate::ID), false),
+            AccountMeta::new_readonly(crate::ID, false), // _rent
             AccountMeta::new_readonly(self.system_program, false),
             AccountMeta::new_readonly(self.token_program, false),
         ]

@@ -29,7 +29,7 @@ export type LegacyCompleteTransferWrappedContext = {
   wrappedMint?: PublicKey;
   wrappedAsset?: PublicKey;
   mintAuthority?: PublicKey;
-  recipient?: PublicKey | null;
+  rent?: PublicKey;
   coreBridgeProgram?: PublicKey;
 };
 
@@ -66,7 +66,7 @@ export function legacyCompleteTransferWrappedAccounts(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   } = accounts;
 
@@ -119,10 +119,8 @@ export function legacyCompleteTransferWrappedAccounts(
     mintAuthority = mintAuthorityPda(programId);
   }
 
-  if (recipient === undefined) {
-    recipient = SYSVAR_RENT_PUBKEY;
-  } else if (recipient === null) {
-    recipient = programId;
+  if (rent === undefined) {
+    rent = SYSVAR_RENT_PUBKEY;
   }
 
   return {
@@ -136,7 +134,7 @@ export function legacyCompleteTransferWrappedAccounts(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   };
 }
@@ -168,7 +166,7 @@ export function legacyCompleteTransferWrappedIx(
     wrappedMint,
     wrappedAsset,
     mintAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   } = legacyCompleteTransferWrappedAccounts(program, accounts, parsedVaa, {
     ...overrides,
@@ -227,7 +225,7 @@ export function legacyCompleteTransferWrappedIx(
       isSigner: false,
     },
     {
-      pubkey: recipient,
+      pubkey: rent,
       isWritable: false,
       isSigner: false,
     },

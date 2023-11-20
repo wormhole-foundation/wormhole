@@ -23,7 +23,7 @@ export type LegacyCompleteTransferNativeContext = {
   custodyToken?: PublicKey;
   mint: PublicKey;
   custodyAuthority?: PublicKey;
-  recipient?: PublicKey | null;
+  rent?: PublicKey;
   coreBridgeProgram?: PublicKey;
 };
 
@@ -51,7 +51,7 @@ export function legacyCompleteTransferNativeAccounts(
     custodyToken,
     mint,
     custodyAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   } = accounts;
 
@@ -96,10 +96,8 @@ export function legacyCompleteTransferNativeAccounts(
     custodyAuthority = custodyAuthorityPda(programId);
   }
 
-  if (recipient === undefined) {
-    recipient = SYSVAR_RENT_PUBKEY;
-  } else if (recipient === null) {
-    recipient = programId;
+  if (rent === undefined) {
+    rent = SYSVAR_RENT_PUBKEY;
   }
 
   return {
@@ -113,7 +111,7 @@ export function legacyCompleteTransferNativeAccounts(
     custodyToken,
     mint,
     custodyAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   };
 }
@@ -143,7 +141,7 @@ export function legacyCompleteTransferNativeIx(
     custodyToken,
     mint,
     custodyAuthority,
-    recipient,
+    rent,
     coreBridgeProgram,
   } = legacyCompleteTransferNativeAccounts(program, accounts, parsedVaa, {
     legacyRegisteredEmitterDerive,
@@ -201,7 +199,7 @@ export function legacyCompleteTransferNativeIx(
       isSigner: false,
     },
     {
-      pubkey: recipient!,
+      pubkey: rent!,
       isWritable: false,
       isSigner: false,
     },

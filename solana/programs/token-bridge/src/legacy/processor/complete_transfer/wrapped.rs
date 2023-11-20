@@ -75,16 +75,10 @@ pub struct CompleteTransferWrapped<'info> {
     )]
     mint_authority: AccountInfo<'info>,
 
-    /// CHECK: Expected recipient, which is the owner of the recipient token account. This account
-    /// does not need to be provided if the recipient encoded in the VAA is the token account
-    /// provided above.
+    /// Previously needed sysvar.
     ///
-    /// NOTE: In the old implementation, this account used to be the rent sysvar. Because this
-    /// sysvar is no longer needed for any instruction handler, we are repurposing this account. So
-    /// for integrators that have been passing the rent pubkey here, it is expected that the token
-    /// transfer VAA they redeem has the token account encoded in its VAA. Otherwise, they will
-    /// break.
-    recipient: Option<AccountInfo<'info>>,
+    /// CHECK: This account is unchecked.
+    _rent: UncheckedAccount<'info>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, token::Token>,
@@ -110,7 +104,6 @@ impl<'info> CompleteTransferWrapped<'info> {
             &ctx.accounts.vaa,
             &ctx.accounts.registered_emitter,
             &ctx.accounts.recipient_token,
-            &ctx.accounts.recipient,
         )?;
 
         // For wrapped transfers, this token must have originated from another network.
