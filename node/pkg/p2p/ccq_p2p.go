@@ -113,7 +113,7 @@ func (ccq *ccqP2p) run(
 					return true
 				}
 			}
-			ccq.logger.Info("Dropping subscribe attempt from unknown peer", zap.String("peerID", peerID.String()))
+			ccq.logger.Debug("Dropping subscribe attempt from unknown peer", zap.String("peerID", peerID.String()))
 			return false
 		}))
 	if err != nil {
@@ -140,7 +140,7 @@ func (ccq *ccqP2p) run(
 		if _, found := ccq.allowedPeers[msg.GetFrom().String()]; found {
 			return true
 		}
-		ccq.logger.Info("Dropping message from unknown peer", zap.String("fromPeerID", from.String()), zap.String("msgPeerID", msg.ReceivedFrom.String()), zap.String("msgFrom", msg.GetFrom().String()))
+		ccq.logger.Debug("Dropping message from unknown peer", zap.String("fromPeerID", from.String()), zap.String("msgPeerID", msg.ReceivedFrom.String()), zap.String("msgFrom", msg.GetFrom().String()))
 		return false
 	})
 	if err != nil {
