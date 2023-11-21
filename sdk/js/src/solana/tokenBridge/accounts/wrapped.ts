@@ -68,20 +68,34 @@ export class WrappedMeta {
   chain: number;
   tokenAddress: Buffer;
   originalDecimals: number;
+  lastUpdatedSequence?: bigint;
 
-  constructor(chain: number, tokenAddress: Buffer, originalDecimals: number) {
+  constructor(
+    chain: number,
+    tokenAddress: Buffer,
+    originalDecimals: number,
+    lastUpdatedSequence?: bigint
+  ) {
     this.chain = chain;
     this.tokenAddress = tokenAddress;
     this.originalDecimals = originalDecimals;
+    this.lastUpdatedSequence = lastUpdatedSequence;
   }
 
   static deserialize(data: Buffer): WrappedMeta {
-    if (data.length != 35) {
-      throw new Error("data.length != 35");
+    if (data.length !== 35 && data.length !== 43) {
+      throw new Error(`invalid wrapped meta length: ${data.length}`);
     }
     const chain = data.readUInt16LE(0);
     const tokenAddress = data.subarray(2, 34);
     const originalDecimals = data.readUInt8(34);
-    return new WrappedMeta(chain, tokenAddress, originalDecimals);
+    const lastUpdatedSequence =
+      data.length === 43 ? data.readBigUInt64LE(35) : undefined;
+    return new WrappedMeta(
+      chain,
+      tokenAddress,
+      originalDecimals,
+      lastUpdatedSequence
+    );
   }
 }
