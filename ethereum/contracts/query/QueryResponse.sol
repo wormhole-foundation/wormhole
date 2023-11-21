@@ -364,7 +364,7 @@ abstract contract QueryResponse {
     function validateBlockTime(uint64 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public pure {
         uint256 blockTimeInSeconds = _blockTime / 1_000_000; // Rounds down
         
-        if (blockTimeInSeconds < _minBlockTime || _blockTime > _maxBlockTime) {
+        if (blockTimeInSeconds < _minBlockTime || blockTimeInSeconds > _maxBlockTime) {
             revert InvalidBlockTime();
         }
     }
@@ -378,11 +378,16 @@ abstract contract QueryResponse {
 
     /// @dev validateChainId validates that the parsed chainId is one of an array of chainIds we expect
     function validateChainId(uint16 chainId, uint16[] memory _validChainIds) public pure {
+        bool validChainId = false;
+        
         for (uint256 i = 0; i < _validChainIds.length; ++i) {
             if (chainId == _validChainIds[i]) {
-                revert InvalidChainId();
+                validChainId = true;
+                break;
             }
         }
+
+        if (!validChainId) revert InvalidChainId();
     } 
 
     /// @dev validateMutlipleEthCallData validates that each EthCallData in an array comes from a function signature and contract address we expect
@@ -393,8 +398,8 @@ abstract contract QueryResponse {
     }
 
     /// @dev validateEthCallData validates that EthCallData comes from a function signature and contract address we expect
+    /// @dev An empty array means we accept all addresses/function signatures
     function validateEthCallData(EthCallData memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
-        // An empty array means we accept all addresses/function signatures
         bool validContractAddress = _expectedContractAddresses.length == 0 ? true : false;
         bool validFunctionSignature = _expectedFunctionSignatures.length == 0 ? true : false;
         

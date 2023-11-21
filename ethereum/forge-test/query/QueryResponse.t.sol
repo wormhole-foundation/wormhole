@@ -481,4 +481,142 @@ contract TestQueryResponse is Test {
         queryResponse.verifyQueryResponseSignatures(resp, signatures);
     }
 
+    function testFuzz_validateBlockTime_success(uint256 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public view {
+        _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
+        vm.assume(_blockTime >= _minBlockTime);
+        vm.assume(_blockTime <= _maxBlockTime);
+
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime, _maxBlockTime);
+    }
+
+    function testFuzz_validateBlockTime_fail(uint256 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public {
+        _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
+        vm.assume(_blockTime < _minBlockTime || _blockTime > _maxBlockTime);
+
+        vm.expectRevert(InvalidBlockTime.selector);
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime, _maxBlockTime);
+    }
+
+    function testFuzz_validateBlockNum_success(uint64 _blockNum, uint256 _minBlockNum, uint256 _maxBlockNum) public view {
+        vm.assume(_blockNum >= _minBlockNum);
+        vm.assume(_blockNum <= _maxBlockNum);
+
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum, _maxBlockNum);
+    }
+
+    function testFuzz_validateBlockNum_fail(uint64 _blockNum, uint256 _minBlockNum, uint256 _maxBlockNum) public {
+        vm.assume(_blockNum < _minBlockNum || _blockNum > _maxBlockNum);
+
+        vm.expectRevert(InvalidBlockNum.selector);
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum, _maxBlockNum);
+    }
+
+    function testFuzz_validateChainId_success(uint16 _validChainIndex, uint16[] memory _validChainIds) public view {
+        vm.assume(_validChainIndex < _validChainIds.length);
+
+        queryResponse.validateChainId(_validChainIds[_validChainIndex], _validChainIds);
+    }
+
+    function testFuzz_validateChainId_fail(uint16 _chainId, uint16[] memory _validChainIds) public {
+        for (uint16 i = 0; i < _validChainIds.length; ++i) {
+            vm.assume(_chainId != _validChainIds[i]);
+        }
+
+        vm.expectRevert(InvalidChainId.selector);
+        queryResponse.validateChainId(_chainId, _validChainIds);
+    }
+
+    function testFuzz_validateEthCallData_success(bytes memory randomBytes, uint256 _contractAddressIndex, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_successZeroSignatures(bytes4 randomSignature, bytes memory randomBytes, uint256 _contractAddressIndex, address[] memory _expectedContractAddresses) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: bytes.concat(randomSignature, randomBytes),
+            result: randomBytes
+        });
+
+        bytes4[] memory validSignatures = new bytes4[](0);
+
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, validSignatures);
+    }
+
+    function testFuzz_validateEthCallData_successZeroAddresses(address randomAddress, bytes memory randomBytes, uint256 _functionSignatureIndex, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: randomAddress,
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        address[] memory validAddresses = new address[](0);
+
+        queryResponse.validateEthCallData(callData, validAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_failSignature(bytes memory randomBytes, uint256 _contractAddressIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_expectedFunctionSignatures.length > 0);
+
+        for (uint256 i = 0; i < _expectedFunctionSignatures.length; ++i) {
+            vm.assume(bytes4(randomBytes) != _expectedFunctionSignatures[i]);
+        }
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: randomBytes,
+            result: randomBytes
+        });
+
+        vm.expectRevert(InvalidFunctionSignature.selector);
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_failAddress(bytes memory randomBytes, address randomAddress, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public {
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+        vm.assume(_expectedContractAddresses.length > 0);
+
+        for (uint256 i = 0; i < _expectedContractAddresses.length; ++i) {
+            vm.assume(randomAddress != _expectedContractAddresses[i]);
+        }
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: randomAddress,
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        vm.expectRevert(InvalidContractAddress.selector);
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateMultipleEthCallData_success(uint8 numInputs, bytes memory randomBytes, uint256 _contractAddressIndex, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData[] memory callDatas = new EthCallData[](numInputs);
+
+        for (uint256 i = 0; i < numInputs; ++i) {
+            callDatas[i] = EthCallData({
+                contractAddress: _expectedContractAddresses[_contractAddressIndex],
+                callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+                result: randomBytes
+            });
+        }
+
+        queryResponse.validateMultipleEthCallData(callDatas, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
 }
