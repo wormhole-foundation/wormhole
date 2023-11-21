@@ -130,12 +130,12 @@ func (c *CeloConnector) TransactionReceipt(ctx context.Context, txHash ethCommon
 }
 
 func (c *CeloConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	block, err := c.client.BlockByHash(ctx, celoCommon.BytesToHash(hash.Bytes()))
+	block, err := c.client.HeaderByHash(ctx, celoCommon.BytesToHash(hash.Bytes()))
 	if err != nil {
 		return 0, err
 	}
 
-	return block.Time(), err
+	return block.Time, err
 }
 
 func (c *CeloConnector) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
