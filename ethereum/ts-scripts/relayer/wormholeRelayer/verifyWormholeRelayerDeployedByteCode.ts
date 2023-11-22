@@ -33,7 +33,7 @@ async function run() {
       continue;
     }
     
-    console.log(`Verifying bytecode deployed at ${deployedImplementationAddress} on chain ${chain.chainId}...`);
+    console.log(`Verifying bytecode deployed at ${deployedImplementationAddress.address} on chain ${chain.chainId}...`);
 
     const provider = getProvider(chain);
 
