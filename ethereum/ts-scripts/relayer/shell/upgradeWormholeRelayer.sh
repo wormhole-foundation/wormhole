@@ -1,1 +1,1 @@
-npx tsx ./ts-scripts/relayer/wormholeRelayer/submitWormholeRelayerImplementation.ts
+npx tsx ./ts-scripts/relayer/wormholeRelayer/submitWormholeRelayerImplementationUpgrade.ts
