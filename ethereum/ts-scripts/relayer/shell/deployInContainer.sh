@@ -4,4 +4,4 @@
   && npx tsx ./ts-scripts/relayer/wormholeRelayer/deployWormholeRelayer.ts \
   && npx tsx ./ts-scripts/relayer/mockIntegration/deployMockIntegration.ts \
   && npx tsx ./ts-scripts/relayer/wormholeRelayer/registerChainsWormholeRelayerSelfSign.ts \
-  && npx tsx ./ts-scripts/relayer/deliveryProvider/configureDeliveryProvider.ts \
+  && npx tsx ./ts-scripts/relayer/deliveryProvider/initializeDeliveryProvider.ts \
