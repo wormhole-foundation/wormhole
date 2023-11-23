@@ -581,31 +581,31 @@ if ci_tests:
         "sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # testing/sdk.sh handles waiting for spy, not having deps gets the build earlier
+        resource_deps = ["spy"],
     )
     k8s_resource(
         "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
+        resource_deps = ["spy"],
     )
     k8s_resource(
         "accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = ["guardian"],
     )
     k8s_resource(
         "query-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # node/hack/query/test/test_query.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = ["guardian"],
     )
     k8s_resource(
         "query-sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
+        resource_deps = ["query-server"],
     )
 
 if terra_classic:
