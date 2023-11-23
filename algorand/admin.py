@@ -2,7 +2,7 @@
 
 import os
 from os.path import exists
-from eth_abi import encode_single, encode_abi
+from eth_abi import encode_single
 from typing import List, Tuple, Dict, Any, Optional, Union
 from base64 import b64decode, b64encode
 import random
@@ -16,24 +16,19 @@ from TmplSig import TmplSig
 import argparse
 from gentest import GenTest
 
-from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic, abi
+from algosdk import account, mnemonic, abi, transaction
 from algosdk.encoding import decode_address, encode_address
-from algosdk.future import transaction
-from pyteal import *
+from algosdk.kmd import KMDClient
+from algosdk.transaction import LogicSig
+from algosdk.v2client.algod import AlgodClient
 from algosdk.logic import get_application_address
 from vaa_verify import get_vaa_verify
 
 from Cryptodome.Hash import keccak
 
-from algosdk.future.transaction import LogicSig
-
 from token_bridge import get_token_bridge
 
 from test_contract import get_test_app
-
-from algosdk.v2client import indexer
 
 import pprint
 

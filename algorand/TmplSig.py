@@ -1,27 +1,13 @@
-from time import time, sleep
 from typing import List, Tuple, Dict, Any, Optional, Union
 from base64 import b64decode
-import base64
-import random
-import hashlib
-import uuid
 import sys
-import json
+# import json
 import uvarint
-import pprint
+# import pprint
 
-from local_blob import LocalBlob
+from algosdk.transaction import LogicSigAccount
+from pyteal import compileTeal, Mode, Bytes
 
-from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
-from algosdk.encoding import decode_address
-from algosdk.future import transaction
-from pyteal import compileTeal, Mode, Expr
-from pyteal import *
-from algosdk.logic import get_application_address
-
-from algosdk.future.transaction import LogicSigAccount
 
 class TmplSig:
     """KeySig class reads in a json map containing assembly details of a template smart signature and allows you to populate it with the variables
@@ -47,7 +33,7 @@ class TmplSig:
         }
 
 
-        self.src = base64.b64decode(self.map["bytecode"])
+        self.src = b64decode(self.map["bytecode"])
         self.sorted = dict(
             sorted(
                 self.map["template_labels"].items(),
@@ -58,7 +44,7 @@ class TmplSig:
     def populate(self, values: Dict[str, Union[str, int]]) -> LogicSigAccount:
         """populate uses the map to fill in the variable of the bytecode and returns a logic sig with the populated bytecode"""
         # Get the template source
-        contract = list(base64.b64decode(self.map["bytecode"]))
+        contract = list(b64decode(self.map["bytecode"]))
 
         shift = 0
         for k, v in self.sorted.items():

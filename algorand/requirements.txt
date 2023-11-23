@@ -15,7 +15,7 @@ PyNaCl==1.5.0
 pyparsing==3.0.6
 pyteal==v0.11.1
 #pyteal==v0.10.0
-py-algorand-sdk==1.10.0b1
+py-algorand-sdk==2.5.0
 pytest==6.2.5
 pytest-depends==1.0.1
 pytest-forked==1.4.0

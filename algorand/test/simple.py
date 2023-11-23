@@ -7,29 +7,15 @@ from admin import PortalCore, Account
 from gentest import GenTest
 from base64 import b64decode
 
-from typing import List, Tuple, Dict, Any, Optional, Union
-import base64
-import random
+from typing import List, Dict, Any
 import time
-import hashlib
-import uuid
-import json
 
+from algosdk import account, transaction
 from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
 from algosdk.encoding import decode_address, encode_address
-from algosdk.future import transaction
-from pyteal import compileTeal, Mode, Expr
-from pyteal import *
 from algosdk.logic import get_application_address
-from vaa_verify import get_vaa_verify
-
-from algosdk.future.transaction import LogicSig
 
 from test_contract import get_test_app
-
-from algosdk.v2client import indexer
 
 import pprint
 
@@ -127,9 +113,7 @@ class AlgoTest(PortalCore):
             nexttoken = ""
             while True:
                 response = self.myindexer.search_transactions( min_round=self.INDEXER_ROUND, note_prefix=self.NOTE_PREFIX, next_page=nexttoken)
-#                pprint.pprint(response)
                 for x in response["transactions"]:
-#                    pprint.pprint(x)
                     for y in x["inner-txns"]:
                         if y["application-transaction"]["application-id"] != self.coreid:
                             continue
@@ -138,18 +122,15 @@ class AlgoTest(PortalCore):
                         args = y["application-transaction"]["application-args"]
                         if len(args) < 2:
                             continue
-                        if base64.b64decode(args[0]) != b'publishMessage':
+                        if b64decode(args[0]) != b'publishMessage':
                             continue
-                        seq = int.from_bytes(base64.b64decode(y["logs"][0]), "big")
+                        seq = int.from_bytes(b64decode(y["logs"][0]), "big")
                         if seq != sid:
-#                            print(str(seq) + " != " + str(sid))
                             continue
                         if y["sender"] != saddr:
                             continue;
                         emitter = decode_address(y["sender"])
-                        payload = base64.b64decode(args[1])
-#                        pprint.pprint([seq, y["sender"], payload.hex()])
-#                        sys.exit(0)
+                        payload = b64decode(args[1])
                         return self.gt.genVaa(emitter, seq, payload)
 
                 if 'next-token' in response:
@@ -362,8 +343,6 @@ class AlgoTest(PortalCore):
         if None != payload:
             args.append(payload)
 
-#        pprint.pprint(args)
-
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
@@ -383,9 +362,6 @@ class AlgoTest(PortalCore):
 
         self.INDEXER_ROUND = resp.confirmedRound
 
-#        pprint.pprint(resp.__dict__)
-#        print(encode_address(resp.__dict__["logs"][0]))
-#        print(encode_address(resp.__dict__["logs"][1]))
         return self.parseSeqFromLog(resp)
 
     def asset_optin_check(self, client, sender, asset, receiver):

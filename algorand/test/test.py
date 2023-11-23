@@ -7,25 +7,20 @@ from admin import PortalCore, Account
 from gentest import GenTest
 from base64 import b64decode
 
-from typing import List, Tuple, Dict, Any, Optional, Union
+from typing import List, Dict, Any
 import random
 import time
 
-from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
+from algosdk import account, transaction
 from algosdk.encoding import decode_address, encode_address
-from algosdk.future import transaction
-import algosdk
-from pyteal import *
 from algosdk.logic import get_application_address
+from algosdk.transaction import LogicSig
+from algosdk.v2client import indexer
+from algosdk.v2client.algod import AlgodClient
+import algosdk
 from vaa_verify import get_vaa_verify
 
-from algosdk.future.transaction import LogicSig
-
 from test_contract import get_test_app
-
-from algosdk.v2client import indexer
 
 import pprint
 
