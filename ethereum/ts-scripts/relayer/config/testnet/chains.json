@@ -69,14 +69,14 @@
       "description": "Fantom",
       "evmNetworkId": 4002,
       "chainId": 10,
-      "rpc": "https://fantom.api.onfinality.io/public",
+      "rpc": "https://fantom-testnet.publicnode.com",
       "wormholeAddress": "0x1BB3B4119b7BA9dfad76B0545fb3F531383c3bB7"
     },
     {
       "description": "Ethereum Sepolia",
       "evmNetworkId": 11155111,
       "chainId": 10002,
-      "rpc": "https://ethereum-goerli.publicnode.com",
+      "rpc": "https://ethereum-sepolia.publicnode.com",
       "wormholeAddress": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"
     }
   ]
