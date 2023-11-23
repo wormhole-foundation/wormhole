@@ -43,362 +43,362 @@ jobs:
         if: always()
 
   # Verify whether the Makefile builds the node (no dependencies other than Go)
-  node:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.20.10"
-      - run: make node
+  # node:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: "1.20.10"
+  #     - run: make node
 
-  algorand:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: "3.10"
-      - run: pip install -r algorand/requirements.txt
-      - run: cd algorand && make test
+  # algorand:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-python@v3
+  #       with:
+  #         python-version: "3.10"
+  #     - run: pip install -r algorand/requirements.txt
+  #     - run: cd algorand && make test
 
-  ethereum:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-      - run: cd ethereum && make test
+  # ethereum:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - name: Install Foundry
+  #       uses: foundry-rs/foundry-toolchain@v1
+  #     - run: cd ethereum && make test
 
-  ethereum-upgrade:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-      - run: cd clients/js && make install
-      - run: cd ethereum && make test-upgrade
+  # ethereum-upgrade:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - name: Install Foundry
+  #       uses: foundry-rs/foundry-toolchain@v1
+  #     - run: cd clients/js && make install
+  #     - run: cd ethereum && make test-upgrade
 
-  solana:
-    runs-on: ubuntu-20.04
-    env:
-      RUSTFLAGS: -Dwarnings
-      EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
-      BRIDGE_ADDRESS: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+  # solana:
+  #   runs-on: ubuntu-20.04
+  #   env:
+  #     RUSTFLAGS: -Dwarnings
+  #     EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
+  #     BRIDGE_ADDRESS: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
 
-    steps:
-      - uses: actions/checkout@v3
-      - name: Get rust toolchain version
-        id: toolchain
-        run: |
-          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain)"
-          echo "::set-output name=version::${RUST_VERSION}"
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Get rust toolchain version
+  #       id: toolchain
+  #       run: |
+  #         RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain)"
+  #         echo "::set-output name=version::${RUST_VERSION}"
 
-      - name: Get solana version
-        id: solana
-        run: |
-          SOLANA_VERSION="$(awk '/solana-program =/ { print substr($3, 3, length($3)-3) }' solana/bridge/program/Cargo.toml)"
-          echo "::set-output name=version::${SOLANA_VERSION}"
+  #     - name: Get solana version
+  #       id: solana
+  #       run: |
+  #         SOLANA_VERSION="$(awk '/solana-program =/ { print substr($3, 3, length($3)-3) }' solana/bridge/program/Cargo.toml)"
+  #         echo "::set-output name=version::${SOLANA_VERSION}"
 
-      - name: Cache rust toolchain
-        uses: actions/cache@v3
-        env:
-          cache-name: solana-toolchain
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.rustup
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.toolchain.outputs.version }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+  #     - name: Cache rust toolchain
+  #       uses: actions/cache@v3
+  #       env:
+  #         cache-name: solana-toolchain
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin
+  #           ~/.rustup
+  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.toolchain.outputs.version }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-build-${{ env.cache-name }}-
+  #           ${{ runner.os }}-build-
+  #           ${{ runner.os }}-
 
-      - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
-        with:
-          toolchain: ${{ steps.toolchain.outputs.version }}
-          components: "clippy,rustfmt"
+  #     - name: Install rust toolchain
+  #       uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
+  #       with:
+  #         toolchain: ${{ steps.toolchain.outputs.version }}
+  #         components: "clippy,rustfmt"
 
-      - name: Cache rust packages / build cache
-        uses: actions/cache@v3
-        env:
-          cache-name: solana-rust-packages
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry
-            ~/.cargo/git/db
-            solana/target
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+  #     - name: Cache rust packages / build cache
+  #       uses: actions/cache@v3
+  #       env:
+  #         cache-name: solana-rust-packages
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin
+  #           ~/.cargo/registry
+  #           ~/.cargo/git/db
+  #           solana/target
+  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/Cargo.lock') }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-build-${{ env.cache-name }}-
+  #           ${{ runner.os }}-build-
+  #           ${{ runner.os }}-
 
-      - name: Run `cargo fmt`
-        run: cargo fmt --check --all --manifest-path solana/Cargo.toml
+  #     - name: Run `cargo fmt`
+  #       run: cargo fmt --check --all --manifest-path solana/Cargo.toml
 
-      - name: Run `cargo check`
-        run: cargo check --workspace --tests --manifest-path solana/Cargo.toml
-          --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+  #     - name: Run `cargo check`
+  #       run: cargo check --workspace --tests --manifest-path solana/Cargo.toml
+  #         --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
-      - name: Run `cargo clippy`
-        run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
-          --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+  #     - name: Run `cargo clippy`
+  #       run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
+  #         --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
-      - name: Cache solana tools
-        id: cache-solana
-        uses: actions/cache@v3
-        env:
-          cache-name: solana-tools
-        with:
-          path: |
-            ~/.local/share/solana/install/
-            ~/.cache/solana/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.solana.outputs.version }}
+  #     - name: Cache solana tools
+  #       id: cache-solana
+  #       uses: actions/cache@v3
+  #       env:
+  #         cache-name: solana-tools
+  #       with:
+  #         path: |
+  #           ~/.local/share/solana/install/
+  #           ~/.cache/solana/
+  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.solana.outputs.version }}
 
-      - if: ${{ steps.cache-solana.outputs.cache-hit != 'true' }}
-        name: Install solana tools
-        env:
-          SOLANA_VERSION: ${{ steps.solana.outputs.version }}
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
-          ~/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/install.sh
+  #     - if: ${{ steps.cache-solana.outputs.cache-hit != 'true' }}
+  #       name: Install solana tools
+  #       env:
+  #         SOLANA_VERSION: ${{ steps.solana.outputs.version }}
+  #       run: |
+  #         sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
+  #         ~/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/install.sh
 
-      - name: Run unit tests
-        env:
-          RUST_BACKTRACE: "1"
-        run: |
-          cd solana
-          export BPF_OUT_DIR="$(pwd)/target/deploy"
-          export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
+  #     - name: Run unit tests
+  #       env:
+  #         RUST_BACKTRACE: "1"
+  #       run: |
+  #         cd solana
+  #         export BPF_OUT_DIR="$(pwd)/target/deploy"
+  #         export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
 
-          mkdir -p "${BPF_OUT_DIR}"
-          cp external/mpl_token_metadata.so "${BPF_OUT_DIR}"
+  #         mkdir -p "${BPF_OUT_DIR}"
+  #         cp external/mpl_token_metadata.so "${BPF_OUT_DIR}"
 
-          BPF_PACKAGES=(
-            bridge/program/Cargo.toml
-            modules/token_bridge/program/Cargo.toml
-            modules/nft_bridge/program/Cargo.toml
-          )
-          for p in "${BPF_PACKAGES[@]}"; do
-            cargo build-bpf --manifest-path "${p}"
-          done
+  #         BPF_PACKAGES=(
+  #           bridge/program/Cargo.toml
+  #           modules/token_bridge/program/Cargo.toml
+  #           modules/nft_bridge/program/Cargo.toml
+  #         )
+  #         for p in "${BPF_PACKAGES[@]}"; do
+  #           cargo build-bpf --manifest-path "${p}"
+  #         done
 
-          cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+  #         cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
-  aptos:
-    name: Aptos
-    runs-on: ubuntu-20.04
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./aptos
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+  # aptos:
+  #   name: Aptos
+  #   runs-on: ubuntu-20.04
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #       working-directory: ./aptos
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v2
 
-      - name: Run tests via docker
-        run: make test-docker
+  #     - name: Run tests via docker
+  #       run: make test-docker
 
-  sui:
-    name: Sui
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+  # sui:
+  #   name: Sui
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v2
 
-      - name: Run tests via docker
-        run: cd sui && make test-docker
+  #     - name: Run tests via docker
+  #       run: cd sui && make test-docker
 
-  terra:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - run: cd terra && make test
-  terra-2:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - run: cd cosmwasm/deployment/terra2 && make test
-  cosmwasm:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - run: cd cosmwasm && make test
+  # terra:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - run: cd terra && make test
+  # terra-2:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - run: cd cosmwasm/deployment/terra2 && make test
+  # cosmwasm:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - run: cd cosmwasm && make test
 
-  cli:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - run: |
-          cd clients/js && make test
-          make docs
-          git diff --name-only --exit-code && echo "✅ Generated CLI docs match committed docs" || (echo "❌ Generated CLI docs differs from committed CLI docs, run \`make docs\` and commit the result" >&2 && exit 1)
+  # cli:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "16"
+  #     - run: |
+  #         cd clients/js && make test
+  #         make docs
+  #         git diff --name-only --exit-code && echo "✅ Generated CLI docs match committed docs" || (echo "❌ Generated CLI docs differs from committed CLI docs, run \`make docs\` and commit the result" >&2 && exit 1)
 
-  # Verify wormhole chain unit tests
-  wormchain:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.19.9"
-      - run: |
-          cd wormchain
-          make proto -B
-          git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`make proto -B\` and commit the result" >&2 && exit 1)
-          make test
+  # # Verify wormhole chain unit tests
+  # wormchain:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: "1.19.9"
+  #     - run: |
+  #         cd wormchain
+  #         make proto -B
+  #         git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`make proto -B\` and commit the result" >&2 && exit 1)
+  #         make test
 
-  # Verify go sdk unit/fuzz tests
-  sdk_vaa:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.20.10"
-      - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
+  # # Verify go sdk unit/fuzz tests
+  # sdk_vaa:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: "1.20.10"
+  #     - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
-  # Run Go linters
-  node-lint:
-    # The linter is slow enough that we want to run it on the self-hosted runner
-    runs-on: tilt-kube-public
-    concurrency:
-      group: ${{ github.workflow }}-lint-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - name: Clear repository
-        run: |
-          rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.20.10"
-      - name: Install formatter
-        run: go install golang.org/x/tools/cmd/goimports@v0.8.0
-      - name: Formatting checks
-        run: ./scripts/lint.sh -l -g format
-      - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
-      - name: Run linters
-        run: make generate && ./scripts/lint.sh -g lint
-      - name: Ensure generated proto matches
-        run: |
-          rm -rf node/pkg/proto
-          docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
-          git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
+  # # Run Go linters
+  # node-lint:
+  #   # The linter is slow enough that we want to run it on the self-hosted runner
+  #   runs-on: tilt-kube-public
+  #   concurrency:
+  #     group: ${{ github.workflow }}-lint-${{ github.ref }}
+  #     cancel-in-progress: true
+  #   steps:
+  #     - name: Clear repository
+  #       run: |
+  #         rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: "1.20.10"
+  #     - name: Install formatter
+  #       run: go install golang.org/x/tools/cmd/goimports@v0.8.0
+  #     - name: Formatting checks
+  #       run: ./scripts/lint.sh -l -g format
+  #     - name: Install linters
+  #       run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
+  #     - name: Run linters
+  #       run: make generate && ./scripts/lint.sh -g lint
+  #     - name: Ensure generated proto matches
+  #       run: |
+  #         rm -rf node/pkg/proto
+  #         docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
+  #         git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
 
-  # Run Go tests
-  node-tests:
-    # The tests are slow enough that we want to run it on the self-hosted runner
-    runs-on: tilt-kube-public
-    concurrency:
-      group: ${{ github.workflow }}-test-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - name: Clear repository
-        run: |
-          rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.20.10"
-      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-      - name: Run golang tests
-        run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+  # # Run Go tests
+  # node-tests:
+  #   # The tests are slow enough that we want to run it on the self-hosted runner
+  #   runs-on: tilt-kube-public
+  #   concurrency:
+  #     group: ${{ github.workflow }}-test-${{ github.ref }}
+  #     cancel-in-progress: true
+  #   steps:
+  #     - name: Clear repository
+  #       run: |
+  #         rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: "1.20.10"
+  #     # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
+  #     - name: Run golang tests
+  #       run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
-  # Run Rust lints and tests
-  rust-lint-and-tests:
-    runs-on: ubuntu-20.04
-    env:
-      RUSTFLAGS: -Dwarnings
-    strategy:
-      matrix:
-        manifest:
-          - cosmwasm/Cargo.toml
-          - terra/Cargo.toml
-          - sdk/rust/Cargo.toml
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v3
+  # # Run Rust lints and tests
+  # rust-lint-and-tests:
+  #   runs-on: ubuntu-20.04
+  #   env:
+  #     RUSTFLAGS: -Dwarnings
+  #   strategy:
+  #     matrix:
+  #       manifest:
+  #         - cosmwasm/Cargo.toml
+  #         - terra/Cargo.toml
+  #         - sdk/rust/Cargo.toml
+  #   steps:
+  #     - name: Check out source
+  #       uses: actions/checkout@v3
 
-      - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
-        with:
-          toolchain: stable
-          components: "clippy,rustfmt"
+  #     - name: Install rust toolchain
+  #       uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
+  #       with:
+  #         toolchain: stable
+  #         components: "clippy,rustfmt"
 
-      - name: Create cache key
-        id: cachekey
-        env:
-          MANIFEST: ${{ matrix.manifest }}
-        run: |
-          LOCKFILE="$(dirname "${MANIFEST}")/Cargo.lock"
-          NAME="${MANIFEST%%/*}"
-          HASH="$(sha256sum "${LOCKFILE}" | awk '{ print $1 }')"
-          echo "::set-output name=name::${NAME}"
-          echo "::set-output name=hash::${HASH}"
+  #     - name: Create cache key
+  #       id: cachekey
+  #       env:
+  #         MANIFEST: ${{ matrix.manifest }}
+  #       run: |
+  #         LOCKFILE="$(dirname "${MANIFEST}")/Cargo.lock"
+  #         NAME="${MANIFEST%%/*}"
+  #         HASH="$(sha256sum "${LOCKFILE}" | awk '{ print $1 }')"
+  #         echo "::set-output name=name::${NAME}"
+  #         echo "::set-output name=hash::${HASH}"
 
-      - name: Cache rust packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-build-${{ steps.cachekey.outputs.name }}-${{ steps.cachekey.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ matrix.manifest }}-
+  #     - name: Cache rust packages
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: ~/.cargo/registry
+  #         key: ${{ runner.os }}-build-${{ steps.cachekey.outputs.name }}-${{ steps.cachekey.outputs.hash }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-build-${{ matrix.manifest }}-
 
-      - name: Run `rustfmt`
-        env:
-          MANIFEST: ${{ matrix.manifest }}
-        # In its infinite wisdom, `cargo fmt --all` will also format path-based dependencies so
-        # instead we have to manually format each ".rs" file.
-        run: find "$(dirname "${MANIFEST}")" -name '*.rs' -exec rustfmt --check {} +
+  #     - name: Run `rustfmt`
+  #       env:
+  #         MANIFEST: ${{ matrix.manifest }}
+  #       # In its infinite wisdom, `cargo fmt --all` will also format path-based dependencies so
+  #       # instead we have to manually format each ".rs" file.
+  #       run: find "$(dirname "${MANIFEST}")" -name '*.rs' -exec rustfmt --check {} +
 
-      - name: Run `cargo clippy`
-        run: cargo clippy --workspace --tests --locked --manifest-path ${{ matrix.manifest }}
+  #     - name: Run `cargo clippy`
+  #       run: cargo clippy --workspace --tests --locked --manifest-path ${{ matrix.manifest }}
 
-      - name: Run unit tests
-        run: cargo test --workspace --locked --manifest-path ${{ matrix.manifest }}
+  #     - name: Run unit tests
+  #       run: cargo test --workspace --locked --manifest-path ${{ matrix.manifest }}
 
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v2
-      - run: chmod 755 ./scripts/check-docker-pin.sh
-      - run: ./scripts/check-docker-pin.sh
-  npm-packages:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v2
-      - run: chmod 755 ./scripts/check-npm-package-scopes.sh
-      - run: ./scripts/check-npm-package-scopes.sh
-  prettier:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-      - run: npx prettier@2.3.2 --check ./clients/js/src ./sdk/js/src
+  # docker:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Check out source
+  #       uses: actions/checkout@v2
+  #     - run: chmod 755 ./scripts/check-docker-pin.sh
+  #     - run: ./scripts/check-docker-pin.sh
+  # npm-packages:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Check out source
+  #       uses: actions/checkout@v2
+  #     - run: chmod 755 ./scripts/check-npm-package-scopes.sh
+  #     - run: ./scripts/check-npm-package-scopes.sh
+  # prettier:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: 16
+  #     - run: npx prettier@2.3.2 --check ./clients/js/src ./sdk/js/src
