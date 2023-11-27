@@ -24,9 +24,9 @@ func (w *Watcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status 
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, response)
 	select {
 	case w.queryResponseC <- queryResponse:
-		w.ccqLogger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+		w.ccqLogger.Debug("published query response error to handler")
 	default:
-		w.ccqLogger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+		w.ccqLogger.Error("failed to published query response error to handler")
 	}
 }
 
@@ -58,22 +58,18 @@ func (w *Watcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerCha
 	query.TotalWatcherTime.WithLabelValues(w.chainID.String()).Observe(float64(time.Since(start).Milliseconds()))
 }
 
-// EvmCallDataEntry contains the details of a single call in the batch.
-type (
-	EvmCallDataEntry struct {
-		To         eth_common.Address
-		Data       string
-		CallResult *eth_hexutil.Bytes
+// EvmCallData contains the details of a single call in the batch.
+type EvmCallData struct {
+	To         eth_common.Address
+	Data       string
+	CallResult *eth_hexutil.Bytes
 
-		// These are lowercase so they don't get marshaled for logging purposes. JSON doesn't print anything meaningful for them anyway.
-		callErr            error
-		callTransactionArg map[string]interface{}
-	}
+	// These are lowercase so they don't get marshaled for logging purposes. JSON doesn't print anything meaningful for them anyway.
+	callErr            error
+	callTransactionArg map[string]interface{}
+}
 
-	EvmCallData []EvmCallDataEntry
-)
-
-func (ecd EvmCallDataEntry) String() string {
+func (ecd EvmCallData) String() string {
 	bytes, err := json.Marshal(ecd)
 	if err != nil {
 		bytes = []byte("invalid json")
@@ -194,9 +190,9 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 		zap.Int("numRequests", len(req.CallData)),
 	)
 
-	// Verify that the two block hints are consistent, either both set, or neither set.
+	// Verify that the two block hints are consistent, either both set, or both unset.
 	if (block == "") != (nextBlock == "") {
-		w.ccqLogger.Error("invalid block id hints in eth_call_by_timestamp query request, if one is unset they both must be unset",
+		w.ccqLogger.Error("invalid block id hints in eth_call_by_timestamp query request, both should be either set or unset",
 			zap.String("requestId", requestId),
 			zap.Uint64("timestamp", req.TargetTimestamp),
 			zap.String("block", block),
@@ -214,7 +210,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 			return
 		}
 
-		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses milliseconds, so we have to convert.
+		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses microseconds, so we have to convert.
 		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(req.TargetTimestamp / 1000000)
 		if !found {
 			w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp not in cache, will retry",
@@ -619,15 +615,15 @@ type EthCallDataIntf interface {
 
 // ccqBuildBatchFromCallData builds two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block.
 // The second is the data associated with each request (but not the block request). The index into both is the index into the request call data.
-func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([]rpc.BatchElem, EvmCallData) {
+func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([]rpc.BatchElem, []EvmCallData) {
 	batch := []rpc.BatchElem{}
-	evmCallData := EvmCallData{}
+	evmCallData := []EvmCallData{}
 	// Add each requested query to the batch.
 	for _, callData := range req.CallDataList() {
 		// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 		to := eth_common.BytesToAddress(callData.To)
 		data := eth_hexutil.Encode(callData.Data)
-		ecd := EvmCallDataEntry{
+		ecd := EvmCallData{
 			To:   to,
 			Data: data,
 			callTransactionArg: map[string]interface{}{
@@ -670,26 +666,17 @@ func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.
 }
 
 // ccqVerifyAndExtractQueryResults verifies the array of call results and returns a vector of those results to be published.
-func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, evmCallData EvmCallData) ([][]byte, error) {
+func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, evmCallData []EvmCallData) ([][]byte, error) {
 	var err error
 	results := [][]byte{}
 	for idx, evmCD := range evmCallData {
 		if evmCD.callErr != nil {
-			w.ccqLogger.Error("call failed", zap.String("requestId", requestId), zap.Int("idx", idx), zap.Error(evmCD.callErr))
-			if err != nil {
-				err = fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
-			}
-			continue
+			return nil, fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
 		}
 
-		// Nil or Empty results are not valid
-		// eth_call will return empty when the state doesn't exist for a block
+		// Nil or Empty results are not valid eth_call will return empty when the state doesn't exist for a block
 		if len(*evmCD.CallResult) == 0 {
-			w.ccqLogger.Error("call result is nil", zap.String("requestId", requestId), zap.Int("idx", idx))
-			if err != nil {
-				err = fmt.Errorf("call %d failed: result is empty", idx)
-			}
-			continue
+			return nil, fmt.Errorf("call %d failed: result is empty", idx)
 		}
 
 		w.ccqLogger.Info("query call data result",
