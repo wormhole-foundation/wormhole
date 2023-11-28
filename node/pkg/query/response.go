@@ -266,7 +266,7 @@ func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) boo
 	return true
 }
 
-func (resp *QueryResponsePublication) RequestID() string {
+func (resp *QueryResponsePublication) Signature() string {
 	if resp == nil || resp.Request == nil {
 		return "nil"
 	}

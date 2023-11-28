@@ -251,14 +251,14 @@ func (ccq *ccqP2p) publisher(ctx context.Context, gk *ecdsa.PrivateKey, queryRes
 			ccqP2pMessagesSent.Inc()
 			if err != nil {
 				ccq.logger.Error("failed to publish query response",
-					zap.String("requestID", msg.RequestID()),
+					zap.String("requestSignature", msg.Signature()),
 					zap.Any("query_response", msg),
 					zap.Any("signature", sig),
 					zap.Error(err),
 				)
 			} else {
 				ccq.logger.Info("published signed query response", //TODO: Change to Debug
-					zap.String("requestID", msg.RequestID()),
+					zap.String("requestSignature", msg.Signature()),
 					zap.Any("query_response", msg),
 					zap.Any("signature", sig),
 				)
