@@ -3,6 +3,7 @@ from base64 import b64decode
 from algosdk import transaction
 from algosdk.v2client.algod import AlgodClient
 from algosdk.v2client.models import SimulateRequest, SimulateRequestTransactionGroup, SimulateTraceConfig
+from time import sleep
 
 import pprint
 
@@ -53,6 +54,7 @@ def waitForTransaction(
         lastStatus = client.status_after_block(lastRound + 1)
 
         lastRound += 1
+        sleep(1)
 
     raise Exception(f"Transaction {txID} not confirmed after {timeout} rounds")
 
