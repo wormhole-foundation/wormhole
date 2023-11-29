@@ -871,7 +871,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
-	rpcMap["sei"] = "IBC"
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}
@@ -886,6 +885,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
+
+	for _, ibcChain := range ibc.Chains {
+		rpcMap[ibcChain.String()] = "IBC"
+	}
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())

@@ -58,6 +58,10 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "base", output: ChainIDBase},
 		{input: "sei", output: ChainIDSei},
 		{input: "wormchain", output: ChainIDWormchain},
+		{input: "cosmoshub", output: ChainIDCosmoshub},
+		{input: "evmos", output: ChainIDEvmos},
+		{input: "kujira", output: ChainIDKujira},
+		{input: "celestia", output: ChainIDCelestia},
 		{input: "sepolia", output: ChainIDSepolia},
 
 		{input: "Solana", output: ChainIDSolana},
@@ -89,6 +93,10 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Base", output: ChainIDBase},
 		{input: "Sei", output: ChainIDSei},
 		{input: "Wormchain", output: ChainIDWormchain},
+		{input: "Cosmoshub", output: ChainIDCosmoshub},
+		{input: "Evmos", output: ChainIDEvmos},
+		{input: "Kujira", output: ChainIDKujira},
+		{input: "Celestia", output: ChainIDCelestia},
 		{input: "Sepolia", output: ChainIDSepolia},
 	}
 
@@ -260,6 +268,10 @@ func TestChainId_String(t *testing.T) {
 		{input: 30, output: "base"},
 		{input: 32, output: "sei"},
 		{input: 3104, output: "wormchain"},
+		{input: 4000, output: "cosmoshub"},
+		{input: 4001, output: "evmos"},
+		{input: 4002, output: "kujira"},
+		{input: 4004, output: "celestia"},
 		{input: 10002, output: "sepolia"},
 		{input: 10000, output: "unknown chain ID: 10000"},
 	}

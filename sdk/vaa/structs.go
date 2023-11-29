@@ -214,6 +214,14 @@ func (c ChainID) String() string {
 		return "sei"
 	case ChainIDScroll:
 		return "scroll"
+	case ChainIDCosmoshub:
+		return "cosmoshub"
+	case ChainIDEvmos:
+		return "evmos"
+	case ChainIDKujira:
+		return "kujira"
+	case ChainIDCelestia:
+		return "celestia"
 	case ChainIDSepolia:
 		return "sepolia"
 	default:
@@ -285,6 +293,14 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSei, nil
 	case "scroll":
 		return ChainIDScroll, nil
+	case "cosmoshub":
+		return ChainIDCosmoshub, nil
+	case "evmos":
+		return ChainIDEvmos, nil
+	case "kujira":
+		return ChainIDKujira, nil
+	case "celestia":
+		return ChainIDCelestia, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
 	default:
@@ -324,6 +340,10 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDSei,
 		ChainIDScroll,
 		ChainIDWormchain,
+		ChainIDCosmoshub,
+		ChainIDEvmos,
+		ChainIDKujira,
+		ChainIDCelestia,
 		ChainIDSepolia,
 	}
 }
@@ -390,6 +410,14 @@ const (
 	ChainIDScroll ChainID = 34
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
+	// ChainIDCosmoshub is the ChainID of Cosmoshub
+	ChainIDCosmoshub ChainID = 4000
+	// ChainIDEvmos is the ChainID of Evmos
+	ChainIDEvmos ChainID = 4001
+	// ChainIDKujira is the ChainID of Kujira
+	ChainIDKujira ChainID = 4002
+	// ChainIDCelestia is the ChainID of Celestia
+	ChainIDCelestia ChainID = 4004
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 

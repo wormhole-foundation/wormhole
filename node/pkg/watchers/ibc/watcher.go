@@ -63,7 +63,13 @@ func setFeatures(f string) {
 
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
-	Chains = []vaa.ChainID{vaa.ChainIDSei}
+	Chains = []vaa.ChainID{
+		vaa.ChainIDSei,
+		vaa.ChainIDCosmoshub,
+		vaa.ChainIDEvmos,
+		vaa.ChainIDKujira,
+		vaa.ChainIDCelestia,
+	}
 
 	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	features = ""
