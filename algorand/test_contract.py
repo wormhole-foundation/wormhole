@@ -160,7 +160,7 @@ def approve_app():
         [Txn.on_completion() == OnComplete.NoOp, router]
     )
 
-def get_test_app() -> Tuple[bytes, bytes]:
+def get_test_app(client) -> Tuple[bytes, bytes]:
     APPROVAL_PROGRAM = fullyCompileContract(client, approve_app())
     CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_app())
 
