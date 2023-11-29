@@ -505,7 +505,7 @@ elif [ "$chain_name" = "algorand" ]; then
 
 	This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
 
-	You can then review $(algorand_artifact) to confirm the supplied hash value
+	Confirm that executing \`cat $(algorand_artifact)\` produces output that matches the proposed \`new_contract\` value above.
 
 EOF
 elif [ "$chain_name" = "terra" ]; then
