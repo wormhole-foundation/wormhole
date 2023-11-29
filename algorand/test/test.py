@@ -661,8 +661,8 @@ class AlgoTest(PortalCore):
             try:
                 self.submitVAA(vaa, client, player, self.tokenid)
             except algosdk.error.AlgodHTTPError as e:
-                # should fail right at line 963
-                if "opcodes=pushint 963" in str(e):
+                # should fail right at line 935
+                if "opcodes=pushint 935" in str(e):
                     return True, vaa, None
                 return False, vaa, e
 
@@ -671,7 +671,7 @@ class AlgoTest(PortalCore):
         for _ in range(self.args.loops):
             result, vaa, err = double_submit_transfer_vaa_fails(seq)
             if err != None:
-                assert False, f"!!! ERR: unepexted error. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
+                assert False, f"!!! ERR: unexpected error. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
 
             assert result, f"!!! ERR: sending same VAA twice worked. offending vaa hex:\n{vaa.hex()}"
             seq+=1
