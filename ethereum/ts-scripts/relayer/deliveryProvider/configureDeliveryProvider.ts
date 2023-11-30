@@ -1,5 +1,5 @@
 import { ChainId, tryHexToNativeString, tryNativeToHexString } from "@certusone/wormhole-sdk";
-import { BigNumberish, utils } from "ethers";
+import { BigNumberish, utils, ContractReceipt } from 'ethers';
 import {
   init,
   ChainInfo,
@@ -75,7 +75,7 @@ async function run() {
   for (const result of results) {
     if (result.status === "rejected") {
       console.log(
-        `Price update failed: ${result.reason?.stack || result.reason}`
+        `Updates processing failed: ${result.reason?.stack || result.reason}`
       );
     } else {
       // Print update details; this reflects the exact updates requested to the contract.
@@ -107,6 +107,12 @@ function printUpdate(update: UpdateStruct, { chainId }: ChainInfo) {
   if (update.updateMaximumBudget) {
     const maximumBudget = utils.formatEther(update.maximumTotalBudget);
     messages.push(`  Maximum budget update: ${maximumBudget}`);
+  }
+  if (update.updateTargetChainAddress) {
+    messages.push(`  Target chain address update: ${update.targetChainAddress}`);
+  }
+  if (update.updateSupportedChain) {
+    messages.push(`  Supported chain update: ${update.isSupported}`);
   }
 
   console.log(messages.join("\n"));
@@ -179,18 +185,31 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     () => deliveryProvider.estimateGas.updateConfig(updates, coreConfig),
     chain
   );
-  console.log(`Sending update tx for operating chain ${chain.chainId}`);
-  console.log(JSON.stringify(updates));
 
-  const tx = await deliveryProvider.updateConfig(
-    updates,
-    coreConfig,
-    overrides
-  );
-  const receipt = await tx.wait();
+  if (!updates.length) {
+    console.log(`No updates for operating chain ${chain.chainId}`);
+    return { updates, chain };
+  }
+
+  console.log(`Sending update tx for operating chain ${chain.chainId}. Updates: ${JSON.stringify(updates)}`);
+
+  let receipt: ContractReceipt;
+  try {
+    const tx = await deliveryProvider.updateConfig(
+      updates,
+      coreConfig,
+      overrides
+    );
+    receipt = await tx.wait();
+  } catch (error) {
+    console.log(
+      `Updates failed on operating chain ${chain.chainId}. Error: ${error}`
+    );
+    throw error;
+  }
 
   if (receipt.status !== 1) {
-    throw new Error(
+    const err = new Error(
       `Updates failed on operating chain ${chain.chainId}. Tx id ${receipt.transactionHash}`
     );
   }
