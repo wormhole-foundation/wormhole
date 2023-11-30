@@ -821,7 +821,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			zap.Error(err))
 		return
 	}
-	if commitment != s.commitment {  
+	if commitment != s.commitment {
 		logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
 		return
 	}

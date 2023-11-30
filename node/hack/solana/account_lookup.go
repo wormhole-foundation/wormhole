@@ -10,6 +10,8 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
+const RPC = "https://api.devnet.solana.com"
+
 func populateLookupTableAccounts(ctx context.Context, tx *solana.Transaction, rpcClient *rpc.Client) error {
 	if !tx.Message.IsVersioned() {
 		return nil
@@ -53,24 +55,24 @@ func populateLookupTableAccounts(ctx context.Context, tx *solana.Transaction, rp
 func main() {
 	ctx := context.Background()
 	testTx, err := solana.SignatureFromBase58("2Jr3bAuEKwYBKmaqSmmFQ2R7xxxQpmjY8g3N3gMH49C62kBaweUgc9UCEcFhqcewAVnDLcBGWUSQrKZ7vdxpBbq4")
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("SignatureFromBase58 errored", err)
 	}
-	rpcClient := rpc.New("https://api.devnet.solana.com")
+	rpcClient := rpc.New(RPC)
 	maxSupportedTransactionVersion := uint64(0)
 	tx, err := rpcClient.GetTransaction(ctx, testTx, &rpc.GetTransactionOpts{
 		Encoding:                       solana.EncodingBase64,
 		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 	})
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("getTransaction errored", err)
 	}
 	realTx, err := tx.Transaction.GetTransaction()
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("GetTransaction errored", err)
 	}
 	err = populateLookupTableAccounts(ctx, realTx, rpcClient)
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("populateLookupTableAccounts errored", err)
 	}
 
