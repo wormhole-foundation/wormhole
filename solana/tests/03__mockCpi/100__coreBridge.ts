@@ -331,7 +331,7 @@ describe("Mock CPI -- Core Bridge", () => {
             program.programId
           ),
         },
-        { nonce, commitment: "confirmed", payload: Buffer.alloc(0) },
+        { nonce, commitment: "finalized", payload: Buffer.alloc(0) },
         {
           message: false,
         } // require other signers

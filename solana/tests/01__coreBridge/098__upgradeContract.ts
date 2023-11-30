@@ -55,7 +55,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
         execSync(`cd ${__dirname}/../.. && NETWORK=mainnet make build`);
       }
 
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         coreBridge.upgradeAuthorityPda(program.programId)
       );
@@ -74,7 +74,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         coreBridge.upgradeAuthorityPda(program.programId)
       );
@@ -107,11 +107,11 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         coreBridge.upgradeAuthorityPda(program.programId)
       );
-      const anotherImplementation = loadProgramBpf(
+      const anotherImplementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         coreBridge.upgradeAuthorityPda(program.programId)
       );
@@ -133,7 +133,7 @@ describe("Core Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Invalid Governance Emitter", async () => {
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         coreBridge.upgradeAuthorityPda(program.programId)
       );

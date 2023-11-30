@@ -27,6 +27,30 @@ impl From<Commitment> for u8 {
     }
 }
 
+impl TryFrom<u8> for Commitment {
+    type Error = std::io::Error;
+
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Commitment::Confirmed),
+            32 => Ok(Commitment::Finalized),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid consistency level",
+            )),
+        }
+    }
+}
+
+impl fmt::Display for Commitment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Commitment::Confirmed => write!(f, "Confirmed"),
+            Commitment::Finalized => write!(f, "Finalized"),
+        }
+    }
+}
+
 /// This struct defines unix timestamp as u32 (as opposed to more modern systems that have adopted
 /// i64). Methods for this struct are meant to convert Solana's clock type to this type assuming we
 /// are far from year 2038.

@@ -3,6 +3,7 @@ import {
   Commitment,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
+  SYSVAR_RENT_PUBKEY,
   SystemProgram,
   TransactionInstruction,
 } from "@solana/web3.js";
@@ -55,7 +56,7 @@ export function legacyPostMessageAccounts(
   }
 
   if (rent === undefined) {
-    rent = SYSVAR_CLOCK_PUBKEY;
+    rent = SYSVAR_RENT_PUBKEY;
   } else if (rent === null) {
     rent = programId;
   }

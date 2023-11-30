@@ -13,6 +13,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import {
+  AddressLookupTableAccount,
   ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
@@ -91,9 +92,14 @@ export async function expectIxOk(
   connection: Connection,
   instructions: TransactionInstruction[],
   signers: Signer[],
-  confirmOptions?: ConfirmOptions
+  options: {
+    addressLookupTableAccounts?: AddressLookupTableAccount[];
+    confirmOptions?: ConfirmOptions;
+  } = {}
 ) {
+  const { addressLookupTableAccounts, confirmOptions } = options;
   return debugSendAndConfirmTransaction(connection, instructions, signers, {
+    addressLookupTableAccounts,
     logError: true,
     confirmOptions,
   }).then((result) => result.unwrap());
@@ -104,9 +110,14 @@ export async function expectIxErr(
   instructions: TransactionInstruction[],
   signers: Signer[],
   expectedError: string,
-  confirmOptions?: ConfirmOptions
+  options: {
+    addressLookupTableAccounts?: AddressLookupTableAccount[];
+    confirmOptions?: ConfirmOptions;
+  } = {}
 ) {
+  const { addressLookupTableAccounts, confirmOptions } = options;
   const errorMsg = await debugSendAndConfirmTransaction(connection, instructions, signers, {
+    addressLookupTableAccounts,
     logError: false,
     confirmOptions,
   }).then((result) => {
@@ -128,9 +139,12 @@ export async function expectIxOkDetails(
   connection: Connection,
   ixs: TransactionInstruction[],
   signers: Signer[],
-  confirmOptions?: ConfirmOptions
+  options: {
+    addressLookupTableAccounts?: AddressLookupTableAccount[];
+    confirmOptions?: ConfirmOptions;
+  } = {}
 ) {
-  const txSig = await expectIxOk(connection, ixs, signers, confirmOptions);
+  const txSig = await expectIxOk(connection, ixs, signers, options);
   await confirmLatest(connection, txSig);
   return connection.getTransaction(txSig, {
     commitment: "confirmed",
@@ -138,7 +152,10 @@ export async function expectIxOkDetails(
   });
 }
 
-export function loadProgramBpf(artifactPath: string, bufferAuthority: PublicKey): PublicKey {
+export async function loadProgramBpf(
+  artifactPath: string,
+  bufferAuthority: PublicKey
+): Promise<PublicKey> {
   // Write keypair to temporary file.
   const keypath = `${__dirname}/../keys/pFCBP4bhqdSsrWUVTgqhPsLrfEdChBK17vgFM7TxjxQ.json`;
 
@@ -153,6 +170,9 @@ export function loadProgramBpf(artifactPath: string, bufferAuthority: PublicKey)
     `solana -k ${keypath} program set-buffer-authority ${buffer.toString()} --new-buffer-authority ${bufferAuthority.toString()} -u localhost`
   );
 
+  // Extra sleep to ensure the next step is ready.
+  await sleep(5_000);
+
   // Return the pubkey for the buffer (our new program implementation).
   return buffer;
 }
@@ -161,13 +181,13 @@ async function debugSendAndConfirmTransaction(
   connection: Connection,
   instructions: TransactionInstruction[],
   signers: Signer[],
-  options?: {
+  options: {
+    addressLookupTableAccounts?: AddressLookupTableAccount[];
     logError?: boolean;
     confirmOptions?: ConfirmOptions;
-  }
+  } = {}
 ) {
-  const logError = options === undefined ? true : options.logError;
-  const confirmOptions = options === undefined ? undefined : options.confirmOptions;
+  const { logError, confirmOptions, addressLookupTableAccounts } = options;
 
   const latestBlockhash = await connection.getLatestBlockhash();
 
@@ -175,7 +195,7 @@ async function debugSendAndConfirmTransaction(
     payerKey: signers[0].publicKey,
     recentBlockhash: latestBlockhash.blockhash,
     instructions,
-  }).compileToV0Message();
+  }).compileToV0Message(addressLookupTableAccounts);
 
   const tx = new VersionedTransaction(messageV0);
 
@@ -185,7 +205,13 @@ async function debugSendAndConfirmTransaction(
   return connection
     .sendTransaction(tx, confirmOptions)
     .then(async (signature) => {
-      await connection.confirmTransaction({ signature, ...latestBlockhash });
+      await connection.confirmTransaction(
+        {
+          signature,
+          ...latestBlockhash,
+        },
+        confirmOptions === undefined ? "confirmed" : confirmOptions.commitment
+      );
       return new Ok(signature);
     })
     .catch((err) => {

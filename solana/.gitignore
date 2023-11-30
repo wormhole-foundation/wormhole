@@ -1,6 +1,7 @@
 .DS_Store
 .anchor
-.prettierrc.json
+.env
+.private
 .vscode
 **/*.rs.bk
 artifacts-*

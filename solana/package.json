@@ -9,6 +9,7 @@
     "@metaplex-foundation/mpl-token-metadata": "^2.12.0",
     "@solana/spl-token": "^0.3.8",
     "@solana/web3.js": "^1.87.2",
+    "dotenv": "^16.3.1",
     "ethers": "^5.7.2",
     "ts-node": "^10.9.1",
     "ts-results": "^3.3.0"

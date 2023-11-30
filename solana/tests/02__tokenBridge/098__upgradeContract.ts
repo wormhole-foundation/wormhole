@@ -65,7 +65,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
         execSync(`cd ${__dirname}/../.. && NETWORK=mainnet make build`);
       }
 
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -105,7 +105,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Deploy Same Implementation and Invoke `upgrade_contract` with Another VAA", async () => {
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -117,7 +117,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
     });
 
     it("Cannot Invoke `upgrade_contract` with Implementation Mismatch", async () => {
-      const realImplementation = loadProgramBpf(
+      const realImplementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -149,7 +149,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       );
       const governanceChain = CHAIN_ID_SOLANA;
       const sequence = 1;
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -168,7 +168,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
     it("Cannot Invoke `upgrade_contract` with Invalid Emitter Chain", async () => {
       const invalidGovernanceChain = CHAIN_ID_ETH;
       const sequence = 2;
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -191,7 +191,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
         "00000000000000000000000000000000000000000000000000000000deadbeef",
         "hex"
       );
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );
@@ -212,7 +212,7 @@ describe("Token Bridge -- Legacy Instruction: Upgrade Contract", () => {
       const governanceChain = CHAIN_ID_SOLANA;
       const sequence = 4;
       const invalidGovernanceAction = 69;
-      const implementation = loadProgramBpf(
+      const implementation = await loadProgramBpf(
         ARTIFACTS_PATH,
         tokenBridge.upgradeAuthorityPda(program.programId)
       );

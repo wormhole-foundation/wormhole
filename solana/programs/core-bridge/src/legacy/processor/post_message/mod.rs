@@ -11,6 +11,7 @@ use crate::{
         Config, EmitterSequence, EmitterType, LegacyEmitterSequence, MessageStatus,
         PostedMessageV1, PostedMessageV1Data, PostedMessageV1Info,
     },
+    types::Commitment,
     utils,
 };
 use anchor_lang::{prelude::*, system_program};
@@ -313,8 +314,17 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     let PostMessageArgs {
         nonce: _,
         payload: unnecessary_payload,
-        commitment: _,
+        commitment,
     } = args;
+
+    // Verify that the commitment provided agrees with the one encoded in the message account.
+    // Performing unwrap here is safe because the consistency level written to this account was
+    // determined by the commitment level set when this message was initialized.
+    require_eq!(
+        commitment,
+        Commitment::try_from(info.consistency_level).unwrap(),
+        CoreBridgeError::InvalidInstructionArgument
+    );
 
     // The payload argument is not allowed if the message has been prepared beforehand.
     require!(
