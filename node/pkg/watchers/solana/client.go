@@ -531,6 +531,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 				zap.Int("txNum", txNum),
 				zap.Error(err),
 			)
+			continue
 		}
 
 		signature := tx.Signatures[0]
@@ -897,12 +898,12 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 	for _, key := range tblKeys {
 		info, err := s.rpcClient.GetAccountInfo(ctx, key)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get account info for key %s: %w", key, err)
 		}
 
 		tableContent, err := lookup.DecodeAddressLookupTableState(info.GetBinary())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to decode table content for key %s: %w", key, err)
 		}
 
 		resolutions[key] = tableContent.Addresses
@@ -910,12 +911,12 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 
 	err := tx.Message.SetAddressTables(resolutions)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set address tables: %w", err)
 	}
 
 	err = tx.Message.ResolveLookups()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to resolve lookups: %w", err)
 	}
 
 	return nil
