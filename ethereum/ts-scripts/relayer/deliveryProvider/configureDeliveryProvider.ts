@@ -26,6 +26,7 @@ interface Config {
   deliveryGasOverheads: DeliveryGasOverhead[];
   maximumBudgets: MaximumBudget[];
   rewardAddresses: RewardAddress[];
+  supportedChains: SupportedChain[];
 }
 
 interface PricingInfo {
@@ -47,6 +48,11 @@ interface MaximumBudget {
 interface RewardAddress {
   chainId: ChainId;
   rewardAddress: string;
+}
+
+interface SupportedChain {
+  chainId: ChainId;
+  isSupported: boolean;
 }
 
 const zeroAddress = "0x0000000000000000000000000000000000000000";
@@ -151,6 +157,18 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     );
   }
 
+  for (const supportedChain of config.supportedChains) {
+    console.log(
+      `Processing supported chain update for operating chain ${chain.chainId} and target chain ${supportedChain.chainId}`
+    );
+
+    await processSupportedChainUpdate(
+      updates,
+      deliveryProvider,
+      supportedChain,
+    );
+  }
+
   const coreConfig = await processCoreConfigUpdates(
     config.rewardAddresses,
     deliveryProvider,
@@ -242,6 +260,20 @@ async function processTargetChainAddressUpdate(
     const update = getUpdateConfig(updates, chain.chainId);
     update.updateTargetChainAddress = true;
     update.targetChainAddress = targetChainAddress;
+  }
+}
+
+async function processSupportedChainUpdate(
+  updates: UpdateStruct[],
+  deliveryProvider: DeliveryProvider,
+  { chainId, isSupported }: SupportedChain,
+) {
+  const currentIsSupported = await deliveryProvider.isChainSupported(chainId);
+
+  if (currentIsSupported !== isSupported) {
+    const update = getUpdateConfig(updates, chainId);
+    update.updateSupportedChain = true;
+    update.isSupported = isSupported;
   }
 }
 
