@@ -64,6 +64,7 @@ func setFeatures(f string) {
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
 	Chains = []vaa.ChainID{
+		vaa.ChainIDOsmosis,
 		vaa.ChainIDSei,
 		vaa.ChainIDCosmoshub,
 		vaa.ChainIDEvmos,

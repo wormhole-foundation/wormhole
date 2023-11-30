@@ -196,6 +196,8 @@ func (c ChainID) String() string {
 		return "terra2"
 	case ChainIDInjective:
 		return "injective"
+	case ChainIDOsmosis:
+		return "osmosis"
 	case ChainIDArbitrum:
 		return "arbitrum"
 	case ChainIDOptimism:
@@ -275,6 +277,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDTerra2, nil
 	case "injective":
 		return ChainIDInjective, nil
+	case "osmosis":
+		return ChainIDOsmosis, nil
 	case "arbitrum":
 		return ChainIDArbitrum, nil
 	case "optimism":
@@ -329,6 +333,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDNeon,
 		ChainIDTerra2,
 		ChainIDInjective,
+		ChainIDOsmosis,
 		ChainIDSui,
 		ChainIDAptos,
 		ChainIDArbitrum,
@@ -388,6 +393,8 @@ const (
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
+	// ChainIDOsmosis is the ChainID of Osmosis
+	ChainIDOsmosis ChainID = 20
 	// ChainIDSui is the ChainID of Sui
 	ChainIDSui ChainID = 21
 	// ChainIDAptos is the ChainID of Aptos
