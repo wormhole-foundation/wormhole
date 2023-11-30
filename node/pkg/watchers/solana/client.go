@@ -93,8 +93,7 @@ type (
 	}
 
 	MessagePublicationAccount struct {
-		VaaVersion uint8
-		// Borsh does not seem to support booleans, so 0=false / 1=true
+		VaaVersion       uint8
 		ConsistencyLevel uint8
 		EmitterAuthority vaa.Address
 		MessageStatus    uint8
@@ -160,6 +159,17 @@ func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	case consistencyLevelConfirmed:
 		return rpc.CommitmentConfirmed, nil
 	case consistencyLevelFinalized:
+		return rpc.CommitmentFinalized, nil
+	default:
+		return "", fmt.Errorf("unsupported consistency level: %d", c)
+	}
+}
+
+func accountConsistencyLevelToCommitment(c uint8) (rpc.CommitmentType, error) {
+	switch c {
+	case 1:
+		return rpc.CommitmentConfirmed, nil
+	case 32:
 		return rpc.CommitmentFinalized, nil
 	default:
 		return "", fmt.Errorf("unsupported consistency level: %d", c)
@@ -799,6 +809,20 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			zap.Stringer("account", acc),
 			zap.Binary("data", data),
 			zap.Error(err))
+		return
+	}
+
+	// SECURITY: defense-in-depth, ensure the consistency level in the account matches the consistency level of the watcher
+	commitment, err := accountConsistencyLevelToCommitment(proposal.ConsistencyLevel)
+	if err != nil {
+		logger.Error(
+			"failed to parse proposal consistency level",
+			zap.Any("proposal", proposal),
+			zap.Error(err))
+		return
+	}
+	if commitment != s.commitment {  
+		logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
 		return
 	}
 
