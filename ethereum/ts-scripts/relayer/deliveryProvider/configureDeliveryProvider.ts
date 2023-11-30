@@ -302,8 +302,6 @@ async function processCoreConfigUpdates(
   }
 
   const currentRewardAddress = await deliveryProvider.rewardAddress();
-  console.log("currentRewardAddress: " + currentRewardAddress);
-  console.log("rewardAddress: " + rewardAddress);
 
   if (currentRewardAddress !== rewardAddress) {
     coreConfig.updateRewardAddress = true;
