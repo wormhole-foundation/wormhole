@@ -62,6 +62,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "cosmoshub", output: ChainIDCosmoshub},
 		{input: "evmos", output: ChainIDEvmos},
 		{input: "kujira", output: ChainIDKujira},
+		{input: "neutron", output: ChainIDNeutron},
 		{input: "celestia", output: ChainIDCelestia},
 		{input: "sepolia", output: ChainIDSepolia},
 
@@ -98,6 +99,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Cosmoshub", output: ChainIDCosmoshub},
 		{input: "Evmos", output: ChainIDEvmos},
 		{input: "Kujira", output: ChainIDKujira},
+		{input: "Neutron", output: ChainIDNeutron},
 		{input: "Celestia", output: ChainIDCelestia},
 		{input: "Sepolia", output: ChainIDSepolia},
 	}
@@ -274,6 +276,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 4000, output: "cosmoshub"},
 		{input: 4001, output: "evmos"},
 		{input: 4002, output: "kujira"},
+		{input: 4003, output: "neutron"},
 		{input: 4004, output: "celestia"},
 		{input: 10002, output: "sepolia"},
 		{input: 10000, output: "unknown chain ID: 10000"},

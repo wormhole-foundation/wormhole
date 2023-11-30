@@ -69,6 +69,7 @@ var (
 		vaa.ChainIDCosmoshub,
 		vaa.ChainIDEvmos,
 		vaa.ChainIDKujira,
+		vaa.ChainIDNeutron,
 		vaa.ChainIDCelestia,
 	}
 
