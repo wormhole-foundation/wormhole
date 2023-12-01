@@ -171,7 +171,7 @@ You can use a command line argument to expose it publicly: `--statusAddr=[::]:60
 This endpoint returns a 200 OK status code once the Wormhole node is ready to serve requests. A node is
 considered ready as soon as it has successfully connected to all chains and started processing requests.
 
-This is **only for startup signalling** - it will not tell whether it _stopped_
+This is **only for startup signaling** - it will not tell whether it _stopped_
 processing requests at some later point. Once it's true, it stays true! Use metrics to figure that out.
 
 #### `/metrics`
