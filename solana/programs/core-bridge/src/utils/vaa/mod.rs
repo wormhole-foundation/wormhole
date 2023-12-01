@@ -34,7 +34,7 @@ pub fn claim_vaa<'info>(
     vaa: &VaaAccount,
     claim_seed_prefix: Option<&[u8]>,
 ) -> Result<()> {
-    let (emitter_address, emitter_chain, sequence) = vaa.try_emitter_info()?;
+    let emitter = vaa.try_emitter_info()?;
 
     // First make sure the claim address is derived as what we expect.
     match claim_seed_prefix {
@@ -42,16 +42,16 @@ pub fn claim_vaa<'info>(
             ctx,
             program_id,
             prefix_seed,
-            emitter_address,
-            emitter_chain.to_be_bytes(),
-            sequence.to_be_bytes(),
+            emitter.address,
+            emitter.chain.to_be_bytes(),
+            emitter.sequence.to_be_bytes(),
         ),
         None => handle_claim_vaa(
             ctx,
             program_id,
-            emitter_address,
-            emitter_chain.to_be_bytes(),
-            sequence.to_be_bytes(),
+            emitter.address,
+            emitter.chain.to_be_bytes(),
+            emitter.sequence.to_be_bytes(),
         ),
     }
 }

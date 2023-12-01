@@ -39,10 +39,10 @@ pub fn require_valid_governance_vaa<'ctx>(
     );
 
     // The emitter must be the hard-coded governance emitter.
-    let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
+    let emitter = vaa.try_emitter_info()?;
     require!(
-        emitter_chain == crate::constants::GOVERNANCE_CHAIN
-            && emitter_address == crate::constants::GOVERNANCE_EMITTER,
+        emitter.chain == crate::constants::GOVERNANCE_CHAIN
+            && emitter.address == crate::constants::GOVERNANCE_EMITTER,
         CoreBridgeError::InvalidGovernanceEmitter
     );
 

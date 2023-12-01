@@ -15,10 +15,10 @@ pub fn require_valid_governance_vaa<'ctx>(
 ) -> Result<TokenBridgeDecree<'ctx>> {
     crate::utils::vaa::require_valid_vaa_key(vaa_key)?;
 
-    let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
+    let emitter = vaa.try_emitter_info()?;
     require!(
-        emitter_chain == crate::constants::GOVERNANCE_CHAIN
-            && emitter_address == crate::constants::GOVERNANCE_EMITTER,
+        emitter.chain == crate::constants::GOVERNANCE_CHAIN
+            && emitter.address == crate::constants::GOVERNANCE_EMITTER,
         TokenBridgeError::InvalidGovernanceEmitter
     );
 

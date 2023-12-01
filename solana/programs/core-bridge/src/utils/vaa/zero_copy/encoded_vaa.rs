@@ -19,7 +19,7 @@ impl<'a> EncodedVaa<'a> {
     }
 
     /// The authority that has write privilege to this account.
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn write_authority(&self) -> Pubkey {
         Pubkey::try_from(&self.0[9..41]).unwrap()
     }
@@ -30,13 +30,13 @@ impl<'a> EncodedVaa<'a> {
         self.0[41]
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn vaa_size(&self) -> usize {
         let mut buf = &self.0[42..VAA_START];
         u32::deserialize(&mut buf).unwrap().try_into().unwrap()
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn buf(&self) -> &[u8] {
         &self.0[VAA_START..]
     }

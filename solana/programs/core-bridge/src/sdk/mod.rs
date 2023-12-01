@@ -25,8 +25,9 @@ pub use crate::{
         instruction::PostMessageArgs,
     },
     processor::{InitMessageV1Args, WriteMessageV1Args},
+    state,
     types::*,
-    utils::vaa::{claim_vaa, ClaimVaa, VaaAccount},
+    utils::vaa::{claim_vaa, ClaimVaa, EmitterInfo, VaaAccount},
 };
 
 pub mod legacy {

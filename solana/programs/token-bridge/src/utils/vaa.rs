@@ -37,28 +37,27 @@ pub fn require_valid_token_bridge_vaa<'ctx>(
 ) -> Result<TokenBridgeMessage<'ctx>> {
     require_valid_vaa_key(vaa_acc_key)?;
 
-    let (emitter_address, emitter_chain, _) = vaa.try_emitter_info()?;
-    let emitter_key = registered_emitter.key();
+    let emitter = vaa.try_emitter_info()?;
 
     // Validate registered emitter PDA address.
     //
     // NOTE: We can move the PDA address check back into the Anchor account context macro once we
     // have migrated all registered emitter accounts to the new seeds.
-    let (derived_emitter, _) = Pubkey::find_program_address(&[&emitter_chain.to_be_bytes()], &ID);
-    if emitter_key == derived_emitter {
+    let (derived_emitter, _) = Pubkey::find_program_address(&[&emitter.chain.to_be_bytes()], &ID);
+    if registered_emitter.key() == derived_emitter {
         // Emitter info must agree with our registered foreign Token Bridge.
         require!(
-            emitter_address == registered_emitter.contract,
+            emitter.address == registered_emitter.contract,
             TokenBridgeError::InvalidTokenBridgeEmitter
         )
     } else {
         // If the legacy definition, the seeds define the contents of this account.
         let (expected_legacy_address, _) = Pubkey::find_program_address(
-            &[&emitter_chain.to_be_bytes(), emitter_address.as_ref()],
+            &[&emitter.chain.to_be_bytes(), emitter.address.as_ref()],
             &ID,
         );
         require_keys_eq!(
-            emitter_key,
+            registered_emitter.key(),
             expected_legacy_address,
             TokenBridgeError::InvalidLegacyTokenBridgeEmitter
         );

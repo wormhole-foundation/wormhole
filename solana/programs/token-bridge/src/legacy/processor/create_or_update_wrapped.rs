@@ -182,7 +182,11 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
 
-    let (_, _, sequence) = vaa.try_emitter_info().unwrap();
+    let core_bridge::EmitterInfo {
+        chain: _,
+        address: _,
+        sequence,
+    } = vaa.try_emitter_info().unwrap();
     let wrapped_asset = WrappedAsset {
         legacy: LegacyWrappedAsset {
             token_chain: attestation.token_chain(),
@@ -303,7 +307,11 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     }
 
     // Now check the sequence to see whether this VAA is stale.
-    let (_, _, updated_sequence) = vaa.try_emitter_info().unwrap();
+    let core_bridge::EmitterInfo {
+        chain: _,
+        address: _,
+        sequence: updated_sequence,
+    } = vaa.try_emitter_info().unwrap();
     let wrapped_asset = {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =

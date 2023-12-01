@@ -24,7 +24,7 @@ impl<'a> PostedVaaV1<'a> {
         u32::from_le_bytes(self.0[5..9].try_into().unwrap()).into()
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     /// Pubkey of `SignatureSet` account that represent this VAA's signature verification.
     pub fn signature_set(&self) -> Pubkey {
         Pubkey::try_from(&self.0[9..41]).unwrap()
@@ -85,7 +85,7 @@ impl<'a> PostedVaaV1<'a> {
         ])
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     /// Compute digest (hash of [message_hash](Self::message_hash)).
     pub fn digest(&self) -> keccak::Hash {
         keccak::hash(self.message_hash().as_ref())

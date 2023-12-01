@@ -29,7 +29,7 @@ cpi = ["no-entrypoint"]
 wormhole-io = "0.1.0"
 wormhole-raw-vaas = { version = "0.0.0-alpha.11", features = ["on-chain", "ruint"], default-features = false }
 
-core-bridge-program = { version = "0.0.1-alpha.1", path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
+core-bridge-program = { version = "0.0.1-alpha.2", path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
 anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
 anchor-spl = { version = "0.28.0", features = ["metadata"] }
 mpl-token-metadata = { version = "1.13.2", features = ["no-entrypoint"] }

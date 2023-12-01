@@ -14,8 +14,15 @@ pub enum VaaAccount<'a> {
     PostedVaaV1(PostedVaaV1<'a>),
 }
 
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Copy, Clone)]
+pub struct EmitterInfo {
+    pub chain: u16,
+    pub address: [u8; 32],
+    pub sequence: u64,
+}
+
 impl<'a> VaaAccount<'a> {
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn version(&'a self) -> u8 {
         match self {
             Self::EncodedVaa(inner) => inner.version(),
@@ -23,20 +30,50 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    pub fn try_emitter_info(&self) -> Result<([u8; 32], u16, u64)> {
+    pub fn try_emitter_info(&self) -> Result<EmitterInfo> {
         match self {
             Self::EncodedVaa(inner) => match inner.as_vaa()? {
-                VaaVersion::V1(vaa) => Ok((
-                    vaa.body().emitter_address(),
-                    vaa.body().emitter_chain(),
-                    vaa.body().sequence(),
-                )),
+                VaaVersion::V1(vaa) => Ok(EmitterInfo {
+                    chain: vaa.body().emitter_chain(),
+                    address: vaa.body().emitter_address(),
+                    sequence: vaa.body().sequence(),
+                }),
             },
-            Self::PostedVaaV1(inner) => Ok((
-                inner.emitter_address(),
-                inner.emitter_chain(),
-                inner.sequence(),
-            )),
+            Self::PostedVaaV1(inner) => Ok(EmitterInfo {
+                chain: inner.emitter_chain(),
+                address: inner.emitter_address(),
+                sequence: inner.sequence(),
+            }),
+        }
+    }
+
+    #[cfg(feature = "no-entrypoint")]
+    pub fn try_emitter_chain(&self) -> Result<u16> {
+        match self {
+            Self::EncodedVaa(inner) => match inner.as_vaa()? {
+                VaaVersion::V1(vaa) => Ok(vaa.body().emitter_chain()),
+            },
+            Self::PostedVaaV1(inner) => Ok(inner.emitter_chain()),
+        }
+    }
+
+    #[cfg(feature = "no-entrypoint")]
+    pub fn try_emitter_address(&self) -> Result<[u8; 32]> {
+        match self {
+            Self::EncodedVaa(inner) => match inner.as_vaa()? {
+                VaaVersion::V1(vaa) => Ok(vaa.body().emitter_address()),
+            },
+            Self::PostedVaaV1(inner) => Ok(inner.emitter_address()),
+        }
+    }
+
+    #[cfg(feature = "no-entrypoint")]
+    pub fn try_timestamp(&self) -> Result<crate::types::Timestamp> {
+        match self {
+            Self::EncodedVaa(inner) => match inner.as_vaa()? {
+                VaaVersion::V1(vaa) => Ok(vaa.body().timestamp().into()),
+            },
+            Self::PostedVaaV1(inner) => Ok(inner.timestamp()),
         }
     }
 
@@ -49,7 +86,7 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn encoded_vaa(&'a self) -> Option<&'a EncodedVaa<'a>> {
         match self {
             Self::EncodedVaa(inner) => Some(inner),
@@ -57,7 +94,7 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(feature = "no-entrypoint")]
     pub fn posted_vaa_v1(&'a self) -> Option<&'a PostedVaaV1<'a>> {
         match self {
             Self::PostedVaaV1(inner) => Some(inner),
