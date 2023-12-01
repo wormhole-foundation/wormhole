@@ -93,8 +93,7 @@ type (
 	}
 
 	MessagePublicationAccount struct {
-		VaaVersion uint8
-		// Borsh does not seem to support booleans, so 0=false / 1=true
+		VaaVersion       uint8
 		ConsistencyLevel uint8
 		EmitterAuthority vaa.Address
 		MessageStatus    uint8
@@ -160,6 +159,17 @@ func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	case consistencyLevelConfirmed:
 		return rpc.CommitmentConfirmed, nil
 	case consistencyLevelFinalized:
+		return rpc.CommitmentFinalized, nil
+	default:
+		return "", fmt.Errorf("unsupported consistency level: %d", c)
+	}
+}
+
+func accountConsistencyLevelToCommitment(c uint8) (rpc.CommitmentType, error) {
+	switch c {
+	case 1:
+		return rpc.CommitmentConfirmed, nil
+	case 32:
 		return rpc.CommitmentFinalized, nil
 	default:
 		return "", fmt.Errorf("unsupported consistency level: %d", c)
@@ -490,7 +500,6 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 	s.updateLatestBlock(slot)
 
-OUTER:
 	for txNum, txRpc := range out.Transactions {
 		if txRpc.Meta.Err != nil {
 			logger.Debug("Transaction failed, skipping it",
@@ -532,6 +541,7 @@ OUTER:
 				zap.Int("txNum", txNum),
 				zap.Error(err),
 			)
+			continue
 		}
 
 		signature := tx.Signatures[0]
@@ -561,47 +571,27 @@ OUTER:
 					zap.Uint64("slot", slot),
 					zap.String("commitment", string(s.commitment)),
 					zap.Binary("data", inst.Data))
-				continue OUTER
-			}
-			if found {
-				continue OUTER
+			} else if found {
+				logger.Debug("found a top-level Wormhole instruction",
+					zap.Int("idx", i),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)))
 			}
 		}
 
-		// Call GetConfirmedTransaction to get at innerTransactions
-		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-		start := time.Now()
-		maxSupportedTransactionVersion := uint64(0)
-		tr, err := s.rpcClient.GetTransaction(rCtx, signature, &rpc.GetTransactionOpts{
-			Encoding:                       solana.EncodingBase64, // solana-go doesn't support json encoding.
-			Commitment:                     s.commitment,
-			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
-		})
-		cancel()
-		queryLatency.WithLabelValues(s.networkName, "get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
-		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_transaction_error").Inc()
-			logger.Error("failed to request transaction",
-				zap.Error(err),
-				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)),
-				zap.Stringer("signature", signature))
-			return false
-		}
-
-		logger.Debug("fetched transaction",
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
-			zap.Stringer("signature", signature),
-			zap.Duration("took", time.Since(start)))
-
-		for _, inner := range tr.Meta.InnerInstructions {
+		for _, inner := range txRpc.Meta.InnerInstructions {
 			for i, inst := range inner.Instructions {
-				_, err = s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
+				found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
 				if err != nil {
 					logger.Error("malformed Wormhole instruction",
 						zap.Error(err),
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				} else if found {
+					logger.Debug("found an inner Wormhole instruction",
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
@@ -822,6 +812,20 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		return
 	}
 
+	// SECURITY: defense-in-depth, ensure the consistency level in the account matches the consistency level of the watcher
+	commitment, err := accountConsistencyLevelToCommitment(proposal.ConsistencyLevel)
+	if err != nil {
+		logger.Error(
+			"failed to parse proposal consistency level",
+			zap.Any("proposal", proposal),
+			zap.Error(err))
+		return
+	}
+	if commitment != s.commitment {
+		logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
+		return
+	}
+
 	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
 	if s.chainID != vaa.ChainIDPythNet {
 		// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
@@ -918,12 +922,12 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 	for _, key := range tblKeys {
 		info, err := s.rpcClient.GetAccountInfo(ctx, key)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get account info for key %s: %w", key, err)
 		}
 
 		tableContent, err := lookup.DecodeAddressLookupTableState(info.GetBinary())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to decode table content for key %s: %w", key, err)
 		}
 
 		resolutions[key] = tableContent.Addresses
@@ -931,12 +935,12 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 
 	err := tx.Message.SetAddressTables(resolutions)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set address tables: %w", err)
 	}
 
 	err = tx.Message.ResolveLookups()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to resolve lookups: %w", err)
 	}
 
 	return nil
