@@ -6,7 +6,7 @@ The Global Accountant is a safety feature for registered token bridges.  It is i
 
 ## Objectives
 
-Tightly limit the impact an exploit in a connected chain can have on a registered token bridge.  Ensure the number of wrapped tokens capable of being moved out of a chain never exceed the number sent to that chain, even if that chain was compromised.
+Tightly limit the impact an exploit in a connected chain can have on a registered token bridge.  Ensure the number of wrapped tokens capable of being moved out of a chain never exceeds the number sent to that chain, even if that chain was compromised.
 
 ## Background
 
