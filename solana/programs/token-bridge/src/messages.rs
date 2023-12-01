@@ -2,8 +2,8 @@
 //! then published via the Core Bridge program.
 
 use anchor_lang::prelude::Pubkey;
+use core_bridge_program::sdk::io::Writeable;
 use ruint::aliases::U256;
-use wormhole_io::Writeable;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Transfer {

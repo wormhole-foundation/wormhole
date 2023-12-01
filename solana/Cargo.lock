@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-core-bridge-solana"
-version = "0.0.1-alpha.2"
+version = "0.0.1-alpha.3"
 dependencies = [
  "anchor-lang",
  "cfg-if",
@@ -2588,7 +2588,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-token-bridge-solana"
-version = "0.0.0-alpha.3"
+version = "0.0.1-alpha.1"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -2601,7 +2601,6 @@ dependencies = [
  "serde_json",
  "solana-program",
  "wormhole-core-bridge-solana",
- "wormhole-io",
  "wormhole-raw-vaas",
 ]
 

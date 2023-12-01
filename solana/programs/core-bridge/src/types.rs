@@ -91,6 +91,18 @@ impl From<u32> for Timestamp {
     }
 }
 
+impl From<Timestamp> for u32 {
+    fn from(timestamp: Timestamp) -> Self {
+        timestamp.value
+    }
+}
+
+impl From<Timestamp> for i64 {
+    fn from(timestamp: Timestamp) -> Self {
+        i64::from(timestamp.value)
+    }
+}
+
 impl From<Clock> for Timestamp {
     fn from(clock: Clock) -> Self {
         Self {

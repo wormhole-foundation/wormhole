@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use core_bridge_program::sdk as core_bridge;
-use wormhole_io::Writeable;
 
 pub fn publish_token_bridge_message<'info, W>(
     ctx: CpiContext<'_, '_, '_, 'info, core_bridge::PublishMessage<'info>>,
@@ -8,7 +7,7 @@ pub fn publish_token_bridge_message<'info, W>(
     message: W,
 ) -> Result<()>
 where
-    W: Writeable,
+    W: core_bridge::io::Writeable,
 {
     core_bridge::publish_message(
         ctx,

@@ -4,7 +4,12 @@
 //! [legacy::cpi](crate::legacy::cpi)).
 
 #[doc(inline)]
-pub use core_bridge_program::sdk as core_bridge;
+pub use core_bridge_program::sdk::{EmitterInfo, Timestamp, VaaAccount, SOLANA_CHAIN};
+
+#[doc(inline)]
+pub use wormhole_raw_vaas::token_bridge::{
+    Attestation, TokenBridgeMessage, TokenBridgePayload, Transfer, TransferWithMessage,
+};
 
 #[doc(inline)]
 pub use crate::{
@@ -21,18 +26,8 @@ pub use crate::{
     state,
 };
 
-/// Set of structs mirroring the structs deriving Accounts, where each field is a Pubkey. This
-/// is useful for specifying accounts for a client.
-pub mod accounts {
-    #[doc(inline)]
-    pub use crate::{accounts::*, legacy::accounts::*};
-}
-
-/// Instruction builders. These should be used directly when one wants to serialize instruction
-/// data when speciying instructions on a client.
-pub mod instruction {
-    #[doc(inline)]
-    pub use crate::{accounts, instruction::*, legacy::instruction as legacy};
+pub mod io {
+    pub use core_bridge_program::sdk::io::*;
 }
 
 /// Wormhole Token Bridge Program.

@@ -10,6 +10,9 @@ pub use publish_message::*;
 mod prepare_message;
 pub use prepare_message::*;
 
+#[doc(inline)]
+pub use wormhole_raw_vaas::{Header, Payload, Vaa};
+
 /// Sub-module for System program interaction.
 pub mod system_program {
     pub use crate::utils::cpi::{create_account_safe, CreateAccountSafe};
@@ -29,6 +32,10 @@ pub use crate::{
     types::*,
     utils::vaa::{claim_vaa, ClaimVaa, EmitterInfo, VaaAccount},
 };
+
+pub mod io {
+    pub use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
+}
 
 pub mod legacy {
     pub use crate::legacy::utils::{
