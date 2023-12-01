@@ -1062,17 +1062,15 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(polygonRPC) {
-		// Checkpointing is required in mainnet and testnet.
-		if !*unsafeDevMode && *polygonRootChainRpc == "" {
-			log.Fatal("Polygon checkpointing is required in mainnet and testnet")
+		// Checkpointing is obsolete.
+		if *polygonRootChainRpc != "" || *polygonRootChainContractAddress != "" {
+			logger.Warn(`polygon checkpointing is obsolete, please remove "--polygonRootChainRpc" and "--polygonRootChainContractAddress"`)
 		}
 		wc := &evm.WatcherConfig{
-			NetworkID:         "polygon",
-			ChainID:           vaa.ChainIDPolygon,
-			Rpc:               *polygonRPC,
-			Contract:          *polygonContract,
-			RootChainRpc:      *polygonRootChainRpc,
-			RootChainContract: *polygonRootChainContractAddress,
+			NetworkID: "polygon",
+			ChainID:   vaa.ChainIDPolygon,
+			Rpc:       *polygonRPC,
+			Contract:  *polygonContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

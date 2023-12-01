@@ -139,10 +139,6 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
-		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
-		rootChainRpc      string
-		rootChainContract string
-
 		ccqMaxBlockNumber *big.Int
 		ccqTimestampCache *BlocksByTimestamp
 		ccqLogger         *zap.Logger
@@ -283,24 +279,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
-		// Polygon polls the root contract on Ethereum.
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to polygon: %w", err)
-		}
-		w.ethConn, err = connectors.NewPolygonConnector(ctx,
-			baseConnector,
-			w.rootChainRpc,
-			w.rootChainContract,
-		)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to create polygon connector: %w", err)
-		}
 	} else {
 		// Everything else is instant finality.
 		logger.Info("assuming instant finality")
@@ -314,7 +292,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to polygon: %w", err)
+			return fmt.Errorf("failed to connect to instant finality chain: %w", err)
 		}
 	}
 
@@ -868,6 +846,10 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	} else if w.chainID == vaa.ChainIDScroll {
 		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
 		finalized = true
+	} else if w.chainID == vaa.ChainIDPolygon {
+		// Polygon now supports polling for finalized but not safe.
+		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
+		finalized = true
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
@@ -915,22 +897,6 @@ func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 // getLatestSafeBlockNumber() returns the latest safe block seen by this watcher..
 func (w *Watcher) getLatestSafeBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestSafeBlockNumber)
-}
-
-// SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles
-// if the feature is either enabled or disabled, but ensures the configuration is valid.
-func (w *Watcher) SetRootChainParams(rootChainRpc string, rootChainContract string) error {
-	if (rootChainRpc == "") != (rootChainContract == "") {
-		return fmt.Errorf("if either rootChainRpc or rootChainContract are set, they must both be set")
-	}
-
-	w.rootChainRpc = rootChainRpc
-	w.rootChainContract = rootChainContract
-	return nil
-}
-
-func (w *Watcher) usePolygonCheckpointing() bool {
-	return w.rootChainRpc != "" && w.rootChainContract != ""
 }
 
 // SetWaitForConfirmations is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message.
