@@ -2,11 +2,11 @@
 name = "wormhole-token-bridge-solana"
 description = "Wormhole Token Bridge Program for Solana"
 version = "0.0.0-alpha.3"
-edition = "2021"
-authors = ["W7"]
-license = "Apache-2.0"
-homepage = "https://wormhole.com"
-repository = "https://github.com/wormhole-foundation/wormhole"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -25,28 +25,29 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 
+[dependencies.core-bridge-program]
+path = "../core-bridge"
+package = "wormhole-core-bridge-solana"
+features = ["cpi"]
+default-features = false
+
 [dependencies]
-wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "0.0.0-alpha.11", features = ["on-chain", "ruint"], default-features = false }
-
-core-bridge-program = { version = "0.0.1-alpha.2", path = "../core-bridge", package = "wormhole-core-bridge-solana", features = ["cpi"], default-features = false }
-anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
-anchor-spl = { version = "0.28.0", features = ["metadata"] }
+anchor-spl = { workspace = true, features = ["metadata"] }
 mpl-token-metadata = { version = "1.13.2", features = ["no-entrypoint"] }
-solana-program = "1.16.16"
-
-hex = "0.4"
-ruint = "1.8.0"
-
-cfg-if = "1.0"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-### There is currently an issue using anchor-spl if this dependency is not explicitly defined. These
-### dependencies are used by spl-token-2022.
-#toml_datetime = "=0.6.1"
-#winnow = "=0.4.1"
+wormhole-io.workspace = true
+wormhole-raw-vaas.workspace = true
+
+anchor-lang.workspace = true
+solana-program.workspace = true
+
+hex.workspace = true
+ruint.workspace = true
+
+cfg-if.workspace = true
 
 [dev-dependencies]
-hex-literal = "0.4.1"
+hex-literal.workspace = true

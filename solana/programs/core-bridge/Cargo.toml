@@ -2,11 +2,11 @@
 name = "wormhole-core-bridge-solana"
 description = "Wormhole Core Bridge Program for Solana"
 version = "0.0.1-alpha.2"
-edition = "2021"
-authors = ["W7"]
-license = "Apache-2.0"
-homepage = "https://wormhole.com"
-repository = "https://github.com/wormhole-foundation/wormhole"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -25,13 +25,13 @@ mainnet = []
 testnet = []
 
 [dependencies]
-wormhole-io = "0.1.0"
-wormhole-raw-vaas = { version = "0.0.0-alpha.11", features = ["ruint", "on-chain"], default-features = false }
+wormhole-io.workspace = true
+wormhole-raw-vaas.workspace = true
 
-anchor-lang = { version = "0.28.0", features = ["derive", "init-if-needed"] }
-solana-program = "1.16.16"
+anchor-lang.workspace = true
+solana-program.workspace = true
 
-hex = "0.4"
-ruint = "1.8.0"
+hex.workspace = true
+ruint.workspace = true
 
-cfg-if = "1.0"
+cfg-if.workspace = true

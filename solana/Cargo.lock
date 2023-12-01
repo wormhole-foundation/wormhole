@@ -688,12 +688,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
 
 [[package]]
-name = "convert_case"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
 name = "core-bridge-hello-world"
 version = "0.0.0"
 dependencies = [
@@ -851,19 +845,6 @@ checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "derive_more"
-version = "0.99.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
-dependencies = [
- "convert_case",
- "proc-macro2",
- "quote",
- "rustc_version",
  "syn 1.0.109",
 ]
 
@@ -1727,21 +1708,19 @@ dependencies = [
 
 [[package]]
 name = "ruint"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d470e29e933dac4101180fd6574971892315c414cf2961a192729089687cc9b"
+checksum = "77e1574d439643c8962edf612a888e7cc5581bcdf36cb64e6bc88466b03b2daa"
 dependencies = [
- "derive_more",
  "ruint-macro",
- "rustc_version",
  "thiserror",
 ]
 
 [[package]]
 name = "ruint-macro"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62cc5760263ea229d367e7dff3c0cbf09e4797a125bd87059a6c095804f3b2d1"
+checksum = "e666a5496a0b2186dbcd0ff6106e29e093c15591bde62c20d3842007c6978a09"
 
 [[package]]
 name = "rustc-hash"
@@ -2589,7 +2568,7 @@ checksum = "6926b6a0b383df50bbb0d0b11378b6d0cf4f606e8386fb624472b7f9a90e830f"
 
 [[package]]
 name = "wormhole-mock-cpi-solana"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -2599,9 +2578,9 @@ dependencies = [
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.0-alpha.11"
+version = "0.0.1-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43208fd8080985053797a291c12ee36d462b5c36a6511b1755a8378f4e2f289c"
+checksum = "a232f579bda369aa224098fbd0e0b820fa0022435bef31591efc56f0981b289f"
 dependencies = [
  "ruint",
  "ruint-macro",
