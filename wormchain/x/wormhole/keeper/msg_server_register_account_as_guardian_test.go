@@ -1,12 +1,12 @@
 package keeper_test
 
 import (
-	"fmt"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	keepertest "github.com/wormhole-foundation/wormchain/testutil/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -14,7 +14,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// hot-swap validator address when guardian set size is 1
+// hot-swap validator address when guardian set size is 1 (for testnets and local devnets)
 func TestRegisterAccountAsGuardianHotSwap(t *testing.T) {
 	// setup -- create guardian set of size 1
 	k, ctx := keepertest.WormholeKeeper(t)
@@ -38,23 +38,17 @@ func TestRegisterAccountAsGuardianHotSwap(t *testing.T) {
 	// sign the new validator address as the new validator address
 	addrHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, newValAddr)
 	sig, err := crypto.Sign(addrHash[:], privateKeys[0])
-	if err != nil {
-		panic(fmt.Errorf("failed to sign wormchain address: %w", err))
-	}
+	require.NoErrorf(t, err, "failed to sign wormchain address: %v", err)
 
 	_, err = msgServer.RegisterAccountAsGuardian(context, &types.MsgRegisterAccountAsGuardian{
 		Signer:    newValAddr.String(),
 		Signature: sig,
 	})
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	// assert that the guardian validator has the new validator address
 	newGuardian, newGuardianFound := k.GetGuardianValidator(ctx, guardians[0].GuardianKey)
-	if !newGuardianFound {
-		panic("expected guardian not found in the keeper store")
-	}
+	require.Truef(t, newGuardianFound, "expected guardian not found in the keeper store")
 
 	assert.Equal(t, newValAddr.Bytes(), newGuardian.ValidatorAddr)
 }
@@ -83,9 +77,7 @@ func TestRegisterAccountAsGuardianBlockHotSwap(t *testing.T) {
 	// sign the new validator address as the new validator address
 	addrHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, newValAddr)
 	sig, err := crypto.Sign(addrHash[:], privateKeys[0])
-	if err != nil {
-		panic(fmt.Errorf("failed to sign wormchain address: %w", err))
-	}
+	require.NoErrorf(t, err, "failed to sign wormchain address: %v", err)
 
 	// assert that we are unable to associate the guardian address with a new validator address when the set size is >1
 	_, err = msgServer.RegisterAccountAsGuardian(context, &types.MsgRegisterAccountAsGuardian{
