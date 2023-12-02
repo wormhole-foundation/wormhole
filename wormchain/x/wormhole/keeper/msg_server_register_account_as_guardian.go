@@ -12,7 +12,11 @@ import (
 	wormholesdk "github.com/wormhole-foundation/wormhole/sdk"
 )
 
-// TODO(csongor): high-level overview of what this does
+// This function is used to onboard Wormhole Guardians as Validators on Wormchain.
+// It creates a 1:1 association between a Guardian addresss and a Wormchain validator address.
+// There is also a special case -- when the size of the Guardian set is 1, the Guardian is allowed to "hot-swap" their validator address in the mapping.
+// 1. Guardian signs their validator address -- SIGNATURE=$(guardiand admin sign-wormchain-address <wormhole...>)
+// 2. Guardian submits $SIGNATURE to Wormchain via this handler, using their new validator address as the signer of the Wormchain tx.
 func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.MsgRegisterAccountAsGuardian) (*types.MsgRegisterAccountAsGuardianResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -40,16 +44,19 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	// we don't allow registration of arbitrary public keys, since that would
 	// enable a DoS vector
 	latestGuardianSetIndex := k.Keeper.GetLatestGuardianSetIndex(ctx)
-	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
-
-	if found && latestGuardianSetIndex == consensusGuardianSetIndex.Index {
-		return nil, types.ErrConsensusSetNotUpdatable
+	consensusGuardianSetIndex, consensusIndexFound := k.GetConsensusGuardianSetIndex(ctx)
+	if !consensusIndexFound {
+		return nil, types.ErrConsensusSetUndefined
 	}
 
-	latestGuardianSet, found := k.Keeper.GetGuardianSet(ctx, latestGuardianSetIndex)
-
-	if !found {
+	latestGuardianSet, guardianSetFound := k.Keeper.GetGuardianSet(ctx, latestGuardianSetIndex)
+	if !guardianSetFound {
 		return nil, types.ErrGuardianSetNotFound
+	}
+
+	// If the size of the guardian set is 1, allow hot-swapping the validator address.
+	if consensusIndexFound && latestGuardianSetIndex == consensusGuardianSetIndex.Index && len(latestGuardianSet.Keys) != 1 {
+		return nil, types.ErrConsensusSetNotUpdatable
 	}
 
 	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
