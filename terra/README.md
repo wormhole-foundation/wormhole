@@ -7,7 +7,7 @@ This readme describes the steps for building, verifying, and deploying Terra sma
 ## Verify Tilt
 
 Before building Terra contracts, ensure that the specific commit you will be
-building from passes in tilt. This that ensures basic functionality of the
+building from passes in tilt. This ensures the basic functionality of the
 Terra smart contracts that you are about to build and deploy.
 
 ## Build Contracts
