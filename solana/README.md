@@ -13,7 +13,7 @@ Before building Solana contracts, ensure that the specific commit you will be bu
 
 The following command can be used to build contracts for Solana contracts via Docker.
 
-Build Target Options: [`mainnet`|`testnet`|`devnet`|
+Build Target Options: [`mainnet`|`testnet`|`devnet`]
 
 These network names correspond to the naming convention used by wormhole
 elsewhere. This means that `mainnet` corresponds to Solana `mainnet-beta`,
