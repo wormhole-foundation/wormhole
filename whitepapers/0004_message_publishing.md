@@ -80,7 +80,7 @@ Proposed bridge interface:
 
 `setFees(VAA fee_payload)` - Update the fees using a `SetMessageFee` VAA
 
-`transferFees(VAA transfer_payload)` - Transfer fees using a `TransderFees` VAA
+`transferFees(VAA transfer_payload)` - Transfer fees using a `TransferFees` VAA
 
 ---
 
