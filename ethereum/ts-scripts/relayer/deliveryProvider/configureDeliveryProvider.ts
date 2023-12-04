@@ -144,6 +144,17 @@ function printUpdate(updates: UpdateStruct[], coreConfig: CoreConfigStruct, { ch
       const buffer = BigNumber.isBigNumber(update.buffer) ? update.buffer : BigNumber.from(update.buffer);
       messages.push(`  Asset conversion buffer ratio: (${bufferDenominator.toBigInt()} / ${bufferDenominator.add(buffer).toBigInt()})`)
     }
+    if (update.updateSupportedChain) {
+      messages.push(`  Supported chain update: ${update.isSupported}`);
+    }
+    if (update.updateTargetChainAddress) {
+      messages.push(`  Target chain address update: ${utils.hexlify(update.targetChainAddress)}`);
+    }
+    if (update.updateAssetConversionBuffer) {
+      messages.push(`  Asset conversion buffer update:`);
+      messages.push(`    buffer: ${update.buffer}`);
+      messages.push(`    buffer denominator: ${update.bufferDenominator}`);
+    }
   }
 
   console.log(messages.join("\n"));
@@ -214,6 +225,18 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
       updates,
       deliveryProvider,
       supportedChain,
+    );
+  }
+
+  for (const conversionBufferConfig of config.conversionBuffers) {
+    console.log(
+      `Processing supported chain update for operating chain ${chain.chainId} and target chain ${conversionBufferConfig.chainId}`
+    );
+
+    await processAssetConversionBufferUpdates(
+      updates,
+      deliveryProvider,
+      conversionBufferConfig,
     );
   }
 
@@ -302,7 +325,6 @@ async function processMaximumBudgetUpdate(
   { chainId, updateMaximumBudget }: MaximumBudget
 ) {
   const currentMaximumBudget = await deliveryProvider.maximumBudget(chainId);
-
   if (!currentMaximumBudget.eq(updateMaximumBudget)) {
     const update = getUpdateConfig(updates, chainId);
     update.updateMaximumBudget = true;
@@ -398,6 +420,26 @@ async function processCoreConfigUpdates(
   }
 
   return coreConfig;
+}
+
+async function processAssetConversionBufferUpdates(
+  updates: UpdateStruct[],
+  deliveryProvider: DeliveryProvider,
+  conversionBufferConfig: AssetConversionBuffer,
+) {
+  const { chainId, buffer, bufferDenominator } = conversionBufferConfig;
+  const update = getUpdateConfig(updates, chainId);
+
+  const { 
+    buffer: currentBuffer,
+    bufferDenominator: currentBufferDenominator
+  } = await deliveryProvider.assetConversionBuffer(chainId);
+
+  if (buffer !== BigInt(currentBuffer) || bufferDenominator !== BigInt(currentBufferDenominator)) {
+    update.updateAssetConversionBuffer = true;
+    update.buffer = buffer;
+    update.bufferDenominator = bufferDenominator;
+  }
 }
 
 function getUpdateConfig(
