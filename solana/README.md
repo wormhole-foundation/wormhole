@@ -6,7 +6,7 @@ This readme describes the steps for building, verifying, and deploying Solana sm
 
 ## Verify Tilt
 
-Before building Solana contracts, ensure that the specific commit you will be building from passes in tilt.  This that ensures basic functionality of the Solana smart contracts that you are about to build and deploy.
+Before building Solana contracts, ensure that the specific commit you will be building from passes in tilt.  This ensures the basic functionality of the Solana smart contracts that you are about to build and deploy.
 
 
 ## Build Contracts
