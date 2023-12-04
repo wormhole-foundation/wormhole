@@ -120,7 +120,7 @@ known for its robustness - and go-ethereum, both of which have been exhaustively
 
 ## Safe handling of crashes in the Solana eBPF VM
 
-Due to the instruction count limitations in the Solana runtime, the Solana contracts makes liberal use of unsafe blocks
+Due to the instruction count limitations in the Solana runtime, the Solana contracts make liberal use of unsafe blocks
 to serialize and deserialize data without incurring the overhead of a memory-safe approach.
 
 This follows current best practices for Solana contract development. It assumes that invalid operations or out-of-bounds
