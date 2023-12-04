@@ -481,34 +481,32 @@ contract TestQueryResponse is Test {
         queryResponse.verifyQueryResponseSignatures(resp, signatures);
     }
 
-    function testFuzz_validateBlockTime_success(uint256 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public view {
+    function testFuzz_validateBlockTime_success(uint256 _blockTime, uint256 _minBlockTime) public view {
         _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
         vm.assume(_blockTime >= _minBlockTime);
-        vm.assume(_blockTime <= _maxBlockTime);
 
-        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime, _maxBlockTime);
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime);
     }
 
-    function testFuzz_validateBlockTime_fail(uint256 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public {
+    function testFuzz_validateBlockTime_fail(uint256 _blockTime, uint256 _minBlockTime) public {
         _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
-        vm.assume(_blockTime < _minBlockTime || _blockTime > _maxBlockTime);
+        vm.assume(_blockTime < _minBlockTime);
 
-        vm.expectRevert(InvalidBlockTime.selector);
-        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime, _maxBlockTime);
+        vm.expectRevert(StaleBlockTime.selector);
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime);
     }
 
-    function testFuzz_validateBlockNum_success(uint64 _blockNum, uint256 _minBlockNum, uint256 _maxBlockNum) public view {
+    function testFuzz_validateBlockNum_success(uint64 _blockNum, uint256 _minBlockNum) public view {
         vm.assume(_blockNum >= _minBlockNum);
-        vm.assume(_blockNum <= _maxBlockNum);
 
-        queryResponse.validateBlockNum(_blockNum, _minBlockNum, _maxBlockNum);
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum);
     }
 
-    function testFuzz_validateBlockNum_fail(uint64 _blockNum, uint256 _minBlockNum, uint256 _maxBlockNum) public {
-        vm.assume(_blockNum < _minBlockNum || _blockNum > _maxBlockNum);
+    function testFuzz_validateBlockNum_fail(uint64 _blockNum, uint256 _minBlockNum) public {
+        vm.assume(_blockNum < _minBlockNum);
 
-        vm.expectRevert(InvalidBlockNum.selector);
-        queryResponse.validateBlockNum(_blockNum, _minBlockNum, _maxBlockNum);
+        vm.expectRevert(StaleBlockNum.selector);
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum);
     }
 
     function testFuzz_validateChainId_success(uint16 _validChainIndex, uint16[] memory _validChainIds) public view {

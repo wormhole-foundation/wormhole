@@ -101,10 +101,10 @@ contract QueryDemo is QueryResponse {
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
 
             // Validate that update is not obsolete
-            validateBlockNum(eqr.blockNum, chainEntry.blockNum, block.number);
+            validateBlockNum(eqr.blockNum, chainEntry.blockNum);
 
             // Validate that update is not stale
-            validateBlockTime(eqr.blockTime, block.timestamp - 300, block.timestamp);
+            validateBlockTime(eqr.blockTime, block.timestamp - 300);
 
             if (eqr.result.length != 1) {
                 revert UnexpectedResultMismatch();
