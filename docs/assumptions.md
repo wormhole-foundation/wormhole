@@ -75,9 +75,10 @@ strongly align with the Solana ecosystem - large token holders, ecosystem projec
 would risk damage to their reputation, token values, and ecosystem growth by attacking the network or neglecting their
 duties.
 
-We assume that at the present time, such incentive alignment is easy to bootstrap and get right than a separate chain,
-which requires carefully-designed token economy and slashing criteria. In particular, it attracts operators who care
-about the ecosystem beyond short-term validation rewards, resulting in a high-quality, resilient guardian set.
+We assume that, at the present time, achieving such incentive alignment is easier to bootstrap and get right compared to
+establishing a separate chain, which requires a carefully-designed token economy and slashing criteria. In particular,
+it attracts operators who care about the ecosystem beyond short-term validation rewards, resulting in a high-quality,
+resilient guardian set.
 
 As the project grows, there's a number of potential improvements to consider other than a staking token, including
 the [Balsa](https://docs.google.com/document/d/1sCgxHIOrVHAqrt4NWkUJXxQvpSxq6DyZrkf4IR-R-YM/edit) insurance pool
