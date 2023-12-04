@@ -77,8 +77,8 @@ error InvalidPayloadLength(uint256 received, uint256 expected);
 error InvalidContractAddress();
 error InvalidFunctionSignature();
 error InvalidChainId();
-error InvalidBlockNum();
-error InvalidBlockTime();
+error StaleBlockNum();
+error StaleBlockTime();
 
 // @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
@@ -357,34 +357,37 @@ abstract contract QueryResponse {
         checkLength(pcr.response, respIdx);
     }
 
-    /// @dev validateBlockTime validates that the parsed block time is in an acceptable range
+    /// @dev validateBlockTime validates that the parsed block time isn't stale
     /// @param _blockTime Wormhole block time in MICROseconds
     /// @param _minBlockTime Minium block time in seconds
-    /// @param _maxBlockTime Maximum block time in seconds
-    function validateBlockTime(uint64 _blockTime, uint256 _minBlockTime, uint256 _maxBlockTime) public pure {
+    function validateBlockTime(uint64 _blockTime, uint256 _minBlockTime) public pure {
         uint256 blockTimeInSeconds = _blockTime / 1_000_000; // Rounds down
         
-        if (blockTimeInSeconds < _minBlockTime || blockTimeInSeconds > _maxBlockTime) {
-            revert InvalidBlockTime();
+        if (blockTimeInSeconds < _minBlockTime) {
+            revert StaleBlockTime();
         }
     }
 
-    /// @dev validateBlockNum validates that the parsed blockNum is in an acceptable range
-    function validateBlockNum(uint64 _blockNum, uint256 _minBlockNum, uint256 _maxBlockNum) public pure {
-        if (_blockNum < _minBlockNum || _blockNum > _maxBlockNum) {
-            revert InvalidBlockNum();
+    /// @dev validateBlockNum validates that the parsed blockNum isn't stale
+    function validateBlockNum(uint64 _blockNum, uint256 _minBlockNum) public pure {
+        if (_blockNum < _minBlockNum) {
+            revert StaleBlockNum();
         }
     } 
 
     /// @dev validateChainId validates that the parsed chainId is one of an array of chainIds we expect
     function validateChainId(uint16 chainId, uint16[] memory _validChainIds) public pure {
         bool validChainId = false;
+
+        uint256 numChainIds = _validChainIds.length;
         
-        for (uint256 i = 0; i < _validChainIds.length; ++i) {
-            if (chainId == _validChainIds[i]) {
+        for (uint256 idx = 0; idx < numChainIds;) {
+            if (chainId == _validChainIds[idx]) {
                 validChainId = true;
                 break;
             }
+
+            unchecked { ++idx; }
         }
 
         if (!validChainId) revert InvalidChainId();
@@ -392,8 +395,12 @@ abstract contract QueryResponse {
 
     /// @dev validateMutlipleEthCallData validates that each EthCallData in an array comes from a function signature and contract address we expect
     function validateMultipleEthCallData(EthCallData[] memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
-        for (uint256 i = 0; i < r.length; ++i) {
-            validateEthCallData(r[i], _expectedContractAddresses, _expectedFunctionSignatures);
+        uint256 callDatasLength = r.length;
+        
+        for (uint256 idx = 0; idx < callDatasLength;) {
+            validateEthCallData(r[idx], _expectedContractAddresses, _expectedFunctionSignatures);
+
+            unchecked { ++idx; }
         }
     }
 
@@ -403,12 +410,16 @@ abstract contract QueryResponse {
         bool validContractAddress = _expectedContractAddresses.length == 0 ? true : false;
         bool validFunctionSignature = _expectedFunctionSignatures.length == 0 ? true : false;
         
+        uint256 contractAddressesLength = _expectedContractAddresses.length;
+        
         // Check that the contract address called in the request is expected
-        for (uint256 i = 0; i < _expectedContractAddresses.length; ++i) {
-            if (r.contractAddress == _expectedContractAddresses[i]) {
+        for (uint256 idx = 0; idx < contractAddressesLength;) {
+            if (r.contractAddress == _expectedContractAddresses[idx]) {
                 validContractAddress = true;
                 break;
             }
+
+            unchecked { ++idx; }
         }
 
         // Early exit to save gas
@@ -416,13 +427,17 @@ abstract contract QueryResponse {
             revert InvalidContractAddress();
         }
 
+        uint256 functionSignaturesLength = _expectedFunctionSignatures.length;
+
         // Check that the function signature called is expected
-        for (uint256 i = 0; i < _expectedFunctionSignatures.length; ++i) {
+        for (uint256 idx = 0; idx < functionSignaturesLength;) {
             (bytes4 funcSig,) = r.callData.asBytes4Unchecked(0);
-            if (funcSig == _expectedFunctionSignatures[i]) {
+            if (funcSig == _expectedFunctionSignatures[idx]) {
                 validFunctionSignature = true;
                 break;
             }
+
+            unchecked { ++idx; }
         }
 
         if (!validFunctionSignature) {
