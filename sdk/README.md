@@ -6,7 +6,7 @@ wormhole.
 # Directory Structure
 
  * [sdk/](./): Go SDK.  This package must live in this directory so that clients can use the
-   `gitub.com/wormhole-foundation/wormhole/sdk` import path.
+   `github.com/wormhole-foundation/wormhole/sdk` import path.
  * [vaa/](./vaa/): Go package for using VAAs (Verifiable Action Approval).
  * [js/](./js/README.md): Javascript SDK.
  * [js-proto-node/](./js-proto-node/README.md): NodeJS client protobuf.
