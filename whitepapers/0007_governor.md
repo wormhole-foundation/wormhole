@@ -8,7 +8,7 @@ Limit the impact of certain exploits by giving Guardians the option to delay Wor
 
 ## Background
 
-A single integrity failure of the core messaging bridge can have disastrous consequences for users of token bridges built ontop of Wormhole, if no additional safety mitigations are in place. For example, on Feb 2, 2022 [a vulnerability in the Solana core smart contract was exploited](https://wormholecrypto.medium.com/wormhole-incident-report-02-02-22-ad9b8f21eec6) to maliciously mint wETH on Solana and it was subsequently bridged back to Ethereum.
+A single integrity failure of the core messaging bridge can have disastrous consequences for users of token bridges built on top of Wormhole, if no additional safety mitigations are in place. For example, on Feb 2, 2022 [a vulnerability in the Solana core smart contract was exploited](https://wormholecrypto.medium.com/wormhole-incident-report-02-02-22-ad9b8f21eec6) to maliciously mint wETH on Solana and it was subsequently bridged back to Ethereum.
 
 There are multiple potential failure modes of the bridge:
 * In scope of the Wormhole security program:
@@ -44,7 +44,7 @@ If a Guardian decides to enable this feature:
 
 Governor divides token-based transactions into two categories: small transactions, and large transactions.
 
-- **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artifically split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
+- **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artificially split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
 - **Large Transactions:** Transactions larger than the single-transaction threshold of the chain where the transfer is originating from are considered large transactions.  All large transactions have an imposed 24h finality delay before Wormhole Guardians sign them. These transactions do not affect the 24h threshold counter.
 
 ### Asset pricing
@@ -78,7 +78,7 @@ If a node level config parameter is enabled to indicate that the chain governor 
 The checks performed include:
 
 1. Is the source chain of the message one that is listed within `mainnet_chains.go`?
-2. Is the message sent from a goverened emitter?
+2. Is the message sent from a governed emitter?
 3. Is the message a known type that transfers value?
 4. Is the token transferred listed within `mainnet_tokens.go`?
 5. Is the transaction a “large” transaction (ie. greater than or equal to `bigTransactionSize` for this chain)?
