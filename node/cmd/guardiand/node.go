@@ -71,10 +71,8 @@ var (
 	bscRPC      *string
 	bscContract *string
 
-	polygonRPC                      *string
-	polygonContract                 *string
-	polygonRootChainRpc             *string
-	polygonRootChainContractAddress *string
+	polygonRPC      *string
+	polygonContract *string
 
 	auroraRPC      *string
 	auroraContract *string
@@ -238,8 +236,6 @@ func init() {
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
-	polygonRootChainRpc = NodeCmd.Flags().String("polygonRootChainRpc", "", "Polygon root chain RPC")
-	polygonRootChainContractAddress = NodeCmd.Flags().String("polygonRootChainContractAddress", "", "Polygon root chain contract address")
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
@@ -1065,10 +1061,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(polygonRPC) {
-		// Checkpointing is obsolete.
-		if *polygonRootChainRpc != "" || *polygonRootChainContractAddress != "" {
-			logger.Warn(`polygon checkpointing is obsolete, please remove "--polygonRootChainRpc" and "--polygonRootChainContractAddress"`)
-		}
 		wc := &evm.WatcherConfig{
 			NetworkID: "polygon",
 			ChainID:   vaa.ChainIDPolygon,
