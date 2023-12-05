@@ -333,6 +333,10 @@ func (acct *Accountant) loadPendingTransfers() error {
 		msgId := msg.MessageIDString()
 		if !acct.IsMessageCoveredByAccountant(msg) {
 			acct.logger.Error("dropping reloaded pending transfer because it is not covered by the accountant", zap.String("msgID", msgId))
+			if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
+				acct.logger.Error("failed to delete pending transfer from the db", zap.String("msgId", msgId), zap.Error(err))
+				// Ignore this error and keep going.
+			}
 			continue
 		}
 		acct.logger.Info("reloaded pending transfer", zap.String("msgID", msgId))
