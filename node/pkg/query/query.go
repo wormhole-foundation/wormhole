@@ -451,5 +451,5 @@ func SupportsTimestampCaching(chainID vaa.ChainID) bool {
 		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
 	*/
 
-	return chainID == vaa.ChainIDEthereum || chainID == vaa.ChainIDBase || chainID == vaa.ChainIDOptimism
+	return true
 }
