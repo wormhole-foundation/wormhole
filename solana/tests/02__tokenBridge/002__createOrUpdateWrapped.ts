@@ -115,15 +115,6 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
       expect(dataV1.name).equals("Dead beef. Moo.".padEnd(32, "\x00"));
       expect(forkDataV1.name).equals("Dead beef. Moo. (Wormhole)".padEnd(32, "\x00"));
 
-      // Instead of adding the suffix " (Wormhole)", we use the URI to describe the original asset.
-      const uri: { wormholeChainId: number; canonicalAddress: string; nativeDecimals: number } =
-        JSON.parse(dataV1.uri.replace(/\0/g, ""));
-      expectDeepEqual(uri, {
-        wormholeChainId: 2,
-        canonicalAddress: "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-        nativeDecimals: 18,
-      });
-
       localVariables.set("signedVaa", signedVaa);
     });
 
@@ -222,15 +213,6 @@ describe("Token Bridge -- Legacy Instruction: Create or Update Wrapped", () => {
       // Note the differences between the new implementation and the fork.
       expect(dataV1.name).equals("medium rare".padEnd(32, "\x00"));
       expect(forkDataV1.name).equals("medium rare (Wormhole)".padEnd(32, "\x00"));
-
-      // Instead of adding the suffix " (Wormhole)", we use the URI to describe the original asset.
-      const uri: { wormholeChainId: number; canonicalAddress: string; nativeDecimals: number } =
-        JSON.parse(dataV1.uri.replace(/\0/g, ""));
-      expectDeepEqual(uri, {
-        wormholeChainId: 2,
-        canonicalAddress: "0x000000000000000000000000beefdeadbeefdeadbeefdeadbeefdeadbeefdead",
-        nativeDecimals: 7,
-      });
     });
 
     it("Invoke `create_or_update_wrapped` for Boundary Test Assets", async () => {

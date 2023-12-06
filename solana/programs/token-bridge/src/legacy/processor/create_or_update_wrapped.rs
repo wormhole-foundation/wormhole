@@ -182,22 +182,14 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     let msg = TokenBridgeMessage::try_from(vaa.try_payload().unwrap()).unwrap();
     let attestation = msg.attestation().unwrap();
 
-    let core_bridge::EmitterInfo {
-        chain: _,
-        address: _,
-        sequence,
-    } = vaa.try_emitter_info().unwrap();
     let wrapped_asset = WrappedAsset {
         legacy: LegacyWrappedAsset {
             token_chain: attestation.token_chain(),
             token_address: attestation.token_address(),
             native_decimals: attestation.decimals(),
         },
-        last_updated_sequence: sequence,
+        last_updated_sequence: vaa.try_emitter_info().unwrap().sequence,
     };
-
-    // The wrapped asset account data will be encoded as JSON in the token metadata's URI.
-    let uri = wrapped_asset.to_uri();
 
     // Create and set wrapped asset data.
     {
@@ -223,8 +215,6 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
         core_bridge::legacy::LegacyAnchorized::from(wrapped_asset).try_serialize(&mut writer)?;
     }
 
-    let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
-
     metadata::create_metadata_accounts_v3(
         CpiContext::new_with_signer(
             ctx.accounts.mpl_token_metadata_program.to_account_info(),
@@ -239,15 +229,7 @@ fn handle_create_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
             },
             &[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]],
         ),
-        DataV2 {
-            symbol,
-            name,
-            uri,
-            seller_fee_basis_points: 0,
-            creators: None,
-            collection: None,
-            uses: None,
-        },
+        prepare_data_v2(attestation),
         true,
         true,
         None,
@@ -307,11 +289,7 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
     }
 
     // Now check the sequence to see whether this VAA is stale.
-    let core_bridge::EmitterInfo {
-        chain: _,
-        address: _,
-        sequence: updated_sequence,
-    } = vaa.try_emitter_info().unwrap();
+    let updated_sequence = vaa.try_emitter_info().unwrap().sequence;
     let wrapped_asset = {
         let acc_data = ctx.accounts.wrapped_asset.data.borrow();
         let mut wrapped_asset =
@@ -336,44 +314,21 @@ fn handle_update_wrapped(ctx: Context<CreateOrUpdateWrapped>) -> Result<()> {
         wrapped_asset.try_serialize(&mut writer)?;
     }
 
-    // Deserialize token metadata so we can check whether the name or symbol have changed in
-    // this asset metadata VAA.
-    let data = {
-        metadata::MetadataAccount::try_deserialize(
-            &mut ctx.accounts.token_metadata.data.borrow().as_ref(),
-        )
-        .map(|meta| meta.data.clone())?
-    };
-
-    let FixedMeta { symbol, name } = fix_symbol_and_name(attestation);
-
-    if name != data.name || symbol != data.symbol {
-        // Finally update token metadata.
-        metadata::update_metadata_accounts_v2(
-            CpiContext::new_with_signer(
-                ctx.accounts.mpl_token_metadata_program.to_account_info(),
-                metadata::UpdateMetadataAccountsV2 {
-                    metadata: ctx.accounts.token_metadata.to_account_info(),
-                    update_authority: ctx.accounts.mint_authority.to_account_info(),
-                },
-                &[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]],
-            ),
-            None,
-            Some(DataV2 {
-                symbol,
-                name,
-                uri: data.uri,
-                seller_fee_basis_points: 0,
-                creators: None,
-                collection: None,
-                uses: None,
-            }),
-            None,
-            None,
-        )
-    } else {
-        Ok(())
-    }
+    // Finally update token metadata even if the name and symbol have not changed.
+    metadata::update_metadata_accounts_v2(
+        CpiContext::new_with_signer(
+            ctx.accounts.mpl_token_metadata_program.to_account_info(),
+            metadata::UpdateMetadataAccountsV2 {
+                metadata: ctx.accounts.token_metadata.to_account_info(),
+                update_authority: ctx.accounts.mint_authority.to_account_info(),
+            },
+            &[&[MINT_AUTHORITY_SEED_PREFIX, &[ctx.bumps["mint_authority"]]]],
+        ),
+        None,
+        Some(prepare_data_v2(attestation)),
+        None,
+        None,
+    )
 }
 
 fn try_attestation<F, T>(vaa_acc_info: &AccountInfo, func: F) -> Result<T>
@@ -392,18 +347,18 @@ fn cap_decimals(decimals: u8) -> u8 {
     std::cmp::min(decimals, MAX_DECIMALS)
 }
 
-struct FixedMeta {
-    symbol: String,
-    name: String,
-}
-
-fn fix_symbol_and_name(attestation: &Attestation) -> FixedMeta {
+fn prepare_data_v2(attestation: &Attestation) -> DataV2 {
     // Truncate symbol to 10 characters (the maximum length for Token Metadata's symbol).
     let mut symbol = attestation.symbol().to_string();
     symbol.truncate(mpl_token_metadata::state::MAX_SYMBOL_LENGTH);
 
-    FixedMeta {
+    DataV2 {
         symbol,
         name: attestation.name().to_string(),
+        uri: Default::default(),
+        seller_fee_basis_points: 0,
+        creators: None,
+        collection: None,
+        uses: None,
     }
 }
