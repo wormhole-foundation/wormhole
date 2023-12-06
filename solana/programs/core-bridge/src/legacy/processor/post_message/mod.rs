@@ -241,6 +241,11 @@ fn handle_post_new_message(ctx: Context<PostMessage>, args: PostMessageArgs) -> 
         payload,
     });
 
+    // Even though integrators should be reading the message account data to determine its sequence
+    // number instead of using program logs, we need to keep this log here for backwards
+    // compatibility.
+    msg!("Sequence: {}", emitter_sequence.value);
+
     // Update emitter sequence account with incremented value.
     {
         emitter_sequence.value += 1;
@@ -348,6 +353,11 @@ fn handle_post_prepared_message(ctx: Context<PostMessage>, args: PostMessageArgs
     info.status = MessageStatus::Published;
     info.posted_timestamp = Clock::get().map(Into::into)?;
     info.sequence = emitter_sequence.value;
+
+    // Even though integrators should be reading the message account data to determine its sequence
+    // number instead of using program logs, we need to keep this log here for backwards
+    // compatibility.
+    msg!("Sequence: {}", emitter_sequence.value);
 
     // Update emitter sequence account with incremented value.
     {

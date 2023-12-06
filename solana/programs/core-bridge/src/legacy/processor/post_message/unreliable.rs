@@ -182,6 +182,11 @@ fn post_message_unreliable(
         .into(),
     );
 
+    // Even though integrators should be reading the message account data to determine its sequence
+    // number instead of using program logs, we need to keep this log here for backwards
+    // compatibility.
+    msg!("Sequence: {}", emitter_sequence.value);
+
     // Update emitter sequence account with incremented value.
     {
         emitter_sequence.value += 1;
