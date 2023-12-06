@@ -12,7 +12,7 @@ COPY README.md cert.pem* /certs/
 # Alpine
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
 
-RUN --mount=type=cache,target=/code/target,id=terra_classic_target --mount=type=cache,target=/usr/local/cargo/registry optimize_workspace.sh
+RUN --mount=type=cache,target=/target,id=terra_classic_target --mount=type=cache,target=/usr/local/cargo/registry optimize_workspace.sh
 
 FROM scratch as artifacts
 COPY --from=builder /code/artifacts /
