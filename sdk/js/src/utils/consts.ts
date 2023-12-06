@@ -534,7 +534,7 @@ const DEVNET = {
   terra: {
     core: "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
     token_bridge: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
-    nft_bridge: "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
+    nft_bridge: undefined,
   },
   ethereum: {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",

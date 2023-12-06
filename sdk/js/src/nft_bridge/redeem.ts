@@ -5,10 +5,8 @@ import {
   PublicKeyInitData,
   Transaction,
 } from "@solana/web3.js";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Types } from "aptos";
 import { ethers, Overrides } from "ethers";
-import { fromUint8Array } from "js-base64";
 import { Bridge__factory } from "../ethers-contracts";
 import {
   createCompleteTransferNativeInstruction,
@@ -89,18 +87,6 @@ export async function createMetaOnSolana(
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
-}
-
-export async function redeemOnTerra(
-  nftBridgeAddress: string,
-  walletAddress: string,
-  signedVAA: Uint8Array
-): Promise<MsgExecuteContract> {
-  return new MsgExecuteContract(walletAddress, nftBridgeAddress, {
-    submit_vaa: {
-      data: fromUint8Array(signedVAA),
-    },
-  });
 }
 
 export async function redeemOnAptos(
