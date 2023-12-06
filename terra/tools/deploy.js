@@ -34,9 +34,6 @@ const artifacts = [
   "token_bridge_terra.wasm",
   "cw20_wrapped.wasm",
   "cw20_base.wasm",
-  "nft_bridge_terra.wasm",
-  "cw721_wrapped.wasm",
-  "cw721_base.wasm",
   "mock_bridge_integration.wasm",
 ];
 
@@ -208,56 +205,6 @@ addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
   mint: null,
 });
 
-addresses["nft_bridge_terra.wasm"] = await instantiate("nft_bridge_terra.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  wormhole_contract: addresses["wormhole.wasm"],
-  wrapped_asset_code_id: codeIds["cw721_wrapped.wasm"],
-});
-
-addresses["cw721_base.wasm"] = await instantiate("cw721_base.wasm", {
-  name: "MOCK",
-  symbol: "MCK",
-  minter: wallet.key.accAddress,
-});
-
-async function mint_cw721(token_id, token_uri) {
-  await wallet
-    .createAndSignTx({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.key.accAddress,
-          addresses["cw721_base.wasm"],
-          {
-            mint: {
-              token_id: token_id.toString(),
-              owner: wallet.key.accAddress,
-              token_uri: token_uri,
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "",
-      fee: new StdFee(2000000, {
-        uluna: "100000",
-      }),
-    })
-    .then((tx) => broadcastAndWait(terra, tx));
-  console.log(
-    `Minted NFT with token_id ${token_id} at ${addresses["cw721_base.wasm"]}`
-  );
-}
-
-await mint_cw721(
-  0,
-  "https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/"
-);
-await mint_cw721(
-  1,
-  "https://portal.neondistrict.io/api/getNft/158456327500392944014123206890"
-);
-
 /* Registrations: tell the bridge contracts to know about each other */
 
 const contract_registrations = {
@@ -278,12 +225,6 @@ const contract_registrations = {
     process.env.REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA,
     // APTOS
     process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
-  ],
-  "nft_bridge_terra.wasm": [
-    // Solana
-    process.env.REGISTER_SOL_NFT_BRIDGE_VAA,
-    // Ethereum
-    process.env.REGISTER_ETH_NFT_BRIDGE_VAA,
   ],
 };
 

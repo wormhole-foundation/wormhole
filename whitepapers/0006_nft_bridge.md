@@ -38,7 +38,6 @@ We aim to support:
 
 - EIP721 with token_uri extension: Ethereum, BSC
 - Metaplex SPL Meta: Solana
-- CW721 with token_uri extension: Terra
 
 ## Detailed Design
 
@@ -153,11 +152,3 @@ Currently Solana only supports u64 token ids which is incompatible with Ethereum
 UUIDs as token ids (utilizing all bytes of the uint256). There will either need to be a mechanism to translate ids i.e.
 a map of `[32]u8 -> incrementing_u64` (in the expectation there will never be more than MaxU64 editions) or Solana needs
 to change their NFT contract.
-
-Terra CW721 contracts support arbitrary strings as token IDs. In order to fit
-them into 32 bytes, we store their keccak256 hash instead. This means that when
-transferring a terra-native NFT through the wormhole, the ID of the output token
-will be the original token's hash. However, wrapped assets on terra will retain
-their original token ids, simply stringified into a decimal number. Then,
-when transferring them back through the wormhole, we can guarantee that these
-ids will parse as a uint256.
