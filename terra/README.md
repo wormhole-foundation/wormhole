@@ -27,7 +27,7 @@ wormhole/terra $ make artifacts
 Upon completion, the compiled bytecode for the Terra contracts will be placed
 into the `artifacts` directory.
 
-## Verify Checksums 
+## Verify Checksums
 
 Now that you have built the Terra contracts, you should ask a peer to build
 using the same process and compare the equivalent checksums.txt files to make
@@ -66,7 +66,6 @@ private key that you will be using to deploy the contracts.
 ```console
 wormhole/terra $ make deploy/bridge
 wormhole/terra $ make deploy/token_bridge
-wormhole/terra $ make deploy/nft_bridge
 ```
 
 For each deployed contract, you will get a code id for that relevant
@@ -85,12 +84,11 @@ For each contract you wish to verify on-chain, you will need the following eleme
 - Terra code id for the relevant contract (eg. `59614`)
 - A network to verify on (`mainnet`, `testnet`, or `devnet`)
 
-Below is how to verify all three contracts:
+Below is how to verify all two contracts:
 
 ```console
 wormhole/terra $ ./verify artifacts/wormhole.wasm NEW_BRIDGE_CODE_ID
 wormhole/terra $ ./verify artifacts/token_bridge.wasm NEW_TOKEN_BRIDGE_CODE_ID
-wormhole/terra $ ./verify artifacts/nft_bridge.wasm NEW_NFT_BRIDGE_CODE_ID
 ```
 Example: `./verify artifacts/token_bridge.wasm 59614`
 
