@@ -311,7 +311,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   neutron: {
-    core: undefined,
+    core: "neutron16rerygcpahqcxx5t8vjla46ym8ccn7xz7rtc6ju5ujcd36cmc7zs9zrunh",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -521,7 +521,7 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   neutron: {
-    core: undefined,
+    core: "neutron1rhqgnak5z0pla5sgqq7ykqh8glckk4h67fe0hgjfcyulx2nqa0yqaswtnp",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
