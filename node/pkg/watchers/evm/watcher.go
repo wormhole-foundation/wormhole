@@ -488,7 +488,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					if err == ethereum.NotFound {
+					if canRetryGetBlockTime(err) {
 						go w.waitForBlockTime(ctx, logger, errC, ev)
 						continue
 					}
@@ -931,6 +931,11 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	w.pendingMu.Unlock()
 }
 
+// canRetryGetBlockTime returns true if the error returned by getBlockTime warrants doing a retry.
+func canRetryGetBlockTime(err error) bool {
+	return err == ethereum.NotFound /* go-ethereum */ || err.Error() == "cannot query unfinalized data" /* avalanche */
+}
+
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
 // the block time fails. If it is finally able to read the block time, it posts the event for processing. Otherwise, it will eventually give up.
 func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC chan error, ev *ethabi.AbiLogMessagePublished) {
@@ -973,7 +978,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 			}
 
 			ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-			if err != ethereum.NotFound {
+			if !canRetryGetBlockTime(err) {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
 				return
