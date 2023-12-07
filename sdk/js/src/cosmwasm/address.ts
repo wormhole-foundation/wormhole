@@ -15,6 +15,7 @@ import {
   CosmWasmChainName,
   isTerraChain,
   CHAIN_ID_KUJIRA,
+  CHAIN_ID_NEUTRON,
   CHAIN_ID_OSMOSIS,
   CHAIN_ID_CELESTIA,
 } from "../utils";
@@ -28,6 +29,7 @@ export const isNativeDenomCosmosHub = (denom: string) => denom === "uatom";
 export const isNativeDenomEvmos = (denom: string) =>
   denom === "aevmos" || denom === "atevmos";
 export const isNativeDenomKujira = (denom: string) => denom === "ukuji";
+export const isNativeDenomNeutron = (denom: string) => denom === "untrn";
 export const isNativeDenomCelestia = (denom: string) => denom === "utia";
 
 export function isNativeCosmWasmDenom(
@@ -44,6 +46,7 @@ export function isNativeCosmWasmDenom(
     (chainId === CHAIN_ID_COSMOSHUB && isNativeDenomCosmosHub(address)) ||
     (chainId === CHAIN_ID_EVMOS && isNativeDenomEvmos(address)) ||
     (chainId === CHAIN_ID_KUJIRA && isNativeDenomKujira(address)) ||
+    (chainId === CHAIN_ID_NEUTRON && isNativeDenomNeutron(address)) ||
     (chainId === CHAIN_ID_CELESTIA && isNativeDenomCelestia(address))
   );
 }
