@@ -1,6 +1,6 @@
 name: Governor Token List Update
 on:
-  pull:
+  pull_request:
   schedule:
     - cron: '0 0 15 * *' # Run at 00:00 on the 15th of every month
 
