@@ -52,7 +52,7 @@ jobs:
           --repo wormhole-foundation/wormhole \
           --base main \
           --draft \
-          --head wormhole:node/governor-token-list-update \
+          --head djb15:node/governor-token-list-update \
           --title "node: Governor token list update" \
           --body-file ./node/hack/governor/changes.txt
 
