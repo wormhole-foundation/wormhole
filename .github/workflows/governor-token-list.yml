@@ -1,0 +1,68 @@
+name: Governor Token List Update
+on:
+  pull_request: # TODO: remove this before merging. just for debugging
+  schedule:
+    - cron: '0 0 15 * *' # Run at 00:00 on the 15th of every month
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  token-list-update:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.20.10"
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - name: Generate new token list
+        run: |
+          cd node/hack/governor
+          npm ci
+          npm run start
+      - name: Verify new token list
+        run: |
+          cd node/hack/governor
+          go run check_query.go
+      - name: Run Governor tests
+        run: |
+          cd node/pkg/governor
+          go test
+      # - name: Checkout main
+      #   run: git checkout main
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "node: governor token list update"
+          new_branch: node/governor-token-list-update
+
+      # - name: Read changes.txt file
+      #   id: changes
+      #   working-directory: "./node/hack/governor"
+      #   run: echo "::set-output name=changes::$(cat changes.txt)"
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GOVERNOR_TOKEN_LIST_UPDATE_SECRET }}
+        run: |
+          gh pr create \
+          --repo wormhole-foundation/wormhole \
+          --base main \
+          --draft \
+          --head djb15:node/governor-token-list-update \
+          --title "node: Governor token list update" \
+          --body-file ./node/hack/governor/changes.txt
+
+      # - name: Create Pull Request
+      #   uses: peter-evans/create-pull-request@v5.0.2
+      #   with:
+      #     commit-message: "node: governor token list update"
+      #     body: ${{ steps.changes.outputs.changes }}
+      #     title: 'node: Governor token list update'
+      #     branch: node/governor-token-list-update
+      #     base: main
+      #     delete-branch: true
+      #     draft: true
