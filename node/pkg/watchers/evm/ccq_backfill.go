@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 
 	"go.uber.org/zap"
@@ -48,20 +49,26 @@ func (w *Watcher) ccqRequestBackfill(timestamp uint64) {
 	}
 }
 
-// ccqBackfiller is the runnable that handles backfilling the timestamp cache. It initializes the cache and then processes incoming backfill requests from CCQ.
-func (w *Watcher) ccqBackfiller(ctx context.Context) error {
+// ccqBackfillStart initializes the timestamp cache by backfilling some history and starting a routine to handle backfill requests
+// when a timestamp is not in the cache. This function does not return errors because we don't want to prevent the watcher from
+// coming up if we can't backfill the cache. We just disable backfilling and hope for the best.
+func (w *Watcher) ccqBackfillStart(ctx context.Context, errC chan error) {
 	if err := w.ccqBackfillInit(ctx); err != nil {
-		return fmt.Errorf("failed to backfill timestamp cache: %w", err)
+		w.ccqLogger.Error("failed to backfill timestamp cache, disabling backfilling", zap.Error(err))
+		w.ccqBackfillCache = false
+		return
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case evt := <-w.ccqBackfillChannel:
-			w.ccqPerformBackfill(ctx, evt)
+	common.RunWithScissors(ctx, errC, "ccq_backfiller", func(ctx context.Context) error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case evt := <-w.ccqBackfillChannel:
+				w.ccqPerformBackfill(ctx, evt)
+			}
 		}
-	}
+	})
 }
 
 // ccqBackfillInit determines the maximum batch size to be used for backfilling the cache. It also loads the initial batch of timestamps.

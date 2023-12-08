@@ -133,6 +133,7 @@ type (
 		ccqTimestampCache  *BlocksByTimestamp
 		ccqBackfillChannel chan *ccqBackfillRequest
 		ccqBatchSize       int64
+		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
 	}
 
@@ -163,6 +164,7 @@ func NewEthWatcher(
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
+	ccqBackfillCache bool,
 ) *Watcher {
 	return &Watcher{
 		url:                url,
@@ -178,7 +180,7 @@ func NewEthWatcher(
 		pending:            map[pendingKey]*pendingMessage{},
 		unsafeDevMode:      unsafeDevMode,
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
-		ccqTimestampCache:  ccqTimestampCache,
+		ccqBackfillCache:   ccqBackfillCache,
 		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
 	}
 }
@@ -419,10 +421,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	if w.ccqTimestampCache != nil {
-		if err := supervisor.Run(ctx, "ccq_backfiller", common.WrapWithScissors(w.ccqBackfiller, "ccq_backfiller")); err != nil {
-			return fmt.Errorf("failed to start ccq_backfiller: %w", err)
-		}
+	if w.ccqTimestampCache != nil && w.ccqBackfillCache {
+		w.ccqBackfillStart(ctx, errC)
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {

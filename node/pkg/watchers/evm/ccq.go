@@ -215,7 +215,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 		if !found {
 			status := query.QueryRetryNeeded
 			if nextBlockNum == 0 {
-				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp beyond the end of the cache, will wait and retry",
+				w.ccqLogger.Warn("block look up failed in eth_call_by_timestamp query request, timestamp beyond the end of the cache, will wait and retry",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
@@ -233,8 +233,8 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 					zap.Uint64("nextBlockNum", nextBlockNum),
 				)
 				status = query.QueryFatalError
-			} else {
-				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, will request a backfill and retry",
+			} else if w.ccqBackfillCache {
+				w.ccqLogger.Warn("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, will request a backfill and retry",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
@@ -243,6 +243,16 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 					zap.Uint64("nextBlockNum", nextBlockNum),
 				)
 				w.ccqRequestBackfill(req.TargetTimestamp / 1000000)
+			} else {
+				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, failing request",
+					zap.String("requestId", requestId),
+					zap.Uint64("timestamp", req.TargetTimestamp),
+					zap.String("block", block),
+					zap.String("nextBlock", nextBlock),
+					zap.Uint64("blockNum", blockNum),
+					zap.Uint64("nextBlockNum", nextBlockNum),
+				)
+				status = query.QueryFatalError
 			}
 			w.ccqSendQueryResponse(queryRequest, status, nil)
 			return

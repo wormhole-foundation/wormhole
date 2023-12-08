@@ -19,6 +19,7 @@ type WatcherConfig struct {
 	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
 	L1FinalizerRequired    watchers.NetworkID // (optional)
 	l1Finalizer            interfaces.L1Finalizer
+	CcqBackfillCache       bool
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -54,7 +55,7 @@ func (wc *WatcherConfig) Create(
 
 	var devMode bool = (env == common.UnsafeDevNet)
 
-	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, devMode)
+	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, devMode, wc.CcqBackfillCache)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
 	return watcher, watcher.Run, nil
 }

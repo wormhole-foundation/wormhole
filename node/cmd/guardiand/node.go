@@ -225,6 +225,7 @@ var (
 	ccqP2pPort           *uint
 	ccqP2pBootstrap      *string
 	ccqAllowedPeers      *string
+	ccqBackfillCache     *bool
 
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
@@ -408,6 +409,7 @@ func init() {
 	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
 	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (comma-separated)")
 	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
+	ccqBackfillCache = NodeCmd.Flags().Bool("ccqBackfillCache", true, "Should EVM chains backfill CCQ timestamp cache on startup")
 
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
@@ -1181,6 +1183,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:                    *ethRPC,
 			Contract:               *ethContract,
 			GuardianSetUpdateChain: true,
+			CcqBackfillCache:       *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1188,10 +1191,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(bscRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "bsc",
-			ChainID:   vaa.ChainIDBSC,
-			Rpc:       *bscRPC,
-			Contract:  *bscContract,
+			NetworkID:        "bsc",
+			ChainID:          vaa.ChainIDBSC,
+			Rpc:              *bscRPC,
+			Contract:         *bscContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1199,10 +1203,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(polygonRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "polygon",
-			ChainID:   vaa.ChainIDPolygon,
-			Rpc:       *polygonRPC,
-			Contract:  *polygonContract,
+			NetworkID:        "polygon",
+			ChainID:          vaa.ChainIDPolygon,
+			Rpc:              *polygonRPC,
+			Contract:         *polygonContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1210,10 +1215,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(avalancheRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "avalanche",
-			ChainID:   vaa.ChainIDAvalanche,
-			Rpc:       *avalancheRPC,
-			Contract:  *avalancheContract,
+			NetworkID:        "avalanche",
+			ChainID:          vaa.ChainIDAvalanche,
+			Rpc:              *avalancheRPC,
+			Contract:         *avalancheContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1221,10 +1227,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(oasisRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "oasis",
-			ChainID:   vaa.ChainIDOasis,
-			Rpc:       *oasisRPC,
-			Contract:  *oasisContract,
+			NetworkID:        "oasis",
+			ChainID:          vaa.ChainIDOasis,
+			Rpc:              *oasisRPC,
+			Contract:         *oasisContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1232,10 +1239,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(auroraRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "aurora",
-			ChainID:   vaa.ChainIDAurora,
-			Rpc:       *auroraRPC,
-			Contract:  *auroraContract,
+			NetworkID:        "aurora",
+			ChainID:          vaa.ChainIDAurora,
+			Rpc:              *auroraRPC,
+			Contract:         *auroraContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1243,10 +1251,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(fantomRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "fantom",
-			ChainID:   vaa.ChainIDFantom,
-			Rpc:       *fantomRPC,
-			Contract:  *fantomContract,
+			NetworkID:        "fantom",
+			ChainID:          vaa.ChainIDFantom,
+			Rpc:              *fantomRPC,
+			Contract:         *fantomContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1254,10 +1263,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(karuraRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "karura",
-			ChainID:   vaa.ChainIDKarura,
-			Rpc:       *karuraRPC,
-			Contract:  *karuraContract,
+			NetworkID:        "karura",
+			ChainID:          vaa.ChainIDKarura,
+			Rpc:              *karuraRPC,
+			Contract:         *karuraContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1265,10 +1275,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(acalaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "acala",
-			ChainID:   vaa.ChainIDAcala,
-			Rpc:       *acalaRPC,
-			Contract:  *acalaContract,
+			NetworkID:        "acala",
+			ChainID:          vaa.ChainIDAcala,
+			Rpc:              *acalaRPC,
+			Contract:         *acalaContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1276,10 +1287,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(klaytnRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "klaytn",
-			ChainID:   vaa.ChainIDKlaytn,
-			Rpc:       *klaytnRPC,
-			Contract:  *klaytnContract,
+			NetworkID:        "klaytn",
+			ChainID:          vaa.ChainIDKlaytn,
+			Rpc:              *klaytnRPC,
+			Contract:         *klaytnContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1287,10 +1299,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(celoRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "celo",
-			ChainID:   vaa.ChainIDCelo,
-			Rpc:       *celoRPC,
-			Contract:  *celoContract,
+			NetworkID:        "celo",
+			ChainID:          vaa.ChainIDCelo,
+			Rpc:              *celoRPC,
+			Contract:         *celoContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1298,10 +1311,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(moonbeamRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "moonbeam",
-			ChainID:   vaa.ChainIDMoonbeam,
-			Rpc:       *moonbeamRPC,
-			Contract:  *moonbeamContract,
+			NetworkID:        "moonbeam",
+			ChainID:          vaa.ChainIDMoonbeam,
+			Rpc:              *moonbeamRPC,
+			Contract:         *moonbeamContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1314,6 +1328,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:                 *arbitrumRPC,
 			Contract:            *arbitrumContract,
 			L1FinalizerRequired: "eth",
+			CcqBackfillCache:    *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1321,10 +1336,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(optimismRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "optimism",
-			ChainID:   vaa.ChainIDOptimism,
-			Rpc:       *optimismRPC,
-			Contract:  *optimismContract,
+			NetworkID:        "optimism",
+			ChainID:          vaa.ChainIDOptimism,
+			Rpc:              *optimismRPC,
+			Contract:         *optimismContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1332,10 +1348,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(baseRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "base",
-			ChainID:   vaa.ChainIDBase,
-			Rpc:       *baseRPC,
-			Contract:  *baseContract,
+			NetworkID:        "base",
+			ChainID:          vaa.ChainIDBase,
+			Rpc:              *baseRPC,
+			Contract:         *baseContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1343,10 +1360,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(scrollRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "scroll",
-			ChainID:   vaa.ChainIDScroll,
-			Rpc:       *scrollRPC,
-			Contract:  *scrollContract,
+			NetworkID:        "scroll",
+			ChainID:          vaa.ChainIDScroll,
+			Rpc:              *scrollRPC,
+			Contract:         *scrollContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1354,10 +1372,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(mantleRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID: "mantle",
-			ChainID:   vaa.ChainIDMantle,
-			Rpc:       *mantleRPC,
-			Contract:  *mantleContract,
+			NetworkID:        "mantle",
+			ChainID:          vaa.ChainIDMantle,
+			Rpc:              *mantleRPC,
+			Contract:         *mantleContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1512,10 +1531,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *testnetMode || *unsafeDevMode {
 		if shouldStart(sepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "sepolia",
-				ChainID:   vaa.ChainIDSepolia,
-				Rpc:       *sepoliaRPC,
-				Contract:  *sepoliaContract,
+				NetworkID:        "sepolia",
+				ChainID:          vaa.ChainIDSepolia,
+				Rpc:              *sepoliaRPC,
+				Contract:         *sepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1523,10 +1543,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(holeskyRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "holesky",
-				ChainID:   vaa.ChainIDHolesky,
-				Rpc:       *holeskyRPC,
-				Contract:  *holeskyContract,
+				NetworkID:        "holesky",
+				ChainID:          vaa.ChainIDHolesky,
+				Rpc:              *holeskyRPC,
+				Contract:         *holeskyContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1534,10 +1555,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(arbitrumSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "arbitrum_sepolia",
-				ChainID:   vaa.ChainIDArbitrumSepolia,
-				Rpc:       *arbitrumSepoliaRPC,
-				Contract:  *arbitrumSepoliaContract,
+				NetworkID:        "arbitrum_sepolia",
+				ChainID:          vaa.ChainIDArbitrumSepolia,
+				Rpc:              *arbitrumSepoliaRPC,
+				Contract:         *arbitrumSepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1545,10 +1567,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(baseSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "base_sepolia",
-				ChainID:   vaa.ChainIDBaseSepolia,
-				Rpc:       *baseSepoliaRPC,
-				Contract:  *baseSepoliaContract,
+				NetworkID:        "base_sepolia",
+				ChainID:          vaa.ChainIDBaseSepolia,
+				Rpc:              *baseSepoliaRPC,
+				Contract:         *baseSepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1556,10 +1579,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(optimismSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "optimism_sepolia",
-				ChainID:   vaa.ChainIDOptimismSepolia,
-				Rpc:       *optimismSepoliaRPC,
-				Contract:  *optimismSepoliaContract,
+				NetworkID:        "optimism_sepolia",
+				ChainID:          vaa.ChainIDOptimismSepolia,
+				Rpc:              *optimismSepoliaRPC,
+				Contract:         *optimismSepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1567,10 +1591,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(polygonSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID: "polygon_sepolia",
-				ChainID:   vaa.ChainIDPolygonSepolia,
-				Rpc:       *polygonSepoliaRPC,
-				Contract:  *polygonSepoliaContract,
+				NetworkID:        "polygon_sepolia",
+				ChainID:          vaa.ChainIDPolygonSepolia,
+				Rpc:              *polygonSepoliaRPC,
+				Contract:         *polygonSepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
