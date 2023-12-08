@@ -64,14 +64,19 @@ impl ByteUtils for &[u8] {
     }
 }
 
-/// Left-pad a 20 byte address with 0s
+/// Left-pad a 20 byte or 32 byte address with 0s
 pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
     extend_address_to_32_array(addr).to_vec()
 }
 
+/// Left-pad a 20 byte or 32 byte address with 0s
 pub fn extend_address_to_32_array(addr: &CanonicalAddr) -> [u8; 32] {
-    let mut v: Vec<u8> = vec![0; 12];
-    v.extend(addr.as_slice());
+    let addr = addr.as_slice();
+    let len = addr.len();
+    assert!(len == 20 || len == 32, "invalid address length");
+
+    let mut v: Vec<u8> = vec![0; 32 - len];
+    v.extend(addr);
     let mut result: [u8; 32] = [0; 32];
     result.copy_from_slice(&v);
     result
@@ -97,4 +102,67 @@ pub fn extend_string_to_32(s: &str) -> Vec<u8> {
 pub fn get_string_from_32(v: &[u8]) -> String {
     let s = String::from_utf8_lossy(v);
     s.chars().filter(|c| c != &'\0').collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extend_20_address_to_32() {
+        let addr = CanonicalAddr::from(vec![1u8; 20]);
+        let extended = extend_address_to_32(&addr);
+        assert_eq!(extended.len(), 32);
+        assert_eq!(extended[0..12], vec![0u8; 12]);
+        assert_eq!(extended[12..32], vec![1u8; 20]);
+    }
+
+    #[test]
+    fn test_extend_32_address_to_32() {
+        let addr = CanonicalAddr::from(vec![1u8; 32]);
+        let extended = extend_address_to_32(&addr);
+        assert_eq!(extended.len(), 32);
+        assert_eq!(extended[0..32], vec![1u8; 32]);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid address length")]
+    fn test_extend_33_address_to_32() {
+        let addr = CanonicalAddr::from(vec![1u8; 33]);
+        extend_address_to_32(&addr);
+    }
+
+    #[test]
+    fn test_string_to_array() {
+        let s = "hello";
+        let arr = string_to_array::<10>(s);
+        assert_eq!(arr, [104, 101, 108, 108, 111, 0, 0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn test_string_to_array_long() {
+        let s = "helloasdfadfasdf";
+        let arr = string_to_array::<10>(s);
+        assert_eq!(arr, [104, 101, 108, 108, 111, 97, 115, 100, 102, 97]);
+    }
+
+    #[test]
+    fn test_extend_string_to_32() {
+        let s = "hello";
+        let arr = extend_string_to_32(s);
+        assert_eq!(
+            arr,
+            [
+                104, 101, 108, 108, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0
+            ]
+        );
+    }
+
+    #[test]
+    fn test_get_string_from_32() {
+        let arr = [104, 101, 108, 108, 111, 0, 0, 0, 0, 0];
+        let s = get_string_from_32(&arr);
+        assert_eq!(s, "hello");
+    }
 }
