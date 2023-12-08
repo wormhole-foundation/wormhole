@@ -39,5 +39,6 @@ jobs:
           body: ${{ steps.changes.outputs.changes }}
           title: 'node: Governor token list update'
           branch: node/governor-token-list-update
+          base: main
           delete-branch: true
           draft: true
