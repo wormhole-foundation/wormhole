@@ -43,6 +43,8 @@ jobs:
       #   working-directory: "./node/hack/governor"
       #   run: echo "::set-output name=changes::$(cat changes.txt)"
       - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
           --repo wormhole-foundation/wormhole \
