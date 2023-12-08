@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 0 15 * *' # Run at 00:00 on the 15th of every month
 
+permissions:
+  contents: write
+
 jobs:
   token-list-update:
     runs-on: ubuntu-20.04
