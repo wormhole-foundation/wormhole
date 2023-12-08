@@ -35,7 +35,7 @@ type httpServer struct {
 	topic            *pubsub.Topic
 	logger           *zap.Logger
 	env              common.Environment
-	permissions      Permissions
+	permissions      *Permissions
 	signerKey        *ecdsa.PrivateKey
 	pendingResponses *PendingResponses
 }
@@ -79,7 +79,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	apiKey := strings.ToLower(apiKeys[0])
 
 	// Make sure the user is authorized before we go any farther.
-	permEntry, exists := s.permissions[apiKey]
+	permEntry, exists := s.permissions.GetUserEntry(apiKey)
 	if !exists {
 		s.logger.Error("invalid api key", zap.String("apiKey", apiKey))
 		http.Error(w, "invalid api key", http.StatusForbidden)
@@ -202,7 +202,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	s.pendingResponses.Remove(pendingResponse)
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, permissions Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, permissions *Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
 	s := &httpServer{
 		topic:            t,
 		permissions:      permissions,
