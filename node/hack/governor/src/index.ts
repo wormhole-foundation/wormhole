@@ -235,7 +235,7 @@ axios
     changedContent += JSON.stringify(addedTokens, null, 1);
     changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
-    changedContent += "\n\nTokens with significant price changes = " + significantPriceChanges.length + ":\n\n"
+    changedContent += "\n\nTokens with significant price changes (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
 
     await fs.writeFileSync(
