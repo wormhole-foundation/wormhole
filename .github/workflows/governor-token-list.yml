@@ -32,35 +32,37 @@ jobs:
         run: |
           cd node/pkg/governor
           go test
-      # - name: Commit changes
-      #   uses: EndBug/add-and-commit@v9
-      #   with:
-      #     message: "node: governor token list update"
-      #     new_branch: node/governor-token-list-update
-
-      # # - name: Read changes.txt file
-      # #   id: changes
-      # #   working-directory: "./node/hack/governor"
-      # #   run: echo "::set-output name=changes::$(cat changes.txt)"
-      # - name: Create Pull Request
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |
-      #     gh pr create \
-      #     --repo wormhole-foundation/wormhole \
-      #     --base main \
-      #     --draft \
-      #     --head wormhole:node/governor-token-list-update \
-      #     --title "node: Governor token list update" \
-      #     --body-file ./node/hack/governor/changes.txt
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5.0.2
+      - name: Checkout main
+        run: git checkout main
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
         with:
-          commit-message: "node: governor token list update"
-          body: ${{ steps.changes.outputs.changes }}
-          title: 'node: Governor token list update'
-          branch: node/governor-token-list-update
-          base: main
-          delete-branch: true
-          draft: true
+          message: "node: governor token list update"
+          new_branch: node/governor-token-list-update
+
+      # - name: Read changes.txt file
+      #   id: changes
+      #   working-directory: "./node/hack/governor"
+      #   run: echo "::set-output name=changes::$(cat changes.txt)"
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GOVERNOR_TOKEN_LIST_UPDATE_SECRET }}
+        run: |
+          gh pr create \
+          --repo wormhole-foundation/wormhole \
+          --base main \
+          --draft \
+          --head wormhole:node/governor-token-list-update \
+          --title "node: Governor token list update" \
+          --body-file ./node/hack/governor/changes.txt
+
+      # - name: Create Pull Request
+      #   uses: peter-evans/create-pull-request@v5.0.2
+      #   with:
+      #     commit-message: "node: governor token list update"
+      #     body: ${{ steps.changes.outputs.changes }}
+      #     title: 'node: Governor token list update'
+      #     branch: node/governor-token-list-update
+      #     base: main
+      #     delete-branch: true
+      #     draft: true
