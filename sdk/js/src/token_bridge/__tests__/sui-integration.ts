@@ -667,7 +667,12 @@ describe("Sui SDK tests", () => {
     try {
       await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, attestVAA);
     } catch (e) {
-      // this could fail because the token is already attested (in an unclean env)
+      // this could fail because the token is already attested (in an unclean env) 
+      if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+            console.log("wrapped asset already exists");
+          } else {
+            console.error(e);
+          }
     }
     const { tokenAddress } = parseAttestMetaVaa(attestVAA);
     expect(

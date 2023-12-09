@@ -540,7 +540,11 @@ describe.skip("Terra Integration Tests", () => {
               signedVaa
             );
           } catch (e) {
-            success = false;
+            if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+              success = true;
+            } else {
+              success = false;
+            }
           }
           if (!success) {
             const cr = await updateWrappedOnEth(
@@ -916,7 +920,11 @@ describe.skip("Terra Integration Tests", () => {
               signedVaa
             );
           } catch (e) {
-            success = false;
+            if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+              success = true;
+            } else {
+              success = false;
+            }
           }
           if (!success) {
             const cr = await updateWrappedOnEth(

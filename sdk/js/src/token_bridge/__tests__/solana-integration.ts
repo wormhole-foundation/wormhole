@@ -99,6 +99,11 @@ describe("Solana to Ethereum", () => {
           );
         } catch (e) {
           // this could fail because the token is already attested (in an unclean env)
+          if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+            console.log("wrapped asset already exists");
+          } else {
+            console.log(e);
+          }
         }
         provider.destroy();
         done();
@@ -328,6 +333,11 @@ describe("Solana to Ethereum", () => {
           );
         } catch (e) {
           // this could fail because the token is already attested (in an unclean env)
+          if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+            console.log("wrapped asset already exists");
+          } else {
+            console.log(e);
+          }
         }
         provider.destroy();
         done();

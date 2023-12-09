@@ -127,7 +127,11 @@ describe("Algorand tests", () => {
             vaaBytes
           );
         } catch (e) {
-          success = false;
+          if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+            success = true;
+          } else {
+            success = false;
+          }
         }
         if (!success) {
           try {
@@ -370,7 +374,12 @@ describe("Algorand tests", () => {
             vaaBytes
           );
         } catch (e) {
-          success = false;
+          //@notice
+          if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+            success = true;
+          } else {
+            success = false;
+          }
         }
         if (!success) {
           try {

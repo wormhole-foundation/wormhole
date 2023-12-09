@@ -108,6 +108,11 @@ describe("Aptos SDK tests", () => {
       await createWrappedOnEth(ethTokenBridge, recipient, attestVAA);
     } catch (e) {
       // this could fail because the token is already attested (in an unclean env)
+      if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+        console.log("wrapped asset already exists");
+      } else {
+        throw e;
+      }
     }
 
     // check attestation on ethereum
@@ -420,6 +425,11 @@ describe("Aptos SDK tests", () => {
       await createWrappedOnEth(ethTokenBridge, recipient, attestVAA);
     } catch (e) {
       // this could fail because the token is already attested (in an unclean env)
+      if(e instanceof Error && e.message.includes("wrapped asset already exists")){
+        console.log("wrapped asset already exists");
+      } else {
+        throw e;
+      }
     }
 
     // check attestation on ethereum
