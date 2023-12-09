@@ -7,30 +7,20 @@ from admin import PortalCore, Account
 from gentest import GenTest
 from base64 import b64decode
 
-from typing import List, Tuple, Dict, Any, Optional, Union
-import base64
+from typing import List, Dict, Any
 import random
 import time
-import hashlib
-import uuid
-import json
 
-from algosdk.v2client.algod import AlgodClient
-from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
+from algosdk import account, transaction
 from algosdk.encoding import decode_address, encode_address
-from algosdk.future import transaction
-import algosdk
-from pyteal import compileTeal, Mode, Expr
-from pyteal import *
 from algosdk.logic import get_application_address
+from algosdk.transaction import LogicSig
+from algosdk.v2client import indexer
+from algosdk.v2client.algod import AlgodClient
+import algosdk
 from vaa_verify import get_vaa_verify
 
-from algosdk.future.transaction import LogicSig
-
 from test_contract import get_test_app
-
-from algosdk.v2client import indexer
 
 import pprint
 
@@ -152,15 +142,15 @@ class AlgoTest(PortalCore):
                         args = y["application-transaction"]["application-args"]
                         if len(args) < 2:
                             continue
-                        if base64.b64decode(args[0]) != b'publishMessage':
+                        if b64decode(args[0]) != b'publishMessage':
                             continue
-                        seq = int.from_bytes(base64.b64decode(y["logs"][0]), "big")
+                        seq = int.from_bytes(b64decode(y["logs"][0]), "big")
                         if seq != sid:
                             continue
                         if y["sender"] != saddr:
                             continue;
                         emitter = decode_address(y["sender"])
-                        payload = base64.b64decode(args[1])
+                        payload = b64decode(args[1])
 #                        pprint.pprint([seq, y["sender"], payload.hex()])
 #                        sys.exit(0)
                         return self.gt.genVaa(emitter, seq, payload)
@@ -520,7 +510,7 @@ class AlgoTest(PortalCore):
         self.genTeal()
 
         self.vaa_verify = self.client.compile(get_vaa_verify())
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+        self.vaa_verify["lsig"] = LogicSig(b64decode(self.vaa_verify["result"]))
 
         vaaLogs = []
 
@@ -671,8 +661,8 @@ class AlgoTest(PortalCore):
             try:
                 self.submitVAA(vaa, client, player, self.tokenid)
             except algosdk.error.AlgodHTTPError as e:
-                # should fail right at line 963
-                if "opcodes=pushint 963" in str(e):
+                # should fail right at line 935
+                if "opcodes=pushint 935" in str(e):
                     return True, vaa, None
                 return False, vaa, e
 
@@ -681,7 +671,7 @@ class AlgoTest(PortalCore):
         for _ in range(self.args.loops):
             result, vaa, err = double_submit_transfer_vaa_fails(seq)
             if err != None:
-                assert False, f"!!! ERR: unepexted error. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
+                assert False, f"!!! ERR: unexpected error. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
 
             assert result, f"!!! ERR: sending same VAA twice worked. offending vaa hex:\n{vaa.hex()}"
             seq+=1

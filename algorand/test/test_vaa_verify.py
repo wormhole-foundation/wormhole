@@ -1,6 +1,6 @@
 import pytest
 import coincurve
-from algosdk.future import transaction
+from algosdk import transaction
 from algosdk.error import AlgodHTTPError
 from algosdk.logic import get_application_address
 from Cryptodome.Hash import keccak

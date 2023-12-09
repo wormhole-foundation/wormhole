@@ -7,17 +7,17 @@ COPY README.md cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 
-RUN python3 -m pip install virtualenv
+RUN wget https://github.com/algorand/go-algorand/releases/download/v3.19.0-stable/node_stable_linux-amd64_3.19.0.tar.gz
+RUN tar --extract --file node_stable_linux-amd64_3.19.0.tar.gz bin/goal && rm node_stable_linux-amd64_3.19.0.tar.gz
 
 RUN apt-get update
 RUN apt-get -y install netcat
 
-COPY Pipfile.lock Pipfile.lock
-COPY Pipfile Pipfile
+RUN mkdir teal
+COPY Pipfile Pipfile.lock ./
 
 RUN python3 -m pip install pipenv
 RUN pipenv install
-RUN mkdir teal
 
 COPY *.py .
 COPY test/*.json .

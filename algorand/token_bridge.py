@@ -22,15 +22,11 @@ from pyteal.types import *
 from pyteal.compiler import *
 from pyteal.ir import *
 from globals import *
-from inlineasm import *
-
-from algosdk.v2client.algod import AlgodClient
-from algosdk.encoding import decode_address
+from teal import fullyCompileContract, AssemblyResult
 
 from TmplSig import TmplSig
 from local_blob import LocalBlob
 
-import pprint
 import sys
 
 max_keys = 15
@@ -42,30 +38,6 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 portal_transfer_selector = MethodSignature("portal_transfer(byte[])byte[]")
-
-def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, devmode) -> bytes:
-    if devmode:
-        teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
-    else:
-        teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
-
-    if genTeal:
-        with open(name, "w") as f:
-            print("Writing " + name)
-            f.write(teal)
-    else:
-        with open(name, "r") as f:
-            print("Reading " + name)
-            teal = f.read()
-
-    response = client.compile(teal)
-
-    with open(name + ".bin", "w") as fout:
-        fout.write(response["result"])
-    with open(name + ".hash", "w") as fout:
-        fout.write(decode_address(response["hash"]).hex())
-
-    return response
 
 def clear_token_bridge():
     return Int(1)
@@ -1036,11 +1008,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
         [Txn.on_completion() == OnComplete.NoOp, router]
     )
 
-def get_token_bridge(genTeal, approve_name, clear_name, client: AlgodClient, seed_amt: int, tmpl_sig: TmplSig, devMode: bool) -> Tuple[bytes, bytes]:
-    if not devMode:
-        client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
-    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, approve_token_bridge(seed_amt, tmpl_sig, devMode), approve_name, devMode)
-    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_token_bridge(), clear_name, devMode)
+def get_token_bridge(genTeal, approve_name, clear_name, seed_amt: int, tmpl_sig: TmplSig, devMode: bool) -> Tuple[AssemblyResult, AssemblyResult]:
+    APPROVAL_PROGRAM = fullyCompileContract(genTeal, approve_token_bridge(seed_amt, tmpl_sig, devMode), approve_name, devMode)
+    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, clear_token_bridge(), clear_name, devMode)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM
 
@@ -1048,9 +1018,7 @@ def cli(output_approval, output_clear):
     seed_amt = 1002000
     tmpl_sig = TmplSig("sig")
 
-    client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
-
-    approval, clear = get_token_bridge(True, output_approval, output_clear, client, seed_amt, tmpl_sig, False)
+    approval, clear = get_token_bridge(True, output_approval, output_clear, seed_amt, tmpl_sig, False)
 
 if __name__ == "__main__":
     cli(sys.argv[1], sys.argv[2])

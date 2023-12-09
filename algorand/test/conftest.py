@@ -4,7 +4,7 @@ import pytest
 import base64
 from admin import PortalCore
 from gentest import GenTest
-from algosdk.future import transaction
+from algosdk import transaction
 from vaa_verify import get_vaa_verify
 
 @pytest.fixture(scope='module')

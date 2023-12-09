@@ -3,7 +3,7 @@ import pytest
 import base64
 import random
 from wormhole_core import getCoreContracts
-from algosdk.future import transaction
+from algosdk import transaction
 from algosdk.encoding import decode_address
 from algosdk.logic import get_application_address
 from algosdk.error import AlgodHTTPError

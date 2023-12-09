@@ -1,8 +1,8 @@
-from algosdk.encoding import decode_address
 import pytest
-from algosdk.future import transaction
-from algosdk.logic import get_application_address
+from algosdk import transaction
+from algosdk.encoding import decode_address
 from algosdk.error import AlgodHTTPError
+from algosdk.logic import get_application_address
 
 @pytest.fixture(scope='module')
 def correct_app_id(portal_core, client, creator):
