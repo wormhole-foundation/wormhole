@@ -2,10 +2,6 @@ FROM cli-gen AS cli-export
 FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/sui:1.0.0-testnet_1@sha256:806fc83e7bbd59bca0a1960870d27b041d0b99a286d7eccfcec25beb74c2346c as sui
 
-COPY sui/README.md sui/cert.pem* /certs/
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
 RUN sui genesis -f
 
 COPY sui/devnet/ /root/.sui/sui_config/

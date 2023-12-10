@@ -11,11 +11,6 @@ COPY cosmwasm/packages /code/packages
 COPY cosmwasm/artifacts /code/artifacts
 COPY sdk/rust /sdk/rust
 
-# Support additional root CAs
-COPY README.md cert.pem* /certs/
-# Alpine
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
-
 RUN --mount=type=cache,target=/target,id=cosmwasm_target --mount=type=cache,target=/usr/local/cargo/registry optimize_workspace.sh
 
 FROM scratch as artifacts
