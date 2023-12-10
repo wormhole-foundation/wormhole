@@ -42,12 +42,24 @@ impl ByteUtils for &[u8] {
     fn get_u256(&self, index: usize) -> (u128, u128) {
         (self.get_u128_be(index), self.get_u128_be(index + 128 / 8))
     }
-    fn get_address(&self, index: usize) -> CanonicalAddr {
-        // 32 bytes are reserved for addresses, but only the last 20 bytes are taken by the actual address
-        if self.get_u128_be(index) >> 32 != 0 {
-            panic!("invalid Terra address");
+    fn get_address(&self, mut index: usize) -> CanonicalAddr {
+        // Legacy terra addresses are 20 bytes, but new addresses (after the cosmwasm 1.0 upgrade)
+        // are 32 bytes. In the Wormhole wire format, addresses are always encoded as 32 bytes,
+        // so in order to determine which type of address we're dealing with, we check the first
+        // 12 bytes of the address. If they are all 0, then we have a legacy address, otherwise
+        // we have a new address.
+
+        // grab the first 16 bytes (u128) then shift right 4 bytes (32 bits) to get the first 12 bytes.
+        // If the number is 0, then we have a legacy address.
+        let legacy_address: bool = self.get_u128_be(index) >> 32 == 0;
+
+        if legacy_address {
+            // legacy addresses are 20 bytes long, so we skip the first 12 bytes
+            index += 12;
+            CanonicalAddr::from(&self[index..index + 20])
+        } else {
+            CanonicalAddr::from(&self[index..index + 32])
         }
-        CanonicalAddr::from(&self[index + 32 - 20..index + 32])
     }
     fn get_bytes32(&self, index: usize) -> &[u8] {
         &self[index..index + 32]
