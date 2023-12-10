@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  terrad:
+    image: ghcr.io/terra-money/localterra:2.0.1@sha256:be788330d9af64ad2dc645e41e543a8df335531a84572f1a0350c3e548977a3d
+    ports:
+      - "1317:1317"
+      - "9090:9090"
+      - "9091:9091"
+      - "26657:26657"
