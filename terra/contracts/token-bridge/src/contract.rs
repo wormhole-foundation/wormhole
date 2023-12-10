@@ -681,10 +681,9 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(data)?;
-    let marker_byte = transfer_info.token_address.as_slice()[0];
     if transfer_info.token_chain == CHAIN_ID {
-        match marker_byte {
-            1 => handle_complete_transfer_token_native(
+        if is_native_id(transfer_info.token_address.as_slice()) {
+            handle_complete_transfer_token_native(
                 deps,
                 env,
                 info,
@@ -693,8 +692,9 @@ fn handle_complete_transfer(
                 transfer_type,
                 data,
                 relayer_address,
-            ),
-            0 => handle_complete_transfer_token(
+            )
+        } else {
+            handle_complete_transfer_token(
                 deps,
                 env,
                 info,
@@ -703,8 +703,7 @@ fn handle_complete_transfer(
                 transfer_type,
                 data,
                 relayer_address,
-            ),
-            b => Err(StdError::generic_err(format!("Unknown marker byte: {b}"))),
+            )
         }
     } else {
         handle_complete_transfer_token(
@@ -1204,6 +1203,15 @@ fn handle_initiate_transfer_token(
         }
     };
 
+    // Ensure that the asset's address does not collide with the native
+    // address format. This is impossible for legacy CW20 addresses as they are
+    // 20 bytes long left padded with 0s, so their first byte can't be 1.
+    // However, it's theoretically possible for a new 32 byte CW20 address to have
+    // this format. The probability of this happening is 1 / 2^96 ≈ 1.2 * 10^-29,
+    // so it is negligible. Regardless, we block such addresses here
+    // for the sake of completeness and documentation.
+    assert!(!is_native_id(&asset_address));
+
     Ok(Response::new()
         .add_messages(messages)
         .add_submessages(submessages)
@@ -1272,8 +1280,18 @@ fn handle_initiate_transfer_native_token(
     send_native(deps.storage, &asset_address, amount)?;
 
     // Mark the first byte of the address to distinguish it as native.
+    // NOTE: Since the asset's address 20 bytes long, it will get left padded
+    // with 12 bytes of zeros, meaning that after the marker byte adjustment,
+    // the address is [1] ++ [0; 11], i.e. a single 1 byte followed by eleven 0
+    // bytes.  We maintain the global invariant that only native bank denoms
+    // have the first 12 bytes in this format. Since there is a theoretical
+    // probability that a 32 byte CW20 address could collide with this format,
+    // we block such addresses on the way out.
     let mut asset_address = extend_address_to_32_array(&asset_address);
     asset_address[0] = 1;
+
+    // sanity check, this will always pass
+    assert!(is_native_id(&asset_address));
 
     let token_bridge_message: TokenBridgeMessage = match transfer_type {
         TransferType::WithoutPayload => {
@@ -1421,6 +1439,12 @@ pub fn build_native_id(denom: &str) -> Vec<u8> {
     asset_address.resize(20 - n, 0u8);
     asset_address.extend_from_slice(denom.as_bytes());
     asset_address
+}
+
+/// Check that the first byte of the address is 1 and the remaining 11 bytes are 0.
+/// For more information, see the comment in [`handle_initiate_transfer_native_token`].
+fn is_native_id(address: &[u8]) -> bool {
+    address[0] == 1 && address[1..12].iter().all(|&x| x == 0)
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {
