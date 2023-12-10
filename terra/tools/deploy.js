@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import {
-  StdFee,
+  Fee,
   MsgInstantiateContract,
   MsgExecuteContract,
   MsgStoreCode,
@@ -128,7 +128,7 @@ const govChain = 1;
 const govAddress =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-async function instantiate(contract, inst_msg) {
+async function instantiate(contract, inst_msg, label) {
   var address;
   await wallet
     .createAndSignTx({
@@ -137,14 +137,16 @@ async function instantiate(contract, inst_msg) {
           wallet.key.accAddress,
           wallet.key.accAddress,
           codeIds[contract],
-          inst_msg
+          inst_msg,
+          undefined,
+          label
         ),
       ],
       memo: "",
     })
     .then((tx) => broadcastAndWait(terra, tx))
     .then((rs) => {
-      address = /"contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
+      address = /"_contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
     });
   console.log(
     `Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(
@@ -164,19 +166,23 @@ if (!init_guardians || init_guardians.length === 0) {
   throw "failed to get initial guardians from .env file.";
 }
 
-addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  guardian_set_expirity: 86400,
-  initial_guardian_set: {
-    addresses: init_guardians.map((hex) => {
-      return {
-        bytes: Buffer.from(hex, "hex").toString("base64"),
-      };
-    }),
-    expiration_time: 0,
+addresses["wormhole.wasm"] = await instantiate(
+  "wormhole.wasm",
+  {
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    guardian_set_expirity: 86400,
+    initial_guardian_set: {
+      addresses: init_guardians.map((hex) => {
+        return {
+          bytes: Buffer.from(hex, "hex").toString("base64"),
+        };
+      }),
+      expiration_time: 0,
+    },
   },
-});
+  "wormhole"
+);
 
 addresses["token_bridge_terra.wasm"] = await instantiate(
   "token_bridge_terra.wasm",
@@ -185,25 +191,30 @@ addresses["token_bridge_terra.wasm"] = await instantiate(
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
     wormhole_contract: addresses["wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped.wasm"],
-  }
+  },
+  "tokenBridge"
 );
 
-addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
-  name: "MOCK",
-  symbol: "MCK",
-  decimals: 6,
-  initial_balances: [
-    {
-      address: wallet.key.accAddress,
-      amount: "100000000",
-    },
-    {
-      address: "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
-      amount: "100000000",
-    },
-  ],
-  mint: null,
-});
+addresses["mock.wasm"] = await instantiate(
+  "cw20_base.wasm",
+  {
+    name: "MOCK",
+    symbol: "MCK",
+    decimals: 6,
+    initial_balances: [
+      {
+        address: wallet.key.accAddress,
+        amount: "100000000",
+      },
+      {
+        address: "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
+        amount: "100000000",
+      },
+    ],
+    mint: null,
+  },
+  "mock"
+);
 
 /* Registrations: tell the bridge contracts to know about each other */
 
@@ -248,7 +259,7 @@ for (const [contract, registrations] of Object.entries(
           ),
         ],
         memo: "",
-        fee: new StdFee(2000000, {
+        fee: new Fee(2000000, {
           uluna: "100000",
         }),
       })

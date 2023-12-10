@@ -29,9 +29,6 @@ export const TERRA_NODE_URL = ci
   ? "http://terra-terrad:1317"
   : "http://localhost:1317";
 export const TERRA_CHAIN_ID = "localterra";
-export const TERRA_GAS_PRICES_URL = ci
-  ? "http://terra-fcd:3060/v1/txs/gas_prices"
-  : "http://localhost:3060/v1/txs/gas_prices";
 export const TERRA_PRIVATE_KEY =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";

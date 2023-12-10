@@ -556,8 +556,9 @@ const DEVNET = {
     nft_bridge: "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA",
   },
   terra: {
-    core: "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
-    token_bridge: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
+    core: "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+    token_bridge:
+      "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
     nft_bridge: undefined,
   },
   ethereum: {
