@@ -757,7 +757,7 @@ if near:
         ref = "near-node",
         context = "near",
         dockerfile = "near/Dockerfile",
-        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
+        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md"],
     )
 
     docker_build(
