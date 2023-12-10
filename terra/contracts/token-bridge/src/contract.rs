@@ -681,30 +681,18 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(data)?;
-    if transfer_info.token_chain == CHAIN_ID {
-        if is_native_id(transfer_info.token_address.as_slice()) {
-            handle_complete_transfer_token_native(
-                deps,
-                env,
-                info,
-                emitter_chain,
-                emitter_address,
-                transfer_type,
-                data,
-                relayer_address,
-            )
-        } else {
-            handle_complete_transfer_token(
-                deps,
-                env,
-                info,
-                emitter_chain,
-                emitter_address,
-                transfer_type,
-                data,
-                relayer_address,
-            )
-        }
+    if transfer_info.token_chain == CHAIN_ID && is_native_id(transfer_info.token_address.as_slice())
+    {
+        handle_complete_transfer_token_native(
+            deps,
+            env,
+            info,
+            emitter_chain,
+            emitter_address,
+            transfer_type,
+            data,
+            relayer_address,
+        )
     } else {
         handle_complete_transfer_token(
             deps,
