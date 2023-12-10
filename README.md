@@ -4,7 +4,7 @@ This monorepo contains the reference implementation of the [Wormhole protocol](h
 
 To learn about how to use and build on Wormhole read the [docs](https://docs.wormhole.com/).
 
-----
+---
 
 See [Live Contracts](https://docs.wormholenetwork.com/wormhole/contracts) for current testnet and mainnet deployments of
 the Wormhole smart contracts.
