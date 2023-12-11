@@ -109,7 +109,7 @@ module wormhole::state {
         move_to(admin, create_guardian_set_changed_handle(account::new_event_handle<GuardianSetChanged>(admin)));
     }
 
-    public(friend) entry fun publish_event(
+    public(friend) fun publish_event(
         sender: u64,
         sequence: u64,
         nonce: u64,
