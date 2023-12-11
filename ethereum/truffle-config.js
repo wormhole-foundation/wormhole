@@ -375,6 +375,15 @@ module.exports = {
       },
       network_id: 534351,
     },
+    mantle_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.testnet.mantle.xyz"
+        );
+      },
+      network_id: 5001,
+    },
     rootstock: {
       provider: () => {
         return new HDWalletProvider(
