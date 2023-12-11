@@ -30,6 +30,18 @@ var (
 			Help: "Total number of requested calls by chain",
 		}, []string{"chain_name"})
 
+	totalRequestsByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_total_requests_by_user",
+			Help: "Total number of requests by user name",
+		}, []string{"user_name"})
+
+	invalidRequestsByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_invalid_requests_by_user",
+			Help: "Total number of invalid requests by user name",
+		}, []string{"user_name"})
+
 	queryResponsesReceived = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_total_query_responses_received_by_peer_id",
