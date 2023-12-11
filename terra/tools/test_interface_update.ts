@@ -14,6 +14,9 @@
 // 11. Attest a native token.
 // 12. Deposit and withdraw a native token. (This is broken in mainnet, but should be fixed with this upgrade.)
 // 13. Send a native token out and back. (This is broken in mainnet, but should be fixed with this upgrade.)
+// 14. Confirm that a VAA redeemed before the upgrade can't be redeemed again (like from step 3)
+// 15. Send a 20-byte addressed native CW20 out and in
+// 16. Send a 32-byte addressed native CW20 out and in
 
 import "dotenv/config";
 import {
@@ -119,44 +122,70 @@ const existingCodeIds = {
 
 // default addresses from first run
 let addressCoreBridge: string =
-  "terra1u5t6m3049dyqnspekjjt8p73ulkp759cyj796ld057md8zj4vnms4swc7n";
+  "terra1xd3f9g77qd5774kkepnn7wndjdlqujsvp5kg0pj7yp55crgvju7snjjgxc";
 let addressTokenBridge: string =
-  "terra186p2npg6fss9c4td5s9dmd62nghvy7j9vausj7yzysynzjjwtltqkhxczn";
+  "terra1kxp07aarhyurar4r4ertszlvhhjmt07j3fusdfu9pj4akkrdcdys9694q2";
+
+async function deployCode(file: string) {
+  const contract_bytes = readFileSync(`../artifacts/${file}`);
+  console.log(`Storing WASM: ${file} (${contract_bytes.length} bytes)`);
+
+  const store_code = new MsgStoreCode(
+    wallet.key.accAddress,
+    contract_bytes.toString("base64")
+  );
+
+  const tx = await wallet.createAndSignTx({
+    msgs: [store_code],
+    memo: "",
+    fee: new Fee(5000000, { uluna: 200_000_000 }),
+  });
+
+  const rs = await broadcastAndWait(terra, tx);
+  console.log(rs.raw_log);
+  console.log(
+    `Deployed ${file} https://finder.terraclassic.community/mainnet/tx/${rs?.txhash}`
+  );
+  const ci = /"code_id","value":"([^"]+)/gm.exec(rs.raw_log)?.[1];
+  if (!ci) {
+    throw new Error("Could not parse code ID from raw_log");
+  }
+  return parseInt(ci);
+}
+
+async function instantiate(contract, inst_msg, label) {
+  var address;
+  await wallet
+    .createAndSignTx({
+      msgs: [
+        new MsgInstantiateContract(
+          wallet.key.accAddress,
+          wallet.key.accAddress,
+          existingCodeIds[contract],
+          inst_msg,
+          undefined,
+          label
+        ),
+      ],
+      memo: "",
+      fee: new Fee(5000000, { uluna: 200_000_000 }),
+    })
+    .then((tx) => broadcastAndWait(terra, tx))
+    .then((rs) => {
+      address = /"_contract_address","value":"([^"]+)/gm.exec(rs.raw_log)?.[1];
+    });
+  console.log(
+    `Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(
+      address
+    )})`
+  );
+  return address;
+}
 
 async function step1() {
   const govChain = 1;
   const govAddress =
     "0000000000000000000000000000000000000000000000000000000000000004";
-  async function instantiate(contract, inst_msg, label) {
-    var address;
-    await wallet
-      .createAndSignTx({
-        msgs: [
-          new MsgInstantiateContract(
-            wallet.key.accAddress,
-            wallet.key.accAddress,
-            existingCodeIds[contract],
-            inst_msg,
-            undefined,
-            label
-          ),
-        ],
-        memo: "",
-        fee: new Fee(5000000, { uluna: 200_000_000 }),
-      })
-      .then((tx) => broadcastAndWait(terra, tx))
-      .then((rs) => {
-        address = /"_contract_address","value":"([^"]+)/gm.exec(
-          rs.raw_log
-        )?.[1];
-      });
-    console.log(
-      `Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(
-        address
-      )})`
-    );
-    return address;
-  }
 
   // devnet guardian public key
   const init_guardians = ["beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"];
@@ -230,12 +259,12 @@ async function step2() {
   }
 }
 
+const registerAvalanche =
+  "010000000001000f4c334aad9d3a3a9025654bdc5b6c544962683d3be6f616e2e8bdb4f0c2d292423c12b62ea1761c208fb2f3c3734dc25110d7ec7bed9d5db64f2f4babd17eaf010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002cb3d3900000000000000000000000000000000000000000000546f6b656e42726964676501000000060000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052";
 async function step3() {
   {
     // Avalanche mainnet token bridge registration
     // worm generate registration -c avalanche -a 0e082F06FF657D94310cB8cE8B0D9a04541d8052 -m TokenBridge -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
-    const registerAvalanche =
-      "010000000001000f4c334aad9d3a3a9025654bdc5b6c544962683d3be6f616e2e8bdb4f0c2d292423c12b62ea1761c208fb2f3c3734dc25110d7ec7bed9d5db64f2f4babd17eaf010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002cb3d3900000000000000000000000000000000000000000000546f6b656e42726964676501000000060000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052";
     const txhash = await submitTokenBridgeVAA(registerAvalanche);
     console.log(
       `Registered Avalanche https://finder.terraclassic.community/mainnet/tx/${txhash}`
@@ -259,37 +288,10 @@ async function step4() {
 }
 
 // default code id from first run
-let newCodeIdCoreBridge: number = 8333;
-let newCodeIdTokenBridge: number = 8334;
+let newCodeIdCoreBridge: number = 8336;
+let newCodeIdTokenBridge: number = 8337;
 
 async function step5() {
-  async function deployCode(file: string) {
-    const contract_bytes = readFileSync(`../artifacts/${file}`);
-    console.log(`Storing WASM: ${file} (${contract_bytes.length} bytes)`);
-
-    const store_code = new MsgStoreCode(
-      wallet.key.accAddress,
-      contract_bytes.toString("base64")
-    );
-
-    const tx = await wallet.createAndSignTx({
-      msgs: [store_code],
-      memo: "",
-      fee: new Fee(5000000, { uluna: 200_000_000 }),
-    });
-
-    const rs = await broadcastAndWait(terra, tx);
-    console.log(rs.raw_log);
-    console.log(
-      `Deployed ${file} https://finder.terraclassic.community/mainnet/tx/${rs?.txhash}`
-    );
-    const ci = /"code_id","value":"([^"]+)/gm.exec(rs.raw_log)?.[1];
-    if (!ci) {
-      throw new Error("Could not parse code ID from raw_log");
-    }
-    return parseInt(ci);
-  }
-
   newCodeIdCoreBridge = await deployCode("wormhole.wasm");
   newCodeIdTokenBridge = await deployCode("token_bridge_terra.wasm");
 }
@@ -298,7 +300,7 @@ async function step6() {
   {
     // worm generate upgrade -c terra -a 8333 -m Core -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
     const upgradeCoreVaa =
-      "01000000000100a5b2ae692d6398838a3c08a3054edfbe9f1d01b4ddc0547c43a7f0b8069f20c12f0dc98202d54bea38c29356bd075cff21a2335cb8c75af689c12db8f2b328b40100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000015a73fa0000000000000000000000000000000000000000000000000000000000436f7265010003000000000000000000000000000000000000000000000000000000000000208d";
+      "01000000000100184d8fd19d0156cbba2c04e93d9f6a13af14388866a6acadde0db5a323deb0c23e40fe42ab52c285453b76fc535a64aa0f9d97f90dc44ca1079c50b7f5a10dc0000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000005dbae8f0000000000000000000000000000000000000000000000000000000000436f72650100030000000000000000000000000000000000000000000000000000000000002090";
     const txhash = await submitCoreBridgeVAA(upgradeCoreVaa);
     console.log(
       `Upgraded core bridge https://finder.terraclassic.community/mainnet/tx/${txhash}`
@@ -308,7 +310,7 @@ async function step6() {
   {
     // worm generate upgrade -c terra -a 8334 -m TokenBridge -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
     const upgradeTokenBridgeVaa =
-      "010000000001005ab927266b7ed6e35901c4184ab42287d2e2dd209e491102210fccf5448d770f74c21a35f222e29cfd3fffa3be6e00eb140c15a557f2497766bbac7bec1a041e000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000000abd77600000000000000000000000000000000000000000000546f6b656e427269646765020003000000000000000000000000000000000000000000000000000000000000208e";
+      "010000000001007e4d9ebea907f55fcf011b7419812707200adc237c5159364486f95e182b98622eab205b0be2af96eb9a5010ab8b2ea3103c5ac5080a7ab9ce42a2bbfa70462f0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000000913c800000000000000000000000000000000000000000000546f6b656e4272696467650200030000000000000000000000000000000000000000000000000000000000002091";
     const txhash = await submitTokenBridgeVAA(upgradeTokenBridgeVaa);
     console.log(
       `Upgraded token bridge https://finder.terraclassic.community/mainnet/tx/${txhash}`
@@ -320,7 +322,7 @@ async function step7() {
   {
     // worm generate upgrade -c terra -a 8333 -m Core -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
     const upgradeCoreVaa =
-      "0100000000010057c3d1727b5acca25a8a5a1ae31f09cf39fa7e01270c145df8fde315f9c7c0ac08c72b4911bc4ea75d18a97a50157c3dc065f1e91438e8060ea376fc7a562f6e0000000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000051078710000000000000000000000000000000000000000000000000000000000436f7265010003000000000000000000000000000000000000000000000000000000000000208d";
+      "0100000000010076c3cea65bb6a1657a5d4736133fcc9dd1c7ff363715e4d4291461e98430f3a7238f12d26bf3b7715915628ed178726d161e594d9722440e01f797658e52351b000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000005b35c780000000000000000000000000000000000000000000000000000000000436f72650100030000000000000000000000000000000000000000000000000000000000002090";
     const txhash = await submitCoreBridgeVAA(upgradeCoreVaa);
     console.log(
       `Upgraded core bridge https://finder.terraclassic.community/mainnet/tx/${txhash}`
@@ -330,7 +332,7 @@ async function step7() {
   {
     // worm generate upgrade -c terra -a 8334 -m TokenBridge -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
     const upgradeTokenBridgeVaa =
-      "010000000001002c7e1404f1451a19f03f2b3e180ab60a11427c289b2e1a8d19067f4c1378114c40460aea7b04299cc6a4d15c3840108f463b4f62bf84b7f552b8ede08a80ecb60100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000042b8c3a00000000000000000000000000000000000000000000546f6b656e427269646765020003000000000000000000000000000000000000000000000000000000000000208e";
+      "01000000000100ae7e1701c5b289ecee8e75140050d5166f8683769e0b6c04f9623331f6c6bfcc068c7fb7ad723c991411bc8eca5a405a8614fe11aa4a9f9861e3a0af06a5c859010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000005c295db00000000000000000000000000000000000000000000546f6b656e4272696467650200030000000000000000000000000000000000000000000000000000000000002091";
     const txhash = await submitTokenBridgeVAA(upgradeTokenBridgeVaa);
     console.log(
       `Upgraded token bridge https://finder.terraclassic.community/mainnet/tx/${txhash}`
@@ -352,7 +354,7 @@ async function step8a() {
 }
 
 const wavaxAddress =
-  "terra17v94nk43tw0wx9r6r8a8kfcya0qazw0n8camypc2qdz4cj6cqajqftzyzh";
+  "terra1kw3u6nyle39qhj4s725rg2lczdtscqkhfcrg33jvup00cm6ae3uqw9ewvw";
 
 async function step8b() {
   // WAVAX transfer in
@@ -578,6 +580,221 @@ async function step13() {
   }
 }
 
+async function step14() {
+  try {
+    await submitTokenBridgeVAA(registerAvalanche);
+  } catch (e) {}
+}
+
+const cw20with20ByteAddress = "terra1hj8de24c3yqvcsv9r8chr03fzwsak3hgd8gv3m";
+
+async function step15a() {
+  const tx = await wallet.createAndSignTx({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        addressTokenBridge,
+        {
+          create_asset_meta: {
+            asset_info: {
+              token: {
+                contract_addr: cw20with20ByteAddress,
+              },
+            },
+            nonce: 0,
+          },
+        },
+        {}
+      ),
+    ],
+    memo: "",
+    fee: new Fee(1000000, { uluna: 50_000_000 }),
+  });
+  const response = await broadcastAndWait(terra, tx);
+  console.log(
+    `Attested ${cw20with20ByteAddress} https://finder.terraclassic.community/mainnet/tx/${response?.txhash}`
+  );
+}
+
+async function step15b() {
+  const amount = "100";
+  const tx = await wallet.createAndSignTx({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        cw20with20ByteAddress,
+        {
+          increase_allowance: {
+            spender: addressTokenBridge,
+            amount,
+            expires: {
+              never: {},
+            },
+          },
+        },
+        {}
+      ),
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        addressTokenBridge,
+        {
+          initiate_transfer: {
+            asset: {
+              amount,
+              info: {
+                token: {
+                  contract_addr: cw20with20ByteAddress,
+                },
+              },
+            },
+            recipient_chain: 4,
+            recipient: Buffer.from(
+              "0000000000000000000000000000000000000000000000000000000000000000",
+              "hex"
+            ).toString("base64"),
+            fee: "0",
+            nonce: 0,
+          },
+        },
+        {}
+      ),
+    ],
+    memo: "",
+    fee: new Fee(1000000, { uluna: 50_000_000 }),
+  });
+  const response = await broadcastAndWait(terra, tx);
+  console.log(
+    `Transferred ${cw20with20ByteAddress} https://finder.terraclassic.community/mainnet/tx/${response?.txhash}`
+  );
+}
+
+async function step15c() {
+  const returnTransfer =
+    "010000000001009b0cf0b08f933c518246235e5b43d33d20de3ecdd7cfb364ee4dd5b29dc14fb216aefdbd0d948eec506eb18ff348675a353c07e3ee244f224b2461b6c7983c650065723a8a0c22000000060000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052000000000001a9ed01010000000000000000000000000000000000000000000000000000000000000064000000000000000000000000bc8edcaab88900cc418519f171be2913a1db46e800030000000000000000000000003d5a258ef48d3b468f0f13973f91b2a9a5cc53d800030000000000000000000000000000000000000000000000000000000000000000";
+  const txhash = await submitTokenBridgeVAA(returnTransfer);
+  console.log(
+    `Redeemed ${cw20with20ByteAddress} https://finder.terraclassic.community/mainnet/tx/${txhash}`
+  );
+}
+
+const cw20with32ByteAddress =
+  "terra1uac8wsrpm4xtwn7qx3rwz602ztsc4qcd9m8rkhx24ywqsxkpvlfq5ywat8";
+
+async function step16prime() {
+  const fileName = "cw20_base.wasm";
+  const newTokenCodeId = await deployCode(fileName);
+  console.log(`New test token code ID: ${newTokenCodeId}`);
+  existingCodeIds[fileName] = newTokenCodeId;
+  const addressTestToken = await instantiate(
+    fileName,
+    {
+      name: "TEST",
+      symbol: "TST",
+      decimals: 6,
+      initial_balances: [
+        {
+          address: wallet.key.accAddress,
+          amount: "100000000",
+        },
+      ],
+      mint: null,
+    },
+    "testToken"
+  );
+  console.log(
+    `New test token instantiated https://finder.terraclassic.community/mainnet/address/${addressTestToken}`
+  );
+}
+
+async function step16a() {
+  const tx = await wallet.createAndSignTx({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        addressTokenBridge,
+        {
+          create_asset_meta: {
+            asset_info: {
+              token: {
+                contract_addr: cw20with32ByteAddress,
+              },
+            },
+            nonce: 0,
+          },
+        },
+        {}
+      ),
+    ],
+    memo: "",
+    fee: new Fee(1000000, { uluna: 50_000_000 }),
+  });
+  const response = await broadcastAndWait(terra, tx);
+  console.log(
+    `Attested ${cw20with32ByteAddress} https://finder.terraclassic.community/mainnet/tx/${response?.txhash}`
+  );
+}
+
+async function step16b() {
+  const amount = "100";
+  const tx = await wallet.createAndSignTx({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        cw20with32ByteAddress,
+        {
+          increase_allowance: {
+            spender: addressTokenBridge,
+            amount,
+            expires: {
+              never: {},
+            },
+          },
+        },
+        {}
+      ),
+      new MsgExecuteContract(
+        wallet.key.accAddress,
+        addressTokenBridge,
+        {
+          initiate_transfer: {
+            asset: {
+              amount,
+              info: {
+                token: {
+                  contract_addr: cw20with32ByteAddress,
+                },
+              },
+            },
+            recipient_chain: 4,
+            recipient: Buffer.from(
+              "0000000000000000000000000000000000000000000000000000000000000000",
+              "hex"
+            ).toString("base64"),
+            fee: "0",
+            nonce: 0,
+          },
+        },
+        {}
+      ),
+    ],
+    memo: "",
+    fee: new Fee(1000000, { uluna: 50_000_000 }),
+  });
+  const response = await broadcastAndWait(terra, tx);
+  console.log(
+    `Transferred ${cw20with32ByteAddress} https://finder.terraclassic.community/mainnet/tx/${response?.txhash}`
+  );
+}
+
+async function step16c() {
+  const returnTransfer =
+    "010000000001004571e9f5012e31e7674d7e86adbcea5f3cfdbdef8ad1c95f46377144db94a4e77ecb390b4f1c1b01825b09bfbf89bb5597b45731d14c916db7b1817bbe0820000165723a8a0c22000000060000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052000000000001a9ed01010000000000000000000000000000000000000000000000000000000000000064e770774061dd4cb74fc03446e169ea12e18a830d2ece3b5ccaa91c081ac167d200030000000000000000000000003d5a258ef48d3b468f0f13973f91b2a9a5cc53d800030000000000000000000000000000000000000000000000000000000000000000";
+  const txhash = await submitTokenBridgeVAA(returnTransfer);
+  console.log(
+    `Redeemed ${cw20with32ByteAddress} https://finder.terraclassic.community/mainnet/tx/${txhash}`
+  );
+}
+
 async function main() {
   // await step1();
   console.log(
@@ -592,16 +809,26 @@ async function main() {
   // await step5();
   // console.log(`New core bridge code ID:  ${newCodeIdCoreBridge}`);
   // console.log(`New token bridge code ID: ${newCodeIdTokenBridge}`);
+  // STOP HERE AND EDIT STEP 6 (also update the addresses and code IDs)
   // await step6();
   // await step7();
   // await step8a();
+  // STOP HERE AND GATHER WAVAX ADDRESS
   // await step8b();
   // await step8c();
-  await step9();
-  await step10();
-  await step11();
-  await step12();
-  await step13();
+  // await step9();
+  // await step10();
+  // await step11();
+  // await step12();
+  // await step13();
+  // await step14();
+  // await step15a();
+  // await step15b();
+  // await step15c();
+  // await step16prime();
+  // await step16a();
+  // await step16b();
+  // await step16c();
 }
 
 main();
