@@ -198,6 +198,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 							)
 						default:
 							logger.Error("failed to write query response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+							// Leave the request in the pending map. It will get cleaned up if it times out.
 						}
 					} else {
 						logger.Info("waiting for more query responses",
