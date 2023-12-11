@@ -406,6 +406,13 @@ abstract contract QueryResponse {
 
     /// @dev validateEthCallData validates that EthCallData comes from a function signature and contract address we expect
     /// @dev An empty array means we accept all addresses/function signatures
+    /// @dev Example 1: To accept signatures 0xaaaaaaaa and 0xbbbbbbbb from `address(abcd)` you'd pass in [0xaaaaaaaa, 0xbbbbbbbb], [address(abcd)]
+    /// @dev Example 2: To accept any function signatures from `address(abcd)` or `address(efab)` you'd pass in [], [address(abcd), address(efab)]
+    /// @dev Example 3: To accept function signature 0xaaaaaaaa from any address you'd pass in [0xaaaaaaaa], []
+    /// @dev WARNING Example 4: If you want to accept signature 0xaaaaaaaa from `address(abcd)` and signature 0xbbbbbbbb from `address(efab)` the following input would be incorrect:
+    /// @dev [0xaaaaaaaa, 0xbbbbbbbb], [address(abcd), address(efab)]
+    /// @dev This would accept both 0xaaaaaaaa and 0xbbbbbbbb from `address(abcd)` AND `address(efab)`. Instead you should make 2 calls to this method
+    /// @dev using the pattern in Example 1. [0xaaaaaaaa], [address(abcd)] OR [0xbbbbbbbb], [address(efab)]
     function validateEthCallData(EthCallData memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
         bool validContractAddress = _expectedContractAddresses.length == 0 ? true : false;
         bool validFunctionSignature = _expectedFunctionSignatures.length == 0 ? true : false;
