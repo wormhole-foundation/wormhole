@@ -127,14 +127,14 @@ export const TERRA_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5"
     : CLUSTER === "testnet"
-    ? "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
-    : "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
+    ? "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au"
+    : "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
     : CLUSTER === "testnet"
-    ? "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"
-    : "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+    ? "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6"
+    : "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 
 export const getBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
