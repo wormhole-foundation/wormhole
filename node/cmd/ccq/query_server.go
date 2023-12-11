@@ -42,8 +42,8 @@ var (
 	telemetryNodeName *string
 	statusAddr        *string
 	promRemoteURL     *string
-	shutdownDelay1    *int
-	shutdownDelay2    *int
+	shutdownDelay1    *uint
+	shutdownDelay2    *uint
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -66,10 +66,10 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
-	shutdownDelay1 = QueryServerCmd.Flags().Int("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
+	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
 
 	// The guardians will wait up to 60 seconds before giving up on a request.
-	shutdownDelay2 = QueryServerCmd.Flags().Int("shutdownDelay2", 65, "Seconds to wait after delay1 for pending requests to complete")
+	shutdownDelay2 = QueryServerCmd.Flags().Uint("shutdownDelay2", 65, "Seconds to wait after delay1 for pending requests to complete")
 }
 
 var QueryServerCmd = &cobra.Command{
