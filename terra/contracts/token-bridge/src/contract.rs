@@ -63,6 +63,8 @@ pub enum TransferType<A> {
 /// can (and should be) safely deleted after the upgrade happened successfully.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // see [the token upgrades](../../../docs/token_upgrades.md) document for
+    // information on upgrading the wrapped token contract.
     Ok(Response::default())
 }
 
@@ -681,6 +683,7 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(data)?;
+    // see [the token id doc](../../../docs/token_id.md) for more info
     if transfer_info.token_chain == CHAIN_ID && is_native_id(transfer_info.token_address.as_slice())
     {
         handle_complete_transfer_token_native(
