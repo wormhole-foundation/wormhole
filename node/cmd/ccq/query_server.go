@@ -223,14 +223,20 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			logger.Info("Received sigterm. disabling health checks and pausing.")
 			statServer.disableHealth()
 			time.Sleep(time.Duration(*shutdownDelay1) * time.Second)
-			logger.Info("Waiting for outstanding requests to complete before shutting down.")
+			numPending := 0
+			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
 			for count := 0; count < int(*shutdownDelay2); count++ {
 				time.Sleep(time.Second)
-				if pendingResponses.Empty() {
+				numPending = pendingResponses.NumPending()
+				if numPending == 0 {
 					break
 				}
 			}
-			logger.Info("Done waiting. shutting down.")
+			if numPending == 0 {
+				logger.Info("Done waiting. shutting down.")
+			} else {
+				logger.Error("Gave up waiting for pending requests to finish. shutting down anyway.", zap.Int("numStillPending", numPending))
+			}
 		} else {
 			logger.Info("Received sigterm. exiting.")
 		}

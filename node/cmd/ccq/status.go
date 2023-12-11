@@ -45,6 +45,7 @@ func (s *statusServer) disableHealth() {
 func (s *statusServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if !s.healthEnabled.Load() {
 		s.logger.Info("ignoring health check")
+		http.Error(w, "shutting down", http.StatusServiceUnavailable)
 		return
 	}
 	s.logger.Debug("health check")

@@ -60,8 +60,8 @@ func (p *PendingResponses) Remove(r *PendingResponse) {
 	delete(p.pendingResponses, signature)
 }
 
-func (p *PendingResponses) Empty() bool {
+func (p *PendingResponses) NumPending() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return len(p.pendingResponses) == 0
+	return len(p.pendingResponses)
 }
