@@ -60,4 +60,16 @@ var (
 			Help:    "Time from request to response published in ms",
 			Buckets: []float64{10.0, 100.0, 250.0, 500.0, 1000.0, 5000.0, 10000.0, 30000.0},
 		})
+
+	permissionFileReloadsSuccess = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_perm_file_reload_success",
+			Help: "Total number of times the permissions file was successfully reloaded",
+		})
+
+	permissionFileReloadsFailure = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_perm_file_reload_failure",
+			Help: "Total number of times the permissions file failed to reload",
+		})
 )

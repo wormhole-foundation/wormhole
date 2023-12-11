@@ -132,7 +132,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --ethContract")
 	}
 
-	permissions, err := parseConfigFile(*permFile)
+	permissions, err := NewPermissions(*permFile)
 	if err != nil {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}
@@ -213,11 +213,24 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		cancel()
 	}()
 
-	<-ctx.Done()
-	logger.Info("Context cancelled, exiting...")
+	// Start watching for permissions file updates.
+	errC := make(chan error)
+	permissions.StartWatcher(ctx, logger, errC)
 
-	// Cleanly shutdown
-	// Without this the same host won't properly discover peers until some timeout
+	// Wait for either a shutdown or a fatal error from the permissions watcher.
+	select {
+	case <-ctx.Done():
+		logger.Info("Context cancelled, exiting...")
+		break
+	case err := <-errC:
+		logger.Error("Encountered an error, exiting", zap.Error(err))
+		break
+	}
+
+	// Stop the permissions file watcher.
+	permissions.StopWatcher()
+
+	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
 	p2p.sub.Cancel()
 	if err := p2p.topic_req.Close(); err != nil {
 		logger.Error("Error closing the request topic", zap.Error(err))
