@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -41,6 +42,8 @@ var (
 	telemetryNodeName *string
 	statusAddr        *string
 	promRemoteURL     *string
+	shutdownDelay1    *uint
+	shutdownDelay2    *uint
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -61,6 +64,12 @@ func init() {
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
 	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
+
+	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
+	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
+
+	// The guardians will wait up to 60 seconds before giving up on a request.
+	shutdownDelay2 = QueryServerCmd.Flags().Uint("shutdownDelay2", 65, "Seconds to wait after delay1 for pending requests to complete")
 }
 
 var QueryServerCmd = &cobra.Command{
@@ -175,11 +184,12 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	}()
 
 	// Start the status server
+	var statServer *statusServer
 	if *statusAddr != "" {
+		statServer = NewStatusServer(*statusAddr, logger, env)
 		go func() {
-			ss := NewStatusServer(*statusAddr, logger, env)
 			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
-			err := ss.ListenAndServe()
+			err := statServer.httpServer.ListenAndServe()
 			if err != nil && err != http.ErrServerClosed {
 				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
 			}
@@ -209,7 +219,27 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	signal.Notify(sigterm, syscall.SIGTERM)
 	go func() {
 		<-sigterm
-		logger.Info("Received sigterm. exiting.")
+		if statServer != nil && *shutdownDelay1 != 0 {
+			logger.Info("Received sigterm. disabling health checks and pausing.")
+			statServer.disableHealth()
+			time.Sleep(time.Duration(*shutdownDelay1) * time.Second)
+			numPending := 0
+			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
+			for count := 0; count < int(*shutdownDelay2); count++ {
+				time.Sleep(time.Second)
+				numPending = pendingResponses.NumPending()
+				if numPending == 0 {
+					break
+				}
+			}
+			if numPending == 0 {
+				logger.Info("Done waiting. shutting down.")
+			} else {
+				logger.Error("Gave up waiting for pending requests to finish. shutting down anyway.", zap.Int("numStillPending", numPending))
+			}
+		} else {
+			logger.Info("Received sigterm. exiting.")
+		}
 		cancel()
 	}()
 
