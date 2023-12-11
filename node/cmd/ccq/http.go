@@ -86,12 +86,14 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
 		return
 	}
+	totalRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
 	if err != nil {
 		s.logger.Error("failed to decode request bytes", zap.String("userId", permEntry.userName), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_request").Inc()
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -100,6 +102,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to decode signature bytes", zap.String("userId", permEntry.userName), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_signature").Inc()
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -114,7 +117,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest); err != nil {
 		s.logger.Error("failed to validate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", status), zap.Error(err))
 		http.Error(w, err.Error(), status)
-		// Metric has already been pegged.
+		// Error specific metric has already been pegged.
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -129,6 +133,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to marshal gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_gossip_msg").Inc()
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -138,6 +143,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
 		http.Error(w, "Duplicate request", http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -147,6 +153,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to publish gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_publish_gossip_msg").Inc()
+		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		s.pendingResponses.Remove(pendingResponse)
 		return
 	}
@@ -163,6 +170,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
+			invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 			break
 		}
 		// Signature indices must be ascending for on-chain verification
@@ -184,6 +192,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
+			invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 			break
 		}
 	}
