@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # load the keys
-hermes keys add --key-name keyterra --hd-path "m/44'/330'/0'/0/0" --chain localterra --mnemonic-file mnemonic_terra.txt
-hermes keys add --key-name keywormhole --chain wormchain --mnemonic-file mnemonic_gateway.txt
+hermes keys add --key-name keyterra --hd-path "m/44'/330'/0'/0/0" --chain localterra --mnemonic-file mnemonic.txt
+hermes keys add --key-name keywormhole --chain wormchain --mnemonic-file mnemonic.txt
 
 # create the IBC Generic Emission channel
 hermes create channel \
