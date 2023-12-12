@@ -13,7 +13,7 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 
 const MinNotional = 0;
 // Price change tolerance in %. Fallback to 30%
-const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? parseInt(process.env.PRICE_TOLERANCE) : 30;
+const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? Math.min(100, Math.max(0, parseInt(process.env.PRICE_TOLERANCE))) : 30;
 
 const axios = require("axios");
 const fs = require("fs");
@@ -231,18 +231,19 @@ axios
 
     // Sanity check to make sure the script is doing what we think it is
     if (existingTokenKeys.length + addedTokens.length - removedTokens.length != newTokensCount) {
-      console.error("The new number of tokens doesn't make sense");
+      console.error(`Num existing tokens (${existingTokenKeys.length}) + Added tokens (${addedTokens.length}) - Removed tokens (${removedTokens.length}) != Num new tokens (${newTokensCount})`);
       process.exit(1);
     }
 
-    var changedContent = "**Tokens before** = " + existingTokenKeys.length;
-    changedContent += "\n**Tokens after** = " + newTokensCount;
-    changedContent += "\n\n**Tokens added** = " + addedTokens.length + ":\n*<WH_chain_id>-<WH_token_addr>-<token_symbol>*\n\n";
+    var changedContent = "```\nTokens before = " + existingTokenKeys.length;
+    changedContent += "\nTokens after = " + newTokensCount;
+    changedContent += "\n\nTokens added = " + addedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(addedTokens, null, 1);
-    changedContent += "\n\n**Tokens removed** = " + removedTokens.length + ":\n*<WH_chain_id>-<WH_token_addr>-<token_symbol>*\n\n";
+    changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
-    changedContent += "\n\n**Tokens with significant price drops (>" + PriceDeltaTolerance + "%)** = " + significantPriceChanges.length + ":\n\n"
+    changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
+    changedContent += "\n```";
 
     await fs.writeFileSync(
       "./changes.txt",
