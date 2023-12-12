@@ -1,18 +1,44 @@
 //@ts-nocheck
 /* eslint-disable */
 import { Reader, Writer } from "protobufjs/minimal";
-import { GuardianSet } from "../wormhole/guardian_set";
 import {
   PageRequest,
   PageResponse,
 } from "../cosmos/base/query/v1beta1/pagination";
+import {
+  ValidatorAllowedAddress,
+  GuardianSet,
+  GuardianValidator,
+  WasmInstantiateAllowedContractCodeId,
+} from "../wormhole/guardian";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
 import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
-import { GuardianValidator } from "../wormhole/guardian_validator";
 
 export const protobufPackage = "wormhole_foundation.wormchain.wormhole";
+
+export interface QueryAllValidatorAllowlist {
+  pagination: PageRequest | undefined;
+}
+
+/** all allowlisted entries by all validators */
+export interface QueryAllValidatorAllowlistResponse {
+  allowlist: ValidatorAllowedAddress[];
+  pagination: PageResponse | undefined;
+}
+
+export interface QueryValidatorAllowlist {
+  validator_address: string;
+  pagination: PageRequest | undefined;
+}
+
+/** all allowlisted entries by a specific validator */
+export interface QueryValidatorAllowlistResponse {
+  validator_address: string;
+  allowlist: ValidatorAllowedAddress[];
+  pagination: PageResponse | undefined;
+}
 
 export interface QueryGetGuardianSetRequest {
   index: number;
@@ -99,6 +125,417 @@ export interface QueryLatestGuardianSetIndexRequest {}
 export interface QueryLatestGuardianSetIndexResponse {
   latestGuardianSetIndex: number;
 }
+
+export interface QueryIbcComposabilityMwContractRequest {}
+
+export interface QueryIbcComposabilityMwContractResponse {
+  contractAddress: string;
+}
+
+export interface QueryAllWasmInstantiateAllowlist {
+  pagination: PageRequest | undefined;
+}
+
+/** all allowlisted entries by all validators */
+export interface QueryAllWasmInstantiateAllowlistResponse {
+  allowlist: WasmInstantiateAllowedContractCodeId[];
+  pagination: PageResponse | undefined;
+}
+
+const baseQueryAllValidatorAllowlist: object = {};
+
+export const QueryAllValidatorAllowlist = {
+  encode(
+    message: QueryAllValidatorAllowlist,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllValidatorAllowlist {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllValidatorAllowlist,
+    } as QueryAllValidatorAllowlist;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllValidatorAllowlist {
+    const message = {
+      ...baseQueryAllValidatorAllowlist,
+    } as QueryAllValidatorAllowlist;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllValidatorAllowlist): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllValidatorAllowlist>
+  ): QueryAllValidatorAllowlist {
+    const message = {
+      ...baseQueryAllValidatorAllowlist,
+    } as QueryAllValidatorAllowlist;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllValidatorAllowlistResponse: object = {};
+
+export const QueryAllValidatorAllowlistResponse = {
+  encode(
+    message: QueryAllValidatorAllowlistResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.allowlist) {
+      ValidatorAllowedAddress.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllValidatorAllowlistResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllValidatorAllowlistResponse,
+    } as QueryAllValidatorAllowlistResponse;
+    message.allowlist = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.allowlist.push(
+            ValidatorAllowedAddress.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllValidatorAllowlistResponse {
+    const message = {
+      ...baseQueryAllValidatorAllowlistResponse,
+    } as QueryAllValidatorAllowlistResponse;
+    message.allowlist = [];
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(ValidatorAllowedAddress.fromJSON(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllValidatorAllowlistResponse): unknown {
+    const obj: any = {};
+    if (message.allowlist) {
+      obj.allowlist = message.allowlist.map((e) =>
+        e ? ValidatorAllowedAddress.toJSON(e) : undefined
+      );
+    } else {
+      obj.allowlist = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllValidatorAllowlistResponse>
+  ): QueryAllValidatorAllowlistResponse {
+    const message = {
+      ...baseQueryAllValidatorAllowlistResponse,
+    } as QueryAllValidatorAllowlistResponse;
+    message.allowlist = [];
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(ValidatorAllowedAddress.fromPartial(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryValidatorAllowlist: object = { validator_address: "" };
+
+export const QueryValidatorAllowlist = {
+  encode(
+    message: QueryValidatorAllowlist,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.validator_address !== "") {
+      writer.uint32(10).string(message.validator_address);
+    }
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: Reader | Uint8Array, length?: number): QueryValidatorAllowlist {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryValidatorAllowlist,
+    } as QueryValidatorAllowlist;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.validator_address = reader.string();
+          break;
+        case 2:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryValidatorAllowlist {
+    const message = {
+      ...baseQueryValidatorAllowlist,
+    } as QueryValidatorAllowlist;
+    if (
+      object.validator_address !== undefined &&
+      object.validator_address !== null
+    ) {
+      message.validator_address = String(object.validator_address);
+    } else {
+      message.validator_address = "";
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryValidatorAllowlist): unknown {
+    const obj: any = {};
+    message.validator_address !== undefined &&
+      (obj.validator_address = message.validator_address);
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryValidatorAllowlist>
+  ): QueryValidatorAllowlist {
+    const message = {
+      ...baseQueryValidatorAllowlist,
+    } as QueryValidatorAllowlist;
+    if (
+      object.validator_address !== undefined &&
+      object.validator_address !== null
+    ) {
+      message.validator_address = object.validator_address;
+    } else {
+      message.validator_address = "";
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryValidatorAllowlistResponse: object = { validator_address: "" };
+
+export const QueryValidatorAllowlistResponse = {
+  encode(
+    message: QueryValidatorAllowlistResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.validator_address !== "") {
+      writer.uint32(10).string(message.validator_address);
+    }
+    for (const v of message.allowlist) {
+      ValidatorAllowedAddress.encode(v!, writer.uint32(18).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(26).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryValidatorAllowlistResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryValidatorAllowlistResponse,
+    } as QueryValidatorAllowlistResponse;
+    message.allowlist = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.validator_address = reader.string();
+          break;
+        case 2:
+          message.allowlist.push(
+            ValidatorAllowedAddress.decode(reader, reader.uint32())
+          );
+          break;
+        case 3:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryValidatorAllowlistResponse {
+    const message = {
+      ...baseQueryValidatorAllowlistResponse,
+    } as QueryValidatorAllowlistResponse;
+    message.allowlist = [];
+    if (
+      object.validator_address !== undefined &&
+      object.validator_address !== null
+    ) {
+      message.validator_address = String(object.validator_address);
+    } else {
+      message.validator_address = "";
+    }
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(ValidatorAllowedAddress.fromJSON(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryValidatorAllowlistResponse): unknown {
+    const obj: any = {};
+    message.validator_address !== undefined &&
+      (obj.validator_address = message.validator_address);
+    if (message.allowlist) {
+      obj.allowlist = message.allowlist.map((e) =>
+        e ? ValidatorAllowedAddress.toJSON(e) : undefined
+      );
+    } else {
+      obj.allowlist = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryValidatorAllowlistResponse>
+  ): QueryValidatorAllowlistResponse {
+    const message = {
+      ...baseQueryValidatorAllowlistResponse,
+    } as QueryValidatorAllowlistResponse;
+    message.allowlist = [];
+    if (
+      object.validator_address !== undefined &&
+      object.validator_address !== null
+    ) {
+      message.validator_address = object.validator_address;
+    } else {
+      message.validator_address = "";
+    }
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(ValidatorAllowedAddress.fromPartial(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
 
 const baseQueryGetGuardianSetRequest: object = { index: 0 };
 
@@ -1803,6 +2240,318 @@ export const QueryLatestGuardianSetIndexResponse = {
   },
 };
 
+const baseQueryIbcComposabilityMwContractRequest: object = {};
+
+export const QueryIbcComposabilityMwContractRequest = {
+  encode(
+    _: QueryIbcComposabilityMwContractRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryIbcComposabilityMwContractRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryIbcComposabilityMwContractRequest,
+    } as QueryIbcComposabilityMwContractRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): QueryIbcComposabilityMwContractRequest {
+    const message = {
+      ...baseQueryIbcComposabilityMwContractRequest,
+    } as QueryIbcComposabilityMwContractRequest;
+    return message;
+  },
+
+  toJSON(_: QueryIbcComposabilityMwContractRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial(
+    _: DeepPartial<QueryIbcComposabilityMwContractRequest>
+  ): QueryIbcComposabilityMwContractRequest {
+    const message = {
+      ...baseQueryIbcComposabilityMwContractRequest,
+    } as QueryIbcComposabilityMwContractRequest;
+    return message;
+  },
+};
+
+const baseQueryIbcComposabilityMwContractResponse: object = {
+  contractAddress: "",
+};
+
+export const QueryIbcComposabilityMwContractResponse = {
+  encode(
+    message: QueryIbcComposabilityMwContractResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.contractAddress !== "") {
+      writer.uint32(10).string(message.contractAddress);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryIbcComposabilityMwContractResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryIbcComposabilityMwContractResponse,
+    } as QueryIbcComposabilityMwContractResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.contractAddress = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryIbcComposabilityMwContractResponse {
+    const message = {
+      ...baseQueryIbcComposabilityMwContractResponse,
+    } as QueryIbcComposabilityMwContractResponse;
+    if (
+      object.contractAddress !== undefined &&
+      object.contractAddress !== null
+    ) {
+      message.contractAddress = String(object.contractAddress);
+    } else {
+      message.contractAddress = "";
+    }
+    return message;
+  },
+
+  toJSON(message: QueryIbcComposabilityMwContractResponse): unknown {
+    const obj: any = {};
+    message.contractAddress !== undefined &&
+      (obj.contractAddress = message.contractAddress);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryIbcComposabilityMwContractResponse>
+  ): QueryIbcComposabilityMwContractResponse {
+    const message = {
+      ...baseQueryIbcComposabilityMwContractResponse,
+    } as QueryIbcComposabilityMwContractResponse;
+    if (
+      object.contractAddress !== undefined &&
+      object.contractAddress !== null
+    ) {
+      message.contractAddress = object.contractAddress;
+    } else {
+      message.contractAddress = "";
+    }
+    return message;
+  },
+};
+
+const baseQueryAllWasmInstantiateAllowlist: object = {};
+
+export const QueryAllWasmInstantiateAllowlist = {
+  encode(
+    message: QueryAllWasmInstantiateAllowlist,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllWasmInstantiateAllowlist {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlist,
+    } as QueryAllWasmInstantiateAllowlist;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllWasmInstantiateAllowlist {
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlist,
+    } as QueryAllWasmInstantiateAllowlist;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllWasmInstantiateAllowlist): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllWasmInstantiateAllowlist>
+  ): QueryAllWasmInstantiateAllowlist {
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlist,
+    } as QueryAllWasmInstantiateAllowlist;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllWasmInstantiateAllowlistResponse: object = {};
+
+export const QueryAllWasmInstantiateAllowlistResponse = {
+  encode(
+    message: QueryAllWasmInstantiateAllowlistResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.allowlist) {
+      WasmInstantiateAllowedContractCodeId.encode(
+        v!,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllWasmInstantiateAllowlistResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlistResponse,
+    } as QueryAllWasmInstantiateAllowlistResponse;
+    message.allowlist = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.allowlist.push(
+            WasmInstantiateAllowedContractCodeId.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllWasmInstantiateAllowlistResponse {
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlistResponse,
+    } as QueryAllWasmInstantiateAllowlistResponse;
+    message.allowlist = [];
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(
+          WasmInstantiateAllowedContractCodeId.fromJSON(e)
+        );
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllWasmInstantiateAllowlistResponse): unknown {
+    const obj: any = {};
+    if (message.allowlist) {
+      obj.allowlist = message.allowlist.map((e) =>
+        e ? WasmInstantiateAllowedContractCodeId.toJSON(e) : undefined
+      );
+    } else {
+      obj.allowlist = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllWasmInstantiateAllowlistResponse>
+  ): QueryAllWasmInstantiateAllowlistResponse {
+    const message = {
+      ...baseQueryAllWasmInstantiateAllowlistResponse,
+    } as QueryAllWasmInstantiateAllowlistResponse;
+    message.allowlist = [];
+    if (object.allowlist !== undefined && object.allowlist !== null) {
+      for (const e of object.allowlist) {
+        message.allowlist.push(
+          WasmInstantiateAllowedContractCodeId.fromPartial(e)
+        );
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a guardianSet by index. */
@@ -1847,6 +2596,18 @@ export interface Query {
   LatestGuardianSetIndex(
     request: QueryLatestGuardianSetIndexRequest
   ): Promise<QueryLatestGuardianSetIndexResponse>;
+  AllowlistAll(
+    request: QueryAllValidatorAllowlist
+  ): Promise<QueryAllValidatorAllowlistResponse>;
+  Allowlist(
+    request: QueryValidatorAllowlist
+  ): Promise<QueryValidatorAllowlistResponse>;
+  IbcComposabilityMwContract(
+    request: QueryIbcComposabilityMwContractRequest
+  ): Promise<QueryIbcComposabilityMwContractResponse>;
+  WasmInstantiateAllowlistAll(
+    request: QueryAllWasmInstantiateAllowlist
+  ): Promise<QueryAllWasmInstantiateAllowlistResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -2005,6 +2766,64 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryLatestGuardianSetIndexResponse.decode(new Reader(data))
+    );
+  }
+
+  AllowlistAll(
+    request: QueryAllValidatorAllowlist
+  ): Promise<QueryAllValidatorAllowlistResponse> {
+    const data = QueryAllValidatorAllowlist.encode(request).finish();
+    const promise = this.rpc.request(
+      "wormhole_foundation.wormchain.wormhole.Query",
+      "AllowlistAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllValidatorAllowlistResponse.decode(new Reader(data))
+    );
+  }
+
+  Allowlist(
+    request: QueryValidatorAllowlist
+  ): Promise<QueryValidatorAllowlistResponse> {
+    const data = QueryValidatorAllowlist.encode(request).finish();
+    const promise = this.rpc.request(
+      "wormhole_foundation.wormchain.wormhole.Query",
+      "Allowlist",
+      data
+    );
+    return promise.then((data) =>
+      QueryValidatorAllowlistResponse.decode(new Reader(data))
+    );
+  }
+
+  IbcComposabilityMwContract(
+    request: QueryIbcComposabilityMwContractRequest
+  ): Promise<QueryIbcComposabilityMwContractResponse> {
+    const data = QueryIbcComposabilityMwContractRequest.encode(
+      request
+    ).finish();
+    const promise = this.rpc.request(
+      "wormhole_foundation.wormchain.wormhole.Query",
+      "IbcComposabilityMwContract",
+      data
+    );
+    return promise.then((data) =>
+      QueryIbcComposabilityMwContractResponse.decode(new Reader(data))
+    );
+  }
+
+  WasmInstantiateAllowlistAll(
+    request: QueryAllWasmInstantiateAllowlist
+  ): Promise<QueryAllWasmInstantiateAllowlistResponse> {
+    const data = QueryAllWasmInstantiateAllowlist.encode(request).finish();
+    const promise = this.rpc.request(
+      "wormhole_foundation.wormchain.wormhole.Query",
+      "WasmInstantiateAllowlistAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllWasmInstantiateAllowlistResponse.decode(new Reader(data))
     );
   }
 }

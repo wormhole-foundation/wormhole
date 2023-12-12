@@ -1,10 +1,9 @@
 bridge_SOURCE=wormhole
 token_bridge_SOURCE=token_bridge_terra
-nft_bridge_SOURCE=nft_bridge
 
 SOURCE_FILES=$(shell find . -name "*.rs" -or -name "*.lock" -or -name "*.toml" | grep -v target)
 
-PACKAGES=$(shell find . -name "Cargo.toml" | grep -E 'packages|contracts' | xargs cat | grep "name *=" | cut -d' ' -f3 | sed s/\"//g | sed s/-/_/g)
+PACKAGES=$(shell find . -name "Cargo.toml" | grep -E 'contracts' | xargs cat | grep "name *=" | cut -d' ' -f3 | sed s/\"//g | sed s/-/_/g)
 WASMS=$(patsubst %, artifacts/%.wasm, $(PACKAGES))
 
 -include ../Makefile.help
@@ -35,10 +34,6 @@ deploy/bridge: bridge-code-id-$(NETWORK).txt
 .PHONY: deploy/token_bridge
 ## Deploy token bridge
 deploy/token_bridge: token_bridge-code-id-$(NETWORK).txt
-
-.PHONY: deploy/nft_bridge
-## Deploy NFT bridge
-deploy/nft_bridge: nft_bridge-code-id-$(NETWORK).txt
 
 %-code-id-$(NETWORK).txt: check-network tools/node_modules payer-$(NETWORK) artifacts
 	@echo "Deploying artifacts/$($*_SOURCE).wasm on $(NETWORK)"

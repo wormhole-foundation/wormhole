@@ -11,9 +11,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
+	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
 	"github.com/certusone/wormhole/node/pkg/version"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ipfslog "github.com/ipfs/go-log/v2"
@@ -39,6 +41,9 @@ var (
 	telemetryLokiURL  *string
 	telemetryNodeName *string
 	statusAddr        *string
+	promRemoteURL     *string
+	shutdownDelay1    *uint
+	shutdownDelay2    *uint
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -58,6 +63,13 @@ func init() {
 	telemetryLokiURL = QueryServerCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
 	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
+	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
+
+	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
+	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
+
+	// The guardians will wait up to 60 seconds before giving up on a request.
+	shutdownDelay2 = QueryServerCmd.Flags().Uint("shutdownDelay2", 65, "Seconds to wait after delay1 for pending requests to complete")
 }
 
 var QueryServerCmd = &cobra.Command{
@@ -129,7 +141,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --ethContract")
 	}
 
-	permissions, err := parseConfigFile(*permFile)
+	permissions, err := NewPermissions(*permFile)
 	if err != nil {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}
@@ -172,15 +184,34 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	}()
 
 	// Start the status server
+	var statServer *statusServer
 	if *statusAddr != "" {
+		statServer = NewStatusServer(*statusAddr, logger, env)
 		go func() {
-			ss := NewStatusServer(*statusAddr, logger, env)
 			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
-			err := ss.ListenAndServe()
+			err := statServer.httpServer.ListenAndServe()
 			if err != nil && err != http.ErrServerClosed {
 				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
 			}
 		}()
+	}
+
+	// Start the Prometheus scraper
+	usingPromRemoteWrite := *promRemoteURL != ""
+	if usingPromRemoteWrite {
+		var info promremotew.PromTelemetryInfo
+		info.PromRemoteURL = *promRemoteURL
+		info.Labels = map[string]string{
+			"node_name": *telemetryNodeName,
+			"network":   *p2pNetworkID,
+			"version":   version.Version(),
+			"product":   "ccq_server",
+		}
+
+		err := RunPrometheusScraper(ctx, logger, info)
+		if err != nil {
+			logger.Fatal("Failed to start prometheus scraper", zap.Error(err))
+		}
 	}
 
 	// Handle SIGTERM
@@ -188,15 +219,48 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	signal.Notify(sigterm, syscall.SIGTERM)
 	go func() {
 		<-sigterm
-		logger.Info("Received sigterm. exiting.")
+		if statServer != nil && *shutdownDelay1 != 0 {
+			logger.Info("Received sigterm. disabling health checks and pausing.")
+			statServer.disableHealth()
+			time.Sleep(time.Duration(*shutdownDelay1) * time.Second)
+			numPending := 0
+			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
+			for count := 0; count < int(*shutdownDelay2); count++ {
+				time.Sleep(time.Second)
+				numPending = pendingResponses.NumPending()
+				if numPending == 0 {
+					break
+				}
+			}
+			if numPending == 0 {
+				logger.Info("Done waiting. shutting down.")
+			} else {
+				logger.Error("Gave up waiting for pending requests to finish. shutting down anyway.", zap.Int("numStillPending", numPending))
+			}
+		} else {
+			logger.Info("Received sigterm. exiting.")
+		}
 		cancel()
 	}()
 
-	<-ctx.Done()
-	logger.Info("Context cancelled, exiting...")
+	// Start watching for permissions file updates.
+	errC := make(chan error)
+	permissions.StartWatcher(ctx, logger, errC)
 
-	// Cleanly shutdown
-	// Without this the same host won't properly discover peers until some timeout
+	// Wait for either a shutdown or a fatal error from the permissions watcher.
+	select {
+	case <-ctx.Done():
+		logger.Info("Context cancelled, exiting...")
+		break
+	case err := <-errC:
+		logger.Error("Encountered an error, exiting", zap.Error(err))
+		break
+	}
+
+	// Stop the permissions file watcher.
+	permissions.StopWatcher()
+
+	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
 	p2p.sub.Cancel()
 	if err := p2p.topic_req.Close(); err != nil {
 		logger.Error("Error closing the request topic", zap.Error(err))

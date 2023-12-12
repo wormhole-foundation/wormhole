@@ -145,6 +145,7 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDOptimism:  {},
 		vaa.ChainIDBase:      {},
 		vaa.ChainIDScroll:    {},
+		vaa.ChainIDMantle:    {},
 		vaa.ChainIDSepolia:   {},
 	}
 
@@ -402,7 +403,7 @@ func parseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]
 	var nullAddr ethCommon.Address
 	result := make(map[ethCommon.Address]struct{})
 	for _, str := range strings.Split(ccqAllowedRequesters, ",") {
-		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(str))
+		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(strings.TrimPrefix(str, "0x")))
 		if addr == nullAddr {
 			return nil, fmt.Errorf("invalid value in `--ccqAllowedRequesters`: `%s`", str)
 		}
@@ -451,5 +452,5 @@ func SupportsTimestampCaching(chainID vaa.ChainID) bool {
 		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
 	*/
 
-	return chainID == vaa.ChainIDEthereum || chainID == vaa.ChainIDBase || chainID == vaa.ChainIDOptimism
+	return true
 }

@@ -1089,15 +1089,17 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
 			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)
+			errCounter++
 			continue
 		}
 		var obsvReq gossipv1.ObservationRequest
 		obsvReq.ChainId = uint32(missingVAA.Chain)
-		obsvReq.TxHash, err = hex.DecodeString(missingVAA.Txhash)
+		obsvReq.TxHash, err = hex.DecodeString(strings.TrimPrefix(missingVAA.Txhash, "0x"))
 		if err != nil {
 			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)
 			if err != nil {
 				errMsgs += "Invalid transaction hash (neither hex nor base58)"
+				errCounter++
 				continue
 			}
 		}

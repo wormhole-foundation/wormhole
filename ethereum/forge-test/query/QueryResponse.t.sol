@@ -11,7 +11,9 @@ import "../../contracts/Wormhole.sol";
 import "forge-std/Test.sol";
 
 // @dev A non-abstract QueryResponse contract
-contract QueryResponseContract is QueryResponse { }
+contract QueryResponseContract is QueryResponse { 
+    constructor(address _wormhole) QueryResponse(_wormhole) {}
+}
 
 contract TestQueryResponse is Test {
     // Some happy case defaults
@@ -35,7 +37,7 @@ contract TestQueryResponse is Test {
 
     function setUp() public {
         wormhole = deployWormholeForTest();
-        queryResponse = new QueryResponseContract();
+        queryResponse = new QueryResponseContract(address(wormhole));
     }
 
     uint16 constant TEST_CHAIN_ID = 2;
@@ -121,7 +123,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+        queryResponse.verifyQueryResponseSignatures(resp, signatures);
         // TODO: There are no assertions for this test
     }
 
@@ -130,7 +132,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(resp, signatures);
         assertEq(r.version, 1);
         assertEq(r.senderChainId, 0);
         assertEq(r.requestId, hex"ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f200");
@@ -306,7 +308,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert(InvalidResponseVersion.selector);
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzSenderChainId(uint16 _senderChainId) public {
@@ -318,7 +320,7 @@ contract TestQueryResponse is Test {
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         // This could revert for multiple reasons. But the checkLength to ensure all the bytes are consumed is the backstop.
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzSignatureHappyCase(bytes memory _signature) public {
@@ -329,7 +331,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(resp, signatures);
 
         assertEq(r.requestId, _signature);
     }
@@ -343,7 +345,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestLen(uint32 _queryRequestLen, bytes calldata _perChainQueries) public {
@@ -355,7 +357,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestVersion(uint8 _version, uint8 _queryRequestVersion) public {
@@ -366,7 +368,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzQueryRequestNonce(uint32 _queryRequestNonce) public {
@@ -374,7 +376,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        ParsedQueryResponse memory r = queryResponse.parseAndVerifyQueryResponse(resp, signatures);
         
         assertEq(r.nonce, _queryRequestNonce);
     }
@@ -387,7 +389,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzChainIds(uint16 _requestChainId, uint16 _responseChainId, uint256 _requestQueryType) public {
@@ -401,7 +403,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert(ChainIdMismatch.selector);
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzMistmatchedRequestType(uint256 _requestQueryType, uint256 _responseQueryType) public {
@@ -416,7 +418,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert(RequestTypeMismatch.selector);
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzUnsupportedRequestType(uint8 _requestQueryType) public {
@@ -429,7 +431,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert(UnsupportedQueryType.selector);
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_parseAndVerifyQueryResponse_fuzzQueryBytesLength(uint32 _queryLength) public {
@@ -442,7 +444,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert();
-        queryResponse.parseAndVerifyQueryResponse(address(wormhole), resp, signatures);
+        queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
     function testFuzz_verifyQueryResponseSignatures_validSignature(bytes calldata resp) public view {
@@ -450,7 +452,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+        queryResponse.verifyQueryResponseSignatures(resp, signatures);
     }
 
     function testFuzz_verifyQueryResponseSignatures_invalidSignature(bytes calldata resp, uint256 privateKey) public {
@@ -463,7 +465,7 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert("VM signature invalid");
-        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+        queryResponse.verifyQueryResponseSignatures(resp, signatures);
     }
 
     function testFuzz_verifyQueryResponseSignatures_validSignatureWrongPrefix(bytes calldata responsePrefix) public {
@@ -476,7 +478,143 @@ contract TestQueryResponse is Test {
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
         vm.expectRevert("VM signature invalid");
-        queryResponse.verifyQueryResponseSignatures(address(wormhole), resp, signatures);
+        queryResponse.verifyQueryResponseSignatures(resp, signatures);
     }
 
+    function testFuzz_validateBlockTime_success(uint256 _blockTime, uint256 _minBlockTime) public view {
+        _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
+        vm.assume(_blockTime >= _minBlockTime);
+
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime);
+    }
+
+    function testFuzz_validateBlockTime_fail(uint256 _blockTime, uint256 _minBlockTime) public {
+        _blockTime = bound(_blockTime, 0, type(uint64).max/1_000_000);
+        vm.assume(_blockTime < _minBlockTime);
+
+        vm.expectRevert(StaleBlockTime.selector);
+        queryResponse.validateBlockTime(uint64(_blockTime * 1_000_000), _minBlockTime);
+    }
+
+    function testFuzz_validateBlockNum_success(uint64 _blockNum, uint256 _minBlockNum) public view {
+        vm.assume(_blockNum >= _minBlockNum);
+
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum);
+    }
+
+    function testFuzz_validateBlockNum_fail(uint64 _blockNum, uint256 _minBlockNum) public {
+        vm.assume(_blockNum < _minBlockNum);
+
+        vm.expectRevert(StaleBlockNum.selector);
+        queryResponse.validateBlockNum(_blockNum, _minBlockNum);
+    }
+
+    function testFuzz_validateChainId_success(uint16 _validChainIndex, uint16[] memory _validChainIds) public view {
+        vm.assume(_validChainIndex < _validChainIds.length);
+
+        queryResponse.validateChainId(_validChainIds[_validChainIndex], _validChainIds);
+    }
+
+    function testFuzz_validateChainId_fail(uint16 _chainId, uint16[] memory _validChainIds) public {
+        for (uint16 i = 0; i < _validChainIds.length; ++i) {
+            vm.assume(_chainId != _validChainIds[i]);
+        }
+
+        vm.expectRevert(InvalidChainId.selector);
+        queryResponse.validateChainId(_chainId, _validChainIds);
+    }
+
+    function testFuzz_validateEthCallData_success(bytes memory randomBytes, uint256 _contractAddressIndex, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_successZeroSignatures(bytes4 randomSignature, bytes memory randomBytes, uint256 _contractAddressIndex, address[] memory _expectedContractAddresses) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: bytes.concat(randomSignature, randomBytes),
+            result: randomBytes
+        });
+
+        bytes4[] memory validSignatures = new bytes4[](0);
+
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, validSignatures);
+    }
+
+    function testFuzz_validateEthCallData_successZeroAddresses(address randomAddress, bytes memory randomBytes, uint256 _functionSignatureIndex, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: randomAddress,
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        address[] memory validAddresses = new address[](0);
+
+        queryResponse.validateEthCallData(callData, validAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_failSignature(bytes memory randomBytes, uint256 _contractAddressIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_expectedFunctionSignatures.length > 0);
+
+        for (uint256 i = 0; i < _expectedFunctionSignatures.length; ++i) {
+            vm.assume(bytes4(randomBytes) != _expectedFunctionSignatures[i]);
+        }
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: _expectedContractAddresses[_contractAddressIndex],
+            callData: randomBytes,
+            result: randomBytes
+        });
+
+        vm.expectRevert(InvalidFunctionSignature.selector);
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateEthCallData_failAddress(bytes memory randomBytes, address randomAddress, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public {
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+        vm.assume(_expectedContractAddresses.length > 0);
+
+        for (uint256 i = 0; i < _expectedContractAddresses.length; ++i) {
+            vm.assume(randomAddress != _expectedContractAddresses[i]);
+        }
+
+        EthCallData memory callData = EthCallData({
+            contractAddress: randomAddress,
+            callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+            result: randomBytes
+        });
+
+        vm.expectRevert(InvalidContractAddress.selector);
+        queryResponse.validateEthCallData(callData, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
+
+    function testFuzz_validateMultipleEthCallData_success(uint8 numInputs, bytes memory randomBytes, uint256 _contractAddressIndex, uint256 _functionSignatureIndex, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public view {
+        vm.assume(_contractAddressIndex < _expectedContractAddresses.length);
+        vm.assume(_functionSignatureIndex < _expectedFunctionSignatures.length);
+
+        EthCallData[] memory callDatas = new EthCallData[](numInputs);
+
+        for (uint256 i = 0; i < numInputs; ++i) {
+            callDatas[i] = EthCallData({
+                contractAddress: _expectedContractAddresses[_contractAddressIndex],
+                callData: bytes.concat(_expectedFunctionSignatures[_functionSignatureIndex], randomBytes),
+                result: randomBytes
+            });
+        }
+
+        queryResponse.validateMultipleEthCallData(callDatas, _expectedContractAddresses, _expectedFunctionSignatures);
+    }
 }

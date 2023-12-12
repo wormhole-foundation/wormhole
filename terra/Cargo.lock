@@ -129,16 +129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmwasm-schema"
-version = "1.0.0-beta4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5de9749a4a933c34c59db83a77935a79cd705f93ae2b1cfbe40821f32751f75"
-dependencies = [
- "schemars",
- "serde_json",
-]
-
-[[package]]
 name = "cosmwasm-std"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -448,46 +438,6 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "cw721"
-version = "0.10.1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw0",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "cw721-base"
-version = "0.10.1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus",
- "cw0",
- "cw2",
- "cw721",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "cw721-wrapped"
-version = "0.10.1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw2",
- "cw721",
- "cw721-base",
- "schemars",
- "serde",
 ]
 
 [[package]]
@@ -938,25 +888,6 @@ name = "more-asserts"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
-
-[[package]]
-name = "nft-bridge-terra"
-version = "0.1.0"
-dependencies = [
- "bigint",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw721",
- "cw721-base",
- "cw721-wrapped",
- "hex",
- "lazy_static",
- "schemars",
- "serde",
- "serde_json",
- "sha3",
- "wormhole-bridge-terra",
-]
 
 [[package]]
 name = "num_cpus"

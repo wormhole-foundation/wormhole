@@ -39,6 +39,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/node"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
@@ -71,10 +72,8 @@ var (
 	bscRPC      *string
 	bscContract *string
 
-	polygonRPC                      *string
-	polygonContract                 *string
-	polygonRootChainRpc             *string
-	polygonRootChainContractAddress *string
+	polygonRPC      *string
+	polygonContract *string
 
 	auroraRPC      *string
 	auroraContract *string
@@ -176,6 +175,9 @@ var (
 	scrollRPC      *string
 	scrollContract *string
 
+	mantleRPC      *string
+	mantleContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -199,6 +201,9 @@ var (
 
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
+
+	// Prometheus remote write URL
+	promRemoteURL *string
 
 	chainGovernorEnabled *bool
 
@@ -238,8 +243,6 @@ func init() {
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
-	polygonRootChainRpc = NodeCmd.Flags().String("polygonRootChainRpc", "", "Polygon root chain RPC")
-	polygonRootChainContractAddress = NodeCmd.Flags().String("polygonRootChainContractAddress", "", "Polygon root chain contract address")
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
@@ -343,6 +346,9 @@ func init() {
 	scrollRPC = NodeCmd.Flags().String("scrollRPC", "", "Scroll RPC URL")
 	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
 
+	mantleRPC = NodeCmd.Flags().String("mantleRPC", "", "Mantle RPC URL")
+	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
+
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
@@ -367,6 +373,8 @@ func init() {
 		"Disable telemetry")
 
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
+
+	promRemoteURL = NodeCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 
@@ -496,6 +504,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
 		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
 		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
+		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
 	}
 
 	// Verify flags
@@ -636,6 +645,16 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*scrollRPC == "") != (*scrollContract == "") {
 		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
+	}
+
+	// Mantle should not be allowed in mainnet until its finality policy is understood and implemented in the watcher.
+	// Note that as of 11/9/2023 Mantle does not support querying for `finalized` or `safe`, just `latest`, so we will need to implement a finalizer.
+	if *mantleRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("mantle is currently only supported in devnet and testnet")
+	}
+
+	if (*mantleRPC == "") != (*mantleContract == "") {
+		logger.Fatal("Both --mantleContract and --mantleRPC must be set together or both unset")
 	}
 
 	if *gatewayWS != "" {
@@ -863,6 +882,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["ibcWS"] = *ibcWS
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
+	rpcMap["mantleRPC"] = *mantleRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["neonRPC"] = *neonRPC
@@ -871,7 +891,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
-	rpcMap["sei"] = "IBC"
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}
@@ -886,6 +905,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
+
+	for _, ibcChain := range ibc.Chains {
+		rpcMap[ibcChain.String()] = "IBC"
+	}
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
@@ -1034,6 +1057,38 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
+
+	}
+	usingPromRemoteWrite := *promRemoteURL != ""
+	if usingPromRemoteWrite {
+		var info promremotew.PromTelemetryInfo
+		info.PromRemoteURL = *promRemoteURL
+		info.Labels = map[string]string{
+			"node_name":     *nodeName,
+			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
+			"network":       *p2pNetworkID,
+			"version":       version.Version(),
+			"product":       "wormhole",
+		}
+
+		promLogger := logger.With(zap.String("component", "prometheus_scraper"))
+		errC := make(chan error)
+		common.StartRunnable(rootCtx, errC, false, "prometheus_scraper", func(ctx context.Context) error {
+			t := time.NewTicker(15 * time.Second)
+
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-t.C:
+					err := promremotew.ScrapeAndSendLocalMetrics(ctx, info, promLogger)
+					if err != nil {
+						promLogger.Error("ScrapeAndSendLocalMetrics error", zap.Error(err))
+						continue
+					}
+				}
+			}
+		})
 	}
 
 	var watcherConfigs = []watchers.WatcherConfig{}
@@ -1062,17 +1117,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(polygonRPC) {
-		// Checkpointing is required in mainnet and testnet.
-		if !*unsafeDevMode && *polygonRootChainRpc == "" {
-			log.Fatal("Polygon checkpointing is required in mainnet and testnet")
-		}
 		wc := &evm.WatcherConfig{
-			NetworkID:         "polygon",
-			ChainID:           vaa.ChainIDPolygon,
-			Rpc:               *polygonRPC,
-			Contract:          *polygonContract,
-			RootChainRpc:      *polygonRootChainRpc,
-			RootChainContract: *polygonRootChainContractAddress,
+			NetworkID: "polygon",
+			ChainID:   vaa.ChainIDPolygon,
+			Rpc:       *polygonRPC,
+			Contract:  *polygonContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1217,6 +1266,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:   vaa.ChainIDScroll,
 			Rpc:       *scrollRPC,
 			Contract:  *scrollContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(mantleRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "mantle",
+			ChainID:   vaa.ChainIDMantle,
+			Rpc:       *mantleRPC,
+			Contract:  *mantleContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

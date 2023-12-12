@@ -35,8 +35,6 @@ export const TERRA_GAS_PRICES_URL = ci
 export const TERRA_PRIVATE_KEY =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
-export const TERRA_CW721_CODE_ID = 7;
-export const TEST_CW721 = "terra18dt935pdcn2ka6l0syy5gt20wa48n3mktvdvjj";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
 export const TEST_SOLANA_TOKEN3 =
   "AQJc65JzbzsT88JnGEXSqZaF8NFAXPo21fX4QUED4uRX";

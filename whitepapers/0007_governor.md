@@ -78,7 +78,7 @@ If a node level config parameter is enabled to indicate that the chain governor 
 The checks performed include:
 
 1. Is the source chain of the message one that is listed within `mainnet_chains.go`?
-2. Is the message sent from a goverened emitter?
+2. Is the message sent from a governed emitter?
 3. Is the message a known type that transfers value?
 4. Is the token transferred listed within `mainnet_tokens.go`?
 5. Is the transaction a “large” transaction (ie. greater than or equal to `bigTransactionSize` for this chain)?

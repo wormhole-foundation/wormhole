@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.6
+
+### Added
+
+Celestia support
+
+Scroll testnet support
+
+### Changes
+
+Solana WrappedMeta deserialization fix
+
 ## 0.10.5
 
 ### Changes

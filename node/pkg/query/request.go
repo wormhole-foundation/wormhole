@@ -121,6 +121,10 @@ type PerChainQueryInternal struct {
 	Request    *PerChainQueryRequest
 }
 
+func (pcqi *PerChainQueryInternal) ID() string {
+	return fmt.Sprintf("%s:%d", pcqi.RequestID, pcqi.RequestIdx)
+}
+
 // QueryRequestDigest returns the query signing prefix based on the environment.
 func QueryRequestDigest(env common.Environment, b []byte) ethCommon.Hash {
 	var queryRequestPrefix []byte

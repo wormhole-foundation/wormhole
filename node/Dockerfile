@@ -2,13 +2,6 @@
 FROM --platform=linux/amd64 docker.io/golang:1.20.10-bullseye@sha256:082569b3303b164cc4a7c88ac59b19b69c1a5d662041ac0dca046ac239632442 AS build
 # libwasmvm.so is not compatible with arm
 
-# Support additional root CAs
-COPY node/go.mod cert.pem* /certs/
-# Debian
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-# git
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
 WORKDIR /app
 
 COPY node/tools tools

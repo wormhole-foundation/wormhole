@@ -63,7 +63,15 @@ func setFeatures(f string) {
 
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
-	Chains = []vaa.ChainID{vaa.ChainIDSei}
+	Chains = []vaa.ChainID{
+		vaa.ChainIDOsmosis,
+		vaa.ChainIDSei,
+		vaa.ChainIDCosmoshub,
+		vaa.ChainIDEvmos,
+		vaa.ChainIDKujira,
+		vaa.ChainIDNeutron,
+		vaa.ChainIDCelestia,
+	}
 
 	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	features = ""
@@ -279,6 +287,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Start a routine for each chain to listen for observation requests.
 	for _, ce := range w.chainMap {
+		ce := ce // Avoid data race.
 		common.RunWithScissors(ctx, errC, "ibc_objs_req", func(ctx context.Context) error {
 			return w.handleObservationRequests(ctx, ce)
 		})

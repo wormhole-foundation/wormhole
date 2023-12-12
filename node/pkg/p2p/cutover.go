@@ -9,7 +9,7 @@ import (
 )
 
 // The format of this time is very picky. Please use the exact format specified by cutOverFmtStr!
-const mainnetCutOverTimeStr = ""
+const mainnetCutOverTimeStr = "2024-01-16T15:00:00-0000"
 const testnetCutOverTimeStr = "2023-11-07T14:00:00-0000"
 const devnetCutOverTimeStr = "2022-12-31T23:59:59-0000"
 const cutOverFmtStr = "2006-01-02T15:04:05-0700"
