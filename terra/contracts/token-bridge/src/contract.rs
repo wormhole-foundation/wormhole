@@ -27,8 +27,8 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     coin, to_binary, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Empty, Env, MessageInfo, Order, QuerierWrapper, QueryRequest, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128, WasmMsg, WasmQuery,
+    Empty, Env, MessageInfo, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult,
+    SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::{
@@ -60,90 +60,9 @@ pub enum TransferType<A> {
 /// Migration code that runs the next time the contract is upgraded.
 /// This function will contain ephemeral code that we want to run once, and thus
 /// can (and should be) safely deleted after the upgrade happened successfully.
-///
-/// For example, when the code id of the wrapped assets is updated, this
-/// function will take care of upgrading all the deployed wrapped asset
-/// contracts. See [`migrate_wrapped_assets`].
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    let new_code_id = 767;
-    // On a previous deployment, the wrapped assets have been migrated to code
-    // id 767:
-    // https://finder.terra.money/classic/tx/67e8fcff48eefe11bf6a975e621b6866ba930f9d2a85bc9ac5a70f009ee354c7
-    // However, that upgrade didn't change the [`wrapped_asset_code_id`] field
-    // of the config state of this contract (the token bridge), so every wrapped
-    // asset that's been deployed since by the token bridge still uses the old
-    // code id.
-
-    // Thus, we update that variable here.
-    let mut c = config(deps.storage).load()?;
-    c.wrapped_asset_code_id = new_code_id;
-    config(deps.storage).save(&c)?;
-
-    // Ideally, we would want to run [`migrate_wrapped_assets`] to upgrade all the
-    // wrapped assets to 767. However, an upgrade has been attempted to do just that:
-    // https://finder.terra.money/classic/tx/FE39E9549770F59E2AAA1C6B0B86DDF36A4C56CED0CFB0CA4C9D4CC9FBE1E5BA
-    // and it failed with a cryptic 'out of gas error' (notice that the
-    // 'gasWanted' is larger than 'gasUsed', which should never happen. The
-    // process also fails with the same error in simulation, which should
-    // absolutely never happen). When attempting the update locally, it proceeds
-    // without problems, so the current theory is that on mainnet the process
-    // sends too many messages and somehow overflows the gas counter (although
-    // that should result in a different message).
-
-    // The following code doesn't succeed on mainnet (but does locally):
-    /*
-    let messages = migrate_wrapped_assets(deps, env, new_code_id)?;
-    let count = messages.len();
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("migrate", "upgrade cw20 wrappers")
-        .add_attribute("count", count.to_string()))
-    */
-
-    // tldr: The migration strategy currently is to just upgrade the wrapped
-    // asset id variable, so at least new contracts are instantiated from the
-    // correct code id.
-
-    // Just to be safe, we add the above VAA to the replay protection cache so
-    // it can't be reused later if the gas parameters of terra classic change.
-    let data: Binary = Binary::from_base64("AQAAAAINAJG2fJDyk1xTNYrByMq/IyMPXCSLw7uPBviki4lxrp7VMid+Zg5maFTA7L/hr0wjqg2HvStl1ThaVgs+gtP7r88BA8C6uVKxqz+T35SPMuO5EfRXVppuKk4kgC8AaeMXiT/mKN+G4Ywhq7BhtDfFWBT8r/CONWcr4ukcR4WI9SLo6egABJWNvBNzS87mGaYxNIbh9IJRz8IWt/bUbEM01IHxYDLlcKyF+F5XGcbgtolO9BH0SqJiCSuZf0p2Q3i6JbQPqZQABljhQuTzWBrfh+e/tKwo4woE3I7m7ypwgixDiYu5M7NmE1yRlK/1pvqZDKEQQuwRNeF2bB9Feig95jNhyOl8m4AACOQWt3zZAgFON5iebfkfbGR2j0ct0aYCfZgDLS3Tbs+Zb65tN5otY/JB+276JBsV+neyerpYjEv40aw+myj/9hwACkUWUVQ+fiU3PbQI35LLv1bVEUxMnjNsNnVAx2Zcx3trE/c05ODKWLmcgZC7kYR1TXEUgJDEyR7aRx6lh0fYTNMBC5XgNXIgV0QMepMo+rqEO8GSLje0KgiBuESUwerfb0+gbt3HMiCO+4qnGQLHR9H2e0ENo6i+CVd5ArNbUJOZK7IBDMiWbmpGwiTqPKxRDoRjpcDSCVxBU38JkQhA28mJ/swlFisffm8P9mUjFXm75bWqjxWquhLotlD4wHD8n6WKt8YBDThD1TsiQtGY7PpCV1fXc8JGtnxatZAqBiflM9Byo2hEHpVGHoaB2xC+b5ZPnU7SQb/5yXRwxuNGnB07+8P5rUcBDnu+FszGdOsFKLot3vZj8m6dznXAbxi8VHBjf+DZg0b4VUeAEJO5y4iAHEJf+vzXyaHDuw6uaZy/nE6Cmh2G2WoBDxHFcHxwEmPPImzO3qd/ccUiLE8WLVD7awpYQzuSRhbPbBfluVx7ayBD4tzojqQmO0ST+2FWVjZLYIc2o8a6cwsBEfMoHr6CDGnRx/JYvffw1TCQN4bc736cjPvrto++VciZNXE7/EEWyM8oFiDUDX58COwoZacwkE9ujwlPX9MutOEBEqVTBk6s5r136OH6OXNi7SmCJiMwiN+cNghtIKvXt+dvONA56YZrzsTu2N0skC9xgykjGyxGQBmKTI18I/3r9cMAAAAAAORtswQAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEXKpMi7kC0wYgAAAAAAAAAAAAAAAAAAAAAAAAAAAAVG9rZW5CcmlkZ2UCAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAXHw==")?;
-    let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), &data)?;
-
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-
-    Ok(Response::new())
-}
-
-/// Migrate all wrapped assets to a new code id.
-/// This function should be called in [`migrate`].
-/// TODO: according to the comments in [`migrate`] above, this approach probably
-/// doesn't scale above a certain number of wrapped assets, so need to rethink it.
-#[allow(dead_code)]
-fn migrate_wrapped_assets(deps: DepsMut, _env: Env, new_code_id: u64) -> StdResult<Vec<CosmosMsg>> {
-    let bucket = wrapped_asset_address(deps.storage);
-
-    // Produce a migrate message for each wrapped asset.
-    let mut messages = vec![];
-    for item in bucket.range(None, None, Order::Ascending) {
-        let contract_address = item?.0;
-        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: deps
-                .api
-                .addr_humanize(&contract_address.into())?
-                .to_string(),
-            new_code_id,
-            msg: to_binary(&MigrateMsg {})?,
-        }));
-    }
-
-    // Update config so future wrapped assets will be deployed with new code id
-    let mut c = config(deps.storage).load()?;
-    c.wrapped_asset_code_id = new_code_id;
-    config(deps.storage).save(&c)?;
-
-    Ok(messages)
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
