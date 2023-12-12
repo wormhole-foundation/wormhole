@@ -18,7 +18,7 @@ The easy way would be to navigate to the [terra2 root directory](/cosmwasm/deplo
 make test
 ```
 
-If you plan on adding new tests and plan on persisting LocalTerra, make sure dependencies are installed:
+If you plan on adding new tests and persisting LocalTerra, make sure dependencies are installed:
 ```sh
 npm ci
 ```
@@ -30,4 +30,4 @@ npm run test
 
 These tests are built using Jest and is meant to be structured very similarly to the [ethereum unit tests](../../../ethereum), which requires running a local node via ganache before _truffle_ can run any of the testing scripts in the [test directory](../../../ethereum/test).
 
-**Currently the only test that exists is for the token bridge's transfer and transfer with payload.**
+**Currently, the only existing test is for the token bridge's transfer and transfer with payload.**
