@@ -31,7 +31,7 @@ npm install @wormhole-foundation/wormhole-sdk-solana-tokenbridge
 
 A developer would use the core wormhole-sdk package in conjunction with 1 or more of the chain context packages. Most developers don't use every single chain and may only use a couple, this allows developers to import only the dependencies they actually need.
 
-Getting started is simple, just import and pass in the [Platform](#platforms) modules you wish to support as an argument to the Wormhole class.
+Getting started is simple, just import and pass in the [Platform](#platforms) modules you wish to support as an argument to the `Wormhole` class.
 
 ```ts
 import { Wormhole, Signer } from '@wormhole-foundation/wormhole-sdk';
@@ -137,7 +137,7 @@ See the [example here](https://github.com/wormhole-foundation/connect-sdk/blob/d
 
 ### Automatic Transfers
 
-Some transfers allow for automatic relaying to the destination, in that case only the `initiateTransfer` is required. The status of the transfer can be tracked by periodically checking the status of the transfer object.
+Some transfers allow for automatic relaying to the destination. In that case, only `initiateTransfer` is required. The status of the transfer can be tracked by periodically checking the status of the transfer object.
 
 ```ts
 // OR for an automatic transfer
