@@ -1,4 +1,4 @@
-Design Document for Wormhole SDK
+Design Document for Wormhole Connect SDK
 ---------------------------------
 
 # Organization
