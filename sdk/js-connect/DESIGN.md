@@ -45,7 +45,7 @@ A `Platform` is a blockchain runtime, often shared across a number of chains (e.
 
 A `Chain` is a specific blockchain, potentially with overrides for slight differences in the platform implementation. 
 
-A `Protocol` (fka `Module`) is a specific application on a `Chain`, it provides a set of methods that can be called to accomplish some action (e.g. `TokenBridge` allows send/receive/lookup token, etc...)
+A `Protocol` (fka `Module`) is a specific application on a `Chain`. It provides a set of methods to accomplish an action (e.g. `TokenBridge` allows send/receive/lookup token, etc...)
 
 A `Signer` is an interface that provides a callback to sign one or more transaction objects. These signed transactions are sent to the blockchain to invoke some action.
 
@@ -60,21 +60,21 @@ Registers Platforms
 
 Allows overriding chain specific configs (rpc, contract addresses, ...)
 
-Provides methods to get PlatformContext or ChainContext objects
+Provides methods to get `PlatformContext` or `ChainContext` objects:
 
 ```ts
 const ep: EvmPlatform = wh.getPlatform("Evm")
 const eth: ChainContext<"Evm"> = wh.getChain("Ethereum")
 ```
 
-Provides methods to create a `WormholeTransfer` for any `Protocol`
+Provides methods to create a `WormholeTransfer` for any `Protocol`:
 ```ts
 const tt: TokenTransfer = wh.tokenTransfer(...)
 const cctpXfer: CircleTransfer = wh.cctpTransfer(...)
 //...
 ```
 
-Provides methods to query an API for VAAs and token details
+Provides methods to query an API for VAAs and token details:
 ```ts
 // request and parse a vaa with a timeout 
 const parsedVaa = wh.getVaa(chainName, emitter, sequence, "TokenBridge:Transfer", 30*1000)
@@ -96,7 +96,7 @@ Sign/Send/Wait
 
 ## ChainContext
 
-Defined in abstract ChainContext class
+Defined in abstract `ChainContext` class
 
 Note: Dispatches many calls to the Platform, filling in details like ChainName and RPC
 
@@ -107,12 +107,12 @@ Responsible for holding RPC connection, initialized from default or overrides
 cc.getRPC() // for evm -> ethers.Provider, for sol -> web3.Connection
 ```
 
-Holds cached references to Protocol client
+Holds cached references to `Protocol` client
 
 
 ## WormholeTransfer
 
-Holds a reference to ChainContexts
+Holds a reference to `ChainContexts`
 
 Holds details about the transfer
 
@@ -137,7 +137,7 @@ Provides methods to step through the transfer process
 - Foreign
     A non-native chain (e.g. ETH is foreign to Moonbeam)
 - VAA (Verified Action Approval)
-    The core messaging primitive in Wormhole, it contains information about a message and a payload encoded as bytes.  Once finality is achieved and it is observed by the majority of the guardians, it is signed and can then be used to complete a transfer on the destination chain
+    The [core messaging primitive in Wormhole](https://github.com/wormhole-foundation/wormhole/blob/2a3d4c805c332e6282a6ce7e966b3639743524f7/whitepapers/0001_generic_message_passing.md), it contains information about a message and a payload encoded as bytes.  Once finality is achieved and it is observed by the majority of the guardians, it is signed and can then be used to complete a transfer on the destination chain
 - Payload
     Bytes that can be passed along with any wormhole message that contain application-specific data
 - Finality/Finality Threshold

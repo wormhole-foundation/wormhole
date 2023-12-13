@@ -165,7 +165,7 @@ See example [here](https://github.com/wormhole-foundation/connect-sdk/blob/devel
 
 ### Recovering Transfers
 
-It may be necessary to recover a transfer that was abandoned before being completed. This can be done by instantiating the Transfer class with the `from` static method and passing one of several types of identifiers.
+It may be necessary to recover a transfer that was abandoned before being completed. This can be done by instantiating the `Transfer` class with the `from` static method and passing one of several types of identifiers.
 
 A `TransactionId` may be used
 
@@ -233,7 +233,7 @@ The most familiar protocol built on Wormhole is the Token Bridge.
 
 Every chain has a `TokenBridge` protocol client that provides a consistent interface for interacting with the Token Bridge.  This includes methods to generate the transactions required to transfer tokens, as well as methods to generate and redeem attestations. 
 
-Using the `WormholeTransfer` abstractions is the recommended way to interact with these `Protocols` but it is possible to use them directly
+Using the `WormholeTransfer` abstraction is the recommended way to interact with these `Protocols` but it is possible to use them directly:
 
 ```ts
 import {signSendWait} from '@wormhole-foundation/wormhole-sdk';
@@ -308,7 +308,7 @@ const receiver: Signer = // ...
 
 Within the Wormhole context, addresses are [normalized](https://docs.wormhole.com/wormhole/blockchain-environments/evm#addresses) to 32 bytes and referred to in this SDK as a `UniversalAddresses`.
 
-Each platform comes with an address type that understands the native address formats, unsuprisingly referred to a NativeAddress. This abstraction allows the SDK to work with addresses in a consistent way regardless of the underlying chain. 
+Each platform comes with an address type that understands the native address formats, unsuprisingly referred to a `NativeAddress`. This abstraction allows the SDK to work with addresses in a consistent way regardless of the underlying chain. 
 
 ```ts
 // Convert a string address to its Native address
