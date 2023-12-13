@@ -11,7 +11,7 @@ use std::{
 };
 use terraswap::asset::{Asset, AssetInfo};
 
-use terra_cosmwasm::TerraQuerier;
+use classic_bindings::{TerraQuerier, TerraQuery};
 use wormhole::{
     byte_utils::{
         extend_address_to_32, extend_address_to_32_array, extend_string_to_32, get_string_from_32,
@@ -26,8 +26,8 @@ use wormhole::{
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    coin, to_binary, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Empty, Env, MessageInfo, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult,
+    coin, to_binary, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, CustomQuery, Decimal, Deps,
+    DepsMut, Env, MessageInfo, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 
@@ -51,6 +51,7 @@ type HumanAddr = String;
 const CHAIN_ID: u16 = 3;
 
 const WRAPPED_ASSET_UPDATING: &str = "updating";
+const WRAPPED_ASSET_LABEL: &str = "WrappedCW20";
 
 pub enum TransferType<A> {
     WithoutPayload,
@@ -177,7 +178,7 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
         .add_attribute("action", "reply_handler"))
 }
 
-pub fn coins_after_tax(deps: DepsMut, coins: Vec<Coin>) -> StdResult<Vec<Coin>> {
+pub fn coins_after_tax(deps: DepsMut<TerraQuery>, coins: Vec<Coin>) -> StdResult<Vec<Coin>> {
     let mut res = vec![];
     for coin in coins {
         let asset = Asset {
@@ -191,7 +192,11 @@ pub fn coins_after_tax(deps: DepsMut, coins: Vec<Coin>) -> StdResult<Vec<Coin>> 
     Ok(res)
 }
 
-fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA> {
+fn parse_vaa<C: CustomQuery>(
+    deps: Deps<C>,
+    block_time: u64,
+    data: &Binary,
+) -> StdResult<ParsedVAA> {
     let cfg = config_read(deps.storage).load()?;
     let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cfg.wormhole_contract,
@@ -204,7 +209,12 @@ fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA>
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut<TerraQuery>,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> StdResult<Response> {
     match msg {
         ExecuteMsg::RegisterAssetHook { asset_id } => {
             handle_register_asset(deps, env, info, asset_id.as_slice())
@@ -258,7 +268,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-fn deposit_tokens(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
+fn deposit_tokens<C: CustomQuery>(
+    deps: DepsMut<C>,
+    _env: Env,
+    info: MessageInfo,
+) -> StdResult<Response> {
     for coin in info.funds {
         let deposit_key = format!("{}:{}", info.sender, coin.denom);
         bridge_deposit(deps.storage).update(
@@ -273,7 +287,7 @@ fn deposit_tokens(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Resp
 }
 
 fn withdraw_tokens(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     _env: Env,
     info: MessageInfo,
     data: AssetInfo,
@@ -304,8 +318,8 @@ fn withdraw_tokens(
 }
 
 /// Handle wrapped asset registration messages
-fn handle_register_asset(
-    deps: DepsMut,
+fn handle_register_asset<C: CustomQuery>(
+    deps: DepsMut<C>,
     _env: Env,
     info: MessageInfo,
     asset_id: &[u8],
@@ -328,8 +342,8 @@ fn handle_register_asset(
         .add_attribute("contract_addr", info.sender))
 }
 
-fn handle_attest_meta(
-    deps: DepsMut,
+fn handle_attest_meta<C: CustomQuery>(
+    deps: DepsMut<C>,
     env: Env,
     emitter_chain: u16,
     emitter_address: Vec<u8>,
@@ -392,7 +406,7 @@ fn handle_attest_meta(
                 }),
             })?,
             funds: vec![],
-            label: String::new(),
+            label: WRAPPED_ASSET_LABEL.to_string(),
         })
     };
     wrapped_asset_seq(deps.storage).save(&asset_id, &sequence)?;
@@ -400,7 +414,7 @@ fn handle_attest_meta(
 }
 
 fn handle_create_asset_meta(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     asset_info: AssetInfo,
@@ -417,7 +431,7 @@ fn handle_create_asset_meta(
 }
 
 fn handle_create_asset_meta_token(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     asset_address: HumanAddr,
@@ -463,7 +477,7 @@ fn handle_create_asset_meta_token(
 }
 
 fn handle_create_asset_meta_native_token(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     denom: String,
@@ -502,7 +516,7 @@ fn handle_create_asset_meta_native_token(
 }
 
 fn handle_complete_transfer_with_payload(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     data: &Binary,
@@ -540,7 +554,12 @@ fn handle_complete_transfer_with_payload(
     }
 }
 
-fn submit_vaa(deps: DepsMut, env: Env, info: MessageInfo, data: &Binary) -> StdResult<Response> {
+fn submit_vaa(
+    deps: DepsMut<TerraQuery>,
+    env: Env,
+    info: MessageInfo,
+    data: &Binary,
+) -> StdResult<Response> {
     let state = config_read(deps.storage).load()?;
 
     let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
@@ -584,7 +603,11 @@ fn submit_vaa(deps: DepsMut, env: Env, info: MessageInfo, data: &Binary) -> StdR
     }
 }
 
-fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
+fn handle_governance_payload<C: CustomQuery>(
+    deps: DepsMut<C>,
+    env: Env,
+    data: &[u8],
+) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(data)?;
     let module = get_string_from_32(&gov_packet.module);
 
@@ -605,7 +628,11 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<
     }
 }
 
-fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
+fn handle_upgrade_contract<C: CustomQuery>(
+    _deps: DepsMut<C>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<Response> {
     let UpgradeContract { new_contract } = UpgradeContract::deserialize(data)?;
 
     Ok(Response::new()
@@ -617,7 +644,11 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
         .add_attribute("action", "contract_upgrade"))
 }
 
-fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
+fn handle_register_chain<C: CustomQuery>(
+    deps: DepsMut<C>,
+    _env: Env,
+    data: &Vec<u8>,
+) -> StdResult<Response> {
     let RegisterChain {
         chain_id,
         chain_address,
@@ -640,7 +671,7 @@ fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<
 
 #[allow(clippy::too_many_arguments)]
 fn handle_complete_transfer(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     emitter_chain: u16,
@@ -650,31 +681,18 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(data)?;
-    let marker_byte = transfer_info.token_address.as_slice()[0];
-    if transfer_info.token_chain == CHAIN_ID {
-        match marker_byte {
-            1 => handle_complete_transfer_token_native(
-                deps,
-                env,
-                info,
-                emitter_chain,
-                emitter_address,
-                transfer_type,
-                data,
-                relayer_address,
-            ),
-            0 => handle_complete_transfer_token(
-                deps,
-                env,
-                info,
-                emitter_chain,
-                emitter_address,
-                transfer_type,
-                data,
-                relayer_address,
-            ),
-            b => Err(StdError::generic_err(format!("Unknown marker byte: {b}"))),
-        }
+    if transfer_info.token_chain == CHAIN_ID && is_native_id(transfer_info.token_address.as_slice())
+    {
+        handle_complete_transfer_token_native(
+            deps,
+            env,
+            info,
+            emitter_chain,
+            emitter_address,
+            transfer_type,
+            data,
+            relayer_address,
+        )
     } else {
         handle_complete_transfer_token(
             deps,
@@ -690,8 +708,8 @@ fn handle_complete_transfer(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn handle_complete_transfer_token(
-    deps: DepsMut,
+fn handle_complete_transfer_token<C: CustomQuery>(
+    deps: DepsMut<C>,
     _env: Env,
     info: MessageInfo,
     emitter_chain: u16,
@@ -837,7 +855,7 @@ fn handle_complete_transfer_token(
 
 #[allow(clippy::too_many_arguments)]
 fn handle_complete_transfer_token_native(
-    mut deps: DepsMut,
+    mut deps: DepsMut<TerraQuery>,
     _env: Env,
     info: MessageInfo,
     emitter_chain: u16,
@@ -926,7 +944,7 @@ fn handle_complete_transfer_token_native(
 
 #[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     asset: Asset,
@@ -966,7 +984,7 @@ fn handle_initiate_transfer(
 
 #[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer_token(
-    mut deps: DepsMut,
+    mut deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     asset: HumanAddr,
@@ -1013,12 +1031,11 @@ fn handle_initiate_transfer_token(
                 })?,
                 funds: vec![],
             }));
-            let request = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
+            let request = QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: asset,
                 msg: to_binary(&WrappedQuery::WrappedAssetInfo {})?,
             });
-            let wrapped_token_info: WrappedAssetInfoResponse =
-                deps.querier.custom_query(&request)?;
+            let wrapped_token_info: WrappedAssetInfoResponse = deps.querier.query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
             asset_address = wrapped_token_info.asset_address.to_array()?;
 
@@ -1174,6 +1191,15 @@ fn handle_initiate_transfer_token(
         }
     };
 
+    // Ensure that the asset's address does not collide with the native
+    // address format. This is impossible for legacy CW20 addresses as they are
+    // 20 bytes long left padded with 0s, so their first byte can't be 1.
+    // However, it's theoretically possible for a new 32 byte CW20 address to have
+    // this format. The probability of this happening is 1 / 2^96 ≈ 1.2 * 10^-29,
+    // so it is negligible. Regardless, we block such addresses here
+    // for the sake of completeness and documentation.
+    assert!(!is_native_id(&asset_address));
+
     Ok(Response::new()
         .add_messages(messages)
         .add_submessages(submessages)
@@ -1204,7 +1230,7 @@ fn format_native_denom_symbol(denom: &str) -> String {
 
 #[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer_native_token(
-    deps: DepsMut,
+    deps: DepsMut<TerraQuery>,
     env: Env,
     info: MessageInfo,
     denom: String,
@@ -1242,8 +1268,18 @@ fn handle_initiate_transfer_native_token(
     send_native(deps.storage, &asset_address, amount)?;
 
     // Mark the first byte of the address to distinguish it as native.
+    // NOTE: Since the asset's address 20 bytes long, it will get left padded
+    // with 12 bytes of zeros, meaning that after the marker byte adjustment,
+    // the address is [1] ++ [0; 11], i.e. a single 1 byte followed by eleven 0
+    // bytes.  We maintain the global invariant that only native bank denoms
+    // have the first 12 bytes in this format. Since there is a theoretical
+    // probability that a 32 byte CW20 address could collide with this format,
+    // we block such addresses on the way out.
     let mut asset_address = extend_address_to_32_array(&asset_address);
     asset_address[0] = 1;
+
+    // sanity check, this will always pass
+    assert!(is_native_id(&asset_address));
 
     let token_bridge_message: TokenBridgeMessage = match transfer_type {
         TransferType::WithoutPayload => {
@@ -1393,6 +1429,12 @@ pub fn build_native_id(denom: &str) -> Vec<u8> {
     asset_address
 }
 
+/// Check that the first byte of the address is 1 and the remaining 11 bytes are 0.
+/// For more information, see the comment in [`handle_initiate_transfer_native_token`].
+fn is_native_id(address: &[u8]) -> bool {
+    address[0] == 1 && address[1..12].iter().all(|&x| x == 0)
+}
+
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {
     cfg.gov_chain == emitter_chain && cfg.gov_address == emitter_address
 }
@@ -1406,7 +1448,7 @@ fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: 
 
 static DECIMAL_FRACTION: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
-pub fn compute_tax(asset: &Asset, querier: &QuerierWrapper) -> StdResult<Uint128> {
+pub fn compute_tax(asset: &Asset, querier: &QuerierWrapper<TerraQuery>) -> StdResult<Uint128> {
     let amount = asset.amount;
     if let AssetInfo::NativeToken { denom } = &asset.info {
         let terra_querier = TerraQuerier::new(querier);
@@ -1424,7 +1466,7 @@ pub fn compute_tax(asset: &Asset, querier: &QuerierWrapper) -> StdResult<Uint128
     }
 }
 
-pub fn deduct_tax(asset: &Asset, querier: &QuerierWrapper) -> StdResult<Coin> {
+pub fn deduct_tax(asset: &Asset, querier: &QuerierWrapper<TerraQuery>) -> StdResult<Coin> {
     let amount = asset.amount;
     if let AssetInfo::NativeToken { denom } = &asset.info {
         Ok(Coin {

@@ -21,7 +21,7 @@ fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
 }
 
 fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-    let mut deps = mock_dependencies(&[]);
+    let mut deps = mock_dependencies();
     let init_msg = InstantiateMsg {
         gov_chain: 0,
         gov_address: GOV_ADDR.into(),

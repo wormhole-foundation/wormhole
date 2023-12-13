@@ -36,7 +36,6 @@ import {
   TERRA2_NODE_URL,
   TERRA2_PRIVATE_KEY,
   TERRA_CHAIN_ID,
-  TERRA_GAS_PRICES_URL,
   TERRA_NODE_URL,
   TERRA_PRIVATE_KEY2,
   TEST_ERC20,
@@ -225,8 +224,7 @@ describe("Terra Integration Tests", () => {
     ).toBe(true);
   });
 
-  // Temporarily disable terra tests until LocalTerra can be upgraded to support v2.1.1
-  test.skip("Attest and transfer Terra2 native token to Terra Classic", async () => {
+  test("Attest and transfer Terra2 native token to Terra Classic", async () => {
     const attestMsg = await attestFromTerra(
       CONTRACTS.DEVNET.terra2.token_bridge,
       terraWalletAddress,
@@ -273,8 +271,7 @@ describe("Terra Integration Tests", () => {
       await getIsTransferCompletedTerra(
         CONTRACTS.DEVNET.terra.token_bridge,
         transferSignedVaa,
-        lcdClassic,
-        TERRA_GAS_PRICES_URL
+        lcdClassic
       )
     ).toBe(true);
   });

@@ -1,5 +1,5 @@
 {
-  "genesis_time": "2021-05-26T10:02:06.396784Z",
+  "genesis_time": "2023-12-08T21:26:27.82937365Z",
   "chain_id": "localterra",
   "initial_height": "1",
   "consensus_params": {
@@ -14,9 +14,7 @@
       "max_bytes": "1048576"
     },
     "validator": {
-      "pub_key_types": [
-        "ed25519"
-      ]
+      "pub_key_types": ["ed25519"]
     },
     "version": {}
   },
@@ -431,7 +429,7 @@
     },
     "distribution": {
       "params": {
-        "community_tax": "0.000000000000000000",
+        "community_tax": "0.020000000000000000",
         "base_proposer_reward": "0.010000000000000000",
         "bonus_proposer_reward": "0.040000000000000000",
         "withdraw_addr_enabled": true
@@ -448,11 +446,27 @@
       "delegator_starting_infos": [],
       "validator_slash_events": []
     },
+    "dyncomm": {
+      "params": {
+        "max_zero": "0.500000000000000000",
+        "slope_base": "2.000000000000000000",
+        "slope_vp_impact": "10.000000000000000000",
+        "cap": "0.200000000000000000"
+      },
+      "validator_commission_rates": []
+    },
     "evidence": {
       "evidence": []
     },
     "feegrant": {
       "allowances": []
+    },
+    "feeibc": {
+      "identified_fees": [],
+      "fee_enabled_channels": [],
+      "registered_payees": [],
+      "registered_counterparty_payees": [],
+      "forward_relayers": []
     },
     "genutil": {
       "gen_txs": [
@@ -531,10 +545,10 @@
             "amount": "10000000"
           }
         ],
-        "max_deposit_period": "300s"
+        "max_deposit_period": "172800s"
       },
       "voting_params": {
-        "voting_period": "300s"
+        "voting_period": "172800s"
       },
       "tally_params": {
         "quorum": "0.334000000000000000",
@@ -548,10 +562,7 @@
         "clients_consensus": [],
         "clients_metadata": [],
         "params": {
-          "allowed_clients": [
-            "06-solomachine",
-            "07-tendermint"
-          ]
+          "allowed_clients": ["06-solomachine", "07-tendermint"]
         },
         "create_localhost": false,
         "next_client_sequence": "0"
@@ -559,7 +570,10 @@
       "connection_genesis": {
         "connections": [],
         "client_connection_paths": [],
-        "next_connection_sequence": "0"
+        "next_connection_sequence": "0",
+        "params": {
+          "max_expected_time_per_block": "30000000000"
+        }
       },
       "channel_genesis": {
         "channels": [],
@@ -572,12 +586,32 @@
         "next_channel_sequence": "0"
       }
     },
+    "interchainaccounts": {
+      "controller_genesis_state": {
+        "active_channels": [],
+        "interchain_accounts": [],
+        "ports": [],
+        "params": {
+          "controller_enabled": true
+        }
+      },
+      "host_genesis_state": {
+        "active_channels": [],
+        "interchain_accounts": [],
+        "port": "icahost",
+        "params": {
+          "host_enabled": true,
+          "allow_messages": ["*"]
+        }
+      }
+    },
     "market": {
       "params": {
-        "base_pool": "7000000000000.000000000000000000",
-        "pool_recovery_period": "200",
-        "min_stability_spread": "0.005000000000000000"
-      }
+        "base_pool": "1000000000000.000000000000000000",
+        "pool_recovery_period": "14400",
+        "min_stability_spread": "0.020000000000000000"
+      },
+      "terra_pool_delta": "0.000000000000000000"
     },
     "mint": {
       "minter": {
@@ -586,7 +620,7 @@
       },
       "params": {
         "mint_denom": "uluna",
-        "inflation_rate_change": "0.000000000000000000",
+        "inflation_rate_change": "0.130000000000000000",
         "inflation_max": "0.200000000000000000",
         "inflation_min": "0.070000000000000000",
         "goal_bonded": "0.670000000000000000",
@@ -613,8 +647,8 @@
             "tobin_tax": "0.002500000000000000"
           },
           {
-            "name": "ueur",
-            "tobin_tax": "0.002500000000000000"
+            "name": "umnt",
+            "tobin_tax": "0.020000000000000000"
           }
         ],
         "slash_fraction": "0.000100000000000000",
@@ -642,11 +676,12 @@
     },
     "staking": {
       "params": {
-        "unbonding_time": "600s",
+        "unbonding_time": "1814400s",
         "max_validators": 100,
         "max_entries": 7,
         "historical_entries": 10000,
-        "bond_denom": "uluna"
+        "bond_denom": "uluna",
+        "min_commission_rate": "0.000000000000000000"
       },
       "last_total_power": "0",
       "last_validator_powers": [],
@@ -667,28 +702,30 @@
     "treasury": {
       "params": {
         "tax_policy": {
-          "rate_min": "0.000000000000000000",
-          "rate_max": "0.000000000000000000",
+          "rate_min": "0.000500000000000000",
+          "rate_max": "0.010000000000000000",
           "cap": {
             "denom": "usdr",
-            "amount": "0"
+            "amount": "1000000"
           },
-          "change_rate_max": "0.000000000000000000"
+          "change_rate_max": "0.000250000000000000"
         },
         "reward_policy": {
-          "rate_min": "0.000000000000000000",
-          "rate_max": "1.000000000000000000",
+          "rate_min": "0.050000000000000000",
+          "rate_max": "0.500000000000000000",
           "cap": {
             "denom": "unused",
             "amount": "0"
           },
-          "change_rate_max": "0.000000000000000000"
+          "change_rate_max": "0.025000000000000000"
         },
         "seigniorage_burden_target": "0.670000000000000000",
         "mining_increment": "1.070000000000000000",
         "window_short": "4",
         "window_long": "52",
-        "window_probation": "12"
+        "window_probation": "12",
+        "burn_tax_split": "0.100000000000000000",
+        "min_initial_deposit_ratio": "0.000000000000000000"
       },
       "tax_rate": "0.001000000000000000",
       "reward_weight": "0.050000000000000000",
@@ -698,17 +735,20 @@
       "epoch_states": []
     },
     "upgrade": {},
-    "vesting": null,
+    "vesting": {},
     "wasm": {
       "params": {
-        "max_contract_size": "614400",
-        "max_contract_gas": "20000000",
-        "max_contract_msg_size": "4096"
+        "code_upload_access": {
+          "permission": "Everybody",
+          "address": "",
+          "addresses": []
+        },
+        "instantiate_default_permission": "Everybody"
       },
-      "last_code_id": "0",
-      "last_instance_id": "0",
       "codes": [],
-      "contracts": []
+      "contracts": [],
+      "sequences": [],
+      "gen_msgs": []
     }
   }
 }
