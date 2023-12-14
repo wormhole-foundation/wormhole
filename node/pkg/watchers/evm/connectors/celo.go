@@ -173,16 +173,19 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 				sink <- &NewBlock{
 					Number:   ev.Number,
 					Hash:     hash,
+					Time:     ev.Time,
 					Finality: Finalized,
 				}
 				sink <- &NewBlock{
 					Number:   ev.Number,
 					Hash:     hash,
+					Time:     ev.Time,
 					Finality: Safe,
 				}
 				sink <- &NewBlock{
 					Number:   ev.Number,
 					Hash:     hash,
+					Time:     ev.Time,
 					Finality: Latest,
 				}
 			}
