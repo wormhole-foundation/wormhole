@@ -272,7 +272,7 @@ describe("Sui SDK tests", () => {
       console.log(JSON.stringify(updateWrappedTxRes.effects, null, 2));
     expect(updateWrappedTxRes.effects?.status.status).toBe("success");
 
-    // Check if update was propogated to coin metadata
+    // Check if update was propagated to coin metadata
     const newCoinMetadata = await suiProvider.getCoinMetadata({
       coinType: getWrappedCoinType(coinPackageId),
     });
