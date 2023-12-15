@@ -230,6 +230,12 @@ func (c ChainID) String() string {
 		return "celestia"
 	case ChainIDSepolia:
 		return "sepolia"
+	case ChainIDArbitrumSepolia:
+		return "arbitrum_sepolia"
+	case ChainIDBaseSepolia:
+		return "base_sepolia"
+	case ChainIDOptimismSepolia:
+		return "optimism_sepolia"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -315,6 +321,12 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDCelestia, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
+	case "arbitrum_sepolia":
+		return ChainIDArbitrumSepolia, nil
+	case "base_sepolia":
+		return ChainIDBaseSepolia, nil
+	case "optimism_sepolia":
+		return ChainIDOptimismSepolia, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -360,6 +372,9 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDNeutron,
 		ChainIDCelestia,
 		ChainIDSepolia,
+		ChainIDArbitrumSepolia,
+		ChainIDBaseSepolia,
+		ChainIDOptimismSepolia,
 	}
 }
 
@@ -441,6 +456,12 @@ const (
 	ChainIDCelestia ChainID = 4004
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
+	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
+	ChainIDArbitrumSepolia ChainID = 10003
+	// ChainIDBaseSepolia is the ChainID of Base on Sepolia
+	ChainIDBaseSepolia ChainID = 10004
+	// ChainIDOptimismSepolia is the ChainID of Optimism on Sepolia
+	ChainIDOptimismSepolia ChainID = 10005
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

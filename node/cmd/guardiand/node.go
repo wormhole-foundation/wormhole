@@ -181,6 +181,15 @@ var (
 	sepoliaRPC      *string
 	sepoliaContract *string
 
+	arbitrumSepoliaRPC      *string
+	arbitrumSepoliaContract *string
+
+	baseSepoliaRPC      *string
+	baseSepoliaContract *string
+
+	optimismSepoliaRPC      *string
+	optimismSepoliaContract *string
+
 	logLevel                *string
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
@@ -352,6 +361,15 @@ func init() {
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
+	arbitrumSepoliaRPC = NodeCmd.Flags().String("arbitrumSepoliaRPC", "", "Arbitrum on Sepolia RPC URL")
+	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
+
+	baseSepoliaRPC = NodeCmd.Flags().String("baseSepoliaRPC", "", "Base on Sepolia RPC URL")
+	baseSepoliaContract = NodeCmd.Flags().String("baseSepoliaContract", "", "Base on Sepolia contract address")
+
+	optimismSepoliaRPC = NodeCmd.Flags().String("optimismSepoliaRPC", "", "Optimism on Sepolia RPC URL")
+	optimismSepoliaContract = NodeCmd.Flags().String("optimismSepoliaContract", "", "Optimism on Sepolia contract address")
+
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	publicRpcLogDetailStr = NodeCmd.Flags().String("publicRpcLogDetail", "full", "The detail with which public RPC requests shall be logged (none=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
 	publicRpcLogToTelemetry = NodeCmd.Flags().Bool("logPublicRpcToTelemetry", true, "whether or not to include publicRpc request logs in telemetry")
@@ -505,6 +523,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
 		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
+		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
+		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
+		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
 	}
 
 	// Verify flags
@@ -690,6 +711,37 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *sepoliaContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --sepoliaContract")
+		}
+	}
+
+	if *testnetMode || *unsafeDevMode {
+		if (*arbitrumSepoliaRPC == "") != (*arbitrumSepoliaContract == "") {
+			logger.Fatal("Both --arbitrumSepoliaRPC and --arbitrumSepoliaContract must be set together or both unset")
+		}
+		if (*baseSepoliaRPC == "") != (*baseSepoliaContract == "") {
+			logger.Fatal("Both --baseSepoliaRPC and --baseSepoliaContract must be set together or both unset")
+		}
+		if (*optimismSepoliaRPC == "") != (*optimismSepoliaContract == "") {
+			logger.Fatal("Both --optimismSepoliaRPC and --optimismSepoliaContract must be set together or both unset")
+		}
+	} else {
+		if *arbitrumSepoliaRPC != "" {
+			logger.Fatal("Please do not specify --arbitrumSepoliaRPC")
+		}
+		if *arbitrumSepoliaContract != "" {
+			logger.Fatal("Please do not specify --arbitrumSepoliaContract")
+		}
+		if *baseSepoliaRPC != "" {
+			logger.Fatal("Please do not specify --baseSepoliaRPC")
+		}
+		if *baseSepoliaContract != "" {
+			logger.Fatal("Please do not specify --baseSepoliaContract")
+		}
+		if *optimismSepoliaRPC != "" {
+			logger.Fatal("Please do not specify --optimismSepoliaRPC")
+		}
+		if *optimismSepoliaContract != "" {
+			logger.Fatal("Please do not specify --optimismSepoliaContract")
 		}
 	}
 
@@ -893,6 +945,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["pythnetWS"] = *pythnetWS
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
+		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
+		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
+		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
@@ -1454,6 +1509,42 @@ func runNode(cmd *cobra.Command, args []string) {
 
 			watcherConfigs = append(watcherConfigs, wc)
 		}
+	}
+
+	// A check above does not allow this in mainnet.
+	if shouldStart(arbitrumSepoliaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "arbitrumsepolia",
+			ChainID:   vaa.ChainIDArbitrumSepolia,
+			Rpc:       *arbitrumSepoliaRPC,
+			Contract:  *arbitrumSepoliaContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	// A check above does not allow this in mainnet.
+	if shouldStart(baseSepoliaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "basesepolia",
+			ChainID:   vaa.ChainIDBaseSepolia,
+			Rpc:       *baseSepoliaRPC,
+			Contract:  *baseSepoliaContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	// A check above does not allow this in mainnet.
+	if shouldStart(optimismSepoliaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "optimismsepolia",
+			ChainID:   vaa.ChainIDOptimismSepolia,
+			Rpc:       *optimismSepoliaRPC,
+			Contract:  *optimismSepoliaContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
 	}
 
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
