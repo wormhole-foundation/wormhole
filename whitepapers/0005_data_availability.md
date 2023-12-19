@@ -60,7 +60,7 @@ Guardians that failed to observe the message (and therefore cannot reconstruct t
 
 A public API endpoint is added to guardiand, exposing an API which allows clients to retrieve the signed VAA for any (chain, emitter, sequence) tuple. Guardians can use this API to serve a public, load-balanced public service for web wallets and other clients to use.
 
-Clients will rely on public API endpoints operated by different guardian node operators or third party service providers when polling for signed VAA messsages.
+Clients will rely on public API endpoints operated by different guardian node operators or third party service providers when polling for signed VAA messages.
 
 ## Detailed Design
 
@@ -80,7 +80,7 @@ Each individual API endpoint may in turn be backed by multiple nodes operated be
 
 To facilitate this, a new "non-voting" mode will be added to guardiand to allow operators to run read-only nodes that listen to the gossip network and locally persist any signed VAA they receive.
 
-We use the (chain, emitter, sequence) tuple as global identifier. The digest is not suitable as a global identifier, since it is not known at message publication time. Instead, all contracts make the sequence number available to the caller when publishing a message, which the caller then surfaces to the client. Chain and emitter address are static.
+We use the (chain, emitter, sequence) tuple as global identifier. The digest is not suitable as a global identifier, since it is not known at message publication time. Instead, all contracts make the sequence number available to the caller when publishing a message, which the caller then surfaces to the client. Chain and emitter addresses are static.
 
 This design deprecates existing usage of the digest as primary global identifier for messages in log messages and other user- and operator-facing interfaces, aiding troubleshooting. This a presentation layer change only - the digest continues to be used for replay protection and signature verification.
 

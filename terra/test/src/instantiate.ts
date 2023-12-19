@@ -29,7 +29,8 @@ export async function deploy(
   terra: LCDClient,
   wallet: Wallet,
   wasm: string,
-  instantiateMsg: Object
+  instantiateMsg: Object,
+  label: string
 ): Promise<string> {
   const codeId = await storeCode(terra, wallet, wasm);
 
@@ -38,11 +39,13 @@ export async function deploy(
       wallet.key.accAddress,
       wallet.key.accAddress,
       codeId,
-      instantiateMsg
+      instantiateMsg,
+      undefined,
+      label
     ),
   ];
   const receipt = await transactWithoutMemo(terra, wallet, msgs);
 
   // @ts-ignore
-  return /"contract_address","value":"([^"]+)/gm.exec(receipt.raw_log)[1];
+  return /"_contract_address","value":"([^"]+)/gm.exec(receipt.raw_log)[1];
 }

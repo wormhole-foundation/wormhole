@@ -54,7 +54,7 @@ the following values, then continue.
 | License type     | Apache-2                  |
 
 On the next page, select "optimizations: yes", and paste the contents of
-`token/Token.sol` from before into the source file textaera.
+`token/Token.sol` from before into the source file textarea.
 
 In the misc settings, enter 200 for optimization runs, and leave the rest as
 default.
@@ -82,7 +82,7 @@ bytecodes it found in the source file, then we may proceed here. The *expected*
 bytecode will be the same as the `BridgeToken` bytecode with the constructor
 arguments appended to the end. This means that the `BridgeToken` bytecode is a
 proper prefix of the expected bytecode. Just copy the rest of the bytes of the
-expected bytecode (for example in your favourite text editor), i.e. the suffix
+expected bytecode (for example in your favorite text editor), i.e. the suffix
 that comes after the `BridgeToken` prefix. Go back to the previous page, and use
 these bytes as the constructor arguments. This time, verification should succeed.
 

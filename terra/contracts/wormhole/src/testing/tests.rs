@@ -184,11 +184,26 @@ fn get_address_test() -> StdResult<()> {
 }
 
 #[test]
-#[should_panic]
-fn get_address_test_panic() {
-    // panics because of junk in first 12 bytes
-    let ones_32: &[u8] = &[1; 32];
-    ones_32.get_address(0);
+fn get_address_test_legacy() {
+    // we construct a byte array with 12 leading zeros, and 20 ones
+    let mut ones_20: [u8; 32] = [0; 32];
+    ones_20[12..32].copy_from_slice(&[1; 20]);
+    let addr = ones_20.as_slice().get_address(0);
+
+    // we expect the 12 leading zeros to be stripped as this is recognised as a
+    // legacy address
+    assert_eq!(addr.as_slice(), [1; 20]);
+}
+
+#[test]
+fn get_address_test_new() {
+    // we construct a byte array with 32 ones
+    let ones_32: [u8; 32] = [1; 32];
+    let addr = ones_32.as_slice().get_address(0);
+
+    // we expect the 32 ones to be preserved as this is recognised as a new
+    // address
+    assert_eq!(addr.as_slice(), [1; 32]);
 }
 
 #[test]

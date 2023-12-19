@@ -2,10 +2,6 @@ FROM cli-gen AS cli-export
 FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/aptos:2.0.3@sha256:1e79c5a615b10073a780122abfaaf9b90735912df560b4e7b6a056fe45816392 as aptos
 
-# Support additional root CAs
-COPY cert.pem* /certs/
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-
 # Install nodejs
 # todo(aki): move this into base image?
 RUN apt-get update

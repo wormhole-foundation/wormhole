@@ -56,6 +56,8 @@ spec:
             - --bootstrap
             - /dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
             - --logLevel=info
+            - --shutdownDelay1
+            - "0"
           ports:
             - containerPort: 6069
               name: rest

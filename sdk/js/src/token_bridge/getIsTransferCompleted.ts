@@ -41,16 +41,13 @@ export async function getIsTransferCompletedEth(
 export async function getIsTransferCompletedTerra(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
-  client: LCDClient,
-  gasPriceUrl: string
+  client: LCDClient
 ): Promise<boolean> {
   const msg = await redeemOnTerra(
     tokenBridgeAddress,
     TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
     signedVAA
   );
-  // TODO: remove gasPriceUrl and just use the client's gas prices
-  const gasPrices = await axios.get(gasPriceUrl).then((result) => result.data);
   const account = await client.auth.accountInfo(
     TERRA_REDEEMED_CHECK_WALLET_ADDRESS
   );
@@ -66,7 +63,6 @@ export async function getIsTransferCompletedTerra(
         msgs: [msg],
         memo: "already redeemed calculation",
         feeDenoms: ["uluna"],
-        gasPrices,
       }
     );
   } catch (e: any) {

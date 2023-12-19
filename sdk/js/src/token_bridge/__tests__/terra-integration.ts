@@ -2,9 +2,11 @@ import { parseUnits } from "@ethersproject/units";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
+  Fee,
   LCDClient,
   MnemonicKey,
   MsgExecuteContract,
+  Tx,
 } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import {
@@ -39,7 +41,6 @@ import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY4,
   TERRA_CHAIN_ID,
-  TERRA_GAS_PRICES_URL,
   TERRA_NODE_URL,
   TERRA_PRIVATE_KEY,
   TERRA_PUBLIC_KEY,
@@ -48,15 +49,33 @@ import {
 } from "./utils/consts";
 import {
   getSignedVAABySequence,
-  getTerraGasPrices,
   queryBalanceOnTerra,
   waitForTerraExecution,
 } from "./utils/helpers";
 
 jest.setTimeout(60000);
 
-// Temporarily disable terra tests until LocalTerra can be upgraded to support v2.1.1
-describe.skip("Terra Integration Tests", () => {
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// look, broadcast and broadcastBlock still resulted in sequence mismatches
+// and nobody has time for that
+async function broadcastAndWait(terra: LCDClient, tx: Tx) {
+  const response = await terra.tx.broadcast(tx);
+  if ((response as any)?.code !== 0) {
+    console.error(response);
+    throw new Error(`Transaction failed ${response?.txhash}`);
+  }
+  let currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  while (parseInt(currentHeight) <= response.height) {
+    await sleep(100);
+    currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  }
+  return response;
+}
+
+describe("Terra Classic Integration Tests", () => {
   describe("Terra deposit and transfer tokens", () => {
     test("Tokens transferred can't exceed tokens deposited", (done) => {
       (async () => {
@@ -64,13 +83,12 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
           });
           const wallet = lcd.wallet(mk);
-          const gasPrices = await getTerraGasPrices();
           // deposit some tokens (separate transactions)
           for (let i = 0; i < 3; i++) {
             const deposit = new MsgExecuteContract(
@@ -81,28 +99,12 @@ describe.skip("Terra Integration Tests", () => {
               },
               { uusd: "900000087654321" }
             );
-            const feeEstimate = await lcd.tx.estimateFee(
-              [
-                {
-                  sequenceNumber: await wallet.sequence(),
-                  publicKey: wallet.key.publicKey,
-                },
-              ],
-              {
-                msgs: [deposit],
-                memo: "localhost",
-                feeDenoms: ["uluna"],
-                gasPrices,
-              }
-            );
             const tx = await wallet.createAndSignTx({
               msgs: [deposit],
               memo: "localhost",
-              feeDenoms: ["uluna"],
-              gasPrices,
-              fee: feeEstimate,
+              fee: new Fee(200000, { uusd: 10_000_000 }),
             });
-            await lcd.tx.broadcast(tx);
+            await broadcastAndWait(lcd, tx);
           }
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -143,7 +145,6 @@ describe.skip("Terra Integration Tests", () => {
                 msgs: [transfer],
                 memo: "localhost",
                 feeDenoms: ["uluna"],
-                gasPrices,
               }
             );
           } catch (e) {
@@ -176,17 +177,15 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [withdraw],
               memo: "localhost",
               feeDenoms: ["uluna"],
-              gasPrices,
             }
           );
           const tx = await wallet.createAndSignTx({
             msgs: [withdraw],
             memo: "test",
             feeDenoms: ["uluna"],
-            gasPrices,
             fee: feeEstimate,
           });
-          await lcd.tx.broadcast(tx);
+          await broadcastAndWait(lcd, tx);
           provider.destroy();
           done();
         } catch (e) {
@@ -232,7 +231,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -243,7 +242,6 @@ describe.skip("Terra Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -254,18 +252,16 @@ describe.skip("Terra Integration Tests", () => {
             {
               msgs: [msg],
               feeDenoms: ["uluna"],
-              gasPrices,
             }
           );
           const tx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "test",
             feeDenoms: ["uluna"],
-            gasPrices,
             fee: feeEstimate,
           });
           try {
-            await lcd.tx.broadcast(tx);
+            await broadcastAndWait(lcd, tx);
           } catch (e) {
             // this could fail because the token is already attested (in an unclean env)
           }
@@ -283,7 +279,7 @@ describe.skip("Terra Integration Tests", () => {
       const lcd = new LCDClient({
         URL: TERRA_NODE_URL,
         chainID: TERRA_CHAIN_ID,
-        isClassic: true,
+        isClassic: false,
       });
       const address = getForeignAssetTerra(
         CONTRACTS.DEVNET.terra.token_bridge,
@@ -310,7 +306,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
 
           // Get initial wallet balances
@@ -399,8 +395,7 @@ describe.skip("Terra Integration Tests", () => {
             await getIsTransferCompletedTerra(
               CONTRACTS.DEVNET.terra.token_bridge,
               signedVAA,
-              lcd,
-              TERRA_GAS_PRICES_URL
+              lcd
             )
           ).toBe(false);
           const msg = await redeemOnTerra(
@@ -408,7 +403,6 @@ describe.skip("Terra Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -420,23 +414,20 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [msg],
               memo: "localhost",
               feeDenoms: ["uluna"],
-              gasPrices,
             }
           );
           const tx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "localhost",
             feeDenoms: ["uluna"],
-            gasPrices,
             fee: feeEstimate,
           });
-          await lcd.tx.broadcast(tx);
+          await broadcastAndWait(lcd, tx);
           expect(
             await getIsTransferCompletedTerra(
               CONTRACTS.DEVNET.terra.token_bridge,
               signedVAA,
-              lcd,
-              TERRA_GAS_PRICES_URL
+              lcd
             )
           ).toBe(true);
 
@@ -476,7 +467,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -489,7 +480,6 @@ describe.skip("Terra Integration Tests", () => {
             TerraWalletAddress,
             Asset
           );
-          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -501,17 +491,15 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [msg],
               memo: "localhost",
               feeDenoms: ["uusd"],
-              gasPrices,
             }
           );
           const executeTx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "Testing...",
             feeDenoms: ["uusd"],
-            gasPrices,
             fee: feeEstimate,
           });
-          const result = await lcd.tx.broadcast(executeTx);
+          const result = await broadcastAndWait(lcd, executeTx);
           const info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
@@ -554,6 +542,7 @@ describe.skip("Terra Integration Tests", () => {
             );
             success = true;
           }
+          provider.destroy();
         } catch (e) {
           console.error("Attestation failure: ", e);
         }
@@ -566,7 +555,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -627,7 +616,6 @@ describe.skip("Terra Integration Tests", () => {
             CHAIN_ID_ETH,
             hexToUint8Array(hexStr) // This needs to be ETH wallet
           );
-          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -639,17 +627,15 @@ describe.skip("Terra Integration Tests", () => {
               msgs: msgs,
               memo: "localhost",
               feeDenoms: [FeeAsset],
-              gasPrices,
             }
           );
           const executeTx = await wallet.createAndSignTx({
             msgs: msgs,
             memo: "Testing transfer...",
             feeDenoms: [FeeAsset],
-            gasPrices,
             fee: feeEstimate,
           });
-          const result = await lcd.tx.broadcast(executeTx);
+          const result = await broadcastAndWait(lcd, executeTx);
           const info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
@@ -687,7 +673,8 @@ describe.skip("Terra Integration Tests", () => {
 
           // Get final balance of uusd on Terra
           // const finalFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          expect(initialTerraBalance - 1e6 === finalTerraBalance).toBe(true);
+          // Not exactly equal because tax
+          expect(initialTerraBalance - 1e6 >= finalTerraBalance).toBe(true);
           const lunaBalOnEthAfter = await token.balanceOf(
             await signer.getAddress()
           );
@@ -695,6 +682,7 @@ describe.skip("Terra Integration Tests", () => {
           expect(initialLunaBalOnEthInt + 1e6 === lunaBalOnEthAfterInt).toBe(
             true
           );
+          provider.destroy();
         } catch (e) {
           console.error("Terra to Ethereum failure: ", e);
           done("Terra to Ethereum Failure");
@@ -710,7 +698,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -787,7 +775,6 @@ describe.skip("Terra Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -799,29 +786,29 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [msg],
               memo: "localhost",
               feeDenoms: ["uusd"],
-              gasPrices,
             }
           );
           const tx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "localhost",
             feeDenoms: ["uusd"],
-            gasPrices,
             fee: feeEstimate,
           });
-          await lcd.tx.broadcast(tx);
+          await broadcastAndWait(lcd, tx);
           expect(
             await getIsTransferCompletedTerra(
               CONTRACTS.DEVNET.terra.token_bridge,
               signedVAA,
-              lcd,
-              TERRA_GAS_PRICES_URL
+              lcd
             )
           ).toBe(true);
 
           // Check wallet balances after
           const finalTerraBalance = await queryBalanceOnTerra(Asset);
-          expect(initialTerraBalance + 1e6 === finalTerraBalance).toBe(true);
+          // not exactly the transfer size increase due to tax
+          expect(initialTerraBalance + 1e6 * 0.9 <= finalTerraBalance).toBe(
+            true
+          );
           const finalLunaBalOnEth = await token.balanceOf(
             await signer.getAddress()
           );
@@ -830,6 +817,7 @@ describe.skip("Terra Integration Tests", () => {
             true
           );
           // const uusdBal = await queryBalanceOnTerra("uusd");
+          provider.destroy();
         } catch (e) {
           console.error("Transfer back failure: ", e);
           done("Transfer back Failure");
@@ -843,7 +831,8 @@ describe.skip("Terra Integration Tests", () => {
     test("Transfer CW20 token from Terra to Ethereum and back again", (done) => {
       (async () => {
         try {
-          const CW20: string = "terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh";
+          const CW20: string =
+            "terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp";
           const Asset: string = "uluna";
           const FeeAsset: string = "uusd";
           const Amount: string = "1000000";
@@ -856,7 +845,7 @@ describe.skip("Terra Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
-            isClassic: true,
+            isClassic: false,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -869,7 +858,6 @@ describe.skip("Terra Integration Tests", () => {
             TerraWalletAddress,
             CW20
           );
-          const gasPrices = await getTerraGasPrices();
           let feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -881,17 +869,15 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [msg],
               memo: "localhost",
               feeDenoms: [FeeAsset],
-              gasPrices,
             }
           );
           let executeTx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "Testing...",
             feeDenoms: [FeeAsset],
-            gasPrices,
             fee: feeEstimate,
           });
-          let result = await lcd.tx.broadcast(executeTx);
+          let result = await broadcastAndWait(lcd, executeTx);
           let info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
@@ -1002,17 +988,15 @@ describe.skip("Terra Integration Tests", () => {
               msgs: msgs,
               memo: "localhost",
               feeDenoms: [FeeAsset],
-              gasPrices,
             }
           );
           executeTx = await wallet.createAndSignTx({
             msgs: msgs,
             memo: "Testing transfer...",
             feeDenoms: [FeeAsset],
-            gasPrices,
             fee: feeEstimate,
           });
-          result = await lcd.tx.broadcast(executeTx);
+          result = await broadcastAndWait(lcd, executeTx);
           info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
@@ -1121,23 +1105,20 @@ describe.skip("Terra Integration Tests", () => {
               msgs: [msg],
               memo: "localhost",
               feeDenoms: ["uusd"],
-              gasPrices,
             }
           );
           const tx = await wallet.createAndSignTx({
             msgs: [msg],
             memo: "localhost",
             feeDenoms: ["uusd"],
-            gasPrices,
             fee: feeEstimate,
           });
-          await lcd.tx.broadcast(tx);
+          await broadcastAndWait(lcd, tx);
           expect(
             await getIsTransferCompletedTerra(
               CONTRACTS.DEVNET.terra.token_bridge,
               signedVAA,
-              lcd,
-              TERRA_GAS_PRICES_URL
+              lcd
             )
           ).toBe(true);
 
@@ -1159,6 +1140,7 @@ describe.skip("Terra Integration Tests", () => {
           finalCW20BalOnTerra = parseInt(amount);
           expect(finalCW20BalOnTerra - initialCW20BalOnTerra === 1).toBe(true);
           // Done checking wallet balances
+          provider.destroy();
         } catch (e) {
           console.error("CW20 Transfer failure: ", e);
           done("CW20 Transfer Failure");

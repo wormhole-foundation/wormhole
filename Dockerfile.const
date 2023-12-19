@@ -5,11 +5,6 @@ FROM node:18-alpine@sha256:44aaf1ccc80eaed6572a0f2ef7d6b5a2982d54481e4255480041a
 # fetch scripts/guardian-set-init.sh deps
 RUN apk update && apk add bash g++ make python3 curl jq findutils
 
-# Support additional root CAs
-COPY README.md cert.pem* /certs/
-# Alpine
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
-
 # Copy and link CLI
 COPY --from=cli-export clients/js /cli
 

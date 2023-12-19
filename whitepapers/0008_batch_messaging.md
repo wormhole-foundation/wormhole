@@ -33,7 +33,7 @@ For now, all Wormhole messages that are emitted during a transaction will contin
 
 Guardians will start producing batch-signatures for messages emitted within the same transaction and that share the same nonce. However, messages with a nonce of zero will not receive batch-signatures, as this is a way of opting out of including messages in a batch VAA.
 
-The number of messages within a batch is constrained by the the maximum `uint8` value of 255, due to the [VAAv2 Payload Encoding format](#payloads-encoded-messages). If a transaction produces more than 255 messages with the same nonce a batch-signature will not be produced because it would not fit within the binary encoding understood by `parseAndVerifyBatchVM`, and therefore could not be successfully verified on-chain. Transactions may include messages to produce multiple batch-signatures, which would be independent of each other verified individually.
+The number of messages within a batch is constrained by the maximum `uint8` value of 255, due to the [VAAv2 Payload Encoding format](#payloads-encoded-messages). If a transaction produces more than 255 messages with the same nonce a batch-signature will not be produced because it would not fit within the binary encoding understood by `parseAndVerifyBatchVM`, and therefore could not be successfully verified on-chain. Transactions may include messages to produce multiple batch-signatures, which would be independent of each other verified individually.
 
 We will add support for two new VAA payload types to the Wormhole core contract to allow handling of these:
 

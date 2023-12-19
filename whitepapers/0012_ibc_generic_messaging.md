@@ -87,4 +87,4 @@ Next, we should deploy the `wormhole-ibc` contract to the IBC-enabled chain we w
 
 Next, we should perform a trusted setup process with a trusted relayer to establish a connection between the `wormhole-ibc` and `wormchain-ibc-receiver` contracts. After we establish the IBC connection and upgrade the guardians to support the new `IbcReceiverUpdateChainConnection` governance VAA type, we can perform governance to add the `channelId -> chainId` mapping on the `wormchain-ibc-receiver` contract and populate the `channelId` corresponding to the `wormchain-ibc-receiver` on the `wormhole-ibc` contract.
 
-Finally, the guradians can upgrade their node software to use the new IBC watcher.
+Finally, the guardians can upgrade their node software to use the new IBC watcher.

@@ -227,7 +227,7 @@ def build_node_yaml():
                     "--terraLCD",
                     "http://terra-terrad:1317",
                     "--terraContract",
-                    "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
+                    "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
                 ]
 
             if terra2:
@@ -633,20 +633,6 @@ if terra_classic:
         trigger_mode = trigger_mode,
     )
 
-    k8s_resource(
-        "terra-postgres",
-        labels = ["terra"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_resource(
-        "terra-fcd",
-        resource_deps = ["terra-terrad", "terra-postgres"],
-        port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
-        labels = ["terra"],
-        trigger_mode = trigger_mode,
-    )
-
 if terra2 or wormchain:
     docker_build(
         ref = "cosmwasm_artifacts",
@@ -676,20 +662,6 @@ if terra2:
             port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
             port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
         ],
-        labels = ["terra2"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_resource(
-        "terra2-postgres",
-        labels = ["terra2"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_resource(
-        "terra2-fcd",
-        resource_deps = ["terra2-terrad", "terra2-postgres"],
-        port_forwards = [port_forward(3061, container_port = 3060, name = "Terra 2 FCD [:3061]", host = webHost)],
         labels = ["terra2"],
         trigger_mode = trigger_mode,
     )
@@ -757,7 +729,7 @@ if near:
         ref = "near-node",
         context = "near",
         dockerfile = "near/Dockerfile",
-        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
+        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md"],
     )
 
     docker_build(

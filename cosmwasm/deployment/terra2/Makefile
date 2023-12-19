@@ -35,21 +35,17 @@ deploy/token_bridge: token_bridge-code-id-$(NETWORK).txt
 tools/node_modules: tools/package-lock.json
 	cd tools && npm ci
 
-LocalTerra:
-	git clone --depth 1 https://www.github.com/terra-money/LocalTerra
-
 test/node_modules: test/package-lock.json
 	cd test && npm ci
 
-
 .PHONY: test
 ## Run unit and integration tests
-test: artifacts test/node_modules LocalTerra
+test: artifacts test/node_modules
 	@if pgrep terrad; then echo "Error: terrad already running. Stop it before running tests"; exit 1; fi
-	cd LocalTerra && DOCKER_BUILDKIT=1 docker-compose up --detach
-	sleep 5
-	cd test && npm run test || (cd ../LocalTerra && docker-compose down && exit 1)
-	cd LocalTerra && docker-compose down
+	cd devnet && DOCKER_BUILDKIT=1 docker-compose up --detach
+	sleep 10
+	cd test && npm run test || (cd ../devnet && docker-compose down && exit 1)
+	cd devnet && docker-compose down
 
 .PHONY: clean
 clean:
