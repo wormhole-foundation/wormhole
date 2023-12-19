@@ -107,6 +107,8 @@ spec:
             - ws://eth-devnet:8545
             - --mantleRPC
             - ws://eth-devnet:8545
+            - --sepoliaRPC
+            - ws://eth-devnet:8545
             - --arbitrumSepoliaRPC
             - ws://eth-devnet:8545
             - --baseSepoliaRPC
