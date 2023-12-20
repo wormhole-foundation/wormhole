@@ -49,6 +49,9 @@ enum ChainID {
   CHAIN_ID_NEUTRON = 4003;
   CHAIN_ID_CELESTIA = 4004;
   CHAIN_ID_SEPOLIA = 10002;
+  CHAIN_ID_ARBITRUM_SEPOLIA = 10003;
+  CHAIN_ID_BASE_SEPOLIA = 10004;
+  CHAIN_ID_OPTIMISM_SEPOLIA = 10005;
 }
 
 // MessageID is a VAA's globally unique identifier (see data availability design document).

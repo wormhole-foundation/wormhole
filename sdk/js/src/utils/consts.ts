@@ -40,6 +40,9 @@ export const CHAINS = {
   neutron: 4003,
   celestia: 4004,
   sepolia: 10002,
+  arbitrum_sepolia: 10003,
+  base_sepolia: 10004,
+  optimism_sepolia: 10005,
 } as const;
 
 export type ChainName = keyof typeof CHAINS;
@@ -71,6 +74,9 @@ export const EVMChainNames = [
   "scroll",
   "mantle",
   "sepolia",
+  "arbitrum_sepolia",
+  "base_sepolia",
+  "optimism_sepolia",
 ] as const;
 export type EVMChainName = typeof EVMChainNames[number];
 
@@ -302,6 +308,24 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  arbitrum_sepolia: {
+    // This is testnet only.
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  base_sepolia: {
+    // This is testnet only.
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism_sepolia: {
+    // This is testnet only.
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   cosmoshub: {
     core: undefined,
     token_bridge: undefined,
@@ -517,6 +541,21 @@ const TESTNET = {
     token_bridge: "0xDB5492265f6038831E89f495670FF909aDe94bd9",
     nft_bridge: "0x6a0B52ac198e4870e5F3797d5B403838a5bbFD99",
   },
+  arbitrum_sepolia: {
+    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+  },
+  base_sepolia: {
+    core: "0x79A1027a6A159502049F10906D333EC57E95F083",
+    token_bridge: "0x86F55A04690fd7815A3D802bD587e83eA888B239",
+    nft_bridge: "0x268557122Ffd64c85750d630b716471118F323c8",
+  },
+  optimism_sepolia: {
+    core: "0x31377888146f3253211EFEf5c676D41ECe7D58Fe",
+    token_bridge: "0x99737Ec4B815d816c49A385943baf0380e75c0Ac",
+    nft_bridge: "0x27812285fbe85BA1DF242929B906B31EE3dd1b9f",
+  },
   cosmoshub: {
     core: undefined,
     token_bridge: undefined,
@@ -731,6 +770,21 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  arbitrum_sepolia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  base_sepolia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism_sepolia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   cosmoshub: {
     core: undefined,
     token_bridge: undefined,
@@ -838,6 +892,9 @@ export const CHAIN_ID_KUJIRA = CHAINS["kujira"];
 export const CHAIN_ID_NEUTRON = CHAINS["neutron"];
 export const CHAIN_ID_CELESTIA = CHAINS["celestia"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
+export const CHAIN_ID_ARBITRUM_SEPOLIA = CHAINS["arbitrum_sepolia"];
+export const CHAIN_ID_BASE_SEPOLIA = CHAINS["base_sepolia"];
+export const CHAIN_ID_OPTIMISM_SEPOLIA = CHAINS["optimism_sepolia"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
 export type ChainIdToName = {

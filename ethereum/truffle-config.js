@@ -311,6 +311,16 @@ module.exports = {
       },
       network_id: 421613,
     },
+    arbitrum_sepolia_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://arbitrum-sepolia.publicnode.com"
+          //"https://sepolia-rollup.arbitrum.io/rpc" // This didn't work.
+        );
+      },
+      network_id: 421614,
+    },
     optimism: {
       provider: () => {
         return new HDWalletProvider(
@@ -329,6 +339,16 @@ module.exports = {
         );
       },
       network_id: 420,
+    },
+    optimism_sepolia_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.ankr.com/optimism_sepolia"
+          // "https://sepolia.optimism.io/"  <== This didn't work for testnet
+        );
+      },
+      network_id: 11155420,
     },
     gnosis: {
       provider: () => {
@@ -365,6 +385,15 @@ module.exports = {
         );
       },
       network_id: 84531,
+    },
+    base_sepolia_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://sepolia.base.org"
+        );
+      },
+      network_id: 84532,
     },
     scroll_testnet: {
       provider: () => {

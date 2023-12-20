@@ -107,6 +107,14 @@ spec:
             - ws://eth-devnet:8545
             - --mantleRPC
             - ws://eth-devnet:8545
+            - --sepoliaRPC
+            - ws://eth-devnet:8545
+            - --arbitrumSepoliaRPC
+            - ws://eth-devnet:8545
+            - --baseSepoliaRPC
+            - ws://eth-devnet:8545
+            - --optimismSepoliaRPC
+            - ws://eth-devnet:8545
             # - --wormchainURL
             # - wormchain:9090
             # - --accountantKeyPath
