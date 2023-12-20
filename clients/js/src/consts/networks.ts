@@ -193,6 +193,41 @@ const MAINNET = {
     key: undefined,
     chain_id: undefined,
   },
+  neutron: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  celestia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  scroll: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  mantle: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  arbitrum_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  base_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  optimism_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
 };
 
 const TESTNET = {
@@ -373,6 +408,41 @@ const TESTNET = {
     key: undefined,
     chain_id: undefined,
   },
+  neutron: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  celestia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  scroll: {
+    rpc: "https://rpc.ankr.com/scroll_sepolia_testnet",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 534353,
+  },
+  mantle: {
+    rpc: "https://rpc.ankr.com/mantle_testnet",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 5001,
+  },
+  arbitrum_sepolia: {
+    rpc: "https://arbitrum-sepolia.publicnode.com",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 421614,
+  },
+  base_sepolia: {
+    rpc: "https://sepolia.base.org",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 84532,
+  },
+  optimism_sepolia: {
+    rpc: "https://rpc.ankr.com/optimism_sepolia",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 11155420,
+  },
 };
 
 const DEVNET = {
@@ -529,6 +599,41 @@ const DEVNET = {
   kujira: {
     rpc: undefined,
     key: undefined,
+  },
+  neutron: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  celestia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  scroll: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  mantle: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  arbitrum_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  base_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  optimism_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
   },
 };
 

@@ -144,6 +144,10 @@ export const handler = async (
     throw Error("evmos is not supported yet");
   } else if (srcChain === "kujira") {
     throw Error("kujira is not supported yet");
+  } else if (srcChain === "neutron") {
+    throw Error("neutron is not supported yet");
+  } else if (srcChain === "celestia") {
+    throw Error("celestia is not supported yet");
   } else if (srcChain === "rootstock") {
     throw Error("rootstock is not supported yet");
   } else {

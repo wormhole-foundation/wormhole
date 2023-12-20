@@ -97,7 +97,12 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
     case "optimism":
     case "polygon":
     // case "rootstock":
+    case "scroll":
+    case "mantle":
     case "sepolia":
+    case "arbitrum_sepolia":
+    case "base_sepolia":
+    case "optimism_sepolia":
       return new ethers.providers.JsonRpcProvider(rpc) as ChainProvider<T>;
     case "terra":
     case "terra2":
@@ -157,6 +162,8 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
     case "cosmoshub":
     case "evmos":
     case "kujira":
+    case "neutron":
+    case "celestia":
     case "rootstock":
       throw new Error(`${chainName} not supported`);
     default:
