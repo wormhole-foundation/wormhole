@@ -72,4 +72,10 @@ var (
 			Name: "ccq_server_perm_file_reload_failure",
 			Help: "Total number of times the permissions file failed to reload",
 		})
+
+	successfulReconnects = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_total_number_of_successful_reconnects",
+			Help: "Total number of successful reconnects to bootstrap peers",
+		})
 )
