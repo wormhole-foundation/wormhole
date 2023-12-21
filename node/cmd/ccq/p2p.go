@@ -37,7 +37,7 @@ type P2PSub struct {
 	host       host.Host
 }
 
-func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger) (*P2PSub, error) {
+func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger, monitorPeers bool) (*P2PSub, error) {
 	// p2p setup
 	components := p2p.DefaultComponents()
 	components.Port = port
@@ -95,6 +95,38 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 		time.Sleep(time.Millisecond * 100)
 	}
 	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
+
+	if monitorPeers {
+		logger.Info("Will monitor for missing peers once per minute.")
+		go func() {
+			t := time.NewTicker(time.Minute)
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Info("Context cancelled, exiting peer monitoring.")
+				case <-t.C:
+					peers := th_req.ListPeers()
+					logger.Info("current peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
+					peerMap := map[string]struct{}{}
+					for _, peer := range peers {
+						peerMap[peer.String()] = struct{}{}
+					}
+					for _, p := range bootstrappers {
+						if _, exists := peerMap[p.ID.String()]; !exists {
+							logger.Info("attempting to reconnect to peer", zap.String("peer", p.ID.String()))
+							if err := h.Connect(ctx, p); err != nil {
+								logger.Error("failed to reconnect to peer", zap.String("peer", p.ID.String()), zap.Error(err))
+							} else {
+								logger.Info("Reconnected to peer", zap.String("peer", p.ID.String()))
+								peerMap[p.ID.String()] = struct{}{}
+								successfulReconnects.Inc()
+							}
+						}
+					}
+				}
+			}
+		}()
+	}
 
 	// Fetch the initial current guardian set
 	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)

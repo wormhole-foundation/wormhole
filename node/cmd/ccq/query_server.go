@@ -44,6 +44,7 @@ var (
 	promRemoteURL     *string
 	shutdownDelay1    *uint
 	shutdownDelay2    *uint
+	monitorPeers      *bool
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -64,6 +65,7 @@ func init() {
 	telemetryNodeName = QueryServerCmd.Flags().String("telemetryNodeName", "", "Node name used in telemetry")
 	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
+	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -168,7 +170,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses()
-	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger)
+	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}
