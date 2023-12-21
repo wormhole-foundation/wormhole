@@ -46,6 +46,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDArbitrum: "https://api.arbiscan.io",
 	vaa.ChainIDOptimism: "https://api-optimistic.etherscan.io",
 	vaa.ChainIDBase:     "https://api.basescan.org",
+	vaa.ChainIDScroll:   "https://api.scrollscan.com/",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -64,6 +65,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDArbitrum:  strings.ToLower("0xa5f208e072434bC67592E4C49C1B991BA79BCA46"),
 	vaa.ChainIDOptimism:  strings.ToLower("0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"),
 	vaa.ChainIDBase:      strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
+	vaa.ChainIDScroll:    strings.ToLower("0x0000000000000000000000000000000000000000"), // Fill in the core bridge address
 }
 
 var (

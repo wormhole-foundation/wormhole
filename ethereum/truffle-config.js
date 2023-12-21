@@ -404,6 +404,15 @@ module.exports = {
       },
       network_id: 84532,
     },
+    scroll: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.scroll.io"
+        );
+      },
+      network_id: 534352,
+    },
     scroll_testnet: {
       provider: () => {
         return new HDWalletProvider(

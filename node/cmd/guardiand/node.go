@@ -683,11 +683,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
 	}
 
-	// Scroll should not be allowed in mainnet until its finality policy is understood and implemented in the watcher.
-	if *scrollRPC != "" && !*testnetMode && !*unsafeDevMode {
-		logger.Fatal("scroll is currently only supported in devnet and testnet")
-	}
-
 	if (*scrollRPC == "") != (*scrollContract == "") {
 		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
 	}

@@ -297,6 +297,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   scroll: {
+    // Fill these in!
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
