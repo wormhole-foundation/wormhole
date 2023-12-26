@@ -1,0 +1,53 @@
+#syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
+FROM docker.io/library/rust:1.69.0@sha256:b7e0e2c6199fb5f309742c5eba637415c25ca2bed47fa5e80e274d4510ddfa3a as solana
+RUN apt-get update && apt-get install -y curl \
+    libssl-dev \
+    libudev-dev \
+    pkg-config \
+    zlib1g-dev  \
+    clang \
+    cmake \
+    make \
+    libprotobuf-dev \
+    protobuf-compiler \
+    ninja-build
+
+# fetch solana src
+ARG tag=1.16.24
+WORKDIR /
+RUN curl -L -s https://github.com/solana-labs/solana/archive/refs/tags/v${tag}.tar.gz -o solana-${tag}.tar.gz
+RUN tar zxvf solana-${tag}.tar.gz
+
+# build solana
+WORKDIR /solana-${tag}
+
+# Set flags to prevent simd/avx usage
+ENV RUST_REED_SOLOMON_ERASURE_ARCH=native
+ENV RUSTFLAGS="-C target-feature=-avx,-avx2"
+
+ENV INSTALL_DIR="/root/.local/share/solana/install/releases/${tag}/solana-release"
+RUN mkdir -p $INSTALL_DIR
+RUN /solana-${tag}/scripts/cargo-install-all.sh $INSTALL_DIR
+
+# Turn off flags
+ENV RUST_REED_SOLOMON_ERASURE_ARCH=
+ENV RUSTFLAGS=
+
+# Link to active releases
+ENV ACTIVE_LINK="/root/.local/share/solana/install/active_release"
+RUN ln -s $INSTALL_DIR $ACTIVE_LINK
+
+# Add bins to path
+ENV PATH="$ACTIVE_LINK/bin:$PATH"
+
+WORKDIR /
+RUN rm -rf /solana-${tag}
+
+# Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
+RUN cargo init --lib /tmp/decoy-crate && \
+    cd /tmp/decoy-crate && cargo build-bpf && \
+    rm -rf /tmp/decoy-crate
+# The strip shell script downloads criterion the first time it runs so cache it here as well.
+RUN touch /tmp/foo.so && \
+    /root/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/strip.sh /tmp/foo.so /tmp/bar.so || \
+    rm /tmp/foo.so

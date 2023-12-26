@@ -1,39 +1,17 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM docker.io/library/rust:1.69.0@sha256:b7e0e2c6199fb5f309742c5eba637415c25ca2bed47fa5e80e274d4510ddfa3a as solana
-RUN apt-get update && apt-get install -y curl \
-    libssl-dev \
-    libudev-dev \
-    pkg-config \
-    zlib1g-dev  \
-    clang \
-    cmake \
-    make \
-    libprotobuf-dev \
-    protobuf-compiler \
-    ninja-build
+FROM docker.io/library/rust:1.60.0@sha256:9fe1f39bec70576e2bd568fafb194b2a532a6f2928bc0b951ac2c0a69a2be9fe as solana
 
-# fetch solana src
-ARG tag=1.16.24
-WORKDIR /
-RUN curl -L -s https://github.com/solana-labs/solana/archive/refs/tags/v${tag}.tar.gz -o solana-${tag}.tar.gz
-RUN tar zxvf solana-${tag}.tar.gz
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.10.31/install)"
 
-# build solana
-WORKDIR /solana-${tag}
-ENV RUSTFLAGS="-C target-feature=-avx,-avx2"
-RUN /solana-${tag}/scripts/cargo-install-all.sh  --debug .
-ENV PATH="/solana-${tag}/bin:$PATH"
+ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 
-# RUN /solana-${tag}/bin/solana-install -V ${tag} init
-#RUN sh -c "$(curl -sSfL https://release.solana.com/v1.16.24/install)"
-#ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
-
-
+COPY rust-toolchain .
 # Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
-# RUN cargo init --lib /tmp/decoy-crate && \
-#     cd /tmp/decoy-crate && cargo build-bpf && \
-#     rm -rf /tmp/decoy-crate
-# # The strip shell script downloads criterion the first time it runs so cache it here as well.
-# RUN touch /tmp/foo.so && \
-#     /root/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/strip.sh /tmp/foo.so /tmp/bar.so || \
-#     rm /tmp/foo.so
+RUN cargo init --lib /tmp/decoy-crate && \
+    cd /tmp/decoy-crate && cargo build-bpf && \
+    rm -rf /tmp/decoy-crate
+
+# The strip shell script downloads criterion the first time it runs so cache it here as well.
+RUN touch /tmp/foo.so && \
+    /root/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/strip.sh /tmp/foo.so /tmp/bar.so || \
+    rm /tmp/foo.so
