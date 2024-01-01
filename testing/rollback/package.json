@@ -5,7 +5,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.1.6",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "axios": "^0.24.0",
+    "axios": "^1.6.3",
     "ethers": "^5.5.2"
   },
   "scripts": {}
