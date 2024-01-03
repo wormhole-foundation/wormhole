@@ -15,7 +15,7 @@ fn simple_modify() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     let resp = contract.modify_balance(m.clone(), &wh).unwrap();
@@ -61,7 +61,7 @@ fn duplicate_modify() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     contract.modify_balance(m.clone(), &wh).unwrap();
@@ -86,7 +86,7 @@ fn round_trip() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     contract.modify_balance(m.clone(), &wh).unwrap();
@@ -97,7 +97,7 @@ fn round_trip() {
     // Now reverse the modification.
     m.sequence += 1;
     m.kind = Kind::Sub;
-    m.reason = "reverse".try_into().unwrap();
+    m.reason = "reverse".into();
 
     contract.modify_balance(m.clone(), &wh).unwrap();
 
@@ -125,7 +125,7 @@ fn missing_guardian_set() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     let err = contract
@@ -156,7 +156,7 @@ fn expired_guardian_set() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
     let err = contract
         .modify_balance(m, &wh)
@@ -178,7 +178,7 @@ fn no_quorum() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     let newlen = wh
@@ -211,7 +211,7 @@ fn repeat() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".try_into().unwrap(),
+        reason: "test".into(),
     };
 
     for _ in 0..ITERATIONS {

@@ -538,7 +538,7 @@ fn missing_native_account() {
         token_address: token_address.into(),
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
-        reason: "fake wrapped balance for testing".try_into().unwrap(),
+        reason: "fake wrapped balance for testing".into(),
     };
     contract.modify_balance(m, &wh).unwrap();
 
@@ -657,7 +657,7 @@ fn wrapped_to_wrapped() {
         token_address: token_address.into(),
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
-        reason: "fake wrapped balance for testing".try_into().unwrap(),
+        reason: "fake wrapped balance for testing".into(),
     };
     contract.modify_balance(m, &wh).unwrap();
 
