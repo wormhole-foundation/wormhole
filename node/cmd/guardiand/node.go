@@ -244,72 +244,72 @@ func init() {
 	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key (required)")
 	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
 
-	ethRPC = NodeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL.\nFormat: 'ws://'. Example: 'ws://eth-devnet:8545'")
+	ethRPC = NodeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
 
-	bscRPC = NodeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL.\nFormat: 'ws://'. Example: 'ws://eth-devnet:8545'")
+	bscRPC = NodeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
 
-	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
 
-	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
 
-	oasisRPC = NodeCmd.Flags().String("oasisRPC", "", "Oasis RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	oasisRPC = NodeCmd.Flags().String("oasisRPC", "", "Oasis RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
 
-	auroraRPC = NodeCmd.Flags().String("auroraRPC", "", "Aurora Websocket RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	auroraRPC = NodeCmd.Flags().String("auroraRPC", "", "Aurora Websocket RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	auroraContract = NodeCmd.Flags().String("auroraContract", "", "Aurora contract address")
 
-	fantomRPC = NodeCmd.Flags().String("fantomRPC", "", "Fantom Websocket RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	fantomRPC = NodeCmd.Flags().String("fantomRPC", "", "Fantom Websocket RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	fantomContract = NodeCmd.Flags().String("fantomContract", "", "Fantom contract address")
 
-	karuraRPC = NodeCmd.Flags().String("karuraRPC", "", "Karura RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	karuraRPC = NodeCmd.Flags().String("karuraRPC", "", "Karura RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	karuraContract = NodeCmd.Flags().String("karuraContract", "", "Karura contract address")
 
-	acalaRPC = NodeCmd.Flags().String("acalaRPC", "", "Acala RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	acalaRPC = NodeCmd.Flags().String("acalaRPC", "", "Acala RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")
 
-	klaytnRPC = NodeCmd.Flags().String("klaytnRPC", "", "Klaytn RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	klaytnRPC = NodeCmd.Flags().String("klaytnRPC", "", "Klaytn RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	klaytnContract = NodeCmd.Flags().String("klaytnContract", "", "Klaytn contract address")
 
-	celoRPC = NodeCmd.Flags().String("celoRPC", "", "Celo RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	celoRPC = NodeCmd.Flags().String("celoRPC", "", "Celo RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	celoContract = NodeCmd.Flags().String("celoContract", "", "Celo contract address")
 
-	moonbeamRPC = NodeCmd.Flags().String("moonbeamRPC", "", "Moonbeam RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	moonbeamRPC = NodeCmd.Flags().String("moonbeamRPC", "", "Moonbeam RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	neonRPC = NodeCmd.Flags().String("neonRPC", "", "Neon RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	neonRPC = NodeCmd.Flags().String("neonRPC", "", "Neon RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	neonContract = NodeCmd.Flags().String("neonContract", "", "Neon contract address")
 
-	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection.\nFormat: WebSocket (ws://). Example: 'ws://terra-terrad:26657/websocket'")
-	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://). Example: 'http://terra-terrad:1317'")
+	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://terra-terrad:26657/websocket'")
+	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://terra-terrad:1317'")
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
-	terra2WS = NodeCmd.Flags().String("terra2WS", "", "Path to terrad root for websocket connection.\nFormat: WebSocket (ws://). Example: 'ws://terra2-terrad:26657/websocket'")
-	terra2LCD = NodeCmd.Flags().String("terra2LCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://). Example: 'http://terra2-terrad:1317'")
+	terra2WS = NodeCmd.Flags().String("terra2WS", "", "Path to terrad root for websocket connection.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://terra2-terrad:26657/websocket'")
+	terra2LCD = NodeCmd.Flags().String("terra2LCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://terra2-terrad:1317'")
 	terra2Contract = NodeCmd.Flags().String("terra2Contract", "", "Wormhole contract address on Terra 2 blockchain")
 
-	injectiveWS = NodeCmd.Flags().String("injectiveWS", "", "Path to root for Injective websocket connection.\nFormat: WebSocket (ws://). Example: 'ws://injective:26657/websocket'")
-	injectiveLCD = NodeCmd.Flags().String("injectiveLCD", "", "Path to LCD service root for Injective http calls.\nFormat: HTTP (http://). Example: 'http://injective:1317'")
+	injectiveWS = NodeCmd.Flags().String("injectiveWS", "", "Path to root for Injective websocket connection.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://injective:26657/websocket'")
+	injectiveLCD = NodeCmd.Flags().String("injectiveLCD", "", "Path to LCD service root for Injective http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://injective:1317'")
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
 
-	xplaWS = NodeCmd.Flags().String("xplaWS", "", "Path to root for XPLA websocket connection.\nFormat: WebSocket (ws://). Example: 'ws://xpla:26657/websocket'")
-	xplaLCD = NodeCmd.Flags().String("xplaLCD", "", "Path to LCD service root for XPLA http calls.\nFormat: HTTP (http://). Example: 'http://xpla:1317'")
+	xplaWS = NodeCmd.Flags().String("xplaWS", "", "Path to root for XPLA websocket connection.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://xpla:26657/websocket'")
+	xplaLCD = NodeCmd.Flags().String("xplaLCD", "", "Path to LCD service root for XPLA http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://xpla:1317'")
 	xplaContract = NodeCmd.Flags().String("xplaContract", "", "Wormhole contract address on XPLA blockchain")
 
-	gatewayWS = NodeCmd.Flags().String("gatewayWS", "", "Path to root for Gateway watcher websocket connection.\nFormat: WebSocket (ws://). Example: 'ws://wormchain:26657/websocket'")
-	gatewayLCD = NodeCmd.Flags().String("gatewayLCD", "", "Path to LCD service root for Gateway watcher http calls.\nFormat: HTTP (http://). Example: 'http://wormchain:1317'")
+	gatewayWS = NodeCmd.Flags().String("gatewayWS", "", "Path to root for Gateway watcher websocket connection.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://wormchain:26657/websocket'")
+	gatewayLCD = NodeCmd.Flags().String("gatewayLCD", "", "Path to LCD service root for Gateway watcher http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://wormchain:1317'")
 	gatewayContract = NodeCmd.Flags().String("gatewayContract", "", "Wormhole contract address on Gateway blockchain")
 
-	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL.\nFormat: HTTP (http://). Example: 'http://algorand:8980'")
+	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://algorand:8980'")
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
-	algorandAlgodRPC = NodeCmd.Flags().String("algorandAlgodRPC", "", "Algorand Algod RPC URL.\nFormat: HTTP (http://). Example: 'http://algorand:4001'")
+	algorandAlgodRPC = NodeCmd.Flags().String("algorandAlgodRPC", "", "Algorand Algod RPC URL.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://algorand:4001'")
 	algorandAlgodToken = NodeCmd.Flags().String("algorandAlgodToken", "", "Algorand Algod access token")
 	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand app id")
 
-	nearRPC = NodeCmd.Flags().String("nearRPC", "", "Near RPC URL.\nFormat: HTTP (http://). Example: 'http://near:3030'")
+	nearRPC = NodeCmd.Flags().String("nearRPC", "", "Near RPC URL.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://near:3030'")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
 
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "Wormhole-chain gRPC URL.\nFormat: `<host>:<port>`. Example: 'wormchain:9090'")
@@ -317,56 +317,56 @@ func init() {
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
-	ibcWS = NodeCmd.Flags().String("ibcWS", "", "Websocket used to listen to the IBC receiver smart contract on wormchain.\nFormat: WebSocket (ws://). Example: 'ws://wormchain:26657/websocket'")
-	ibcLCD = NodeCmd.Flags().String("ibcLCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://). Example: 'http://wormchain:1317'")
+	ibcWS = NodeCmd.Flags().String("ibcWS", "", "Websocket used to listen to the IBC receiver smart contract on wormchain.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://wormchain:26657/websocket'")
+	ibcLCD = NodeCmd.Flags().String("ibcLCD", "", "Path to LCD service root for http calls.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://wormchain:1317'")
 	ibcBlockHeightURL = NodeCmd.Flags().String("ibcBlockHeightURL", "", "Optional URL to query for the block height (generated from ibcWS if not specified)")
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
-	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain.\nFormat: WebSocket (ws://). Example: 'ws://wormchain:26657'")
+	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://wormchain:26657'")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
 	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
 	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
 	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
 
-	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "Aptos RPC URL.\nFormat: HTTP (http://). Example: 'http://aptos:8080'")
+	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "Aptos RPC URL.\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://aptos:8080'")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
-	suiRPC = NodeCmd.Flags().String("suiRPC", "", "Sui RPC URL.\nFormat: HTTP (http://). Example: 'http://sui:9000'")
+	suiRPC = NodeCmd.Flags().String("suiRPC", "", "Sui RPC URL.\nFormat: HTTP (http://) or HTTPS (https://) or HTTPS (https://). Example: 'http://sui:9000'")
 	suiWS = NodeCmd.Flags().String("suiWS", "", "Sui WS URL.\nFormat: `<host>:<port>`. Example: 'sui:9000'")
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
-	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required).\nFormat: HTTP (http://). Example: 'http://solana-devnet:8899'")
+	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required).\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://solana-devnet:8899'")
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
-	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required).\nFormat: HTTP (http://). Example: 'http://pythnet.rpcpool.com'")
-	pythnetWS = NodeCmd.Flags().String("pythnetWS", "", "PythNet WS URL.\nFormat: WebSocket (ws://). Example: 'wss://pythnet.rpcpool.com'")
+	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required).\nFormat: HTTP (http://) or HTTPS (https://). Example: 'http://pythnet.rpcpool.com'")
+	pythnetWS = NodeCmd.Flags().String("pythnetWS", "", "PythNet WS URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'wss://pythnet.rpcpool.com'")
 
-	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
-	sepoliaRPC = NodeCmd.Flags().String("sepoliaRPC", "", "Sepolia RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	sepoliaRPC = NodeCmd.Flags().String("sepoliaRPC", "", "Sepolia RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
 
-	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 
-	scrollRPC = NodeCmd.Flags().String("scrollRPC", "", "Scroll RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	scrollRPC = NodeCmd.Flags().String("scrollRPC", "", "Scroll RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
 
-	mantleRPC = NodeCmd.Flags().String("mantleRPC", "", "Mantle RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	mantleRPC = NodeCmd.Flags().String("mantleRPC", "", "Mantle RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
 
-	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
-	arbitrumSepoliaRPC = NodeCmd.Flags().String("arbitrumSepoliaRPC", "", "Arbitrum on Sepolia RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	arbitrumSepoliaRPC = NodeCmd.Flags().String("arbitrumSepoliaRPC", "", "Arbitrum on Sepolia RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
-	baseSepoliaRPC = NodeCmd.Flags().String("baseSepoliaRPC", "", "Base on Sepolia RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	baseSepoliaRPC = NodeCmd.Flags().String("baseSepoliaRPC", "", "Base on Sepolia RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	baseSepoliaContract = NodeCmd.Flags().String("baseSepoliaContract", "", "Base on Sepolia contract address")
 
-	optimismSepoliaRPC = NodeCmd.Flags().String("optimismSepoliaRPC", "", "Optimism on Sepolia RPC URL.\nFormat: WebSocket (ws://). Example: 'ws://eth-devnet:8545'")
+	optimismSepoliaRPC = NodeCmd.Flags().String("optimismSepoliaRPC", "", "Optimism on Sepolia RPC URL.\nFormat: WebSocket 'ws://' or WebSocket Secure 'wss://'. Example: 'ws://eth-devnet:8545'")
 	optimismSepoliaContract = NodeCmd.Flags().String("optimismSepoliaContract", "", "Optimism on Sepolia contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
