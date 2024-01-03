@@ -202,6 +202,8 @@ func (c ChainID) String() string {
 		return "arbitrum"
 	case ChainIDOptimism:
 		return "optimism"
+	case ChainIDGnosis:
+		return "gnosis"
 	case ChainIDPythNet:
 		return "pythnet"
 	case ChainIDWormchain:
@@ -214,6 +216,8 @@ func (c ChainID) String() string {
 		return "base"
 	case ChainIDSei:
 		return "sei"
+	case ChainIDRootstock:
+		return "rootstock"
 	case ChainIDScroll:
 		return "scroll"
 	case ChainIDMantle:
@@ -295,6 +299,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDArbitrum, nil
 	case "optimism":
 		return ChainIDOptimism, nil
+	case "gnosis":
+		return ChainIDGnosis, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
 	case "wormchain":
@@ -307,6 +313,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBase, nil
 	case "sei":
 		return ChainIDSei, nil
+	case "rootstock":
+		return ChainIDRootstock, nil
 	case "scroll":
 		return ChainIDScroll, nil
 	case "mantle":
@@ -362,11 +370,13 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDAptos,
 		ChainIDArbitrum,
 		ChainIDOptimism,
+		ChainIDGnosis,
 		ChainIDPythNet,
 		ChainIDXpla,
 		ChainIDBtc,
 		ChainIDBase,
 		ChainIDSei,
+		ChainIDRootstock,
 		ChainIDScroll,
 		ChainIDMantle,
 		ChainIDWormchain,
@@ -433,6 +443,8 @@ const (
 	ChainIDArbitrum ChainID = 23
 	// ChainIDOptimism is the ChainID of Optimism
 	ChainIDOptimism ChainID = 24
+	// ChainIDGnosis is the ChainID of Gnosis
+	ChainIDGnosis ChainID = 25
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 	// ChainIDXpla is the ChainID of Xpla
@@ -443,6 +455,8 @@ const (
 	ChainIDBase ChainID = 30
 	// ChainIDSei is the ChainID of Sei
 	ChainIDSei ChainID = 32
+	// ChainIDRootstock is the ChainID of Rootstock
+	ChainIDRootstock ChainID = 33
 	// ChainIDScroll is the ChainID of Scroll
 	ChainIDScroll ChainID = 34
 	// ChainIDMantle is the ChainID of Mantle
