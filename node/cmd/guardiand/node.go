@@ -232,29 +232,29 @@ var (
 )
 
 var validSchemes = map[string][]string{
-    "ethRPC":        {"ws", "wss"},
-    "bscRPC":        {"ws", "wss"},
-    "polygonRPC":    {"ws", "wss"},
-	"avalancheRPC":  {"ws", "wss"},
-	"oasisRPC":      {"ws", "wss"},
-	"auroraRPC":     {"ws", "wss"},
-	"fantomRPC":     {"ws", "wss"},
-	"karuraRPC":     {"ws", "wss"},
-	"acalaRPC":      {"ws", "wss"},
-	"klaytnRPC":     {"ws", "wss"},
-	"celoRPC":       {"ws", "wss"},
-	"moonbeamRPC":   {"ws", "wss"},
-	"neonRPC":       {"ws", "wss"},
-	"terraWS":       {"ws", "wss"},
-	"terraLCD":      {"http", "https"},
-	"terra2WS":      {"ws", "wss"},
-	"terra2LCD":     {"http", "https"},
-	"injectiveWS":   {"ws", "wss"},
-	"injectiveLCD":  {"http", "https"},
-	"xplaWS":        {"ws", "wss"},
-	"xplaLCD":       {"http", "https"},
-	"gatewayWS":     {"ws", "wss"},
-	"gatewayLCD":    {"http", "https"},
+	"ethRPC":             {"ws", "wss"},
+	"bscRPC":             {"ws", "wss"},
+	"polygonRPC":         {"ws", "wss"},
+	"avalancheRPC":       {"ws", "wss"},
+	"oasisRPC":           {"ws", "wss"},
+	"auroraRPC":          {"ws", "wss"},
+	"fantomRPC":          {"ws", "wss"},
+	"karuraRPC":          {"ws", "wss"},
+	"acalaRPC":           {"ws", "wss"},
+	"klaytnRPC":          {"ws", "wss"},
+	"celoRPC":            {"ws", "wss"},
+	"moonbeamRPC":        {"ws", "wss"},
+	"neonRPC":            {"ws", "wss"},
+	"terraWS":            {"ws", "wss"},
+	"terraLCD":           {"http", "https"},
+	"terra2WS":           {"ws", "wss"},
+	"terra2LCD":          {"http", "https"},
+	"injectiveWS":        {"ws", "wss"},
+	"injectiveLCD":       {"http", "https"},
+	"xplaWS":             {"ws", "wss"},
+	"xplaLCD":            {"http", "https"},
+	"gatewayWS":          {"ws", "wss"},
+	"gatewayLCD":         {"http", "https"},
 	"algorandIndexerRPC": {"http", "https"},
 	"algorandAlgodRPC":   {"http", "https"},
 	"nearRPC":            {"http", "https"},
@@ -1662,39 +1662,51 @@ func unsafeDevModeEvmContractAddress(contractAddr string) string {
 }
 
 func validateURL(urlStr string, validSchemes []string) bool {
-    parsedURL, err := url.Parse(urlStr)
-    if err != nil {
-        return false
-    }
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return false
+	}
 
 	// If no scheme is required, validate host:port format
-    if len(validSchemes) == 1 && validSchemes[0] == "" {
-        host, port, err := net.SplitHostPort(parsedURL.Host)
-        return err == nil && host != "" && port != ""
-    }
+	if len(validSchemes) == 1 && validSchemes[0] == "" {
+		host, port, err := net.SplitHostPort(parsedURL.Host)
+		return err == nil && host != "" && port != ""
+	}
 
-    for _, scheme := range validSchemes {
-        if parsedURL.Scheme == scheme {
-            return true
-        }
-    }
-    return false
+	for _, scheme := range validSchemes {
+		if parsedURL.Scheme == scheme {
+			return true
+		}
+	}
+	return false
 }
 
 func generateFormatString(schemes []string) string {
-    var formatBuilder strings.Builder
+	var formatBuilder strings.Builder
 
-    for i, scheme := range schemes {
-        if scheme == "" {
-            formatBuilder.WriteString("<host>:<port>")
-        } else {
-            formatBuilder.WriteString(strings.ToUpper(scheme))
-        }
+	for i, scheme := range schemes {
+		if scheme == "" {
+			formatBuilder.WriteString("<host>:<port>")
+		} else {
+			formatBuilder.WriteString(strings.ToUpper(scheme))
+		}
 
-        if i < len(schemes)-1 {
-            formatBuilder.WriteString(" or ")
-        }
-    }
+		if i < len(schemes)-1 {
+			formatBuilder.WriteString(" or ")
+		}
+	}
 
-    return formatBuilder.String()
+	return formatBuilder.String()
+}
+
+func registerFlagWithValidation(cmd *cobra.Command, name string, defaultValue string, description string, example string, expectedSchemes []string) {
+	formatExample := generateFormatString(expectedSchemes)
+	flagValue := cmd.Flags().String(name, defaultValue, fmt.Sprintf("%s\nFormat: %s", description, formatExample))
+
+	// Perform validation after flags are parsed
+	cobra.OnInitialize(func() {
+		if valid := validateURL(*flagValue, expectedSchemes); valid {
+			log.Fatalf("Format for flag --%s should be %s. Example: %s", name, formatExample, example)
+		}
+	})
 }
