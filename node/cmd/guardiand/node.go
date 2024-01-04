@@ -1681,3 +1681,20 @@ func validateURL(urlStr string, validSchemes []string) bool {
     return false
 }
 
+func generateFormatString(schemes []string) string {
+    var formatBuilder strings.Builder
+
+    for i, scheme := range schemes {
+        if scheme == "" {
+            formatBuilder.WriteString("<host>:<port>")
+        } else {
+            formatBuilder.WriteString(strings.ToUpper(scheme))
+        }
+
+        if i < len(schemes)-1 {
+            formatBuilder.WriteString(" or ")
+        }
+    }
+
+    return formatBuilder.String()
+}
