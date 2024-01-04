@@ -164,7 +164,7 @@ axios
             }
 
             // This is a new token
-            if (!existingTokenPrices[chain][wormholeAddr]) {
+            if (existingTokenPrices[chain] == undefined || existingTokenPrices[chain][wormholeAddr] == undefined) {
               addedTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol);
             }
             // This is an existing token
