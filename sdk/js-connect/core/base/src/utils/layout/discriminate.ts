@@ -124,9 +124,9 @@ function layoutItemMeta(
         if (offset !== null) {
           const serializedId = new Uint8Array(idSize);
           serializeNum(serializedId, 0, idVal, idSize, idEndianness);
-          caseFixedBytes[caseIndex].push([0, serializedId]);
+          caseFixedBytes[caseIndex]!.push([0, serializedId]);
         }
-        const ret = createLayoutMeta(layout, offset ? idSize : null, caseFixedBytes[caseIndex]);
+        const ret = createLayoutMeta(layout, offset ? idSize : null, caseFixedBytes[caseIndex]!);
         return [ret[0] + idSize, ret[1] + idSize] as Bounds;
       });
 
@@ -147,17 +147,17 @@ function layoutItemMeta(
             while (caseIndex < caseFixedBytes.length) {
               let curItIndex = itIndexes[caseIndex];
               const curFixedBytes = caseFixedBytes[caseIndex];
-              const [curOffset, curSerialized] = curFixedBytes[curItIndex];
+              const [curOffset, curSerialized] = curFixedBytes![curItIndex!]!;
               if (curOffset + curSerialized.length <= bytePos) {
                 //no fixed byte at this position in this case
-                ++curItIndex;
+                ++curItIndex!;
 
-                if (curItIndex === curFixedBytes.length)
+                if (curItIndex === curFixedBytes!.length)
                   return; //we have exhausted all fixed bytes in at least one case
 
-                itIndexes[caseIndex] = curItIndex;
+                itIndexes[caseIndex] = curItIndex!;
                 //jump to the next possible bytePos given the fixed bytes of the current case index
-                bytePos = curFixedBytes[curItIndex][0];
+                bytePos = curFixedBytes![curItIndex!]![0];
                 break;
               }
 
@@ -214,8 +214,8 @@ function buildAscendingBounds(sortedBounds: readonly (readonly [Bounds, LayoutIn
   //  currently under consideration, sorted in ascending order of their respective upper bounds
   let sortedCandidates = [] as (readonly [Size, LayoutIndex])[];
   const closeCandidatesBefore = (before: number) => {
-    while (sortedCandidates.length > 0 && sortedCandidates[0][0] < before) {
-      const end = sortedCandidates[0][0] + 1;
+    while (sortedCandidates.length > 0 && sortedCandidates[0]![0] < before) {
+      const end = sortedCandidates[0]![0] + 1;
       //remove all candidates that end at the same position
       const removeIndex = sortedCandidates.findIndex(([upper]) => end <= upper);
       if (removeIndex === -1)
@@ -275,7 +275,7 @@ function generateLayoutDiscriminator(
   const allLayouts = (1n << BigInt(layouts.length)) - 1n;
 
   const fixedKnown = layouts.map(() => [] as FixedBytes);
-  const sizeBounds = layouts.map((l, i) => createLayoutMeta(l, 0, fixedKnown[i]));
+  const sizeBounds = layouts.map((l, i) => createLayoutMeta(l, 0, fixedKnown[i]!));
   const sortedBounds = sizeBounds.map((b, i) => [b, i] as const).sort(([[l1]], [[l2]]) => l1 - l2);
 
   const mustHaveByteAt = (() => {
@@ -322,9 +322,9 @@ function generateLayoutDiscriminator(
   }).map(() => []);
 
   for (let i = 0; i < fixedKnown.length; ++i)
-    for (const [offset, serialized] of fixedKnown[i])
+    for (const [offset, serialized] of fixedKnown[i]!)
       for (let j = 0; j < serialized.length; ++j)
-        fixedKnownBytes[offset + j].push([serialized[j], i]);
+        fixedKnownBytes[offset + j]!.push([serialized[j]!, i]);
 
   let bestBytes = [];
   for (const [bytePos, fixedKnownByte] of fixedKnownBytes.entries()) {
@@ -365,7 +365,7 @@ function generateLayoutDiscriminator(
           bitsetToArray(
             encoded.length <= bytePos
             ? outOfBoundsLayouts
-            : distinctValues.get(encoded[bytePos]) ?? emptySet
+            : distinctValues.get(encoded[bytePos]!) ?? emptySet
           )
       ];
 
@@ -402,7 +402,7 @@ function generateLayoutDiscriminator(
     let sizePower = 0;
     const narrowedBounds = new Map<Size, Candidates>();
     for (const candidate of bitsetToArray(candidates)) {
-      const lower = sizeBounds[candidate][0];
+      const lower = sizeBounds[candidate]![0];
       const overlap = ascendingBounds.get(lower)! & candidates;
       narrowedBounds.set(lower, overlap)
       sizePower = Math.max(sizePower, count(overlap));
@@ -456,9 +456,9 @@ function generateLayoutDiscriminator(
     narrowedBestBytes.sort(([lhsPower], [rhsPower]) => rhsPower - lhsPower);
 
     //prefer byte discriminators over size discriminators
-    if (narrowedBestBytes.length > 0 && narrowedBestBytes[0][0] >= sizePower) {
+    if (narrowedBestBytes.length > 0 && narrowedBestBytes[0]![0] >= sizePower) {
       const [, bytePos, narrowedOutOfBoundsLayouts, narrowedDistinctValues, anyValueLayouts] =
-        narrowedBestBytes[0];
+        narrowedBestBytes[0]!;
       addStrategy(candidates, [bytePos, narrowedOutOfBoundsLayouts, narrowedDistinctValues]);
       recursivelyBuildStrategy(narrowedOutOfBoundsLayouts, narrowedBestBytes);
       for (const cand of narrowedDistinctValues.values())

@@ -36,11 +36,8 @@
     "coverage": "npm run coverage --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
     "prettier": "npm run prettier --workspaces --if-present",
-    "bump:beta": "bump prerelease && npm run bump:beta --workspaces --if-present",
-
     "test": "npm run test --workspaces --if-present",
     "test-ci": "jest --verbose --config ./jest.config.ts --roots ./__tests__/tilt",
-
     "docs": "typedoc"
   },
   "workspaces": [

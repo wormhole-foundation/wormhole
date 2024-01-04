@@ -1,6 +1,7 @@
 import { normalizeAmount } from "../src/";
 
 describe("Amount Tests", function () {
+  // amt, decimals, expected
   const cases: [number | string, bigint, bigint][] = [
     [1, 18n, BigInt(1 + "0".repeat(18))],
     [0, 18n, BigInt(0)],
@@ -12,6 +13,9 @@ describe("Amount Tests", function () {
     // should we throw on negative?
     [-3, 2n, BigInt(-300)],
     ["-3", 2n, BigInt(-300)],
+    [1, 0n, BigInt(1)],
+    ["1", 0n, BigInt(1)],
+    ["1.0", 1n, BigInt(10)],
   ];
 
   const badCases: [number | string, bigint][] = [

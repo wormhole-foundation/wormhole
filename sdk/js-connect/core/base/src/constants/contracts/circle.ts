@@ -73,5 +73,12 @@ export const circleContracts = [[
       wormholeRelayer:    "",
       wormhole:           "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
     }],
+    [
+    "Solana", {
+        tokenMessenger: 'CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3',
+        messageTransmitter: 'CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd',
+        wormholeRelayer:"",
+        wormhole:""
+    }]
   ]],
 ] as const satisfies MapLevel<Network, MapLevel<Chain, CircleContracts>>;

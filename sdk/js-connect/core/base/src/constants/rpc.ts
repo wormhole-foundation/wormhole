@@ -20,9 +20,10 @@ const rpcConfig = [[
     ["Cosmoshub", "https://cosmos-rpc.polkachu.com"],
     ["Evmos",     "https://evmos-rpc.polkachu.com"],
     ["Injective", "https://sentry.tm.injective.network"],
-    ["Wormchain", "https://wormchain.jumpisolated.com/"],
+    ["Wormchain", "https://wormchain-rpc.quickapi.com"],
     ["Xpla",      "https://dimension-rpc.xpla.dev"],
     ["Sei",       "https://sei-rpc.polkachu.com/"],
+    ["Algorand", "https://mainnet-api.algonode.cloud"],
   ]], [
   "Testnet", [
     ["Ethereum",  "https://rpc.ankr.com/eth_goerli"],
@@ -42,8 +43,10 @@ const rpcConfig = [[
     ["Osmosis",   "https://rpc.testnet.osmosis.zone"],
     ["Cosmoshub", "https://rpc.sentry-02.theta-testnet.polypore.xyz"],
     ["Evmos",     "https://evmos-testnet-rpc.polkachu.com"],
-    ["Wormchain", "https://wormchain-testnet.jumpisolated.com"],
-    ["Xpla",      "https://cube-rpc.xpla.dev	"],
+    ["Wormchain", "https://gateway.testnet.xlabs.xyz/"],
+    ["Xpla",      "https://cube-rpc.xpla.dev"],
+    ["Sepolia",   "https://ethereum-sepolia.publicnode.com"],
+    ["Algorand", "https://testnet-api.algonode.cloud"],
   ]], [
   "Devnet", [
     ["Ethereum",  "http://eth-devnet:8545"],

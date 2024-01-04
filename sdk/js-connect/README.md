@@ -31,7 +31,7 @@ npm install @wormhole-foundation/wormhole-sdk-solana-tokenbridge
 
 A developer would use the core wormhole-sdk package in conjunction with 1 or more of the chain context packages. Most developers don't use every single chain and may only use a couple, this allows developers to import only the dependencies they actually need.
 
-Getting started is simple, just import and pass in the [Platform](#platforms) modules you wish to support as an argument to the `Wormhole` class.
+Getting started is simple, first import the [Platforms](#platforms) and [Protocols](#protocols) you plan to use.
 
 ```ts
 import { Wormhole, Signer } from '@wormhole-foundation/wormhole-sdk';
@@ -39,12 +39,13 @@ import { EvmContext } from '@wormhole-foundation/wormhole-sdk-evm';
 import { SolanaContext } from '@wormhole-foundation/wormhole-sdk-solana';
 
 // include the protocols you wish to use
-import "@wormhole-foundation/wormhole-sdk-evm-core"
 import "@wormhole-foundation/wormhole-sdk-evm-tokenbridge"
-import "@wormhole-foundation/wormhole-sdk-solana-core"
 import "@wormhole-foundation/wormhole-sdk-solana-tokenbridge"
+```
 
+Then pass in the [Platform](#platforms) modules you wish to support as an argument to the `Wormhole` class.
 
+```ts
 const network = "Mainnet"; // Or "Testnet"
 const wh = new Wormhole(network, [EvmContext, SolanaContext]);
 
@@ -238,7 +239,6 @@ Using the `WormholeTransfer` abstraction is the recommended way to interact with
 ```ts
 import {signSendWait} from '@wormhole-foundation/wormhole-sdk';
 
-import "@wormhole-foundation/wormhole-sdk-evm-core"
 import "@wormhole-foundation/wormhole-sdk-evm-tokenbridge"
 
 // ...
@@ -252,6 +252,36 @@ const txids = await signSendWait(srcChain, txGenerator, src.signer) // => TxHash
 ```
 
 Supported protocols are defined in the [definitions module](https://github.com/wormhole-foundation/connect-sdk/tree/develop/core/definitions/src/protocols)
+
+#### Core Bridge
+
+The Core messaging bridge can also be used to pass arbitrary messages.
+
+```ts
+import {signSendWait} from '@wormhole-foundation/wormhole-sdk';
+
+import "@wormhole-foundation/wormhole-sdk-evm-core"
+
+// ...
+
+const bridge = await srcChain.getWormholeCore(); // => WormholeCore<'Evm'>
+const msg = encoding.bytes.encode("lol");
+const nonce = 0;
+const consistencyLevel = 0;
+
+// Publish message
+const publishTxs = bridge.publishMessage(address.address, encoding.bytes.encode("lol"), nonce, consistencyLevel);
+const txids = await signSendWait(chain, publishTxs, signer);
+
+// Fetch VAA
+const [whm] = await chain.parseTransaction(txids[0]!.txid);
+const vaa = await wh.getVaa(whm!, "Uint8Array", 60_000);
+
+// Verify message
+const verifyTxs = coreBridge.verifyMessage(address.address, vaa!);
+const verifyTxIds = await signSendWait(chain, verifyTxs, signer);
+```
+
 
 ### Signers
 

@@ -71,8 +71,8 @@ export type Zip<A extends RoArray2D> =
   : never
 
 export const zip = <const Args extends RoArray2D>(arr: Args) =>
-  range(arr[0].length).map(col =>
-    range(arr.length).map(row => arr[row][col])
+  range(arr[0]!.length).map(col =>
+    range(arr.length).map(row => arr[row]![col])
   ) as unknown as ([Zip<Args>] extends [never] ? RoArray2D : Zip<Args>);
 
 //extracts elements with the given indexes in the specified order, explicitly forbid unions

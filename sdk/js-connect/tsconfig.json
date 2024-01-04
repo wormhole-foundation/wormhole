@@ -15,9 +15,9 @@
     // Strict Checks
     "alwaysStrict": true,
     "noImplicitAny": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
     "useUnknownInCatchVariables": true,
-    "strictPropertyInitialization": false,
     "strictFunctionTypes": true,
     "noImplicitThis": true,
     "strictBindCallApply": true,

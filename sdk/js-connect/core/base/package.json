@@ -17,8 +17,7 @@
   "module": "./lib/esm/index.js",
   "types": "./lib/esm/index.d.ts",
   "files": [
-    "lib/**/*",
-    "src/**/*"
+    "lib/**/*"
   ],
   "dependencies": {
     "@scure/base": "^1.1.3"

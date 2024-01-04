@@ -384,7 +384,7 @@ const toMapping = <
     throw new Error("Invalid mapping: empty");
 
   const definedShape = (shape === undefined)
-    ? [range(crr[0].length - 1), [crr[0].length - 1]]
+    ? [range(crr[0]!.length - 1), [crr[0]!.length - 1]]
     : shape.map(ind => typeof ind === "number" ? [ind] : ind);
 
   // store reference to leaf object to unwrap values if all leaves are singletons
@@ -396,13 +396,13 @@ const toMapping = <
   ): any => {
     const distinctKeys = Array.from(new Set<MappableKey>(keyCartesianSet[0]).values());
     const keyRows = new Map<MappableKey, number[]>(distinctKeys.map(key => [key, []]));
-    for (const [i, key] of keyCartesianSet[0].entries())
+    for (const [i, key] of keyCartesianSet[0]!.entries())
       keyRows.get(key)!.push(i);
 
     // termination case
     if (keyCartesianSet.length === 1) {
       const ret = Object.fromEntries(distinctKeys.map(key =>
-        [key, keyRows.get(key)!.map(i => values[i].length === 1 ? values[i][0] : values[i])]
+        [key, keyRows.get(key)!.map(i => values[i]!.length === 1 ? values[i]![0] : values[i])]
       ));
 
       if (allSingletons) {
@@ -420,8 +420,8 @@ const toMapping = <
     const droppedKeyCol = zip(keyCartesianSet.slice(1));
     return Object.fromEntries(distinctKeys.map(key => {
       const rows = keyRows.get(key)!;
-      const keyCartesianSubset = zip(rows.map(i => droppedKeyCol[i]));
-      const valuesSubset = rows.map(i => values[i]);
+      const keyCartesianSubset = zip(rows.map(i => droppedKeyCol[i]!));
+      const valuesSubset = rows.map(i => values[i]!);
       return [
         key,
         buildMappingRecursively(keyCartesianSubset as CartesianSet<MappableKey>, valuesSubset)
@@ -441,20 +441,20 @@ const toMapping = <
   const [keyCartesianSet, leafValues] =
     definedShape.map(indx => indx.map(col => getCol(col)));
 
-  if (keyCartesianSet.length === 0)
+  if (keyCartesianSet!.length === 0)
     throw new Error("Invalid shape: empty key set");
 
-  if (leafValues.length === 0)
+  if (leafValues!.length === 0)
     throw new Error("Invalid shape: empty value set");
 
-  for (const keyCol of keyCartesianSet)
+  for (const keyCol of keyCartesianSet!)
     for (const key of keyCol)
       if (!isMappableKey(key))
         throw new Error(`Invalid key: ${key} in ${keyCol}`);
 
   const ret = buildMappingRecursively(
     keyCartesianSet as CartesianSet<MappableKey>,
-    zip(leafValues)
+    zip(leafValues!)
   );
 
   if (allSingletons)

@@ -75,10 +75,10 @@ function deserializeNum<S extends number>(
 ): readonly [NumSizeToPrimitive<S>, number] {
   let val = 0n;
   for (let i = 0; i < bytes; ++i)
-    val |= BigInt(encoded[offset + i]) << BigInt(8 * (endianness === "big" ? bytes - i - 1 : i));
+    val |= BigInt(encoded[offset + i]!) << BigInt(8 * (endianness === "big" ? bytes - i - 1 : i));
 
   //check sign bit if value is indeed signed and adjust accordingly
-  if (signed && (encoded[offset + (endianness === "big" ? 0 : bytes - 1)] & 0x80))
+  if (signed && (encoded[offset + (endianness === "big" ? 0 : bytes - 1)]! & 0x80))
     val -= 1n << BigInt(8 * bytes);
 
   return [
@@ -193,7 +193,7 @@ function deserializeLayoutItem(
       if (layouts.length === 0)
         throw new Error(`switch item has no layouts`);
 
-      const hasPlainIds = typeof layouts[0][0] === "number";
+      const hasPlainIds = typeof layouts[0]![0] === "number";
       const pair = (layouts as any[]).find(([idOrConversionId]) =>
         hasPlainIds ? idOrConversionId === id : (idOrConversionId)[0] === id);
 
