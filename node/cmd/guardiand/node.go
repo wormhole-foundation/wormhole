@@ -230,6 +230,53 @@ var (
 	gatewayRelayerKeyPassPhrase *string
 )
 
+var validSchemes = map[string][]string{
+    "ethRPC":        {"ws", "wss"},
+    "bscRPC":        {"ws", "wss"},
+    "polygonRPC":    {"ws", "wss"},
+	"avalancheRPC":  {"ws", "wss"},
+	"oasisRPC":      {"ws", "wss"},
+	"auroraRPC":     {"ws", "wss"},
+	"fantomRPC":     {"ws", "wss"},
+	"karuraRPC":     {"ws", "wss"},
+	"acalaRPC":      {"ws", "wss"},
+	"klaytnRPC":     {"ws", "wss"},
+	"celoRPC":       {"ws", "wss"},
+	"moonbeamRPC":   {"ws", "wss"},
+	"neonRPC":       {"ws", "wss"},
+	"terraWS":       {"ws", "wss"},
+	"terraLCD":      {"http", "https"},
+	"terra2WS":      {"ws", "wss"},
+	"terra2LCD":     {"http", "https"},
+	"injectiveWS":   {"ws", "wss"},
+	"injectiveLCD":  {"http", "https"},
+	"xplaWS":        {"ws", "wss"},
+	"xplaLCD":       {"http", "https"},
+	"gatewayWS":     {"ws", "wss"},
+	"gatewayLCD":    {"http", "https"},
+	"algorandIndexerRPC": {"http", "https"},
+	"algorandAlgodRPC":   {"http", "https"},
+	"nearRPC":            {"http", "https"},
+	"wormchainURL":       {""},
+	"ibcWS":              {"ws", "wss"},
+	"ibcLCD":             {"http", "https"},
+	"aptosRPC":           {"http", "https"},
+	"suiRPC":             {"http", "https"},
+	"suiWS":              {""},
+	"solanaRPC":          {"http", "https"},
+	"pythnetRPC":         {"http", "https"},
+	"pythnetWS":          {"ws", "wss"},
+	"arbitrumRPC":        {"ws", "wss"},
+	"sepoliaRPC":         {"ws", "wss"},
+	"optimismRPC":        {"ws", "wss"},
+	"scrollRPC":          {"ws", "wss"},
+	"mantleRPC":          {"ws", "wss"},
+	"baseRPC":            {"ws", "wss"},
+	"arbitrumSepoliaRPC": {"ws", "wss"},
+	"baseSepoliaRPC":     {"ws", "wss"},
+	"optimismSepoliaRPC": {"ws", "wss"},
+}
+
 func init() {
 	p2pNetworkID = NodeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
