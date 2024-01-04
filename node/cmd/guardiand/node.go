@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -1659,3 +1660,24 @@ func unsafeDevModeEvmContractAddress(contractAddr string) string {
 
 	return devnet.GanacheWormholeContractAddress.Hex()
 }
+
+func validateURL(urlStr string, validSchemes []string) bool {
+    parsedURL, err := url.Parse(urlStr)
+    if err != nil {
+        return false
+    }
+
+	// If no scheme is required, validate host:port format
+    if len(validSchemes) == 1 && validSchemes[0] == "" {
+        host, port, err := net.SplitHostPort(parsedURL.Host)
+        return err == nil && host != "" && port != ""
+    }
+
+    for _, scheme := range validSchemes {
+        if parsedURL.Scheme == scheme {
+            return true
+        }
+    }
+    return false
+}
+
