@@ -1664,13 +1664,13 @@ func unsafeDevModeEvmContractAddress(contractAddr string) string {
 }
 
 func hasKnownSchemePrefix(urlStr string) bool {
-    knownSchemes := []string{"http://", "https://", "ws://", "wss://"}
-    for _, scheme := range knownSchemes {
-        if strings.HasPrefix(urlStr, scheme) {
-            return true
-        }
-    }
-    return false
+	knownSchemes := []string{"http://", "https://", "ws://", "wss://"}
+	for _, scheme := range knownSchemes {
+		if strings.HasPrefix(urlStr, scheme) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateURL(urlStr string, validSchemes []string) bool {
@@ -1711,19 +1711,18 @@ func generateFormatString(schemes []string) string {
 	return formatBuilder.String()
 }
 
-
 func registerFlagWithValidationOrFail(cmd *cobra.Command, name string, defaultValue string, description string, example string, expectedSchemes []string) *string {
 	formatExample := generateFormatString(expectedSchemes)
 	flagValue := cmd.Flags().String(name, defaultValue, fmt.Sprintf("%s.\nFormat: %s. Example: '%s'", description, formatExample, example))
 
 	// Perform validation after flags are parsed
 	cobra.OnInitialize(func() {
-		if (*flagValue == "") {
+		if *flagValue == "" {
 			return
 		}
 
 		if valid := validateURL(*flagValue, expectedSchemes); !valid {
-            log.Fatalf("Invalid format for flag --%s. Expected format: %s. Example: '%s'", name, formatExample, example)
+			log.Fatalf("Invalid format for flag --%s. Expected format: %s. Example: '%s'", name, formatExample, example)
 		}
 	})
 
