@@ -155,7 +155,7 @@ export async function execute_aptos(
           // Deploying a wrapped asset requires two transactions:
           // 1. Publish a new module under a resource account that defines a type T
           // 2. Initialise a new coin with that type T
-          // These need to be done in separate transactions, becasue a
+          // These need to be done in separate transactions, because a
           // transaction that deploys a module cannot use that module
           //
           // Tx 1.
