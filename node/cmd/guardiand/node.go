@@ -262,6 +262,7 @@ var validSchemes = map[string][]string{
 	"ibcWS":              {"ws", "wss"},
 	"ibcLCD":             {"http", "https"},
 	"ibcBlockHeightURL":  {"http", "https"},
+	"accountantWS":       {"ws", "wss"},
 	"aptosRPC":           {"http", "https"},
 	"suiRPC":             {"http", "https"},
 	"suiWS":              {""},
@@ -388,40 +389,40 @@ func init() {
 	suiWS = registerFlagWithValidationOrFail(NodeCmd, "suiWS", "", "Sui WS URL", "sui:9000", validSchemes["suiWS"])
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
-	solanaRPC = registerFlagWithValidationOrFail(NodeCmd, "solanaRPC", "", "Solana RPC URL (required)", "Example: 'http://solana-devnet:8899'", validSchemes["solanaRPC"])
+	solanaRPC = registerFlagWithValidationOrFail(NodeCmd, "solanaRPC", "", "Solana RPC URL (required)", "http://solana-devnet:8899", validSchemes["solanaRPC"])
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
-	pythnetRPC = registerFlagWithValidationOrFail(NodeCmd, "pythnetRPC", "", "PythNet RPC URL (required)", "Example: 'http://pythnet.rpcpool.com'", validSchemes["pythnetRPC"])
-	pythnetWS = registerFlagWithValidationOrFail(NodeCmd, "pythnetWS", "", "PythNet WS URL", "Example: 'wss://pythnet.rpcpool.com'", validSchemes["pythnetWS"])
+	pythnetRPC = registerFlagWithValidationOrFail(NodeCmd, "pythnetRPC", "", "PythNet RPC URL (required)", "http://pythnet.rpcpool.com", validSchemes["pythnetRPC"])
+	pythnetWS = registerFlagWithValidationOrFail(NodeCmd, "pythnetWS", "", "PythNet WS URL", "wss://pythnet.rpcpool.com", validSchemes["pythnetWS"])
 
-	arbitrumRPC = registerFlagWithValidationOrFail(NodeCmd, "arbitrumRPC", "", "Arbitrum RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["arbitrumRPC"])
+	arbitrumRPC = registerFlagWithValidationOrFail(NodeCmd, "arbitrumRPC", "", "Arbitrum RPC URL", "ws://eth-devnet:8545", validSchemes["arbitrumRPC"])
 	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
-	sepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "sepoliaRPC", "", "Sepolia RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["sepoliaRPC"])
+	sepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "sepoliaRPC", "", "Sepolia RPC URL", "ws://eth-devnet:8545", validSchemes["sepoliaRPC"])
 	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
 
 	holeskyRPC = NodeCmd.Flags().String("holeskyRPC", "", "Holesky RPC URL.\nFormat: WebSocket (ws://) or WebSocket Secure (wss://). Example: 'ws://eth-devnet:8545'")
 	holeskyContract = NodeCmd.Flags().String("holeskyContract", "", "Holesky contract address")
 
-	optimismRPC = registerFlagWithValidationOrFail(NodeCmd, "optimismRPC", "", "Optimism RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["optimismRPC"])
+	optimismRPC = registerFlagWithValidationOrFail(NodeCmd, "optimismRPC", "", "Optimism RPC URL", "ws://eth-devnet:8545", validSchemes["optimismRPC"])
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 
-	scrollRPC = registerFlagWithValidationOrFail(NodeCmd, "scrollRPC", "", "Scroll RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["scrollRPC"])
+	scrollRPC = registerFlagWithValidationOrFail(NodeCmd, "scrollRPC", "", "Scroll RPC URL", "ws://eth-devnet:8545", validSchemes["scrollRPC"])
 	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
 
-	mantleRPC = registerFlagWithValidationOrFail(NodeCmd, "mantleRPC", "", "Mantle RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["mantleRPC"])
+	mantleRPC = registerFlagWithValidationOrFail(NodeCmd, "mantleRPC", "", "Mantle RPC URL", "ws://eth-devnet:8545", validSchemes["mantleRPC"])
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
 
-	baseRPC = registerFlagWithValidationOrFail(NodeCmd, "baseRPC", "", "Base RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["baseRPC"])
+	baseRPC = registerFlagWithValidationOrFail(NodeCmd, "baseRPC", "", "Base RPC URL", "ws://eth-devnet:8545", validSchemes["baseRPC"])
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
-	arbitrumSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "", "Arbitrum on Sepolia RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["arbitrumSepoliaRPC"])
+	arbitrumSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", validSchemes["arbitrumSepoliaRPC"])
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
-	baseSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "baseSepoliaRPC", "", "Base on Sepolia RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["baseSepoliaRPC"])
+	baseSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "baseSepoliaRPC", "", "Base on Sepolia RPC URL", "=ws://eth-devnet:8545", validSchemes["baseSepoliaRPC"])
 	baseSepoliaContract = NodeCmd.Flags().String("baseSepoliaContract", "", "Base on Sepolia contract address")
 
-	optimismSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "optimismSepoliaRPC", "", "Optimism on Sepolia RPC URL", "Example: 'ws://eth-devnet:8545'", validSchemes["optimismSepoliaRPC"])
+	optimismSepoliaRPC = registerFlagWithValidationOrFail(NodeCmd, "optimismSepoliaRPC", "", "Optimism on Sepolia RPC URL", "ws://eth-devnet:8545", validSchemes["optimismSepoliaRPC"])
 	optimismSepoliaContract = NodeCmd.Flags().String("optimismSepoliaContract", "", "Optimism on Sepolia contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
@@ -1713,7 +1714,7 @@ func generateFormatString(schemes []string) string {
 
 func registerFlagWithValidationOrFail(cmd *cobra.Command, name string, defaultValue string, description string, example string, expectedSchemes []string) *string {
 	formatExample := generateFormatString(expectedSchemes)
-	flagValue := cmd.Flags().String(name, defaultValue, fmt.Sprintf("%s.\nFormat: %s", description, formatExample))
+	flagValue := cmd.Flags().String(name, defaultValue, fmt.Sprintf("%s.\nFormat: %s. Example: '%s'", description, formatExample, example))
 
 	// Perform validation after flags are parsed
 	cobra.OnInitialize(func() {
