@@ -44,7 +44,6 @@ func generateFormatString(schemes []string) string {
 	var formatBuilder strings.Builder
 
 	for i, scheme := range schemes {
-		fmt.Printf("scheme: %s\n", scheme)
 		if scheme == "" {
 			formatBuilder.WriteString("<host>:<port>")
 		} else {

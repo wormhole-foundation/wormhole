@@ -351,7 +351,7 @@ func init() {
 	sepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "sepoliaRPC", "Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
 
-	holeskyRPC = NodeCmd.Flags().String("holeskyRPC", "", "Holesky RPC URL.\nFormat: WebSocket (ws://) or WebSocket Secure (wss://). Example: 'ws://eth-devnet:8545'")
+	holeskyRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "holeskyRPC", "Holesky RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	holeskyContract = NodeCmd.Flags().String("holeskyContract", "", "Holesky contract address")
 
 	optimismRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismRPC", "Optimism RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
