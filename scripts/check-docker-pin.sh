@@ -6,7 +6,7 @@
 #   - https://nickjanetakis.com/blog/docker-tip-18-please-pin-your-docker-image-versions
 #   - https://snyk.io/blog/10-docker-image-security-best-practices/ (Specifically: USE FIXED TAGS FOR IMMUTABILITY)
 #
-# Explaination of regex ignore choices
+# Explanation of regex ignore choices
 #   - We ignore sha256 because it suggests that the image dep is pinned
 #   - We ignore scratch because it's literally the docker base image
 #   - We ignore solana AS (builder|ci_tests) because it's a relative reference to another FROM call
