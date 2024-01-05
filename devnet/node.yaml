@@ -109,6 +109,8 @@ spec:
             - ws://eth-devnet:8545
             - --sepoliaRPC
             - ws://eth-devnet:8545
+            - --holeskyRPC
+            - ws://eth-devnet:8545
             - --arbitrumSepoliaRPC
             - ws://eth-devnet:8545
             - --baseSepoliaRPC
