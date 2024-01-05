@@ -262,7 +262,7 @@ var validSchemes = map[string][]string{
 	"ibcWS":              {"ws", "wss"},
 	"ibcLCD":             {"http", "https"},
 	"ibcBlockHeightURL":  {"http", "https"},
-	"accountantWS":       {"ws", "wss"},
+	"accountantWS":       {"http", "https"},
 	"aptosRPC":           {"http", "https"},
 	"suiRPC":             {"http", "https"},
 	"suiWS":              {""},
@@ -375,7 +375,7 @@ func init() {
 	ibcBlockHeightURL = registerFlagWithValidationOrFail(NodeCmd, "ibcBlockHeightURL", "Optional URL to query for the block height (generated from ibcWS if not specified)", "http://wormchain:1317", validSchemes["ibcBlockHeightURL"])
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
-	accountantWS = registerFlagWithValidationOrFail(NodeCmd, "accountantWS", "Websocket used to listen to the accountant smart contract on wormchain", "ws://wormchain:26657", validSchemes["accountantWS"])
+	accountantWS = registerFlagWithValidationOrFail(NodeCmd, "accountantWS", "Websocket used to listen to the accountant smart contract on wormchain", "http://wormchain:26657", validSchemes["accountantWS"])
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
 	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
 	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
