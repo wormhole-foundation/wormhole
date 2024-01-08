@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-core-bridge-solana"
-version = "0.0.1-alpha.3"
+version = "0.0.1-alpha.4"
 dependencies = [
  "anchor-lang",
  "cfg-if",
@@ -2578,9 +2578,9 @@ dependencies = [
 
 [[package]]
 name = "wormhole-raw-vaas"
-version = "0.0.1-alpha.1"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a232f579bda369aa224098fbd0e0b820fa0022435bef31591efc56f0981b289f"
+checksum = "70807fcb111008fb8db7c5818907940f5b0b3da80d2b42f9b2ce6d3e040a8f03"
 dependencies = [
  "ruint",
  "ruint-macro",
@@ -2588,7 +2588,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-token-bridge-solana"
-version = "0.0.1-alpha.1"
+version = "0.0.1-alpha.4"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

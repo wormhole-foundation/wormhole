@@ -8,6 +8,7 @@ use super::{Commitment, PostMessageArgs};
 /// NOTE: A message's emitter address can either be a program's ID or a custom address (determined
 /// by either a keypair or program's PDA). If the emitter address is a program ID, then
 /// the seeds for the emitter authority must be \["emitter"\].
+#[cfg(feature = "cpi")]
 #[derive(Accounts)]
 pub struct PublishMessage<'info> {
     /// Payer (mut signer).
@@ -101,6 +102,7 @@ pub enum PublishMessageDirective {
 ///
 /// Message seeds are optional and are only needed if the integrating program is using a PDA for
 /// this account. Otherwise, a keypair can be used.
+#[cfg(feature = "cpi")]
 pub fn publish_message<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, PublishMessage<'info>>,
     directive: PublishMessageDirective,

@@ -24,7 +24,6 @@ pub(crate) mod messages;
 mod processor;
 pub(crate) use processor::*;
 
-#[cfg(feature = "cpi")]
 pub mod sdk;
 
 pub mod state;

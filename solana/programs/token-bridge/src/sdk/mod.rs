@@ -12,16 +12,18 @@ pub use wormhole_raw_vaas::token_bridge::{
 };
 
 #[doc(inline)]
+#[cfg(feature = "cpi")]
+pub use crate::legacy::cpi::{
+    complete_transfer_native, complete_transfer_with_payload_native,
+    complete_transfer_with_payload_wrapped, complete_transfer_wrapped, transfer_tokens_native,
+    transfer_tokens_with_payload_native, transfer_tokens_with_payload_wrapped,
+    transfer_tokens_wrapped, CompleteTransferNative, CompleteTransferWithPayloadNative,
+    CompleteTransferWithPayloadWrapped, CompleteTransferWrapped, TransferTokensNative,
+    TransferTokensWithPayloadNative, TransferTokensWithPayloadWrapped, TransferTokensWrapped,
+};
+#[doc(inline)]
 pub use crate::{
     constants::{PROGRAM_REDEEMER_SEED_PREFIX, PROGRAM_SENDER_SEED_PREFIX},
-    legacy::cpi::{
-        complete_transfer_native, complete_transfer_with_payload_native,
-        complete_transfer_with_payload_wrapped, complete_transfer_wrapped, transfer_tokens_native,
-        transfer_tokens_with_payload_native, transfer_tokens_with_payload_wrapped,
-        transfer_tokens_wrapped, CompleteTransferNative, CompleteTransferWithPayloadNative,
-        CompleteTransferWithPayloadWrapped, CompleteTransferWrapped, TransferTokensNative,
-        TransferTokensWithPayloadNative, TransferTokensWithPayloadWrapped, TransferTokensWrapped,
-    },
     legacy::instruction::{TransferTokensArgs, TransferTokensWithPayloadArgs},
     state,
 };

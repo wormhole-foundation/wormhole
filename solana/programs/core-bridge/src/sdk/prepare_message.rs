@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+#[cfg(feature = "cpi")]
 #[derive(Accounts)]
 pub struct PrepareMessage<'info> {
     /// Emitter authority (signer), who acts as the authority for crafting a Wormhole mesage.
@@ -39,6 +40,7 @@ pub struct PrepareMessage<'info> {
 /// NOTE: When using this SDK method, be aware that the message account is not created yet. You must
 /// either invoke [create_account](crate::sdk::cpi::system_program::create_account) or use Anchor's
 /// `init` macro directive before calling this method.
+#[cfg(feature = "cpi")]
 pub fn prepare_message<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, PrepareMessage<'info>>,
     init_args: super::InitMessageV1Args,
@@ -82,6 +84,7 @@ pub fn prepare_message<'info>(
 /// account. If the message requires multiple calls, using this method may be convenient to begin
 /// writing and then following this call with a subsequent [write_message] or
 /// [write_and_finalize_message] call.
+#[cfg(feature = "cpi")]
 pub fn init_and_write_message<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, PrepareMessage<'info>>,
     init_args: super::InitMessageV1Args,
@@ -116,6 +119,7 @@ pub fn init_and_write_message<'info>(
 /// SDK method for writing and then finalizing an existing Core Bridge message if it is still in
 /// [Writing](crate::state::MessageStatus::Writing) status. This method may be convenient to wrap up
 /// writing data when it follows either [init_and_write_message] or [write_message].
+#[cfg(feature = "cpi")]
 pub fn write_and_finalize_message<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, PrepareMessage<'info>>,
     index: u32,
