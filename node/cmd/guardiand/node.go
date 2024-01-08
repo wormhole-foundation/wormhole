@@ -893,6 +893,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	rpcMap := make(map[string]string)
 	rpcMap["acalaRPC"] = *acalaRPC
+	rpcMap["accountantWS"] = *accountantWS
 	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
 	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
 	rpcMap["aptosRPC"] = *aptosRPC
@@ -907,6 +908,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
 	rpcMap["ibcLCD"] = *ibcLCD
 	rpcMap["ibcWS"] = *ibcWS
+	rpcMap["injectiveLCD"] = *injectiveLCD
+	rpcMap["injectiveWS"] = *injectiveWS
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["mantleRPC"] = *mantleRPC
@@ -927,12 +930,14 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["suiRPC"] = *suiRPC
+	rpcMap["suiWS"] = *suiWS
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
 	rpcMap["gatewayWS"] = *gatewayWS
 	rpcMap["gatewayLCD"] = *gatewayLCD
+	rpcMap["wormchainURL"] = *wormchainURL
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
 
