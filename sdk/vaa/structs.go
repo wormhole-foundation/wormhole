@@ -236,6 +236,8 @@ func (c ChainID) String() string {
 		return "base_sepolia"
 	case ChainIDOptimismSepolia:
 		return "optimism_sepolia"
+	case ChainIDHolesky:
+		return "holesky"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -327,6 +329,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBaseSepolia, nil
 	case "optimism_sepolia":
 		return ChainIDOptimismSepolia, nil
+	case "holesky":
+		return ChainIDHolesky, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -375,6 +379,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDArbitrumSepolia,
 		ChainIDBaseSepolia,
 		ChainIDOptimismSepolia,
+		ChainIDHolesky,
 	}
 }
 
@@ -462,6 +467,8 @@ const (
 	ChainIDBaseSepolia ChainID = 10004
 	// ChainIDOptimismSepolia is the ChainID of Optimism on Sepolia
 	ChainIDOptimismSepolia ChainID = 10005
+	// ChainIDHolesky is the ChainID of Holesky
+	ChainIDHolesky ChainID = 10006
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

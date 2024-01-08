@@ -181,6 +181,9 @@ var (
 	sepoliaRPC      *string
 	sepoliaContract *string
 
+	holeskyRPC      *string
+	holeskyContract *string
+
 	arbitrumSepoliaRPC      *string
 	arbitrumSepoliaContract *string
 
@@ -347,6 +350,9 @@ func init() {
 
 	sepoliaRPC = NodeCmd.Flags().String("sepoliaRPC", "", "Sepolia RPC URL.\nFormat: WebSocket (ws://) or WebSocket Secure (wss://). Example: 'ws://eth-devnet:8545'")
 	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
+
+	holeskyRPC = NodeCmd.Flags().String("holeskyRPC", "", "Holesky RPC URL.\nFormat: WebSocket (ws://) or WebSocket Secure (wss://). Example: 'ws://eth-devnet:8545'")
+	holeskyContract = NodeCmd.Flags().String("holeskyContract", "", "Holesky contract address")
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL.\nFormat: WebSocket (ws://) or WebSocket Secure (wss://). Example: 'ws://eth-devnet:8545'")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
@@ -520,6 +526,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
 		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
+		*holeskyContract = unsafeDevModeEvmContractAddress(*holeskyContract)
 		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
 		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
@@ -693,6 +700,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		if (*sepoliaRPC == "") != (*sepoliaContract == "") {
 			logger.Fatal("Both --sepoliaRPC and --sepoliaContract must be set together or both unset")
 		}
+		if (*holeskyRPC == "") != (*holeskyContract == "") {
+			logger.Fatal("Both --holeskyRPC and --holeskyContract must be set together or both unset")
+		}
 		if (*arbitrumSepoliaRPC == "") != (*arbitrumSepoliaContract == "") {
 			logger.Fatal("Both --arbitrumSepoliaRPC and --arbitrumSepoliaContract must be set together or both unset")
 		}
@@ -708,6 +718,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *sepoliaRPC != "" || *sepoliaContract != "" {
 			logger.Fatal("Please do not specify --sepoliaRPC or --sepoliaContract")
+		}
+		if *holeskyRPC != "" || *holeskyContract != "" {
+			logger.Fatal("Please do not specify --holeskyRPC or --holeskyContract")
 		}
 		if *arbitrumSepoliaRPC != "" || *arbitrumSepoliaContract != "" {
 			logger.Fatal("Please do not specify --arbitrumSepoliaRPC or --arbitrumSepoliaContract")
@@ -923,6 +936,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["pythnetWS"] = *pythnetWS
 	if env == common.TestNet {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
+		rpcMap["holeskyRPC"] = *holeskyRPC
 		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
 		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
 		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
@@ -1485,6 +1499,17 @@ func runNode(cmd *cobra.Command, args []string) {
 				ChainID:   vaa.ChainIDSepolia,
 				Rpc:       *sepoliaRPC,
 				Contract:  *sepoliaContract,
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(holeskyRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID: "holesky",
+				ChainID:   vaa.ChainIDHolesky,
+				Rpc:       *holeskyRPC,
+				Contract:  *holeskyContract,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)

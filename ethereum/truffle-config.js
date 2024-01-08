@@ -440,6 +440,15 @@ module.exports = {
       },
       network_id: "11155111",
     },
+    holesky_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.ankr.com/eth_holesky"
+        );
+      },
+      network_id: "17000",
+    },
   },
 
   compilers: {

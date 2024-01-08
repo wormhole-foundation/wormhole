@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.8
+
+### Added
+
+Holesky support
+
 ## 0.10.7
 
 ### Added
