@@ -11,9 +11,11 @@ import (
 	"sync"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
+	"github.com/gagliardetto/solana-go"
 	"gopkg.in/godo.v2/watcher/fswatch"
 )
 
@@ -33,6 +35,7 @@ type (
 		EthCall             *EthCall             `json:"ethCall"`
 		EthCallByTimestamp  *EthCallByTimestamp  `json:"ethCallByTimestamp"`
 		EthCallWithFinality *EthCallWithFinality `json:"ethCallWithFinality"`
+		SolanaAccount       *SolanaAccount       `json:"solAccount"`
 	}
 
 	EthCall struct {
@@ -51,6 +54,11 @@ type (
 		Chain           int    `json:"chain"`
 		ContractAddress string `json:"contractAddress"`
 		Call            string `json:"call"`
+	}
+
+	SolanaAccount struct {
+		Chain   int    `json:"chain"`
+		Account string `json:"account"`
 	}
 
 	PermissionsMap map[string]*permissionEntry
@@ -187,7 +195,7 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 		allowedCalls := make(allowedCallsForUser)
 		for _, ac := range user.AllowedCalls {
 			var chain int
-			var callType, contractAddressStr, callStr string
+			var callType, contractAddressStr, callStr, callKey string
 			// var contractAddressStr string
 			if ac.EthCall != nil {
 				callType = "ethCall"
@@ -204,27 +212,43 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 				chain = ac.EthCallWithFinality.Chain
 				contractAddressStr = ac.EthCallWithFinality.ContractAddress
 				callStr = ac.EthCallWithFinality.Call
+			} else if ac.SolanaAccount != nil {
+				// We assume the account is base58, but if it starts with "0x" it should be 32 bytes of hex.
+				account := ac.SolanaAccount.Account
+				if strings.HasPrefix(account, "0x") {
+					buf, err := hex.DecodeString(account[2:])
+					if err != nil {
+						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s": %w`, account, user.UserName, err)
+					}
+					if len(buf) != query.SolanaPublicKeyLength {
+						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s, must be 32 bytes`, account, user.UserName)
+					}
+					account = solana.PublicKey(buf).String()
+				}
+				callKey = fmt.Sprintf("solAccount:%d:%s", ac.SolanaAccount.Chain, account)
 			} else {
-				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall", "ethCallByTimestamp" or "ethCallWithFinality"`, user.UserName)
+				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality" or "solAccount"`, user.UserName)
 			}
 
-			// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
-			contractAddress, err := vaa.StringToAddress(contractAddressStr)
-			if err != nil {
-				return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
-			}
+			if callKey == "" {
+				// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
+				contractAddress, err := vaa.StringToAddress(contractAddressStr)
+				if err != nil {
+					return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
+				}
 
-			// The call should be the ABI four byte hex hash of the function signature. Parse it into a standard form of "06fdde03".
-			call, err := hex.DecodeString(strings.TrimPrefix(callStr, "0x"))
-			if err != nil {
-				return nil, fmt.Errorf(`invalid eth call "%s" for user "%s"`, callStr, user.UserName)
-			}
-			if len(call) != ETH_CALL_SIG_LENGTH {
-				return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, callStr, user.UserName, ETH_CALL_SIG_LENGTH)
-			}
+				// The call should be the ABI four byte hex hash of the function signature. Parse it into a standard form of "06fdde03".
+				call, err := hex.DecodeString(strings.TrimPrefix(callStr, "0x"))
+				if err != nil {
+					return nil, fmt.Errorf(`invalid eth call "%s" for user "%s"`, callStr, user.UserName)
+				}
+				if len(call) != ETH_CALL_SIG_LENGTH {
+					return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, callStr, user.UserName, ETH_CALL_SIG_LENGTH)
+				}
 
-			// The permission key is the chain, contract address and call formatted as a colon separated string.
-			callKey := fmt.Sprintf("%s:%d:%s:%s", callType, chain, contractAddress, hex.EncodeToString(call))
+				// The permission key is the chain, contract address and call formatted as a colon separated string.
+				callKey = fmt.Sprintf("%s:%d:%s:%s", callType, chain, contractAddress, hex.EncodeToString(call))
+			}
 
 			if _, exists := allowedCalls[callKey]; exists {
 				return nil, fmt.Errorf(`"%s" is a duplicate allowed call for user "%s"`, callKey, user.UserName)

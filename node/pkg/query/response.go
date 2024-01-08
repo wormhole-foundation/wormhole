@@ -107,6 +107,34 @@ type EthCallWithFinalityQueryResponse struct {
 	Results [][]byte
 }
 
+// SolanaAccountQueryResponse implements ChainSpecificResponse for a Solana sol_account query response.
+type SolanaAccountQueryResponse struct {
+	// SlotNumber is the slot number returned by the sol_account query
+	SlotNumber uint64
+
+	// BlockTime is the block time associated with the slot.
+	BlockTime time.Time
+
+	Results []SolanaAccountResult
+}
+
+type SolanaAccountResult struct {
+	// Lamports is the number of lamports assigned to the account.
+	Lamports uint64
+
+	// RentEpoch is the epoch at which this account will next owe rent.
+	RentEpoch uint64
+
+	// Executable is a boolean indicating if the account contains a program (and is strictly read-only).
+	Executable bool
+
+	// Owner is the public key of the owner of the account.
+	Owner [SolanaPublicKeyLength]byte
+
+	// Data is the data returned by the sol_account query.
+	Data []byte
+}
+
 //
 // Implementation of QueryResponsePublication.
 //
@@ -372,6 +400,12 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 			return fmt.Errorf("failed to unmarshal eth call with finality response: %w", err)
 		}
 		perChainResponse.Response = &r
+	case SolanaAccountQueryRequestType:
+		r := SolanaAccountQueryResponse{}
+		if err := r.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal sol_account response: %w", err)
+		}
+		perChainResponse.Response = &r
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -419,25 +453,32 @@ func (left *PerChainQueryResponse) Equal(right *PerChainQueryResponse) bool {
 		return false
 	}
 
-	switch leftEcq := left.Response.(type) {
+	switch leftResp := left.Response.(type) {
 	case *EthCallQueryResponse:
-		switch rightEcd := right.Response.(type) {
+		switch rightResp := right.Response.(type) {
 		case *EthCallQueryResponse:
-			return leftEcq.Equal(rightEcd)
+			return leftResp.Equal(rightResp)
 		default:
 			panic("unsupported query type on right") // We checked this above!
 		}
 	case *EthCallByTimestampQueryResponse:
-		switch rightEcd := right.Response.(type) {
+		switch rightResp := right.Response.(type) {
 		case *EthCallByTimestampQueryResponse:
-			return leftEcq.Equal(rightEcd)
+			return leftResp.Equal(rightResp)
 		default:
 			panic("unsupported query type on right") // We checked this above!
 		}
 	case *EthCallWithFinalityQueryResponse:
-		switch rightEcd := right.Response.(type) {
+		switch rightResp := right.Response.(type) {
 		case *EthCallWithFinalityQueryResponse:
-			return leftEcq.Equal(rightEcd)
+			return leftResp.Equal(rightResp)
+		default:
+			panic("unsupported query type on right") // We checked this above!
+		}
+	case *SolanaAccountQueryResponse:
+		switch rightResp := right.Response.(type) {
+		case *SolanaAccountQueryResponse:
+			return leftResp.Equal(rightResp)
 		default:
 			panic("unsupported query type on right") // We checked this above!
 		}
@@ -576,7 +617,7 @@ func (e *EthCallByTimestampQueryResponse) Type() ChainSpecificQueryType {
 	return EthCallByTimestampQueryRequestType
 }
 
-// Marshal serializes the binary representation of an EVM eth_call response.
+// Marshal serializes the binary representation of an EVM eth_call_by_timestamp response.
 // This method calls Validate() and relies on it to range checks lengths, etc.
 func (ecr *EthCallByTimestampQueryResponse) Marshal() ([]byte, error) {
 	if err := ecr.Validate(); err != nil {
@@ -601,13 +642,13 @@ func (ecr *EthCallByTimestampQueryResponse) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Unmarshal deserializes an EVM eth_call response from a byte array
+// Unmarshal deserializes an EVM eth_call_by_timestamp response from a byte array
 func (ecr *EthCallByTimestampQueryResponse) Unmarshal(data []byte) error {
 	reader := bytes.NewReader(data[:])
 	return ecr.UnmarshalFromReader(reader)
 }
 
-// UnmarshalFromReader  deserializes an EVM eth_call response from a byte array
+// UnmarshalFromReader  deserializes an EVM eth_call_by_timestamp response from a byte array
 func (ecr *EthCallByTimestampQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
 	if err := binary.Read(reader, binary.BigEndian, &ecr.TargetBlockNumber); err != nil {
 		return fmt.Errorf("failed to read response target block number: %w", err)
@@ -662,7 +703,7 @@ func (ecr *EthCallByTimestampQueryResponse) UnmarshalFromReader(reader *bytes.Re
 	return nil
 }
 
-// Validate does basic validation on an EVM eth_call response.
+// Validate does basic validation on an EVM eth_call_by_timestamp response.
 func (ecr *EthCallByTimestampQueryResponse) Validate() error {
 	// Not checking for block numbers == 0, because maybe that could happen??
 
@@ -688,7 +729,7 @@ func (ecr *EthCallByTimestampQueryResponse) Validate() error {
 	return nil
 }
 
-// Equal verifies that two EVM eth_call responses are equal.
+// Equal verifies that two EVM eth_call_by_timestamp responses are equal.
 func (left *EthCallByTimestampQueryResponse) Equal(right *EthCallByTimestampQueryResponse) bool {
 	if left.TargetBlockNumber != right.TargetBlockNumber {
 		return false
@@ -734,7 +775,7 @@ func (e *EthCallWithFinalityQueryResponse) Type() ChainSpecificQueryType {
 	return EthCallWithFinalityQueryRequestType
 }
 
-// Marshal serializes the binary representation of an EVM eth_call response.
+// Marshal serializes the binary representation of an EVM eth_call_with_finality response.
 // This method calls Validate() and relies on it to range checks lengths, etc.
 func (ecr *EthCallWithFinalityQueryResponse) Marshal() ([]byte, error) {
 	if err := ecr.Validate(); err != nil {
@@ -755,13 +796,13 @@ func (ecr *EthCallWithFinalityQueryResponse) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Unmarshal deserializes an EVM eth_call response from a byte array
+// Unmarshal deserializes an EVM eth_call_with_finality response from a byte array
 func (ecr *EthCallWithFinalityQueryResponse) Unmarshal(data []byte) error {
 	reader := bytes.NewReader(data[:])
 	return ecr.UnmarshalFromReader(reader)
 }
 
-// UnmarshalFromReader  deserializes an EVM eth_call response from a byte array
+// UnmarshalFromReader  deserializes an EVM eth_call_with_finality response from a byte array
 func (ecr *EthCallWithFinalityQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
 	if err := binary.Read(reader, binary.BigEndian, &ecr.BlockNumber); err != nil {
 		return fmt.Errorf("failed to read response number: %w", err)
@@ -800,7 +841,7 @@ func (ecr *EthCallWithFinalityQueryResponse) UnmarshalFromReader(reader *bytes.R
 	return nil
 }
 
-// Validate does basic validation on an EVM eth_call response.
+// Validate does basic validation on an EVM eth_call_with_finality response.
 func (ecr *EthCallWithFinalityQueryResponse) Validate() error {
 	// Not checking for BlockNumber == 0, because maybe that could happen??
 
@@ -822,7 +863,7 @@ func (ecr *EthCallWithFinalityQueryResponse) Validate() error {
 	return nil
 }
 
-// Equal verifies that two EVM eth_call responses are equal.
+// Equal verifies that two EVM eth_call_with_finality responses are equal.
 func (left *EthCallWithFinalityQueryResponse) Equal(right *EthCallWithFinalityQueryResponse) bool {
 	if left.BlockNumber != right.BlockNumber {
 		return false
@@ -841,6 +882,143 @@ func (left *EthCallWithFinalityQueryResponse) Equal(right *EthCallWithFinalityQu
 	}
 	for idx := range left.Results {
 		if !bytes.Equal(left.Results[idx], right.Results[idx]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+//
+// Implementation of SolanaAccountQueryResponse, which implements the ChainSpecificResponse for a Solana sol_account query response.
+//
+
+func (sar *SolanaAccountQueryResponse) Type() ChainSpecificQueryType {
+	return SolanaAccountQueryRequestType
+}
+
+// Marshal serializes the binary representation of a Solana sol_account response.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (sar *SolanaAccountQueryResponse) Marshal() ([]byte, error) {
+	if err := sar.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, sar.SlotNumber)
+	vaa.MustWrite(buf, binary.BigEndian, sar.BlockTime.UnixMicro())
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results)))
+	for _, res := range sar.Results {
+		vaa.MustWrite(buf, binary.BigEndian, res.Lamports)
+		vaa.MustWrite(buf, binary.BigEndian, res.RentEpoch)
+		vaa.MustWrite(buf, binary.BigEndian, res.Executable)
+		buf.Write(res.Owner[:])
+
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data)))
+		buf.Write(res.Data)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes a Solana sol_account response from a byte array
+func (sar *SolanaAccountQueryResponse) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return sar.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes a Solana sol_account response from a byte array
+func (sar *SolanaAccountQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
+	if err := binary.Read(reader, binary.BigEndian, &sar.SlotNumber); err != nil {
+		return fmt.Errorf("failed to read slot number: %w", err)
+	}
+
+	blockTime := int64(0)
+	if err := binary.Read(reader, binary.BigEndian, &blockTime); err != nil {
+		return fmt.Errorf("failed to read block time: %w", err)
+	}
+	sar.BlockTime = time.UnixMicro(blockTime)
+
+	numResults := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResults); err != nil {
+		return fmt.Errorf("failed to read number of results: %w", err)
+	}
+
+	for count := 0; count < int(numResults); count++ {
+		var result SolanaAccountResult
+
+		if err := binary.Read(reader, binary.BigEndian, &result.Lamports); err != nil {
+			return fmt.Errorf("failed to read lamports: %w", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.RentEpoch); err != nil {
+			return fmt.Errorf("failed to read rent epoch: %w", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.Executable); err != nil {
+			return fmt.Errorf("failed to read executable flag: %w", err)
+		}
+
+		if n, err := reader.Read(result.Owner[:]); err != nil || n != SolanaPublicKeyLength {
+			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
+		}
+
+		len := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+			return fmt.Errorf("failed to read data len: %w", err)
+		}
+		result.Data = make([]byte, len)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+			return fmt.Errorf("failed to read data [%d]: %w", n, err)
+		}
+
+		sar.Results = append(sar.Results, result)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on a Solana sol_account response.
+func (sar *SolanaAccountQueryResponse) Validate() error {
+	// Not checking for SlotNumber == 0, because maybe that could happen??
+	// Not checking for BlockTime == 0, because maybe that could happen??
+
+	if len(sar.Results) <= 0 {
+		return fmt.Errorf("does not contain any results")
+	}
+	if len(sar.Results) > math.MaxUint8 {
+		return fmt.Errorf("too many results")
+	}
+	for _, result := range sar.Results {
+		// Owner is fixed length, so don't need to check for nil.
+		if len(result.Owner) != SolanaPublicKeyLength {
+			return fmt.Errorf("invalid owner length")
+		}
+		if len(result.Data) > math.MaxUint32 {
+			return fmt.Errorf("data too long")
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two Solana sol_account responses are equal.
+func (left *SolanaAccountQueryResponse) Equal(right *SolanaAccountQueryResponse) bool {
+	if left.SlotNumber != right.SlotNumber ||
+		left.BlockTime != right.BlockTime {
+		return false
+	}
+
+	if len(left.Results) != len(right.Results) {
+		return false
+	}
+	for idx := range left.Results {
+		if left.Results[idx].Lamports != right.Results[idx].Lamports ||
+			left.Results[idx].RentEpoch != right.Results[idx].RentEpoch ||
+			left.Results[idx].Executable != right.Results[idx].Executable ||
+			!bytes.Equal(left.Results[idx].Owner[:], right.Results[idx].Owner[:]) ||
+			!bytes.Equal(left.Results[idx].Data, right.Results[idx].Data) {
 			return false
 		}
 	}

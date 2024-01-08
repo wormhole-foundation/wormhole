@@ -7,6 +7,7 @@ import { BinaryReader } from "./BinaryReader";
 import { EthCallQueryRequest } from "./ethCall";
 import { EthCallByTimestampQueryRequest } from "./ethCallByTimestamp";
 import { EthCallWithFinalityQueryRequest } from "./ethCallWithFinality";
+import { SolanaAccountQueryRequest } from "./solanaAccount";
 
 export const MAINNET_QUERY_REQUEST_PREFIX =
   "mainnet_query_request_000000000000|";
@@ -101,6 +102,8 @@ export class PerChainQueryRequest {
       query = EthCallByTimestampQueryRequest.fromReader(reader);
     } else if (queryType === ChainQueryType.EthCallWithFinality) {
       query = EthCallWithFinalityQueryRequest.fromReader(reader);
+    } else if (queryType === ChainQueryType.SolanaAccount) {
+      query = SolanaAccountQueryRequest.fromReader(reader);
     } else {
       throw new Error(`Unsupported query type: ${queryType}`);
     }
@@ -117,4 +120,5 @@ export enum ChainQueryType {
   EthCall = 1,
   EthCallByTimeStamp = 2,
   EthCallWithFinality = 3,
+  SolanaAccount = 10,
 }

@@ -23,6 +23,7 @@
   "author": "Wormhole Foundation",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@types/bs58": "^4.0.4",
     "axios": "^1.4.0",
     "jest": "^29.5.0",
     "prettier": "^2.3.2",
@@ -35,6 +36,7 @@
   "dependencies": {
     "@ethersproject/keccak256": "^5.7.0",
     "@types/elliptic": "^6.4.14",
+    "bs58": "^4.0.1",
     "buffer": "^6.0.3",
     "elliptic": "^6.5.4"
   }
