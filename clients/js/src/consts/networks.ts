@@ -178,6 +178,11 @@ const MAINNET = {
     key: undefined,
     chain_id: undefined,
   },
+  holesky: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
   cosmoshub: {
     rpc: undefined,
     key: undefined,
@@ -344,6 +349,11 @@ const TESTNET = {
     rpc: "https://rpc.ankr.com/eth_sepolia",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155111,
+  },
+  holesky: {
+    rpc: "https://rpc.ankr.com/eth_holesky",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 17000,
   },
   btc: {
     rpc: undefined,
@@ -539,6 +549,10 @@ const DEVNET = {
     key: undefined,
   },
   sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
+  holesky: {
     rpc: undefined,
     key: undefined,
   },
