@@ -257,7 +257,7 @@ Options:
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
                "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-                         "arbitrum_sepolia", "base_sepolia", "optimism_sepolia"]
+              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -a, --contract-address  Contract to submit VAA to (override config)   [string]
@@ -314,7 +314,7 @@ Options:
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
                "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-                         "arbitrum_sepolia", "base_sepolia", "optimism_sepolia"]
+              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
       --dst-chain   destination chain
            [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
@@ -322,7 +322,7 @@ Options:
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
                "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-                         "arbitrum_sepolia", "base_sepolia", "optimism_sepolia"]
+              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
       --amount      token amount                             [string] [required]
@@ -356,7 +356,7 @@ Positionals:
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
                "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-                         "arbitrum_sepolia", "base_sepolia", "optimism_sepolia"]
+              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
   tx       Source transaction hash                                      [string]
 
 Options:

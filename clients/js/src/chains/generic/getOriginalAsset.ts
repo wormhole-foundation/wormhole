@@ -65,7 +65,8 @@ export const getOriginalAsset = async (
     case "sepolia":
     case "arbitrum_sepolia":
     case "base_sepolia":
-    case "optimism_sepolia": {
+    case "optimism_sepolia":
+    case "holesky": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getOriginalAssetEth(
         tokenBridgeAddress,

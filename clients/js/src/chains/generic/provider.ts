@@ -103,6 +103,7 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
     case "arbitrum_sepolia":
     case "base_sepolia":
     case "optimism_sepolia":
+    case "holesky":
       return new ethers.providers.JsonRpcProvider(rpc) as ChainProvider<T>;
     case "terra":
     case "terra2":
