@@ -85,7 +85,6 @@ impl<'a> PostedVaaV1<'a> {
         ])
     }
 
-    #[cfg(feature = "no-entrypoint")]
     /// Compute digest (hash of [message_hash](Self::message_hash)).
     pub fn digest(&self) -> keccak::Hash {
         keccak::hash(self.message_hash().as_ref())

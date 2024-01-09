@@ -22,7 +22,6 @@ pub struct EmitterInfo {
 }
 
 impl<'a> VaaAccount<'a> {
-    #[cfg(feature = "no-entrypoint")]
     pub fn version(&'a self) -> u8 {
         match self {
             Self::EncodedVaa(inner) => inner.version(),
@@ -47,7 +46,6 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn try_emitter_chain(&self) -> Result<u16> {
         match self {
             Self::EncodedVaa(inner) => match inner.as_vaa()? {
@@ -57,7 +55,6 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn try_emitter_address(&self) -> Result<[u8; 32]> {
         match self {
             Self::EncodedVaa(inner) => match inner.as_vaa()? {
@@ -67,7 +64,6 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn try_timestamp(&self) -> Result<crate::types::Timestamp> {
         match self {
             Self::EncodedVaa(inner) => match inner.as_vaa()? {
@@ -86,7 +82,13 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
+    pub fn try_digest(&self) -> Result<solana_program::keccak::Hash> {
+        match self {
+            Self::EncodedVaa(inner) => inner.digest(),
+            Self::PostedVaaV1(inner) => Ok(inner.digest()),
+        }
+    }
+
     pub fn encoded_vaa(&'a self) -> Option<&'a EncodedVaa<'a>> {
         match self {
             Self::EncodedVaa(inner) => Some(inner),
@@ -94,7 +96,6 @@ impl<'a> VaaAccount<'a> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn posted_vaa_v1(&'a self) -> Option<&'a PostedVaaV1<'a>> {
         match self {
             Self::PostedVaaV1(inner) => Some(inner),

@@ -2,6 +2,7 @@ use std::cell::Ref;
 
 use crate::{error::CoreBridgeError, state};
 use anchor_lang::prelude::*;
+use solana_program::keccak;
 use wormhole_raw_vaas::Vaa;
 
 pub(super) const ENCODED_VAA_DISCRIMINATOR: [u8; 8] =
@@ -19,7 +20,6 @@ impl<'a> EncodedVaa<'a> {
     }
 
     /// The authority that has write privilege to this account.
-    #[cfg(feature = "no-entrypoint")]
     pub fn write_authority(&self) -> Pubkey {
         Pubkey::try_from(&self.0[9..41]).unwrap()
     }
@@ -30,13 +30,11 @@ impl<'a> EncodedVaa<'a> {
         self.0[41]
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn vaa_size(&self) -> usize {
         let mut buf = &self.0[42..VAA_START];
         u32::deserialize(&mut buf).unwrap().try_into().unwrap()
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn buf(&self) -> &[u8] {
         &self.0[VAA_START..]
     }
@@ -48,6 +46,18 @@ impl<'a> EncodedVaa<'a> {
             )),
             _ => err!(CoreBridgeError::InvalidVaaVersion),
         }
+    }
+
+    /// Recompute the message hash.
+    pub fn message_hash(&self) -> Result<keccak::Hash> {
+        match self.as_vaa()? {
+            state::VaaVersion::V1(vaa) => Ok(keccak::hash(vaa.body().as_ref())),
+        }
+    }
+
+    /// Compute digest (hash of [message_hash](Self::message_hash)).
+    pub fn digest(&self) -> Result<keccak::Hash> {
+        Ok(keccak::hash(self.message_hash()?.as_ref()))
     }
 
     pub(super) fn new(acc_info: &'a AccountInfo) -> Result<Self> {

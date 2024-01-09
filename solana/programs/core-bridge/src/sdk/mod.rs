@@ -4,10 +4,14 @@
 //! [legacy::cpi](crate::legacy::cpi)).
 //! CPI builders. Methods useful for interacting with the Core Bridge program from another program.
 
+#[cfg(feature = "cpi")]
 mod publish_message;
+#[cfg(feature = "cpi")]
 pub use publish_message::*;
 
+#[cfg(feature = "cpi")]
 mod prepare_message;
+#[cfg(feature = "cpi")]
 pub use prepare_message::*;
 
 #[doc(inline)]
@@ -24,10 +28,7 @@ pub mod system_program {
 pub use crate::{
     constants::{PROGRAM_EMITTER_SEED_PREFIX, SOLANA_CHAIN},
     id,
-    legacy::{
-        cpi::{post_message_unreliable, PostMessageUnreliable},
-        instruction::PostMessageArgs,
-    },
+    legacy::instruction::PostMessageArgs,
     processor::{InitMessageV1Args, WriteMessageV1Args},
     state,
     types::*,
@@ -37,6 +38,7 @@ pub use crate::{
 #[cfg(feature = "cpi")]
 pub use crate::{
     cpi::{finalize_message_v1, init_message_v1, write_message_v1},
+    legacy::cpi::{post_message_unreliable, PostMessageUnreliable},
     utils::vaa::{claim_vaa, ClaimVaa},
 };
 
