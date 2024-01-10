@@ -57,6 +57,26 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
     mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x9Ee656203B0DC40cc1bA3f4738527779220e3998",
   },
+  sepolia: {
+    wormholeRelayerAddress: "",
+    mockDeliveryProviderAddress: "",
+    mockIntegrationAddress: "",
+  },
+  arbitrum_sepolia: {
+    wormholeRelayerAddress: "",
+    mockDeliveryProviderAddress: "",
+    mockIntegrationAddress: "",
+  },
+  optimism_sepolia: {
+    wormholeRelayerAddress: "",
+    mockDeliveryProviderAddress: "",
+    mockIntegrationAddress: "",
+  },
+  base_sepolia: {
+    wormholeRelayerAddress: "",
+    mockDeliveryProviderAddress: "",
+    mockIntegrationAddress: "",
+  },
 };
 
 const DEVNET: { [K in ChainName]?: AddressInfo } = {
@@ -208,6 +228,10 @@ export const RPCS_BY_CHAIN: {
     gnosis: "https://sokol.poa.network/",
     rootstock: "https://public-node.rsk.co",
     base: "https://goerli.base.org",
+    sepolia: "https://rpc.ankr.com/eth_sepolia",
+    arbitrum_sepolia: "https://sepolia-rollup.arbitrum.io/rpc",
+    optimism_sepolia: "https://sepolia.optimism.io",
+    base_sepolia: "https://sepolia.base.org",
   },
   DEVNET: {
     ethereum: "http://localhost:8545",
@@ -243,12 +267,16 @@ export const getWormscanAPI = (_network: Network) => {
 };
 
 export const getNameFromCCTPDomain = (
-  domain: number
+  domain: number,
+  environment: Network = "MAINNET"
 ): ChainName | undefined => {
-  if (domain === 0) return "ethereum";
-  else if (domain === 1) return "avalanche";
-  else if (domain === 2) return "optimism";
-  else if (domain === 3) return "arbitrum";
-  else if (domain === 6) return "base";
+  if (domain === 0) return environment === "MAINNET" ? "ethereum" : "sepolia";
+  else if (domain === 1) "avalanche";
+  else if (domain === 2)
+    return environment === "MAINNET" ? "optimism" : "optimism_sepolia";
+  else if (domain === 3)
+    return environment === "MAINNET" ? "arbitrum" : "arbitrum_sepolia";
+  else if (domain === 6)
+    return environment === "MAINNET" ? "base" : "base_sepolia";
   else return undefined;
 };
