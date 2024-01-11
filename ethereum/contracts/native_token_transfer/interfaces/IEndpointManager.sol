@@ -7,7 +7,7 @@ interface IEndpointManager {
         uint256 requiredPayment,
         uint256 providedPayment
     );
-    error SequenceAttestationAlreadyReceived(uint64 sequence, address endpoint);
+    error MessageAttestationAlreadyReceived(bytes32 msgHash, address endpoint);
     error UnexpectedEndpointManagerMessageType(uint8 msgType);
     error InvalidTargetChain(uint16 targetChain, uint16 thisChain);
     error InvalidEndpointZeroAddress();

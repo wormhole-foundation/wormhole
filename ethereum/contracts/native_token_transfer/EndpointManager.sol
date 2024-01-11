@@ -15,7 +15,11 @@ import "./interfaces/IEndpointManager.sol";
 import "./interfaces/IEndpoint.sol";
 import "./interfaces/IEndpointToken.sol";
 
-contract EndpointManager is IEndpointManager, OwnableUpgradeable, ReentrancyGuard {
+contract EndpointManager is
+    IEndpointManager,
+    OwnableUpgradeable,
+    ReentrancyGuard
+{
     using BytesParsing for bytes;
 
     address immutable token;
@@ -28,11 +32,10 @@ contract EndpointManager is IEndpointManager, OwnableUpgradeable, ReentrancyGuar
     mapping(address => bool) public isEndpoint;
     address[] endpoints;
 
-    // Maps are keyed by (chainId, sequence) tuple.
-    // This is computed as keccak256(abi.encodedPacked(uint16, uint64))
+    // Maps are keyed by hash of EndpointManagerMessage.
     mapping(bytes32 => mapping(address => bool))
-        public chainSequenceAttestations;
-    mapping(bytes32 => uint8) public chainSequenceAttestationCounts;
+        public managerMessageAttestations;
+    mapping(bytes32 => uint8) public managerMessageAttestationCounts;
 
     modifier onlyEndpoint() {
         if (!isEndpoint[msg.sender]) {
@@ -181,35 +184,31 @@ contract EndpointManager is IEndpointManager, OwnableUpgradeable, ReentrancyGuar
             revert InvalidFork(evmChainId, block.chainid);
         }
 
+        bytes32 managerMessageHash = computeManagerMessageHash(payload);
+
+        // if the attestation for this sender has already been received, revert
+        if (
+            managerMessageAttestations[managerMessageHash][msg.sender] == true
+        ) {
+            revert MessageAttestationAlreadyReceived(managerMessageHash, msg.sender);
+        }
+
+        // add the Endpoint attestation for the sequence number
+        managerMessageAttestations[managerMessageHash][msg.sender] = true;
+
+        // increment the attestations for the sequence
+        managerMessageAttestationCounts[managerMessageHash]++;
+
+        // end early if the threshold hasn't been met.
+        // otherwise, continue with execution for the message type.
+        if (managerMessageAttestationCounts[managerMessageHash] < threshold) {
+            return;
+        }
+
         // parse the payload as an EndpointManagerMessage
         EndpointManagerMessage memory message = parseEndpointManagerMessage(
             payload
         );
-
-        bytes32 chainSequenceKey = getChainSequenceKey(
-            message.chainId,
-            message.sequence
-        );
-
-        // if the attestation for this sender has already been received, revert
-        if (chainSequenceAttestations[chainSequenceKey][msg.sender] == true) {
-            revert SequenceAttestationAlreadyReceived(
-                message.sequence,
-                msg.sender
-            );
-        }
-
-        // add the Endpoint attestation for the sequence number
-        chainSequenceAttestations[chainSequenceKey][msg.sender] = true;
-
-        // increment the attestations for the sequence
-        chainSequenceAttestationCounts[chainSequenceKey]++;
-
-        // end early if the threshold hasn't been met.
-        // otherwise, continue with execution for the message type.
-        if (chainSequenceAttestationCounts[chainSequenceKey] < threshold) {
-            return;
-        }
 
         // for msgType == 1, parse the payload as a NativeTokenTransfer.
         // for other msgTypes, revert (unsupported for now)
@@ -388,10 +387,9 @@ contract EndpointManager is IEndpointManager, OwnableUpgradeable, ReentrancyGuar
         return abi.decode(queriedBalance, (uint256));
     }
 
-    function getChainSequenceKey(
-        uint16 _chainId,
-        uint64 _sequence
+    function computeManagerMessageHash(
+        bytes memory payload
     ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_chainId, _sequence));
+        return keccak256(payload);
     }
 }
