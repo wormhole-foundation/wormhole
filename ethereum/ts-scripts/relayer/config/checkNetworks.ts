@@ -1,9 +1,9 @@
+import { coalesceChainName } from "@certusone/wormhole-sdk";
 import {
   env,
   getSigner,
   init,
   loadChains,
-  loadPrivateKey,
 } from "../helpers/env";
 import { readFileSync, writeFileSync } from "fs";
 
@@ -29,7 +29,7 @@ async function main() {
       process.exit(1);
     }
     console.log(`Balance ${balance.toString()}`);
-    console.log(`Network ${network.name} (${chain.chainId}) checked`);
+    console.log(`Network ${coalesceChainName(chain.chainId)} (${chain.chainId}) checked`);
   }
   console.log("");
   console.log("Networks checked");
