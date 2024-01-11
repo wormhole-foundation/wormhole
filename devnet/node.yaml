@@ -60,6 +60,9 @@ spec:
                 path: gwrelayerKey0
               - key: gwrelayerKey1
                 path: gwrelayerKey1
+        - name: node-config
+          configMap:
+            name: node-config
       containers:
         - name: guardiand
           image: guardiand-image
@@ -68,11 +71,13 @@ spec:
               name: node-rundir
             - mountPath: /tmp/mounted-keys/wormchain
               name: node-wormchain-key
+            - mountPath: /app/node1
+              name: node-config
           command:
             - /guardiand
             - node
-            - --ethRPC
-            - ws://eth-devnet:8545
+            # - --ethRPC
+            # - ws://eth-devnet:8545
             # - --bscRPC
             # - ws://eth-devnet2:8545
             - --polygonRPC
@@ -221,3 +226,11 @@ data:
   accountantKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
   gwrelayerKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0KdHlwZTogc2VjcDI1NmsxCmtkZjogYmNyeXB0CnNhbHQ6IDc4OUYzRTBCMkVGNDcyNjAyQzNFMUE0OUI2OENFQzlBCgpGWHAvSllPS3E4WmZtOWxHZ3ZFNEM3NXFyUXFNZFp2RHNWRjhObTdMQU1oR2dHbXBnZnpoZjUrZ3IwZ1hjYjVWCmtSTXA2c0p0NkxCVzRPYWF2ckk3ay84Vml2NWhMVU1la1dPMHg5bz0KPUxrb1MKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
   gwrelayerKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc5RDk3RDE2OTE0QkQ4QjlFNUUwQzkzMDA0RDA4RUEKdHlwZTogc2VjcDI1NmsxCgpvTEJ0aUkwT2pudXo5bHlzeVlZOFhQeEVkTnpwYUJOVWFkL0UySlJld2pFWFZNVVNTWll2QVZKbERiN3hEQjlSCmEvdm45SFNPM2hKOFc1QTBKOVFqUVZXRzVoZXBNZVpQUEI4M1FCUT0KPVJuTGEKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-config
+data:
+  guardian.yaml: |
+    ethRPC: "ws://eth-devnet2:8545"
