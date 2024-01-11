@@ -2,6 +2,8 @@ import axios from "axios";
 import { Buffer } from "buffer";
 import {
   ChainQueryType,
+  EthCallByTimestampQueryRequest,
+  EthCallByTimestampQueryResponse,
   EthCallQueryRequest,
   EthCallQueryResponse,
   EthCallWithFinalityQueryRequest,
@@ -198,6 +200,150 @@ export class QueryProxyMock {
               blockResult.hash, // hash
               BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
                 BigInt("1000000"), // time in seconds -> microseconds
+              callResults.map((callResult: any) => callResult.result)
+            )
+          )
+        );
+      } else if (type === ChainQueryType.EthCallByTimeStamp) {
+        const query = perChainRequest.query as EthCallByTimestampQueryRequest;
+        // Verify that the two block hints are consistent, either both set, or both unset.
+        if (
+          (query.targetBlockHint === "") !==
+          (query.followingBlockHint === "")
+        ) {
+          throw new Error(
+            `Invalid block id hints in eth_call_by_timestamp query request, both should be either set or unset`
+          );
+        }
+        let targetBlock = query.targetBlockHint;
+        let followingBlock = query.followingBlockHint;
+        if (targetBlock === "") {
+          let nextQueryBlock = "latest";
+          let tries = 0;
+          let targetTimestamp = BigInt(0);
+          let followingTimestamp = BigInt(0);
+          while (
+            query.targetTimestamp < targetTimestamp ||
+            query.targetTimestamp >= followingTimestamp
+          ) {
+            if (tries > 128) {
+              throw new Error(`Timestamp was not within the last 128 blocks.`);
+            }
+            // TODO: batching
+            const blockResult = (
+              await axios.post(rpc, {
+                jsonrpc: "2.0",
+                id: 1,
+                method: "eth_getBlockByNumber",
+                params: [nextQueryBlock, false],
+              })
+            ).data?.result;
+            if (!blockResult) {
+              throw new Error(
+                `Invalid block result while searching for timestamp of ${nextQueryBlock}`
+              );
+            }
+            followingBlock = targetBlock;
+            followingTimestamp = targetTimestamp;
+            targetBlock = blockResult.number;
+            targetTimestamp =
+              BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
+              BigInt("1000000"); // time in seconds -> microseconds
+            nextQueryBlock = `0x${(
+              BigInt(blockResult.number) - BigInt(1)
+            ).toString(16)}`;
+            tries++;
+          }
+        }
+        const response = await axios.post(rpc, [
+          ...query.callData.map((args, idx) => ({
+            jsonrpc: "2.0",
+            id: idx,
+            method: "eth_call",
+            params: [
+              args,
+              //TODO: support block hash
+              targetBlock,
+            ],
+          })),
+          {
+            jsonrpc: "2.0",
+            id: query.callData.length,
+            method: "eth_getBlockByNumber",
+            params: [targetBlock, false],
+          },
+          {
+            jsonrpc: "2.0",
+            id: query.callData.length,
+            method: "eth_getBlockByNumber",
+            params: [followingBlock, false],
+          },
+        ]);
+        const callResults = response?.data?.slice(0, query.callData.length);
+        const targetBlockResult =
+          response?.data?.[query.callData.length]?.result;
+        const followingBlockResult =
+          response?.data?.[query.callData.length + 1]?.result;
+        if (
+          !targetBlockResult ||
+          !targetBlockResult.number ||
+          !targetBlockResult.timestamp ||
+          !targetBlockResult.hash
+        ) {
+          throw new Error(
+            `Invalid target block result for chain ${perChainRequest.chainId} block ${query.targetBlockHint}`
+          );
+        }
+        if (
+          !followingBlockResult ||
+          !followingBlockResult.number ||
+          !followingBlockResult.timestamp ||
+          !followingBlockResult.hash
+        ) {
+          throw new Error(
+            `Invalid following block result for chain ${perChainRequest.chainId} tag ${query.followingBlockHint}`
+          );
+        }
+        /*
+          target_block.timestamp <= target_time < following_block.timestamp
+          and
+          following_block_num - 1 == target_block_num
+        */
+        const targetBlockNumber = BigInt(
+          parseInt(targetBlockResult.number.substring(2), 16)
+        );
+        const followingBlockNumber = BigInt(
+          parseInt(followingBlockResult.number.substring(2), 16)
+        );
+        if (targetBlockNumber + BigInt(1) !== followingBlockNumber) {
+          throw new Error(
+            `eth_call_by_timestamp query blocks are not adjacent`
+          );
+        }
+        const targetTimestamp =
+          BigInt(parseInt(targetBlockResult.timestamp.substring(2), 16)) *
+          BigInt("1000000"); // time in seconds -> microseconds
+        const followingTimestamp =
+          BigInt(parseInt(followingBlockResult.timestamp.substring(2), 16)) *
+          BigInt("1000000"); // time in seconds -> microseconds
+        if (
+          query.targetTimestamp < targetTimestamp ||
+          query.targetTimestamp >= followingTimestamp
+        ) {
+          throw new Error(
+            `eth_call_by_timestamp desired timestamp falls outside of block range`
+          );
+        }
+        queryResponse.responses.push(
+          new PerChainQueryResponse(
+            perChainRequest.chainId,
+            new EthCallByTimestampQueryResponse(
+              BigInt(parseInt(targetBlockResult.number.substring(2), 16)), // block number
+              targetBlockResult.hash, // hash
+              targetTimestamp,
+              BigInt(parseInt(followingBlockResult.number.substring(2), 16)), // block number
+              followingBlockResult.hash, // hash
+              followingTimestamp,
               callResults.map((callResult: any) => callResult.result)
             )
           )
