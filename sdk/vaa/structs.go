@@ -202,6 +202,8 @@ func (c ChainID) String() string {
 		return "arbitrum"
 	case ChainIDOptimism:
 		return "optimism"
+	case ChainIDGnosis:
+		return "gnosis"
 	case ChainIDPythNet:
 		return "pythnet"
 	case ChainIDWormchain:
@@ -214,18 +216,32 @@ func (c ChainID) String() string {
 		return "base"
 	case ChainIDSei:
 		return "sei"
+	case ChainIDRootstock:
+		return "rootstock"
 	case ChainIDScroll:
 		return "scroll"
+	case ChainIDMantle:
+		return "mantle"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
 		return "evmos"
 	case ChainIDKujira:
 		return "kujira"
+	case ChainIDNeutron:
+		return "neutron"
 	case ChainIDCelestia:
 		return "celestia"
 	case ChainIDSepolia:
 		return "sepolia"
+	case ChainIDArbitrumSepolia:
+		return "arbitrum_sepolia"
+	case ChainIDBaseSepolia:
+		return "base_sepolia"
+	case ChainIDOptimismSepolia:
+		return "optimism_sepolia"
+	case ChainIDHolesky:
+		return "holesky"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -283,6 +299,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDArbitrum, nil
 	case "optimism":
 		return ChainIDOptimism, nil
+	case "gnosis":
+		return ChainIDGnosis, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
 	case "wormchain":
@@ -295,18 +313,32 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBase, nil
 	case "sei":
 		return ChainIDSei, nil
+	case "rootstock":
+		return ChainIDRootstock, nil
 	case "scroll":
 		return ChainIDScroll, nil
+	case "mantle":
+		return ChainIDMantle, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
 	case "evmos":
 		return ChainIDEvmos, nil
 	case "kujira":
 		return ChainIDKujira, nil
+	case "neutron":
+		return ChainIDNeutron, nil
 	case "celestia":
 		return ChainIDCelestia, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
+	case "arbitrum_sepolia":
+		return ChainIDArbitrumSepolia, nil
+	case "base_sepolia":
+		return ChainIDBaseSepolia, nil
+	case "optimism_sepolia":
+		return ChainIDOptimismSepolia, nil
+	case "holesky":
+		return ChainIDHolesky, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -338,18 +370,26 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDAptos,
 		ChainIDArbitrum,
 		ChainIDOptimism,
+		ChainIDGnosis,
 		ChainIDPythNet,
 		ChainIDXpla,
 		ChainIDBtc,
 		ChainIDBase,
 		ChainIDSei,
+		ChainIDRootstock,
 		ChainIDScroll,
+		ChainIDMantle,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
 		ChainIDKujira,
+		ChainIDNeutron,
 		ChainIDCelestia,
 		ChainIDSepolia,
+		ChainIDArbitrumSepolia,
+		ChainIDBaseSepolia,
+		ChainIDOptimismSepolia,
+		ChainIDHolesky,
 	}
 }
 
@@ -403,6 +443,8 @@ const (
 	ChainIDArbitrum ChainID = 23
 	// ChainIDOptimism is the ChainID of Optimism
 	ChainIDOptimism ChainID = 24
+	// ChainIDGnosis is the ChainID of Gnosis
+	ChainIDGnosis ChainID = 25
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 	// ChainIDXpla is the ChainID of Xpla
@@ -413,8 +455,12 @@ const (
 	ChainIDBase ChainID = 30
 	// ChainIDSei is the ChainID of Sei
 	ChainIDSei ChainID = 32
+	// ChainIDRootstock is the ChainID of Rootstock
+	ChainIDRootstock ChainID = 33
 	// ChainIDScroll is the ChainID of Scroll
 	ChainIDScroll ChainID = 34
+	// ChainIDMantle is the ChainID of Mantle
+	ChainIDMantle ChainID = 35
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
@@ -423,10 +469,20 @@ const (
 	ChainIDEvmos ChainID = 4001
 	// ChainIDKujira is the ChainID of Kujira
 	ChainIDKujira ChainID = 4002
+	// ChainIDNeutron is the ChainID of Neutron
+	ChainIDNeutron ChainID = 4003
 	// ChainIDCelestia is the ChainID of Celestia
 	ChainIDCelestia ChainID = 4004
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
+	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
+	ChainIDArbitrumSepolia ChainID = 10003
+	// ChainIDBaseSepolia is the ChainID of Base on Sepolia
+	ChainIDBaseSepolia ChainID = 10004
+	// ChainIDOptimismSepolia is the ChainID of Optimism on Sepolia
+	ChainIDOptimismSepolia ChainID = 10005
+	// ChainIDHolesky is the ChainID of Holesky
+	ChainIDHolesky ChainID = 10006
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

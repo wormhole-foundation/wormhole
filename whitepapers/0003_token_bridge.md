@@ -90,7 +90,7 @@ additional payload that must be handled by the recipient (such as token-swap ins
 The `completeTransfer` method will accept a fee recipient. In case that field is set, the fee amount
 specified will be sent to the fee recipient and the remainder of the amount to the intended receiver of the transfer.
 This allows transfers to be completed by independent relayers to improve UX for users that will only need to send a
-single transaction for as long as the fee is sufficient and the token accepted by anyone acting as relayer.
+single transaction for as long as the fee is sufficient and the token accepted by anyone acting as a relayer.
 
 In order to keep `Transfer` messages small, they don't carry all metadata of the token. However, this means that before
 a token can be transferred to a new chain for the first time, the metadata needs to be bridged and the wrapped asset
@@ -103,9 +103,9 @@ be mapped to this identifier. A wrapped asset may only ever be created once for 
 
 ### Handling of token amounts and decimals
 
-Due to constrains on some supported chains, all token amounts passed through the token bridge are truncated to a maximum of 8 decimals.
+Due to constraints on some supported chains, all token amounts passed through the token bridge are truncated to a maximum of 8 decimals.
 
-Any chains implementation must make sure that of any token only ever MaxUint64 units (post-shifting) are bridged into the wormhole network at any given time (all target chains combined), even tough the slot is 32 bytes long (theoretically fitting uint256).
+Any chains implementation must make sure that of any token only ever MaxUint64 units (post-shifting) are bridged into the wormhole network at any given time (all target chains combined), even though the slot is 32 bytes long (theoretically fitting uint256).
 
 Token "dust" that can not be transferred due to truncation during a deposit needs to be refunded back to the user.
 
@@ -241,7 +241,7 @@ A user who initiated a transfer should call `completeTransfer` within 24 hours. 
 
 If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
 1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
-2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan prodives an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
+2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan provides an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
 3. A Guardian may send a signed re-observation request to the network using the `send-observation-request` admin command. A new valid VAA with an updated Guardian Set Index is generated once enough Guardians have re-observed the old message. Note that this is only possible if a quorum of Guardians is running archive nodes that still include this transaction.
 
 ### Setup of wrapped assets

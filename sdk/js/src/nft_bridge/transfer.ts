@@ -7,7 +7,6 @@ import {
   PublicKeyInitData,
   Transaction,
 } from "@solana/web3.js";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Types } from "aptos";
 import { ethers, Overrides } from "ethers";
 import { isBytes } from "ethers/lib/utils";
@@ -129,45 +128,6 @@ export async function transferFromSolana(
   transaction.feePayer = new PublicKey(payerAddress);
   transaction.partialSign(message);
   return transaction;
-}
-
-export async function transferFromTerra(
-  walletAddress: string,
-  nftBridgeAddress: string,
-  tokenAddress: string,
-  tokenID: string,
-  recipientChain: ChainId | ChainName,
-  recipientAddress: Uint8Array
-): Promise<MsgExecuteContract[]> {
-  const recipientChainId = coalesceChainId(recipientChain);
-  const nonce = Math.round(Math.random() * 100000);
-  return [
-    new MsgExecuteContract(
-      walletAddress,
-      tokenAddress,
-      {
-        approve: {
-          spender: nftBridgeAddress,
-          token_id: tokenID,
-        },
-      },
-      {}
-    ),
-    new MsgExecuteContract(
-      walletAddress,
-      nftBridgeAddress,
-      {
-        initiate_transfer: {
-          contract_addr: tokenAddress,
-          token_id: tokenID,
-          recipient_chain: recipientChainId,
-          recipient: Buffer.from(recipientAddress).toString("base64"),
-          nonce: nonce,
-        },
-      },
-      {}
-    ),
-  ];
 }
 
 export function transferFromAptos(

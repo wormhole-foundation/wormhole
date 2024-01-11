@@ -190,6 +190,10 @@ async function executeSubmit(
     throw Error("Evmos is not supported yet");
   } else if (chain === "kujira") {
     throw Error("kujira is not supported yet");
+  } else if (chain === "neutron") {
+    throw Error("neutron is not supported yet");
+  } else if (chain === "celestia") {
+    throw Error("celestia is not supported yet");
   } else if (chain === "rootstock") {
     throw Error("rootstock is not supported yet");
   } else {

@@ -93,6 +93,13 @@ func (ccq *ccqP2p) run(
 		return fmt.Errorf("failed to create p2p: %w", err)
 	}
 
+	// Build a map of bootstrap peers so we can always allow subscribe requests from them.
+	bootstrapPeersMap := map[string]struct{}{}
+	bootstrappers, _ := BootstrapAddrs(ccq.logger, bootstrapPeers, ccq.h.ID())
+	for _, peer := range bootstrappers {
+		bootstrapPeersMap[peer.ID.String()] = struct{}{}
+	}
+
 	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
 	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
@@ -112,6 +119,9 @@ func (ccq *ccqP2p) run(
 				if peerID == guardianPeerID {
 					return true
 				}
+			}
+			if _, found := bootstrapPeersMap[peerID.String()]; found {
+				return true
 			}
 			ccq.logger.Debug("Dropping subscribe attempt from unknown peer", zap.String("peerID", peerID.String()))
 			return false

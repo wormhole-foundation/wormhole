@@ -322,7 +322,7 @@ async function testNearSDK() {
   console.log("wallet addr: " + algoWallet.addr);
   console.log("usdcAssetId: " + usdcAssetId);
 
-  console.log("transfering USDC from Algo To Near... getting the vaa");
+  console.log("transferring USDC from Algo To Near... getting the vaa");
   console.log("myAddress: " + myAddress);
 
   let testAddress = nearAPI.providers.getTransactionLastResult(
@@ -379,7 +379,7 @@ async function testNearSDK() {
     )
   );
 
-  console.log("transfering USDC from Algo To Near... getting the vaa");
+  console.log("transferring USDC from Algo To Near... getting the vaa");
   let transferAlgoToNearRandoP3;
   {
     const AmountToTransfer: number = 100;

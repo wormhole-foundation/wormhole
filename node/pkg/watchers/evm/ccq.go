@@ -134,7 +134,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 
 	// Verify that the block read was successful.
 	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
-		w.ccqLogger.Error("failed to verify block for eth_call query",
+		w.ccqLogger.Debug("failed to verify block for eth_call query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -156,7 +156,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	// Verify all the call results and build the batch of results.
 	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call query call request",
+		w.ccqLogger.Debug("failed to process eth_call query call request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -311,7 +311,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 
 	// Verify the target block read was successful.
 	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
-		w.ccqLogger.Error("failed to process eth_call_by_timestamp query target block request",
+		w.ccqLogger.Debug("failed to verify target block for eth_call_by_timestamp query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -324,7 +324,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 
 	// Verify the following block read was successful.
 	if err := w.ccqVerifyBlockResult(nextBlockError, nextBlockResult); err != nil {
-		w.ccqLogger.Error("failed to process eth_call_by_timestamp query following block request",
+		w.ccqLogger.Debug("failed to verify next block for eth_call_by_timestamp query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -399,7 +399,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	// Verify all the call results and build the batch of results.
 	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call_by_timestamp query call request",
+		w.ccqLogger.Debug("failed to process eth_call_by_timestamp query call request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -493,7 +493,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 
 	// Verify that the block read was successful.
 	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
-		w.ccqLogger.Error("failed to process eth_call_with_finality query block request",
+		w.ccqLogger.Debug("failed to verify block for eth_call_with_finality query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -539,7 +539,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	// Verify all the call results and build the batch of results.
 	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call_with_finality query call request",
+		w.ccqLogger.Debug("failed to process eth_call_with_finality query call request",
 			zap.String("requestId", requestId),
 			zap.String("finality", req.Finality),
 			zap.Uint64("requestedBlockNumber", blockNumber),

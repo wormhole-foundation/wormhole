@@ -8,17 +8,16 @@
 # The minimum gas prices a validator is willing to accept for processing a
 # transaction. A transaction's fees must meet the minimum of any denomination
 # specified in this config (e.g. 0.25token1;0.0001token2).
-minimum-gas-prices = "0.01133uluna,0.15uusd,0.104938usdr,169.77ukrw,428.571umnt,0.125ueur,0.98ucny,16.37ujpy,0.11ugbp,10.88uinr,0.19ucad,0.14uchf,0.19uaud,0.2usgd,4.62uthb,1.25usek"
+minimum-gas-prices = "0uluna"
 
-# default: the last 100 states are kept in addition to every 500th state; pruning at 10 block intervals
+# default: the last 362880 states are kept, pruning at 10 block intervals
 # nothing: all historic states will be saved, nothing will be deleted (i.e. archiving node)
-# everything: all saved states will be deleted, storing only the current state; pruning at 10 block intervals
-# custom: allow pruning options to be manually specified through 'pruning-keep-recent', 'pruning-keep-every', and 'pruning-interval'
+# everything: 2 latest states will be kept; pruning at 10 block intervals.
+# custom: allow pruning options to be manually specified through 'pruning-keep-recent', and 'pruning-interval'
 pruning = "default"
 
 # These are applied if and only if the pruning strategy is custom.
 pruning-keep-recent = "0"
-pruning-keep-every = "0"
 pruning-interval = "0"
 
 # HaltHeight contains a non-zero block height at which a node will gracefully
@@ -44,7 +43,7 @@ halt-time = 0
 # It has no bearing on application state pruning which is determined by the
 # "pruning-*" configurations.
 #
-# Note: Tendermint block pruning is dependant on this parameter in conjunction
+# Note: Tendermint block pruning is dependant on this parameter in conunction
 # with the unbonding (safety threshold) period, state pruning and state sync
 # snapshot parameters to determine the correct minimum value of
 # ResponseCommit.RetainHeight.
@@ -53,12 +52,38 @@ min-retain-blocks = 0
 # InterBlockCache enables inter-block caching.
 inter-block-cache = true
 
+# InterBlockCacheSize set the size (the number of cache items) of interblock cache item
+# Each item consumes 128 bytes, so the value should be dividend by 128
+# Default cache size is 10mb.
+# Ex) 100mb = 10,000,000 / 128 = 78,125
+inter-block-cache-size = 78125
+
 # IndexEvents defines the set of events in the form {eventType}.{attributeKey},
 # which informs Tendermint what to index. If empty, all events will be indexed.
 #
 # Example:
 # ["message.sender", "message.recipient"]
 index-events = []
+
+# IAVLCacheSize set the cache size (the number of cache items) of the iavl tree. 
+# Each item size consumes 128 bytes, so the value should be dividend by 128
+# Default cache size is 100mb.
+# Ex) 100mb = 100,000,000 / 128 = 781,250
+iavl-cache-size = 781250
+
+# IavlDisableFastNode enables or disables the fast node feature of IAVL. 
+# Default is false.
+iavl-disable-fastnode = false
+
+# EXPERIMENTAL: IAVLLazyLoading enable/disable the lazy loading of iavl store.
+# Default is false.
+iavl-lazy-loading = false
+
+# AppDBBackend defines the database backend type to use for the application and snapshots DBs.
+# An empty string indicates that a fallback will be used.
+# First fallback is the deprecated compile-time types.DBBackend value.
+# Second fallback (if the types.DBBackend also isn't set), is the db-backend value set in Tendermint's config.toml.
+app-db-backend = ""
 
 ###############################################################################
 ###                         Telemetry Configuration                         ###
@@ -148,6 +173,18 @@ retries = 3
 # Offline defines if Rosetta server should run in offline mode.
 offline = false
 
+# EnableDefaultSuggestedFee defines if the server should suggest fee by default.
+# If 'construction/medata' is called without gas limit and gas price,
+# suggested fee based on gas-to-suggest and denom-to-suggest will be given.
+enable-fee-suggestion = false
+
+# GasToSuggest defines gas limit when calculating the fee
+gas-to-suggest = 200000
+
+# DenomToSuggest defines the defult denom for fee suggestion.
+# Price must be in minimum-gas-prices.
+denom-to-suggest = "uatom"
+
 ###############################################################################
 ###                           gRPC Configuration                            ###
 ###############################################################################
@@ -159,6 +196,14 @@ enable = true
 
 # Address defines the gRPC server address to bind to.
 address = "0.0.0.0:9090"
+
+# MaxRecvMsgSize defines the max message size in bytes the server can receive.
+# The default value is 10MB.
+max-recv-msg-size = "10485760"
+
+# MaxSendMsgSize defines the max message size in bytes the server can send.
+# The default value is math.MaxInt32.
+max-send-msg-size = "2147483647"
 
 ###############################################################################
 ###                        gRPC Web Configuration                           ###
@@ -185,22 +230,48 @@ enable-unsafe-cors = true
 [state-sync]
 
 # snapshot-interval specifies the block interval at which local state sync snapshots are
-# taken (0 to disable). Must be a multiple of pruning-keep-every.
+# taken (0 to disable).
 snapshot-interval = 0
 
 # snapshot-keep-recent specifies the number of recent snapshots to keep and serve (0 to keep all).
 snapshot-keep-recent = 2
 
+###############################################################################
+###                         Store / State Streaming                         ###
+###############################################################################
+
+[store]
+streamers = []
+
+[streamers]
+[streamers.file]
+keys = ["*", ]
+write_dir = ""
+prefix = ""
+
+# output-metadata specifies if output the metadata file which includes the abci request/responses 
+# during processing the block.
+output-metadata = "true"
+
+# stop-node-on-error specifies if propagate the file streamer errors to consensus state machine.
+stop-node-on-error = "true"
+
+# fsync specifies if call fsync after writing the files.
+fsync = "false"
+
+
+###############################################################################
+###                                  WASM                                   ###
+###############################################################################
+
 [wasm]
-# The maximum gas amount can be spent for contract query.
-# The contract query will invoke contract execution vm,
-# so we need to restrict the max usage to prevent DoS attack
-contract-query-gas-limit = "3000000"
+# Smart query gas limit is the max gas to be used in a smart query contract call
+query_gas_limit = 3000000
 
-# The flag to specify whether print contract logs or not
-contract-debug-mode = "false"
+# in-memory cache for Wasm contracts. Set to 0 to disable.
+# The value is in MiB not bytes
+memory_cache_size = 100
 
-# The WASM VM memory cache size in MiB not bytes
-contract-memory-cache-size = "500"
-
-contract-logging-whitelist = "*"
+# Simulation gas limit is the max gas to be used in a tx simulation call.
+# When not set the consensus max block gas is used instead
+# simulation_gas_limit =

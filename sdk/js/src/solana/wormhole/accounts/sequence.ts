@@ -32,16 +32,29 @@ export async function getSequenceTracker(
 
 export class SequenceTracker {
   sequence: bigint;
+  bump?: number;
+  emitterType?: number;
 
-  constructor(sequence: bigint) {
+  constructor(sequence: bigint, bump?: number, emitterType?: number) {
     this.sequence = sequence;
+    this.bump = bump;
+    this.emitterType = emitterType;
   }
 
   static deserialize(data: Buffer): SequenceTracker {
-    if (data.length != 8) {
-      throw new Error("data.length != 8");
+    if (data.length !== 8 && data.length !== 10) {
+      throw new Error("data.length != 8 or data.length != 10");
     }
-    return new SequenceTracker(data.readBigUInt64LE(0));
+
+    let bump, emitterType;
+    const sequence = data.readBigUInt64LE(0);
+
+    if (data.length === 10) {
+      bump = data[8];
+      emitterType = data[9];
+    }
+
+    return new SequenceTracker(sequence, bump, emitterType);
   }
 
   value(): bigint {

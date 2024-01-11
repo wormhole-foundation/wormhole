@@ -323,7 +323,7 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 		var n big.Int
 		m := &result.result
 		if m.Number == nil {
-			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality))
 		} else {
 			n = big.Int(*m.Number)
 		}

@@ -9,10 +9,10 @@
 /bitcoin/ @evan-gray
 /cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @gator-boi @kcsongor
-/ethereum/contracts/relayer @derpy-duck @JoeHowarth @gator-boi
-/ethereum/contracts/interfaces/relayer @derpy-duck @JoeHowarth @gator-boi
-/ethereum/forge-test/relayer @derpy-duck @JoeHowarth @gator-boi
-/ethereum/ts-scripts/relayer @derpy-duck @JoeHowarth @gator-boi
+/ethereum/contracts/relayer @JoeHowarth @gator-boi
+/ethereum/contracts/interfaces/relayer @JoeHowarth @gator-boi
+/ethereum/forge-test/relayer @JoeHowarth @gator-boi
+/ethereum/ts-scripts/relayer @JoeHowarth @gator-boi
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi
@@ -23,7 +23,7 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/generic_relayer @derpy-duck @JoeHowarth @gator-boi
+/relayer/generic_relayer @JoeHowarth @gator-boi
 /scripts/ @evan-gray @kcsongor
 /sdk/ @bruce-riley @evan-gray @kev1n-peters @SEJeff
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
@@ -92,3 +92,7 @@
 ## Hacks / Tools
 
 /node/hack/ @bruce-riley @panoel @kev1n-peters @evan-gray
+
+## Documentation
+
+/docs @evan-gray @barnjamin @SEJeff @bruce-riley

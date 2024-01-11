@@ -128,24 +128,29 @@ func handleQueryRequestsImpl(
 
 	// CCQ is currently only supported on EVM.
 	supportedChains := map[vaa.ChainID]struct{}{
-		vaa.ChainIDEthereum:  {},
-		vaa.ChainIDBSC:       {},
-		vaa.ChainIDPolygon:   {},
-		vaa.ChainIDAvalanche: {},
-		vaa.ChainIDOasis:     {},
-		vaa.ChainIDAurora:    {},
-		vaa.ChainIDFantom:    {},
-		vaa.ChainIDKarura:    {},
-		vaa.ChainIDAcala:     {},
-		vaa.ChainIDKlaytn:    {},
-		vaa.ChainIDCelo:      {},
-		vaa.ChainIDMoonbeam:  {},
-		vaa.ChainIDNeon:      {},
-		vaa.ChainIDArbitrum:  {},
-		vaa.ChainIDOptimism:  {},
-		vaa.ChainIDBase:      {},
-		vaa.ChainIDScroll:    {},
-		vaa.ChainIDSepolia:   {},
+		vaa.ChainIDEthereum:        {},
+		vaa.ChainIDBSC:             {},
+		vaa.ChainIDPolygon:         {},
+		vaa.ChainIDAvalanche:       {},
+		vaa.ChainIDOasis:           {},
+		vaa.ChainIDAurora:          {},
+		vaa.ChainIDFantom:          {},
+		vaa.ChainIDKarura:          {},
+		vaa.ChainIDAcala:           {},
+		vaa.ChainIDKlaytn:          {},
+		vaa.ChainIDCelo:            {},
+		vaa.ChainIDMoonbeam:        {},
+		vaa.ChainIDNeon:            {},
+		vaa.ChainIDArbitrum:        {},
+		vaa.ChainIDOptimism:        {},
+		vaa.ChainIDBase:            {},
+		vaa.ChainIDScroll:          {},
+		vaa.ChainIDMantle:          {},
+		vaa.ChainIDSepolia:         {},
+		vaa.ChainIDHolesky:         {},
+		vaa.ChainIDArbitrumSepolia: {},
+		vaa.ChainIDBaseSepolia:     {},
+		vaa.ChainIDOptimismSepolia: {},
 	}
 
 	// But we don't want to allow CCQ if the chain is not enabled.
@@ -196,7 +201,7 @@ func handleQueryRequestsImpl(
 			signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
 
 			if _, exists := allowedRequestors[signerAddress]; !exists {
-				qLogger.Error("invalid requestor", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID))
+				qLogger.Debug("invalid requestor", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID))
 				invalidQueryRequestReceived.WithLabelValues("invalid_requestor").Inc()
 				continue
 			}
@@ -231,7 +236,7 @@ func handleQueryRequestsImpl(
 			for requestIdx, pcq := range queryRequest.PerChainQueries {
 				chainID := vaa.ChainID(pcq.ChainId)
 				if _, exists := supportedChains[chainID]; !exists {
-					qLogger.Error("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
+					qLogger.Debug("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
 					invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
 					errorFound = true
 					break
@@ -239,7 +244,7 @@ func handleQueryRequestsImpl(
 
 				channel, channelExists := chainQueryReqC[chainID]
 				if !channelExists {
-					qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
+					qLogger.Debug("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
 					invalidQueryRequestReceived.WithLabelValues("failed_to_look_up_channel").Inc()
 					errorFound = true
 					break
@@ -359,7 +364,7 @@ func handleQueryRequestsImpl(
 				timeout := pq.receiveTime.Add(requestTimeoutImpl)
 				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("timeout", timeout))
 				if timeout.Before(now) {
-					qLogger.Error("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
+					qLogger.Debug("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 					queryRequestsTimedOut.Inc()
 					delete(pendingQueries, reqId)
 				} else {
@@ -451,5 +456,5 @@ func SupportsTimestampCaching(chainID vaa.ChainID) bool {
 		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
 	*/
 
-	return chainID == vaa.ChainIDEthereum || chainID == vaa.ChainIDBase || chainID == vaa.ChainIDOptimism
+	return true
 }

@@ -365,7 +365,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					return fmt.Errorf("NetworkID already configured: %s", string(wc.GetNetworkID()))
 				}
 
-				watcherName := string(wc.GetNetworkID()) + "watch"
+				watcherName := string(wc.GetNetworkID()) + "_watch"
 				logger.Debug("Setting up watcher: " + watcherName)
 
 				if wc.GetNetworkID() != "solana-confirmed" { // TODO this should not be a special case, see comment in common/readiness.go

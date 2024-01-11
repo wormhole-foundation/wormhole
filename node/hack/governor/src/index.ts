@@ -12,6 +12,8 @@ import { Connection, JsonRpcProvider } from "@mysten/sui.js";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 
 const MinNotional = 0;
+// Price change tolerance in %. Fallback to 30%
+const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? Math.min(100, Math.max(0, parseInt(process.env.PRICE_TOLERANCE))) : 30;
 
 const axios = require("axios");
 const fs = require("fs");
@@ -48,6 +50,21 @@ if (fs.existsSync(IncludeFileName)) {
   },
 */
 
+// Get the existing token list to check for any extreme price changes and removed tokens
+var existingTokenPrices = {};
+var existingTokenKeys: string[] = [];
+var newTokenKeys = {};
+
+fs.readFile("../../pkg/governor/generated_mainnet_tokens.go", "utf8", function(_, doc) {
+  var matches = doc.matchAll(/{chain: (?<chain>[0-9]+).+addr: "(?<addr>[0-9a-fA-F]+)".*symbol: "(?<symbol>.*)", coin.*price: (?<price>.*)}.*\n/g);
+  for(let result of matches) {
+    let {chain, addr, symbol, price} = result.groups;
+    if (!existingTokenPrices[chain]) existingTokenPrices[chain] = {};
+    existingTokenPrices[chain][addr] = parseFloat(price);
+    existingTokenKeys.push(chain + "-" + addr + "-" + symbol);
+  }
+});
+
 axios
   .get(
     "https://europe-west3-wormhole-message-db-mainnet.cloudfunctions.net/tvl"
@@ -72,6 +89,11 @@ axios
     content += "package governor\n\n";
     content += "func generatedMainnetTokenList() []tokenConfigEntry {\n";
     content += "\treturn []tokenConfigEntry {\n";
+
+    var significantPriceChanges = [];
+    var addedTokens = [];
+    var removedTokens = [];
+    var newTokensCount = 0;
 
     for (let chain in res.data.AllTime) {
       for (let addr in res.data.AllTime[chain]) {
@@ -141,6 +163,39 @@ axios
               }
             }
 
+            // This is a new token
+            if (existingTokenPrices[chain] == undefined || existingTokenPrices[chain][wormholeAddr] == undefined) {
+              addedTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol);
+            }
+            // This is an existing token
+            else {
+              var previousPrice = existingTokenPrices[chain][wormholeAddr];
+
+              // Price has decreased by > tolerance
+              if (data.TokenPrice < previousPrice - (previousPrice * (PriceDeltaTolerance / 100))){
+                significantPriceChanges.push({
+                  token: chain + "-" + wormholeAddr + "-" + data.Symbol,
+                  previousPrice: previousPrice,
+                  newPrice: data.TokenPrice,
+                  percentageChange: "-" + (100 - (data.TokenPrice / previousPrice) * 100).toFixed(1).toString()
+                });
+              }
+
+              // We can also check for tokens that have increased in price, but this actually makes the governor
+              // limits more aggressive, so is safer from a security point of view. Uncomment the below to also
+              // be notified of tokens that have significantly increased in value
+
+              // Price has increased by > tolerance
+              // if (data.TokenPrice > previousPrice * ((100 + PriceDeltaTolerance) / 100)) {
+              //   significantPriceChanges.push({
+              //     token: chain + "-" + wormholeAddr + "-" + data.Symbol,
+              //     previousPrice: previousPrice,
+              //     newPrice: data.TokenPrice,
+              //     percentageChange: "+" + (((data.TokenPrice / previousPrice) * 100) - 100).toFixed(1).toString()
+              //   });
+              // }
+            }
+
             content +=
               "\t{ chain: " +
               chain +
@@ -160,11 +215,43 @@ axios
               notional +
               "\n";
 
-            //console.log("chain: " + chain + ", addr: " + data.Address + ", symbol: " + data.Symbol + ", notional: " + notional + ", price: " + data.TokenPrice + ", amount: " + data.Amount)
+            newTokenKeys[chain + "-" + wormholeAddr + "-" + data.Symbol] = true;
+            newTokensCount += 1;
           }
         }
       }
     }
+
+    for (var token of existingTokenKeys) {
+      // A token has been removed from the token list 
+      if (!newTokenKeys[token]) {
+        removedTokens.push(token);
+      }
+    }
+
+    // Sanity check to make sure the script is doing what we think it is
+    if (existingTokenKeys.length + addedTokens.length - removedTokens.length != newTokensCount) {
+      console.error(`Num existing tokens (${existingTokenKeys.length}) + Added tokens (${addedTokens.length}) - Removed tokens (${removedTokens.length}) != Num new tokens (${newTokensCount})`);
+      process.exit(1);
+    }
+
+    var changedContent = "```\nTokens before = " + existingTokenKeys.length;
+    changedContent += "\nTokens after = " + newTokensCount;
+    changedContent += "\n\nTokens added = " + addedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(addedTokens, null, 1);
+    changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(removedTokens, null, 1);
+    changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
+    changedContent += JSON.stringify(significantPriceChanges, null, 1);
+    changedContent += "\n```";
+
+    await fs.writeFileSync(
+      "./changes.txt",
+      changedContent,
+      {
+        flag: "w+",
+      }
+    );
 
     content += "\t}\n";
     content += "}\n";

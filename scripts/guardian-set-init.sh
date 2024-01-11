@@ -91,7 +91,6 @@ wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmit
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
-terraNFTBridge=$(jq --raw-output '.chains."3".contracts.nftBridgeEmitterAddress' $addressesJson)
 nearNFTBridge=$(jq --raw-output '.chains."15".contracts.nftBridgeEmitterAddress' $addressesJson)
 aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress' $addressesJson)
 
@@ -113,7 +112,6 @@ wormchainTokenBridgeVAA=$(worm generate registration -m TokenBridge -c wormchain
 echo "generating contract registration VAAs for nft bridges"
 solNFTBridgeVAA=$(worm generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
 ethNFTBridgeVAA=$(worm generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
-terraNFTBridgeVAA=$(worm generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
 nearNFTBridgeVAA=$(worm generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
 aptosNFTBridgeVAA=$(worm generate registration -m NFTBridge -c aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
 
@@ -134,7 +132,6 @@ wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
-terraNFTBridge="REGISTER_TERRA_NFT_BRIDGE_VAA"
 nearNFTBridge="REGISTER_NEAR_NFT_BRIDGE_VAA"
 aptosNFTBridge="REGISTER_APTOS_NFT_BRIDGE_VAA"
 
@@ -155,9 +152,6 @@ upsert_env_file $envFile $ethNFTBridge $ethNFTBridgeVAA
 # terra token bridge
 upsert_env_file $ethFile $terraTokenBridge $terraTokenBridgeVAA
 upsert_env_file $envFile $terraTokenBridge $terraTokenBridgeVAA
-# terra nft bridge
-upsert_env_file $ethFile $terraNFTBridge $terraNFTBridgeVAA
-upsert_env_file $envFile $terraNFTBridge $terraNFTBridgeVAA
 
 # bsc token bridge
 upsert_env_file $ethFile $bscTokenBridge $bscTokenBridgeVAA

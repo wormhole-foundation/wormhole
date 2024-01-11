@@ -19,7 +19,7 @@ cached="$TMPDIR/vaa/$sequence"
 # We cache the result once it's ready, so we don't keep making requests if the
 # VAA has already been pulled
 if [ ! -f "$cached" ]; then
-	result=$(curl -s "https://wormhole-v2-mainnet-api.certus.one/v1/signed_vaa/1/0000000000000000000000000000000000000000000000000000000000000004/$sequence" | jq '.vaaBytes' -r)
+	result=$(curl -s "https://api.wormholescan.io/v1/signed_vaa/1/0000000000000000000000000000000000000000000000000000000000000004/$sequence" | jq '.vaaBytes' -r)
 	# The 'vaaBytes' field is set once quorum has been reached. Otherwise, 'jq'
 	# returns "null", in which case we just exit 1
 	if [ "$result" == "null" ]; then

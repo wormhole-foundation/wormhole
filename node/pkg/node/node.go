@@ -37,7 +37,7 @@ const (
 	observationRequestInboundBufferSize = 500
 
 	// observationRequestOutboundBufferSize configures the size of obsvReqSendC
-	// and thereby somewhat limits the amout of observation requests that can be sent in bursts to the network.
+	// and thereby somewhat limits the amount of observation requests that can be sent in bursts to the network.
 	observationRequestOutboundBufferSize = 100
 
 	// observationRequestPerChainBufferSize is the buffer size of the per-network reobservation channel
