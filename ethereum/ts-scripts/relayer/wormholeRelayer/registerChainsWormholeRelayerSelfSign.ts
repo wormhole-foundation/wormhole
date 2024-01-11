@@ -1,10 +1,11 @@
 import { tryNativeToHexString } from "@certusone/wormhole-sdk";
+import { inspect } from "util";
+
 import {
   init,
   loadChains,
   ChainInfo,
   getWormholeRelayer,
-  getOperationDescriptor,
   getWormholeRelayerAddress,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
@@ -14,7 +15,6 @@ import type { WormholeRelayer } from "../../../ethers-contracts";
 
 const processName = "registerChainsWormholeRelayerSelfSign";
 init();
-const operation = getOperationDescriptor();
 const allChains = loadChains();
 
 const zeroBytes32 =
@@ -23,13 +23,13 @@ const zeroBytes32 =
 async function run() {
   console.log("Start! " + processName);
 
-  // TODO: to send txs concurrently, the cross-registrations need to be separated out
-  // for (const operatingChain of operation.operatingChains) {
-  // await registerChainsWormholeRelayer(operatingChain);
-  // await registerOnExistingChainsWormholeRelayer(operatingChain);
-  //}
-  for (const myChain of allChains) {
-    registerChainsWormholeRelayerIfUnregistered(myChain);
+  const results = await Promise.allSettled(allChains.map((chain) => registerChainsWormholeRelayerIfUnregistered(chain)));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.log(
+        `Registration failed: ${result.reason?.stack || inspect(result.reason)}`
+      );
+    }
   }
 }
 
@@ -37,95 +37,20 @@ async function registerChainsWormholeRelayerIfUnregistered(
   operatingChain: ChainInfo
 ) {
   console.log(
-    "[START] Registering all the wormhole relayers onto Wormhole Relayer " +
-      operatingChain.chainId
+    `Registering all the WormholeRelayer contracts in chain ${operatingChain.chainId}`
   );
 
   const wormholeRelayer = await getWormholeRelayer(operatingChain);
   for (const targetChain of allChains) {
-    let currentRegisteredContract;
-    try {
-      currentRegisteredContract = (await wormholeRelayer.getRegisteredWormholeRelayerContract(
-        targetChain.chainId
-      ))
-    } catch (e) {
-      console.log(`Error getting the wormhole relayer for chain ${operatingChain.chainId}, rpc ${operatingChain.rpc}`)
-    }
-    if (
-       currentRegisteredContract === zeroBytes32
-    ) {
-      console.log(
-        `[start] This chain ${targetChain.chainId} is not registered onto chain ${operatingChain.chainId} yet`
-      );
-      try {
-        await registerWormholeRelayer(
-          wormholeRelayer,
-          operatingChain,
-          targetChain
-        );
-      } catch(error) {
-        console.log(`[error] Registering ${targetChain.chainId} onto ${operatingChain.chainId} failed`)
-        console.log(`The error was ${error}`)
-      }
-      console.log(
-        `[done] Now this chain ${targetChain.chainId} is registered onto chain ${operatingChain.chainId}`
-      );
-    } else {
-      // This doesn't check that the registered address is correct - only that it exists and is not zero
-      console.log(
-        `This chain ${targetChain.chainId} is already registered onto chain ${operatingChain.chainId}`
-      );
-    }
+    await registerWormholeRelayer(
+      wormholeRelayer,
+      operatingChain,
+      targetChain
+    );
   }
 
   console.log(
-    "Did all contract registrations for the core relayer on " +
-      operatingChain.chainId
-  );
-}
-
-async function registerChainsWormholeRelayer(operatingChain: ChainInfo) {
-  console.log(
-    "Registering all the wormhole relayers onto Wormhole Relayer " +
-      operatingChain.chainId
-  );
-
-  const wormholeRelayer = await getWormholeRelayer(operatingChain);
-  for (const targetChain of allChains) {
-    await registerWormholeRelayer(wormholeRelayer, operatingChain, targetChain);
-  }
-
-  console.log(
-    "Did all contract registrations for the core relayer on " +
-      operatingChain.chainId
-  );
-}
-
-async function registerOnExistingChainsWormholeRelayer(targetChain: ChainInfo) {
-  console.log(
-    "Registering Wormhole Relayer " +
-      targetChain.chainId +
-      " onto all the wormhole relayers"
-  );
-  const tasks = await Promise.allSettled(
-    operation.supportedChains.map(async (operatingChain) => {
-      const coreRelayer = await getWormholeRelayer(operatingChain);
-
-      return registerWormholeRelayer(coreRelayer, operatingChain, targetChain);
-    })
-  );
-  for (const task of tasks) {
-    if (task.status === "rejected") {
-      console.log(
-        `Failed cross registration. ${task.reason?.stack || task.reason}`
-      );
-    }
-  }
-
-  console.log(
-    "Did all contract registrations of the core relayer on " +
-      targetChain.chainId +
-      " onto the existing (non operating) chains"
+    `Did all contract registrations for the WormholeRelayer in chain ${operatingChain.chainId}`
   );
 }
 
@@ -134,15 +59,12 @@ async function registerWormholeRelayer(
   operatingChain: ChainInfo,
   targetChain: ChainInfo
 ) {
-  const registration =
-    await wormholeRelayer.getRegisteredWormholeRelayerContract(
-      targetChain.chainId
-    );
+  const registration = await wormholeRelayer.getRegisteredWormholeRelayerContract(targetChain.chainId);
   if (registration !== zeroBytes32) {
     const registrationAddress = await getWormholeRelayerAddress(targetChain);
     const expectedRegistration =
       "0x" + tryNativeToHexString(registrationAddress, "ethereum");
-    if (registration !== expectedRegistration) {
+    if (registration.toLowerCase() !== expectedRegistration.toLowerCase()) {
       throw new Error(`Found an unexpected registration for chain ${targetChain.chainId} on chain ${operatingChain.chainId}
 Expected: ${expectedRegistration}
 Actual: ${registration}`);
@@ -168,10 +90,10 @@ Actual: ${registration}`);
       .registerWormholeRelayerContract(vaa, overrides)
       .then(wait);
   } catch (error) {
-    console.log(
-      `Error in registering chain ${targetChain.chainId} onto ${operatingChain.chainId}`
+    throw new Error(
+      `Error in registering chain ${targetChain.chainId} onto ${operatingChain.chainId}
+Details: ${(error as any)?.stack || inspect(error)}`
     );
-    console.log((error as any)?.stack || error);
   }
 }
 
