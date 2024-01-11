@@ -13,9 +13,11 @@ import {
   getSigner,
   getWormholeRelayerAddress,
   getCreate2Factory,
+  env,
 } from "./env";
 import { ethers } from "ethers";
 import { wait } from "./utils";
+import { CONTRACTS, ChainId, coalesceChainName } from "@certusone/wormhole-sdk";
 
 export const setupContractSalt = Buffer.from("0xSetup");
 export const proxyContractSalt = Buffer.from("0xGenericRelayer");
@@ -91,6 +93,7 @@ export async function deployMockIntegration(
   const factory = new MockRelayerIntegration__factory(signer);
 
   const wormholeRelayerAddress = await getWormholeRelayerAddress(chain);
+  checkCoreAddress(chain.wormholeAddress, env, chain.chainId);
   const overrides = await buildOverridesDeploy(factory, chain, [
     chain.wormholeAddress,
     wormholeRelayerAddress,
@@ -124,6 +127,26 @@ export async function deployCreate2Factory(
   return { address: contract.address, chainId: chain.chainId };
 }
 
+function checkCoreAddress(wormhole: string, env: string, chainId: ChainId) {
+  const chainName = coalesceChainName(chainId);
+  if (chainName === undefined) {
+    return;
+  }
+
+  // We assume other environments are local devnets
+  const contractSet = env === "mainnet" ? "MAINNET" : env === "testnet" ? "TESTNET" : undefined;
+  if (contractSet === undefined) return;
+
+  const sdkWormhole = CONTRACTS[contractSet][chainName].core;
+  if (sdkWormhole === undefined) {
+    console.error(`Warning: SDK Wormhole address for chain ${chainId} is undefined.`);
+    return;
+  }
+  if (sdkWormhole.toLowerCase() !== wormhole.toLowerCase()) {
+    throw new Error(`Expected wormhole address to be ${sdkWormhole} but it's set to ${wormhole} in chains.json`);
+  }
+}
+
 export async function deployWormholeRelayerImplementation(
   chain: ChainInfo,
 ): Promise<Deployment> {
@@ -132,6 +155,7 @@ export async function deployWormholeRelayerImplementation(
   const signer = await getSigner(chain);
   const factory = new WormholeRelayer__factory(signer);
 
+  checkCoreAddress(chain.wormholeAddress, env, chain.chainId);
   const overrides = await buildOverridesDeploy(factory, chain, [
     chain.wormholeAddress,
   ]);
