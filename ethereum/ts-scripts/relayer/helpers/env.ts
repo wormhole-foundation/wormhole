@@ -210,7 +210,7 @@ export function loadDeliveryProviders(): Deployment[] {
       `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return {...contracts.deliveryProviders, ...lastRun.deliveryProviderProxies};
+      return mergeContractAddresses(contracts.deliveryProviders, lastRun.deliveryProviderProxies);
     }
   }
 
@@ -227,7 +227,7 @@ export function loadWormholeRelayers(dev: boolean): Deployment[] {
       `Failed to open last run file for WormholeRelayer proxy contracts. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return {...wormholeRelayers, ...lastRun.wormholeRelayerProxies};
+      return mergeContractAddresses(wormholeRelayers, lastRun.wormholeRelayerProxies);
     }
   }
 
@@ -242,7 +242,7 @@ export function loadMockIntegrations(): Deployment[] {
       `Failed to open last run file for MockIntegration contracts. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return {...contracts.mockIntegrations, ...lastRun.mockIntegrations};
+      return mergeContractAddresses(contracts.mockIntegrations, lastRun.mockIntegrations);
     }
   }
 
@@ -258,7 +258,7 @@ export function loadWormholeRelayerImplementations(): Deployment[] {
       `Failed to open last run file for WormholeRelayer implementations. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return {...contracts.wormholeRelayerImplementations, ...lastRun.wormholeRelayerImplementations};
+      return mergeContractAddresses(contracts.wormholeRelayerImplementations, lastRun.wormholeRelayerImplementations);
     }
   }
 
@@ -273,7 +273,7 @@ export function loadCreate2Factories(): Deployment[] {
       `Failed to open last run file for create2 factories. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return {...contracts.create2Factories, ...lastRun.create2Factories};
+      return mergeContractAddresses(contracts.create2Factories, lastRun.create2Factories);
     }
   }
 
@@ -330,7 +330,7 @@ export function writeOutputFiles(output: unknown, processName: string) {
   );
 }
 
-export function loadLastRun(processName: string, errorMessage: string): any {
+export function loadLastRun(processName: string, errorMessage?: string): any {
   try {
     return JSON.parse(
       fs.readFileSync(
@@ -340,7 +340,9 @@ export function loadLastRun(processName: string, errorMessage: string): any {
     );
   } catch (error: unknown) {
     if (error instanceof Error && (error as any).code === "ENOENT") {
-      console.error(errorMessage);
+      if (errorMessage !== undefined) {
+        console.error(errorMessage);
+      }
       return undefined;
     } else {
       throw error;
@@ -474,3 +476,20 @@ export const getCreate2Factory = async (
     getCreate2FactoryAddress(chain),
     await getSigner(chain),
   );
+
+export function updateContractAddress(arr: Deployment[], newAddress: Deployment) {
+  const idx = arr.findIndex((a) => a.chainId === newAddress.chainId);
+  if (idx === -1) {
+    arr.push(newAddress);
+  } else {
+    arr[idx] = newAddress;
+  }
+}
+
+export function mergeContractAddresses(arr: Deployment[], newAddresses: Deployment[]): Deployment[] {
+  const newArray = [...arr];
+  for (const newAddress of newAddresses) {
+    updateContractAddress(newArray, newAddress);
+  }
+  return newArray;
+}

@@ -6,63 +6,50 @@ import {
   getDeliveryProvider,
   init,
   loadChains,
+  updateContractAddress,
+  Deployment,
 } from "../helpers/env";
 
 const env = init();
 const chains = loadChains();
 
-interface Address {
-  chainId: number;
-  address: string;
-}
 interface ContractsJson {
-  deliveryProviders: Address[];
-  wormholeRelayers: Address[];
-  mockIntegrations: Address[];
-  create2Factories: Address[];
+  deliveryProviders: Deployment[];
+  wormholeRelayers: Deployment[];
+  mockIntegrations: Deployment[];
+  create2Factories: Deployment[];
 }
 
 async function main() {
   const path = `./ts-scripts/relayer/config/${env}/contracts.json`;
-  const blob = readFileSync(path);
-  const contracts: ContractsJson = JSON.parse(String(blob));
-  console.log("Old:");
-  console.log(`${String(blob)}`);
+  const contractsFile = readFileSync(path, "utf8");
+  const contracts: ContractsJson = JSON.parse(contractsFile);
+  console.log(`Old:\n${contractsFile}`);
   contracts.deliveryProviders = [];
   contracts.wormholeRelayers = [];
   contracts.mockIntegrations = [];
   contracts.create2Factories = [];
   for (const chain of chains) {
-    update(contracts.deliveryProviders, {
+    updateContractAddress(contracts.deliveryProviders, {
       chainId: chain.chainId,
       address: (await getDeliveryProvider(chain)).address,
     });
-    update(contracts.wormholeRelayers, {
+    updateContractAddress(contracts.wormholeRelayers, {
       chainId: chain.chainId,
       address: (await getWormholeRelayer(chain)).address,
     });
-    update(contracts.mockIntegrations, {
+    updateContractAddress(contracts.mockIntegrations, {
       chainId: chain.chainId,
       address: (await getMockIntegration(chain)).address,
     });
-    update(contracts.create2Factories, {
+    updateContractAddress(contracts.create2Factories, {
       chainId: chain.chainId,
       address: (await getCreate2Factory(chain)).address,
     });
   }
   const newStr = JSON.stringify(contracts, undefined, 2);
-  console.log("New:");
-  console.log(`${String(newStr)}`);
+  console.log(`New:\n${newStr}`);
   writeFileSync(path, newStr);
-}
-
-function update(arr: Address[], newAddress: Address) {
-  const idx = arr.findIndex((a) => a.chainId === newAddress.chainId);
-  if (idx === -1) {
-    arr.push(newAddress);
-  } else {
-    arr[idx] = newAddress;
-  }
 }
 
 main().catch((e) => {
