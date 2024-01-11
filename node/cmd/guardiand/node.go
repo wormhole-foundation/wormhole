@@ -43,6 +43,8 @@ import (
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
@@ -417,6 +419,11 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
+var (
+	defaultConfigFilename = "guardian"
+	envPrefix             = "GUARDIAN"
+)
+
 // "Why would anyone do this?" are famous last words.
 //
 // We already forcibly override RPC URLs and keys in dev mode to prevent security
@@ -434,6 +441,9 @@ const devwarning = `
 var NodeCmd = &cobra.Command{
 	Use:   "node",
 	Short: "Run the guardiand node",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return initFileConfig(cmd)
+	},
 	Run:   runNode,
 }
 
@@ -442,6 +452,49 @@ var NodeCmd = &cobra.Command{
 // are distributed. Production binaries are required to be built from source by
 // guardians to reduce risk from a compromised builder.
 var Build = "prod"
+
+func initFileConfig(cmd *cobra.Command) error {
+	v := viper.New()
+
+	v.SetConfigName(defaultConfigFilename)
+	// Look for config file in home directory
+	v.AddConfigPath("/app/node")
+
+	if err := v.ReadInConfig(); err != nil {
+		// It's okay if there isn't a config file
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return err
+		}
+	}
+
+	// TODO: Not sure if we need to support env vars but leaving it here for now
+	// // Bind flags to environment variables with a common prefix to avoid conflicts
+	// // Example: --ethRPC will be bound to GUARDIAN_ETHRPC
+	// v.SetEnvPrefix(envPrefix)
+
+	// // Bind to environment variables
+	// // Works great for simple config names, but needs help for names
+	// // like --favorite-color which we fix in the bindFlags function
+	// v.AutomaticEnv()
+
+	// Bind the current command's flags to viper
+	bindFlags(cmd, v)
+
+	return nil
+}
+
+func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Determine the naming convention of the flags when represented in the config file
+		configName := f.Name
+
+		// Apply the viper config value to the flag when the flag is not set and viper has a value
+		if !f.Changed && v.IsSet(configName) {
+			val := v.Get(configName)
+			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
+}
 
 func runNode(cmd *cobra.Command, args []string) {
 	if Build == "dev" && !*unsafeDevMode {
