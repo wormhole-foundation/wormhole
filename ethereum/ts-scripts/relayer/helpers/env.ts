@@ -205,71 +205,61 @@ export function loadGuardianSetIndex(): number {
 export function loadDeliveryProviders(): Deployment[] {
   const contracts = readContracts();
   if (contracts.useLastRun) {
-    const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`,
+    const lastRun = loadLastRun(
+      "deployDeliveryProvider",
+      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
     );
-    if (!lastRunFile) {
-      throw Error(
-        "Failed to find last run file for the deployDeliveryProvider process!",
-      );
+    if (lastRun !== undefined) {
+      return {...contracts.deliveryProviders, ...lastRun.deliveryProviderProxies};
     }
-    const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.deliveryProviderProxies;
-  } else if (contracts.useLastRun == false) {
-    return contracts.deliveryProviders;
-  } else {
-    throw Error("useLastRun was an invalid value from the contracts config");
   }
+
+  return contracts.deliveryProviders;
 }
 
 export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contracts = readContracts();
+  // TODO: do we really want this dev flag?
+  const wormholeRelayers = dev ? contracts.wormholeRelayersDev : contracts.wormholeRelayers;
   if (contracts.useLastRun) {
-    const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`,
+    const lastRun = loadLastRun(
+      "deployWormholeRelayer",
+      `Failed to open last run file for WormholeRelayer proxy contracts. Using only the addresses provided in contracts.json`
     );
-    if (!lastRunFile) {
-      throw Error("Failed to find last run file for the Core Relayer process!");
+    if (lastRun !== undefined) {
+      return {...wormholeRelayers, ...lastRun.wormholeRelayerProxies};
     }
-    const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.wormholeRelayerProxies;
-  } else {
-    return dev ? contracts.wormholeRelayersDev : contracts.wormholeRelayers;
   }
+
+  return wormholeRelayers;
 }
 
 export function loadMockIntegrations(): Deployment[] {
   const contracts = readContracts();
   if (contracts.useLastRun) {
-    const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployMockIntegration/lastrun.json`,
+    const lastRun = loadLastRun(
+      "deployMockIntegration",
+      `Failed to open last run file for MockIntegration contracts. Using only the addresses provided in contracts.json`
     );
-    if (!lastRunFile) {
-      throw Error(
-        "Failed to find last run file for the deploy mock integration process!",
-      );
+    if (lastRun !== undefined) {
+      return {...contracts.mockIntegrations, ...lastRun.mockIntegrations};
     }
-    const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.mockIntegrations;
-  } else {
-    return contracts.mockIntegrations;
   }
+
+  return contracts.mockIntegrations;
 }
 
 export function loadWormholeRelayerImplementations(): Deployment[] {
   const contracts = readContracts();
 
   if (contracts.useLastRun) {
-    const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployWormholeRelayerImplementation/lastrun.json`,
+    const lastRun = loadLastRun(
+      "deployWormholeRelayerImplementation",
+      `Failed to open last run file for WormholeRelayer implementations. Using only the addresses provided in contracts.json`
     );
-    if (!lastRunFile) {
-      throw Error(
-        "Failed to find last run file for the deployWormholeRelayerImplementation process!",
-      );
+    if (lastRun !== undefined) {
+      return {...contracts.wormholeRelayerImplementations, ...lastRun.wormholeRelayerImplementations};
     }
-    const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.wormholeRelayerImplementations;
   }
 
   return contracts.wormholeRelayerImplementations;
@@ -278,19 +268,16 @@ export function loadWormholeRelayerImplementations(): Deployment[] {
 export function loadCreate2Factories(): Deployment[] {
   const contracts = readContracts();
   if (contracts.useLastRun) {
-    const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`,
+    const lastRun = loadLastRun(
+      "deployCreate2Factory",
+      `Failed to open last run file for create2 factories. Using only the addresses provided in contracts.json`
     );
-    if (!lastRunFile) {
-      throw Error(
-        "Failed to find last run file for the deployCreate2Factory process!",
-      );
+    if (lastRun !== undefined) {
+      return {...contracts.create2Factories, ...lastRun.create2Factories};
     }
-    const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.create2Factories;
-  } else {
-    return contracts.create2Factories;
   }
+
+  return contracts.create2Factories;
 }
 
 //TODO load these keys more intelligently,
@@ -343,7 +330,7 @@ export function writeOutputFiles(output: unknown, processName: string) {
   );
 }
 
-export function loadLastRun(processName: string): any {
+export function loadLastRun(processName: string, errorMessage: string): any {
   try {
     return JSON.parse(
       fs.readFileSync(
@@ -353,6 +340,7 @@ export function loadLastRun(processName: string): any {
     );
   } catch (error: unknown) {
     if (error instanceof Error && (error as any).code === "ENOENT") {
+      console.error(errorMessage);
       return undefined;
     } else {
       throw error;
