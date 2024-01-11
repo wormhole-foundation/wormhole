@@ -20,7 +20,7 @@
       "description": "BSC Testnet",
       "evmNetworkId": 97,
       "chainId": 4,
-      "rpc": "https://bsc-testnet.public.blastapi.io",
+      "rpc": "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
       "wormholeAddress": "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"
     },
     {
@@ -78,6 +78,27 @@
       "chainId": 10002,
       "rpc": "https://ethereum-sepolia.publicnode.com",
       "wormholeAddress": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"
+    },
+    {
+      "description": "Arbitrum Sepolia",
+      "evmNetworkId": 421614,
+      "chainId": 10003,
+      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
+      "wormholeAddress": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"
+    },
+    {
+      "description": "Optimism Sepolia",
+      "evmNetworkId": 11155420,
+      "chainId": 10005,
+      "rpc": "https://sepolia.optimism.io",
+      "wormholeAddress": "0x27812285fbe85BA1DF242929B906B31EE3dd1b9f"
+    },
+    {
+      "description": "Base Sepolia",
+      "evmNetworkId": 84532,
+      "chainId": 10004,
+      "rpc": "https://sepolia.base.org",
+      "wormholeAddress": "0x268557122Ffd64c85750d630b716471118F323c8"
     }
   ]
 }
