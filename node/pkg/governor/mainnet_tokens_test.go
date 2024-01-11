@@ -12,9 +12,10 @@ import (
 func TestTokenListSize(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assuming that governed tokens will need to be updated every time
-	   we regenerate it */
-	assert.Equal(t, 875, len(tokenConfigEntries))
+	// We should have a sensible number of tokens
+	// These numbers shouldn't have to change frequently
+	assert.Greater(t, len(tokenConfigEntries), 1000)
+	assert.Less(t, len(tokenConfigEntries), 2000)
 }
 
 func TestTokenListAddressSize(t *testing.T) {

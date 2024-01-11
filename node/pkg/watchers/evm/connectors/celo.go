@@ -15,7 +15,9 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
@@ -128,12 +130,12 @@ func (c *CeloConnector) TransactionReceipt(ctx context.Context, txHash ethCommon
 }
 
 func (c *CeloConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	block, err := c.client.BlockByHash(ctx, celoCommon.BytesToHash(hash.Bytes()))
+	block, err := c.client.HeaderByHash(ctx, celoCommon.BytesToHash(hash.Bytes()))
 	if err != nil {
 		return 0, err
 	}
 
-	return block.Time(), err
+	return block.Time, err
 }
 
 func (c *CeloConnector) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
@@ -167,9 +169,24 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 					c.logger.Error("new header block number is nil")
 					continue
 				}
+				hash := ethCommon.BytesToHash(ev.Hash().Bytes())
 				sink <- &NewBlock{
-					Number: ev.Number,
-					Hash:   ethCommon.BytesToHash(ev.Hash().Bytes()),
+					Number:   ev.Number,
+					Hash:     hash,
+					Time:     ev.Time,
+					Finality: Finalized,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Time:     ev.Time,
+					Finality: Safe,
+				}
+				sink <- &NewBlock{
+					Number:   ev.Number,
+					Hash:     hash,
+					Time:     ev.Time,
+					Finality: Latest,
 				}
 			}
 		}
@@ -193,6 +210,14 @@ func (c *CeloConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.Batc
 		}
 	}
 	return c.rawClient.BatchCallContext(ctx, celoB)
+}
+
+func (c *CeloConnector) Client() *ethClient.Client {
+	panic("unimplemented")
+}
+
+func (c *CeloConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	panic("unimplemented")
 }
 
 func convertCeloEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {

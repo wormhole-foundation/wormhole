@@ -55,7 +55,7 @@ msg := MsgExecuteContract{
 
 ### ICS20 packet structure
 
-So given the details above, we propogate the implied ICS20 packet data structure.
+So given the details above, we propagate the implied ICS20 packet data structure.
 ICS20 is JSON native, so we use JSON for the memo format.
 
 ```json 

@@ -19,14 +19,6 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-# Node
-ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
-ENV NODE_OPTIONS=--use-openssl-ca
-# npm
-RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
-# git
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
 COPY --chown=node:node ./ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
 
 #Path matters so as to not break imports

@@ -9,6 +9,9 @@ spec:
     - name: rest
       port: 6069
       protocol: TCP
+    - name: status
+      port: 6068
+      protocol: TCP
   selector:
     app: query-server
 ---
@@ -41,6 +44,8 @@ spec:
             - node/cmd/ccq/devnet.signing.key
             - --listenAddr
             - "[::]:6069"
+            - --statusAddr
+            - "[::]:6068"
             - --permFile
             - "node/cmd/ccq/devnet.permissions.json"
             - --ethRPC
@@ -51,10 +56,16 @@ spec:
             - --bootstrap
             - /dns4/guardian-0.guardian/udp/8996/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
             - --logLevel=info
+            - --shutdownDelay1
+            - "0"
           ports:
             - containerPort: 6069
               name: rest
               protocol: TCP
+            - containerPort: 6068
+              name: status
+              protocol: TCP
           readinessProbe:
-            tcpSocket:
-              port: rest
+            httpGet:
+              port: status
+              path: /health

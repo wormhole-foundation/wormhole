@@ -7,6 +7,7 @@ import {
   ContractCodeHistoryEntry,
   Model,
   AccessConfig,
+  Params,
 } from "../../../cosmwasm/wasm/v1/types";
 import {
   PageRequest,
@@ -187,6 +188,37 @@ export interface QueryPinnedCodesRequest {
 export interface QueryPinnedCodesResponse {
   code_ids: number[];
   /** pagination defines the pagination in the response. */
+  pagination: PageResponse | undefined;
+}
+
+/** QueryParamsRequest is the request type for the Query/Params RPC method. */
+export interface QueryParamsRequest {}
+
+/** QueryParamsResponse is the response type for the Query/Params RPC method. */
+export interface QueryParamsResponse {
+  /** params defines the parameters of the module. */
+  params: Params | undefined;
+}
+
+/**
+ * QueryContractsByCreatorRequest is the request type for the
+ * Query/ContractsByCreator RPC method.
+ */
+export interface QueryContractsByCreatorRequest {
+  /** CreatorAddress is the address of contract creator */
+  creator_address: string;
+  /** Pagination defines an optional pagination for the request. */
+  pagination: PageRequest | undefined;
+}
+
+/**
+ * QueryContractsByCreatorResponse is the response type for the
+ * Query/ContractsByCreator RPC method.
+ */
+export interface QueryContractsByCreatorResponse {
+  /** ContractAddresses result set */
+  contract_addresses: string[];
+  /** Pagination defines the pagination in the response. */
   pagination: PageResponse | undefined;
 }
 
@@ -1820,6 +1852,304 @@ export const QueryPinnedCodesResponse = {
   },
 };
 
+const baseQueryParamsRequest: object = {};
+
+export const QueryParamsRequest = {
+  encode(_: QueryParamsRequest, writer: Writer = Writer.create()): Writer {
+    return writer;
+  },
+
+  decode(input: Reader | Uint8Array, length?: number): QueryParamsRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseQueryParamsRequest } as QueryParamsRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): QueryParamsRequest {
+    const message = { ...baseQueryParamsRequest } as QueryParamsRequest;
+    return message;
+  },
+
+  toJSON(_: QueryParamsRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial(_: DeepPartial<QueryParamsRequest>): QueryParamsRequest {
+    const message = { ...baseQueryParamsRequest } as QueryParamsRequest;
+    return message;
+  },
+};
+
+const baseQueryParamsResponse: object = {};
+
+export const QueryParamsResponse = {
+  encode(
+    message: QueryParamsResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.params !== undefined) {
+      Params.encode(message.params, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: Reader | Uint8Array, length?: number): QueryParamsResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseQueryParamsResponse } as QueryParamsResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.params = Params.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryParamsResponse {
+    const message = { ...baseQueryParamsResponse } as QueryParamsResponse;
+    if (object.params !== undefined && object.params !== null) {
+      message.params = Params.fromJSON(object.params);
+    } else {
+      message.params = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryParamsResponse): unknown {
+    const obj: any = {};
+    message.params !== undefined &&
+      (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+    return obj;
+  },
+
+  fromPartial(object: DeepPartial<QueryParamsResponse>): QueryParamsResponse {
+    const message = { ...baseQueryParamsResponse } as QueryParamsResponse;
+    if (object.params !== undefined && object.params !== null) {
+      message.params = Params.fromPartial(object.params);
+    } else {
+      message.params = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryContractsByCreatorRequest: object = { creator_address: "" };
+
+export const QueryContractsByCreatorRequest = {
+  encode(
+    message: QueryContractsByCreatorRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.creator_address !== "") {
+      writer.uint32(10).string(message.creator_address);
+    }
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryContractsByCreatorRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryContractsByCreatorRequest,
+    } as QueryContractsByCreatorRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.creator_address = reader.string();
+          break;
+        case 2:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryContractsByCreatorRequest {
+    const message = {
+      ...baseQueryContractsByCreatorRequest,
+    } as QueryContractsByCreatorRequest;
+    if (
+      object.creator_address !== undefined &&
+      object.creator_address !== null
+    ) {
+      message.creator_address = String(object.creator_address);
+    } else {
+      message.creator_address = "";
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryContractsByCreatorRequest): unknown {
+    const obj: any = {};
+    message.creator_address !== undefined &&
+      (obj.creator_address = message.creator_address);
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryContractsByCreatorRequest>
+  ): QueryContractsByCreatorRequest {
+    const message = {
+      ...baseQueryContractsByCreatorRequest,
+    } as QueryContractsByCreatorRequest;
+    if (
+      object.creator_address !== undefined &&
+      object.creator_address !== null
+    ) {
+      message.creator_address = object.creator_address;
+    } else {
+      message.creator_address = "";
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryContractsByCreatorResponse: object = { contract_addresses: "" };
+
+export const QueryContractsByCreatorResponse = {
+  encode(
+    message: QueryContractsByCreatorResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.contract_addresses) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryContractsByCreatorResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryContractsByCreatorResponse,
+    } as QueryContractsByCreatorResponse;
+    message.contract_addresses = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.contract_addresses.push(reader.string());
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryContractsByCreatorResponse {
+    const message = {
+      ...baseQueryContractsByCreatorResponse,
+    } as QueryContractsByCreatorResponse;
+    message.contract_addresses = [];
+    if (
+      object.contract_addresses !== undefined &&
+      object.contract_addresses !== null
+    ) {
+      for (const e of object.contract_addresses) {
+        message.contract_addresses.push(String(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryContractsByCreatorResponse): unknown {
+    const obj: any = {};
+    if (message.contract_addresses) {
+      obj.contract_addresses = message.contract_addresses.map((e) => e);
+    } else {
+      obj.contract_addresses = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryContractsByCreatorResponse>
+  ): QueryContractsByCreatorResponse {
+    const message = {
+      ...baseQueryContractsByCreatorResponse,
+    } as QueryContractsByCreatorResponse;
+    message.contract_addresses = [];
+    if (
+      object.contract_addresses !== undefined &&
+      object.contract_addresses !== null
+    ) {
+      for (const e of object.contract_addresses) {
+        message.contract_addresses.push(e);
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query provides defines the gRPC querier service */
 export interface Query {
   /** ContractInfo gets the contract meta data */
@@ -1854,6 +2184,12 @@ export interface Query {
   PinnedCodes(
     request: QueryPinnedCodesRequest
   ): Promise<QueryPinnedCodesResponse>;
+  /** Params gets the module params */
+  Params(request: QueryParamsRequest): Promise<QueryParamsResponse>;
+  /** ContractsByCreator gets the contracts by creator */
+  ContractsByCreator(
+    request: QueryContractsByCreatorRequest
+  ): Promise<QueryContractsByCreatorResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -1968,6 +2304,26 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryPinnedCodesResponse.decode(new Reader(data))
+    );
+  }
+
+  Params(request: QueryParamsRequest): Promise<QueryParamsResponse> {
+    const data = QueryParamsRequest.encode(request).finish();
+    const promise = this.rpc.request("cosmwasm.wasm.v1.Query", "Params", data);
+    return promise.then((data) => QueryParamsResponse.decode(new Reader(data)));
+  }
+
+  ContractsByCreator(
+    request: QueryContractsByCreatorRequest
+  ): Promise<QueryContractsByCreatorResponse> {
+    const data = QueryContractsByCreatorRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "cosmwasm.wasm.v1.Query",
+      "ContractsByCreator",
+      data
+    );
+    return promise.then((data) =>
+      QueryContractsByCreatorResponse.decode(new Reader(data))
     );
   }
 }

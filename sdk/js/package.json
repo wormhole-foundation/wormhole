@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.10.5",
+  "version": "0.10.8",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -39,7 +39,7 @@
     "sdk",
     "solana",
     "ethereum",
-    "terra", 
+    "terra",
     "bsc"
   ],
   "author": "certusone",
@@ -70,7 +70,7 @@
     "web3": "^1.6.1"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk-proto-web": "0.0.6",
+    "@certusone/wormhole-sdk-proto-web": "0.0.7",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@coral-xyz/borsh": "0.2.6",
     "@mysten/sui.js": "0.32.2",

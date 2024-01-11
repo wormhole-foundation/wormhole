@@ -42,7 +42,7 @@ const (
 var (
 	nonce = uint32(0)
 
-	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC}
+	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC, vaa.ChainIDArbitrum}
 )
 
 // createPerChainQueryForEthCall creates a per chain query for an eth_call for use in tests. The To and Data fields are meaningless gibberish, not ABI.
@@ -94,6 +94,35 @@ func createPerChainQueryForEthCallByTimestamp(
 		TargetBlockIdHint:    targetBlock,
 		FollowingBlockIdHint: followingBlock,
 		CallData:             ethCallData,
+	}
+
+	return &PerChainQueryRequest{
+		ChainId: chainId,
+		Query:   callRequest,
+	}
+}
+
+// createPerChainQueryForEthCallWithFinality creates a per chain query for an eth_call_with_finality for use in tests. The To and Data fields are meaningless gibberish, not ABI.
+func createPerChainQueryForEthCallWithFinality(
+	t *testing.T,
+	chainId vaa.ChainID,
+	blockId string,
+	finality string,
+	numCalls int,
+) *PerChainQueryRequest {
+	t.Helper()
+	ethCallData := []*EthCallData{}
+	for count := 0; count < numCalls; count++ {
+		ethCallData = append(ethCallData, &EthCallData{
+			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
+			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+		})
+	}
+
+	callRequest := &EthCallWithFinalityQueryRequest{
+		BlockId:  blockId,
+		Finality: finality,
+		CallData: ethCallData,
 	}
 
 	return &PerChainQueryRequest{
@@ -181,7 +210,25 @@ func createExpectedResultsForTest(t *testing.T, perChainQueries []*PerChainQuery
 				ChainId:  pcq.ChainId,
 				Response: resp,
 			})
-
+		case *EthCallWithFinalityQueryRequest:
+			now := time.Now()
+			blockNum, err := strconv.ParseUint(strings.TrimPrefix(req.BlockId, "0x"), 16, 64)
+			if err != nil {
+				panic("invalid blockNum!")
+			}
+			resp := &EthCallQueryResponse{
+				BlockNumber: blockNum,
+				Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+				Time:        timeForTest(t, now),
+				Results:     [][]byte{},
+			}
+			for _, cd := range req.CallData {
+				resp.Results = append(resp.Results, []byte(hex.EncodeToString(cd.To)+":"+hex.EncodeToString(cd.Data)))
+			}
+			expectedResults = append(expectedResults, PerChainQueryResponse{
+				ChainId:  pcq.ChainId,
+				Response: resp,
+			})
 		default:
 			panic("Invalid call data type!")
 		}
@@ -531,7 +578,30 @@ func TestSingleEthCallByTimestampQueryShouldSucceed(t *testing.T) {
 	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
 }
 
-func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
+func TestSingleEthCallWithFinalityQueryShouldSucceed(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
+
+	// Create the request and the expected results. Give the expected results to the mock.
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCallWithFinality(t, vaa.ChainIDPolygon, "0x28d9630", "safe", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
+	md.setExpectedResults(expectedResults)
+
+	// Submit the query request to the handler.
+	md.signedQueryReqWriteC <- signedQueryRequest
+
+	// Wait until we receive a response or timeout.
+	queryResponsePublication := md.waitForResponse()
+	require.NotNil(t, queryResponsePublication)
+
+	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDPolygon))
+	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
+}
+
+func TestBatchOfMultipleQueryTypesShouldSucceed(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
 
@@ -541,6 +611,7 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 	perChainQueries := []*PerChainQueryRequest{
 		createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
 		createPerChainQueryForEthCallByTimestamp(t, vaa.ChainIDBSC, "0x28d9123", "0x28d9124", 3),
+		createPerChainQueryForEthCallWithFinality(t, vaa.ChainIDArbitrum, "0x28d9123", "finalized", 3),
 	}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
@@ -555,6 +626,7 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 
 	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDPolygon))
 	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDBSC))
+	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDArbitrum))
 	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
 }
 

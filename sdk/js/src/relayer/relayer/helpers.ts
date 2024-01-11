@@ -16,7 +16,7 @@ import {
   getWormholeRelayerAddress,
   getCircleAPI,
   getWormscanAPI,
-  CCTP_DOMAIN_TO_NAME,
+  getNameFromCCTPDomain,
 } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
@@ -82,9 +82,9 @@ export function printChain(chainId: number) {
 }
 
 export function printCCTPDomain(domain: number) {
-  if (domain >= CCTP_DOMAIN_TO_NAME.length)
+  if (getNameFromCCTPDomain(domain) === undefined)
     throw Error(`Invalid cctp domain: ${domain}`);
-  return `${CCTP_DOMAIN_TO_NAME[domain]} (Domain ${domain})`;
+  return `${getNameFromCCTPDomain(domain)} (Domain ${domain})`;
 }
 
 export const estimatedAttestationTimeInSeconds = (
@@ -532,11 +532,15 @@ export async function getCCTPMessageLogURL(
   let cctpLog;
   let messageSentLog;
   const DepositForBurnTopic = ethers.utils.keccak256(
-    "DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)"
+    ethers.utils.toUtf8Bytes(
+      "DepositForBurn(uint64,address,uint256,address,bytes32,uint32,bytes32,bytes32)"
+    )
   );
-  const MessageSentTopic = ethers.utils.keccak256("MessageSent(bytes)");
+  const MessageSentTopic = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("MessageSent(bytes)")
+  );
   try {
-    if (CCTP_DOMAIN_TO_NAME[cctpKey.domain] === sourceChain) {
+    if (getNameFromCCTPDomain(cctpKey.domain) === sourceChain) {
       const cctpLogFilter = (log: ethers.providers.Log) => {
         return (
           log.topics[0] === DepositForBurnTopic &&

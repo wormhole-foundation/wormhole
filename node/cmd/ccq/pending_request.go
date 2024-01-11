@@ -26,7 +26,8 @@ type PendingResponses struct {
 
 func NewPendingResponses() *PendingResponses {
 	return &PendingResponses{
-		pendingResponses: make(map[string]*PendingResponse),
+		// Make this channel bigger than the number of responses we ever expect to get for a query.
+		pendingResponses: make(map[string]*PendingResponse, 100),
 	}
 }
 
@@ -57,4 +58,10 @@ func (p *PendingResponses) Remove(r *PendingResponse) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.pendingResponses, signature)
+}
+
+func (p *PendingResponses) NumPending() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.pendingResponses)
 }

@@ -116,7 +116,11 @@ const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
 // for generating governance wormhole messages
 const governance = new GovernanceEmitter(GOVERNANCE_EMITTER_ADDRESS);
 
-const guardianIndices = ci ? [0, 1] : [0];
+const guardianIndices = process.env.NUM_GUARDIANS
+  ? [...Array(parseInt(process.env.NUM_GUARDIANS)).keys()]
+  : ci
+  ? [0, 1]
+  : [0];
 
 const REASONABLE_GAS_LIMIT = 500000;
 const TOO_LOW_GAS_LIMIT = 10000;

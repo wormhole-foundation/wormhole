@@ -8,6 +8,6 @@ while [ $(curl localhost:26657/status -ks | jq ".result.sync_info.latest_block_h
   sleep 1
 done
 
-sleep 2
+sleep 5
 
 node deploy.js

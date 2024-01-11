@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.10.8
+
+### Added
+
+Holesky support
+
+## 0.10.7
+
+### Added
+
+Arbitrum on Sepolia support
+
+Base on Sepolia support
+
+Optimism on Sepolia support
+
+## 0.10.6
+
+### Added
+
+Celestia support
+
+Scroll testnet support
+
+### Changes
+
+Solana WrappedMeta deserialization fix
+
 ## 0.10.5
 
 ### Changes

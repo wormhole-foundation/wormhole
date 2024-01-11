@@ -232,9 +232,9 @@ export const getCircleAPI = (environment: Network) => {
 export const getWormscanAPI = (_network: Network) => {
   switch (_network) {
     case "MAINNET":
-      return "https://api.wormscan.io/";
+      return "https://api.wormholescan.io/";
     case "TESTNET":
-      return "https://api.testnet.wormscan.io/";
+      return "https://api.testnet.wormholescan.io/";
     default:
       // possible extension for tilt/ci - search through the guardian api
       // at localhost:7071 (tilt) or guardian:7071 (ci)
@@ -242,10 +242,13 @@ export const getWormscanAPI = (_network: Network) => {
   }
 };
 
-export const CCTP_DOMAIN_TO_NAME = [
-  "ethereum",
-  "avalanche",
-  "optimism",
-  "arbitrum",
-  "base",
-];
+export const getNameFromCCTPDomain = (
+  domain: number
+): ChainName | undefined => {
+  if (domain === 0) return "ethereum";
+  else if (domain === 1) return "avalanche";
+  else if (domain === 2) return "optimism";
+  else if (domain === 3) return "arbitrum";
+  else if (domain === 6) return "base";
+  else return undefined;
+};

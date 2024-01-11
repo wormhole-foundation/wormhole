@@ -173,9 +173,7 @@ describe("Sui SDK tests", () => {
         attestSequence,
         {
           transport: NodeHttpTransport(),
-        },
-        1000,
-        5
+        }
       );
     const slicedAttestVAA = sliceVAASignatures(attestVAA);
     console.log(Buffer.from(slicedAttestVAA).toString("hex"));
@@ -274,7 +272,7 @@ describe("Sui SDK tests", () => {
       console.log(JSON.stringify(updateWrappedTxRes.effects, null, 2));
     expect(updateWrappedTxRes.effects?.status.status).toBe("success");
 
-    // Check if update was propogated to coin metadata
+    // Check if update was propagated to coin metadata
     const newCoinMetadata = await suiProvider.getCoinMetadata({
       coinType: getWrappedCoinType(coinPackageId),
     });
@@ -340,9 +338,7 @@ describe("Sui SDK tests", () => {
       ethSequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     const slicedTransferFromEthVAA = sliceVAASignatures(transferFromEthVAA);
     expect(slicedTransferFromEthVAA).toBeTruthy();
@@ -417,9 +413,7 @@ describe("Sui SDK tests", () => {
       sequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      5
+      }
     );
     expect(transferFromSuiVAA).toBeTruthy();
 
@@ -499,9 +493,7 @@ describe("Sui SDK tests", () => {
       attestSequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      30
+      }
     );
     console.log(parseAttestMetaVaa(attestVAA));
     expect(attestVAA).toBeTruthy();
@@ -561,9 +553,7 @@ describe("Sui SDK tests", () => {
     //     sequence!,
     //     {
     //       transport: NodeHttpTransport(),
-    //     },
-    //     1000,
-    //     30
+    //     }
     //   );
 
     //   // Redeem on Ethereum
@@ -610,9 +600,7 @@ describe("Sui SDK tests", () => {
     //     ethSequence,
     //     {
     //       transport: NodeHttpTransport(),
-    //     },
-    //     1000,
-    //     30
+    //     }
     //   );
     //   const slicedVAA = sliceVAASignatures(ethTransferVAA);
 
@@ -671,9 +659,7 @@ describe("Sui SDK tests", () => {
       attestSequence,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      30
+      }
     );
     expect(attestVAA).toBeTruthy();
 
@@ -740,9 +726,7 @@ describe("Sui SDK tests", () => {
       sequence!,
       {
         transport: NodeHttpTransport(),
-      },
-      1000,
-      30
+      }
     );
     const { tokenTransferPayload } = parseTokenTransferVaa(transferVAA);
     expect(tokenTransferPayload.toString()).toBe(payload.toString());

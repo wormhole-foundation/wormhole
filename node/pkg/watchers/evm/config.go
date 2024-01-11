@@ -17,9 +17,6 @@ type WatcherConfig struct {
 	Rpc                    string             // RPC URL
 	Contract               string             // hex representation of the contract address
 	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
-	WaitForConfirmations   bool               // (optional)
-	RootChainRpc           string             // (optional)
-	RootChainContract      string             // (optional)
 	L1FinalizerRequired    watchers.NetworkID // (optional)
 	l1Finalizer            interfaces.L1Finalizer
 }
@@ -58,10 +55,6 @@ func (wc *WatcherConfig) Create(
 	var devMode bool = (env == common.UnsafeDevNet)
 
 	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, devMode)
-	watcher.SetWaitForConfirmations(wc.WaitForConfirmations)
-	if err := watcher.SetRootChainParams(wc.RootChainRpc, wc.RootChainContract); err != nil {
-		return nil, nil, err
-	}
 	watcher.SetL1Finalizer(wc.l1Finalizer)
 	return watcher, watcher.Run, nil
 }

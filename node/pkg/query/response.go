@@ -97,6 +97,16 @@ type EthCallByTimestampQueryResponse struct {
 	Results [][]byte
 }
 
+// EthCallWithFinalityQueryResponse implements ChainSpecificResponse for an EVM eth_call_with_finality query response.
+type EthCallWithFinalityQueryResponse struct {
+	BlockNumber uint64
+	Hash        common.Hash
+	Time        time.Time
+
+	// Results is the array of responses matching CallData in EthCallQueryRequest
+	Results [][]byte
+}
+
 //
 // Implementation of QueryResponsePublication.
 //
@@ -256,7 +266,7 @@ func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) boo
 	return true
 }
 
-func (resp *QueryResponsePublication) RequestID() string {
+func (resp *QueryResponsePublication) Signature() string {
 	if resp == nil || resp.Request == nil {
 		return "nil"
 	}
@@ -347,6 +357,12 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 			return fmt.Errorf("failed to unmarshal eth call by timestamp response: %w", err)
 		}
 		perChainResponse.Response = &r
+	case EthCallWithFinalityQueryRequestType:
+		r := EthCallWithFinalityQueryResponse{}
+		if err := r.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal eth call with finality response: %w", err)
+		}
+		perChainResponse.Response = &r
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -405,6 +421,13 @@ func (left *PerChainQueryResponse) Equal(right *PerChainQueryResponse) bool {
 	case *EthCallByTimestampQueryResponse:
 		switch rightEcd := right.Response.(type) {
 		case *EthCallByTimestampQueryResponse:
+			return leftEcq.Equal(rightEcd)
+		default:
+			panic("unsupported query type on right") // We checked this above!
+		}
+	case *EthCallWithFinalityQueryResponse:
+		switch rightEcd := right.Response.(type) {
+		case *EthCallWithFinalityQueryResponse:
 			return leftEcq.Equal(rightEcd)
 		default:
 			panic("unsupported query type on right") // We checked this above!
@@ -679,6 +702,128 @@ func (left *EthCallByTimestampQueryResponse) Equal(right *EthCallByTimestampQuer
 	}
 
 	if left.FollowingBlockTime != right.FollowingBlockTime {
+		return false
+	}
+
+	if len(left.Results) != len(right.Results) {
+		return false
+	}
+	for idx := range left.Results {
+		if !bytes.Equal(left.Results[idx], right.Results[idx]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+//
+// Implementation of EthCallWithFinalityQueryResponse, which implements the ChainSpecificResponse for an EVM eth_call_with_finality query response.
+//
+
+func (e *EthCallWithFinalityQueryResponse) Type() ChainSpecificQueryType {
+	return EthCallWithFinalityQueryRequestType
+}
+
+// Marshal serializes the binary representation of an EVM eth_call response.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (ecr *EthCallWithFinalityQueryResponse) Marshal() ([]byte, error) {
+	if err := ecr.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, ecr.BlockNumber)
+	buf.Write(ecr.Hash[:])
+	vaa.MustWrite(buf, binary.BigEndian, ecr.Time.UnixMicro())
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results)))
+	for idx := range ecr.Results {
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx])))
+		buf.Write(ecr.Results[idx])
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes an EVM eth_call response from a byte array
+func (ecr *EthCallWithFinalityQueryResponse) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return ecr.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes an EVM eth_call response from a byte array
+func (ecr *EthCallWithFinalityQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
+	if err := binary.Read(reader, binary.BigEndian, &ecr.BlockNumber); err != nil {
+		return fmt.Errorf("failed to read response number: %w", err)
+	}
+
+	responseHash := common.Hash{}
+	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
+		return fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+	}
+	ecr.Hash = responseHash
+
+	unixMicros := int64(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
+		return fmt.Errorf("failed to read response timestamp: %w", err)
+	}
+	ecr.Time = time.UnixMicro(unixMicros)
+
+	numResults := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResults); err != nil {
+		return fmt.Errorf("failed to read number of results: %w", err)
+	}
+
+	for count := 0; count < int(numResults); count++ {
+		resultLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &resultLen); err != nil {
+			return fmt.Errorf("failed to read result len: %w", err)
+		}
+		result := make([]byte, resultLen)
+		if n, err := reader.Read(result[:]); err != nil || n != int(resultLen) {
+			return fmt.Errorf("failed to read result [%d]: %w", n, err)
+		}
+
+		ecr.Results = append(ecr.Results, result)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on an EVM eth_call response.
+func (ecr *EthCallWithFinalityQueryResponse) Validate() error {
+	// Not checking for BlockNumber == 0, because maybe that could happen??
+
+	if len(ecr.Hash) != 32 {
+		return fmt.Errorf("invalid length for block hash")
+	}
+
+	if len(ecr.Results) <= 0 {
+		return fmt.Errorf("does not contain any results")
+	}
+	if len(ecr.Results) > math.MaxUint8 {
+		return fmt.Errorf("too many results")
+	}
+	for _, result := range ecr.Results {
+		if len(result) > math.MaxUint32 {
+			return fmt.Errorf("result too long")
+		}
+	}
+	return nil
+}
+
+// Equal verifies that two EVM eth_call responses are equal.
+func (left *EthCallWithFinalityQueryResponse) Equal(right *EthCallWithFinalityQueryResponse) bool {
+	if left.BlockNumber != right.BlockNumber {
+		return false
+	}
+
+	if !bytes.Equal(left.Hash.Bytes(), right.Hash.Bytes()) {
+		return false
+	}
+
+	if left.Time != right.Time {
 		return false
 	}
 

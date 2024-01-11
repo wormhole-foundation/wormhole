@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import * as elliptic from "elliptic";
 
 export function isValidHexString(s: string): boolean {
@@ -13,6 +14,14 @@ export function hexToUint8Array(s: string): Uint8Array {
   }
   s.padStart(s.length + (s.length % 2), "0");
   return new Uint8Array(Buffer.from(s, "hex"));
+}
+
+export function uint8ArrayToHex(b: Uint8Array) {
+  return `0x${Buffer.from(b).toString("hex")}`;
+}
+
+export function coalesceUint8Array(b: string | Uint8Array): Uint8Array {
+  return typeof b === "string" ? hexToUint8Array(b) : b;
 }
 
 /**

@@ -114,7 +114,10 @@ pub fn convert_and_transfer(
         .load(deps.storage)
         .context("could not load token bridge contract address")?;
 
-    ensure!(info.funds.len() == 1, "no bridging coin included");
+    ensure!(
+        info.funds.len() == 1,
+        "info.funds should contain only 1 coin"
+    );
     let bridging_coin = info.funds[0].clone();
     let cw20_contract_addr = parse_bank_token_factory_contract(deps, env, bridging_coin.clone())?;
 

@@ -886,7 +886,7 @@ async function testNearSDK() {
   console.log("wallet addr: " + algoWallet.addr);
   console.log("usdcAssetId: " + usdcAssetId);
 
-  console.log("transfering USDC from Algo To Near... getting the vaa");
+  console.log("transferring USDC from Algo To Near... getting the vaa");
   console.log("myAddress: " + myAddress);
 
   let transferAlgoToNearUSDC;
@@ -921,7 +921,7 @@ async function testNearSDK() {
     ).vaaBytes;
   }
 
-  console.log("YYY transfering rando from Algo To Near... getting the vaa");
+  console.log("YYY transferring rando from Algo To Near... getting the vaa");
   let transferAlgoToNearRando;
   {
     const Fee: number = 0;
@@ -953,7 +953,7 @@ async function testNearSDK() {
     ).vaaBytes;
   }
 
-  console.log("transfering NEAR from Algo To Near... getting the vaa");
+  console.log("transferring NEAR from Algo To Near... getting the vaa");
   let transferAlgoToNearNEAR;
   {
     const AmountToTransfer: number = 100;
@@ -1119,7 +1119,7 @@ async function testNearSDK() {
     );
 
     console.log(
-      "YYY P3 transfering rando from Algo To Near... getting the vaa"
+      "YYY P3 transferring rando from Algo To Near... getting the vaa"
     );
     let transferAlgoToNearRandoP3;
     {

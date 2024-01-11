@@ -63,7 +63,15 @@ func setFeatures(f string) {
 
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
-	Chains = []vaa.ChainID{vaa.ChainIDSei}
+	Chains = []vaa.ChainID{
+		vaa.ChainIDOsmosis,
+		vaa.ChainIDSei,
+		vaa.ChainIDCosmoshub,
+		vaa.ChainIDEvmos,
+		vaa.ChainIDKujira,
+		vaa.ChainIDNeutron,
+		vaa.ChainIDCelestia,
+	}
 
 	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	features = ""
@@ -98,6 +106,7 @@ type (
 	Watcher struct {
 		wsUrl           string
 		lcdUrl          string
+		blockHeightUrl  string
 		contractAddress string
 		logger          *zap.Logger
 
@@ -128,6 +137,7 @@ type (
 func NewWatcher(
 	wsUrl string,
 	lcdUrl string,
+	blockHeightUrl string,
 	contractAddress string,
 	chainConfig ChainConfig,
 ) *Watcher {
@@ -162,6 +172,7 @@ func NewWatcher(
 	return &Watcher{
 		wsUrl:                 wsUrl,
 		lcdUrl:                lcdUrl,
+		blockHeightUrl:        blockHeightUrl,
 		contractAddress:       contractAddress,
 		chainMap:              chainMap,
 		channelIdToChainIdMap: make(map[string]vaa.ChainID),
@@ -205,12 +216,17 @@ func (w *Watcher) Run(ctx context.Context) error {
 		zap.String("watcher_name", "ibc"),
 		zap.String("wsUrl", w.wsUrl),
 		zap.String("lcdUrl", w.lcdUrl),
+		zap.String("blockHeightUrl", w.blockHeightUrl),
 		zap.String("contractAddress", w.contractAddress),
 	)
 
 	errC := make(chan error)
 
-	blockHeightUrl := convertWsUrlToHttpUrl(w.wsUrl) + "/abci_info"
+	blockHeightUrl := w.blockHeightUrl
+	if blockHeightUrl == "" {
+		blockHeightUrl = convertWsUrlToHttpUrl(w.wsUrl)
+	}
+	blockHeightUrl = blockHeightUrl + "/abci_info"
 
 	w.logger.Info("creating watcher",
 		zap.String("wsUrl", w.wsUrl),
@@ -271,6 +287,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Start a routine for each chain to listen for observation requests.
 	for _, ce := range w.chainMap {
+		ce := ce // Avoid data race.
 		common.RunWithScissors(ctx, errC, "ibc_objs_req", func(ctx context.Context) error {
 			return w.handleObservationRequests(ctx, ce)
 		})
@@ -350,8 +367,8 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 // convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
 // used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
 func convertWsUrlToHttpUrl(url string) string {
-	//
 	url = strings.TrimPrefix(url, "ws://")
+	url = strings.TrimPrefix(url, "wss://")
 	url = strings.TrimSuffix(url, "/websocket")
 	return "http://" + url
 }
