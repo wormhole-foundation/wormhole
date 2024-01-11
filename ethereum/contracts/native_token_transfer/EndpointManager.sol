@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity >=0.6.12 <0.9.0;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -14,7 +15,7 @@ import "./interfaces/IEndpointManager.sol";
 import "./interfaces/IEndpoint.sol";
 import "./interfaces/IEndpointToken.sol";
 
-contract EndpointManager is IEndpointManager, OwnableUpgradeable {
+contract EndpointManager is IEndpointManager, OwnableUpgradeable, ReentrancyGuard {
     using BytesParsing for bytes;
 
     address immutable token;
@@ -59,7 +60,7 @@ contract EndpointManager is IEndpointManager, OwnableUpgradeable {
         uint256 amount,
         uint16 recipientChain,
         bytes32 recipient
-    ) external payable returns (uint64 msgSequence) {
+    ) external payable nonReentrant returns (uint64 msgSequence) {
         // check up front that msg.value will cover the delivery price
         uint256 totalPriceQuote = 0;
         uint256[] memory endpointQuotes = new uint256[](endpoints.length);
