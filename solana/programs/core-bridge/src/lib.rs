@@ -20,6 +20,7 @@ pub mod legacy;
 
 mod processor;
 pub(crate) use processor::*;
+pub use processor::WriteEncodedVaaArgs;
 
 pub mod sdk;
 
