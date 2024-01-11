@@ -180,7 +180,7 @@ export function getChain(chain: ChainId): ChainInfo {
   const chains = loadChains();
   const output = chains.find((x) => x.chainId == chain);
   if (!output) {
-    throw Error("Bad chain ID");
+    throw Error(`Bad chain ID ${chain}`);
   }
 
   return output;
@@ -189,7 +189,7 @@ export function getChain(chain: ChainId): ChainInfo {
 export function loadPrivateKey(): string {
   const privateKey = get_env_var("WALLET_KEY");
   if (!privateKey) {
-    throw Error("Failed to find private key for this process!");
+    throw Error("WALLET_KEY must be explicitly set.");
   }
   return privateKey;
 }

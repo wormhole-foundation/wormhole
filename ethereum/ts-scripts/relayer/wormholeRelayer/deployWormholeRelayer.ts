@@ -32,20 +32,17 @@ async function run() {
 
   for (const chain of operation.operatingChains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
-    const coreRelayerImplementation = await deployWormholeRelayerImplementation(
+    const relayerImplementation = await deployWormholeRelayerImplementation(
       chain,
     );
     const coreRelayerProxy = await deployWormholeRelayerProxy(
       chain,
-      coreRelayerImplementation.address,
+      relayerImplementation.address,
       getDeliveryProviderAddress(chain),
     );
 
-    deployments.wormholeRelayerImplementations.push(
-      coreRelayerImplementation,
-    );
+    deployments.wormholeRelayerImplementations.push(relayerImplementation);
     deployments.wormholeRelayerProxies.push(coreRelayerProxy);
-    console.log("");
   }
 
   writeOutputFiles(deployments, processName);
