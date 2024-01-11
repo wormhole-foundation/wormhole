@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.9
+
+### Changes
+
+Algorand: prevent creation of unnecessary transactions
+
 ## 0.10.8
 
 ### Added
