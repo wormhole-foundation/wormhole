@@ -1,4 +1,4 @@
-import { ChainId, tryHexToNativeString, tryNativeToHexString } from "@certusone/wormhole-sdk";
+import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { BigNumberish, utils, ContractReceipt } from 'ethers';
 import {
   init,
@@ -69,7 +69,7 @@ async function run() {
   console.log(`Start! ${processName}`);
   
   const updateTasks = operatingChains.map((chain) =>
-  updateDeliveryProviderConfiguration(config, chain)
+    updateDeliveryProviderConfiguration(config, chain)
   );
   const results = await Promise.allSettled(updateTasks);
   for (const result of results) {
@@ -209,7 +209,7 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
   }
 
   if (receipt.status !== 1) {
-    const err = new Error(
+    throw new Error(
       `Updates failed on operating chain ${chain.chainId}. Tx id ${receipt.transactionHash}`
     );
   }
