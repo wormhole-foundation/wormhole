@@ -1,3 +1,7 @@
+## 0.0.7
+
+Add EthCallByTimestamp mock support
+
 ## 0.0.6
 
 Deserialization support
