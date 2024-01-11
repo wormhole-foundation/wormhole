@@ -7,7 +7,7 @@ use wormhole_raw_vaas::Vaa;
 
 pub(super) const ENCODED_VAA_DISCRIMINATOR: [u8; 8] =
     <state::EncodedVaa as anchor_lang::Discriminator>::DISCRIMINATOR;
-pub const VAA_START: usize = state::EncodedVaa::VAA_START;
+const VAA_START: usize = state::EncodedVaa::VAA_START;
 
 /// Account used to warehouse VAA buffer.
 pub struct EncodedVaa<'a>(Ref<'a, &'a mut [u8]>);

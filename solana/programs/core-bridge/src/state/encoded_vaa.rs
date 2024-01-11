@@ -74,7 +74,7 @@ pub struct EncodedVaa {
 
 impl EncodedVaa {
     /// Index of the first byte of the VAA buffer.
-    pub(crate) const VAA_START: usize = 8 // DISCRIMINATOR
+    pub const VAA_START: usize = 8 // DISCRIMINATOR
         + crate::state::Header::INIT_SPACE
         + 4 // bytes.len()
     ;
