@@ -53,8 +53,9 @@ func TestInitFileConfig(t *testing.T) {
 		cmd.Execute()
 
 		gotOutput := output.String()
-		wantOutput := "ethRPC: ws://eth-config-file:8545\nsolRPC: ws://sol-config-file:8545\n"
-
+		wantOutput := `ethRPC: ws://eth-config-file:8545
+solRPC: ws://sol-config-file:8545
+`
 		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the config file default")
 	})
 
@@ -68,7 +69,9 @@ func TestInitFileConfig(t *testing.T) {
 		cmd.Execute()
 
 		gotOutput := output.String()
-		wantOutput := "ethRPC: ws://eth-env-var:8545\nsolRPC: ws://sol-config-file:8545\n"
+		wantOutput := `ethRPC: ws://eth-env-var:8545
+solRPC: ws://sol-config-file:8545
+`
 
 		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the environment variable and solRPC to use the config file default")
 	})
@@ -90,7 +93,9 @@ func TestInitFileConfig(t *testing.T) {
 		cmd.Execute()
 
 		gotOutput := output.String()
-		wantOutput := "ethRPC: ws://eth-flag:8545\nsolRPC: ws://sol-flag:8545\n"
+		wantOutput := `ethRPC: ws://eth-flag:8545
+solRPC: ws://sol-flag:8545
+`
 
 		assert.Equal(t, wantOutput, gotOutput, "expected the ethRPC to use the flag value and solRPC to use the flag value")
 	})
