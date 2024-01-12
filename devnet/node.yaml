@@ -71,7 +71,7 @@ spec:
               name: node-rundir
             - mountPath: /tmp/mounted-keys/wormchain
               name: node-wormchain-key
-            - mountPath: /app/node
+            - mountPath: /app/node/config
               name: node-config
           command:
             - /guardiand
