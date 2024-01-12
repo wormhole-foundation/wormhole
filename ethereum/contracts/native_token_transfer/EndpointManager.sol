@@ -336,6 +336,10 @@ contract EndpointManager is
             revert InvalidEndpointZeroAddress();
         }
 
+        if (numRegisteredEndpoints >= MAX_ENDPOINTS) {
+            revert TooManyEndpoints();
+        }
+
         if (endpointInfos[endpoint].registered) {
             endpointInfos[endpoint].enabled = true;
         } else {
