@@ -51,7 +51,7 @@ func TestInitFileConfig(t *testing.T) {
 		cmd := NewTestRootCommand()
 		output := &bytes.Buffer{}
 		cmd.SetOut(output)
-		cmd.Execute()
+		_ = cmd.Execute()
 
 		gotOutput := output.String()
 		wantOutput := `ethRPC: ws://eth-config-file:8545
@@ -69,7 +69,7 @@ solRPC: ws://sol-config-file:8545
 		cmd := NewTestRootCommand()
 		output := &bytes.Buffer{}
 		cmd.SetOut(output)
-		cmd.Execute()
+		_ = cmd.Execute()
 
 		gotOutput := output.String()
 		wantOutput := `ethRPC: ws://eth-env-var:8545
@@ -94,7 +94,7 @@ solRPC: ws://sol-config-file:8545
 			"--solRPC",
 			"ws://sol-flag:8545",
 		})
-		cmd.Execute()
+		_ = cmd.Execute()
 
 		gotOutput := output.String()
 		wantOutput := `ethRPC: ws://eth-flag:8545
