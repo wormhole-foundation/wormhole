@@ -420,7 +420,7 @@ var (
 var (
 	configFilename = "guardian"
 	configPath     = "/app/node/config"
-	eithernvPrefix = "GUARDIAN"
+	envPrefix      = "GUARDIAN"
 )
 
 // "Why would anyone do this?" are famous last words.
@@ -444,7 +444,7 @@ var NodeCmd = &cobra.Command{
 		return node.InitFileConfig(cmd, node.ConfigOptions{
 			FilePath:  configPath,
 			FileName:  configFilename,
-			EnvPrefix: eithernvPrefix,
+			EnvPrefix: envPrefix,
 		})
 	},
 	Run: runNode,

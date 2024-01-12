@@ -14,21 +14,23 @@ type ConfigOptions struct {
 	EnvPrefix string
 }
 
+// InitFileConfig initializes configuration according to the following precedence:
+// 1. Command line flags
+// 2. Environment variables
+// 3. Config file
+// 4. Cobra default values
 func InitFileConfig(cmd *cobra.Command, options ConfigOptions) error {
 	v := viper.New()
 
 	v.SetConfigName(options.FileName)
-	// Look for config file in home directory
 	v.AddConfigPath(options.FilePath)
 
 	if err := v.ReadInConfig(); err != nil {
-		// It's okay if there isn't a config file
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
 		}
 	}
 
-	// TODO: Not sure if we need to support env vars but leaving it here for now
 	// Bind flags to environment variables with a common prefix to avoid conflicts
 	// Example: --ethRPC will be bound to GUARDIAN_ETHRPC
 	v.SetEnvPrefix(options.EnvPrefix)

@@ -46,6 +46,7 @@ func NewTestRootCommand() *cobra.Command {
 
 func TestInitFileConfig(t *testing.T) {
 	// Set ethRPC with config file
+	// Tests that the config file is read and the default value is set
 	t.Run("config file", func(t *testing.T) {
 		cmd := NewTestRootCommand()
 		output := &bytes.Buffer{}
@@ -59,6 +60,8 @@ solRPC: ws://sol-config-file:8545
 		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the config file default")
 	})
 
+	// Set ethRPC with an environment variable
+	// Tests that environment variables take precedence over config file values
 	t.Run("env var", func(t *testing.T) {
 		os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
 		defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
@@ -77,6 +80,7 @@ solRPC: ws://sol-config-file:8545
 	})
 
 	// Set ethRPC with a flag
+	// Tests that flags take precedence over environment variables and config file values
 	t.Run("flag", func(t *testing.T) {
 		os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
 		defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
