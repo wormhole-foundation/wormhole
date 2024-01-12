@@ -20,12 +20,6 @@ set scan_tokens_file $_flag_scan_tokens
 
 set chains_file "ts-scripts/relayer/config/$ENV/chains.json"
 set contracts_file "ts-scripts/relayer/config/$ENV/contracts.json"
-# TODO: add implementation addresses to `contracts.json` to allow using it instead of lastrun.json
-set last_run_file "ts-scripts/relayer/output/$ENV/deployWormholeRelayer/lastrun.json"
-if not test -e $last_run_file
-    echo "$last_run_file does not exist. Delivery provider addresses are read from this file."
-    exit 1
-end
 
 set chain_ids (string split \n --no-empty -- (jq '.chains[] | .chainId' $chains_file))
 
@@ -36,8 +30,8 @@ for chain in $chain_ids
     end
 
     # We need addresses to be unquoted when passed to `cast` and `forge verify-contract`
-    set implementation_address (jq --raw-output ".wormholeRelayerImplementations[] | select(.chainId == $chain) | .address" $last_run_file)
-    set proxy_address (jq --raw-output ".wormholeRelayerProxies[] | select(.chainId == $chain) | .address" $last_run_file)
+    set implementation_address (jq --raw-output ".wormholeRelayerImplementations[] | select(.chainId == $chain) | .address" $contracts_file)
+    set proxy_address (jq --raw-output ".wormholeRelayers[] | select(.chainId == $chain) | .address" $contracts_file)
     set create2_factory_address (jq --raw-output ".create2Factories[] | select(.chainId == $chain) | .address" $contracts_file)
     # TODO: actually consult this from `worm` CLI
     # Perhaps the value present in the chains file can be used as a fallback when the current version of the `worm` program doesn't know about
