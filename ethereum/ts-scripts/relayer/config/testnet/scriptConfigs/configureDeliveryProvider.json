@@ -59,6 +59,21 @@
       "chainId": 10002,
       "updatePriceGas": "20000000000",
       "updatePriceNative": "2000000"
+    },
+    {
+      "chainId": 10003,
+      "updatePriceGas": "20000000000",
+      "updatePriceNative": "2000000"
+    },
+    {
+      "chainId": 10004,
+      "updatePriceGas": "20000000000",
+      "updatePriceNative": "2000000"
+    },
+    {
+      "chainId": 10005,
+      "updatePriceGas": "20000000000",
+      "updatePriceNative": "2000000"
     }
   ],
   "deliveryGasOverheads": [
@@ -104,6 +119,18 @@
     },
     {
       "chainId": 10002,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 10003,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 10004,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 10005,
       "updateGasOverhead": "500000"
     }
   ],
@@ -155,6 +182,18 @@
     {
       "chainId": 10002,
       "updateMaximumBudget": "13262599470000000000"
+    },
+    {
+      "chainId": 10003,
+      "updateMaximumBudget": "13262599470000000000"
+    },
+    {
+      "chainId": 10004,
+      "updateMaximumBudget": "13262599470000000000"
+    },
+    {
+      "chainId": 10005,
+      "updateMaximumBudget": "13262599470000000000"
     }
   ],
   "rewardAddresses": [
@@ -205,6 +244,18 @@
     {
       "chainId": 10002,
       "rewardAddress": "0x734D539a7efEE15714a2755caa4280e12EF3d7e4"
+    },
+    {
+      "chainId": 10003,
+      "rewardAddress": "0x734D539a7efEE15714a2755caa4280e12EF3d7e4"
+    },
+    {
+      "chainId": 10004,
+      "rewardAddress": "0x734D539a7efEE15714a2755caa4280e12EF3d7e4"
+    },
+    {
+      "chainId": 10005,
+      "rewardAddress": "0x734D539a7efEE15714a2755caa4280e12EF3d7e4"
     }
   ],
   "supportedChains": [
@@ -254,6 +305,18 @@
     },
     {
       "chainId": 10002,
+      "isSupported": true
+    },
+    {
+      "chainId": 10003,
+      "isSupported": true
+    },
+    {
+      "chainId": 10004,
+      "isSupported": true
+    },
+    {
+      "chainId": 10005,
       "isSupported": true
     }
   ]
