@@ -43,7 +43,8 @@ func NewTestRootCommand() *cobra.Command {
 }
 
 func TestInitFileConfig(t *testing.T) {
-	t.Run("Config File", func(t *testing.T) {
+	// Set ethRPC with config file
+	t.Run("config file", func(t *testing.T) {
 		cmd := NewTestRootCommand()
 		output := &bytes.Buffer{}
 		cmd.SetOut(output)
@@ -53,5 +54,19 @@ func TestInitFileConfig(t *testing.T) {
 		wantOutput := "ethRPC: ws://eth-devnet:8545\n"
 
 		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC from the config file default")
+	})
+
+	// Set ethRPC with a flag
+	t.Run("flag", func(t *testing.T) {
+		cmd := NewTestRootCommand()
+		output := &bytes.Buffer{}
+		cmd.SetOut(output)
+		cmd.SetArgs([]string{"--ethRPC", "ws://eth-devnet2:8545"})
+		cmd.Execute()
+
+		gotOutput := output.String()
+		wantOutput := "ethRPC: ws://eth-devnet2:8545\n"
+
+		assert.Equal(t, wantOutput, gotOutput, "expected the ethRPC to use the flag value")
 	})
 }
