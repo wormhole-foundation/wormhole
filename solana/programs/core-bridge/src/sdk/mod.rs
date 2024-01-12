@@ -29,10 +29,10 @@ pub use crate::{
     constants::{PROGRAM_EMITTER_SEED_PREFIX, SOLANA_CHAIN},
     id,
     legacy::instruction::PostMessageArgs,
-    processor::{InitMessageV1Args, WriteMessageV1Args},
+    processor::{InitMessageV1Args, WriteMessageV1Args, WriteEncodedVaaArgs},
     state,
     types::*,
-    utils::vaa::{EmitterInfo, VaaAccount},
+    utils::vaa::{VAA_START, EmitterInfo, VaaAccount},
 };
 #[doc(inline)]
 #[cfg(feature = "cpi")]
