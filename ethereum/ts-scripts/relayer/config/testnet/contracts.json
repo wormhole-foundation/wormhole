@@ -119,48 +119,60 @@
   ],
   "wormholeRelayerImplementations": [
     {
-      "address": "0xA82aE5F6784D07580e83cf02bA162D48b81f8316",
-      "chainId": 2
+      "address":"0x501dfADfF70dfdB72fE41cbD242613716600bafF",
+      "chainId":2
     },
     {
-      "address": "0x43c97e924E117F92FD022DA33C238c57Ee9954D6",
-      "chainId": 4
+      "address":"0xDbbAcbDA8685353ED4DDf7945B4Ea920d9119A90",
+      "chainId":4
     },
     {
-      "address": "0x43c97e924E117F92FD022DA33C238c57Ee9954D6",
-      "chainId": 5
+      "address":"0x9a1aA99018C7Cb689e41066ACbD7CFB2b27EF5E3",
+      "chainId":5
     },
     {
-      "address": "0x43c97e924E117F92FD022DA33C238c57Ee9954D6",
-      "chainId": 6
+      "address":"0xcb32823B33e5c099609788a50B8768eDf922bB1c",
+      "chainId":6
     },
     {
-      "address": "0x00337a31aEE3Ed37f5D5FBF892031d0090Da2EeF",
-      "chainId": 10
+      "address":"0x5364FA2a8ebcd0CAD0E12dfd25246365FB94874A",
+      "chainId":10
     },
     {
-      "address": "0x43c97e924E117F92FD022DA33C238c57Ee9954D6",
-      "chainId": 14
+      "address":"0xd9C241330eC2E2bdf3a862B40eEF473b80b30723",
+      "chainId":14
     },
     {
-      "address": "0x43c97e924E117F92FD022DA33C238c57Ee9954D6",
-      "chainId": 16
+      "address":"0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD",
+      "chainId":16
     },
     {
-      "address": "0xDbbAcbDA8685353ED4DDf7945B4Ea920d9119A90",
-      "chainId": 23
+      "address":"0x41B9fE6b7B77349a3AD2Ee83e7EF55951C35ea88",
+      "chainId":23
     },
     {
-      "address": "0x6bF3695Afd9B7169A3761c5D314efC89964cec62",
-      "chainId": 24
+      "address":"0x1e507e74Cc89d7D1a573524B9Cd8ceDe82eb8d85",
+      "chainId":24
     },
     {
-      "address": "0xc11548d2785DF7BDE8DcD3724eB43a625fc08109",
-      "chainId": 30
+      "address":"0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD",
+      "chainId":30
     },
     {
-      "address": "0x00337a31aEE3Ed37f5D5FBF892031d0090Da2EeF",
-      "chainId": 10002
+      "address":"0xDbbAcbDA8685353ED4DDf7945B4Ea920d9119A90",
+      "chainId":10002
+    },
+    {
+      "address":"0x1EfA946b0Ac2e3357a38124Fd1bAa7139048d689",
+      "chainId":10003
+    },
+    {
+      "address":"0x1EfA946b0Ac2e3357a38124Fd1bAa7139048d689",
+      "chainId":10004
+    },
+    {
+      "address":"0x1EfA946b0Ac2e3357a38124Fd1bAa7139048d689",
+      "chainId":10005
     }
   ],
   "mockIntegrations": [
