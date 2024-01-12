@@ -233,4 +233,4 @@ metadata:
   name: node-config
 data:
   guardian.yaml: |
-    ethRPC: "ws://eth-devnet2:8545"
+    ethRPC: "ws://eth-devnet:8545"
