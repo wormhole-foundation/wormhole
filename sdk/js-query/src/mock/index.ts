@@ -1,4 +1,5 @@
 import axios from "axios";
+import base58 from "bs58";
 import { Buffer } from "buffer";
 import {
   ChainQueryType,
@@ -13,6 +14,9 @@ import {
   QueryRequest,
   QueryResponse,
   sign,
+  SolanaAccountQueryRequest,
+  SolanaAccountQueryResponse,
+  SolanaAccountResult,
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
 
@@ -345,6 +349,88 @@ export class QueryProxyMock {
               followingBlockResult.hash, // hash
               followingTimestamp,
               callResults.map((callResult: any) => callResult.result)
+            )
+          )
+        );
+      } else if (type === ChainQueryType.SolanaAccount) {
+        const query = perChainRequest.query as SolanaAccountQueryRequest;
+        // Validate the request.
+        if (
+          query.commitment !== "finalized" &&
+          query.commitment !== "confirmed"
+        ) {
+          throw new Error(
+            `Invalid commitment in sol_account query request, must be "finalized" or "confirmed"`
+          );
+        }
+        if (
+          query.dataSliceLength === BigInt(0) &&
+          query.dataSliceOffset !== BigInt(0)
+        ) {
+          throw new Error(
+            `data slice offset may not be set if data slice length is zero`
+          );
+        }
+        if (query.accounts.length <= 0) {
+          throw new Error(`does not contain any account entries`);
+        }
+        if (query.accounts.length > 255) {
+          throw new Error(`too many account entries`);
+        }
+
+        let accounts: string[] = [];
+        query.accounts.forEach((acct) => {
+          if (acct.length != 32) {
+            throw new Error(`invalid account length`);
+          }
+          accounts.push(base58.encode(acct));
+        });
+
+        const response = await axios.post(rpc, {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getMultipleAccounts",
+          params: [accounts, { commitment: query.commitment }],
+        });
+
+        const slotNumber = response.data.result.context.slot;
+        let results: SolanaAccountResult[] = [];
+        response.data.result.value.forEach((v: Object) => {
+          const val = v as SolanaAccountResult;
+          results.push({
+            lamports: BigInt(val.lamports),
+            rentEpoch: BigInt(val.rentEpoch),
+            executable: Boolean(val.executable),
+            owner: Uint8Array.from(base58.decode(val.owner.toString())),
+            data: Uint8Array.from(
+              Buffer.from(val.data[0].toString(), "base64")
+            ),
+          });
+        });
+
+        const response2 = await axios.post(rpc, {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getBlock",
+          params: [slotNumber, { commitment: query.commitment }],
+        });
+
+        const blockTime = response2.data.result.blockTime;
+        const blockHash = response2.data.result.blockhash;
+
+        const junk = new SolanaAccountQueryResponse(
+          BigInt(slotNumber),
+          BigInt(blockTime),
+          results
+        );
+
+        queryResponse.responses.push(
+          new PerChainQueryResponse(
+            perChainRequest.chainId,
+            new SolanaAccountQueryResponse(
+              BigInt(slotNumber),
+              BigInt(blockTime),
+              results
             )
           )
         );

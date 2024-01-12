@@ -16,10 +16,12 @@ import {
   QueryProxyMock,
   QueryProxyQueryResponse,
   QueryRequest,
+  SolanaAccountQueryRequest,
 } from "..";
 
 jest.setTimeout(60000);
 
+const SOLANA_NODE_URL = "http://localhost:8899";
 const POLYGON_NODE_URL = "https://polygon-mumbai-bor.publicnode.com";
 const ARBITRUM_NODE_URL = "https://arbitrum-goerli.publicnode.com";
 const QUERY_URL = "https://testnet.ccq.vaa.dev/v1/query";
@@ -28,6 +30,7 @@ let mock: QueryProxyMock;
 
 beforeAll(() => {
   mock = new QueryProxyMock({
+    1: SOLANA_NODE_URL,
     5: POLYGON_NODE_URL,
     23: ARBITRUM_NODE_URL,
   });
@@ -35,7 +38,7 @@ beforeAll(() => {
 
 afterAll(() => {});
 
-describe.skip("mocks match testnet", () => {
+describe("mocks match testnet", () => {
   test("EthCallQueryRequest mock matches testnet", async () => {
     const blockNumber = (
       await axios.post(POLYGON_NODE_URL, {
@@ -231,5 +234,20 @@ describe.skip("mocks match testnet", () => {
         "eth_call_by_timestamp desired timestamp falls outside of block range"
       );
     }
+  });
+  test("SolAccount to devnet", async () => {
+    const accounts = [
+      "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
+      "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+    ];
+
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaAccountQueryRequest("finalized", accounts)
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    console.log("SolAccount: resp: ", resp);
   });
 });
