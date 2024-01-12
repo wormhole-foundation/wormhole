@@ -20,7 +20,21 @@ contract TestEndpointManager is Test {
     Wormhole wormhole;
     EndpointManager endpointManager;
 
+    function test_countSetBits() public {
+        assertEq(endpointManager.countSetBits(5), 2);
+        assertEq(endpointManager.countSetBits(0), 0);
+        assertEq(endpointManager.countSetBits(15), 4);
+        assertEq(endpointManager.countSetBits(16), 1);
+        assertEq(endpointManager.countSetBits(65535), 16);
+    }
+
     function setUp() public {
+        endpointManager = new EndpointManagerContract(
+            address(0),
+            false,
+            0,
+            0
+        );
         // deploy sample token contract
         // deploy wormhole contract
         // wormhole = deployWormholeForTest();
