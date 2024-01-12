@@ -421,6 +421,23 @@ export async function getWormholeRelayerAddress(
   }
 }
 
+export async function getWormholeRelayerImplementationAddress(
+  chain: ChainInfo,
+): Promise<string> {
+
+  const thisChainsRelayer = loadWormholeRelayerImplementations().find(
+    (x) => x.chainId == chain.chainId,
+  )?.address;
+  if (thisChainsRelayer) {
+    return thisChainsRelayer;
+  } else {
+    throw Error(
+      "Failed to find a WormholeRelayer implementation contract address on chain " +
+        chain.chainId,
+    );
+  }
+}
+
 export async function getWormholeRelayer(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider,
