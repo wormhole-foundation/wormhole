@@ -26,7 +26,7 @@ async function main() {
   const contracts: ContractsJson = JSON.parse(contractsFile);
   console.log(`Old:\n${contractsFile}`);
   contracts.create2Factories = loadCreate2Factories();
-  contracts.wormholeRelayers = loadWormholeRelayers();
+  contracts.wormholeRelayers = loadWormholeRelayers(false);
   contracts.wormholeRelayerImplementations = loadWormholeRelayerImplementations();
   contracts.deliveryProviders = loadDeliveryProviders();
   contracts.mockIntegrations = loadMockIntegrations();
