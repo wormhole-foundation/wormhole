@@ -8,11 +8,14 @@ interface IEndpointManager {
         uint256 providedPayment
     );
     error MessageAttestationAlreadyReceived(bytes32 msgHash, address endpoint);
+    error MessageAlreadyExecuted(bytes32 msgHash);
     error UnexpectedEndpointManagerMessageType(uint8 msgType);
     error InvalidTargetChain(uint16 targetChain, uint16 thisChain);
     error InvalidEndpointZeroAddress();
     error AlreadyRegisteredEndpoint(address endpoint);
     error NonRegisteredEndpoint(address endpoint);
+    error DisabledEndpoint(address endpoint);
+    error TooManyEndpoints();
     error InvalidFork(uint256 evmChainId, uint256 blockChainId);
 
     event EndpointAdded(address endpoint);
