@@ -1,1 +1,2 @@
-ethRPC: "ws://eth-devnet:8545"
+ethRPC: "ws://eth-config-file:8545"
+solRPC: "ws://sol-config-file:8545"

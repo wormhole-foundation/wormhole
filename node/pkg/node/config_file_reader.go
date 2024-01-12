@@ -34,8 +34,6 @@ func InitFileConfig(cmd *cobra.Command, options ConfigOptions) error {
 	v.SetEnvPrefix(options.EnvPrefix)
 
 	// Bind to environment variables
-	// Works great for simple config names, but needs help for names
-	// like --favorite-color which we fix in the bindFlags function
 	v.AutomaticEnv()
 
 	// Bind the current command's flags to viper
