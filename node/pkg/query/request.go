@@ -212,6 +212,10 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 		queryRequest.PerChainQueries = append(queryRequest.PerChainQueries, &perChainQuery)
 	}
 
+	if reader.Len() != 0 {
+		return fmt.Errorf("excess bytes in unmarshal")
+	}
+
 	return nil
 }
 

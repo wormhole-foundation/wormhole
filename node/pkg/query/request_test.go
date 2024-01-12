@@ -104,6 +104,17 @@ func TestQueryRequestMarshalUnmarshal(t *testing.T) {
 	assert.True(t, queryRequest.Equal(&queryRequest2))
 }
 
+func TestQueryRequestUnmarshalWithExtraBytesShouldFail(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	queryRequestBytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	withExtraBytes := append(queryRequestBytes, []byte("Hello, World!")[:]...)
+	var queryRequest2 QueryRequest
+	err = queryRequest2.Unmarshal(withExtraBytes)
+	assert.EqualError(t, err, "excess bytes in unmarshal")
+}
+
 func TestMarshalOfQueryRequestWithNoPerChainQueriesShouldFail(t *testing.T) {
 	queryRequest := &QueryRequest{
 		Nonce: 1,
