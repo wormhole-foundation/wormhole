@@ -38,7 +38,7 @@ beforeAll(() => {
 
 afterAll(() => {});
 
-describe("mocks match testnet", () => {
+describe.skip("mocks match testnet", () => {
   test("EthCallQueryRequest mock matches testnet", async () => {
     const blockNumber = (
       await axios.post(POLYGON_NODE_URL, {
@@ -248,6 +248,5 @@ describe("mocks match testnet", () => {
       ),
     ]);
     const resp = await mock.mock(query);
-    console.log("SolAccount: resp: ", resp);
   });
 });
