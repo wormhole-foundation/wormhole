@@ -64,18 +64,27 @@ struct EthCallData {
 }
 
 // Custom errors
+error EmptyWormholeAddress();
 error InvalidResponseVersion();
 error VersionMismatch();
+error ZeroQueries();
 error NumberOfResponsesMismatch();
 error ChainIdMismatch();
 error RequestTypeMismatch();
 error UnsupportedQueryType();
 error UnexpectedNumberOfResults();
 error InvalidPayloadLength(uint256 received, uint256 expected);
+error InvalidContractAddress();
+error InvalidFunctionSignature();
+error InvalidChainId();
+error StaleBlockNum();
+error StaleBlockTime();
 
 // @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
 abstract contract QueryResponse {
     using BytesParsing for bytes;
+
+    IWormhole public immutable wormhole;
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
     uint8 public constant VERSION = 1;
@@ -83,6 +92,14 @@ abstract contract QueryResponse {
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
     uint8 public constant QT_MAX = 4; // Keep this last
+
+    constructor(address _wormhole) {
+        if (_wormhole == address(0)) {
+            revert EmptyWormholeAddress();
+        }
+
+        wormhole = IWormhole(_wormhole);
+    }
 
     /// @dev getResponseHash computes the hash of the specified query response.
     function getResponseHash(bytes memory response) public pure returns (bytes32) {
@@ -95,8 +112,8 @@ abstract contract QueryResponse {
     }
     
     /// @dev parseAndVerifyQueryResponse verifies the query response and returns the parsed response.
-    function parseAndVerifyQueryResponse(address wormhole, bytes memory response, IWormhole.Signature[] memory signatures) public view returns (ParsedQueryResponse memory r) {
-        verifyQueryResponseSignatures(wormhole, response, signatures);
+    function parseAndVerifyQueryResponse(bytes memory response, IWormhole.Signature[] memory signatures) public view returns (ParsedQueryResponse memory r) {
+        verifyQueryResponseSignatures(response, signatures);
 
         uint index = 0;
         
@@ -118,19 +135,28 @@ abstract contract QueryResponse {
         (len, index) = response.asUint32Unchecked(index); // query_request_len
         uint reqIdx = index;
 
-        uint8 version;
-        (version, reqIdx) = response.asUint8Unchecked(reqIdx);
-        if (version != r.version) {
-            revert VersionMismatch();
+        // Scope to avoid stack-too-deep error
+        {
+            uint8 version;
+            (version, reqIdx) = response.asUint8Unchecked(reqIdx);
+            if (version != r.version) {
+                revert VersionMismatch();
+            }
         }
 
         (r.nonce, reqIdx) = response.asUint32Unchecked(reqIdx);
 
         uint8 numPerChainQueries;
         (numPerChainQueries, reqIdx) = response.asUint8Unchecked(reqIdx);
+        
+        // A valid query request has at least one per chain query
+        if (numPerChainQueries == 0) {
+            revert ZeroQueries();
+        }
 
         // The response starts after the request.
         uint respIdx = index + len;
+        uint startOfResponse = respIdx;
 
         uint8 respNumPerChainQueries;
         (respNumPerChainQueries, respIdx) = response.asUint8Unchecked(respIdx);
@@ -167,6 +193,11 @@ abstract contract QueryResponse {
             (r.responses[idx].response, respIdx) = response.sliceUnchecked(respIdx, len);
 
             unchecked { ++idx; }
+        }
+
+        // End of request body should align with start of response body
+        if (startOfResponse != reqIdx) {
+            revert InvalidPayloadLength(startOfResponse, reqIdx);
         }
 
         checkLength(response, respIdx);
@@ -326,13 +357,107 @@ abstract contract QueryResponse {
         checkLength(pcr.response, respIdx);
     }
 
+    /// @dev validateBlockTime validates that the parsed block time isn't stale
+    /// @param _blockTime Wormhole block time in MICROseconds
+    /// @param _minBlockTime Minium block time in seconds
+    function validateBlockTime(uint64 _blockTime, uint256 _minBlockTime) public pure {
+        uint256 blockTimeInSeconds = _blockTime / 1_000_000; // Rounds down
+        
+        if (blockTimeInSeconds < _minBlockTime) {
+            revert StaleBlockTime();
+        }
+    }
+
+    /// @dev validateBlockNum validates that the parsed blockNum isn't stale
+    function validateBlockNum(uint64 _blockNum, uint256 _minBlockNum) public pure {
+        if (_blockNum < _minBlockNum) {
+            revert StaleBlockNum();
+        }
+    } 
+
+    /// @dev validateChainId validates that the parsed chainId is one of an array of chainIds we expect
+    function validateChainId(uint16 chainId, uint16[] memory _validChainIds) public pure {
+        bool validChainId = false;
+
+        uint256 numChainIds = _validChainIds.length;
+        
+        for (uint256 idx = 0; idx < numChainIds;) {
+            if (chainId == _validChainIds[idx]) {
+                validChainId = true;
+                break;
+            }
+
+            unchecked { ++idx; }
+        }
+
+        if (!validChainId) revert InvalidChainId();
+    } 
+
+    /// @dev validateMutlipleEthCallData validates that each EthCallData in an array comes from a function signature and contract address we expect
+    function validateMultipleEthCallData(EthCallData[] memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
+        uint256 callDatasLength = r.length;
+        
+        for (uint256 idx = 0; idx < callDatasLength;) {
+            validateEthCallData(r[idx], _expectedContractAddresses, _expectedFunctionSignatures);
+
+            unchecked { ++idx; }
+        }
+    }
+
+    /// @dev validateEthCallData validates that EthCallData comes from a function signature and contract address we expect
+    /// @dev An empty array means we accept all addresses/function signatures
+    /// @dev Example 1: To accept signatures 0xaaaaaaaa and 0xbbbbbbbb from `address(abcd)` you'd pass in [0xaaaaaaaa, 0xbbbbbbbb], [address(abcd)]
+    /// @dev Example 2: To accept any function signatures from `address(abcd)` or `address(efab)` you'd pass in [], [address(abcd), address(efab)]
+    /// @dev Example 3: To accept function signature 0xaaaaaaaa from any address you'd pass in [0xaaaaaaaa], []
+    /// @dev WARNING Example 4: If you want to accept signature 0xaaaaaaaa from `address(abcd)` and signature 0xbbbbbbbb from `address(efab)` the following input would be incorrect:
+    /// @dev [0xaaaaaaaa, 0xbbbbbbbb], [address(abcd), address(efab)]
+    /// @dev This would accept both 0xaaaaaaaa and 0xbbbbbbbb from `address(abcd)` AND `address(efab)`. Instead you should make 2 calls to this method
+    /// @dev using the pattern in Example 1. [0xaaaaaaaa], [address(abcd)] OR [0xbbbbbbbb], [address(efab)]
+    function validateEthCallData(EthCallData memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
+        bool validContractAddress = _expectedContractAddresses.length == 0 ? true : false;
+        bool validFunctionSignature = _expectedFunctionSignatures.length == 0 ? true : false;
+        
+        uint256 contractAddressesLength = _expectedContractAddresses.length;
+        
+        // Check that the contract address called in the request is expected
+        for (uint256 idx = 0; idx < contractAddressesLength;) {
+            if (r.contractAddress == _expectedContractAddresses[idx]) {
+                validContractAddress = true;
+                break;
+            }
+
+            unchecked { ++idx; }
+        }
+
+        // Early exit to save gas
+        if (!validContractAddress) {
+            revert InvalidContractAddress();
+        }
+
+        uint256 functionSignaturesLength = _expectedFunctionSignatures.length;
+
+        // Check that the function signature called is expected
+        for (uint256 idx = 0; idx < functionSignaturesLength;) {
+            (bytes4 funcSig,) = r.callData.asBytes4Unchecked(0);
+            if (funcSig == _expectedFunctionSignatures[idx]) {
+                validFunctionSignature = true;
+                break;
+            }
+
+            unchecked { ++idx; }
+        }
+
+        if (!validFunctionSignature) {
+            revert InvalidFunctionSignature();
+        }
+    }
+
     /**
      * @dev verifyQueryResponseSignatures verifies the signatures on a query response. It calls into the Wormhole contract.
      * IWormhole.Signature expects the last byte to be bumped by 27 
      * see https://github.com/wormhole-foundation/wormhole/blob/637b1ee657de7de05f783cbb2078dd7d8bfda4d0/ethereum/contracts/Messages.sol#L174
      */
-    function verifyQueryResponseSignatures(address _wormhole, bytes memory response, IWormhole.Signature[] memory signatures) public view {
-        IWormhole wormhole = IWormhole(_wormhole);
+    function verifyQueryResponseSignatures(bytes memory response, IWormhole.Signature[] memory signatures) public view {
         // It might be worth adding a verifyCurrentQuorum call on the core bridge so that there is only 1 cross call instead of 4.
         uint32 gsi = wormhole.getCurrentGuardianSetIndex();
         IWormhole.GuardianSet memory guardianSet = wormhole.getGuardianSet(gsi);

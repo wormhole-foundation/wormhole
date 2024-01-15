@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 
 func TestCutOverBootstrapAddrs(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	bootstrappers, isBootstrapNode := bootstrapAddrs(logger, oldBootstrapPeers, "12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu")
+	bootstrappers, isBootstrapNode := BootstrapAddrs(logger, oldBootstrapPeers, "12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu")
 	assert.Equal(t, 2, len(bootstrappers))
 	assert.False(t, isBootstrapNode)
 	for _, ba := range bootstrappers {

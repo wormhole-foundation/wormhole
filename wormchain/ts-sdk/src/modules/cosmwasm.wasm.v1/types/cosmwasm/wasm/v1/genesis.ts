@@ -7,6 +7,7 @@ import {
   CodeInfo,
   ContractInfo,
   Model,
+  ContractCodeHistoryEntry,
 } from "../../../cosmwasm/wasm/v1/types";
 import {
   MsgStoreCode,
@@ -32,6 +33,10 @@ export interface GenesisState {
 export interface GenesisState_GenMsgs {
   store_code: MsgStoreCode | undefined;
   instantiate_contract: MsgInstantiateContract | undefined;
+  /**
+   * MsgInstantiateContract2 intentionally not supported
+   * see https://github.com/CosmWasm/wasmd/issues/987
+   */
   execute_contract: MsgExecuteContract | undefined;
 }
 
@@ -49,6 +54,7 @@ export interface Contract {
   contract_address: string;
   contract_info: ContractInfo | undefined;
   contract_state: Model[];
+  contract_code_history: ContractCodeHistoryEntry[];
 }
 
 /** Sequence key and value of an id generation counter */
@@ -479,6 +485,9 @@ export const Contract = {
     for (const v of message.contract_state) {
       Model.encode(v!, writer.uint32(26).fork()).ldelim();
     }
+    for (const v of message.contract_code_history) {
+      ContractCodeHistoryEntry.encode(v!, writer.uint32(34).fork()).ldelim();
+    }
     return writer;
   },
 
@@ -487,6 +496,7 @@ export const Contract = {
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = { ...baseContract } as Contract;
     message.contract_state = [];
+    message.contract_code_history = [];
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -499,6 +509,11 @@ export const Contract = {
         case 3:
           message.contract_state.push(Model.decode(reader, reader.uint32()));
           break;
+        case 4:
+          message.contract_code_history.push(
+            ContractCodeHistoryEntry.decode(reader, reader.uint32())
+          );
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -510,6 +525,7 @@ export const Contract = {
   fromJSON(object: any): Contract {
     const message = { ...baseContract } as Contract;
     message.contract_state = [];
+    message.contract_code_history = [];
     if (
       object.contract_address !== undefined &&
       object.contract_address !== null
@@ -526,6 +542,16 @@ export const Contract = {
     if (object.contract_state !== undefined && object.contract_state !== null) {
       for (const e of object.contract_state) {
         message.contract_state.push(Model.fromJSON(e));
+      }
+    }
+    if (
+      object.contract_code_history !== undefined &&
+      object.contract_code_history !== null
+    ) {
+      for (const e of object.contract_code_history) {
+        message.contract_code_history.push(
+          ContractCodeHistoryEntry.fromJSON(e)
+        );
       }
     }
     return message;
@@ -546,12 +572,20 @@ export const Contract = {
     } else {
       obj.contract_state = [];
     }
+    if (message.contract_code_history) {
+      obj.contract_code_history = message.contract_code_history.map((e) =>
+        e ? ContractCodeHistoryEntry.toJSON(e) : undefined
+      );
+    } else {
+      obj.contract_code_history = [];
+    }
     return obj;
   },
 
   fromPartial(object: DeepPartial<Contract>): Contract {
     const message = { ...baseContract } as Contract;
     message.contract_state = [];
+    message.contract_code_history = [];
     if (
       object.contract_address !== undefined &&
       object.contract_address !== null
@@ -568,6 +602,16 @@ export const Contract = {
     if (object.contract_state !== undefined && object.contract_state !== null) {
       for (const e of object.contract_state) {
         message.contract_state.push(Model.fromPartial(e));
+      }
+    }
+    if (
+      object.contract_code_history !== undefined &&
+      object.contract_code_history !== null
+    ) {
+      for (const e of object.contract_code_history) {
+        message.contract_code_history.push(
+          ContractCodeHistoryEntry.fromPartial(e)
+        );
       }
     }
     return message;

@@ -21,6 +21,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
@@ -120,16 +121,6 @@ type (
 		// 0 is a valid guardian set, so we need a nil value here
 		currentGuardianSet *uint32
 
-		// waitForConfirmations indicates if we should wait for the number of confirmations specified by the consistencyLevel in the message.
-		// On many of the chains, we already wait for finalized blocks so there is no point in waiting any additional blocks after finality.
-		// Therefore this parameter defaults to false. This feature can / should be enabled on chains where we don't wait for finality.
-		waitForConfirmations bool
-
-		// maxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned. If we are honoring
-		// the consistency level (waitForConfirmations is set to true), then we wait maxWaitConfirmations plus the consistency level. This
-		// parameter defaults to 60, which should be plenty long enough for most chains. If not, this parameter can be set.
-		maxWaitConfirmations uint64
-
 		// Interface to the chain specific ethereum library.
 		ethConn       connectors.Connector
 		unsafeDevMode bool
@@ -139,11 +130,9 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
-		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
-		rootChainRpc      string
-		rootChainContract string
-
 		ccqMaxBlockNumber *big.Int
+		ccqTimestampCache *BlocksByTimestamp
+		ccqLogger         *zap.Logger
 	}
 
 	pendingKey struct {
@@ -159,6 +148,9 @@ type (
 	}
 )
 
+// MaxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned.
+const MaxWaitConfirmations = 60
+
 func NewEthWatcher(
 	url string,
 	contract eth_common.Address,
@@ -171,23 +163,26 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
+	var ccqTimestampCache *BlocksByTimestamp
+	if query.SupportsTimestampCaching(chainID) {
+		ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	}
 
 	return &Watcher{
-		url:                  url,
-		contract:             contract,
-		networkName:          networkName,
-		readinessSync:        common.MustConvertChainIdToReadinessSyncing(chainID),
-		waitForConfirmations: false,
-		maxWaitConfirmations: 60,
-		chainID:              chainID,
-		msgC:                 msgC,
-		setC:                 setC,
-		obsvReqC:             obsvReqC,
-		queryReqC:            queryReqC,
-		queryResponseC:       queryResponseC,
-		pending:              map[pendingKey]*pendingMessage{},
-		unsafeDevMode:        unsafeDevMode,
-		ccqMaxBlockNumber:    big.NewInt(0).SetUint64(math.MaxUint64),
+		url:               url,
+		contract:          contract,
+		networkName:       networkName,
+		readinessSync:     common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:           chainID,
+		msgC:              msgC,
+		setC:              setC,
+		obsvReqC:          obsvReqC,
+		queryReqC:         queryReqC,
+		queryResponseC:    queryResponseC,
+		pending:           map[pendingKey]*pendingMessage{},
+		unsafeDevMode:     unsafeDevMode,
+		ccqMaxBlockNumber: big.NewInt(0).SetUint64(math.MaxUint64),
+		ccqTimestampCache: ccqTimestampCache,
 	}
 }
 
@@ -204,17 +199,13 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
 
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
 	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
 	defer watcherContextCancelFunc()
-
-	var useFinalizedBlocks bool
-	useFinalizedBlocks, err = w.getFinality(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to determine finality: %w", err)
-	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
@@ -224,15 +215,24 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	if useFinalizedBlocks {
-		logger.Info("using finalized blocks")
+	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine finality: %w", err)
+	}
+
+	if finalizedPollingSupported {
+		if safePollingSupported {
+			logger.Info("polling for finalized and safe blocks")
+		} else {
+			logger.Info("polling for finalized blocks, will generate safe blocks")
+		}
 		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBatchPollConnector(ctx, baseConnector, 250*time.Millisecond)
+		w.ethConn, err = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -271,24 +271,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
-		// Polygon polls the root contract on Ethereum.
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to polygon: %w", err)
-		}
-		w.ethConn, err = connectors.NewPolygonConnector(ctx,
-			baseConnector,
-			w.rootChainRpc,
-			w.rootChainContract,
-		)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to create polygon connector: %w", err)
-		}
 	} else {
 		// Everything else is instant finality.
 		logger.Info("assuming instant finality")
@@ -302,7 +284,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to polygon: %w", err)
+			return fmt.Errorf("failed to connect to instant finality chain: %w", err)
 		}
 	}
 
@@ -431,11 +413,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					var expectedConfirmations uint64
-					if w.waitForConfirmations {
-						expectedConfirmations = uint64(msg.ConsistencyLevel)
-					}
-
 					// SECURITY: In the recovery flow, we already know which transaction to
 					// observe, and we can assume that it has reached the expected finality
 					// level a long time ago. Therefore, the logic is much simpler than the
@@ -444,9 +421,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					// Instead, we can simply check if the transaction's block number is in
 					// the past by more than the expected confirmation number.
 					//
-					// Ensure that the current block number is at least expectedConfirmations
-					// larger than the message observation's block number.
-					if blockNumber+expectedConfirmations <= blockNumberU {
+					// Ensure that the current block number is larger than the message observation's block number.
+					if blockNumber <= blockNumberU {
 						logger.Info("re-observed message publication transaction",
 							zap.Stringer("tx", msg.TxHash),
 							zap.Stringer("emitter_address", msg.EmitterAddress),
@@ -463,7 +439,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
-							zap.Uint64("expected_confirmations", expectedConfirmations),
 							zap.String("eth_network", w.networkName),
 						)
 					}
@@ -473,16 +448,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		ccqLogger := logger.With(
-			zap.String("eth_network", w.networkName),
-			zap.String("component", "ccqevm"),
-		)
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
 			case queryRequest := <-w.queryReqC:
-				w.ccqHandleQuery(ccqLogger, ctx, queryRequest)
+				w.ccqHandleQuery(ctx, queryRequest)
 			}
 		}
 	})
@@ -498,73 +469,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
-				// Request timestamp for block
-				msm := time.Now()
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
-				cancel()
-				queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
-
+				blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+					if canRetryGetBlockTime(err) {
+						go w.waitForBlockTime(ctx, logger, errC, ev)
+						continue
+					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
-						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
 					return nil
 				}
 
-				message := &common.MessagePublication{
-					TxHash:           ev.Raw.TxHash,
-					Timestamp:        time.Unix(int64(blockTime), 0),
-					Nonce:            ev.Nonce,
-					Sequence:         ev.Sequence,
-					EmitterChain:     w.chainID,
-					EmitterAddress:   PadAddress(ev.Sender),
-					Payload:          ev.Payload,
-					ConsistencyLevel: ev.ConsistencyLevel,
-				}
-
-				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
-
-				if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-					logger.Info("found new message publication transaction, publishing it immediately",
-						zap.Stringer("tx", ev.Raw.TxHash),
-						zap.Uint64("block", ev.Raw.BlockNumber),
-						zap.Stringer("blockhash", ev.Raw.BlockHash),
-						zap.Uint64("blockTime", blockTime),
-						zap.Uint64("Sequence", ev.Sequence),
-						zap.Uint32("Nonce", ev.Nonce),
-						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-						zap.String("eth_network", w.networkName))
-
-					w.msgC <- message
-					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
-					continue
-				}
-
-				logger.Info("found new message publication transaction",
-					zap.Stringer("tx", ev.Raw.TxHash),
-					zap.Uint64("block", ev.Raw.BlockNumber),
-					zap.Stringer("blockhash", ev.Raw.BlockHash),
-					zap.Uint64("blockTime", blockTime),
-					zap.Uint64("Sequence", ev.Sequence),
-					zap.Uint32("Nonce", ev.Nonce),
-					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-					zap.String("eth_network", w.networkName))
-
-				key := pendingKey{
-					TxHash:         message.TxHash,
-					BlockHash:      ev.Raw.BlockHash,
-					EmitterAddress: message.EmitterAddress,
-					Sequence:       message.Sequence,
-				}
-
-				w.pendingMu.Lock()
-				w.pending[key] = &pendingMessage{
-					message: message,
-					height:  ev.Raw.BlockNumber,
-				}
-				w.pendingMu.Unlock()
+				w.postMessage(logger, ev, blockTime)
 			}
 		}
 	})
@@ -616,6 +533,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU)
 					w.updateNetworkStats(&stats)
+					w.ccqAddLatestBlock(ev)
 					continue
 				}
 
@@ -640,13 +558,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					var expectedConfirmations uint64
-					if w.waitForConfirmations && ev.Finality == connectors.Finalized {
-						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
-					}
-
 					// Transaction was dropped and never picked up again
-					if pLock.height+expectedConfirmations+w.maxWaitConfirmations <= blockNumberU {
+					if pLock.height+MaxWaitConfirmations <= blockNumberU {
 						logger.Info("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -656,8 +569,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName),
-							zap.Uint64("expectedConfirmations", expectedConfirmations),
-							zap.Uint64("maxWaitConfirmations", w.maxWaitConfirmations),
 						)
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 						delete(w.pending, key)
@@ -665,7 +576,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+expectedConfirmations <= blockNumberU {
+					if pLock.height <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
@@ -838,9 +749,10 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 }
 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
-// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using finalized mode but not safe mode.
-func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
+// to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
+func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	finalized := false
+	safe := false
 	if w.unsafeDevMode {
 		// Devnet supports finalized and safe (although they returns the same value as latest).
 		finalized = true
@@ -852,7 +764,19 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMoonbeam ||
 		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDSepolia {
+		w.chainID == vaa.ChainIDSepolia ||
+		w.chainID == vaa.ChainIDHolesky ||
+		w.chainID == vaa.ChainIDArbitrumSepolia ||
+		w.chainID == vaa.ChainIDBaseSepolia ||
+		w.chainID == vaa.ChainIDOptimismSepolia {
+		finalized = true
+		safe = true
+	} else if w.chainID == vaa.ChainIDScroll {
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+		finalized = true
+	} else if w.chainID == vaa.ChainIDPolygon {
+		// Polygon now supports polling for finalized but not safe.
+		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
 		finalized = true
 	}
 
@@ -863,7 +787,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 
 		c, err := rpc.DialContext(timeout, w.url)
 		if err != nil {
-			return false, fmt.Errorf("failed to connect to endpoint: %w", err)
+			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
 		}
 
 		type Marshaller struct {
@@ -872,17 +796,19 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, error) {
 		var m Marshaller
 
 		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
-		if err != nil {
-			return false, fmt.Errorf("finalized not supported by the node when it should be: %w", err)
+		if err != nil || m.Number == nil {
+			return false, false, fmt.Errorf("finalized not supported by the node when it should be")
 		}
 
-		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
-		if err != nil {
-			return false, fmt.Errorf("safe not supported by the node when it should be: %w", err)
+		if safe {
+			err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
+			if err != nil || m.Number == nil {
+				return false, false, fmt.Errorf("safe not supported by the node when it should be")
+			}
 		}
 	}
 
-	return finalized, nil
+	return finalized, safe, nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.
@@ -901,32 +827,6 @@ func (w *Watcher) getLatestSafeBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestSafeBlockNumber)
 }
 
-// SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles
-// if the feature is either enabled or disabled, but ensures the configuration is valid.
-func (w *Watcher) SetRootChainParams(rootChainRpc string, rootChainContract string) error {
-	if (rootChainRpc == "") != (rootChainContract == "") {
-		return fmt.Errorf("if either rootChainRpc or rootChainContract are set, they must both be set")
-	}
-
-	w.rootChainRpc = rootChainRpc
-	w.rootChainContract = rootChainContract
-	return nil
-}
-
-func (w *Watcher) usePolygonCheckpointing() bool {
-	return w.rootChainRpc != "" && w.rootChainContract != ""
-}
-
-// SetWaitForConfirmations is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message.
-func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
-	w.waitForConfirmations = waitForConfirmations
-}
-
-// SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
-func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
-	w.maxWaitConfirmations = maxWaitConfirmations
-}
-
 func (w *Watcher) updateNetworkStats(stats *gossipv1.Heartbeat_Network) {
 	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 		Height:          stats.Height,
@@ -934,4 +834,143 @@ func (w *Watcher) updateNetworkStats(stats *gossipv1.Heartbeat_Network) {
 		FinalizedHeight: stats.FinalizedHeight,
 		ContractAddress: w.contract.Hex(),
 	})
+}
+
+// getBlockTime reads the time of a block.
+func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (uint64, error) {
+	msm := time.Now()
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, blockHash)
+	cancel()
+	queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
+	return blockTime, err
+}
+
+// postMessage creates a message object from a log event and adds it to the pending list for processing.
+func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
+	message := &common.MessagePublication{
+		TxHash:           ev.Raw.TxHash,
+		Timestamp:        time.Unix(int64(blockTime), 0),
+		Nonce:            ev.Nonce,
+		Sequence:         ev.Sequence,
+		EmitterChain:     w.chainID,
+		EmitterAddress:   PadAddress(ev.Sender),
+		Payload:          ev.Payload,
+		ConsistencyLevel: ev.ConsistencyLevel,
+	}
+
+	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
+
+	if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+		logger.Info("found new message publication transaction, publishing it immediately",
+			zap.Stringer("tx", ev.Raw.TxHash),
+			zap.Uint64("block", ev.Raw.BlockNumber),
+			zap.Stringer("blockhash", ev.Raw.BlockHash),
+			zap.Uint64("blockTime", blockTime),
+			zap.Uint64("Sequence", ev.Sequence),
+			zap.Uint32("Nonce", ev.Nonce),
+			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+			zap.String("eth_network", w.networkName))
+
+		w.msgC <- message
+		ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+		return
+	}
+
+	logger.Info("found new message publication transaction",
+		zap.Stringer("tx", ev.Raw.TxHash),
+		zap.Uint64("block", ev.Raw.BlockNumber),
+		zap.Stringer("blockhash", ev.Raw.BlockHash),
+		zap.Uint64("blockTime", blockTime),
+		zap.Uint64("Sequence", ev.Sequence),
+		zap.Uint32("Nonce", ev.Nonce),
+		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+		zap.String("eth_network", w.networkName))
+
+	key := pendingKey{
+		TxHash:         message.TxHash,
+		BlockHash:      ev.Raw.BlockHash,
+		EmitterAddress: message.EmitterAddress,
+		Sequence:       message.Sequence,
+	}
+
+	w.pendingMu.Lock()
+	w.pending[key] = &pendingMessage{
+		message: message,
+		height:  ev.Raw.BlockNumber,
+	}
+	w.pendingMu.Unlock()
+}
+
+// canRetryGetBlockTime returns true if the error returned by getBlockTime warrants doing a retry.
+func canRetryGetBlockTime(err error) bool {
+	return err == ethereum.NotFound /* go-ethereum */ || err.Error() == "cannot query unfinalized data" /* avalanche */
+}
+
+// waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
+// the block time fails. If it is finally able to read the block time, it posts the event for processing. Otherwise, it will eventually give up.
+func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC chan error, ev *ethabi.AbiLogMessagePublished) {
+	logger.Warn("found new message publication transaction but failed to look up block time, deferring processing",
+		zap.Stringer("tx", ev.Raw.TxHash),
+		zap.Uint64("block", ev.Raw.BlockNumber),
+		zap.Stringer("blockhash", ev.Raw.BlockHash),
+		zap.Uint64("Sequence", ev.Sequence),
+		zap.Uint32("Nonce", ev.Nonce),
+		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+		zap.String("eth_network", w.networkName))
+
+	const RetryInterval = 5 * time.Second
+	const MaxRetries = 3
+	start := time.Now()
+	t := time.NewTimer(RetryInterval)
+	defer t.Stop()
+	retries := 1
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
+			if err == nil {
+				logger.Info("retry of block time query succeeded, posting transaction",
+					zap.Stringer("tx", ev.Raw.TxHash),
+					zap.Uint64("block", ev.Raw.BlockNumber),
+					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("blockTime", blockTime),
+					zap.Uint64("Sequence", ev.Sequence),
+					zap.Uint32("Nonce", ev.Nonce),
+					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+					zap.Stringer("startTime", start),
+					zap.Int("retries", retries),
+					zap.String("eth_network", w.networkName))
+
+				w.postMessage(logger, ev, blockTime)
+				return
+			}
+
+			ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+			if !canRetryGetBlockTime(err) {
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+				return
+			}
+			if retries >= MaxRetries {
+				logger.Error("repeatedly failed to look up block time, giving up",
+					zap.Stringer("tx", ev.Raw.TxHash),
+					zap.Uint64("block", ev.Raw.BlockNumber),
+					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("Sequence", ev.Sequence),
+					zap.Uint32("Nonce", ev.Nonce),
+					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+					zap.Stringer("startTime", start),
+					zap.Int("retries", retries),
+					zap.String("eth_network", w.networkName))
+
+				return
+			}
+
+			retries++
+			t.Reset(RetryInterval)
+		}
+	}
 }

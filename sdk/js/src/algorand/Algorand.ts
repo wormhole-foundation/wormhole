@@ -634,6 +634,9 @@ export async function submitVAAHeader(
       sigs = sigs.slice(0, BSIZE);
     }
 
+    // Don't create a tx if we dont have any sigs
+    if (sigs.length < SIG_LEN) continue;
+
     // The keyset is the set of guardians that correspond
     // to the current set of signatures in this loop.
     // Each signature in 20 bytes and comes from decodeLocalState()
@@ -670,6 +673,7 @@ export async function submitVAAHeader(
       },
     });
   }
+
   const appTxn = makeApplicationCallTxnFromObject({
     appArgs: [textToUint8Array("verifyVAA"), vaa],
     accounts: accts,

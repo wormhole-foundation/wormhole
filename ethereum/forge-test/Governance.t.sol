@@ -290,9 +290,13 @@ contract TestGovernance is TestUtils {
         public
         unchangedStorage(address(proxied), storageSlot)
     {
+        MyImplementation newImpl = new MyImplementation(EVMCHAINID, CHAINID);
+
+        vm.assume(storageSlot != IMPLEMENTATION_SLOT);
+        vm.assume(storageSlot != hashedLocation(address(newImpl), INIT_IMPLEMENTATION_SLOT));
+
         vm.chainId(EVMCHAINID);
 
-        MyImplementation newImpl = new MyImplementation(EVMCHAINID, CHAINID);
         bytes memory payload = payloadSubmitContract(MODULE, CHAINID, address(newImpl));
         (bytes memory _vm, bytes32 hash) = validVm(
             0, timestamp, nonce, 1, governanceContract, sequence, consistencyLevel, payload, testGuardian);
@@ -792,8 +796,10 @@ contract TestGovernance is TestUtils {
         return
             // Avoid precompiled contracts
             addr <= address(0x9) ||
-            // Wormhole contract does not accept assets
+            // Wormhole implementation contract does not accept assets
             addr == address(impl) ||
+            // Wormhole proxy contract does not accept assets
+            addr == address(proxied) ||
 			// Setup contract
 			addr == address(setup) ||
 			// Test contract

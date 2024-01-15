@@ -29,17 +29,6 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-# Support additional root CAs
-COPY README.md cert.pem* /certs/
-# Node
-ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
-ENV NODE_OPTIONS=--use-openssl-ca
-# npm
-RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
-# git
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
-
 WORKDIR /home/node/app
 
 # Only invalidate the npm install step if package.json changed

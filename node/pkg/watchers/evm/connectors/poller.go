@@ -10,7 +10,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 
 	ethereum "github.com/ethereum/go-ethereum"
-	ethHexUtils "github.com/ethereum/go-ethereum/common/hexutil"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	"go.uber.org/zap"
@@ -149,7 +148,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 
 		b.blockFeed.Send(newLatest)
 	} else if newLatest.Number.Cmp(prevLatest.Number) < 0 {
-		logger.Warn("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
+		logger.Debug("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
 		newLatest = prevLatest
 	}
 
@@ -199,10 +198,6 @@ func getBlockByFinality(ctx context.Context, logger *zap.Logger, conn Connector,
 
 func getBlockByNumberUint64(ctx context.Context, logger *zap.Logger, conn Connector, blockNum uint64, blockFinality FinalityLevel) (*NewBlock, error) {
 	return getBlock(ctx, logger, conn, "0x"+fmt.Sprintf("%x", blockNum), blockFinality)
-}
-
-func getBlockByNumberBigInt(ctx context.Context, logger *zap.Logger, conn Connector, blockNum *big.Int, blockFinality FinalityLevel) (*NewBlock, error) {
-	return getBlock(ctx, logger, conn, ethHexUtils.EncodeBig(blockNum), blockFinality)
 }
 
 func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, str string, blockFinality FinalityLevel) (*NewBlock, error) {

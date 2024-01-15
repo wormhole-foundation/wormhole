@@ -16,6 +16,14 @@ export function hexToUint8Array(s: string): Uint8Array {
   return new Uint8Array(Buffer.from(s, "hex"));
 }
 
+export function uint8ArrayToHex(b: Uint8Array) {
+  return `0x${Buffer.from(b).toString("hex")}`;
+}
+
+export function coalesceUint8Array(b: string | Uint8Array): Uint8Array {
+  return typeof b === "string" ? hexToUint8Array(b) : b;
+}
+
 /**
  * @param key Private key used to sign `data`
  * @param data Data for signing

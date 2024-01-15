@@ -40,12 +40,6 @@ export const TERRA2_NODE_URL = ci
   ? "http://terra2-terrad:1317"
   : "http://localhost:1318";
 export const TERRA_CHAIN_ID = "localterra";
-export const TERRA_GAS_PRICES_URL = ci
-  ? "http://terra-fcd:3060/v1/txs/gas_prices"
-  : "http://localhost:3060/v1/txs/gas_prices";
-export const TERRA2_GAS_PRICES_URL = ci
-  ? "http://terra2-fcd:3060/v1/txs/gas_prices"
-  : "http://localhost:3061/v1/txs/gas_prices";
 // NOTE: test1 is used by getIsTransferCompletedTerra, so avoid using it in the integration tests
 // Accounts from https://github.com/terra-money/LocalTerra/blob/main/README.md#accounts
 export const TERRA_PUBLIC_KEY = "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9"; // test7

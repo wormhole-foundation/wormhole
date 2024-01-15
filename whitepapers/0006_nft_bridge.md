@@ -10,7 +10,7 @@ To use the Wormhole message passing protocol to transfer NFTs between different 
 
 NFTs are a new asset class that has grown in popularity recently. It especially attracts new users and companies to
 crypto. NFTs, just like traditional tokens, are minted on a single blockchain and cannot be transferred to other chains.
-Howevre as more chains introduce NFT standards and marketplaces there is demand for ways to transfer NFTS across chains
+However as more chains introduce NFT standards and marketplaces there is demand for ways to transfer NFTS across chains
 to access these markets and collect them in a single wallet.
 
 ## Goals
@@ -38,7 +38,6 @@ We aim to support:
 
 - EIP721 with token_uri extension: Ethereum, BSC
 - Metaplex SPL Meta: Solana
-- CW721 with token_uri extension: Terra
 
 ## Detailed Design
 
@@ -135,29 +134,21 @@ A user who initiated a transfer should call `completeTransfer` within 24 hours. 
 
 If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
 1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
-2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan prodives an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
+2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan provides an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
 3. A Guardian may send a signed re-observation request to the network using the `send-observation-request` admin command. A new valid VAA with an updated Guardian Set Index is generated once enough Guardians have re-observed the old message. Note that this is only possible if a quorum of Guardians is running archive nodes that still include this transaction.
 
 ### Setup of wrapped assets
-Since there is no way for a NFT bridge endpoint to know which other chain already has wrapped assets set up for the
+Since there is no way for an NFT bridge endpoint to know which other chain already has wrapped assets set up for the
 native asset on its chain, there may be transfers initiated for assets that don't have wrapped assets set up yet on the
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time).
 
 The name and symbol fields of the Transfer payload are not guaranteed to be
 valid UTF8 strings. Implementations might truncate longer strings at the 32 byte
 mark, which may result in invalid UTF8 bytes at the end. Thus, any client
-whishing to present these as strings must validate them first, potentially
+wishing to present these as strings must validate them first, potentially
 dropping the garbage at the end.
 
 Currently Solana only supports u64 token ids which is incompatible with Ethereum which specifically mentions the use of
 UUIDs as token ids (utilizing all bytes of the uint256). There will either need to be a mechanism to translate ids i.e.
 a map of `[32]u8 -> incrementing_u64` (in the expectation there will never be more than MaxU64 editions) or Solana needs
 to change their NFT contract.
-
-Terra CW721 contracts support arbitrary strings as token IDs. In order to fit
-them into 32 bytes, we store their keccak256 hash instead. This means that when
-transferring a terra-native NFT through the wormhole, the ID of the output token
-will be the original token's hash. However, wrapped assets on terra will retain
-their original token ids, simply stringified into a decimal number. Then,
-when transferring them back through the wormhole, we can guarantee that these
-ids will parse as a uint256.

@@ -180,24 +180,29 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 	}
 	signedQueryRequest.Signature = signature[:]
 
-	// Skip the query length.
+	// Read the serialized request.
 	queryRequestLen := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &queryRequestLen); err != nil {
 		return fmt.Errorf("failed to read length of query request: %w", err)
 	}
 
+	queryRequestBytes := make([]byte, queryRequestLen)
+	if n, err := reader.Read(queryRequestBytes[:]); err != nil || n != int(queryRequestLen) {
+		return fmt.Errorf("failed to read query request [%d]: %w", n, err)
+	}
+
 	queryRequest := QueryRequest{}
-	err := queryRequest.UnmarshalFromReader(reader)
+	queryRequestReader := bytes.NewReader(queryRequestBytes[:])
+	err := queryRequest.UnmarshalFromReader(queryRequestReader)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 
-	queryRequestBytes, err := queryRequest.Marshal()
+	queryRequestBytes, err = queryRequest.Marshal()
 	if err != nil {
 		return err
 	}
 	signedQueryRequest.QueryRequest = queryRequestBytes
-
 	msg.Request = signedQueryRequest
 
 	// Responses
@@ -215,6 +220,10 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		msg.PerChainResponses = append(msg.PerChainResponses, &pcr)
 	}
 
+	if reader.Len() != 0 {
+		return fmt.Errorf("excess bytes in unmarshal")
+	}
+
 	return nil
 }
 
@@ -224,7 +233,7 @@ func (msg *QueryResponsePublication) Validate() error {
 	var queryRequest QueryRequest
 	err := queryRequest.Unmarshal(msg.Request.QueryRequest)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal query request")
+		return fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 	if err := queryRequest.Validate(); err != nil {
 		return fmt.Errorf("query request is invalid: %w", err)
@@ -266,7 +275,7 @@ func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) boo
 	return true
 }
 
-func (resp *QueryResponsePublication) RequestID() string {
+func (resp *QueryResponsePublication) Signature() string {
 	if resp == nil || resp.Request == nil {
 		return "nil"
 	}

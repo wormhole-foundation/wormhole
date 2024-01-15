@@ -17,6 +17,7 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
@@ -96,6 +97,14 @@ func (e *mockConnectorForBatchPoller) RawCallContext(ctx context.Context, result
 
 func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) (err error) {
 	e.mutex.Lock()
+	if e.err != nil {
+		err := e.err
+		if !e.persistentError {
+			e.err = nil
+		}
+		e.mutex.Unlock()
+		return err
+	}
 
 	for _, entry := range b {
 		if entry.Method != "eth_getBlockByNumber" {
@@ -103,36 +112,29 @@ func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b
 		}
 
 		// If they set the error, return that immediately.
-		if e.err != nil {
-			entry.Error = e.err
-		} else {
-			var blockNumber uint64
-			if entry.Args[0] == "latest" {
-				blockNumber = e.prevLatest
-			} else if entry.Args[0] == "safe" {
-				blockNumber = e.prevSafe
-			} else if entry.Args[0] == "finalized" {
-				blockNumber = e.prevFinalized
-			}
-			if len(e.blockNumbers) > 0 {
-				blockNumber = e.blockNumbers[0]
-				e.blockNumbers = e.blockNumbers[1:]
-			}
-			str := fmt.Sprintf(`{"author":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","baseFeePerGas":"0x3b9aca00","difficulty":"0x0","extraData":"0x","gasLimit":"0xe4e1c0","gasUsed":"0x0","hash":"0xfc8b62a31110121c57cfcccfaf2b147cc2c13b6d01bde4737846cefd29f045cf","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","nonce":"0x0000000000000000","number":"0x%x","parentHash":"0x09d6d33a658b712f41db7fb9f775f94911ae0132123116aa4f8cf3da9f774e89","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x201","stateRoot":"0x0409ed10e03fd49424ae1489c6fbc6ff1897f45d0e214655ebdb8df94eedc3c0","timestamp":"0x6373ec24","totalDifficulty":"0x0","transactions":[],"transactionsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","uncles":[]}`, blockNumber)
-			err = json.Unmarshal([]byte(str), &entry.Result)
-			if entry.Args[0] == "latest" {
-				e.prevLatest = blockNumber
-			} else if entry.Args[0] == "safe" {
-				e.prevSafe = blockNumber
-			} else if entry.Args[0] == "finalized" {
-				e.prevFinalized = blockNumber
-			}
+		var blockNumber uint64
+		if entry.Args[0] == "latest" {
+			blockNumber = e.prevLatest
+		} else if entry.Args[0] == "safe" {
+			blockNumber = e.prevSafe
+		} else if entry.Args[0] == "finalized" {
+			blockNumber = e.prevFinalized
+		}
+		if len(e.blockNumbers) > 0 {
+			blockNumber = e.blockNumbers[0]
+			e.blockNumbers = e.blockNumbers[1:]
+		}
+		str := fmt.Sprintf(`{"author":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","baseFeePerGas":"0x3b9aca00","difficulty":"0x0","extraData":"0x","gasLimit":"0xe4e1c0","gasUsed":"0x0","hash":"0xfc8b62a31110121c57cfcccfaf2b147cc2c13b6d01bde4737846cefd29f045cf","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","nonce":"0x0000000000000000","number":"0x%x","parentHash":"0x09d6d33a658b712f41db7fb9f775f94911ae0132123116aa4f8cf3da9f774e89","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x201","stateRoot":"0x0409ed10e03fd49424ae1489c6fbc6ff1897f45d0e214655ebdb8df94eedc3c0","timestamp":"0x6373ec24","totalDifficulty":"0x0","transactions":[],"transactionsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","uncles":[]}`, blockNumber)
+		err = json.Unmarshal([]byte(str), &entry.Result)
+		if entry.Args[0] == "latest" {
+			e.prevLatest = blockNumber
+		} else if entry.Args[0] == "safe" {
+			e.prevSafe = blockNumber
+		} else if entry.Args[0] == "finalized" {
+			e.prevFinalized = blockNumber
 		}
 	}
 
-	if !e.persistentError {
-		e.err = nil
-	}
 	e.mutex.Unlock()
 
 	return
@@ -150,6 +152,10 @@ func (e *mockConnectorForBatchPoller) expectedHash() ethCommon.Hash {
 
 func (e *mockConnectorForBatchPoller) Client() *ethClient.Client {
 	return e.client
+}
+
+func (e *mockConnectorForBatchPoller) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	return nil, nil
 }
 
 func batchShouldHaveAllThree(t *testing.T, block []*NewBlock, blockNum uint64, expectedHash ethCommon.Hash) {

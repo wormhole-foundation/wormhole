@@ -58,6 +58,9 @@ type (
 
 		// URL to get the latest block info from
 		latestBlockURL string
+
+		// b64Encoded indicates if transactions are base 64 encoded.
+		b64Encoded bool
 	}
 )
 
@@ -109,22 +112,13 @@ func NewWatcher(
 	// CosmWasm 1.0.0
 	contractAddressFilterKey := "execute._contract_address"
 	contractAddressLogKey := "_contract_address"
-	if chainID == vaa.ChainIDTerra && env == common.UnsafeDevNet {
-		// Terra Classic upgraded CosmWasm versions, so they now use the new format. Here is a message from their Discord:
-		//		The v2.1.1 upgrade will occur on blockheight 13215800 on June 14th (2023) at approximately 14:00 UTC.
-		// Queries for transactions before that block no longer work, so we don't have to worry about supporting them.
-		// It is going to take some work to upgrade our tilt environment, so for now, stick with the old format in dev.
-		contractAddressFilterKey = "execute_contract.contract_address"
-		contractAddressLogKey = "contract_address"
-	}
 
 	// Do not add a leading slash
-	latestBlockURL := "blocks/latest"
+	latestBlockURL := "cosmos/base/tendermint/v1beta1/blocks/latest"
 
-	// Terra2 and Injective do things slightly differently than terra classic
-	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 || (chainID == vaa.ChainIDTerra && env != common.UnsafeDevNet) {
-		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
-	}
+	// Injective does not base64 encode parameters (as of release v1.11.2).
+	// Terra2 no longer base64 encodes parameters.
+	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2)
 
 	return &Watcher{
 		urlWS:                    urlWS,
@@ -137,6 +131,7 @@ func NewWatcher(
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
 		latestBlockURL:           latestBlockURL,
+		b64Encoded:               b64Encoded,
 	}
 }
 
@@ -302,7 +297,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 				}
 
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey)
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
 					msg.IsReobservation = true
 					e.msgC <- msg
@@ -343,7 +338,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
@@ -362,9 +357,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
-	// Injective does not base64 encode parameters (as of release v1.11.2).
-	b64Encoded := chainID != vaa.ChainIDInjective
+func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string, b64Encoded bool) []*common.MessagePublication {
 	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {

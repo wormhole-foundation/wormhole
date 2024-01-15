@@ -6,11 +6,6 @@ RUN rustup component add rustfmt
 
 WORKDIR /usr/src/bridge
 
-# Support additional root CAs
-COPY cert.pem* /certs/
-# Debian
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-
 RUN cargo install wasm-pack --vers 0.9.1
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"

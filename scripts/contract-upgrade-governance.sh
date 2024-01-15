@@ -357,9 +357,6 @@ function terra_artifact() {
   token_bridge)
     echo "artifacts/token_bridge_terra.wasm"
     ;;
-  nft_bridge)
-    echo "artifacts/nft_bridge.wasm"
-    ;;
   *) echo "unknown module $module" >&2
      usage
      ;;

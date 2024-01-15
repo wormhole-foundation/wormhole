@@ -119,11 +119,6 @@ pub fn convert_cw20_to_bank_and_send(
         let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 
         // Populate token factory token's metadata from cw20 token's metadata
-        let tf_description = token_info.name.clone()
-            + ", "
-            + token_info.symbol.as_str()
-            + ", "
-            + tokenfactory_denom.as_str();
         let tf_denom_unit_base = DenomUnit {
             denom: tokenfactory_denom.clone(),
             exponent: 0,
@@ -134,17 +129,24 @@ pub fn convert_cw20_to_bank_and_send(
             + "/"
             + token_info.decimals.to_string().as_str();
         let tf_denom_unit_scaled = DenomUnit {
-            denom: tf_scaled_denom,
+            denom: tf_scaled_denom.clone(),
             exponent: u32::from(token_info.decimals),
             aliases: vec![],
         };
+
+        let mut symbol = token_info.symbol;
+        if symbol.is_empty() {
+            symbol = tf_scaled_denom.clone();
+        }
+        let tf_description =
+            token_info.name.clone() + ", " + symbol.as_str() + ", " + tokenfactory_denom.as_str();
         let tf_metadata = Metadata {
             description: Some(tf_description),
             base: Some(tokenfactory_denom.clone()),
             denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-            display: Some(tokenfactory_denom.clone()),
+            display: Some(tf_scaled_denom),
             name: Some(token_info.name),
-            symbol: Some(token_info.symbol),
+            symbol: Some(symbol),
         };
 
         // call into token factory to create the denom
@@ -179,7 +181,7 @@ pub fn convert_cw20_to_bank_and_send(
 
     // Create MsgTransfer protobuf message for Stargate
     // https://github.com/cosmos/ibc-go/blob/main/proto/ibc/applications/transfer/v1/tx.proto#L27
-    // TimeoutTimestamp is 14 days from now which is the trusting period of the counterparty light client
+    // TimeoutTimestamp is 1 year from now, which should effectively protect against packets timing out when sending from Gateway
     let ibc_msg_transfer = Anybuf::new()
         .append_string(1, "transfer") // source port
         .append_string(2, channel) // source channel
@@ -203,7 +205,7 @@ pub fn convert_cw20_to_bank_and_send(
 }
 
 // Base58 allows the subdenom to be a maximum of 44 bytes (max subdenom length) for up to a 32 byte address
-fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
+pub fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
         "could not canonicalize contract address {contract_addr}"

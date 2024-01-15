@@ -153,24 +153,30 @@ export interface V1AccessConfig {
   /**
    * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
    *  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
-   *  - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to an address
+   *  - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
+   * Deprecated: use AccessTypeAnyOfAddresses instead
    *  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
+   *  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
    */
   permission?: V1AccessType;
   address?: string;
+  addresses?: string[];
 }
 
 /**
 * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
- - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to an address
+ - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
+Deprecated: use AccessTypeAnyOfAddresses instead
  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
+ - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
 */
 export enum V1AccessType {
   ACCESS_TYPE_UNSPECIFIED = "ACCESS_TYPE_UNSPECIFIED",
   ACCESS_TYPE_NOBODY = "ACCESS_TYPE_NOBODY",
   ACCESS_TYPE_ONLY_ADDRESS = "ACCESS_TYPE_ONLY_ADDRESS",
   ACCESS_TYPE_EVERYBODY = "ACCESS_TYPE_EVERYBODY",
+  ACCESS_TYPE_ANY_OF_ADDRESSES = "ACCESS_TYPE_ANY_OF_ADDRESSES",
 }
 
 export interface V1CodeInfoResponse {
@@ -229,10 +235,7 @@ export interface V1ContractInfo {
   /** Label is optional metadata to be stored with a contract instance. */
   label?: string;
 
-  /**
-   * AbsoluteTxPosition is a unique transaction position that allows for global
-   * ordering of transactions.
-   */
+  /** Created Tx position when the contract was instantiated. */
   created?: V1AbsoluteTxPosition;
   ibc_port_id?: string;
 
@@ -261,6 +264,14 @@ export interface V1MsgExecuteContractResponse {
   data?: string;
 }
 
+export interface V1MsgInstantiateContract2Response {
+  /** Address is the bech32 address of the new contract instance. */
+  address?: string;
+
+  /** @format byte */
+  data?: string;
+}
+
 export interface V1MsgInstantiateContractResponse {
   /** Address is the bech32 address of the new contract instance. */
   address?: string;
@@ -283,9 +294,30 @@ export interface V1MsgMigrateContractResponse {
 export interface V1MsgStoreCodeResponse {
   /** @format uint64 */
   code_id?: string;
+
+  /** @format byte */
+  checksum?: string;
 }
 
 export type V1MsgUpdateAdminResponse = object;
+
+/**
+ * Params defines the set of wasm parameters.
+ */
+export interface V1Params {
+  /** AccessConfig access control type. */
+  code_upload_access?: V1AccessConfig;
+
+  /**
+   * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
+   *  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
+   *  - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
+   * Deprecated: use AccessTypeAnyOfAddresses instead
+   *  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
+   *  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
+   */
+  instantiate_default_permission?: V1AccessType;
+}
 
 export interface V1QueryAllContractStateResponse {
   models?: V1Model[];
@@ -325,6 +357,25 @@ export interface V1QueryContractsByCodeResponse {
 
   /** pagination defines the pagination in the response. */
   pagination?: V1Beta1PageResponse;
+}
+
+/**
+* QueryContractsByCreatorResponse is the response type for the
+Query/ContractsByCreator RPC method.
+*/
+export interface V1QueryContractsByCreatorResponse {
+  contract_addresses?: string[];
+
+  /** Pagination defines the pagination in the response. */
+  pagination?: V1Beta1PageResponse;
+}
+
+/**
+ * QueryParamsResponse is the response type for the Query/Params RPC method.
+ */
+export interface V1QueryParamsResponse {
+  /** params defines the parameters of the module. */
+  params?: V1Params;
 }
 
 export interface V1QueryPinnedCodesResponse {
@@ -392,13 +443,6 @@ export interface V1Beta1PageRequest {
    * is set.
    */
   count_total?: boolean;
-
-  /**
-   * reverse is set to true if results are to be returned in the descending order.
-   *
-   * Since: cosmos-sdk 0.43
-   */
-  reverse?: boolean;
 }
 
 /**
@@ -610,7 +654,7 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title cosmwasm/wasm/v1/genesis.proto
+ * @title cosmwasm/wasm/v1/authz.proto
  * @version version not set
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
@@ -628,7 +672,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
-      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -671,7 +714,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
-      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -679,6 +721,22 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       path: `/cosmwasm/wasm/v1/code/${code_id}/contracts`,
       method: "GET",
       query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryParams
+   * @summary Params gets the module params
+   * @request GET:/cosmwasm/wasm/v1/codes/params
+   */
+  queryParams = (params: RequestParams = {}) =>
+    this.request<V1QueryParamsResponse, RpcStatus>({
+      path: `/cosmwasm/wasm/v1/codes/params`,
+      method: "GET",
       format: "json",
       ...params,
     });
@@ -697,7 +755,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
-      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -740,7 +797,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
-      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -799,12 +855,37 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
-      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
     this.request<V1QueryAllContractStateResponse, RpcStatus>({
       path: `/cosmwasm/wasm/v1/contract/${address}/state`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryContractsByCreator
+   * @summary ContractsByCreator gets the contracts by creator
+   * @request GET:/cosmwasm/wasm/v1/contracts/creator/{creator_address}
+   */
+  queryContractsByCreator = (
+    creator_address: string,
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<V1QueryContractsByCreatorResponse, RpcStatus>({
+      path: `/cosmwasm/wasm/v1/contracts/creator/${creator_address}`,
       method: "GET",
       query: query,
       format: "json",

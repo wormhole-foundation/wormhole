@@ -80,7 +80,7 @@ Delivering the message to a contract on the target chain is shifted to the highe
 
 ## Detailed Design
 
-The new, generic VAA struct would look this this:
+The new, generic VAA struct would look like this:
 
 ```go
 // VAA is a verifiable action approval of the Wormhole protocol.
@@ -116,7 +116,7 @@ VAA struct {
 	// identifies the block that contains the message transaction).
 	Timestamp time.Time
 
-	// Nonce of the VAA, must to be set to random bytes. Nonces
+	// Nonce of the VAA, must be set to random bytes. Nonces
 	// prevent collisions where one emitter publishes identical
 	// messages within one block (= timestamp).
 	//
@@ -193,7 +193,7 @@ The [IBC protocol](https://ibcprotocol.org/documentation), famously implemented 
 problem space as Wormhole - cross-chain message passing. It is orthogonal to Wormhole and solves a larger and
 differently shaped problem, leading to a different design.
 
-IBC specifies a cross-chain communication protocol with high-level semantics like channels, ports, acknowledgements,
+IBC specifies a cross-chain communication protocol with high-level semantics like channels, ports, acknowledgments,
 ordering and timeouts. It is a stream abstraction on top of a packet/datagram transport, vaguely similar to the TCP/IP
 protocol. IBC is part of the Cosmos Internet of Blockchain scalability vision, with hundreds or even thousands of
 sovereign IBC-compatible chains (called "zones") communicating via IBC using a hub-and-spoke topology. Data availability

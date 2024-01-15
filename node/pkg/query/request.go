@@ -121,6 +121,10 @@ type PerChainQueryInternal struct {
 	Request    *PerChainQueryRequest
 }
 
+func (pcqi *PerChainQueryInternal) ID() string {
+	return fmt.Sprintf("%s:%d", pcqi.RequestID, pcqi.RequestIdx)
+}
+
 // QueryRequestDigest returns the query signing prefix based on the environment.
 func QueryRequestDigest(env common.Environment, b []byte) ethCommon.Hash {
 	var queryRequestPrefix []byte
@@ -206,6 +210,10 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 			return fmt.Errorf("failed to Unmarshal per chain query: %w", err)
 		}
 		queryRequest.PerChainQueries = append(queryRequest.PerChainQueries, &perChainQuery)
+	}
+
+	if reader.Len() != 0 {
+		return fmt.Errorf("excess bytes in unmarshal")
 	}
 
 	return nil
@@ -631,19 +639,16 @@ func (ecd *EthCallByTimestampQueryRequest) Validate() error {
 	if len(ecd.TargetBlockIdHint) > math.MaxUint32 {
 		return fmt.Errorf("target block id hint too long")
 	}
-	if ecd.TargetBlockIdHint == "" {
-		return fmt.Errorf("target block id is required")
+	if (ecd.TargetBlockIdHint == "") != (ecd.FollowingBlockIdHint == "") {
+		return fmt.Errorf("if either the target or following block id is unset, they both must be unset")
 	}
-	if !strings.HasPrefix(ecd.TargetBlockIdHint, "0x") {
+	if ecd.TargetBlockIdHint != "" && !strings.HasPrefix(ecd.TargetBlockIdHint, "0x") {
 		return fmt.Errorf("target block id must be a hex number or hash starting with 0x")
 	}
 	if len(ecd.FollowingBlockIdHint) > math.MaxUint32 {
 		return fmt.Errorf("following block id hint too long")
 	}
-	if ecd.FollowingBlockIdHint == "" {
-		return fmt.Errorf("following block id is required")
-	}
-	if !strings.HasPrefix(ecd.FollowingBlockIdHint, "0x") {
+	if ecd.FollowingBlockIdHint != "" && !strings.HasPrefix(ecd.FollowingBlockIdHint, "0x") {
 		return fmt.Errorf("following block id must be a hex number or hash starting with 0x")
 	}
 	if len(ecd.CallData) <= 0 {
