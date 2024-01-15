@@ -56,6 +56,7 @@ flattened/%.sol: contracts/%.sol node_modules
 
 .PHONY: flattened
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
+	echo "Prefer using the 'forge verify-contract' plugin over the flattened contracts. It's best to verify the contracts with the compiler standard JSON input."
 
 .env: .env.test
 	cp $< $@
