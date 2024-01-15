@@ -1,8 +1,8 @@
-import { ChainId, Network, ChainName, CHAIN_ID_TO_NAME } from "../";
 import { ethers } from "ethers";
+import { ChainName, Network } from "../";
 import {
-  WormholeRelayer__factory,
   WormholeRelayer,
+  WormholeRelayer__factory,
 } from "../ethers-contracts/";
 
 type AddressInfo = {
@@ -58,24 +58,24 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
     mockIntegrationAddress: "0x9Ee656203B0DC40cc1bA3f4738527779220e3998",
   },
   sepolia: {
-    wormholeRelayerAddress: "",
-    mockDeliveryProviderAddress: "",
-    mockIntegrationAddress: "",
+    wormholeRelayerAddress: "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
+    mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
   },
   arbitrum_sepolia: {
-    wormholeRelayerAddress: "",
-    mockDeliveryProviderAddress: "",
-    mockIntegrationAddress: "",
+    wormholeRelayerAddress: "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
+    mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
   },
   optimism_sepolia: {
-    wormholeRelayerAddress: "",
-    mockDeliveryProviderAddress: "",
-    mockIntegrationAddress: "",
+    wormholeRelayerAddress: "0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE",
+    mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
   },
   base_sepolia: {
-    wormholeRelayerAddress: "",
-    mockDeliveryProviderAddress: "",
-    mockIntegrationAddress: "",
+    wormholeRelayerAddress: "0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE",
+    mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
   },
 };
 
