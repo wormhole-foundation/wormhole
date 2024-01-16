@@ -44,63 +44,62 @@ func NewTestRootCommand() *cobra.Command {
 	return rootCmd
 }
 
+// Set ethRPC with config file
+// Tests that the config file is read and the default value is set
 func TestInitFileConfig(t *testing.T) {
-	// Set ethRPC with config file
-	// Tests that the config file is read and the default value is set
-	t.Run("config file", func(t *testing.T) {
-		cmd := NewTestRootCommand()
-		output := &bytes.Buffer{}
-		cmd.SetOut(output)
-		_ = cmd.Execute()
 
-		gotOutput := output.String()
-		wantOutput := `ethRPC: ws://eth-config-file:8545
+	cmd := NewTestRootCommand()
+	output := &bytes.Buffer{}
+	cmd.SetOut(output)
+	_ = cmd.Execute()
+
+	gotOutput := output.String()
+	wantOutput := `ethRPC: ws://eth-config-file:8545
 solRPC: ws://sol-config-file:8545
 `
-		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the config file default")
-	})
+	assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the config file default")
+}
 
-	// Set ethRPC with an environment variable
-	// Tests that environment variables take precedence over config file values
-	t.Run("env var", func(t *testing.T) {
-		os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
-		defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
+// Set ethRPC with an environment variable
+// Tests that environment variables take precedence over config file values
+func TestEnvVarPrecedence(t *testing.T) {
+	os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
+	defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
 
-		cmd := NewTestRootCommand()
-		output := &bytes.Buffer{}
-		cmd.SetOut(output)
-		_ = cmd.Execute()
+	cmd := NewTestRootCommand()
+	output := &bytes.Buffer{}
+	cmd.SetOut(output)
+	_ = cmd.Execute()
 
-		gotOutput := output.String()
-		wantOutput := `ethRPC: ws://eth-env-var:8545
+	gotOutput := output.String()
+	wantOutput := `ethRPC: ws://eth-env-var:8545
 solRPC: ws://sol-config-file:8545
 `
 
-		assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the environment variable and solRPC to use the config file default")
+	assert.Equal(t, wantOutput, gotOutput, "expected ethRPC to use the environment variable and solRPC to use the config file default")
+}
+
+// Set ethRPC with a flag
+// Tests that flags take precedence over environment variables and config file values
+func TestFlagPrecedence(t *testing.T) {
+	os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
+	defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
+
+	cmd := NewTestRootCommand()
+	output := &bytes.Buffer{}
+	cmd.SetOut(output)
+	cmd.SetArgs([]string{
+		"--ethRPC",
+		"ws://eth-flag:8545",
+		"--solRPC",
+		"ws://sol-flag:8545",
 	})
+	_ = cmd.Execute()
 
-	// Set ethRPC with a flag
-	// Tests that flags take precedence over environment variables and config file values
-	t.Run("flag", func(t *testing.T) {
-		os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
-		defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
-
-		cmd := NewTestRootCommand()
-		output := &bytes.Buffer{}
-		cmd.SetOut(output)
-		cmd.SetArgs([]string{
-			"--ethRPC",
-			"ws://eth-flag:8545",
-			"--solRPC",
-			"ws://sol-flag:8545",
-		})
-		_ = cmd.Execute()
-
-		gotOutput := output.String()
-		wantOutput := `ethRPC: ws://eth-flag:8545
+	gotOutput := output.String()
+	wantOutput := `ethRPC: ws://eth-flag:8545
 solRPC: ws://sol-flag:8545
 `
 
-		assert.Equal(t, wantOutput, gotOutput, "expected the ethRPC to use the flag value and solRPC to use the flag value")
-	})
+	assert.Equal(t, wantOutput, gotOutput, "expected the ethRPC to use the flag value and solRPC to use the flag value")
 }
