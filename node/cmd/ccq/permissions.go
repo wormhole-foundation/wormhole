@@ -224,6 +224,12 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s, must be 32 bytes`, account, user.UserName)
 					}
 					account = solana.PublicKey(buf).String()
+				} else {
+					// Make sure it is valid base58.
+					_, err := solana.PublicKeyFromBase58(account)
+					if err != nil {
+						return nil, fmt.Errorf(`solana account string "%s" for user "%s" is not valid base58: %w`, account, user.UserName, err)
+					}
 				}
 				callKey = fmt.Sprintf("solAccount:%d:%s", ac.SolanaAccount.Chain, account)
 			} else {

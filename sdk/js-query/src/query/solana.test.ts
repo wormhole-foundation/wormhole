@@ -73,6 +73,12 @@ describe("solana", () => {
   test("serialize and deserialize sol_account response", () => {
     const slotNumber = BigInt(240866260);
     const blockTime = BigInt(1704770509);
+    const blockHash = Uint8Array.from(
+      Buffer.from(
+        "9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3",
+        "hex"
+      )
+    );
     const results: SolanaAccountResult[] = [
       {
         lamports: BigInt(1141440),
@@ -112,6 +118,7 @@ describe("solana", () => {
     const solAccountResp = new SolanaAccountQueryResponse(
       slotNumber,
       blockTime,
+      blockHash,
       results
     );
     expect(solAccountResp.slotNumber).toEqual(slotNumber);
@@ -119,7 +126,7 @@ describe("solana", () => {
     expect(solAccountResp.results).toEqual(results);
     const serialized = solAccountResp.serialize();
     expect(Buffer.from(serialized).toString("hex")).toEqual(
-      "000000000e5b53d400000000659cbbcd020000000000116ac0000000000001e2400002a8f6914e88a16e395ae128948ffa695693376818dd47435221f3c600000000000000240200000062d14b7d0e121f8575cce871896548fe26d2899b0578ec92117440cda609b0100000000000116ac1000000000001e2410102a8f6914e88a16e395ae128948ffa695693376818dd47435221f3c600000000000000240200000083f7752f3b75f905f040f0087c67c47a52272fcfa90e691ea6e8d4362039ecd5"
+      "000000000e5b53d400000000659cbbcd9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3020000000000116ac0000000000001e2400002a8f6914e88a16e395ae128948ffa695693376818dd47435221f3c600000000000000240200000062d14b7d0e121f8575cce871896548fe26d2899b0578ec92117440cda609b0100000000000116ac1000000000001e2410102a8f6914e88a16e395ae128948ffa695693376818dd47435221f3c600000000000000240200000083f7752f3b75f905f040f0087c67c47a52272fcfa90e691ea6e8d4362039ecd5"
     );
     const solAccountResp2 = SolanaAccountQueryResponse.from(serialized);
     expect(solAccountResp2).toEqual(solAccountResp);

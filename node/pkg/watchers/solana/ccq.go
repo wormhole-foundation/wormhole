@@ -16,7 +16,7 @@ func (w *SolanaWatcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, s
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, response)
 	select {
 	case w.queryResponseC <- queryResponse:
-		w.ccqLogger.Debug("published query response error to handler")
+		w.ccqLogger.Debug("published query response to handler")
 	default:
 		w.ccqLogger.Error("failed to published query response error to handler")
 	}
@@ -159,6 +159,7 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	resp := &query.SolanaAccountQueryResponse{
 		SlotNumber: info.Context.Slot,
 		BlockTime:  time.Unix(int64(*block.BlockTime), 0),
+		BlockHash:  block.Blockhash,
 		Results:    results,
 	}
 

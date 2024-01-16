@@ -133,7 +133,7 @@ func main() {
 		}
 		account2, err := solana.PublicKeyFromBase58("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
 		if err != nil {
-			panic("solana account1 is invalid")
+			panic("solana account2 is invalid")
 		}
 		callRequest := &query.SolanaAccountQueryRequest{
 			Commitment:      "finalized",

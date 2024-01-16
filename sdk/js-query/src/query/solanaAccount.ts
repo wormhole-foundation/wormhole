@@ -95,13 +95,20 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
 export class SolanaAccountQueryResponse implements ChainSpecificResponse {
   slotNumber: bigint;
   blockTime: bigint;
+  blockHash: Uint8Array;
   results: SolanaAccountResult[];
 
   constructor(
     slotNumber: bigint,
     blockTime: bigint,
+    blockHash: Uint8Array,
     results: SolanaAccountResult[]
   ) {
+    if (blockHash.length != 32) {
+      throw new Error(
+        `Invalid block hash, should be 32 bytes long: ${blockHash}`
+      );
+    }
     for (const result of results) {
       if (result.owner.length != 32) {
         throw new Error(
@@ -111,6 +118,7 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
     }
     this.slotNumber = slotNumber;
     this.blockTime = blockTime;
+    this.blockHash = blockHash;
     this.results = results;
   }
 
@@ -122,6 +130,7 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
     const writer = new BinaryWriter()
       .writeUint64(this.slotNumber)
       .writeUint64(this.blockTime)
+      .writeUint8Array(this.blockHash)
       .writeUint8(this.results.length);
     for (const result of this.results) {
       writer
@@ -143,6 +152,7 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
   static fromReader(reader: BinaryReader): SolanaAccountQueryResponse {
     const slotNumber = reader.readUint64();
     const blockTime = reader.readUint64();
+    const blockHash = reader.readUint8Array(32);
     const resultsLength = reader.readUint8();
     const results: SolanaAccountResult[] = [];
     for (let idx = 0; idx < resultsLength; idx++) {
@@ -155,7 +165,12 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
       const data = reader.readUint8Array(dataLength);
       results.push({ lamports, rentEpoch, executable, owner, data });
     }
-    return new SolanaAccountQueryResponse(slotNumber, blockTime, results);
+    return new SolanaAccountQueryResponse(
+      slotNumber,
+      blockTime,
+      blockHash,
+      results
+    );
   }
 }
 

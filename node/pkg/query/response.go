@@ -115,6 +115,9 @@ type SolanaAccountQueryResponse struct {
 	// BlockTime is the block time associated with the slot.
 	BlockTime time.Time
 
+	// BlockHash is the block hash associated with the slot.
+	BlockHash [SolanaPublicKeyLength]byte
+
 	Results []SolanaAccountResult
 }
 
@@ -907,6 +910,7 @@ func (sar *SolanaAccountQueryResponse) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, sar.SlotNumber)
 	vaa.MustWrite(buf, binary.BigEndian, sar.BlockTime.UnixMicro())
+	buf.Write(sar.BlockHash[:])
 
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results)))
 	for _, res := range sar.Results {
@@ -939,6 +943,9 @@ func (sar *SolanaAccountQueryResponse) UnmarshalFromReader(reader *bytes.Reader)
 		return fmt.Errorf("failed to read block time: %w", err)
 	}
 	sar.BlockTime = time.UnixMicro(blockTime)
+	if n, err := reader.Read(sar.BlockHash[:]); err != nil || n != SolanaPublicKeyLength {
+		return fmt.Errorf("failed to read block hash [%d]: %w", n, err)
+	}
 
 	numResults := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &numResults); err != nil {
@@ -984,6 +991,11 @@ func (sar *SolanaAccountQueryResponse) Validate() error {
 	// Not checking for SlotNumber == 0, because maybe that could happen??
 	// Not checking for BlockTime == 0, because maybe that could happen??
 
+	// The block hash is fixed length, so don't need to check for nil.
+	if len(sar.BlockHash) != SolanaPublicKeyLength {
+		return fmt.Errorf("invalid block hash length")
+	}
+
 	if len(sar.Results) <= 0 {
 		return fmt.Errorf("does not contain any results")
 	}
@@ -1006,7 +1018,8 @@ func (sar *SolanaAccountQueryResponse) Validate() error {
 // Equal verifies that two Solana sol_account responses are equal.
 func (left *SolanaAccountQueryResponse) Equal(right *SolanaAccountQueryResponse) bool {
 	if left.SlotNumber != right.SlotNumber ||
-		left.BlockTime != right.BlockTime {
+		left.BlockTime != right.BlockTime ||
+		!bytes.Equal(left.BlockHash[:], right.BlockHash[:]) {
 		return false
 	}
 

@@ -294,6 +294,7 @@ func createSolanaAccountQueryResponseFromRequest(t *testing.T, queryRequest *Que
 				Response: &SolanaAccountQueryResponse{
 					SlotNumber: uint64(1000 + idx),
 					BlockTime:  timeForTest(t, time.Now()),
+					BlockHash:  ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
 					Results:    results,
 				},
 			})

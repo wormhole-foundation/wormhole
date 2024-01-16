@@ -416,13 +416,7 @@ export class QueryProxyMock {
         });
 
         const blockTime = response2.data.result.blockTime;
-        const blockHash = response2.data.result.blockhash;
-
-        const junk = new SolanaAccountQueryResponse(
-          BigInt(slotNumber),
-          BigInt(blockTime),
-          results
-        );
+        const blockHash = base58.decode(response2.data.result.blockhash);
 
         queryResponse.responses.push(
           new PerChainQueryResponse(
@@ -430,6 +424,7 @@ export class QueryProxyMock {
             new SolanaAccountQueryResponse(
               BigInt(slotNumber),
               BigInt(blockTime),
+              blockHash,
               results
             )
           )
