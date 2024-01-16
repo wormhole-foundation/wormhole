@@ -939,8 +939,8 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 
 	// Make sure there are no duplicates. Compact needs to take a sorted slice to remove all duplicates.
 	newGSSorted := slices.Clone(newGS)
-	slices.SortFunc(newGSSorted, func(a, b ethcommon.Address) bool {
-		return bytes.Compare(a[:], b[:]) < 0
+	slices.SortFunc(newGSSorted, func(a, b ethcommon.Address) int {
+		return bytes.Compare(a[:], b[:])
 	})
 	newGsLen := len(newGSSorted)
 	if len(slices.Compact(newGSSorted)) != newGsLen {
@@ -990,8 +990,16 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	newVAA.AddSignature(s.gk, uint8(localGuardianIndex))
 
 	// Sort VAA signatures by guardian ID
-	slices.SortFunc(newVAA.Signatures, func(a, b *vaa.Signature) bool {
-		return a.Index < b.Index
+	slices.SortFunc(newVAA.Signatures, func(a, b *vaa.Signature) int {
+		// TODO: Use this once we get to go 1.21.
+		// return cmp.Compare(a.Index, b.Index)
+		if a.Index < b.Index {
+			return -1
+		}
+		if a.Index > b.Index {
+			return 1
+		}
+		return 0
 	})
 
 	newVAABytes, err := newVAA.Marshal()
