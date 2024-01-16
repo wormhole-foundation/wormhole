@@ -221,7 +221,7 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s": %w`, account, user.UserName, err)
 					}
 					if len(buf) != query.SolanaPublicKeyLength {
-						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s, must be 32 bytes`, account, user.UserName)
+						return nil, fmt.Errorf(`invalid solana account hex string "%s" for user "%s, must be %d bytes`, account, user.UserName, query.SolanaPublicKeyLength)
 					}
 					account = solana.PublicKey(buf).String()
 				} else {
