@@ -17,7 +17,10 @@ import (
 func createQueryResponseFromRequest(t *testing.T, queryRequest *QueryRequest) *QueryResponsePublication {
 	queryRequestBytes, err := queryRequest.Marshal()
 	require.NoError(t, err)
+	return createQueryResponseFromRequestWithRequestBytes(t, queryRequest, queryRequestBytes)
+}
 
+func createQueryResponseFromRequestWithRequestBytes(t *testing.T, queryRequest *QueryRequest, queryRequestBytes []byte) *QueryResponsePublication {
 	sig := [65]byte{}
 	signedQueryRequest := &gossipv1.SignedQueryRequest{
 		QueryRequest: queryRequestBytes,
@@ -100,6 +103,32 @@ func TestQueryResponseMarshalUnmarshal(t *testing.T) {
 	require.NotNil(t, respPub2)
 
 	assert.True(t, respPub.Equal(&respPub2))
+}
+
+func TestQueryResponseUnmarshalWithExtraBytesShouldFail(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	respPub := createQueryResponseFromRequest(t, queryRequest)
+
+	respPubBytes, err := respPub.Marshal()
+	require.NoError(t, err)
+
+	respWithExtraBytes := append(respPubBytes, []byte("Hello, World!")[:]...)
+	var respPub2 QueryResponsePublication
+	err = respPub2.Unmarshal(respWithExtraBytes)
+	assert.EqualError(t, err, "excess bytes in unmarshal")
+}
+
+func TestQueryResponseMarshalWithExtraRequestBytesShouldFail(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	queryRequestBytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	requestWithExtraBytes := append(queryRequestBytes, []byte("Hello, World!")[:]...)
+	respPub := createQueryResponseFromRequestWithRequestBytes(t, queryRequest, requestWithExtraBytes)
+
+	// Marshal should fail because it calls Unmarshal on the request.
+	_, err = respPub.Marshal()
+	assert.EqualError(t, err, "failed to unmarshal query request: excess bytes in unmarshal")
 }
 
 func TestMarshalUnmarshalQueryResponseWithNoPerChainResponsesShouldFail(t *testing.T) {
