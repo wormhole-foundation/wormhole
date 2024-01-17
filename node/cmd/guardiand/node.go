@@ -418,9 +418,9 @@ var (
 )
 
 var (
-	configFilename = "guardian"
+	configFilename = "guardiand"
 	configPath     = "node/config"
-	envPrefix      = "GUARDIAN"
+	envPrefix      = "GUARDIAND"
 )
 
 // "Why would anyone do this?" are famous last words.

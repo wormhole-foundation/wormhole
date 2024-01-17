@@ -307,9 +307,9 @@ Configuration files, environment variables and flags are all supported.
 
 ### Config File
 
-**Location/Naming**: By default, the config file is expected to be in the `node/config` directory. The standard name for the config file is `guardian.yaml`. Currently there's no support for custom directory or filename yet.
+**Location/Naming**: By default, the config file is expected to be in the `node/config` directory. The standard name for the config file is `guardiand.yaml`. Currently there's no support for custom directory or filename yet.
 
-**Format**: We support any format that is supported by [Viper](https://pkg.go.dev/github.com/dvln/viper#section-readme). But YAML file is usually preferred.
+**Format**: We support any format that is supported by [Viper](https://pkg.go.dev/github.com/dvln/viper#section-readme). But YAML format is generally preferred.
 
 **Example**:
 ```yaml
@@ -321,13 +321,13 @@ solanaContract: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 ### Environment Variables
 
-**Prefix**: All environment variables related to the Guardian node should be prefixed with `GUARDIAN_`.
+**Prefix**: All environment variables related to the Guardian node should be prefixed with `GUARDIAND_`.
 
 **Usage**: Environment variables can be used to override settings in the config file. Particularly for sensitive data like API keys that should not be stored in config files.
 
 **Example**:
 ```bash
-export GUARDIAN_ETHRPC=ws://eth-devnet:8545
+export GUARDIAND_ETHRPC=ws://eth-devnet:8545
 ```
 
 ### Command-Line Flags

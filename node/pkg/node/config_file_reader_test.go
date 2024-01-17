@@ -18,7 +18,7 @@ func NewTestRootCommand() *cobra.Command {
 	testConfig := ConfigOptions{
 		FilePath:  "testdata",
 		FileName:  "test",
-		EnvPrefix: "TEST_GUARDIAN",
+		EnvPrefix: "TEST_GUARDIAND",
 	}
 
 	rootCmd := &cobra.Command{
@@ -63,8 +63,8 @@ solRPC: ws://sol-config-file:8545
 // Set ethRPC with an environment variable
 // Tests that environment variables take precedence over config file values
 func TestEnvVarPrecedence(t *testing.T) {
-	os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
-	defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
+	os.Setenv("TEST_GUARDIAND_ETHRPC", "ws://eth-env-var:8545")
+	defer os.Unsetenv("TEST_GUARDIAND_ETHRPC")
 
 	cmd := NewTestRootCommand()
 	output := &bytes.Buffer{}
@@ -82,8 +82,8 @@ solRPC: ws://sol-config-file:8545
 // Set ethRPC with a flag
 // Tests that flags take precedence over environment variables and config file values
 func TestFlagPrecedence(t *testing.T) {
-	os.Setenv("TEST_GUARDIAN_ETHRPC", "ws://eth-env-var:8545")
-	defer os.Unsetenv("TEST_GUARDIAN_ETHRPC")
+	os.Setenv("TEST_GUARDIAND_ETHRPC", "ws://eth-env-var:8545")
+	defer os.Unsetenv("TEST_GUARDIAND_ETHRPC")
 
 	cmd := NewTestRootCommand()
 	output := &bytes.Buffer{}

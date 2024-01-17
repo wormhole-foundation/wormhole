@@ -232,5 +232,5 @@ kind: ConfigMap
 metadata:
   name: node-config
 data:
-  guardian.yaml: |
+  guardiand.yaml: |
     ethRPC: "ws://eth-devnet:8545"

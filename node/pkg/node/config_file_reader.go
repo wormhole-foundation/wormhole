@@ -33,7 +33,7 @@ func InitFileConfig(cmd *cobra.Command, options ConfigOptions) error {
 	}
 
 	// Bind flags to environment variables with a common prefix to avoid conflicts
-	// Example: --ethRPC will be bound to GUARDIAN_ETHRPC
+	// Example: --ethRPC will be bound to GUARDIAND_ETHRPC
 	v.SetEnvPrefix(options.EnvPrefix)
 
 	// Bind to environment variables
