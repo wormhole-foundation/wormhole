@@ -98,7 +98,7 @@ module wormhole::publish_message {
     ///
     /// It is important for integrators to refrain from calling this method
     /// within their contracts. This method is meant to be called in a
-    /// tranasction block after receiving a `MessageTicket` from calling
+    /// transaction block after receiving a `MessageTicket` from calling
     /// `prepare_message` within a contract. If in a circumstance where this
     /// module has a breaking change in an upgrade, `prepare_message` will not
     /// be affected by this change.
