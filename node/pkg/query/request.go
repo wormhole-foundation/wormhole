@@ -121,7 +121,8 @@ const SolanaAccountQueryRequestType ChainSpecificQueryType = 10
 
 // SolanaAccountQueryRequest implements ChainSpecificQuery for an EVM eth_call query request.
 type SolanaAccountQueryRequest struct {
-	// Commitment identifies the commitment level to be used in the queried. It may be "confirmed" or "finalized".
+	// Commitment identifies the commitment level to be used in the queried. Currently it may only "finalized".
+	// Before we can support "confirmed", we need a way to read the account data and the block information atomically.
 	Commitment string
 
 	// The minimum slot that the request can be evaluated at. Zero means unused.
@@ -985,8 +986,8 @@ func (saq *SolanaAccountQueryRequest) Validate() error {
 	if len(saq.Commitment) > math.MaxUint32 {
 		return fmt.Errorf("commitment too long")
 	}
-	if saq.Commitment != "confirmed" && saq.Commitment != "finalized" {
-		return fmt.Errorf(`commitment must be "confirmed" or "finalized"`)
+	if saq.Commitment != "finalized" {
+		return fmt.Errorf(`commitment must be "finalized"`)
 	}
 
 	if saq.DataSliceLength == 0 && saq.DataSliceOffset != 0 {

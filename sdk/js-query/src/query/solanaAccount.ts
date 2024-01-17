@@ -15,7 +15,7 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
   dataSliceLength: bigint;
 
   constructor(
-    commitment: "finalized" | "confirmed",
+    commitment: "finalized",
     accounts: string[],
     minContextSlot?: bigint,
     dataSliceOffset?: bigint,
@@ -69,7 +69,7 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
   static fromReader(reader: BinaryReader): SolanaAccountQueryRequest {
     const commitmentLength = reader.readUint32();
     const commitment = reader.readString(commitmentLength);
-    if (commitment !== "finalized" && commitment !== "confirmed") {
+    if (commitment !== "finalized") {
       throw new Error(`Invalid commitment: ${commitment}`);
     }
     const minContextSlot = reader.readUint64();

@@ -54,7 +54,7 @@ describe("solana", () => {
     const dataSliceOffset = BigInt(12);
     const dataSliceLength = BigInt(100);
     const solAccountReq = new SolanaAccountQueryRequest(
-      "confirmed",
+      "finalized",
       ACCOUNTS,
       minContextSlot,
       dataSliceOffset,
@@ -65,7 +65,7 @@ describe("solana", () => {
     expect(solAccountReq.dataSliceLength).toEqual(dataSliceLength);
     const serialized = solAccountReq.serialize();
     expect(Buffer.from(serialized).toString("hex")).toEqual(
-      "00000009636f6e6669726d6564000000000001e240000000000000000c000000000000006402165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7"
+      "0000000966696e616c697a6564000000000001e240000000000000000c000000000000006402165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7"
     );
     const solAccountReq2 = SolanaAccountQueryRequest.from(serialized);
     expect(solAccountReq2).toEqual(solAccountReq);

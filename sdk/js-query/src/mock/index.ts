@@ -355,12 +355,9 @@ export class QueryProxyMock {
       } else if (type === ChainQueryType.SolanaAccount) {
         const query = perChainRequest.query as SolanaAccountQueryRequest;
         // Validate the request.
-        if (
-          query.commitment !== "finalized" &&
-          query.commitment !== "confirmed"
-        ) {
+        if (query.commitment !== "finalized") {
           throw new Error(
-            `Invalid commitment in sol_account query request, must be "finalized" or "confirmed"`
+            `Invalid commitment in sol_account query request, must be "finalized"`
           );
         }
         if (
