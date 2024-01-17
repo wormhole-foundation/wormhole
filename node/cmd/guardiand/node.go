@@ -991,7 +991,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		labels := map[string]string{
 			"node_name":     *nodeName,
-			"node_key":      peerID.Pretty(),
+			"node_key":      peerID.String(),
 			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
