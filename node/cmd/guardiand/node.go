@@ -419,7 +419,7 @@ var (
 
 var (
 	configFilename = "guardian"
-	configPath     = "/app/node/config"
+	configPath     = "node/config"
 	envPrefix      = "GUARDIAN"
 )
 
