@@ -2,7 +2,7 @@
 
 /// This module implements a custom type representing a Guardian governance
 /// action. Each governance action has an associated module name, relevant chain
-/// and payload encoding instructions/data used to perform an adminstrative
+/// and payload encoding instructions/data used to perform an administrative
 /// change on a contract.
 module wormhole::governance_message {
     use wormhole::bytes::{Self};
