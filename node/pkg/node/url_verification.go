@@ -64,7 +64,7 @@ func RegisterFlagWithValidationOrFail(cmd *cobra.Command, name string, descripti
 
 	// Perform validation after flags are parsed
 	cobra.OnInitialize(func() {
-		if *flagValue == "" {
+		if *flagValue == "" || *flagValue == "none" {
 			return
 		}
 
