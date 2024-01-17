@@ -126,7 +126,7 @@ module token_bridge::transfer_tokens_with_payload {
     ///
     /// It is important for integrators to refrain from calling this method
     /// within their contracts. This method is meant to be called in a
-    /// tranasction block after receiving a `TransferTicket` from calling
+    /// transaction block after receiving a `TransferTicket` from calling
     /// `prepare_transfer` within a contract. If in a circumstance where this
     /// module has a breaking change in an upgrade, `prepare_transfer` will not
     /// be affected by this change.
