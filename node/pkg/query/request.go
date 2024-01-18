@@ -117,7 +117,7 @@ const EvmContractAddressLength = 20
 ////////////////////////////////// Solana Queries ////////////////////////////////////////////////
 
 // SolanaAccountQueryRequestType is the type of a Solana sol_account query request.
-const SolanaAccountQueryRequestType ChainSpecificQueryType = 10
+const SolanaAccountQueryRequestType ChainSpecificQueryType = 4
 
 // SolanaAccountQueryRequest implements ChainSpecificQuery for an EVM eth_call query request.
 type SolanaAccountQueryRequest struct {

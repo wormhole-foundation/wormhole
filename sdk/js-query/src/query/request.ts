@@ -120,5 +120,5 @@ export enum ChainQueryType {
   EthCall = 1,
   EthCallByTimeStamp = 2,
   EthCallWithFinality = 3,
-  SolanaAccount = 10,
+  SolanaAccount = 4,
 }

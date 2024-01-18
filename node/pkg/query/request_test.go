@@ -765,7 +765,7 @@ func TestSolanaAccountQueryRequestMarshalUnmarshal(t *testing.T) {
 }
 
 func TestSolanaAccountQueryRequestMarshalUnmarshalFromSDK(t *testing.T) {
-	serialized, err := hex.DecodeString("0000000966696e616c697a65640000000000000000000000000000000000000000000000000202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491")
+	serialized, err := hex.DecodeString("0000000966696e616c697a656400000000000000000000000000000000000000000000000002165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7")
 	require.NoError(t, err)
 
 	var solAccountReq SolanaAccountQueryRequest
@@ -774,7 +774,7 @@ func TestSolanaAccountQueryRequestMarshalUnmarshalFromSDK(t *testing.T) {
 }
 
 func TestSolanaQueryMarshalUnmarshalFromSDK(t *testing.T) {
-	serialized, err := hex.DecodeString("010000002a0100010a000000660000000966696e616c697a65640000000000000000000000000000000000000000000000000202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491")
+	serialized, err := hex.DecodeString("010000002a01000104000000660000000966696e616c697a65640000000000000000000000000000000000000000000000000202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491")
 	require.NoError(t, err)
 
 	var solQuery QueryRequest
