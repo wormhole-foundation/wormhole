@@ -2,6 +2,7 @@ package solana
 
 import (
 	"context"
+	"encoding/hex"
 	"time"
 
 	"go.uber.org/zap"
@@ -167,6 +168,7 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 		zap.String("requestId", requestId),
 		zap.Uint64("slotNumber", info.Context.Slot),
 		zap.Uint64("blockTime", uint64(*block.BlockTime)),
+		zap.String("blockHash", hex.EncodeToString(block.Blockhash[:])),
 		zap.Any("blockHeight", block.BlockHeight),
 	)
 

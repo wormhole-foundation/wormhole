@@ -20,6 +20,22 @@ import {
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
 
+type SolanaAccountData = {
+  data: [string, string];
+  executable: boolean;
+  lamports: number;
+  owner: string;
+  rentEpoch: number;
+  space: number;
+};
+
+type SolanaGetMultipleAccountsResponse = {
+  result?: {
+    context: { apiVersion: string; slot: number };
+    value: SolanaAccountData[];
+  };
+};
+
 /**
  * Usage:
  *
@@ -383,17 +399,36 @@ export class QueryProxyMock {
           accounts.push(base58.encode(acct));
         });
 
-        const response = await axios.post(rpc, {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "getMultipleAccounts",
-          params: [accounts, { commitment: query.commitment }],
-        });
+        let opts =
+          query.dataSliceOffset === BigInt(0)
+            ? {
+                commitment: query.commitment,
+              }
+            : {
+                commitment: query.commitment,
+                dataSlice: {
+                  offset: Number(query.dataSliceOffset),
+                  length: Number(query.dataSliceLength),
+                },
+              };
+
+        const response = await axios.post<SolanaGetMultipleAccountsResponse>(
+          rpc,
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "getMultipleAccounts",
+            params: [accounts, opts],
+          }
+        );
+
+        if (!response.data.result) {
+          throw new Error("Invalid result for getMultipleAccounts");
+        }
 
         const slotNumber = response.data.result.context.slot;
         let results: SolanaAccountResult[] = [];
-        response.data.result.value.forEach((v: Object) => {
-          const val = v as SolanaAccountResult;
+        response.data.result.value.forEach((val) => {
           results.push({
             lamports: BigInt(val.lamports),
             rentEpoch: BigInt(val.rentEpoch),
@@ -409,7 +444,10 @@ export class QueryProxyMock {
           jsonrpc: "2.0",
           id: 1,
           method: "getBlock",
-          params: [slotNumber, { commitment: query.commitment }],
+          params: [
+            slotNumber,
+            { commitment: query.commitment, transactionDetails: "none" },
+          ],
         });
 
         const blockTime = response2.data.result.blockTime;
@@ -420,7 +458,7 @@ export class QueryProxyMock {
             perChainRequest.chainId,
             new SolanaAccountQueryResponse(
               BigInt(slotNumber),
-              BigInt(blockTime),
+              BigInt(blockTime) * BigInt(1000000), // time in seconds -> microseconds,
               blockHash,
               results
             )
