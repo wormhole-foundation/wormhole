@@ -33,4 +33,4 @@ sui.log.*
 sui/examples/wrapped_coin
 *.prof
 # Only used for internal testing
-*.xlabs.yaml
+*.testnet.yaml
