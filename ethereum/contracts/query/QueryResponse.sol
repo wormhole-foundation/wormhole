@@ -63,6 +63,28 @@ struct EthCallData {
     bytes result;
 }
 
+// @dev SolanaAccountQueryResponse describes a Solana Account query per-chain query.
+struct SolanaAccountQueryResponse {
+    bytes requestCommitment;
+    uint64 requestMinContextSlot;
+    uint64 requestDataSliceOffset;
+    uint64 requestDataSliceLength;
+    uint64 slotNumber;
+    uint64 blockTime;
+    bytes32 blockHash;
+    SolanaAccountResult [] results;
+}
+
+// @dev SolanaAccountResult describes a single Solana Account query result.
+struct SolanaAccountResult {
+    bytes32 account;
+    uint64 lamports;
+    uint64 rentEpoch;
+    bool executable;
+    bytes32 owner;
+    bytes data;
+}
+
 // Custom errors
 error EmptyWormholeAddress();
 error InvalidResponseVersion();
@@ -91,7 +113,8 @@ abstract contract QueryResponse {
     uint8 public constant QT_ETH_CALL = 1;
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
-    uint8 public constant QT_MAX = 4; // Keep this last
+    uint8 public constant QT_SOL_ACCOUNT = 4;
+    uint8 public constant QT_MAX = 5; // Keep this last
 
     constructor(address _wormhole) {
         if (_wormhole == address(0)) {
@@ -349,6 +372,61 @@ abstract contract QueryResponse {
 
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
+    }
+
+    /// @dev parseSolanaAccountQueryResponse parses a ParsedPerChainQueryResponse for a Solana Account per-chain query.
+    function parseSolanaAccountQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaAccountQueryResponse memory r) {
+        if (pcr.queryType != QT_SOL_ACCOUNT) {
+            revert UnsupportedQueryType();
+        }
+
+        uint reqIdx = 0;
+        uint respIdx = 0;
+        uint32 len;
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
+        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
+        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
+        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
+        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
+
+        uint8 numAccounts;
+        (numAccounts, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_accounts
+
+        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numAccounts) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.results = new SolanaAccountResult[](numAccounts);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx = 0; idx < numAccounts;) {
+            (r.results[idx].account, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request account
+
+            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
+            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
+
+            uint8 executable;
+            (executable, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response executable
+            r.results[idx].executable = (executable != 0);
+
+            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
+
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
 
             unchecked { ++idx; }
         }
