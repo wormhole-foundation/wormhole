@@ -21,15 +21,16 @@ func hasKnownSchemePrefix(urlStr string) bool {
 }
 
 func validateURL(urlStr string, validSchemes []string) bool {
-	parsedURL, err := url.Parse(urlStr)
-	if err != nil {
-		return false
-	}
-
 	// If no scheme is required, validate host:port format
 	if len(validSchemes) == 1 && validSchemes[0] == "" {
 		host, port, err := net.SplitHostPort(urlStr)
 		return err == nil && host != "" && port != "" && !hasKnownSchemePrefix(urlStr)
+	}
+
+	// url.Parse() has to come later because it will fail if the scheme is not known
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return false
 	}
 
 	for _, scheme := range validSchemes {
