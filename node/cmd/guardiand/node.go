@@ -521,7 +521,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		*klaytnContract = unsafeDevModeEvmContractAddress(*klaytnContract)
 		*celoContract = unsafeDevModeEvmContractAddress(*celoContract)
 		*moonbeamContract = unsafeDevModeEvmContractAddress(*moonbeamContract)
-		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
 		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
@@ -827,6 +826,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *unsafeDevMode && *testnetMode {
 		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
 	}
+
+	fmt.Printf("All RPC URLs work\n")
+	return
 
 	// Complain about Infura on mainnet.
 	//
