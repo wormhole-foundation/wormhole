@@ -124,6 +124,8 @@ spec:
             - ws://eth-devnet:8545
             - --optimismSepoliaRPC
             - ws://eth-devnet:8545
+            - --polygonSepoliaRPC
+            - ws://eth-devnet:8545
             # - --wormchainURL
             # - wormchain:9090
             # - --accountantKeyPath

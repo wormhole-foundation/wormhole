@@ -749,8 +749,8 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDOptimismSepolia {
 		finalized = true
 		safe = true
-	} else if w.chainID == vaa.ChainIDScroll {
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDScroll || // As of 11/10/2023 Scroll supports polling for finalized but not safe.
+		w.chainID == vaa.ChainIDPolygonSepolia { // As of 3/11/2024 Polygon Sepolia supports polling for finalized but not safe.
 		finalized = true
 	} else if w.chainID == vaa.ChainIDPolygon {
 		// Polygon now supports polling for finalized but not safe.

@@ -56,6 +56,7 @@ enum ChainID {
   CHAIN_ID_BASE_SEPOLIA = 10004;
   CHAIN_ID_OPTIMISM_SEPOLIA = 10005;
   CHAIN_ID_HOLESKY = 10006;
+  CHAIN_ID_POLYGON_SEPOLIA = 10007;
 }
 
 // MessageID is a VAA's globally unique identifier (see data availability design document).

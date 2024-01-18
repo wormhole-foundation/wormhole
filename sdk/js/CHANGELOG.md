@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.12
+
+Polygon Sepolia support
+
 ## 0.10.11
 
 ### Changes

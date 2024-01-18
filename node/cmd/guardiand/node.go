@@ -191,6 +191,9 @@ var (
 	optimismSepoliaRPC      *string
 	optimismSepoliaContract *string
 
+	polygonSepoliaRPC      *string
+	polygonSepoliaContract *string
+
 	logLevel                *string
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
@@ -371,6 +374,9 @@ func init() {
 	optimismSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismSepoliaRPC", "Optimism on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	optimismSepoliaContract = NodeCmd.Flags().String("optimismSepoliaContract", "", "Optimism on Sepolia contract address")
 
+	polygonSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "polygonSepoliaRPC", "Polygon on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	polygonSepoliaContract = NodeCmd.Flags().String("polygonSepoliaContract", "", "Polygon on Sepolia contract address")
+
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	publicRpcLogDetailStr = NodeCmd.Flags().String("publicRpcLogDetail", "full", "The detail with which public RPC requests shall be logged (none=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
 	publicRpcLogToTelemetry = NodeCmd.Flags().Bool("logPublicRpcToTelemetry", true, "whether or not to include publicRpc request logs in telemetry")
@@ -543,6 +549,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
 		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
 		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
+		*polygonSepoliaContract = unsafeDevModeEvmContractAddress(*polygonSepoliaContract)
 	}
 
 	// Verify flags
@@ -720,6 +727,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		if (*optimismSepoliaRPC == "") != (*optimismSepoliaContract == "") {
 			logger.Fatal("Both --optimismSepoliaRPC and --optimismSepoliaContract must be set together or both unset")
 		}
+		if (*polygonSepoliaRPC == "") != (*polygonSepoliaContract == "") {
+			logger.Fatal("Both --polygonSepoliaRPC and --polygonSepoliaContract must be set together or both unset")
+		}
 	} else {
 		if *sepoliaRPC != "" || *sepoliaContract != "" {
 			logger.Fatal("Please do not specify --sepoliaRPC or --sepoliaContract")
@@ -735,6 +745,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *optimismSepoliaRPC != "" || *optimismSepoliaContract != "" {
 			logger.Fatal("Please do not specify --optimismSepoliaRPC or --optimismSepoliaContract")
+		}
+		if *polygonSepoliaRPC != "" || *polygonSepoliaContract != "" {
+			logger.Fatal("Please do not specify --polygonSepoliaRPC or --polygonSepoliaContract")
 		}
 	}
 
@@ -944,6 +957,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
 		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
 		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
+		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
@@ -1548,6 +1562,17 @@ func runNode(cmd *cobra.Command, args []string) {
 				ChainID:   vaa.ChainIDOptimismSepolia,
 				Rpc:       *optimismSepoliaRPC,
 				Contract:  *optimismSepoliaContract,
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(polygonSepoliaRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID: "polygon_sepolia",
+				ChainID:   vaa.ChainIDPolygonSepolia,
+				Rpc:       *polygonSepoliaRPC,
+				Contract:  *polygonSepoliaContract,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
