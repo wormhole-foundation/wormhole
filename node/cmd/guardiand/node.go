@@ -283,7 +283,7 @@ func init() {
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	neonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "neonRPC", "Neon RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	neonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "neonRPC", "Neon RPC URL", "http://eth-devnet:8545", []string{"http", "https"})
 	neonContract = NodeCmd.Flags().String("neonContract", "", "Neon contract address")
 
 	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
