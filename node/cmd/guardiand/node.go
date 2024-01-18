@@ -336,7 +336,7 @@ func init() {
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
-	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "sui:9000", []string{""})
+	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "ws://sui:9000", []string{"ws", "wss"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
@@ -826,9 +826,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *unsafeDevMode && *testnetMode {
 		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
 	}
-
-	fmt.Printf("All RPC URLs work\n")
-	return
 
 	// Complain about Infura on mainnet.
 	//
