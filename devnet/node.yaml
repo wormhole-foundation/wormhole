@@ -99,8 +99,6 @@ spec:
             - ws://eth-devnet:8545
             - --optimismRPC
             - ws://eth-devnet:8545
-            - --neonRPC
-            - ws://eth-devnet:8545
             - --baseRPC
             - ws://eth-devnet:8545
             - --scrollRPC

@@ -25,6 +25,7 @@ func TestValidateURL(t *testing.T) {
 		{[]string{""}, "example.com:8080", true},
 		{[]string{""}, "http://invalid-scheme:8080", false},
 		{[]string{""}, "ws://invalid-scheme:8080", false},
+		{[]string{""}, "170.0.0.1:8080", true},
 	}
 
 	for _, test := range tests {
