@@ -27,7 +27,7 @@ func validateURL(urlStr string, validSchemes []string) bool {
 		return err == nil && host != "" && port != "" && !hasKnownSchemePrefix(urlStr)
 	}
 
-	// url.Parse() has to come later because it will fail if the scheme is not known
+	// url.Parse() has to come later because it will fail if the scheme is empty
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return false
