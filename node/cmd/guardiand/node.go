@@ -417,6 +417,12 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
+var (
+	configFilename = "guardiand"
+	configPath     = "node/config"
+	envPrefix      = "GUARDIAND"
+)
+
 // "Why would anyone do this?" are famous last words.
 //
 // We already forcibly override RPC URLs and keys in dev mode to prevent security
@@ -432,9 +438,10 @@ const devwarning = `
 
 // NodeCmd represents the node command
 var NodeCmd = &cobra.Command{
-	Use:   "node",
-	Short: "Run the guardiand node",
-	Run:   runNode,
+	Use:               "node",
+	Short:             "Run the guardiand node",
+	PersistentPreRunE: initConfig,
+	Run:               runNode,
 }
 
 // This variable may be overridden by the -X linker flag to "dev" in which case
@@ -442,6 +449,15 @@ var NodeCmd = &cobra.Command{
 // are distributed. Production binaries are required to be built from source by
 // guardians to reduce risk from a compromised builder.
 var Build = "prod"
+
+// initConfig initializes the file configuration.
+func initConfig(cmd *cobra.Command, args []string) error {
+	return node.InitFileConfig(cmd, node.ConfigOptions{
+		FilePath:  configPath,
+		FileName:  configFilename,
+		EnvPrefix: envPrefix,
+	})
+}
 
 func runNode(cmd *cobra.Command, args []string) {
 	if Build == "dev" && !*unsafeDevMode {
