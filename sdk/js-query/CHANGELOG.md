@@ -2,6 +2,8 @@
 
 Add EthCallByTimestamp mock support
 
+Add SolanaAccount support
+
 ## 0.0.6
 
 Deserialization support
