@@ -255,6 +255,10 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		return fmt.Errorf("excess bytes in unmarshal")
 	}
 
+	if err := msg.Validate(); err != nil {
+		return fmt.Errorf("unmarshaled response failed validation: %w", err)
+	}
+
 	return nil
 }
 

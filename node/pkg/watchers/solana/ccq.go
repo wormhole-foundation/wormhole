@@ -174,30 +174,3 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 
 	w.ccqSendQueryResponse(queryRequest, query.QuerySuccess, resp)
 }
-
-/*
-func (s *SolanaWatcher) testQuery(ctx context.Context, logger *zap.Logger) {
-	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-	defer cancel()
-	acc, err := solana.PublicKeyFromBase58("Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb")
-	if err != nil {
-		logger.Error("SOLTEST: failed to parse account", zap.Error(err))
-		return
-	}
-
-	slot := uint64(239676280)
-	logger.Info("SOLTEST: doing read", zap.Any("commitment", s.commitment), zap.Any("account", acc), zap.Uint64("slot", slot))
-	info, err := s.rpcClient.GetAccountInfoWithOpts(rCtx, acc, &rpc.GetAccountInfoOpts{
-		Encoding:       solana.EncodingBase64,
-		Commitment:     s.commitment,
-		MinContextSlot: &slot,
-	})
-
-	if err != nil {
-		logger.Error("SOLTEST: read failed", zap.Error(err))
-		return
-	}
-
-	logger.Info("SOLTEST: read succeeded", zap.Uint64("slot", info.Context.Slot), zap.Any("data", info.Value.Data))
-}
-*/

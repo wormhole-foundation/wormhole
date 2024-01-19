@@ -13,6 +13,8 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
+	solana "github.com/gagliardetto/solana-go"
 )
 
 // MSG_VERSION is the current version of the CCQ message protocol.
@@ -138,7 +140,16 @@ type SolanaAccountQueryRequest struct {
 	Accounts [][SolanaPublicKeyLength]byte
 }
 
-const SolanaPublicKeyLength = 32
+// Solana public keys are fixed length.
+const SolanaPublicKeyLength = solana.PublicKeyLength
+
+// According to the Solana spec, the longest comment string is nine characters. Allow a few more, just in case.
+// https://pkg.go.dev/github.com/gagliardetto/solana-go/rpc#CommitmentType
+const SolanaMaxCommitmentLength = 12
+
+// According to the spec, the query only supports up to 100 accounts.
+// https://github.com/solana-labs/solana/blob/9d132441fdc6282a8be4bff0bc77d6a2fefe8b59/rpc-client-api/src/request.rs#L204
+const SolanaMaxAccountsPerQuery = 100
 
 func (saq *SolanaAccountQueryRequest) AccountList() [][SolanaPublicKeyLength]byte {
 	return saq.Accounts
@@ -244,6 +255,10 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 
 	if reader.Len() != 0 {
 		return fmt.Errorf("excess bytes in unmarshal")
+	}
+
+	if err := queryRequest.Validate(); err != nil {
+		return fmt.Errorf("unmarshaled request failed validation: %w", err)
 	}
 
 	return nil
@@ -947,6 +962,10 @@ func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) 
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
+	if len > SolanaMaxCommitmentLength {
+		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
+	}
+
 	commitment := make([]byte, len)
 	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
@@ -997,8 +1016,8 @@ func (saq *SolanaAccountQueryRequest) Validate() error {
 	if len(saq.Accounts) <= 0 {
 		return fmt.Errorf("does not contain any account entries")
 	}
-	if len(saq.Accounts) > math.MaxUint8 {
-		return fmt.Errorf("too many account entries")
+	if len(saq.Accounts) > SolanaMaxAccountsPerQuery {
+		return fmt.Errorf("too many account entries, may not be more that %d", SolanaMaxAccountsPerQuery)
 	}
 	for _, acct := range saq.Accounts {
 		// The account is fixed length, so don't need to check for nil.
