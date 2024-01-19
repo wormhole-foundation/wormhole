@@ -89,7 +89,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 	if err != nil {
 		logger.Debug("failed to unmarshal request", zap.String("userName", permsForUser.userName), zap.Error(err))
 		invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
-		return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal request: %w", err)
+		return http.StatusBadRequest, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Make sure the overall query request is sane.
