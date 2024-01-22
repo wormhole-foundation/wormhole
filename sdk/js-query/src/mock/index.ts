@@ -20,6 +20,17 @@ import {
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
 
+interface SolanaGetMultipleAccountsOpts {
+  commitment: string;
+  minSlotContext?: number;
+  dataSlice?: SolanaDataSlice;
+}
+
+interface SolanaDataSlice {
+  offset: number;
+  length: number;
+}
+
 type SolanaAccountData = {
   data: [string, string];
   executable: boolean;
@@ -399,18 +410,18 @@ export class QueryProxyMock {
           accounts.push(base58.encode(acct));
         });
 
-        let opts =
-          query.dataSliceOffset === BigInt(0)
-            ? {
-                commitment: query.commitment,
-              }
-            : {
-                commitment: query.commitment,
-                dataSlice: {
-                  offset: Number(query.dataSliceOffset),
-                  length: Number(query.dataSliceLength),
-                },
-              };
+        let opts: SolanaGetMultipleAccountsOpts = {
+          commitment: query.commitment,
+        };
+        if (query.minContextSlot != BigInt(0)) {
+          opts.minSlotContext = Number(query.minContextSlot);
+        }
+        if (query.dataSliceOffset !== BigInt(0)) {
+          opts.dataSlice = {
+            offset: Number(query.dataSliceOffset),
+            length: Number(query.dataSliceLength),
+          };
+        }
 
         const response = await axios.post<SolanaGetMultipleAccountsResponse>(
           rpc,
