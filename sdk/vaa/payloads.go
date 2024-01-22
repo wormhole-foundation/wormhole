@@ -128,6 +128,13 @@ type (
 		NewContract   Address
 	}
 
+	// BodyRecoverChainId is a governance message to recover a chain id.
+	BodyRecoverChainId struct {
+		Module     string
+		EvmChainID *uint256.Int
+		NewChainID ChainID
+	}
+
 	// BodyTokenBridgeModifyBalance is a governance message to modify accountant balances for the tokenbridge.
 	BodyAccountantModifyBalance struct {
 		Module        string
@@ -255,6 +262,24 @@ func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
+}
+
+func (r BodyRecoverChainId) Serialize() []byte {
+	// Module
+	buf := LeftPadBytes(r.Module, 32)
+	// Action
+	var action GovernanceAction
+	if r.Module == "Core" {
+		action = ActionCoreRecoverChainId
+	} else {
+		action = ActionTokenBridgeRecoverChainId
+	}
+	MustWrite(buf, binary.BigEndian, action)
+	// EvmChainID
+	MustWrite(buf, binary.BigEndian, r.EvmChainID.Bytes32())
+	// NewChainID
+	MustWrite(buf, binary.BigEndian, r.NewChainID)
+	return buf.Bytes()
 }
 
 func (r BodyAccountantModifyBalance) Serialize() []byte {
