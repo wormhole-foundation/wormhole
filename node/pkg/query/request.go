@@ -13,6 +13,8 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
+	solana "github.com/gagliardetto/solana-go"
 )
 
 // MSG_VERSION is the current version of the CCQ message protocol.
@@ -114,6 +116,45 @@ type EthCallData struct {
 
 const EvmContractAddressLength = 20
 
+////////////////////////////////// Solana Queries ////////////////////////////////////////////////
+
+// SolanaAccountQueryRequestType is the type of a Solana sol_account query request.
+const SolanaAccountQueryRequestType ChainSpecificQueryType = 4
+
+// SolanaAccountQueryRequest implements ChainSpecificQuery for an EVM eth_call query request.
+type SolanaAccountQueryRequest struct {
+	// Commitment identifies the commitment level to be used in the queried. Currently it may only "finalized".
+	// Before we can support "confirmed", we need a way to read the account data and the block information atomically.
+	Commitment string
+
+	// The minimum slot that the request can be evaluated at. Zero means unused.
+	MinContextSlot uint64
+
+	// The offset of the start of data to be returned. Unused if DataSliceLength is zero.
+	DataSliceOffset uint64
+
+	// The length of the data to be returned. Zero means all data is returned.
+	DataSliceLength uint64
+
+	// Accounts is an array of accounts to be queried, in base58 representation.
+	Accounts [][SolanaPublicKeyLength]byte
+}
+
+// Solana public keys are fixed length.
+const SolanaPublicKeyLength = solana.PublicKeyLength
+
+// According to the Solana spec, the longest comment string is nine characters. Allow a few more, just in case.
+// https://pkg.go.dev/github.com/gagliardetto/solana-go/rpc#CommitmentType
+const SolanaMaxCommitmentLength = 12
+
+// According to the spec, the query only supports up to 100 accounts.
+// https://github.com/solana-labs/solana/blob/9d132441fdc6282a8be4bff0bc77d6a2fefe8b59/rpc-client-api/src/request.rs#L204
+const SolanaMaxAccountsPerQuery = 100
+
+func (saq *SolanaAccountQueryRequest) AccountList() [][SolanaPublicKeyLength]byte {
+	return saq.Accounts
+}
+
 // PerChainQueryInternal is an internal representation of a query request that is passed to the watcher.
 type PerChainQueryInternal struct {
 	RequestID  string
@@ -214,6 +255,10 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 
 	if reader.Len() != 0 {
 		return fmt.Errorf("excess bytes in unmarshal")
+	}
+
+	if err := queryRequest.Validate(); err != nil {
+		return fmt.Errorf("unmarshaled request failed validation: %w", err)
 	}
 
 	return nil
@@ -329,6 +374,12 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 			return fmt.Errorf("failed to unmarshal eth call with finality request: %w", err)
 		}
 		perChainQuery.Query = &q
+	case SolanaAccountQueryRequestType:
+		q := SolanaAccountQueryRequest{}
+		if err := q.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal solana account query request: %w", err)
+		}
+		perChainQuery.Query = &q
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -376,27 +427,34 @@ func (left *PerChainQueryRequest) Equal(right *PerChainQueryRequest) bool {
 		return false
 	}
 
-	switch leftEcq := left.Query.(type) {
+	switch leftQuery := left.Query.(type) {
 	case *EthCallQueryRequest:
-		switch rightEcd := right.Query.(type) {
+		switch rightQuery := right.Query.(type) {
 		case *EthCallQueryRequest:
-			return leftEcq.Equal(rightEcd)
+			return leftQuery.Equal(rightQuery)
 		default:
 			panic("unsupported query type on right, must be eth_call")
 		}
 	case *EthCallByTimestampQueryRequest:
-		switch rightEcd := right.Query.(type) {
+		switch rightQuery := right.Query.(type) {
 		case *EthCallByTimestampQueryRequest:
-			return leftEcq.Equal(rightEcd)
+			return leftQuery.Equal(rightQuery)
 		default:
 			panic("unsupported query type on right, must be eth_call_by_timestamp")
 		}
 	case *EthCallWithFinalityQueryRequest:
-		switch rightEcd := right.Query.(type) {
+		switch rightQuery := right.Query.(type) {
 		case *EthCallWithFinalityQueryRequest:
-			return leftEcq.Equal(rightEcd)
+			return leftQuery.Equal(rightQuery)
 		default:
 			panic("unsupported query type on right, must be eth_call_with_finality")
+		}
+	case *SolanaAccountQueryRequest:
+		switch rightQuery := right.Query.(type) {
+		case *SolanaAccountQueryRequest:
+			return leftQuery.Equal(rightQuery)
+		default:
+			panic("unsupported query type on right, must be sol_account")
 		}
 	default:
 		panic("unsupported query type on left")
@@ -860,8 +918,140 @@ func (left *EthCallWithFinalityQueryRequest) Equal(right *EthCallWithFinalityQue
 	return true
 }
 
+//
+// Implementation of SolanaAccountQueryRequest, which implements the ChainSpecificQuery interface.
+//
+
+func (e *SolanaAccountQueryRequest) Type() ChainSpecificQueryType {
+	return SolanaAccountQueryRequestType
+}
+
+// Marshal serializes the binary representation of a Solana sol_account request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (saq *SolanaAccountQueryRequest) Marshal() ([]byte, error) {
+	if err := saq.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(saq.Commitment)))
+	buf.Write([]byte(saq.Commitment))
+
+	vaa.MustWrite(buf, binary.BigEndian, saq.MinContextSlot)
+	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceOffset)
+	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceLength)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(saq.Accounts)))
+	for _, acct := range saq.Accounts {
+		buf.Write(acct[:])
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes a Solana sol_account query from a byte array
+func (saq *SolanaAccountQueryRequest) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return saq.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes a Solana sol_account query from a byte array
+func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
+	len := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		return fmt.Errorf("failed to read commitment len: %w", err)
+	}
+
+	if len > SolanaMaxCommitmentLength {
+		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
+	}
+
+	commitment := make([]byte, len)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
+	}
+	saq.Commitment = string(commitment)
+
+	if err := binary.Read(reader, binary.BigEndian, &saq.MinContextSlot); err != nil {
+		return fmt.Errorf("failed to read min slot: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &saq.DataSliceOffset); err != nil {
+		return fmt.Errorf("failed to read data slice offset: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &saq.DataSliceLength); err != nil {
+		return fmt.Errorf("failed to read data slice length: %w", err)
+	}
+
+	numAccounts := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numAccounts); err != nil {
+		return fmt.Errorf("failed to read number of account entries: %w", err)
+	}
+
+	for count := 0; count < int(numAccounts); count++ {
+		account := [SolanaPublicKeyLength]byte{}
+		if n, err := reader.Read(account[:]); err != nil || n != SolanaPublicKeyLength {
+			return fmt.Errorf("failed to read account [%d]: %w", n, err)
+		}
+		saq.Accounts = append(saq.Accounts, account)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on a Solana sol_account query.
+func (saq *SolanaAccountQueryRequest) Validate() error {
+	if len(saq.Commitment) > math.MaxUint32 {
+		return fmt.Errorf("commitment too long")
+	}
+	if saq.Commitment != "finalized" {
+		return fmt.Errorf(`commitment must be "finalized"`)
+	}
+
+	if saq.DataSliceLength == 0 && saq.DataSliceOffset != 0 {
+		return fmt.Errorf("data slice offset may not be set if data slice length is zero")
+	}
+
+	if len(saq.Accounts) <= 0 {
+		return fmt.Errorf("does not contain any account entries")
+	}
+	if len(saq.Accounts) > SolanaMaxAccountsPerQuery {
+		return fmt.Errorf("too many account entries, may not be more that %d", SolanaMaxAccountsPerQuery)
+	}
+	for _, acct := range saq.Accounts {
+		// The account is fixed length, so don't need to check for nil.
+		if len(acct) != SolanaPublicKeyLength {
+			return fmt.Errorf("invalid account length")
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two Solana sol_account queries are equal.
+func (left *SolanaAccountQueryRequest) Equal(right *SolanaAccountQueryRequest) bool {
+	if left.Commitment != right.Commitment ||
+		left.MinContextSlot != right.MinContextSlot ||
+		left.DataSliceOffset != right.DataSliceOffset ||
+		left.DataSliceLength != right.DataSliceLength {
+		return false
+	}
+
+	if len(left.Accounts) != len(right.Accounts) {
+		return false
+	}
+	for idx := range left.Accounts {
+		if !bytes.Equal(left.Accounts[idx][:], right.Accounts[idx][:]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func ValidatePerChainQueryRequestType(qt ChainSpecificQueryType) error {
-	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType && qt != EthCallWithFinalityQueryRequestType {
+	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType && qt != EthCallWithFinalityQueryRequestType && qt != SolanaAccountQueryRequestType {
 		return fmt.Errorf("invalid query request type: %d", qt)
 	}
 	return nil
