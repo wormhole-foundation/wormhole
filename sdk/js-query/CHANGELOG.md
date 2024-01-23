@@ -1,3 +1,7 @@
+## 0.0.8
+
+Fix SolanaAccount mock for minContextSlot and dataSliceOffset == 0
+
 ## 0.0.7
 
 Add EthCallByTimestamp mock support
