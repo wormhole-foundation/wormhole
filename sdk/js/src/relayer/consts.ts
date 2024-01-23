@@ -60,22 +60,22 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
   sepolia: {
     wormholeRelayerAddress: "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
     mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
-    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
+    mockIntegrationAddress: "0x68b7Cd0d27a6F04b2F65e11DD06182EFb255c9f0",
   },
   arbitrum_sepolia: {
     wormholeRelayerAddress: "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
     mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
-    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
+    mockIntegrationAddress: "0x2B1502Ffe717817A0A101a687286bE294fe495f7",
   },
   optimism_sepolia: {
     wormholeRelayerAddress: "0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE",
     mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
-    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
+    mockIntegrationAddress: "0xA404B69582bac287a7455FFf315938CCd92099c1",
   },
   base_sepolia: {
     wormholeRelayerAddress: "0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE",
     mockDeliveryProviderAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
-    mockIntegrationAddress: "0x2703483B1a5a7c577e8680de9Df8Be03c6f30e3c",
+    mockIntegrationAddress: "0xA404B69582bac287a7455FFf315938CCd92099c1",
   },
 };
 
