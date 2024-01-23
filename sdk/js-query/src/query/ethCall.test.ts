@@ -579,7 +579,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: target timestamp may not be zero\n`
+          `failed to unmarshal request: unmarshaled request failed validation: failed to validate per chain query 0: chain specific query is invalid: target timestamp may not be zero\n`
         );
       });
     expect(err).toBe(true);
@@ -624,7 +624,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
+          `failed to unmarshal request: unmarshaled request failed validation: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
         );
       });
     expect(err).toBe(true);
@@ -668,7 +668,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
+          `failed to unmarshal request: unmarshaled request failed validation: failed to validate per chain query 0: chain specific query is invalid: if either the target or following block id is unset, they both must be unset\n`
         );
       });
     expect(err).toBe(true);
@@ -786,7 +786,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: finality is required\n`
+          `failed to unmarshal request: unmarshaled request failed validation: failed to validate per chain query 0: chain specific query is invalid: finality is required\n`
         );
       });
     expect(err).toBe(true);
@@ -824,7 +824,7 @@ describe("eth call", () => {
         err = true;
         expect(error.response.status).toBe(400);
         expect(error.response.data).toBe(
-          `failed to validate request: failed to validate per chain query 0: chain specific query is invalid: finality must be "finalized" or "safe", is "HelloWorld"\n`
+          `failed to unmarshal request: unmarshaled request failed validation: failed to validate per chain query 0: chain specific query is invalid: finality must be "finalized" or "safe", is "HelloWorld"\n`
         );
       });
     expect(err).toBe(true);

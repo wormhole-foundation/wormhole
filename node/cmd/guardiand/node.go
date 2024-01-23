@@ -283,7 +283,7 @@ func init() {
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	neonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "neonRPC", "Neon RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	neonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "neonRPC", "Neon RPC URL", "http://eth-devnet:8545", []string{"http", "https"})
 	neonContract = NodeCmd.Flags().String("neonContract", "", "Neon contract address")
 
 	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
@@ -336,7 +336,7 @@ func init() {
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
-	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "sui:9000", []string{""})
+	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "ws://sui:9000", []string{"ws", "wss"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
@@ -417,6 +417,12 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
+var (
+	configFilename = "guardiand"
+	configPath     = "node/config"
+	envPrefix      = "GUARDIAND"
+)
+
 // "Why would anyone do this?" are famous last words.
 //
 // We already forcibly override RPC URLs and keys in dev mode to prevent security
@@ -432,9 +438,10 @@ const devwarning = `
 
 // NodeCmd represents the node command
 var NodeCmd = &cobra.Command{
-	Use:   "node",
-	Short: "Run the guardiand node",
-	Run:   runNode,
+	Use:               "node",
+	Short:             "Run the guardiand node",
+	PersistentPreRunE: initConfig,
+	Run:               runNode,
 }
 
 // This variable may be overridden by the -X linker flag to "dev" in which case
@@ -442,6 +449,15 @@ var NodeCmd = &cobra.Command{
 // are distributed. Production binaries are required to be built from source by
 // guardians to reduce risk from a compromised builder.
 var Build = "prod"
+
+// initConfig initializes the file configuration.
+func initConfig(cmd *cobra.Command, args []string) error {
+	return node.InitFileConfig(cmd, node.ConfigOptions{
+		FilePath:  configPath,
+		FileName:  configFilename,
+		EnvPrefix: envPrefix,
+	})
+}
 
 func runNode(cmd *cobra.Command, args []string) {
 	if Build == "dev" && !*unsafeDevMode {
@@ -521,7 +537,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		*klaytnContract = unsafeDevModeEvmContractAddress(*klaytnContract)
 		*celoContract = unsafeDevModeEvmContractAddress(*celoContract)
 		*moonbeamContract = unsafeDevModeEvmContractAddress(*moonbeamContract)
-		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
 		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
@@ -991,7 +1006,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		labels := map[string]string{
 			"node_name":     *nodeName,
-			"node_key":      peerID.Pretty(),
+			"node_key":      peerID.String(),
 			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),

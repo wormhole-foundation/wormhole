@@ -16,10 +16,14 @@ import {
   QueryProxyMock,
   QueryProxyQueryResponse,
   QueryRequest,
+  QueryResponse,
+  SolanaAccountQueryRequest,
+  SolanaAccountQueryResponse,
 } from "..";
 
 jest.setTimeout(60000);
 
+const SOLANA_NODE_URL = "http://localhost:8899";
 const POLYGON_NODE_URL = "https://polygon-mumbai-bor.publicnode.com";
 const ARBITRUM_NODE_URL = "https://arbitrum-goerli.publicnode.com";
 const QUERY_URL = "https://testnet.ccq.vaa.dev/v1/query";
@@ -28,6 +32,7 @@ let mock: QueryProxyMock;
 
 beforeAll(() => {
   mock = new QueryProxyMock({
+    1: SOLANA_NODE_URL,
     5: POLYGON_NODE_URL,
     23: ARBITRUM_NODE_URL,
   });
@@ -231,5 +236,109 @@ describe.skip("mocks match testnet", () => {
         "eth_call_by_timestamp desired timestamp falls outside of block range"
       );
     }
+  });
+  test("SolAccount to devnet", async () => {
+    const accounts = [
+      "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
+      "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+    ];
+
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaAccountQueryRequest("finalized", accounts)
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    const queryResponse = QueryResponse.from(resp.bytes);
+    const sar = queryResponse.responses[0]
+      .response as SolanaAccountQueryResponse;
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+    expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+  });
+  test("SolAccount to devnet with min context slot", async () => {
+    const accounts = [
+      "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
+      "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+    ];
+
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaAccountQueryRequest("finalized", accounts, BigInt(7))
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    const queryResponse = QueryResponse.from(resp.bytes);
+    const sar = queryResponse.responses[0]
+      .response as SolanaAccountQueryResponse;
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+    expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+  });
+  test("SolAccount to devnet with data slice", async () => {
+    const accounts = [
+      "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
+      "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+    ];
+
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaAccountQueryRequest(
+          "finalized",
+          accounts,
+          BigInt(0),
+          BigInt(1),
+          BigInt(10)
+        )
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    const queryResponse = QueryResponse.from(resp.bytes);
+    const sar = queryResponse.responses[0]
+      .response as SolanaAccountQueryResponse;
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "000000574108aed69daf"
+    );
+    expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+      "000000574108aed69daf"
+    );
+  });
+  test("SolAccount to devnet with min context slot and data slice", async () => {
+    const accounts = [
+      "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
+      "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+    ];
+
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaAccountQueryRequest(
+          "finalized",
+          accounts,
+          BigInt(7),
+          BigInt(1),
+          BigInt(10)
+        )
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    const queryResponse = QueryResponse.from(resp.bytes);
+    const sar = queryResponse.responses[0]
+      .response as SolanaAccountQueryResponse;
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "000000574108aed69daf"
+    );
+    expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+      "000000574108aed69daf"
+    );
   });
 });

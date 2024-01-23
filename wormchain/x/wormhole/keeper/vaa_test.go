@@ -56,7 +56,7 @@ func TestKeeperCalculateQuorum(t *testing.T) {
 
 	tests := []struct {
 		label            string
-		guardianSet      types.GuardianSet
+		guardianSets     []types.GuardianSet
 		guardianSetIndex uint32
 		quorum           int
 		willError        bool
@@ -64,17 +64,20 @@ func TestKeeperCalculateQuorum(t *testing.T) {
 	}{
 
 		{label: "HappyPath",
-			guardianSet:      types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+			guardianSets:     []types.GuardianSet{{Index: 0, Keys: addrsBytes, ExpirationTime: 0}},
 			guardianSetIndex: 0,
 			quorum:           1,
 			willError:        false},
 		{label: "GuardianSetNotFound",
-			guardianSet:      types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+			guardianSets:     []types.GuardianSet{{Index: 0, Keys: addrsBytes, ExpirationTime: 0}},
 			guardianSetIndex: 1,
 			willError:        true,
 			err:              types.ErrGuardianSetNotFound},
 		{label: "GuardianSetExpired",
-			guardianSet:      types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 100},
+			guardianSets: []types.GuardianSet{
+				{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+				{Index: 1, Keys: addrsBytes, ExpirationTime: 0},
+			},
 			guardianSetIndex: 0,
 			willError:        true,
 			err:              types.ErrGuardianSetExpired},
@@ -83,7 +86,9 @@ func TestKeeperCalculateQuorum(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
 			keeper, ctx := keepertest.WormholeKeeper(t)
-			keeper.AppendGuardianSet(ctx, tc.guardianSet)
+			for _, gs := range tc.guardianSets {
+				keeper.AppendGuardianSet(ctx, gs)
+			}
 			quorum, _, err := keeper.CalculateQuorum(ctx, tc.guardianSetIndex)
 
 			if tc.willError == true {

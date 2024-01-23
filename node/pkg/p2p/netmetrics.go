@@ -41,13 +41,13 @@ func collectNodeMetrics(addr common.Address, peerId peer.ID, hb *gossipv1.Heartb
 		chain := vaa.ChainID(n.Id)
 
 		wormholeNetworkNodeHeight.WithLabelValues(
-			addr.Hex(), peerId.Pretty(), hb.NodeName, chain.String()).Set(float64(n.Height))
+			addr.Hex(), peerId.String(), hb.NodeName, chain.String()).Set(float64(n.Height))
 
 		wormholeNetworkNodeErrors.WithLabelValues(
-			addr.Hex(), peerId.Pretty(), hb.NodeName, chain.String()).Set(float64(n.ErrorCount))
+			addr.Hex(), peerId.String(), hb.NodeName, chain.String()).Set(float64(n.ErrorCount))
 
 		wormholeNetworkVersion.WithLabelValues(
-			addr.Hex(), peerId.Pretty(), hb.NodeName, chain.String(),
+			addr.Hex(), peerId.String(), hb.NodeName, chain.String(),
 			sanitizeVersion(hb.Version, version.Version())).Set(1)
 	}
 }

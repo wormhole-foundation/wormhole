@@ -196,9 +196,6 @@ func ConnectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
-	if err := evaluateCutOver(logger, networkID); err != nil {
-		return nil, err
-	}
 	h, err := libp2p.New(
 		// Use the keypair we generated
 		libp2p.Identity(priv),
@@ -220,6 +217,8 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 
 		// Let this host use the DHT to find other hosts
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			// Update the bootstrap peers string so we will log the updated value.
+			bootstrapPeers = cutOverBootstrapPeers(bootstrapPeers)
 			logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
 
 			bootstrappers, _ := BootstrapAddrs(logger, bootstrapPeers, h.ID())

@@ -49,7 +49,7 @@ module token_bridge::complete_transfer_with_payload {
     /// redeemed using `redeem_coin`. Integrators are expected to implement
     /// `redeem_coin` within their contracts and call `authorize_transfer` in a
     /// transaction block preceding the method that consumes this receipt. The
-    /// only way to destroy this receipt is callling `redeem_coin` with an
+    /// only way to destroy this receipt is calling `redeem_coin` with an
     /// `EmitterCap` generated from the `wormhole::emitter` module, whose ID is
     /// the expected redeemer for this token transfer.
     struct RedeemerReceipt<phantom CoinType> {
@@ -290,7 +290,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
         // Assert coin value, source chain, and parsed transfer details are correct.
         // We expect the coin value to be 300000, because that's in terms of
-        // 10 decimals. The amount specifed in the VAA_ATTESTED_DECIMALS_12 is 3000, because that's
+        // 10 decimals. The amount specified in the VAA_ATTESTED_DECIMALS_12 is 3000, because that's
         // in terms of 8 decimals.
         let expected_bridged = 300000;
         assert!(coin::value(&bridged) == expected_bridged, 0);

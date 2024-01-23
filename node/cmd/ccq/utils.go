@@ -20,6 +20,8 @@ import (
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/gagliardetto/solana-go"
 )
 
 func FetchCurrentGuardianSet(rpcUrl, coreAddr string) (*common.GuardianSet, error) {
@@ -87,7 +89,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 	if err != nil {
 		logger.Debug("failed to unmarshal request", zap.String("userName", permsForUser.userName), zap.Error(err))
 		invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
-		return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal request: %w", err)
+		return http.StatusBadRequest, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Make sure the overall query request is sane.
@@ -108,6 +110,8 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 			status, err = validateCallData(logger, permsForUser, "ethCallByTimestamp", pcq.ChainId, q.CallData)
 		case *query.EthCallWithFinalityQueryRequest:
 			status, err = validateCallData(logger, permsForUser, "ethCallWithFinality", pcq.ChainId, q.CallData)
+		case *query.SolanaAccountQueryRequest:
+			status, err = validateSolanaAccountQuery(logger, permsForUser, "solAccount", pcq.ChainId, q)
 		default:
 			logger.Debug("unsupported query type", zap.String("userName", permsForUser.userName), zap.Any("type", pcq.Query))
 			invalidQueryRequestReceived.WithLabelValues("unsupported_query_type").Inc()
@@ -144,6 +148,22 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
 			return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+		}
+
+		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+	}
+
+	return http.StatusOK, nil
+}
+
+// validateSolanaAccountQuery performs verification on a Solana sol_account query.
+func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
+	for _, acct := range q.Accounts {
+		callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
+		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+			return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
 		}
 
 		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()

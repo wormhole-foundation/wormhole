@@ -33,7 +33,9 @@ func (k Keeper) CalculateQuorum(ctx sdk.Context, guardianSetIndex uint32) (int, 
 		return 0, nil, types.ErrGuardianSetNotFound
 	}
 
-	if 0 < guardianSet.ExpirationTime && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
+	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
+
+	if guardianSet.Index != latestGuardianSetIndex && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
 		return 0, nil, types.ErrGuardianSetExpired
 	}
 

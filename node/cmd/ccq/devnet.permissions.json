@@ -132,6 +132,20 @@
             "contractAddress": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
             "call": "0x313ce567"
           }
+        },
+        {
+          "solAccount": {
+            "note:": "Example token on Devnet",
+            "chain": 1,
+            "account": "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ"
+          }
+        },
+        {
+          "solAccount": {
+            "note:": "Example NFT on Devnet",
+            "chain": 1,
+            "account": "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna"
+          }
         }
       ]
     },
