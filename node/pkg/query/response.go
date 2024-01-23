@@ -905,7 +905,7 @@ func (sar *SolanaAccountQueryResponse) Type() ChainSpecificQueryType {
 }
 
 // Marshal serializes the binary representation of a Solana sol_account response.
-// This method calls Validate() and relies on it to range checks lengths, etc.
+// This method calls Validate() and relies on it to range check lengths, etc.
 func (sar *SolanaAccountQueryResponse) Marshal() ([]byte, error) {
 	if err := sar.Validate(); err != nil {
 		return nil, err
