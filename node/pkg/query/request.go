@@ -121,7 +121,7 @@ const EvmContractAddressLength = 20
 // SolanaAccountQueryRequestType is the type of a Solana sol_account query request.
 const SolanaAccountQueryRequestType ChainSpecificQueryType = 4
 
-// SolanaAccountQueryRequest implements ChainSpecificQuery for an EVM eth_call query request.
+// SolanaAccountQueryRequest implements ChainSpecificQuery for a Solana sol_account query request.
 type SolanaAccountQueryRequest struct {
 	// Commitment identifies the commitment level to be used in the queried. Currently it may only "finalized".
 	// Before we can support "confirmed", we need a way to read the account data and the block information atomically.
@@ -1002,7 +1002,7 @@ func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) 
 
 // Validate does basic validation on a Solana sol_account query.
 func (saq *SolanaAccountQueryRequest) Validate() error {
-	if len(saq.Commitment) > math.MaxUint32 {
+	if len(saq.Commitment) > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment too long")
 	}
 	if saq.Commitment != "finalized" {
@@ -1017,7 +1017,7 @@ func (saq *SolanaAccountQueryRequest) Validate() error {
 		return fmt.Errorf("does not contain any account entries")
 	}
 	if len(saq.Accounts) > SolanaMaxAccountsPerQuery {
-		return fmt.Errorf("too many account entries, may not be more that %d", SolanaMaxAccountsPerQuery)
+		return fmt.Errorf("too many account entries, may not be more than %d", SolanaMaxAccountsPerQuery)
 	}
 	for _, acct := range saq.Accounts {
 		// The account is fixed length, so don't need to check for nil.

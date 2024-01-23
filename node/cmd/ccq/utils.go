@@ -163,7 +163,7 @@ func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntr
 		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-			return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+			return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
 		}
 
 		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
