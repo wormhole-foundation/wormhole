@@ -416,7 +416,7 @@ export class QueryProxyMock {
         if (query.minContextSlot != BigInt(0)) {
           opts.minSlotContext = Number(query.minContextSlot);
         }
-        if (query.dataSliceOffset !== BigInt(0)) {
+        if (query.dataSliceLength !== BigInt(0)) {
           opts.dataSlice = {
             offset: Number(query.dataSliceOffset),
             length: Number(query.dataSliceLength),
