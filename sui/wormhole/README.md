@@ -23,3 +23,10 @@ TODO: up to date notes on where and how we use dynamic fields.
 
 Sui currently does not have fine-grained timestamps, so we use
 `tx_context::epoch(ctx)` in place of on-chain time in seconds.
+
+# Source verification
+
+Verify that the Move sources here match the package published on-chain by running
+`sui client verify-source --verify-deps`
+
+Make sure that `sui client active-env` is connected to a Sui tesnet RPC.
