@@ -3,7 +3,6 @@ package guardiand
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
@@ -101,9 +100,6 @@ var (
 
 	moonbeamRPC      *string
 	moonbeamContract *string
-
-	neonRPC      *string
-	neonContract *string
 
 	terraWS       *string
 	terraLCD      *string
@@ -282,9 +278,6 @@ func init() {
 
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
-
-	neonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "neonRPC", "Neon RPC URL", "http://eth-devnet:8545", []string{"http", "https"})
-	neonContract = NodeCmd.Flags().String("neonContract", "", "Neon contract address")
 
 	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
 	terraLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraLCD", "Path to LCD service root for http calls", "http://terra-terrad:1317", []string{"http", "https"})
@@ -709,9 +702,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// These chains are only allowed in devnet and testnet.
 	if *testnetMode || *unsafeDevMode {
-		if (*neonRPC == "") != (*neonContract == "") {
-			logger.Fatal("Both --neonRPC and --neonContract must be set together or both unset")
-		}
 		if (*sepoliaRPC == "") != (*sepoliaContract == "") {
 			logger.Fatal("Both --sepoliaRPC and --sepoliaContract must be set together or both unset")
 		}
@@ -728,9 +718,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Both --optimismSepoliaRPC and --optimismSepoliaContract must be set together or both unset")
 		}
 	} else {
-		if *neonRPC != "" || *neonContract != "" {
-			logger.Fatal("Please do not specify --neonRPC or --neonContract")
-		}
 		if *sepoliaRPC != "" || *sepoliaContract != "" {
 			logger.Fatal("Please do not specify --sepoliaRPC or --sepoliaContract")
 		}
@@ -943,7 +930,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["mantleRPC"] = *mantleRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["nearRPC"] = *nearRPC
-	rpcMap["neonRPC"] = *neonRPC
 	rpcMap["oasisRPC"] = *oasisRPC
 	rpcMap["optimismRPC"] = *optimismRPC
 	rpcMap["polygonRPC"] = *polygonRPC
@@ -1487,21 +1473,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Websocket: *gatewayWS,
 			Lcd:       *gatewayLCD,
 			Contract:  *gatewayContract,
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if *testnetMode && shouldStart(neonRPC) {
-		if !shouldStart(solanaRPC) {
-			log.Fatalf("If neon is enabled then solana must also be enabled.")
-		}
-		wc := &evm.WatcherConfig{
-			NetworkID:           "neon",
-			ChainID:             vaa.ChainIDNeon,
-			Rpc:                 *neonRPC,
-			Contract:            *neonContract,
-			L1FinalizerRequired: "solana-finalized",
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

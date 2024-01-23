@@ -141,7 +141,6 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDKlaytn:          {},
 		vaa.ChainIDCelo:            {},
 		vaa.ChainIDMoonbeam:        {},
-		vaa.ChainIDNeon:            {},
 		vaa.ChainIDArbitrum:        {},
 		vaa.ChainIDOptimism:        {},
 		vaa.ChainIDBase:            {},
