@@ -107,8 +107,13 @@ describe("Aptos SDK tests", () => {
     try {
       await createWrappedOnEth(ethTokenBridge, recipient, attestVAA);
     } catch (e) {
-      // this could fail because the token is already attested (in an unclean env)
+      if (e instanceof TokenAlreadyAttestedException) {
+        console.error("Token is already attested:", e.message);
+      } else {
+        throw e;
+      }
     }
+
 
     // check attestation on ethereum
     const externalAddress = hexToUint8Array(
