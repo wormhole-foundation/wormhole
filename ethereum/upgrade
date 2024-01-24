@@ -6,11 +6,12 @@ network=$1
 module=$2
 chain=$3
 rpc_url=$4
-shift 4
+verify_api_tokens=$5
+shift 5
 # The last few arguments are treated as signing options for foundry
 # For example, you can pass "--private-key <your private key>"
 # To sign with a ledger device you can pass "--ledger --mnemonic-derivation-paths <derivation path>"
-signer_options="$@"
+signer_options=("$@")
 
 guardian_secret=""
 
@@ -23,16 +24,19 @@ verify_module=""
 case "$module" in
     Core)
         script_name="DeployCoreImplementationOnly"
+        contract_id="contracts/Implementation.sol:Implementation"
         abi_file="build-forge/Implementation.sol/Implementation.json"
         verify_module="core"
         ;;
     TokenBridge)
         script_name="DeployTokenBridgeImplementationOnly"
+        contract_id="contracts/bridge/BridgeImplementation.sol:BridgeImplementation"
         abi_file="build-forge/BridgeImplementation.sol/BridgeImplementation.json"
         verify_module="token_bridge"
         ;;
     NFTBridge)
         script_name="DeployNFTBridgeImplementationOnly"
+        contract_id="contracts/nft/NFTBridgeImplementation.sol:NFTBridgeImplementation"
         abi_file="build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
         verify_module="nft_bridge"
         ;;
@@ -40,7 +44,7 @@ case "$module" in
         ;;
 esac
 
-SCRIPT="./forge-scripts/$script_name.s.sol:$script_name"
+script="./forge-scripts/$script_name.s.sol:$script_name"
 
 # TODO: add option to not compile (but compile by default)
 
@@ -61,7 +65,7 @@ if [ $ret = 0 ]; then
 fi
 
 evm_chain_id=$(cast chain-id --rpc-url "$rpc_url")
-FOUNDRY_PROFILE=production forge script $SCRIPT --rpc-url "$rpc_url" "$signer_options" --broadcast || (echo "✘ $chain $module" && exit 1)
+FOUNDRY_PROFILE=production forge script $script --rpc-url "$rpc_url" "${signer_options[@]}" --broadcast --slow || (echo "✘ $chain $module" && exit 1)
 new_implementation=$(jq --raw-output '.returns.deployedAddress.value' "./broadcast/$script_name.s.sol/$evm_chain_id/run-latest.json")
 
 ret=0
@@ -80,3 +84,22 @@ if [ "$network" = testnet ]; then
 else
   echo "./scripts/contract-upgrade-governance.sh --chain $chain --module $verify_module --address $new_implementation"
 fi
+
+wh_chain_id=$(worm info chain-id "$chain")
+etherscan_api_key=$(jq --raw-output ".[] | select(.chainId == $wh_chain_id) | .etherscan" "$verify_api_tokens")
+blockscout_api_key=$(jq --raw-output ".[] | select(.chainId == $wh_chain_id) | .blockscout.mainnet" "$verify_api_tokens")
+
+# We unset pipefail because some of these (block explorer, chain) combinations don't exist
+# TODO: generate standard input json to verify manually on celoscan
+set +o pipefail
+
+echo "Verifying on etherscan, blockscout and sourcify. Some of these may fail if they don't support the chain."
+# Note: none of the contracts supported by this script require constructor arguments
+# If one of them required constructor arguments, we would need to retrieve them somehow.
+forge verify-contract "$new_implementation" "$contract_id" --chain $evm_chain_id --watch --etherscan-api-key "$etherscan_api_key" || echo "failed to verify on etherscan explorer for chain $chain"
+if [[ "$blockscout_api_key" == "null" ]]; then
+  forge verify-contract "$new_implementation" "$contract_id" --chain $evm_chain_id --watch --verifier blockscout || echo "failed to verify on blockscout explorer for chain $chain"
+else
+  forge verify-contract "$new_implementation" "$contract_id" --chain $evm_chain_id --watch --verifier blockscout --etherscan-api-key "$blockscout_api_key" || echo "failed to verify on blockscout explorer for chain $chain"
+fi
+forge verify-contract "$new_implementation" "$contract_id" --chain $evm_chain_id --watch --verifier sourcify || echo "failed to verify on sourcify for chain $chain"
