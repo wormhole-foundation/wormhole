@@ -5,9 +5,12 @@ set -euo pipefail
 network=$1
 module=$2
 chain=$3
-evm_chain_id=$4
-rpc_url=$5
-private_key=$6
+rpc_url=$4
+shift 4
+# The last few arguments are treated as signing options for foundry
+# For example, you can pass "--private-key <your private key>"
+# To sign with a ledger device you can pass "--ledger --mnemonic-derivation-paths <derivation path>"
+signer_options="$@"
 
 guardian_secret=""
 
@@ -15,29 +18,29 @@ if [ "$network" = testnet ]; then
   guardian_secret=$GUARDIAN_MNEMONIC
 fi
 
-SCRIPT_NAME=""
+script_name=""
 verify_module=""
 case "$module" in
     Core)
-        SCRIPT_NAME="DeployCoreImplementationOnly"
-        FILE="build-forge/Implementation.sol/Implementation.json"
+        script_name="DeployCoreImplementationOnly"
+        abi_file="build-forge/Implementation.sol/Implementation.json"
         verify_module="core"
         ;;
     TokenBridge)
-        SCRIPT_NAME="DeployTokenBridgeImplementationOnly"
-        FILE="build-forge/BridgeImplementation.sol/BridgeImplementation.json"
+        script_name="DeployTokenBridgeImplementationOnly"
+        abi_file="build-forge/BridgeImplementation.sol/BridgeImplementation.json"
         verify_module="token_bridge"
         ;;
     NFTBridge)
-        SCRIPT_NAME="DeployNFTBridgeImplementationOnly"
-        FILE="build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
+        script_name="DeployNFTBridgeImplementationOnly"
+        abi_file="build-forge/NFTBridgeImplementation.sol/NFTBridgeImplementation.json"
         verify_module="nft_bridge"
         ;;
     *) echo "unknown module $module" >&2
-       ;;
+        ;;
 esac
 
-SCRIPT="./forge-scripts/$SCRIPT_NAME.s.sol:$SCRIPT_NAME"
+SCRIPT="./forge-scripts/$script_name.s.sol:$script_name"
 
 # TODO: add option to not compile (but compile by default)
 
@@ -50,19 +53,19 @@ if [ $ret != 0 ]; then
 fi
 
 ret=0
-(./verify -n "$network" -c "$chain" $FILE "$implementation" > /dev/null) || ret=$?
+(./verify -n "$network" -c "$chain" "$abi_file" "$implementation" > /dev/null) || ret=$?
 
 if [ $ret = 0 ]; then
   printf "✔ %s %s: skipping (implementation matches same bytecode)\n" "$chain" "$module"
   exit
 fi
 
-FOUNDRY_PROFILE=production forge script $SCRIPT --rpc-url $rpc_url --private-key $private_key --broadcast || ( echo "✘ $chain $module" && exit 1 )
-returnInfo=$(cat ./broadcast/$SCRIPT_NAME.s.sol/$evm_chain_id/run-latest.json) 
-new_implementation=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
+evm_chain_id=$(cast chain-id --rpc-url "$rpc_url")
+FOUNDRY_PROFILE=production forge script $SCRIPT --rpc-url "$rpc_url" "$signer_options" --broadcast || (echo "✘ $chain $module" && exit 1)
+new_implementation=$(jq --raw-output '.returns.deployedAddress.value' "./broadcast/$script_name.s.sol/$evm_chain_id/run-latest.json")
 
 ret=0
-(./verify -n "$network" -c "$chain" $FILE "$new_implementation" > /dev/null) || ret=$?
+(./verify -n "$network" -c "$chain" "$abi_file" "$new_implementation" > /dev/null) || ret=$?
 
 if [ $ret = 0 ]; then
   printf "✔ %s %s: deployed (%s)\n" "$chain" "$module" "$new_implementation"
@@ -72,7 +75,8 @@ else
 fi
 
 if [ "$network" = testnet ]; then
-  worm submit $(worm generate upgrade -c "$chain" -a "$new_implementation" -m "$module" -g "$guardian_secret") -n "$network"
+  vaa=$(worm generate upgrade -c "$chain" -a "$new_implementation" -m "$module" -g "$guardian_secret")
+  worm submit "$vaa" -n "$network"
 else
-  echo "./scripts/contract-upgrade-governance.sh -c $chain -m $verify_module -a $new_implementation"
+  echo "./scripts/contract-upgrade-governance.sh --chain $chain --module $verify_module --address $new_implementation"
 fi
