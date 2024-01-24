@@ -217,6 +217,11 @@ case "$chain_name" in
     chain=15
     explorer="https://explorer.near.org/accounts/"
     ;;
+  moonbeam)
+    chain=16
+    explorer="https://moonscan.io/address/"
+    evm=true
+    ;;
   arbitrum)
     chain=23
     explorer="https://arbiscan.io/address/"
