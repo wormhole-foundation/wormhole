@@ -100,6 +100,8 @@ blockscout_api_key=$(jq --raw-output ".[] | select(.chainId == $wh_chain_id) | .
 # We unset pipefail because some of these (block explorer, chain) combinations don't exist
 # TODO: generate standard input json to verify manually on celoscan
 set +o pipefail
+# This is useful to quickly modify commands to verify manually on celoscan or adjust some other setting in the verify plugin
+set -o xtrace
 
 echo "Verifying on etherscan, blockscout and sourcify. Some of these may fail if they don't support the chain."
 # Note: none of the contracts supported by this script require constructor arguments
