@@ -49,7 +49,15 @@ script="./forge-scripts/$script_name.s.sol:$script_name"
 # TODO: add option to not compile (but compile by default)
 
 ret=0
-implementation=$(worm evm info -c "$chain" -m "$module" -n "$network" -i 2>/dev/null) || ret=$?
+
+# `worm` CLI currently fails to retrieve the storage slot because of an encoding issue.
+# The node responds omitting the first nibble in the address since it's zero and ethers fails to decode it.
+# TODO: investigate if this applies to other chains and how to fix it in worm CLI
+if [[ "$chain" == "oasis" && "$module" == "Core" && "$network" == mainnet ]]; then
+  implementation="0x0B3E006A6aF5126e625c0E228ADF31eA494246A3"
+else
+  implementation=$(worm evm info -c "$chain" -m "$module" -n "$network" -i 2>/dev/null) || ret=$?
+fi
 
 if [ $ret != 0 ]; then
   printf "☐ %s %s: skipping (no deployment available)\n" "$chain" "$module"
