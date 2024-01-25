@@ -3,6 +3,7 @@ package solana
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"time"
 
 	"go.uber.org/zap"
@@ -50,7 +51,13 @@ func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.
 // ccqHandleSolanaAccountQueryRequest is the query handler for a sol_account request.
 func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest) {
 	requestId := "sol_account:" + queryRequest.ID()
-	w.ccqLogger.Info("received a sol_account query", zap.String("requestId", requestId))
+	w.ccqLogger.Info("received a sol_account query",
+		zap.Uint64("minContextSlot", req.MinContextSlot),
+		zap.Uint64("dataSliceOffset", req.DataSliceOffset),
+		zap.Uint64("dataSliceLength", req.DataSliceLength),
+		zap.Int("numAccounts", len(req.Accounts)),
+		zap.String("requestId", requestId),
+	)
 
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -79,7 +86,7 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	}
 
 	// Read the accounts.
-	info, err := w.rpcClient.GetMultipleAccountsWithOpts(rCtx, accounts, &params)
+	info, err := w.getMultipleAccountsWithOpts(rCtx, accounts, &params)
 	if err != nil {
 		w.ccqLogger.Error("read failed for sol_account query request",
 			zap.String("requestId", requestId),
@@ -169,8 +176,54 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 		zap.Uint64("slotNumber", info.Context.Slot),
 		zap.Uint64("blockTime", uint64(*block.BlockTime)),
 		zap.String("blockHash", hex.EncodeToString(block.Blockhash[:])),
-		zap.Any("blockHeight", block.BlockHeight),
+		zap.Uint64("blockHeight", *block.BlockHeight),
 	)
 
 	w.ccqSendQueryResponse(queryRequest, query.QuerySuccess, resp)
+}
+
+type M map[string]interface{}
+
+// getMultipleAccountsWithOpts is a work-around for the fact that the library call doesn't honor MinContextSlot.
+// Opened the following issue against the library: https://github.com/gagliardetto/solana-go/issues/170
+func (w *SolanaWatcher) getMultipleAccountsWithOpts(
+	ctx context.Context,
+	accounts []solana.PublicKey,
+	opts *rpc.GetMultipleAccountsOpts,
+) (out *rpc.GetMultipleAccountsResult, err error) {
+	params := []interface{}{accounts}
+
+	if opts != nil {
+		obj := M{}
+		if opts.Encoding != "" {
+			obj["encoding"] = opts.Encoding
+		}
+		if opts.Commitment != "" {
+			obj["commitment"] = opts.Commitment
+		}
+		if opts.DataSlice != nil {
+			obj["dataSlice"] = M{
+				"offset": opts.DataSlice.Offset,
+				"length": opts.DataSlice.Length,
+			}
+			if opts.Encoding == solana.EncodingJSONParsed {
+				return nil, errors.New("cannot use dataSlice with EncodingJSONParsed")
+			}
+		}
+		if opts.MinContextSlot != nil {
+			obj["minContextSlot"] = *opts.MinContextSlot
+		}
+		if len(obj) > 0 {
+			params = append(params, obj)
+		}
+	}
+
+	err = w.rpcClient.RPCCallForInto(ctx, &out, "getMultipleAccounts", params)
+	if err != nil {
+		return nil, err
+	}
+	if out.Value == nil {
+		return nil, rpc.ErrNotFound
+	}
+	return
 }
