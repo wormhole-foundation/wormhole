@@ -1,5 +1,5 @@
 import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
-import { BigNumberish, utils, ContractReceipt } from 'ethers';
+import { BigNumber, BigNumberish, utils, ContractReceipt } from 'ethers';
 import {
   init,
   ChainInfo,
@@ -25,6 +25,7 @@ interface Config {
   pricingInfo: PricingInfo[];
   deliveryGasOverheads: DeliveryGasOverhead[];
   maximumBudgets: MaximumBudget[];
+  conversionBuffers: AssetConversionBuffer[];
   rewardAddresses: RewardAddress[];
   supportedChains: SupportedChain[];
 }
@@ -43,6 +44,12 @@ interface DeliveryGasOverhead {
 interface MaximumBudget {
   chainId: ChainId;
   updateMaximumBudget: BigNumberish;
+}
+
+interface AssetConversionBuffer {
+  chainId: ChainId;
+  buffer: bigint;
+  bufferDenominator: bigint;
 }
 
 interface RewardAddress {
@@ -114,6 +121,11 @@ function printUpdate(update: UpdateStruct, { chainId }: ChainInfo) {
   if (update.updateSupportedChain) {
     messages.push(`  Supported chain update: ${update.isSupported}`);
   }
+  if (update.updateAssetConversionBuffer) {
+    const bufferDenominator = BigNumber.isBigNumber(update.bufferDenominator) ? update.bufferDenominator : BigNumber.from(update.bufferDenominator);
+    const buffer = BigNumber.isBigNumber(update.buffer) ? update.buffer : BigNumber.from(update.buffer);
+    messages.push(`  Asset conversion buffer ratio: (${bufferDenominator.toBigInt()} / ${bufferDenominator.add(buffer).toBigInt()})`)
+  }
 
   console.log(messages.join("\n"));
 }
@@ -148,6 +160,17 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
       updates,
       deliveryProvider,
       maximumBudgetUpdate
+    );
+  }
+
+  for (const conversionBuffer of config.conversionBuffers) {
+    console.log(
+      `Processing asset conversion buffer update for operating chain ${chain.chainId} and target chain ${conversionBuffer.chainId}`
+    );
+    await processConversionBufferUpdate(
+      updates,
+      deliveryProvider,
+      conversionBuffer
     );
   }
 
@@ -263,6 +286,21 @@ async function processMaximumBudgetUpdate(
     const update = getUpdateConfig(updates, chainId);
     update.updateMaximumBudget = true;
     update.maximumTotalBudget = updateMaximumBudget;
+  }
+}
+
+async function processConversionBufferUpdate(
+  updates: UpdateStruct[],
+  deliveryProvider: DeliveryProvider,
+  { chainId, buffer, bufferDenominator }: AssetConversionBuffer
+) {
+  const currentBuffer = await deliveryProvider.assetConversionBuffer(chainId);
+
+  if (BigInt(currentBuffer.buffer) !== buffer || BigInt(currentBuffer.bufferDenominator) !== bufferDenominator) {
+    const update = getUpdateConfig(updates, chainId);
+    update.updateAssetConversionBuffer = true;
+    update.buffer = buffer;
+    update.bufferDenominator = bufferDenominator;
   }
 }
 
