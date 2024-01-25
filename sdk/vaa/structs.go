@@ -422,6 +422,7 @@ const (
 	ChainIDNear ChainID = 15
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
+	// OBSOLETE: ChainIDNeon ChainID = 17
 	// ChainIDTerra2 is the ChainID of Terra 2
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
