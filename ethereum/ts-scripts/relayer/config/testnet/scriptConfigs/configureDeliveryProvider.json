@@ -258,6 +258,83 @@
       "rewardAddress": "0x734D539a7efEE15714a2755caa4280e12EF3d7e4"
     }
   ],
+  "conversionBuffers": [
+    {
+      "chainId": 2,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 4,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 5,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 6,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 10,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 13,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 14,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 16,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 23,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 24,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 30,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 10002,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 10003,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 10004,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 10005,
+      "buffer": 5,
+      "bufferDenominator": 100
+    }
+  ],
   "supportedChains": [
     {
       "chainId": 2,
