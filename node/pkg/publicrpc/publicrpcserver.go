@@ -54,7 +54,7 @@ func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv
 		for peerId, hb := range v {
 			resp.Entries = append(resp.Entries, &publicrpcv1.GetLastHeartbeatsResponse_Entry{
 				VerifiedGuardianAddr: addr.Hex(),
-				P2PNodeAddr:          peerId.Pretty(),
+				P2PNodeAddr:          peerId.String(),
 				RawHeartbeat:         hb,
 			})
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -58,6 +59,15 @@ type (
 		// latestFinalizedBlockNumber is the latest block processed by this watcher.
 		latestBlockNumber   uint64
 		latestBlockNumberMu sync.Mutex
+
+		// Incoming query requests from the network. Pre-filtered to only
+		// include requests for our chainID.
+		queryReqC <-chan *query.PerChainQueryInternal
+
+		// Outbound query responses to query requests
+		queryResponseC chan<- *query.PerChainQueryResponseInternal
+
+		ccqLogger *zap.Logger
 	}
 
 	EventSubscriptionError struct {
@@ -200,19 +210,24 @@ func NewSolanaWatcher(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
-	chainID vaa.ChainID) *SolanaWatcher {
+	chainID vaa.ChainID,
+	queryReqC <-chan *query.PerChainQueryInternal,
+	queryResponseC chan<- *query.PerChainQueryResponseInternal,
+) *SolanaWatcher {
 	return &SolanaWatcher{
-		rpcUrl:        rpcUrl,
-		wsUrl:         wsUrl,
-		contract:      contractAddress,
-		rawContract:   rawContract,
-		msgC:          msgC,
-		obsvReqC:      obsvReqC,
-		commitment:    commitment,
-		rpcClient:     rpc.New(rpcUrl),
-		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
-		chainID:       chainID,
-		networkName:   chainID.String(),
+		rpcUrl:         rpcUrl,
+		wsUrl:          wsUrl,
+		contract:       contractAddress,
+		rawContract:    rawContract,
+		msgC:           msgC,
+		obsvReqC:       obsvReqC,
+		commitment:     commitment,
+		rpcClient:      rpc.New(rpcUrl),
+		readinessSync:  common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:        chainID,
+		networkName:    chainID.String(),
+		queryReqC:      queryReqC,
+		queryResponseC: queryResponseC,
 	}
 }
 
@@ -397,6 +412,20 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			}
 		}
 	})
+
+	if s.commitment == rpc.CommitmentType("finalized") {
+		s.ccqLogger = logger.With(zap.String("component", "ccqsol"))
+		common.RunWithScissors(ctx, s.errC, "solana_fetch_query_req", func(ctx context.Context) error {
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case queryRequest := <-s.queryReqC:
+					s.ccqHandleQuery(ctx, queryRequest)
+				}
+			}
+		})
+	}
 
 	select {
 	case <-ctx.Done():

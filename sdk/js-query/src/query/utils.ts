@@ -24,6 +24,15 @@ export function coalesceUint8Array(b: string | Uint8Array): Uint8Array {
   return typeof b === "string" ? hexToUint8Array(b) : b;
 }
 
+export function signaturesToEvmStruct(signatures: string[]) {
+  return signatures.map((s) => ({
+    r: `0x${s.substring(0, 64)}`,
+    s: `0x${s.substring(64, 128)}`,
+    v: `0x${(parseInt(s.substring(128, 130), 16) + 27).toString(16)}`,
+    guardianIndex: `0x${s.substring(130, 132)}`,
+  }));
+}
+
 /**
  * @param key Private key used to sign `data`
  * @param data Data for signing

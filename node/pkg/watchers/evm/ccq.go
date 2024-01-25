@@ -24,7 +24,7 @@ func (w *Watcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status 
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, response)
 	select {
 	case w.queryResponseC <- queryResponse:
-		w.ccqLogger.Debug("published query response error to handler")
+		w.ccqLogger.Debug("published query response to handler")
 	default:
 		w.ccqLogger.Error("failed to published query response error to handler")
 	}

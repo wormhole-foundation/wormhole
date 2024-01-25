@@ -300,3 +300,48 @@ docker run \
     ghcr.io/wormhole-foundation/guardiand:latest \
 spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8999/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8999/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1
 ```
+
+## Guardian Configurations
+
+Configuration files, environment variables and flags are all supported.
+
+### Config File
+
+**Location/Naming**: By default, the config file is expected to be in the `node/config` directory. The standard name for the config file is `guardiand.yaml`. Currently there's no support for custom directory or filename yet.
+
+**Format**: We support any format that is supported by [Viper](https://pkg.go.dev/github.com/dvln/viper#section-readme). But YAML format is generally preferred.
+
+**Example**:
+```yaml
+ethRPC: "ws://eth-devnet:8545"
+ethContract: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+solanaRPC: "http://solana-devnet:8899"
+solanaContract: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+```
+
+### Environment Variables
+
+**Prefix**: All environment variables related to the Guardian node should be prefixed with `GUARDIAND_`.
+
+**Usage**: Environment variables can be used to override settings in the config file. Particularly for sensitive data like API keys that should not be stored in config files.
+
+**Example**:
+```bash
+export GUARDIAND_ETHRPC=ws://eth-devnet:8545
+```
+
+### Command-Line Flags
+
+**Usage**: Flags provide the highest precedence and can be used for temporary overrides or for settings that change frequently.
+
+**Example**:
+```bash
+./guardiand node --ethRPC=ws://eth-devnet:8545
+```
+
+### Precedence Order
+The configuration settings are applied in the following order of precedence:
+
+1. **Command-Line Flags**: Highest precedence, overrides any other settings.
+2. **Environment Variables**: Overrides the config file settings but can be overridden by flags.
+3. **Config File**: Lowest precedence.

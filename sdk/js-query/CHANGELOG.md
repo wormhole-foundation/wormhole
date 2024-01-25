@@ -1,6 +1,14 @@
+## 0.0.8
+
+Add signaturesToEvmStruct utility
+
+Fix SolanaAccount mock for minContextSlot and dataSliceOffset == 0
+
 ## 0.0.7
 
 Add EthCallByTimestamp mock support
+
+Add SolanaAccount support
 
 ## 0.0.6
 

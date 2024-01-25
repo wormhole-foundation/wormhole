@@ -126,8 +126,9 @@ func handleQueryRequestsImpl(
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
 
-	// CCQ is currently only supported on EVM.
+	// CCQ is currently only supported on EVM and Solana.
 	supportedChains := map[vaa.ChainID]struct{}{
+		vaa.ChainIDSolana:          {},
 		vaa.ChainIDEthereum:        {},
 		vaa.ChainIDBSC:             {},
 		vaa.ChainIDPolygon:         {},

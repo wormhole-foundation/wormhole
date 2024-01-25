@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 
 /// This module implements a public method intended to be called after an
-/// upgrade has been commited. The purpose is to add one-off migration logic
+/// upgrade has been committed. The purpose is to add one-off migration logic
 /// that would alter Token Bridge `State`.
 ///
 /// Included in migration is the ability to ensure that breaking changes for

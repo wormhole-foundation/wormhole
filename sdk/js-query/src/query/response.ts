@@ -7,6 +7,7 @@ import { BinaryWriter } from "./BinaryWriter";
 import { EthCallQueryResponse } from "./ethCall";
 import { EthCallByTimestampQueryResponse } from "./ethCallByTimestamp";
 import { EthCallWithFinalityQueryResponse } from "./ethCallWithFinality";
+import { SolanaAccountQueryResponse } from "./solanaAccount";
 
 export const QUERY_RESPONSE_PREFIX = "query_response_0000000000000000000|";
 
@@ -109,6 +110,8 @@ export class PerChainQueryResponse {
       response = EthCallByTimestampQueryResponse.fromReader(reader);
     } else if (queryType === ChainQueryType.EthCallWithFinality) {
       response = EthCallWithFinalityQueryResponse.fromReader(reader);
+    } else if (queryType === ChainQueryType.SolanaAccount) {
+      response = SolanaAccountQueryResponse.fromReader(reader);
     } else {
       throw new Error(`Unsupported response type: ${queryType}`);
     }

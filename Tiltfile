@@ -188,7 +188,7 @@ def build_node_yaml():
                     "--suiMoveEventType",
                     "0x7f6cebb8a489654d7a759483bd653c4be3e5ccfef17a8b5fd3ba98bd072fabc3::publish_message::WormholeMessage",
                     "--suiWS",
-                    "sui:9000",
+                    "ws://sui:9000",
                 ]
 
             if evm2:
