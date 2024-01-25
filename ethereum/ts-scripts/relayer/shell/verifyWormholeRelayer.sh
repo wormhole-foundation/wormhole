@@ -43,7 +43,7 @@ for chain in $chain_ids
 
     # These two are documented in `forge verify-contract` as accepted environment variables.
     # We need the token to be unquoted when passed to `forge verify-contract`
-    set --export ETHERSCAN_API_KEY (jq --raw-output ".[] | select(.chainId == $chain) | .token" $scan_tokens_file)
+    set --export ETHERSCAN_API_KEY (jq --raw-output ".[] | select(.chainId == $chain) | .etherscan" $scan_tokens_file)
     set --export CHAIN (jq ".chains[] | select(.chainId == $chain) | .evmNetworkId" $chains_file)
 
     # We're using the production profile for delivery providers on mainnet and testnet

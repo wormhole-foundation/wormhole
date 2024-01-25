@@ -38,7 +38,7 @@ for chain in $chain_ids
     set proxy_address (jq --raw-output ".deliveryProviderProxies[] | select(.chainId == $chain) | .address" $last_run_file)
 
     # We need the token to be unquoted when passed to `forge verify-contract`
-    set scan_token (jq --raw-output ".[] | select(.chainId == $chain) | .token" $scan_tokens_file)
+    set scan_token (jq --raw-output ".[] | select(.chainId == $chain) | .etherscan" $scan_tokens_file)
 
     # if we dont have a scan token echo a warning and continue
     if test -z $scan_token
