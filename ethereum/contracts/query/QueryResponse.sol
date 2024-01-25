@@ -3,6 +3,7 @@
 
 pragma solidity ^0.8.0;
 
+// TODO: Change this to use the version of BytesParsing.sol in wormhole-solidity-sdk once it is release.
 import {BytesParsing} from "../relayer/libraries/BytesParsing.sol";
 import "../interfaces/IWormhole.sol";
 
@@ -418,9 +419,7 @@ abstract contract QueryResponse {
             (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
             (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
 
-            uint8 executable;
-            (executable, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response executable
-            r.results[idx].executable = (executable != 0);
+            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnckecked(respIdx); // Response executable
 
             (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
