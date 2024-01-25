@@ -11,7 +11,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -246,30 +245,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDNeon {
-		// Neon needs special handling to read log events.
-		if w.l1Finalizer == nil {
-			return fmt.Errorf("unable to create neon watcher because the l1 finalizer is not set")
-		}
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		finalizer := finalizers.NewNeonFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewFinalizerPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewLogPollConnector(ctx, pollConnector, baseConnector.Client())
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
 	} else {
 		// Everything else is instant finality.
