@@ -1,8 +1,12 @@
+## 0.0.9
+
+Fix SolanaAccount mock for minContextSlot
+
 ## 0.0.8
 
 Add signaturesToEvmStruct utility
 
-Fix SolanaAccount mock for minContextSlot and dataSliceOffset == 0
+Fix SolanaAccount mock for dataSliceOffset == 0
 
 ## 0.0.7
 
