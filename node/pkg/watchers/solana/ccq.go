@@ -3,7 +3,10 @@ package solana
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -11,6 +14,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 )
 
 // ccqSendQueryResponse sends a response back to the query handler. In the case of an error, the response parameter may be nil.
@@ -37,7 +41,8 @@ func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.
 
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.SolanaAccountQueryRequest:
-		w.ccqHandleSolanaAccountQueryRequest(ctx, queryRequest, req)
+		giveUpTime := start.Add(query.RetryInterval).Add(-250 * time.Millisecond)
+		w.ccqHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, false)
 	default:
 		w.ccqLogger.Warn("received unsupported request type",
 			zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
@@ -49,15 +54,17 @@ func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.
 }
 
 // ccqHandleSolanaAccountQueryRequest is the query handler for a sol_account request.
-func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest) {
+func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest, giveUpTime time.Time, isRetry bool) {
 	requestId := "sol_account:" + queryRequest.ID()
-	w.ccqLogger.Info("received a sol_account query",
-		zap.Uint64("minContextSlot", req.MinContextSlot),
-		zap.Uint64("dataSliceOffset", req.DataSliceOffset),
-		zap.Uint64("dataSliceLength", req.DataSliceLength),
-		zap.Int("numAccounts", len(req.Accounts)),
-		zap.String("requestId", requestId),
-	)
+	if !isRetry {
+		w.ccqLogger.Info("received a sol_account query",
+			zap.Uint64("minContextSlot", req.MinContextSlot),
+			zap.Uint64("dataSliceOffset", req.DataSliceOffset),
+			zap.Uint64("dataSliceLength", req.DataSliceLength),
+			zap.Int("numAccounts", len(req.Accounts)),
+			zap.String("requestId", requestId),
+		)
+	}
 
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -88,6 +95,10 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	// Read the accounts.
 	info, err := w.getMultipleAccountsWithOpts(rCtx, accounts, &params)
 	if err != nil {
+		if w.ccqCheckForMinSlotContext(ctx, queryRequest, req, requestId, err, giveUpTime, !isRetry) {
+			// Return without posting a response because a go routine was created to handle it.
+			return
+		}
 		w.ccqLogger.Error("read failed for sol_account query request",
 			zap.String("requestId", requestId),
 			zap.Any("accounts", accounts),
@@ -180,6 +191,109 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	)
 
 	w.ccqSendQueryResponse(queryRequest, query.QuerySuccess, resp)
+}
+
+// ccqCheckForMinSlotContext checks to see if the returned error was due to the min context slot not being reached. If so, and the estimated time in the future is not too great, it kicks off
+// a go routine to sleep and do a retry. In that case, it returns true, telling the caller that it is handling the request so it should not post a response. Note that the go routine only does
+// a single retry, but may result in another go routine being initiated to do another, and so on.
+func (w *SolanaWatcher) ccqCheckForMinSlotContext(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest, requestId string, err error, giveUpTime time.Time, log bool) bool {
+	if req.MinContextSlot == 0 {
+		return false
+	}
+
+	if time.Now().After(giveUpTime) {
+		w.ccqLogger.Info("giving up on fast retry", zap.String("requestId", requestId))
+		return false
+	}
+
+	isMinContext, currentSlot, err := ccqIsMinContextSlotError(err)
+	if err != nil {
+		w.ccqLogger.Error("failed to parse for min context slot error", zap.Error(err))
+		return false
+	}
+
+	if !isMinContext {
+		return false
+	}
+
+	// Estimate how far in the future the requested slot is, assuming a slot time of 400 ms.
+	msInTheFuture := (req.MinContextSlot - currentSlot) * 400
+
+	// If the requested slot is more than ten seconds in the future, use the regular retry mechanism.
+	if msInTheFuture > 10000 {
+		w.ccqLogger.Info("minimum context slot is too far in the future, requesting slow retry",
+			zap.String("requestId", requestId),
+			zap.Uint64("currentSlot", currentSlot),
+			zap.Uint64("minContextSlot", req.MinContextSlot),
+			zap.Uint64("msInTheFuture", msInTheFuture),
+		)
+		return false
+	}
+
+	// Kick off the retry after a short delay.
+	go w.ccqSleepAndRetryAccountQuery(ctx, queryRequest, req, requestId, currentSlot, giveUpTime, log)
+	return true
+}
+
+const CCQ_FAST_RETRY_INTERVAL = 200
+
+// ccqSleepAndRetryAccountQuery does a short sleep and then initiates a retry.
+func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest, requestId string, currentSlot uint64, giveUpTime time.Time, log bool) {
+	if log {
+		w.ccqLogger.Info("minimum context slot has not been reached, will retry shortly",
+			zap.String("requestId", requestId),
+			zap.Uint64("currentSlot", currentSlot),
+			zap.Uint64("minContextSlot", req.MinContextSlot),
+			zap.Int("retryInterval", CCQ_FAST_RETRY_INTERVAL),
+		)
+	}
+
+	time.Sleep(CCQ_FAST_RETRY_INTERVAL * time.Millisecond)
+
+	if log {
+		w.ccqLogger.Info("initiating fast retry", zap.String("requestId", requestId))
+	}
+
+	w.ccqHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, true)
+}
+
+// ccqIsMinContextSlotError parses an error to see if it is "Minimum context slot has not been reached". If it is, it returns the slot number
+func ccqIsMinContextSlotError(err error) (bool, uint64, error) {
+	/*
+	  A MinContextSlot error looks like this (and contains the context slot):
+	  "(*jsonrpc.RPCError)(0xc00b3881b0)({\n Code: (int) -32016,\n Message: (string) (len=41) \"Minimum context slot has not been reached\",\n Data: (map[string]interface {}) (len=1) {\n  (string) (len=11) \"contextSlot\": (json.Number) (len=4) \"3630\"\n }\n})\n"
+	*/
+	var rpcErr *jsonrpc.RPCError
+	if !errors.As(err, &rpcErr) {
+		return false, 0, nil // Some other kind of error. That's okay.
+	}
+
+	if rpcErr.Code != -32016 { // Minimum context slot has not been reached
+		return false, 0, nil // Some other kind of RPC error. That's okay.
+	}
+
+	// From here on down, any error is bad because the MinContextSlot error is not in the expected format.
+	m, ok := rpcErr.Data.(map[string]interface{})
+	if !ok {
+		return false, 0, fmt.Errorf("failed to extract data from min context slot error")
+	}
+
+	contextSlot, ok := m["contextSlot"]
+	if !ok {
+		return false, 0, fmt.Errorf(`min context slot error does not contain "contextSlot"`)
+	}
+
+	currentSlotAsJson, ok := contextSlot.(json.Number)
+	if !ok {
+		return false, 0, fmt.Errorf(`min context slot error "contextSlot" is not json.Number`)
+	}
+
+	currentSlot, typeErr := strconv.ParseUint(currentSlotAsJson.String(), 10, 64)
+	if typeErr != nil {
+		return false, 0, fmt.Errorf(`min context slot error "contextSlot" is not uint64: %w`, err)
+	}
+
+	return true, currentSlot, nil
 }
 
 type M map[string]interface{}
