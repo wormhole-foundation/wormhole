@@ -2,7 +2,7 @@
 
 // forge test --match-contract QueryResponse
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "../../contracts/query/QueryResponse.sol";
 import "../../contracts/Implementation.sol";
