@@ -17,6 +17,18 @@ import (
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 )
 
+const (
+	// CCQ_RETRY_SLOP gets subtracted from the query retry interval to determine how long we can continue fast retries.
+	// We don't want the fast retry time to be too close to the query retry interval.
+	CCQ_RETRY_SLOP = 250 * time.Millisecond
+
+	// CCQ_ESTIMATED_SLOT_TIME is the estimated Solana slot time used for estimating how long until the MinContextSlot will be reached.
+	CCQ_ESTIMATED_SLOT_TIME = 400 * time.Millisecond
+
+	// CCQ_FAST_RETRY_INTERVAL is how long we sleep between fast retry attempts.
+	CCQ_FAST_RETRY_INTERVAL = 200 * time.Millisecond
+)
+
 // ccqSendQueryResponse sends a response back to the query handler. In the case of an error, the response parameter may be nil.
 func (w *SolanaWatcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status query.QueryStatus, response query.ChainSpecificResponse) {
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, response)
@@ -41,7 +53,7 @@ func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.
 
 	switch req := queryRequest.Request.Query.(type) {
 	case *query.SolanaAccountQueryRequest:
-		giveUpTime := start.Add(query.RetryInterval).Add(-250 * time.Millisecond)
+		giveUpTime := start.Add(query.RetryInterval).Add(-CCQ_RETRY_SLOP)
 		w.ccqHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, false)
 	default:
 		w.ccqLogger.Warn("received unsupported request type",
@@ -193,10 +205,19 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	w.ccqSendQueryResponse(queryRequest, query.QuerySuccess, resp)
 }
 
-// ccqCheckForMinSlotContext checks to see if the returned error was due to the min context slot not being reached. If so, and the estimated time in the future is not too great, it kicks off
-// a go routine to sleep and do a retry. In that case, it returns true, telling the caller that it is handling the request so it should not post a response. Note that the go routine only does
-// a single retry, but may result in another go routine being initiated to do another, and so on.
-func (w *SolanaWatcher) ccqCheckForMinSlotContext(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest, requestId string, err error, giveUpTime time.Time, log bool) bool {
+// ccqCheckForMinSlotContext checks to see if the returned error was due to the min context slot not being reached.
+// If so, and the estimated time in the future is not too great, it kicks off a go routine to sleep and do a retry.
+// In that case, it returns true, telling the caller that it is handling the request so it should not post a response.
+// Note that the go routine only does a single retry, but may result in another go routine being initiated to do another, and so on.
+func (w *SolanaWatcher) ccqCheckForMinSlotContext(
+	ctx context.Context,
+	queryRequest *query.PerChainQueryInternal,
+	req *query.SolanaAccountQueryRequest,
+	requestId string,
+	err error,
+	giveUpTime time.Time,
+	log bool,
+) bool {
 	if req.MinContextSlot == 0 {
 		return false
 	}
@@ -216,16 +237,16 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(ctx context.Context, queryRequ
 		return false
 	}
 
-	// Estimate how far in the future the requested slot is, assuming a slot time of 400 ms.
-	msInTheFuture := (req.MinContextSlot - currentSlot) * 400
+	// Estimate how far in the future the requested slot is, using our estimated slot time.
+	futureSlotEstimate := time.Duration(req.MinContextSlot-currentSlot) * CCQ_ESTIMATED_SLOT_TIME
 
 	// If the requested slot is more than ten seconds in the future, use the regular retry mechanism.
-	if msInTheFuture > 10000 {
+	if futureSlotEstimate > query.RetryInterval {
 		w.ccqLogger.Info("minimum context slot is too far in the future, requesting slow retry",
 			zap.String("requestId", requestId),
 			zap.Uint64("currentSlot", currentSlot),
 			zap.Uint64("minContextSlot", req.MinContextSlot),
-			zap.Uint64("msInTheFuture", msInTheFuture),
+			zap.Stringer("futureSlotEstimate", futureSlotEstimate),
 		)
 		return false
 	}
@@ -235,8 +256,6 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(ctx context.Context, queryRequ
 	return true
 }
 
-const CCQ_FAST_RETRY_INTERVAL = 200
-
 // ccqSleepAndRetryAccountQuery does a short sleep and then initiates a retry.
 func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal, req *query.SolanaAccountQueryRequest, requestId string, currentSlot uint64, giveUpTime time.Time, log bool) {
 	if log {
@@ -244,11 +263,11 @@ func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(ctx context.Context, queryR
 			zap.String("requestId", requestId),
 			zap.Uint64("currentSlot", currentSlot),
 			zap.Uint64("minContextSlot", req.MinContextSlot),
-			zap.Int("retryInterval", CCQ_FAST_RETRY_INTERVAL),
+			zap.Stringer("retryInterval", CCQ_FAST_RETRY_INTERVAL),
 		)
 	}
 
-	time.Sleep(CCQ_FAST_RETRY_INTERVAL * time.Millisecond)
+	time.Sleep(CCQ_FAST_RETRY_INTERVAL)
 
 	if log {
 		w.ccqLogger.Info("initiating fast retry", zap.String("requestId", requestId))

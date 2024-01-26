@@ -6,11 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRetrySlopIsValid(t *testing.T) {
+	assert.Less(t, CCQ_RETRY_SLOP, query.RetryInterval)
+}
 
 func TestCcqIsMinContextSlotErrorSuccess(t *testing.T) {
 	myErr := &jsonrpc.RPCError{

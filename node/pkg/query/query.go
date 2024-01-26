@@ -22,7 +22,7 @@ const (
 	// RequestTimeout indicates how long before a request is considered to have timed out.
 	RequestTimeout = 1 * time.Minute
 
-	// RetryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
+	// RetryInterval specifies how long we will wait between retry intervals.
 	RetryInterval = 10 * time.Second
 
 	// AuditInterval specifies how often to audit the list of pending queries.
