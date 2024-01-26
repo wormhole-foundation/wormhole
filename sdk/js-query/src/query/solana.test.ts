@@ -27,7 +27,7 @@ const ENV = "DEVNET";
 const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
 const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
-const SOLANA_NODE_URL = CI ? "http://solana-devnet" : "http://localhost:8899";
+const SOLANA_NODE_URL = CI ? "http://solana-devnet:8899" : "http://localhost:8899";
 
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
