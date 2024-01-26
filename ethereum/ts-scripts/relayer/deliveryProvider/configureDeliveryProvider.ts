@@ -20,6 +20,7 @@ type AwaitedProperties<T> = {
   [K in keyof T]: Awaited<T[K]>;
 };
 type UpdateStruct = AwaitedProperties<DeliveryProviderStructs.UpdateStruct>;
+type CoreConfigStruct = AwaitedProperties<DeliveryProviderStructs.CoreConfigStruct>;
 
 interface Config {
   pricingInfo: PricingInfo[];
@@ -28,6 +29,7 @@ interface Config {
   conversionBuffers: AssetConversionBuffer[];
   rewardAddresses: RewardAddress[];
   supportedChains: SupportedChain[];
+  supportedKeysByChain: SupportedKeys[];
 }
 
 interface PricingInfo {
@@ -50,6 +52,11 @@ interface AssetConversionBuffer {
   chainId: ChainId;
   buffer: bigint;
   bufferDenominator: bigint;
+}
+
+interface SupportedKeys {
+  chainId: ChainId;
+  supportedKeys: number[];
 }
 
 interface RewardAddress {
@@ -89,42 +96,54 @@ async function run() {
       // Note that we assume that this update element was added because
       // some modification was requested to the contract.
       // This depends on the behaviour of the process functions.
-      for (const update of result.value?.updates || []) {
-        if (result.value?.chain) {
-          printUpdate(update, result.value.chain);
-        }
-      }
+      printUpdate(result.value.updates, result.value.coreConfig, result.value.chain);
     }
   }
 }
 
-function printUpdate(update: UpdateStruct, { chainId }: ChainInfo) {
-  let messages = [
-    `Updates for operating chain ${chainId} and target chain ${update.chainId}:`,
-  ];
-  if (update.updatePrice) {
-    const assetPrice = utils.formatUnits(update.nativeCurrencyPrice, 6);
-    const gasPrice = utils.formatUnits(update.gasPrice, "gwei");
-    messages.push(`  Asset price update: $${assetPrice}`);
-    messages.push(`  Gas price update: ${gasPrice} gwei`);
+function printUpdate(updates: UpdateStruct[], coreConfig: CoreConfigStruct, { chainId }: ChainInfo) {
+  const messages: string[] = [];
+
+  if (coreConfig.updateRewardAddress || coreConfig.updateSupportedKeyTypes) {
+    messages.push(`Core configuration updates for operating chain ${chainId}:`);
   }
-  if (update.updateDeliverGasOverhead) {
-    messages.push(`  Deliver gas overhead update: ${update.newGasOverhead}`);
+  if (coreConfig.updateRewardAddress) {
+    messages.push(`  Reward address: ${coreConfig.rewardAddress}`);
   }
-  if (update.updateMaximumBudget) {
-    const maximumBudget = utils.formatEther(update.maximumTotalBudget);
-    messages.push(`  Maximum budget update: ${maximumBudget}`);
+  if (coreConfig.updateSupportedKeyTypes) {
+    const bitmap = BigNumber.isBigNumber(coreConfig.supportedKeyTypesBitmap)
+      ? coreConfig.supportedKeyTypesBitmap.toBigInt()
+      : BigNumber.from(coreConfig.supportedKeyTypesBitmap).toBigInt();
+    const supportedKeys = extractKeys(bitmap);
+    messages.push(`  Supported key types: [${supportedKeys.join(", ")}]`);
   }
-  if (update.updateTargetChainAddress) {
-    messages.push(`  Target chain address update: ${update.targetChainAddress}`);
-  }
-  if (update.updateSupportedChain) {
-    messages.push(`  Supported chain update: ${update.isSupported}`);
-  }
-  if (update.updateAssetConversionBuffer) {
-    const bufferDenominator = BigNumber.isBigNumber(update.bufferDenominator) ? update.bufferDenominator : BigNumber.from(update.bufferDenominator);
-    const buffer = BigNumber.isBigNumber(update.buffer) ? update.buffer : BigNumber.from(update.buffer);
-    messages.push(`  Asset conversion buffer ratio: (${bufferDenominator.toBigInt()} / ${bufferDenominator.add(buffer).toBigInt()})`)
+
+  for (const update of updates) {
+    messages.push(`Updates for operating chain ${chainId} and target chain ${update.chainId}:`);
+    if (update.updatePrice) {
+      const assetPrice = utils.formatUnits(update.nativeCurrencyPrice, 6);
+      const gasPrice = utils.formatUnits(update.gasPrice, "gwei");
+      messages.push(`  Asset price update: $${assetPrice}`);
+      messages.push(`  Gas price update: ${gasPrice} gwei`);
+    }
+    if (update.updateDeliverGasOverhead) {
+      messages.push(`  Deliver gas overhead update: ${update.newGasOverhead}`);
+    }
+    if (update.updateMaximumBudget) {
+      const maximumBudget = utils.formatEther(update.maximumTotalBudget);
+      messages.push(`  Maximum budget update: ${maximumBudget}`);
+    }
+    if (update.updateTargetChainAddress) {
+      messages.push(`  Target chain address update: ${update.targetChainAddress}`);
+    }
+    if (update.updateSupportedChain) {
+      messages.push(`  Supported chain update: ${update.isSupported}`);
+    }
+    if (update.updateAssetConversionBuffer) {
+      const bufferDenominator = BigNumber.isBigNumber(update.bufferDenominator) ? update.bufferDenominator : BigNumber.from(update.bufferDenominator);
+      const buffer = BigNumber.isBigNumber(update.buffer) ? update.buffer : BigNumber.from(update.buffer);
+      messages.push(`  Asset conversion buffer ratio: (${bufferDenominator.toBigInt()} / ${bufferDenominator.add(buffer).toBigInt()})`)
+    }
   }
 
   console.log(messages.join("\n"));
@@ -200,6 +219,7 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
 
   const coreConfig = await processCoreConfigUpdates(
     config.rewardAddresses,
+    config.supportedKeysByChain,
     deliveryProvider,
     chain,
   );
@@ -209,9 +229,10 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     chain
   );
 
-  if (!updates.length) {
+  // `coreConfig.updateWormholeRelayer` is an obsolete configuration parameter so we ignore it here.
+  if (updates.length === 0 && !coreConfig.updateRewardAddress && !coreConfig.updateSupportedKeyTypes) {
     console.log(`No updates for operating chain ${chain.chainId}`);
-    return { updates, chain };
+    return { updates, coreConfig, chain };
   }
 
   console.log(`Sending update tx for operating chain ${chain.chainId}. Updates: ${JSON.stringify(updates)}`);
@@ -225,7 +246,7 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     );
     receipt = await tx.wait();
   } catch (error) {
-    console.log(
+    console.error(
       `Updates failed on operating chain ${chain.chainId}. Error: ${error}`
     );
     throw error;
@@ -237,7 +258,7 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     );
   }
 
-  return { updates, chain };
+  return { updates, coreConfig, chain };
 }
 
 async function processPriceUpdate(
@@ -336,10 +357,11 @@ async function processSupportedChainUpdate(
 
 async function processCoreConfigUpdates(
   rewardAddresses: RewardAddress[],
+  supportedKeysByChain: SupportedKeys[],
   deliveryProvider: DeliveryProvider,
   chain: ChainInfo,
 ) {
-  const coreConfig: DeliveryProviderStructs.CoreConfigStruct = {
+  const coreConfig: CoreConfigStruct = {
     updateRewardAddress: false,
     updateWormholeRelayer: false,
     updateSupportedKeyTypes: false,
@@ -352,17 +374,27 @@ async function processCoreConfigUpdates(
     return element.chainId === chain.chainId;
   })?.rewardAddress;
 
-  if (!rewardAddress) {
-    throw new Error(
-      "Failed to find reward address info for chain " + chain.chainId
-    );
+  if (rewardAddress !== undefined) {
+    const currentRewardAddress = await deliveryProvider.rewardAddress();
+
+    if (currentRewardAddress !== rewardAddress) {
+      coreConfig.updateRewardAddress = true;
+      coreConfig.rewardAddress = rewardAddress;
+    }
   }
 
-  const currentRewardAddress = await deliveryProvider.rewardAddress();
+  const supportedKeys = supportedKeysByChain.find((element) => {
+    return element.chainId === chain.chainId;
+  })?.supportedKeys;
 
-  if (currentRewardAddress !== rewardAddress) {
-    coreConfig.updateRewardAddress = true;
-    coreConfig.rewardAddress = rewardAddress;
+  if (supportedKeys !== undefined) {
+    const currentSupportedKeys = await deliveryProvider.getSupportedKeys();
+    const newSupportedKeys = generateBitmap(supportedKeys);
+
+    if (currentSupportedKeys.toBigInt() !== newSupportedKeys) {
+      coreConfig.updateSupportedKeyTypes = true;
+      coreConfig.supportedKeyTypesBitmap = newSupportedKeys;
+    }
   }
 
   return coreConfig;
@@ -402,6 +434,25 @@ function createEmptyUpdateConfig(chainId: ChainId): UpdateStruct {
     targetChainAddress: whZeroAddress,
     maximumTotalBudget: 0,
   };
+}
+
+// We assume the bitmap is 256 bits wide which is accurate at the time of writing.
+function extractKeys(bitmap: bigint): bigint[] {
+  const keys = [];
+  for (let i = 0n; i < 256n; ++i) {
+    if ((bitmap & (1n << i)) > 0n) {
+      keys.push(i);
+    }
+  }
+  return keys;
+}
+
+function generateBitmap(keys: number[]): bigint {
+  let bitmap = 0n;
+  for (const key of keys) {
+    bitmap |= 1n << BigInt(key);
+  }
+  return bitmap;
 }
 
 run().then(() => console.log(`Done! ${processName}`));
