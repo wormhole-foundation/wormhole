@@ -88,7 +88,7 @@ test-forge: dependencies
 # Verify that the contracts do not include PUSH0 opcodes
 test-push0: dependencies
 	forge build --extra-output evm.bytecode.opcodes
-	@if grep -qr --include \*.json PUSH0 ./build-forge; then echo "Contract uses PUSH0 instruction"; exit 1; fi
+	@if grep -qr --include \*.json PUSH0 ./build-forge; then echo "Contract uses PUSH0 instruction" 1>&2; exit 1; fi
 
 clean:
 	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
