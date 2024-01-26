@@ -407,7 +407,15 @@ func SubmitVAAToContract(
 		return txResp, fmt.Errorf("submit failed: %s", txResp.TxResponse.RawLog)
 	}
 
-	logger.Info("done sending broadcast", zap.String("msgId", v2p.V.MessageID()), zap.String("contract", v2p.ContractAddress), zap.Uint8("vaaType", uint8(v2p.VType)), zap.Int64("gasUsed", txResp.TxResponse.GasUsed), zap.Stringer("elapsedTime", time.Since(start)))
+	logger.Info("done sending broadcast",
+		zap.String("msgId", v2p.V.MessageID()),
+		zap.String("contract", v2p.ContractAddress),
+		zap.Uint8("vaaType", uint8(v2p.VType)),
+		zap.Int64("gasUsed", txResp.TxResponse.GasUsed),
+		zap.Stringer("elapsedTime", time.Since(start)),
+		zap.String("txHash", txResp.TxResponse.TxHash),
+	)
+
 	logger.Debug("in SubmitVAAToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
 
 	return txResp, nil
