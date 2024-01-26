@@ -71,7 +71,7 @@ jobs:
           node-version: "16"
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-      - run: cd ethereum && make test
+      - run: cd ethereum && make test && make test-push0
 
   ethereum-upgrade:
     runs-on: ubuntu-latest
