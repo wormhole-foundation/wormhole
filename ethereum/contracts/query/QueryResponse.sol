@@ -1,8 +1,9 @@
 // contracts/query/QueryResponse.sol
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
+// TODO: Change this to use the version of BytesParsing.sol in wormhole-solidity-sdk once it is release.
 import {BytesParsing} from "../relayer/libraries/BytesParsing.sol";
 import "../interfaces/IWormhole.sol";
 
@@ -63,6 +64,28 @@ struct EthCallData {
     bytes result;
 }
 
+// @dev SolanaAccountQueryResponse describes a Solana Account query per-chain query.
+struct SolanaAccountQueryResponse {
+    bytes requestCommitment;
+    uint64 requestMinContextSlot;
+    uint64 requestDataSliceOffset;
+    uint64 requestDataSliceLength;
+    uint64 slotNumber;
+    uint64 blockTime;
+    bytes32 blockHash;
+    SolanaAccountResult [] results;
+}
+
+// @dev SolanaAccountResult describes a single Solana Account query result.
+struct SolanaAccountResult {
+    bytes32 account;
+    uint64 lamports;
+    uint64 rentEpoch;
+    bool executable;
+    bytes32 owner;
+    bytes data;
+}
+
 // Custom errors
 error EmptyWormholeAddress();
 error InvalidResponseVersion();
@@ -91,7 +114,8 @@ abstract contract QueryResponse {
     uint8 public constant QT_ETH_CALL = 1;
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
-    uint8 public constant QT_MAX = 4; // Keep this last
+    uint8 public constant QT_SOL_ACCOUNT = 4;
+    uint8 public constant QT_MAX = 5; // Keep this last
 
     constructor(address _wormhole) {
         if (_wormhole == address(0)) {
@@ -115,7 +139,7 @@ abstract contract QueryResponse {
     function parseAndVerifyQueryResponse(bytes memory response, IWormhole.Signature[] memory signatures) public view returns (ParsedQueryResponse memory r) {
         verifyQueryResponseSignatures(response, signatures);
 
-        uint index = 0;
+        uint index;
         
         (r.version, index) = response.asUint8Unchecked(index);
         if (r.version != VERSION) {
@@ -167,7 +191,7 @@ abstract contract QueryResponse {
         r.responses = new ParsedPerChainQueryResponse[](numPerChainQueries);
 
         // Walk through the requests and responses in lock step.
-        for (uint idx = 0; idx < numPerChainQueries;) {
+        for (uint idx; idx < numPerChainQueries;) {
             (r.responses[idx].chainId, reqIdx) = response.asUint16Unchecked(reqIdx);
             uint16 respChainId;
             (respChainId, respIdx) = response.asUint16Unchecked(respIdx);
@@ -210,8 +234,8 @@ abstract contract QueryResponse {
                 revert UnsupportedQueryType();
         }
 
-        uint reqIdx = 0;
-        uint respIdx = 0;
+        uint reqIdx;
+        uint respIdx;
 
         uint32 len;
         (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // block_id_len
@@ -236,7 +260,7 @@ abstract contract QueryResponse {
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
-        for (uint idx = 0; idx < numBatchCallData;) {
+        for (uint idx; idx < numBatchCallData;) {
             (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
 
             (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
@@ -259,8 +283,8 @@ abstract contract QueryResponse {
                 revert UnsupportedQueryType();
         }
 
-        uint reqIdx = 0;
-        uint respIdx = 0;
+        uint reqIdx;
+        uint respIdx;
         uint32 len;
 
         (r.requestTargetTimestamp, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request target_time_us
@@ -291,7 +315,7 @@ abstract contract QueryResponse {
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
-        for (uint idx = 0; idx < numBatchCallData;) {
+        for (uint idx; idx < numBatchCallData;) {
             (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
 
             (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
@@ -313,8 +337,8 @@ abstract contract QueryResponse {
                 revert UnsupportedQueryType();
         }
 
-        uint reqIdx = 0;
-        uint respIdx = 0;
+        uint reqIdx;
+        uint respIdx;
         uint32 len;
 
         (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request block_id_len
@@ -341,7 +365,7 @@ abstract contract QueryResponse {
         r.result = new EthCallData[](numBatchCallData);
 
         // Walk through the call data and results in lock step.
-        for (uint idx = 0; idx < numBatchCallData;) {
+        for (uint idx; idx < numBatchCallData;) {
             (r.result[idx].contractAddress, reqIdx) = pcr.request.asAddressUnchecked(reqIdx);
 
             (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // call_data_len
@@ -349,6 +373,59 @@ abstract contract QueryResponse {
 
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
+    }
+
+    /// @dev parseSolanaAccountQueryResponse parses a ParsedPerChainQueryResponse for a Solana Account per-chain query.
+    function parseSolanaAccountQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaAccountQueryResponse memory r) {
+        if (pcr.queryType != QT_SOL_ACCOUNT) {
+            revert UnsupportedQueryType();
+        }
+
+        uint reqIdx;
+        uint respIdx;
+        uint32 len;
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
+        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
+        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
+        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
+        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
+
+        uint8 numAccounts;
+        (numAccounts, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_accounts
+
+        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numAccounts) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.results = new SolanaAccountResult[](numAccounts);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx; idx < numAccounts;) {
+            (r.results[idx].account, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request account
+
+            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
+            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
+
+            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnckecked(respIdx); // Response executable
+
+            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
+
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
 
             unchecked { ++idx; }
         }
@@ -381,7 +458,7 @@ abstract contract QueryResponse {
 
         uint256 numChainIds = _validChainIds.length;
         
-        for (uint256 idx = 0; idx < numChainIds;) {
+        for (uint256 idx; idx < numChainIds;) {
             if (chainId == _validChainIds[idx]) {
                 validChainId = true;
                 break;
@@ -397,7 +474,7 @@ abstract contract QueryResponse {
     function validateMultipleEthCallData(EthCallData[] memory r, address[] memory _expectedContractAddresses, bytes4[] memory _expectedFunctionSignatures) public pure {
         uint256 callDatasLength = r.length;
         
-        for (uint256 idx = 0; idx < callDatasLength;) {
+        for (uint256 idx; idx < callDatasLength;) {
             validateEthCallData(r[idx], _expectedContractAddresses, _expectedFunctionSignatures);
 
             unchecked { ++idx; }
@@ -420,7 +497,7 @@ abstract contract QueryResponse {
         uint256 contractAddressesLength = _expectedContractAddresses.length;
         
         // Check that the contract address called in the request is expected
-        for (uint256 idx = 0; idx < contractAddressesLength;) {
+        for (uint256 idx; idx < contractAddressesLength;) {
             if (r.contractAddress == _expectedContractAddresses[idx]) {
                 validContractAddress = true;
                 break;
@@ -437,7 +514,7 @@ abstract contract QueryResponse {
         uint256 functionSignaturesLength = _expectedFunctionSignatures.length;
 
         // Check that the function signature called is expected
-        for (uint256 idx = 0; idx < functionSignaturesLength;) {
+        for (uint256 idx; idx < functionSignaturesLength;) {
             (bytes4 funcSig,) = r.callData.asBytes4Unchecked(0);
             if (funcSig == _expectedFunctionSignatures[idx]) {
                 validFunctionSignature = true;

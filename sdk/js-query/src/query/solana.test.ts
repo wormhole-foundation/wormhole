@@ -27,6 +27,7 @@ const ENV = "DEVNET";
 const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
 const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
+const SOLANA_NODE_URL = CI ? "http://solana-devnet:8899" : "http://localhost:8899";
 
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -35,6 +36,17 @@ const ACCOUNTS = [
   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
   "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
 ];
+
+async function getSolanaSlot(comm: string): Promise<bigint> {
+  const response = await axios.post(SOLANA_NODE_URL, {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getSlot",
+    params: [{ commitment: comm, transactionDetails: "none" }],
+  });
+
+  return response.data.result;
+}
 
 describe("solana", () => {
   test("serialize and deserialize sol_account request with defaults", () => {
@@ -162,6 +174,66 @@ describe("solana", () => {
     const sar = queryResponse.responses[0]
       .response as SolanaAccountQueryResponse;
     expect(sar.slotNumber).not.toEqual(BigInt(0));
+    expect(sar.blockTime).not.toEqual(BigInt(0));
+    expect(sar.results.length).toEqual(2);
+
+    expect(sar.results[0].lamports).toEqual(BigInt(1461600));
+    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(sar.results[0].executable).toEqual(false);
+    expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    );
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+
+    expect(sar.results[1].lamports).toEqual(BigInt(1461600));
+    expect(sar.results[1].rentEpoch).toEqual(BigInt(0));
+    expect(sar.results[1].executable).toEqual(false);
+    expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    );
+    expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+      "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
+    );
+  });
+  test("sol_account query with future min context slot", async () => {
+    const currSlot = await getSolanaSlot("finalized");
+    const minContextSlot = BigInt(currSlot) + BigInt(10);
+    const solAccountReq = new SolanaAccountQueryRequest(
+      "finalized",
+      ACCOUNTS,
+      minContextSlot
+    );
+    const nonce = 42;
+    const query = new PerChainQueryRequest(1, solAccountReq);
+    const request = new QueryRequest(nonce, [query]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key" } }
+    );
+    expect(response.status).toBe(200);
+
+    const queryResponse = QueryResponse.from(response.data.bytes);
+    expect(queryResponse.version).toEqual(1);
+    expect(queryResponse.requestChainId).toEqual(0);
+    expect(queryResponse.request.version).toEqual(1);
+    expect(queryResponse.request.requests.length).toEqual(1);
+    expect(queryResponse.request.requests[0].chainId).toEqual(1);
+    expect(queryResponse.request.requests[0].query.type()).toEqual(
+      ChainQueryType.SolanaAccount
+    );
+
+    const sar = queryResponse.responses[0]
+      .response as SolanaAccountQueryResponse;
+    expect(sar.slotNumber).toEqual(minContextSlot);
     expect(sar.blockTime).not.toEqual(BigInt(0));
     expect(sar.results.length).toEqual(2);
 

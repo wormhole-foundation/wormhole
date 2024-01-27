@@ -22,8 +22,11 @@ const (
 	// RequestTimeout indicates how long before a request is considered to have timed out.
 	RequestTimeout = 1 * time.Minute
 
-	// RetryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
+	// RetryInterval specifies how long we will wait between retry intervals.
 	RetryInterval = 10 * time.Second
+
+	// AuditInterval specifies how often to audit the list of pending queries.
+	AuditInterval = time.Second
 
 	// SignedQueryRequestChannelSize is the buffer size of the incoming query request channel.
 	SignedQueryRequestChannelSize = 50
@@ -105,7 +108,7 @@ func (qh *QueryHandler) Start(ctx context.Context) error {
 
 // handleQueryRequests multiplexes observation requests to the appropriate chain
 func (qh *QueryHandler) handleQueryRequests(ctx context.Context) error {
-	return handleQueryRequestsImpl(ctx, qh.logger, qh.signedQueryReqC, qh.chainQueryReqC, qh.allowedRequestors, qh.queryResponseReadC, qh.queryResponseWriteC, qh.env, RequestTimeout, RetryInterval)
+	return handleQueryRequestsImpl(ctx, qh.logger, qh.signedQueryReqC, qh.chainQueryReqC, qh.allowedRequestors, qh.queryResponseReadC, qh.queryResponseWriteC, qh.env, RequestTimeout, RetryInterval, AuditInterval)
 }
 
 // handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
@@ -120,6 +123,7 @@ func handleQueryRequestsImpl(
 	env common.Environment,
 	requestTimeoutImpl time.Duration,
 	retryIntervalImpl time.Duration,
+	auditIntervalImpl time.Duration,
 ) error {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
 	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
@@ -141,7 +145,6 @@ func handleQueryRequestsImpl(
 		vaa.ChainIDKlaytn:          {},
 		vaa.ChainIDCelo:            {},
 		vaa.ChainIDMoonbeam:        {},
-		vaa.ChainIDNeon:            {},
 		vaa.ChainIDArbitrum:        {},
 		vaa.ChainIDOptimism:        {},
 		vaa.ChainIDBase:            {},
@@ -166,7 +169,7 @@ func handleQueryRequestsImpl(
 		}
 	}
 
-	ticker := time.NewTicker(retryIntervalImpl)
+	ticker := time.NewTicker(auditIntervalImpl)
 	defer ticker.Stop()
 
 	for {

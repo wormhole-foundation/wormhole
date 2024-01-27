@@ -270,9 +270,9 @@ The following bootstrap peers are available in each environment.
 ### Testnet
 
 ```bash
---bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK"
+--bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
 
---ccqP2pBootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8996/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8996/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK"
+--ccqP2pBootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8996/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8996/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8996/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
 ```
 
 ## Run the Guardian Spy
@@ -287,7 +287,7 @@ docker run \
     -p 7073:7073 \
     --entrypoint /guardiand \
     ghcr.io/wormhole-foundation/guardiand:latest \
-spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK"
+spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
 ```
 
 To run the spy against mainnet:
@@ -312,6 +312,7 @@ Configuration files, environment variables and flags are all supported.
 **Format**: We support any format that is supported by [Viper](https://pkg.go.dev/github.com/dvln/viper#section-readme). But YAML format is generally preferred.
 
 **Example**:
+
 ```yaml
 ethRPC: "ws://eth-devnet:8545"
 ethContract: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
@@ -326,6 +327,7 @@ solanaContract: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 **Usage**: Environment variables can be used to override settings in the config file. Particularly for sensitive data like API keys that should not be stored in config files.
 
 **Example**:
+
 ```bash
 export GUARDIAND_ETHRPC=ws://eth-devnet:8545
 ```
@@ -335,11 +337,13 @@ export GUARDIAND_ETHRPC=ws://eth-devnet:8545
 **Usage**: Flags provide the highest precedence and can be used for temporary overrides or for settings that change frequently.
 
 **Example**:
+
 ```bash
 ./guardiand node --ethRPC=ws://eth-devnet:8545
 ```
 
 ### Precedence Order
+
 The configuration settings are applied in the following order of precedence:
 
 1. **Command-Line Flags**: Highest precedence, overrides any other settings.
