@@ -10,7 +10,7 @@ import axios from "axios";
 import yargs from "yargs";
 import {hideBin} from "yargs/helpers";
 
-export const TERRA_GAS_PRICES_URL = "https://fcd.terra.dev/v1/txs/gas_prices";
+export const TERRA_GAS_PRICES_URL = "https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices";
 
 const argv = yargs(hideBin(process.argv))
   .option('network', {
@@ -38,7 +38,7 @@ const artifact = argv.artifact;
 const terra_host =
       argv.network === "mainnet"
     ? {
-        URL: "https://lcd.terra.dev",
+        URL: "https://terra-classic-lcd.publicnode.com",
         chainID: "columbus-5",
         name: "mainnet",
       }
