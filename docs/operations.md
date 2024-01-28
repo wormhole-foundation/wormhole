@@ -16,8 +16,8 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 
 - **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
 
-- **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
-  pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
+- **Terra** requires a full node and an [LCD server](https://docs.terra.money/develop/guides/start-lcd)
+  pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full-terra-node/join-a-network/)
   on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
   to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
   you set up a load balancer pointing to a set of nodes.
