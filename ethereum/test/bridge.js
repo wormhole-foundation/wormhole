@@ -909,7 +909,7 @@ contract("Bridge", function () {
         assert.equal(hadSenderError, true)
     })
 
-    it("should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender recieves fee", async function () {
+    it("should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender receives fee", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
 
