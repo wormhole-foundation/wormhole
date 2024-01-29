@@ -9,7 +9,7 @@ usage="Usage:
       -h  show this help text
       -n  set the network (mainnet, testnet, devnet. defaults to \$NETWORK if set)"
 
-network=$NETWORK
+network=${NETWORK:-""}
 while getopts ':hn:' option; do
   case "$option" in
     h) echo "$usage"
@@ -31,7 +31,7 @@ shift $((OPTIND - 1))
 
 
 case "$network" in
-  mainnet) url="https://lcd.terra.dev";;
+  mainnet) url="https://terra-classic-lcd.publicnode.com";;
   testnet) url="https://bombay-lcd.terra.dev";;
   devnet)  url="http://localhost:1317";;
   *) printf "Network not set. Specify with -n\n" >&2
@@ -45,7 +45,8 @@ obj_file=$1
 code_id=$2
 
 
-hash1=`curl "$url"/terra/wasm/v1beta1/codes/"$code_id" --silent | jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 "%02x" '`
+hash1uppercased=`curl "$url"/cosmwasm/wasm/v1/code/"$code_id" --silent | jq '.code_info.data_hash' -r`
+hash1=${hash1uppercased,,}
 hash2=`sha256sum $obj_file | cut -f1 -d' '`
 
 echo "Deployed bytecode hash (on $network):"
