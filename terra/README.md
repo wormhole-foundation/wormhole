@@ -126,10 +126,12 @@ this will write to the `token-bridge-upgrade-59614.prototxt` file, which can
 now be shared with the guardians to vote on.
 
 Once the guardians have reached quorum, the VAA may be submitted from any
-funded wallet: TODO - make this easier and more unified
+funded wallet with `worm` CLI:
 
 ``` sh
-node main.js terra execute_governance_vaa <signed VAA (hex)> --rpc "https://lcd.terra.dev" --chain_id "columbus-5" --mnemonic "..." --token_bridge "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
+export TERRA_MNEMONIC="..."
+# Note that the chain should be inferred from the governance VAA
+worm submit --network mainnet <signed VAA (hex without 0x prefix)> --rpc "https://terra-classic-lcd.publicnode.com"
 ```
 
 ### Testnet
