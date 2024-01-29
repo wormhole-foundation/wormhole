@@ -38,6 +38,7 @@ type httpServer struct {
 	permissions      *Permissions
 	signerKey        *ecdsa.PrivateKey
 	pendingResponses *PendingResponses
+	loggingMap       *LoggingMap
 }
 
 func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +148,10 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if permEntry.logResponses {
+		s.loggingMap.AddRequest(requestId)
+	}
+
 	s.logger.Info("posting request to gossip", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
 	err = s.topic.Publish(r.Context(), b)
 	if err != nil {
@@ -202,7 +207,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	s.pendingResponses.Remove(pendingResponse)
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, permissions *Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, permissions *Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment, loggingMap *LoggingMap) *http.Server {
 	s := &httpServer{
 		topic:            t,
 		permissions:      permissions,
@@ -210,6 +215,7 @@ func NewHTTPServer(addr string, t *pubsub.Topic, permissions *Permissions, signe
 		pendingResponses: p,
 		logger:           logger,
 		env:              env,
+		loggingMap:       loggingMap,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/query", s.handleQuery).Methods("PUT", "POST", "OPTIONS")

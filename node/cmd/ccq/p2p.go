@@ -37,7 +37,7 @@ type P2PSub struct {
 	host       host.Host
 }
 
-func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger, monitorPeers bool) (*P2PSub, error) {
+func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger, monitorPeers bool, loggingMap *LoggingMap) (*P2PSub, error) {
 	// p2p setup
 	components := p2p.DefaultComponents()
 	components.Port = port
@@ -168,6 +168,9 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
 				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+				if loggingMap.ShouldLogResponse(requestSignature) {
+					logger.Info("logging response", zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+				}
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
 				if pendingResponse == nil {
