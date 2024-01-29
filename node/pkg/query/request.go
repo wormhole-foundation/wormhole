@@ -125,6 +125,8 @@ const SolanaAccountQueryRequestType ChainSpecificQueryType = 4
 type SolanaAccountQueryRequest struct {
 	// Commitment identifies the commitment level to be used in the queried. Currently it may only "finalized".
 	// Before we can support "confirmed", we need a way to read the account data and the block information atomically.
+	// We would also need to deal with the fact that queries are only handled in the finalized watcher and it does not
+	// have access to the latest confirmed slot needed for MinContextSlot retries.
 	Commitment string
 
 	// The minimum slot that the request can be evaluated at. Zero means unused.
