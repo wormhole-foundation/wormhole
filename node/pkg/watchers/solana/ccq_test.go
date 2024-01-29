@@ -3,7 +3,6 @@ package solana
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -26,16 +25,14 @@ func TestCcqIsMinContextSlotErrorSuccess(t *testing.T) {
 		},
 	}
 
-	isMinContext, currentSlot, err := ccqIsMinContextSlotError(error(myErr))
-	require.NoError(t, err)
+	isMinContext, currentSlot := ccqIsMinContextSlotError(error(myErr))
 	require.True(t, isMinContext)
 	assert.Equal(t, uint64(13526), currentSlot)
 }
 
 func TestCcqIsMinContextSlotErrorSomeOtherError(t *testing.T) {
 	myErr := fmt.Errorf("Some other error")
-	isMinContext, _, err := ccqIsMinContextSlotError(error(myErr))
-	require.NoError(t, err)
+	isMinContext, _ := ccqIsMinContextSlotError(error(myErr))
 	require.False(t, isMinContext)
 }
 
@@ -48,8 +45,7 @@ func TestCcqIsMinContextSlotErrorSomeOtherRPCError(t *testing.T) {
 		},
 	}
 
-	isMinContext, _, err := ccqIsMinContextSlotError(error(myErr))
-	require.NoError(t, err)
+	isMinContext, _ := ccqIsMinContextSlotError(error(myErr))
 	require.False(t, isMinContext)
 }
 
@@ -59,8 +55,9 @@ func TestCcqIsMinContextSlotErrorNoData(t *testing.T) {
 		Message: "Minimum context slot has not been reached",
 	}
 
-	_, _, err := ccqIsMinContextSlotError(error(myErr))
-	assert.EqualError(t, err, `failed to extract data from min context slot error`)
+	isMinContext, currentSlot := ccqIsMinContextSlotError(error(myErr))
+	require.True(t, isMinContext)
+	assert.Equal(t, uint64(0), currentSlot)
 }
 
 func TestCcqIsMinContextSlotErrorContextSlotMissing(t *testing.T) {
@@ -72,8 +69,9 @@ func TestCcqIsMinContextSlotErrorContextSlotMissing(t *testing.T) {
 		},
 	}
 
-	_, _, err := ccqIsMinContextSlotError(error(myErr))
-	assert.EqualError(t, err, `min context slot error does not contain "contextSlot"`)
+	isMinContext, currentSlot := ccqIsMinContextSlotError(error(myErr))
+	require.True(t, isMinContext)
+	assert.Equal(t, uint64(0), currentSlot)
 }
 
 func TestCcqIsMinContextSlotErrorContextSlotIsNotAJsonNumber(t *testing.T) {
@@ -85,8 +83,9 @@ func TestCcqIsMinContextSlotErrorContextSlotIsNotAJsonNumber(t *testing.T) {
 		},
 	}
 
-	_, _, err := ccqIsMinContextSlotError(error(myErr))
-	assert.EqualError(t, err, `min context slot error "contextSlot" is not json.Number`)
+	isMinContext, currentSlot := ccqIsMinContextSlotError(error(myErr))
+	require.True(t, isMinContext)
+	assert.Equal(t, uint64(0), currentSlot)
 }
 
 func TestCcqIsMinContextSlotErrorContextSlotIsNotUint64(t *testing.T) {
@@ -98,6 +97,7 @@ func TestCcqIsMinContextSlotErrorContextSlotIsNotUint64(t *testing.T) {
 		},
 	}
 
-	_, _, err := ccqIsMinContextSlotError(error(myErr))
-	assert.True(t, strings.Contains(err.Error(), `min context slot error "contextSlot" is not uint64`))
+	isMinContext, currentSlot := ccqIsMinContextSlotError(error(myErr))
+	require.True(t, isMinContext)
+	assert.Equal(t, uint64(0), currentSlot)
 }
