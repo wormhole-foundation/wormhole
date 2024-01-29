@@ -69,8 +69,16 @@ wormhole/terra $ make deploy/token_bridge
 ```
 
 For each deployed contract, you will get a code id for that relevant
-contract for the deployment, make note of these so you can use them in
-the next step for on-chain verification.
+contract for the deployment. The code id will be written to a network specific file
+that you can read to execute further steps like contract verification.
+The deployment prints the name of this file.
+
+### Instantiation
+
+The deployment script currently does not instantiate a new live contract but rather only uploads the bytecode.
+This is all that is needed to upgrade existing contracts.
+
+To bootstrap a new instance of the contract you may need to modify the deployment slightly.
 
 ## Verify On-Chain
 
@@ -106,13 +114,15 @@ on-chain bytecode with the locally compiled bytecode.
 ### Mainnet
 
 Upgrades on mainnet have to go through governance. Once the code is deployed in
-the previous step, an unsigned governance VAA can be generated
+the previous step, an unsigned governance VAA can be generated from the root of the repository:
 
 ```sh
-./generate_governance -m token_bridge -c 59614 > token-bridge-upgrade-59614.prototxt
+token_bridge_id=$(cat token_bridge-code-id-mainnet.txt)
+./scripts/contract-upgrade-governance.sh --module token_bridge --chain terra --address $token_bridge_id > "token-bridge-upgrade-${token_bridge_id}.prototxt"
 ```
 
-This will write to the `token-bridge-upgrade-59614.prototxt` file, which can
+Supposing that the token bridge code id is 59614,
+this will write to the `token-bridge-upgrade-59614.prototxt` file, which can
 now be shared with the guardians to vote on.
 
 Once the guardians have reached quorum, the VAA may be submitted from any
