@@ -169,7 +169,12 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
 				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				if loggingMap.ShouldLogResponse(requestSignature) {
-					logger.Info("logging response", zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+					var queryRequest query.QueryRequest
+					if err := queryRequest.Unmarshal(queryResponse.Request.QueryRequest); err == nil {
+						logger.Info("logging response", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("request", queryRequest), zap.Any("response", queryResponse))
+					} else {
+						logger.Error("logging response (failed to unmarshal request)", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+					}
 				}
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
