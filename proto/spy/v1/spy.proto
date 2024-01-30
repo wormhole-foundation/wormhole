@@ -17,13 +17,6 @@ service SpyRPCService {
       body: "*"
     };
   }
-  // SubscribeSignedBatchVAA returns a stream of signed VAA messages, by type, received on the network.
-  rpc SubscribeSignedVAAByType (SubscribeSignedVAAByTypeRequest) returns (stream SubscribeSignedVAAByTypeResponse) {
-    option (google.api.http) = {
-      post: "/v1:subscribe_signed_vaa_by_type"
-      body: "*"
-    };
-  }
 }
 
 // A MessageFilter represents an exact match for an emitter.
@@ -65,20 +58,7 @@ message SubscribeSignedVAARequest {
   repeated FilterEntry filters = 1;
 }
 
-message SubscribeSignedVAAByTypeRequest {
-  // List of filters to apply to the stream (OR).
-  // If empty, all messages are streamed.
-  repeated FilterEntry filters = 1;
-}
-
 message SubscribeSignedVAAResponse {
   // Raw VAA bytes
   bytes vaa_bytes = 1;
-}
-
-message SubscribeSignedVAAByTypeResponse {
-  oneof vaa_type {
-    gossip.v1.SignedVAAWithQuorum signed_vaa = 1;
-    gossip.v1.SignedBatchVAAWithQuorum signed_batch_vaa = 2;
-  }
 }

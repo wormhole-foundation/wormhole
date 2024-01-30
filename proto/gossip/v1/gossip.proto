@@ -10,8 +10,6 @@ message GossipMessage {
     SignedHeartbeat signed_heartbeat = 3;
     SignedVAAWithQuorum signed_vaa_with_quorum = 4;
     SignedObservationRequest signed_observation_request = 5;
-    SignedBatchObservation signed_batch_observation = 6;
-    SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
     SignedChainGovernorConfig signed_chain_governor_config = 8;
     SignedChainGovernorStatus signed_chain_governor_status = 9;
     SignedQueryRequest signed_query_request = 10;
@@ -126,46 +124,6 @@ message SignedObservationRequest {
 message ObservationRequest {
   uint32 chain_id = 1;
   bytes tx_hash = 2;
-}
-
-// A SignedBatchObservation is a signed statement by a given guardian node
-// that they observed a series of messages originating from a transaction.
-//
-// BatcheObervations are emitted when all the Observations from a tx reach quorum.
-//
-// The event is uniquely identified by its hash (made from hashing all the
-// individual Observation hashes).
-//
-// Messages without valid signature are dropped unceremoniously.
-message SignedBatchObservation {
-  // Guardian pubkey as truncated eth address.
-  bytes addr = 1;
-  // The observation batch's deterministic, unique hash.
-  bytes hash = 2;
-  // ECSDA signature of the hash using the node's guardian key.
-  bytes signature = 3;
-  // Unique identifier of the transaction that produced the observation.
-  bytes tx_id = 4;
-  // Chain ID for this observation.
-  uint32 chain_id = 5;
-  // Nonce of the messages in the batch.
-  uint32 nonce = 6;
-  // Batch ID - emitterChain/transactionID/nonce
-  string batch_id = 7;
-}
-
-
-message SignedBatchVAAWithQuorum {
-  // batch_vaa bytes are the binary encoding of the BatchVAA
-  bytes batch_vaa = 1;
-  // Emitter Chain ID of the messages
-  uint32 chain_id = 2;
-  // Transaction identifier of the observation
-  bytes tx_id = 3;
-  // Nonce of the messages in the batch
-  uint32 nonce = 4;
-  // Batch ID - emitterChain/transactionID/nonce string, for convenience
-  string batch_id = 5;
 }
 
 // This message is published every five minutes.
