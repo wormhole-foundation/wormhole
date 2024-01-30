@@ -112,16 +112,16 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	requestId := hex.EncodeToString(signedQueryRequest.Signature)
-	s.logger.Info("received request from client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
-
 	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest); err != nil {
-		s.logger.Error("failed to validate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", status), zap.Error(err))
+		s.logger.Error("failed to validate request", zap.String("userId", permEntry.userName), zap.String("requestId", hex.EncodeToString(signedQueryRequest.Signature)), zap.Int("status", status), zap.Error(err))
 		http.Error(w, err.Error(), status)
 		// Error specific metric has already been pegged.
 		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
+
+	requestId := hex.EncodeToString(signedQueryRequest.Signature)
+	s.logger.Info("received request from client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
 
 	m := gossipv1.GossipMessage{
 		Message: &gossipv1.GossipMessage_SignedQueryRequest{
