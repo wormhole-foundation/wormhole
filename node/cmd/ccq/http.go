@@ -138,7 +138,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pendingResponse := NewPendingResponse(signedQueryRequest)
+	pendingResponse := NewPendingResponse(signedQueryRequest, permEntry.userName)
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
 		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
@@ -200,6 +200,10 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 			break
 		}
+	case errEntry := <-pendingResponse.errCh:
+		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
+		http.Error(w, errEntry.err.Error(), errEntry.status)
+		break
 	}
 
 	totalQueryTime.Observe(float64(time.Since(start).Milliseconds()))

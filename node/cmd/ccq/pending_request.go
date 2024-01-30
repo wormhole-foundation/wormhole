@@ -8,14 +8,23 @@ import (
 )
 
 type PendingResponse struct {
-	req *gossipv1.SignedQueryRequest
-	ch  chan *SignedResponse
+	req      *gossipv1.SignedQueryRequest
+	userName string
+	ch       chan *SignedResponse
+	errCh    chan *ErrorEntry
 }
 
-func NewPendingResponse(req *gossipv1.SignedQueryRequest) *PendingResponse {
+type ErrorEntry struct {
+	err    error
+	status int
+}
+
+func NewPendingResponse(req *gossipv1.SignedQueryRequest, userName string) *PendingResponse {
 	return &PendingResponse{
-		req: req,
-		ch:  make(chan *SignedResponse),
+		req:      req,
+		userName: userName,
+		ch:       make(chan *SignedResponse),
+		errCh:    make(chan *ErrorEntry),
 	}
 }
 

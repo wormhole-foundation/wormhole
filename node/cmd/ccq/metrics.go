@@ -36,6 +36,12 @@ var (
 			Help: "Total number of requests by user name",
 		}, []string{"user_name"})
 
+	quorumNotMetByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_quorum_not_met_by_user",
+			Help: "Total number of query failures due to quorum not met by user name",
+		}, []string{"user_name"})
+
 	invalidRequestsByUser = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_invalid_requests_by_user",
