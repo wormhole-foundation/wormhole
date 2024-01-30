@@ -148,6 +148,8 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}
 
+	loggingMap := NewLoggingMap()
+
 	// Load p2p private key
 	var priv crypto.PrivKey
 	priv, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
@@ -170,14 +172,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses()
-	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers)
+	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger, env)
+		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -248,6 +250,9 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	// Start watching for permissions file updates.
 	errC := make(chan error)
 	permissions.StartWatcher(ctx, logger, errC)
+
+	// Star logging cleanup process.
+	loggingMap.Start(ctx, logger, errC)
 
 	// Wait for either a shutdown or a fatal error from the permissions watcher.
 	select {

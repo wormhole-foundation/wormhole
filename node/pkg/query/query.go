@@ -392,7 +392,7 @@ func handleQueryRequestsImpl(
 									zap.Stringer("lastUpdateTime", pcq.lastUpdateTime),
 									zap.String("chainID", pq.queries[requestIdx].req.Request.ChainId.String()),
 								)
-								pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
+								pcq.ccqForwardToWatcher(qLogger, now)
 							}
 						}
 					}

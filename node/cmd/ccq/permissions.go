@@ -28,6 +28,7 @@ type (
 		UserName      string        `json:"userName"`
 		ApiKey        string        `json:"apiKey"`
 		AllowUnsigned bool          `json:"allowUnsigned"`
+		LogResponses  bool          `json:"logResponses"`
 		AllowedCalls  []AllowedCall `json:"allowedCalls"`
 	}
 
@@ -67,6 +68,7 @@ type (
 		userName      string
 		apiKey        string
 		allowUnsigned bool
+		logResponses  bool
 		allowedCalls  allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
 	}
 
@@ -267,6 +269,7 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 			userName:      user.UserName,
 			apiKey:        apiKey,
 			allowUnsigned: user.AllowUnsigned,
+			logResponses:  user.LogResponses,
 			allowedCalls:  allowedCalls,
 		}
 

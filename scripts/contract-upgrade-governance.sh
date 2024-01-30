@@ -157,7 +157,7 @@ case "$chain_name" in
     chain=3
     # This is not technically the explorer, but terra finder does not show
     # information about code ids, so this is the best we can do.
-    explorer="https://lcd.terra.dev/terra/wasm/v1beta1/codes/"
+    explorer="https://terra-classic-lcd.publicnode.com/cosmwasm/wasm/v1/code/"
     ;;
   bsc)
     chain=4
@@ -521,7 +521,7 @@ elif [ "$chain_name" = "terra" ]; then
 
 	\`\`\`shell
 	# $module
-	wormhole/terra$ ./verify -n mainnet -c $chain_name -w $(terra_artifact) -i $terra_code_id
+	wormhole/terra$ ./verify -n mainnet $(terra_artifact) $terra_code_id
 	\`\`\`
 EOF
 elif [ "$chain_name" = "aptos" ]; then
