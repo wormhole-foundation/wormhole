@@ -105,11 +105,6 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	}, nil
 }
 
-func (s *PublicrpcServer) GetSignedBatchVAA(ctx context.Context, req *publicrpcv1.GetSignedBatchVAARequest) (*publicrpcv1.GetSignedBatchVAAResponse, error) {
-	// TEMP - noop implementaion to satisfy inclusion requirement
-	return nil, status.Error(codes.Unimplemented, "not yet implemented")
-}
-
 func (s *PublicrpcServer) GetCurrentGuardianSet(ctx context.Context, req *publicrpcv1.GetCurrentGuardianSetRequest) (*publicrpcv1.GetCurrentGuardianSetResponse, error) {
 	gs := s.gst.Get()
 	if gs == nil {
