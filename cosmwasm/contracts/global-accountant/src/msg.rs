@@ -9,7 +9,10 @@ use wormhole_sdk::{
 
 use crate::state::{self, PendingTransfer};
 
-pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"acct_sub_obsfig_000000000000000000|";
+// NOTE: this is the original PREFIX for the wrapped asset standard ("acct_sub_obsfig_000000000000000000|")
+// given that a new prefix is required for each new deployment, we can use this as a reference
+// TODO: document a standard for prefix construction
+pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"acct_sub_obsfig_000000000000000001|";
 
 #[cw_serde]
 #[derive(Default)]
