@@ -9,6 +9,8 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdError, StdResult};
 use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 
+use super::transfer::TokenAddresses;
+
 #[cw_serde]
 #[derive(Copy, Default, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
@@ -27,6 +29,12 @@ impl TokenAddress {
 impl From<[u8; 32]> for TokenAddress {
     fn from(addr: [u8; 32]) -> Self {
         TokenAddress(addr)
+    }
+}
+
+impl From<[u8; 32]> for TokenAddresses {
+    fn from(addr: [u8; 32]) -> Self {
+        TokenAddresses(vec![TokenAddress(addr)])
     }
 }
 

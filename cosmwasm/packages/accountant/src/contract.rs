@@ -91,7 +91,7 @@ pub fn validate_transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow:
 /// #     };
 /// #
 ///       commit_transfer(deps.as_mut(), tx.clone())?;
-///  
+///
 ///       // Repeating the transfer should return an error.
 ///       let err = commit_transfer(deps.as_mut(), tx)
 ///           .expect_err("successfully committed duplicate transfer");
@@ -229,7 +229,7 @@ pub enum ModifyBalanceError {
 ///           amount: Uint256::from(4u128),
 ///           reason: "test".try_into().unwrap(),
 ///       };
-///  
+///
 ///       let err = modify_balance(deps.as_mut(), m)
 ///           .expect_err("successfully modified account with insufficient balance");
 ///       if let Some(e) = err.downcast_ref::<ModifyBalanceError>() {
@@ -341,6 +341,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use cosmwasm_std::{testing::mock_dependencies, StdError, Uint256};
+
+    use crate::state::transfer::TokenAddresses;
 
     use super::*;
 
@@ -756,7 +758,7 @@ mod tests {
         const ITERATIONS: usize = 10;
         let mut deps = mock_dependencies();
         let emitter_chain = 3;
-        let emitter_address = [3u8; 32].into();
+        let emitter_addresses: TokenAddresses = [3u8; 32].into();
         let data = transfer::Data {
             amount: Uint256::from(400u128),
             token_chain: 3,
@@ -766,7 +768,7 @@ mod tests {
 
         for i in 0..ITERATIONS {
             let tx = Transfer {
-                key: transfer::Key::new(emitter_chain, emitter_address, i as u64),
+                key: transfer::Key::new(emitter_chain, emitter_addresses.clone(), i as u64),
                 data: data.clone(),
             };
 
@@ -1208,6 +1210,7 @@ mod tests {
             .map(|item| item.map(|acc| (acc.key, acc.data)))
             .collect::<StdResult<BTreeMap<_, _>>>()
             .unwrap();
+        // println!("found: {:?}", found);
         assert_eq!(found.len(), count);
 
         for i in 0..count {
