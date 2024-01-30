@@ -37,6 +37,8 @@ import {
   CHAIN_ID_KUJIRA,
   CHAIN_ID_NEUTRON,
   CHAIN_ID_CELESTIA,
+  CHAIN_ID_STARGAZE,
+  CHAIN_ID_SEDA,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -135,6 +137,10 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Neutron not supported yet.");
   } else if (chainId === CHAIN_ID_CELESTIA) {
     throw Error("uint8ArrayToNative: Celestia not supported yet.");
+  } else if (chainId === CHAIN_ID_STARGAZE) {
+    throw Error("uint8ArrayToNative: Stargaze not supported yet.");
+  } else if (chainId === CHAIN_ID_SEDA) {
+    throw Error("uint8ArrayToNative: Seda not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -282,6 +288,10 @@ export const tryNativeToHexString = (
     throw Error("nativeToHexString: Neutron not supported yet.");
   } else if (chainId === CHAIN_ID_CELESTIA) {
     throw Error("nativeToHexString: Celestia not supported yet.");
+  } else if (chainId === CHAIN_ID_STARGAZE) {
+    throw Error("nativeToHexString: Stargaze not supported yet.");
+  } else if (chainId === CHAIN_ID_SEDA) {
+    throw Error("nativeToHexString: Seda not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     if (!isValidSuiType(address) && isValidSuiAddress(address)) {
       return uint8ArrayToHex(
