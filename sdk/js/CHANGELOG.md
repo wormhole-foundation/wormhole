@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.11
+
+### Removed
+
+getSignedBatchVAA, getSignedBatchVAAWithRetry
+
 ## 0.10.10
 
 ### Changes
