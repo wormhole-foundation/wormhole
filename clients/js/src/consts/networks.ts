@@ -165,8 +165,8 @@ const MAINNET = {
     chain_id: 8453,
   },
   sei: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://sei-rpc.polkachu.com/",
+    key: getEnvVar("SEI_KEY"),
   },
   rootstock: {
     rpc: "https://public-node.rsk.co",
