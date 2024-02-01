@@ -73,6 +73,7 @@ var (
 		vaa.ChainIDCelestia,
 		vaa.ChainIDStargaze,
 		vaa.ChainIDSeda,
+		vaa.ChainIDDymension,
 	}
 
 	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.

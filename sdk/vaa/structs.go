@@ -213,6 +213,8 @@ func (c ChainID) String() string {
 		return "stargaze"
 	case ChainIDSeda:
 		return "seda"
+	case ChainIDDymension:
+		return "dymension"
 	case ChainIDSepolia:
 		return "sepolia"
 	case ChainIDArbitrumSepolia:
@@ -312,6 +314,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDStargaze, nil
 	case "seda":
 		return ChainIDSeda, nil
+	case "dymension":
+		return ChainIDDymension, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
 	case "arbitrum_sepolia":
@@ -369,6 +373,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDCelestia,
 		ChainIDStargaze,
 		ChainIDSeda,
+		ChainIDDymension,
 		ChainIDSepolia,
 		ChainIDArbitrumSepolia,
 		ChainIDBaseSepolia,
@@ -460,6 +465,8 @@ const (
 	ChainIDStargaze ChainID = 4005
 	// ChainIDSeda is the ChainID of Seda
 	ChainIDSeda ChainID = 4006
+	// ChainIDSeda is the ChainID of Dymension
+	ChainIDDymension ChainID = 4007
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia

@@ -20,6 +20,7 @@ import {
   CHAIN_ID_CELESTIA,
   CHAIN_ID_STARGAZE,
   CHAIN_ID_SEDA,
+  CHAIN_ID_DYMENSION,
 } from "../utils";
 
 export const isNativeDenomInjective = (denom: string) => denom === "inj";
@@ -35,6 +36,7 @@ export const isNativeDenomNeutron = (denom: string) => denom === "untrn";
 export const isNativeDenomCelestia = (denom: string) => denom === "utia";
 export const isNativeDenomStargaze = (denom: string) => denom === "ustars";
 export const isNativeDenomSeda = (denom: string) => denom === "aseda";
+export const isNativeDenomDymension = (denom: string) => denom === "adym";
 
 export function isNativeCosmWasmDenom(
   chainId: CosmWasmChainId,
