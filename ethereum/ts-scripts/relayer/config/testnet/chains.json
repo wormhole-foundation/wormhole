@@ -1,6 +1,7 @@
 {
   "guardianSetIndex": 0,
   "description": "This file contains the chains against which all the scripts should run.",
+  "useLastRun": true,
   "chains": [
     {
       "description": "Ethereum Goerli",
