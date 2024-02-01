@@ -1,0 +1,64 @@
+{
+  "priceAssistantAddress": [
+    {
+      "chainId": 2,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 4,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 5,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 6,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 10,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 13,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 14,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 16,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 23,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 24,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 30,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 10002,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 10003,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 10004,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    },
+    {
+      "chainId": 10005,
+      "address": "0xf11Fe617EED60945cBd867Ec98D81268F3891a18"
+    }
+  ]
+}

@@ -265,7 +265,7 @@ export async function buildOverrides(
     // This is normally autodetected in bsc but we want to set the gas price to a fixed value.
     // We need to ensure we are using the correct tx envelope in that case.
     overrides.type = 0;
-    overrides.gasPrice = ethers.utils.parseUnits("3", "gwei");
+    overrides.gasPrice = ethers.utils.parseUnits("15", "gwei");
   } else if (chain.chainId === 23) {
     // Arbitrum gas price feeds are excessive on public endpoints too apparently.
     overrides.type = 2;
