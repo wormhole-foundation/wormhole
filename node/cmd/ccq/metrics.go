@@ -72,6 +72,12 @@ var (
 			Help: "Total number of query responses received by peer ID",
 		}, []string{"peer_id"})
 
+	queryResponsesReceivedByChainAndPeerID = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_total_query_responses_received_by_chain_and_peer_id",
+			Help: "Total number of query responses received by chain and peer ID",
+		}, []string{"chain_name", "peer_id"})
+
 	inboundP2pError = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_inbound_p2p_errors",

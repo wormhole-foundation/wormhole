@@ -206,6 +206,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	case errEntry := <-pendingResponse.errCh:
 		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
 		http.Error(w, errEntry.err.Error(), errEntry.status)
+		// Metrics have already been pegged.
 		break
 	}
 

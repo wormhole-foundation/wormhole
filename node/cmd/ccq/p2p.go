@@ -167,6 +167,9 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 					inboundP2pError.WithLabelValues("failed_to_unmarshal_response").Inc()
 					continue
 				}
+				for _, pcr := range queryResponse.PerChainResponses {
+					queryResponsesReceivedByChainAndPeerID.WithLabelValues(pcr.ChainId.String(), peerId).Inc()
+				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
 				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				if loggingMap.ShouldLogResponse(requestSignature) {
