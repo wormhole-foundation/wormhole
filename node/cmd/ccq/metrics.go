@@ -36,6 +36,24 @@ var (
 			Help: "Total number of requests by user name",
 		}, []string{"user_name"})
 
+	successfulQueriesByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_successful_queries_by_user",
+			Help: "Total number of successful queries by user name",
+		}, []string{"user_name"})
+
+	failedQueriesByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_failed_queries_by_user",
+			Help: "Total number of failed queries by user name",
+		}, []string{"user_name"})
+
+	queryTimeoutsByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_query_timeouts_by_user",
+			Help: "Total number of query timeouts by user name",
+		}, []string{"user_name"})
+
 	quorumNotMetByUser = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_quorum_not_met_by_user",

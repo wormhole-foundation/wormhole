@@ -168,6 +168,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	case <-time.After(query.RequestTimeout + 5*time.Second):
 		s.logger.Info("publishing time out to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
 		http.Error(w, "Timed out waiting for response", http.StatusGatewayTimeout)
+		queryTimeoutsByUser.WithLabelValues(permEntry.userName).Inc()
+		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case res := <-pendingResponse.ch:
 		s.logger.Info("publishing response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
 		resBytes, err := res.Response.Marshal()
@@ -175,7 +177,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
-			invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 			break
 		}
 		// Signature indices must be ascending for on-chain verification
@@ -197,9 +199,10 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
-			invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 			break
 		}
+		successfulQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case errEntry := <-pendingResponse.errCh:
 		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
 		http.Error(w, errEntry.err.Error(), errEntry.status)

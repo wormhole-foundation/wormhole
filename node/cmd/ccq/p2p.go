@@ -254,6 +254,7 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						outstandingResponses := len(guardianSet.Keys) - totalSigners
 						if maxMatchingResponses+outstandingResponses < quorum {
 							quorumNotMetByUser.WithLabelValues(pendingResponse.userName).Inc()
+							failedQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()
 							delete(responses, requestSignature)
 							select {
 							case pendingResponse.errCh <- &ErrorEntry{err: fmt.Errorf("quorum not met"), status: http.StatusBadRequest}:
