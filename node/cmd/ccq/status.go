@@ -66,8 +66,7 @@ func RunPrometheusScraper(ctx context.Context, logger *zap.Logger, info promremo
 			case <-t.C:
 				err := promremotew.ScrapeAndSendLocalMetrics(ctx, info, promLogger)
 				if err != nil {
-					promLogger.Error("ScrapeAndSendLocalMetrics error", zap.Error(err))
-					return err
+					promLogger.Error("ScrapeAndSendLocalMetrics encountered an error, will try again next interval", zap.Error(err))
 				}
 			}
 		}
