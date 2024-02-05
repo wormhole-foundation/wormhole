@@ -25,7 +25,9 @@ make build/wormchaind
 
 Please ask the Wormhole contributors for a recent Wormchain snapshot to use.
 
-You can also use daily snapshots exported by the CryptoCrew team here: [https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md](https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md)
+You can also use daily snapshots exported by various teams:
+- Polkachu: [https://polkachu.com/tendermint_snapshots/wormchain/](https://polkachu.com/tendermint_snapshots/wormchain/)
+- CryptoCrew: [https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md](https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md)
 
 ## Download and Clean Snapshot
 
