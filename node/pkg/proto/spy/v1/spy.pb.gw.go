@@ -56,31 +56,6 @@ func request_SpyRPCService_SubscribeSignedVAA_0(ctx context.Context, marshaler r
 
 }
 
-func request_SpyRPCService_SubscribeSignedVAAByType_0(ctx context.Context, marshaler runtime.Marshaler, client SpyRPCServiceClient, req *http.Request, pathParams map[string]string) (SpyRPCService_SubscribeSignedVAAByTypeClient, runtime.ServerMetadata, error) {
-	var protoReq SubscribeSignedVAAByTypeRequest
-	var metadata runtime.ServerMetadata
-
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	stream, err := client.SubscribeSignedVAAByType(ctx, &protoReq)
-	if err != nil {
-		return nil, metadata, err
-	}
-	header, err := stream.Header()
-	if err != nil {
-		return nil, metadata, err
-	}
-	metadata.HeaderMD = header
-	return stream, metadata, nil
-
-}
-
 // RegisterSpyRPCServiceHandlerServer registers the http handlers for service SpyRPCService to "mux".
 // UnaryRPC     :call SpyRPCServiceServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -88,13 +63,6 @@ func request_SpyRPCService_SubscribeSignedVAAByType_0(ctx context.Context, marsh
 func RegisterSpyRPCServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server SpyRPCServiceServer) error {
 
 	mux.Handle("POST", pattern_SpyRPCService_SubscribeSignedVAA_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
-		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-		return
-	})
-
-	mux.Handle("POST", pattern_SpyRPCService_SubscribeSignedVAAByType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
 		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -162,37 +130,13 @@ func RegisterSpyRPCServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 
 	})
 
-	mux.Handle("POST", pattern_SpyRPCService_SubscribeSignedVAAByType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/spy.v1.SpyRPCService/SubscribeSignedVAAByType", runtime.WithHTTPPathPattern("/v1:subscribe_signed_vaa_by_type"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_SpyRPCService_SubscribeSignedVAAByType_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_SpyRPCService_SubscribeSignedVAAByType_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
-
-	})
-
 	return nil
 }
 
 var (
 	pattern_SpyRPCService_SubscribeSignedVAA_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"v1"}, "subscribe_signed_vaa"))
-
-	pattern_SpyRPCService_SubscribeSignedVAAByType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"v1"}, "subscribe_signed_vaa_by_type"))
 )
 
 var (
 	forward_SpyRPCService_SubscribeSignedVAA_0 = runtime.ForwardResponseStream
-
-	forward_SpyRPCService_SubscribeSignedVAAByType_0 = runtime.ForwardResponseStream
 )

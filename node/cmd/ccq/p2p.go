@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -166,10 +167,18 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 					inboundP2pError.WithLabelValues("failed_to_unmarshal_response").Inc()
 					continue
 				}
+				for _, pcr := range queryResponse.PerChainResponses {
+					queryResponsesReceivedByChainAndPeerID.WithLabelValues(pcr.ChainId.String(), peerId).Inc()
+				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
 				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				if loggingMap.ShouldLogResponse(requestSignature) {
-					logger.Info("logging response", zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+					var queryRequest query.QueryRequest
+					if err := queryRequest.Unmarshal(queryResponse.Request.QueryRequest); err == nil {
+						logger.Info("logging response", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("request", queryRequest), zap.Any("response", queryResponse))
+					} else {
+						logger.Error("logging response (failed to unmarshal request)", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+					}
 				}
 				// Check that we're handling the request for this response
 				pendingResponse := pendingResponses.Get(requestSignature)
@@ -225,8 +234,9 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 						delete(responses, requestSignature)
 						select {
 						case pendingResponse.ch <- s:
-							logger.Info("forwarded query response",
+							logger.Info("quorum reached, forwarded query response",
 								zap.String("peerId", peerId),
+								zap.String("userId", pendingResponse.userName),
 								zap.Any("requestId", requestSignature),
 								zap.Int("numSigners", numSigners),
 								zap.Int("quorum", quorum),
@@ -236,12 +246,45 @@ func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, boot
 							// Leave the request in the pending map. It will get cleaned up if it times out.
 						}
 					} else {
-						logger.Info("waiting for more query responses",
-							zap.String("peerId", peerId),
-							zap.Any("requestId", requestSignature),
-							zap.Int("numSigners", numSigners),
-							zap.Int("quorum", quorum),
-						)
+						// Proxy should return early if quorum is no longer possible - i.e maxMatchingResponses + outstandingResponses < quorum
+						var totalSigners, maxMatchingResponses int
+						for _, signers := range responses[requestSignature] {
+							totalSigners += len(signers)
+							if len(signers) > maxMatchingResponses {
+								maxMatchingResponses = len(signers)
+							}
+						}
+						outstandingResponses := len(guardianSet.Keys) - totalSigners
+						if maxMatchingResponses+outstandingResponses < quorum {
+							quorumNotMetByUser.WithLabelValues(pendingResponse.userName).Inc()
+							failedQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()
+							delete(responses, requestSignature)
+							select {
+							case pendingResponse.errCh <- &ErrorEntry{err: fmt.Errorf("quorum not met"), status: http.StatusBadRequest}:
+								logger.Info("query failed, quorum not met",
+									zap.String("peerId", peerId),
+									zap.String("userId", pendingResponse.userName),
+									zap.Any("requestId", requestSignature),
+									zap.Int("numSigners", numSigners),
+									zap.Int("maxMatchingResponses", maxMatchingResponses),
+									zap.Int("outstandingResponses", outstandingResponses),
+									zap.Int("quorum", quorum),
+								)
+							default:
+								logger.Error("failed to write query error response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+								// Leave the request in the pending map. It will get cleaned up if it times out.
+							}
+						} else {
+							logger.Info("waiting for more query responses",
+								zap.String("peerId", peerId),
+								zap.String("userId", pendingResponse.userName),
+								zap.Any("requestId", requestSignature),
+								zap.Int("numSigners", numSigners),
+								zap.Int("maxMatchingResponses", maxMatchingResponses),
+								zap.Int("outstandingResponses", outstandingResponses),
+								zap.Int("quorum", quorum),
+							)
+						}
 					}
 				} else {
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",

@@ -20,8 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 type SpyRPCServiceClient interface {
 	// SubscribeSignedVAA returns a stream of signed VAA messages received on the network.
 	SubscribeSignedVAA(ctx context.Context, in *SubscribeSignedVAARequest, opts ...grpc.CallOption) (SpyRPCService_SubscribeSignedVAAClient, error)
-	// SubscribeSignedBatchVAA returns a stream of signed VAA messages, by type, received on the network.
-	SubscribeSignedVAAByType(ctx context.Context, in *SubscribeSignedVAAByTypeRequest, opts ...grpc.CallOption) (SpyRPCService_SubscribeSignedVAAByTypeClient, error)
 }
 
 type spyRPCServiceClient struct {
@@ -64,46 +62,12 @@ func (x *spyRPCServiceSubscribeSignedVAAClient) Recv() (*SubscribeSignedVAARespo
 	return m, nil
 }
 
-func (c *spyRPCServiceClient) SubscribeSignedVAAByType(ctx context.Context, in *SubscribeSignedVAAByTypeRequest, opts ...grpc.CallOption) (SpyRPCService_SubscribeSignedVAAByTypeClient, error) {
-	stream, err := c.cc.NewStream(ctx, &SpyRPCService_ServiceDesc.Streams[1], "/spy.v1.SpyRPCService/SubscribeSignedVAAByType", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &spyRPCServiceSubscribeSignedVAAByTypeClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type SpyRPCService_SubscribeSignedVAAByTypeClient interface {
-	Recv() (*SubscribeSignedVAAByTypeResponse, error)
-	grpc.ClientStream
-}
-
-type spyRPCServiceSubscribeSignedVAAByTypeClient struct {
-	grpc.ClientStream
-}
-
-func (x *spyRPCServiceSubscribeSignedVAAByTypeClient) Recv() (*SubscribeSignedVAAByTypeResponse, error) {
-	m := new(SubscribeSignedVAAByTypeResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // SpyRPCServiceServer is the server API for SpyRPCService service.
 // All implementations must embed UnimplementedSpyRPCServiceServer
 // for forward compatibility
 type SpyRPCServiceServer interface {
 	// SubscribeSignedVAA returns a stream of signed VAA messages received on the network.
 	SubscribeSignedVAA(*SubscribeSignedVAARequest, SpyRPCService_SubscribeSignedVAAServer) error
-	// SubscribeSignedBatchVAA returns a stream of signed VAA messages, by type, received on the network.
-	SubscribeSignedVAAByType(*SubscribeSignedVAAByTypeRequest, SpyRPCService_SubscribeSignedVAAByTypeServer) error
 	mustEmbedUnimplementedSpyRPCServiceServer()
 }
 
@@ -113,9 +77,6 @@ type UnimplementedSpyRPCServiceServer struct {
 
 func (UnimplementedSpyRPCServiceServer) SubscribeSignedVAA(*SubscribeSignedVAARequest, SpyRPCService_SubscribeSignedVAAServer) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeSignedVAA not implemented")
-}
-func (UnimplementedSpyRPCServiceServer) SubscribeSignedVAAByType(*SubscribeSignedVAAByTypeRequest, SpyRPCService_SubscribeSignedVAAByTypeServer) error {
-	return status.Errorf(codes.Unimplemented, "method SubscribeSignedVAAByType not implemented")
 }
 func (UnimplementedSpyRPCServiceServer) mustEmbedUnimplementedSpyRPCServiceServer() {}
 
@@ -151,27 +112,6 @@ func (x *spyRPCServiceSubscribeSignedVAAServer) Send(m *SubscribeSignedVAARespon
 	return x.ServerStream.SendMsg(m)
 }
 
-func _SpyRPCService_SubscribeSignedVAAByType_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(SubscribeSignedVAAByTypeRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(SpyRPCServiceServer).SubscribeSignedVAAByType(m, &spyRPCServiceSubscribeSignedVAAByTypeServer{stream})
-}
-
-type SpyRPCService_SubscribeSignedVAAByTypeServer interface {
-	Send(*SubscribeSignedVAAByTypeResponse) error
-	grpc.ServerStream
-}
-
-type spyRPCServiceSubscribeSignedVAAByTypeServer struct {
-	grpc.ServerStream
-}
-
-func (x *spyRPCServiceSubscribeSignedVAAByTypeServer) Send(m *SubscribeSignedVAAByTypeResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
 // SpyRPCService_ServiceDesc is the grpc.ServiceDesc for SpyRPCService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -183,11 +123,6 @@ var SpyRPCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SubscribeSignedVAA",
 			Handler:       _SpyRPCService_SubscribeSignedVAA_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "SubscribeSignedVAAByType",
-			Handler:       _SpyRPCService_SubscribeSignedVAAByType_Handler,
 			ServerStreams: true,
 		},
 	},

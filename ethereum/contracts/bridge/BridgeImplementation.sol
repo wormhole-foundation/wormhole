@@ -17,6 +17,10 @@ contract BridgeImplementation is Bridge {
 
     function initialize() initializer public virtual {
         // this function needs to be exposed for an upgrade to pass
+        if (evmChainId() == 10) { // optimism
+            address weth = 0x4200000000000000000000000000000000000006;
+            setWETH(weth);
+        }
     }
 
     modifier initializer() {
