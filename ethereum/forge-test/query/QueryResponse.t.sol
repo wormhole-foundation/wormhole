@@ -9,13 +9,14 @@ import "../../contracts/Implementation.sol";
 import "../../contracts/Setup.sol";
 import "../../contracts/Wormhole.sol";
 import "forge-std/Test.sol";
+import "./QueryTest.sol";
 
 // @dev A non-abstract QueryResponse contract
 contract QueryResponseContract is QueryResponse { 
     constructor(address _wormhole) QueryResponse(_wormhole) {}
 }
 
-contract TestQueryResponse is Test {
+contract TestQueryResponse is Test, QueryTest {
     // Some happy case defaults
     uint8 version = 0x01;
     uint16 senderChainId = 0x0000;
@@ -74,15 +75,18 @@ contract TestQueryResponse is Test {
         uint8 _numPerChainResponses,
         bytes memory _perChainResponses
     ) internal pure returns (bytes memory){
-        return abi.encodePacked(
+        bytes memory queryRequest = abi.encodePacked(
+            _queryRequestVersion,
+            _queryRequestNonce,
+            _numPerChainQueries,
+            _perChainQueries
+        );
+        return buildQueryResponseBytes(
             _version,
             _senderChainId,
             _signature,
             _queryRequestLen,
-            _queryRequestVersion,
-            _queryRequestNonce,
-            _numPerChainQueries,
-            _perChainQueries,
+            queryRequest,
             _numPerChainResponses,
             _perChainResponses
         );
