@@ -540,7 +540,7 @@ export async function getCCTPMessageLogURL(
     ethers.utils.toUtf8Bytes("MessageSent(bytes)")
   );
   try {
-    if (getNameFromCCTPDomain(cctpKey.domain) === sourceChain) {
+    if (getNameFromCCTPDomain(cctpKey.domain, environment) === sourceChain) {
       const cctpLogFilter = (log: ethers.providers.Log) => {
         return (
           log.topics[0] === DepositForBurnTopic &&

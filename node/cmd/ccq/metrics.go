@@ -36,6 +36,30 @@ var (
 			Help: "Total number of requests by user name",
 		}, []string{"user_name"})
 
+	successfulQueriesByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_successful_queries_by_user",
+			Help: "Total number of successful queries by user name",
+		}, []string{"user_name"})
+
+	failedQueriesByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_failed_queries_by_user",
+			Help: "Total number of failed queries by user name",
+		}, []string{"user_name"})
+
+	queryTimeoutsByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_query_timeouts_by_user",
+			Help: "Total number of query timeouts by user name",
+		}, []string{"user_name"})
+
+	quorumNotMetByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_quorum_not_met_by_user",
+			Help: "Total number of query failures due to quorum not met by user name",
+		}, []string{"user_name"})
+
 	invalidRequestsByUser = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_invalid_requests_by_user",
@@ -47,6 +71,12 @@ var (
 			Name: "ccq_server_total_query_responses_received_by_peer_id",
 			Help: "Total number of query responses received by peer ID",
 		}, []string{"peer_id"})
+
+	queryResponsesReceivedByChainAndPeerID = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_total_query_responses_received_by_chain_and_peer_id",
+			Help: "Total number of query responses received by chain and peer ID",
+		}, []string{"chain_name", "peer_id"})
 
 	inboundP2pError = promauto.NewCounterVec(
 		prometheus.CounterOpts{

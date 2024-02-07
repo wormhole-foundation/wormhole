@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -225,4 +226,24 @@ func TestBodyGatewayIbcComposabilityMwContractDeserialize(t *testing.T) {
 	var payloadBody BodyGatewayIbcComposabilityMwContract
 	payloadBody.Deserialize(dummyBytes[:])
 	assert.Equal(t, expected, payloadBody)
+}
+
+func TestBodyCoreRecoverChainIdSerialize(t *testing.T) {
+	expected := "00000000000000000000000000000000000000000000000000000000436f72650500000000000000000000000000000000000000000000000000000000000000010fa0"
+	BodyRecoverChainId := BodyRecoverChainId{
+		Module:     "Core",
+		EvmChainID: uint256.NewInt(1),
+		NewChainID: 4000,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(BodyRecoverChainId.Serialize()))
+}
+
+func TestBodyTokenBridgeRecoverChainIdSerialize(t *testing.T) {
+	expected := "000000000000000000000000000000000000000000546f6b656e4272696467650300000000000000000000000000000000000000000000000000000000000000010fa0"
+	BodyRecoverChainId := BodyRecoverChainId{
+		Module:     "TokenBridge",
+		EvmChainID: uint256.NewInt(1),
+		NewChainID: 4000,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(BodyRecoverChainId.Serialize()))
 }

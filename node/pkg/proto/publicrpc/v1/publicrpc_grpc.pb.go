@@ -23,7 +23,6 @@ type PublicRPCServiceClient interface {
 	// The heartbeat value is null if no heartbeat has yet been received.
 	GetLastHeartbeats(ctx context.Context, in *GetLastHeartbeatsRequest, opts ...grpc.CallOption) (*GetLastHeartbeatsResponse, error)
 	GetSignedVAA(ctx context.Context, in *GetSignedVAARequest, opts ...grpc.CallOption) (*GetSignedVAAResponse, error)
-	GetSignedBatchVAA(ctx context.Context, in *GetSignedBatchVAARequest, opts ...grpc.CallOption) (*GetSignedBatchVAAResponse, error)
 	GetCurrentGuardianSet(ctx context.Context, in *GetCurrentGuardianSetRequest, opts ...grpc.CallOption) (*GetCurrentGuardianSetResponse, error)
 	GovernorGetAvailableNotionalByChain(ctx context.Context, in *GovernorGetAvailableNotionalByChainRequest, opts ...grpc.CallOption) (*GovernorGetAvailableNotionalByChainResponse, error)
 	GovernorGetEnqueuedVAAs(ctx context.Context, in *GovernorGetEnqueuedVAAsRequest, opts ...grpc.CallOption) (*GovernorGetEnqueuedVAAsResponse, error)
@@ -51,15 +50,6 @@ func (c *publicRPCServiceClient) GetLastHeartbeats(ctx context.Context, in *GetL
 func (c *publicRPCServiceClient) GetSignedVAA(ctx context.Context, in *GetSignedVAARequest, opts ...grpc.CallOption) (*GetSignedVAAResponse, error) {
 	out := new(GetSignedVAAResponse)
 	err := c.cc.Invoke(ctx, "/publicrpc.v1.PublicRPCService/GetSignedVAA", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *publicRPCServiceClient) GetSignedBatchVAA(ctx context.Context, in *GetSignedBatchVAARequest, opts ...grpc.CallOption) (*GetSignedBatchVAAResponse, error) {
-	out := new(GetSignedBatchVAAResponse)
-	err := c.cc.Invoke(ctx, "/publicrpc.v1.PublicRPCService/GetSignedBatchVAA", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +110,6 @@ type PublicRPCServiceServer interface {
 	// The heartbeat value is null if no heartbeat has yet been received.
 	GetLastHeartbeats(context.Context, *GetLastHeartbeatsRequest) (*GetLastHeartbeatsResponse, error)
 	GetSignedVAA(context.Context, *GetSignedVAARequest) (*GetSignedVAAResponse, error)
-	GetSignedBatchVAA(context.Context, *GetSignedBatchVAARequest) (*GetSignedBatchVAAResponse, error)
 	GetCurrentGuardianSet(context.Context, *GetCurrentGuardianSetRequest) (*GetCurrentGuardianSetResponse, error)
 	GovernorGetAvailableNotionalByChain(context.Context, *GovernorGetAvailableNotionalByChainRequest) (*GovernorGetAvailableNotionalByChainResponse, error)
 	GovernorGetEnqueuedVAAs(context.Context, *GovernorGetEnqueuedVAAsRequest) (*GovernorGetEnqueuedVAAsResponse, error)
@@ -138,9 +127,6 @@ func (UnimplementedPublicRPCServiceServer) GetLastHeartbeats(context.Context, *G
 }
 func (UnimplementedPublicRPCServiceServer) GetSignedVAA(context.Context, *GetSignedVAARequest) (*GetSignedVAAResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSignedVAA not implemented")
-}
-func (UnimplementedPublicRPCServiceServer) GetSignedBatchVAA(context.Context, *GetSignedBatchVAARequest) (*GetSignedBatchVAAResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSignedBatchVAA not implemented")
 }
 func (UnimplementedPublicRPCServiceServer) GetCurrentGuardianSet(context.Context, *GetCurrentGuardianSetRequest) (*GetCurrentGuardianSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCurrentGuardianSet not implemented")
@@ -202,24 +188,6 @@ func _PublicRPCService_GetSignedVAA_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PublicRPCServiceServer).GetSignedVAA(ctx, req.(*GetSignedVAARequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PublicRPCService_GetSignedBatchVAA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSignedBatchVAARequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PublicRPCServiceServer).GetSignedBatchVAA(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/publicrpc.v1.PublicRPCService/GetSignedBatchVAA",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PublicRPCServiceServer).GetSignedBatchVAA(ctx, req.(*GetSignedBatchVAARequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -328,10 +296,6 @@ var PublicRPCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSignedVAA",
 			Handler:    _PublicRPCService_GetSignedVAA_Handler,
-		},
-		{
-			MethodName: "GetSignedBatchVAA",
-			Handler:    _PublicRPCService_GetSignedBatchVAA_Handler,
 		},
 		{
 			MethodName: "GetCurrentGuardianSet",

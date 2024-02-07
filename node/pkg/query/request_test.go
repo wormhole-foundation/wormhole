@@ -782,6 +782,11 @@ func TestSolanaQueryMarshalUnmarshalFromSDK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSolanaPublicKeyLengthIsAsExpected(t *testing.T) {
+	// It will break the spec if this ever changes!
+	require.Equal(t, 32, SolanaPublicKeyLength)
+}
+
 ///////////// End of Solana Account Query tests ///////////////////////////
 
 func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {

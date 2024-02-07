@@ -14,7 +14,7 @@ func chainList() []chainConfigEntry {
 		{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 50_000_000, bigTransactionSize: 5_000_000},
 		{emitterChainID: vaa.ChainIDTerra, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDBSC, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
-		{emitterChainID: vaa.ChainIDPolygon, dailyLimit: 2_000_000, bigTransactionSize: 200_000},
+		{emitterChainID: vaa.ChainIDPolygon, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDAvalanche, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDOasis, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDAlgorand, dailyLimit: 1_000_000, bigTransactionSize: 100_000},
@@ -33,7 +33,7 @@ func chainList() []chainConfigEntry {
 		{emitterChainID: vaa.ChainIDArbitrum, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDOptimism, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDXpla, dailyLimit: 500_000, bigTransactionSize: 50_000},
-		{emitterChainID: vaa.ChainIDBase, dailyLimit: 500_000, bigTransactionSize: 50_000},
+		{emitterChainID: vaa.ChainIDBase, dailyLimit: 2_000_000, bigTransactionSize: 200_000},
 		{emitterChainID: vaa.ChainIDSei, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDWormchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
 	}

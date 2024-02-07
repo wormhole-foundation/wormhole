@@ -22,7 +22,7 @@ import { BinaryWriter } from "../query/BinaryWriter";
 
 interface SolanaGetMultipleAccountsOpts {
   commitment: string;
-  minSlotContext?: number;
+  minContextSlot?: number;
   dataSlice?: SolanaDataSlice;
 }
 
@@ -414,9 +414,9 @@ export class QueryProxyMock {
           commitment: query.commitment,
         };
         if (query.minContextSlot != BigInt(0)) {
-          opts.minSlotContext = Number(query.minContextSlot);
+          opts.minContextSlot = Number(query.minContextSlot);
         }
-        if (query.dataSliceOffset !== BigInt(0)) {
+        if (query.dataSliceLength !== BigInt(0)) {
           opts.dataSlice = {
             offset: Number(query.dataSliceOffset),
             length: Number(query.dataSliceLength),

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -55,6 +56,9 @@ var gatewayIbcComposabilityMwContractAddress *string
 var ibcUpdateChannelChainTargetChainId *string
 var ibcUpdateChannelChainChannelId *string
 var ibcUpdateChannelChainChainId *string
+
+var recoverChainIdEvmChainId *string
+var recoverChainIdNewChainId *string
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -159,6 +163,14 @@ func init() {
 	AdminClientIbcTranslatorUpdateChannelChainCmd.Flags().AddFlagSet(ibcUpdateChannelChainFlagSet)
 	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 	TemplateCmd.AddCommand(AdminClientIbcTranslatorUpdateChannelChainCmd)
+
+	// flags for the recover-chain-id command
+	recoverChainIdFlagSet := pflag.NewFlagSet("recover-chain-id", pflag.ExitOnError)
+	recoverChainIdEvmChainId = recoverChainIdFlagSet.String("evm-chain-id", "", "EVM Chain ID to recover")
+	recoverChainIdNewChainId = recoverChainIdFlagSet.String("new-chain-id", "", "New Chain ID to recover to")
+	AdminClientRecoverChainIdCmd.Flags().AddFlagSet(recoverChainIdFlagSet)
+	AdminClientRecoverChainIdCmd.Flags().AddFlagSet(moduleFlagSet)
+	TemplateCmd.AddCommand(AdminClientRecoverChainIdCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -188,6 +200,12 @@ var AdminClientTokenBridgeUpgradeContractCmd = &cobra.Command{
 	Use:   "token-bridge-upgrade-contract",
 	Short: "Generate an empty token bridge contract upgrade template at specified path",
 	Run:   runTokenBridgeUpgradeContractTemplate,
+}
+
+var AdminClientRecoverChainIdCmd = &cobra.Command{
+	Use:   "recover-chain-id",
+	Short: "Generate an empty recover chain id template at specified path",
+	Run:   runRecoverChainIdTemplate,
 }
 
 var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
@@ -392,6 +410,48 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 						Module:        *module,
 						TargetChainId: uint32(chainID),
 						NewContract:   address,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
+	if *module == "" {
+		log.Fatal("--module must be specified.")
+	}
+	if *recoverChainIdEvmChainId == "" {
+		log.Fatal("--evm-chain-id must be specified.")
+	}
+	if _, err := isValidUint256(*recoverChainIdEvmChainId); err != nil {
+		log.Fatal("failed to parse evm chain id as uint256:", err)
+	}
+	if *recoverChainIdNewChainId == "" {
+		log.Fatal("--new-chain-id must be specified.")
+	}
+	newChainID, err := parseChainID(*recoverChainIdNewChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_RecoverChainId{
+					RecoverChainId: &nodev1.RecoverChainId{
+						Module:     *module,
+						EvmChainId: *recoverChainIdEvmChainId,
+						NewChainId: uint32(newChainID),
 					},
 				},
 			},
@@ -920,4 +980,21 @@ func parseChainID(name string) (vaa.ChainID, error) {
 	}
 
 	return vaa.ChainID(i), nil
+}
+
+func isValidUint256(s string) (bool, error) {
+	i := new(big.Int)
+	i.SetString(s, 10) // Parse in base 10
+
+	// Create upper limit as 2^256 - 1
+	upperLimit := new(big.Int)
+	upperLimit.Exp(big.NewInt(2), big.NewInt(256), nil)
+	upperLimit.Sub(upperLimit, big.NewInt(1))
+
+	// Check if i is within the range [0, 2^256 - 1]
+	if i.Cmp(big.NewInt(0)) < 0 || i.Cmp(upperLimit) > 0 {
+		return false, fmt.Errorf("value is not a valid uint256")
+	}
+
+	return true, nil
 }

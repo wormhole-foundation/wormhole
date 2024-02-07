@@ -39,6 +39,9 @@ export const CHAINS = {
   kujira: 4002,
   neutron: 4003,
   celestia: 4004,
+  stargaze: 4005,
+  seda: 4006,
+  dymension: 4007,
   sepolia: 10002,
   arbitrum_sepolia: 10003,
   base_sepolia: 10004,
@@ -102,6 +105,9 @@ export const CosmWasmChainNames = [
   "kujira",
   "neutron",
   "celestia",
+  "stargaze",
+  "seda",
+  "dymension",
 ] as const;
 export type CosmWasmChainName = typeof CosmWasmChainNames[number];
 
@@ -359,6 +365,21 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  stargaze: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  seda: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  dymension: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 const TESTNET = {
@@ -590,6 +611,21 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   celestia: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  stargaze: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  seda: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  dymension: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -828,6 +864,21 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  stargaze: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  seda: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  dymension: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 /**
@@ -909,6 +960,9 @@ export const CHAIN_ID_EVMOS = CHAINS["evmos"];
 export const CHAIN_ID_KUJIRA = CHAINS["kujira"];
 export const CHAIN_ID_NEUTRON = CHAINS["neutron"];
 export const CHAIN_ID_CELESTIA = CHAINS["celestia"];
+export const CHAIN_ID_STARGAZE = CHAINS["stargaze"];
+export const CHAIN_ID_SEDA = CHAINS["seda"];
+export const CHAIN_ID_DYMENSION = CHAINS["dymension"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 export const CHAIN_ID_ARBITRUM_SEPOLIA = CHAINS["arbitrum_sepolia"];
 export const CHAIN_ID_BASE_SEPOLIA = CHAINS["base_sepolia"];

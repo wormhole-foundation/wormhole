@@ -15,7 +15,7 @@ anyhow = "1"
 bstr = { version = "1", features = ["serde"] }
 schemars = { version = "0.8.8", optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
-serde_wormhole = "0.1.0"
+serde_wormhole = {path = "../serde_wormhole"}
 sha3 = "0.10.4"
 thiserror = "1"
 

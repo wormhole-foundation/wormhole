@@ -90,6 +90,9 @@ message GovernanceMessage {
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
 
+    // Core, Token bridge, and NFT module
+    RecoverChainId recover_chain_id = 27;
+
     // Wormchain
 
     WormchainStoreCode wormchain_store_code = 14;
@@ -204,6 +207,18 @@ message BridgeUpgradeContract {
 
   // Hex-encoded address (without leading 0x) of the new program/contract.
   string new_contract = 3;
+}
+
+message RecoverChainId {
+  // Module identifier
+  string module = 1;
+
+  // The EVM chain ID of the chain to be recovered
+  // This should be a decimal formatted integer string (Uint256)
+  string evm_chain_id = 2;
+
+  // The new chain ID to be used for the chain
+  uint32 new_chain_id = 3;
 }
 
 message WormchainStoreCode {
