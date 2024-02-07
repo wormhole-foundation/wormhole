@@ -851,7 +851,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		return
 	}
 	if commitment != s.commitment {
-		if isReobservation {
+		if isReobservation && string(s.commitment) == "finalized" {
 			// There is only a single reobservation request channel for each chain, which is assigned to the finalized watcher.
 			// If someone requests reobservation of a confirmed message, we should allow the observation to go through.
 			logger.Info("allowing reobservation although the commitment level does not match the watcher",
