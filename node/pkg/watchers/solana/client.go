@@ -851,14 +851,14 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		return
 	}
 	if commitment != s.commitment {
-		if isReobservation && string(s.commitment) == "finalized" {
+		if isReobservation && s.commitment == rpc.CommitmentFinalized {
 			// There is only a single reobservation request channel for each chain, which is assigned to the finalized watcher.
 			// If someone requests reobservation of a confirmed message, we should allow the observation to go through.
 			logger.Info("allowing reobservation although the commitment level does not match the watcher",
 				zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)),
 			)
 		} else {
-			logger.Info("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
+			logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
 			return
 		}
 	}
