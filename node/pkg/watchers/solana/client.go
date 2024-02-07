@@ -851,8 +851,16 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		return
 	}
 	if commitment != s.commitment {
-		logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
-		return
+		if isReobservation && s.commitment == rpc.CommitmentFinalized {
+			// There is only a single reobservation request channel for each chain, which is assigned to the finalized watcher.
+			// If someone requests reobservation of a confirmed message, we should allow the observation to go through.
+			logger.Info("allowing reobservation although the commitment level does not match the watcher",
+				zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)),
+			)
+		} else {
+			logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
+			return
+		}
 	}
 
 	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
