@@ -60,17 +60,14 @@ export async function execute_injective(
       execute_msg = {
         vaa: fromUint8Array(vaa),
       };
-      switch (payload.type) {
-        case "GuardianSetUpgrade":
-          console.log("Submitting new guardian set");
-          break;
-        case "ContractUpgrade":
-          console.log("Upgrading core contract");
-          break;
-        case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective");
-        default:
-          impossible(payload);
+      if (payload.type === "GuardianSetUpgrade") {
+        console.log("Submitting new guardian set");
+      } else if (payload.type === "ContractUpgrade") {
+        console.log("Upgrading core contract");
+      } else if (payload.type === "RecoverChainId") {
+        throw new Error("RecoverChainId not supported on injective");
+      } else {
+        impossible(payload);
       }
 
       break;
