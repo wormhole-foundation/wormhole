@@ -326,9 +326,8 @@ export async function queryRegistrationsInjective(
   const results: { [key: string]: string } = {};
   for (let [cname, queryResponse] of registrations) {
     if (queryResponse) {
-      results[cname] = Buffer.from(queryResponse.address, "base64").toString(
-        "hex"
-      );
+      const decodedAddress = Buffer.from(queryResponse.address, "base64").toString("hex");
+      results[cname] = decodedAddress;
     }
   }
   console.log(results);
