@@ -178,19 +178,16 @@ export async function transferAlgorand(
 
 function getClient(network: Network, rpc: string) {
   const ALGORAND_HOST = {
-    algodToken: "",
+    algodToken: network === "DEVNET" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" : "",
     algodServer: rpc,
-    algodPort: "",
+    algodPort: network === "DEVNET" ? "4001" : ""
   };
-  if (network === "DEVNET") {
-    ALGORAND_HOST.algodToken =
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    ALGORAND_HOST.algodPort = "4001";
-  }
+
   const client = new Algodv2(
     ALGORAND_HOST.algodToken,
     ALGORAND_HOST.algodServer,
     ALGORAND_HOST.algodPort
   );
+
   return client;
 }
