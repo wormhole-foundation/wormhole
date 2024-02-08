@@ -8,6 +8,110 @@ import "forge-std/Test.sol";
 import "./QueryTest.sol";
 
 contract TestQueryTest is Test, QueryTest {
+    //
+    // Query Request tests
+    //
+
+    function test_signingRequest() public {
+        bytes memory devnetRequestPrefix = bytes("devnet_query_request_0000000000000|");
+        uint256 signerKey = 0xcfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0;
+        bytes memory req = hex"0100000001010002010000004200000005307831303902ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567";
+
+        bytes32 hash = keccak256(req);
+        bytes32 digest = keccak256(abi.encodePacked(devnetRequestPrefix, hash));
+        uint8 v; bytes32 r; bytes32 s;
+        (v, r, s) = vm.sign(signerKey, digest);
+        bytes memory signature = abi.encodePacked(v, r, s);
+        assertEq(ecrecover(digest, v, r, s), 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe);
+        assertEq(signature, hex"f2447688a2c21efad4cf667b42e71f48fffcc756f99ea25bceb335b8866aa8b135981a5fa238ad26941798df90907c71fbc08a08ed6f24453850f624e334947c01");
+    }
+
+    function test_buildOffChainQueryRequestBytes() public {
+        bytes memory req = buildOffChainQueryRequestBytes(
+            /* version */            1,
+            /* nonce */              1,
+            /* numPerChainQueries */ 1,
+            /* perChainQueries */    hex"0002010000004200000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+        );
+        assertEq(req, hex"0100000001010002010000004200000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }
+
+    function test_buildPerChainRequestBytes() public {
+        bytes memory pcr = buildPerChainRequestBytes(
+            /* chainId */    2,
+            /* queryType */  1,
+            /* queryLen */   66,
+            /* queryBytes */ hex"00000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+        );
+        assertEq(pcr, hex"0002010000004200000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }
+
+    function test_buildEthCallRequestBytes() public {
+        bytes memory ecr = buildEthCallRequestBytes(
+            /* blockIdLen */  5,
+            /* blockId */     "0x744",
+            /* numCallData */ 2,
+            /* callData */    hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+        );
+        assertEq(ecr, hex"00000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }
+
+    function test_buildEthCallByTimestampRequestBytes() public {
+        bytes memory ecr = buildEthCallByTimestampRequestBytes(
+            /* targetTimeUs */           0x10642ac0,
+            /* targetBlockHintLen */     5,
+            /* targetBlockHint */        "0x15d",
+            /* followingBlockHintLen */  5,
+            /* followingBlockHint */     "0x15e",            
+            /* numCallData */            2,
+            /* callData */               hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+        );
+        assertEq(ecr, hex"0000000010642ac000000005307831356400000005307831356502ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }
+    
+    function test_buildEthCallWithFinalityRequestBytes() public {
+        bytes memory ecr = buildEthCallWithFinalityRequestBytes(
+            /* blockIdLen */  5,
+            /* blockId */     "0x1f8",
+            /* finalityLen */ 9,
+            /* finality */    "finalized",            
+            /* numCallData */ 2,
+            /* callData */    hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+        );
+        assertEq(ecr, hex"0000000530783166380000000966696e616c697a656402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }
+
+    function test_buildEthCallDataBytes() public {
+        bytes memory ecd1 = buildEthCallDataBytes(
+            /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
+            /* callDataLen */     4,
+            /* callData */        hex"06fdde03"
+        );
+        assertEq(ecd1, hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03");
+        bytes memory ecd2 = buildEthCallDataBytes(
+            /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
+            /* callDataLen */     4,
+            /* callData */        hex"313ce567"
+        );
+        assertEq(ecd2, hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
+    }        
+        
+    function test_buildSolanaAccountRequestBytes() public {
+        bytes memory ecr = buildSolanaAccountRequestBytes(
+            /* commitmentLen */   9,
+            /* commitment */      "finalized",
+            /* minContextSlot */  8069,
+            /* dataSliceOffset */ 10,
+            /* dataSliceLength */ 20,
+            /* numAccounts */     2,
+            /* accounts */        hex"165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7"
+        );
+        assertEq(ecr, hex"0000000966696e616c697a65640000000000001f85000000000000000a000000000000001402165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7");
+    }
+
+    //
+    // Query Response tests
+    //
 
     function test_buildQueryResponseBytes() public {
         bytes memory resp = buildQueryResponseBytes(

@@ -75,7 +75,7 @@ contract TestQueryResponse is Test, QueryTest {
         uint8 _numPerChainResponses,
         bytes memory _perChainResponses
     ) internal pure returns (bytes memory){
-        bytes memory queryRequest = abi.encodePacked(
+        bytes memory queryRequest = buildOffChainQueryRequestBytes(
             _queryRequestVersion,
             _queryRequestNonce,
             _numPerChainQueries,

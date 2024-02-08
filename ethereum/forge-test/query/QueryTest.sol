@@ -6,6 +6,132 @@ pragma solidity ^0.8.4;
 
 // @dev QueryTest is a library to build Cross Chain Query (CCQ) responses for testing purposes.
 abstract contract QueryTest {
+    //
+    // Query Request stuff
+    //
+
+    /// @dev buildOffChainQueryRequestBytes builds an off chain query request from the specified fields.
+    function buildOffChainQueryRequestBytes(
+        uint8 _version,
+        uint32 _nonce,
+        uint8 _numPerChainQueries,
+        bytes memory _perChainQueries
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _version,
+            _nonce,
+            _numPerChainQueries,
+            _perChainQueries // Each created by buildPerChainRequestBytes()
+        );
+    }
+
+    /// @dev buildPerChainRequestBytes builds a per chain request from the specified fields.
+    function buildPerChainRequestBytes(
+        uint16 _chainId,
+        uint8 _queryType,
+        uint32 _queryLen,
+        bytes memory _queryBytes
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _chainId,
+            _queryType,
+            _queryLen,
+            _queryBytes
+        );
+    }
+
+    /// @dev buildEthCallRequestBytes builds an eth_call query request from the specified fields.
+    function buildEthCallRequestBytes(
+        uint32 _blockIdLen,
+        bytes memory _blockId,
+        uint8 _numCallData,
+        bytes memory _callData // Created with buildEthCallDataBytes()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _blockIdLen,
+            _blockId,
+            _numCallData,
+            _callData
+        );
+    }
+
+    /// @dev buildEthCallByTimestampRequestBytes builds an eth_call_by_timestamp query request from the specified fields.
+    function buildEthCallByTimestampRequestBytes(
+        uint64 _targetTimeUs,
+        uint32 _targetBlockHintLen,
+        bytes memory _targetBlockHint,
+        uint32 _followingBlockHintLen,
+        bytes memory _followingBlockHint,        
+        uint8 _numCallData,
+        bytes memory _callData // Created with buildEthCallDataBytes()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _targetTimeUs,
+            _targetBlockHintLen,
+            _targetBlockHint,
+            _followingBlockHintLen,
+            _followingBlockHint,
+            _numCallData,
+            _callData
+        );
+    }
+
+    /// @dev buildEthCallWithFinalityRequestBytes builds an eth_call_with_finality query request from the specified fields.
+    function buildEthCallWithFinalityRequestBytes(
+        uint32 _blockIdLen,
+        bytes memory _blockId,
+        uint32 _finalityLen,
+        bytes memory _finality,        
+        uint8 _numCallData,
+        bytes memory _callData // Created with buildEthCallDataBytes()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _blockIdLen,
+            _blockId,
+            _finalityLen,
+            _finality,            
+            _numCallData,
+            _callData
+        );
+    }
+
+    /// @dev buildEthCallDataBytes builds the call data associated with one of the eth_call family of queries.
+    function buildEthCallDataBytes(
+        address _contractAddress,
+        uint32 _callDataLen,
+        bytes memory _callData
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _contractAddress,
+            _callDataLen,
+            _callData
+        );
+    }
+    
+    /// @dev buildSolanaAccountRequestBytes builds an sol_account query request from the specified fields.
+    function buildSolanaAccountRequestBytes(
+        uint32 _commitmentLen,
+        bytes memory _commitment,
+        uint64 _minContextSlot,
+        uint64 _dataSliceOffset,
+        uint64 _dataSliceLength,
+        uint8 _numAccounts,
+        bytes memory _accounts // Each account is 32 bytes.
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _commitmentLen,
+            _commitment,
+            _minContextSlot,
+            _dataSliceOffset,            
+            _dataSliceLength,
+            _numAccounts,
+            _accounts
+        );
+    }
+
+    //
+    // Query Response stuff
+    //
 
     /// @dev buildQueryResponseBytes builds a query response from the specified fields.
     function buildQueryResponseBytes(
