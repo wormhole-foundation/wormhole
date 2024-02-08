@@ -52,24 +52,24 @@ func init() {
 
 func postMessage(cmd *cobra.Command, args []string) {
 	nonce, err := strconv.ParseUint(args[0], 10, 32)
-	if err != nil {
-		cmd.PrintErrln("Could not parse nonce", err)
-		os.Exit(1)
-	}
+  	if err != nil {
+    	    log.Fatal("Could not parse nonce:", err)
+  	}
 
-	consistencyLevel, err := strconv.ParseUint(args[1], 10, 8)
-	if err != nil {
-		cmd.PrintErrln("Could not parse confirmation number", err)
-		os.Exit(1)
-	}
+  	consistencyLevel, err := strconv.ParseUint(args[1], 10, 8)
+  	if err != nil {
+    	    log.Fatal("Could not parse confirmation number:", err)
+  	}
 
-	message := common.Hex2Bytes(args[2])
+  	message, err := hex.DecodeString(args[2])
+  	if err != nil {
+    	    log.Fatal("Could not decode message from hex:", err)
+  	}
 
-	ethC, err := getEthClient()
+  	ethClient, err := getEthClient()
 	if err != nil {
-		cmd.PrintErrln(err)
-		os.Exit(1)
-	}
+	    log.Fatal(err)
+  	}
 
 	signer, addr, err := getSigner(ethC)
 	if err != nil {
