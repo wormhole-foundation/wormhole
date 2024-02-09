@@ -38,7 +38,7 @@
     "caver-js": "^1.10.0",
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.4",
-    "ganache-cli": "^6.12.1",
+    "ganache-cli": "^6.12.2",
     "jsonfile": "^4.0.0",
     "solc": "^0.8.4",
     "truffle-hdwallet-provider-klaytn": "^1.4.2"
