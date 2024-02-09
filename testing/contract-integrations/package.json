@@ -39,6 +39,6 @@
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "@truffle/hdwallet-provider": "^1.7.0",
-    "truffle-plugin-verify": "^0.5.11"
+    "truffle-plugin-verify": "^0.6.7"
   }
 }
