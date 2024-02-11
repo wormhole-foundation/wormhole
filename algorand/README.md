@@ -40,7 +40,7 @@ This stateless program code is parameterized with several values that give diffe
     * Account (`guardian_addr` and `new_guardian_addr`) for storing total guardian count , the guardian public keys and guardian set expiration time.
 * Once generated, the accounts are opted-in and rekeyed to the core application.
 
-Briefly, the semantics of the transaction when _TmplSig_ is "attached" to a stateful app is:
+Briefly, the semantics of the transaction when _TmplSig_ is "attached" to a stateful app are:
 1. Optin of LogicSig to target stateful contract `TMPL_APP_ID` for the app to use LogicSig account local storage
 2. Rekey of LogicSig to escrow address for the smart contract to become the sole "governor" of the LogicSig account address
 
@@ -50,10 +50,10 @@ Briefly, the semantics of the transaction when _TmplSig_ is "attached" to a stat
 ----------------------------------------
 ### Initialization stage
 The initialization call needs a governance VAA to be passed in, typically to setup initial guardian list. The init call will: 
-* store the _VaaVerify_ hash in the `vphash` global state key
-* check for the creator address, set `booted` global state to `1`
-* check for duplicate VAA
-* handle the governance VAA passed as argument.
+* Store the _VaaVerify_ hash in the `vphash` global state key
+* Check for the creator address, set `booted` global state to `1`
+* Check for duplicate VAA
+* Handle the governance VAA passed as argument.
 
 See below on how governance VAAs are processed, and how duplicate detection technique is used.
 
