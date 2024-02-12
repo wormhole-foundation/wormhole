@@ -17,8 +17,13 @@ import {
   SolanaAccountQueryRequest,
   SolanaAccountQueryResponse,
   SolanaAccountResult,
+  SolanaPdaQueryRequest,
+  SolanaPdaQueryResponse,
+  SolanaPdaResult,
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
+
+import { PublicKey } from "@solana/web3.js";
 
 // (2**64)-1
 const SOLANA_MAX_RENT_EPOCH = BigInt("18446744073709551615");
@@ -478,6 +483,114 @@ export class QueryProxyMock {
           new PerChainQueryResponse(
             perChainRequest.chainId,
             new SolanaAccountQueryResponse(
+              BigInt(slotNumber),
+              BigInt(blockTime) * BigInt(1000000), // time in seconds -> microseconds,
+              blockHash,
+              results
+            )
+          )
+        );
+      } else if (type === ChainQueryType.SolanaPda) {
+        const query = perChainRequest.query as SolanaPdaQueryRequest;
+        // Validate the request and convert the PDAs into accounts.
+        if (query.commitment !== "finalized") {
+          throw new Error(
+            `Invalid commitment in sol_account query request, must be "finalized"`
+          );
+        }
+        if (
+          query.dataSliceLength === BigInt(0) &&
+          query.dataSliceOffset !== BigInt(0)
+        ) {
+          throw new Error(
+            `data slice offset may not be set if data slice length is zero`
+          );
+        }
+        if (query.pdas.length <= 0) {
+          throw new Error(`does not contain any account entries`);
+        }
+        if (query.pdas.length > 255) {
+          throw new Error(`too many account entries`);
+        }
+
+        let accounts: string[] = [];
+        let bumps: number[] = [];
+        query.pdas.forEach((pda) => {
+          if (pda.programAddress.length != 32) {
+            throw new Error(`invalid program address length`);
+          }
+
+          const [acct, bump] = PublicKey.findProgramAddressSync(
+            pda.seeds,
+            new PublicKey(pda.programAddress)
+          );
+          accounts.push(acct.toString());
+          bumps.push(bump);
+        });
+
+        let opts: SolanaGetMultipleAccountsOpts = {
+          commitment: query.commitment,
+        };
+        if (query.minContextSlot != BigInt(0)) {
+          opts.minContextSlot = Number(query.minContextSlot);
+        }
+        if (query.dataSliceLength !== BigInt(0)) {
+          opts.dataSlice = {
+            offset: Number(query.dataSliceOffset),
+            length: Number(query.dataSliceLength),
+          };
+        }
+
+        const response = await axios.post<SolanaGetMultipleAccountsResponse>(
+          rpc,
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "getMultipleAccounts",
+            params: [accounts, opts],
+          }
+        );
+
+        if (!response.data.result) {
+          throw new Error("Invalid result for getMultipleAccounts");
+        }
+
+        const slotNumber = response.data.result.context.slot;
+        let results: SolanaPdaResult[] = [];
+        let idx = 0;
+        response.data.result.value.forEach((val) => {
+          const account = Buffer.from(base58.decode(accounts[idx].toString()));
+          results.push({
+            account: Uint8Array.from(base58.decode(accounts[idx].toString())),
+            bump: bumps[idx],
+            lamports: BigInt(val.lamports),
+            rentEpoch: BigInt(val.rentEpoch),
+            executable: Boolean(val.executable),
+            owner: Uint8Array.from(base58.decode(val.owner.toString())),
+            data: Uint8Array.from(
+              Buffer.from(val.data[0].toString(), "base64")
+            ),
+          });
+          idx += 1;
+        });
+
+        const response2 = await axios.post(rpc, {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getBlock",
+          params: [
+            slotNumber,
+            { commitment: query.commitment, transactionDetails: "none" },
+          ],
+        });
+
+        const blockTime = response2.data.result.blockTime;
+        const blockHash = base58.decode(response2.data.result.blockhash);
+
+        queryResponse.responses.push(
+          new PerChainQueryResponse(
+            perChainRequest.chainId,
+            new SolanaPdaQueryResponse(
               BigInt(slotNumber),
               BigInt(blockTime) * BigInt(1000000), // time in seconds -> microseconds,
               blockHash,

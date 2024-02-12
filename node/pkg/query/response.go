@@ -138,6 +138,43 @@ type SolanaAccountResult struct {
 	Data []byte
 }
 
+// SolanaPdaQueryResponse implements ChainSpecificResponse for a Solana sol_pda query response.
+type SolanaPdaQueryResponse struct {
+	// SlotNumber is the slot number returned by the sol_pda query
+	SlotNumber uint64
+
+	// BlockTime is the block time associated with the slot.
+	BlockTime time.Time
+
+	// BlockHash is the block hash associated with the slot.
+	BlockHash [SolanaPublicKeyLength]byte
+
+	Results []SolanaPdaResult
+}
+
+type SolanaPdaResult struct {
+	// Account is the public key of the account derived from the PDA.
+	Account [SolanaPublicKeyLength]byte
+
+	// Bump is the bump value returned by the solana derivation function.
+	Bump uint8
+
+	// Lamports is the number of lamports assigned to the account.
+	Lamports uint64
+
+	// RentEpoch is the epoch at which this account will next owe rent.
+	RentEpoch uint64
+
+	// Executable is a boolean indicating if the account contains a program (and is strictly read-only).
+	Executable bool
+
+	// Owner is the public key of the owner of the account.
+	Owner [SolanaPublicKeyLength]byte
+
+	// Data is the data returned by the sol_pda query.
+	Data []byte
+}
+
 //
 // Implementation of QueryResponsePublication.
 //
@@ -413,6 +450,12 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 			return fmt.Errorf("failed to unmarshal sol_account response: %w", err)
 		}
 		perChainResponse.Response = &r
+	case SolanaPdaQueryRequestType:
+		r := SolanaPdaQueryResponse{}
+		if err := r.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal sol_account response: %w", err)
+		}
+		perChainResponse.Response = &r
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -485,6 +528,13 @@ func (left *PerChainQueryResponse) Equal(right *PerChainQueryResponse) bool {
 	case *SolanaAccountQueryResponse:
 		switch rightResp := right.Response.(type) {
 		case *SolanaAccountQueryResponse:
+			return leftResp.Equal(rightResp)
+		default:
+			panic("unsupported query type on right") // We checked this above!
+		}
+	case *SolanaPdaQueryResponse:
+		switch rightResp := right.Response.(type) {
+		case *SolanaPdaQueryResponse:
 			return leftResp.Equal(rightResp)
 		default:
 			panic("unsupported query type on right") // We checked this above!
@@ -1032,6 +1082,169 @@ func (left *SolanaAccountQueryResponse) Equal(right *SolanaAccountQueryResponse)
 	}
 	for idx := range left.Results {
 		if left.Results[idx].Lamports != right.Results[idx].Lamports ||
+			left.Results[idx].RentEpoch != right.Results[idx].RentEpoch ||
+			left.Results[idx].Executable != right.Results[idx].Executable ||
+			!bytes.Equal(left.Results[idx].Owner[:], right.Results[idx].Owner[:]) ||
+			!bytes.Equal(left.Results[idx].Data, right.Results[idx].Data) {
+			return false
+		}
+	}
+
+	return true
+}
+
+//
+// Implementation of SolanaPdaQueryResponse, which implements the ChainSpecificResponse for a Solana sol_pda query response.
+//
+
+func (sar *SolanaPdaQueryResponse) Type() ChainSpecificQueryType {
+	return SolanaPdaQueryRequestType
+}
+
+// Marshal serializes the binary representation of a Solana sol_pda response.
+// This method calls Validate() and relies on it to range check lengths, etc.
+func (sar *SolanaPdaQueryResponse) Marshal() ([]byte, error) {
+	if err := sar.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, sar.SlotNumber)
+	vaa.MustWrite(buf, binary.BigEndian, sar.BlockTime.UnixMicro())
+	buf.Write(sar.BlockHash[:])
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results)))
+	for _, res := range sar.Results {
+		buf.Write(res.Account[:])
+		vaa.MustWrite(buf, binary.BigEndian, res.Bump)
+		vaa.MustWrite(buf, binary.BigEndian, res.Lamports)
+		vaa.MustWrite(buf, binary.BigEndian, res.RentEpoch)
+		vaa.MustWrite(buf, binary.BigEndian, res.Executable)
+		buf.Write(res.Owner[:])
+
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data)))
+		buf.Write(res.Data)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes a Solana sol_pda response from a byte array
+func (sar *SolanaPdaQueryResponse) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return sar.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes a Solana sol_pda response from a byte array
+func (sar *SolanaPdaQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
+	if err := binary.Read(reader, binary.BigEndian, &sar.SlotNumber); err != nil {
+		return fmt.Errorf("failed to read slot number: %w", err)
+	}
+
+	blockTime := int64(0)
+	if err := binary.Read(reader, binary.BigEndian, &blockTime); err != nil {
+		return fmt.Errorf("failed to read block time: %w", err)
+	}
+	sar.BlockTime = time.UnixMicro(blockTime)
+	if n, err := reader.Read(sar.BlockHash[:]); err != nil || n != SolanaPublicKeyLength {
+		return fmt.Errorf("failed to read block hash [%d]: %w", n, err)
+	}
+
+	numResults := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResults); err != nil {
+		return fmt.Errorf("failed to read number of results: %w", err)
+	}
+
+	for count := 0; count < int(numResults); count++ {
+		var result SolanaPdaResult
+
+		if n, err := reader.Read(result.Account[:]); err != nil || n != SolanaPublicKeyLength {
+			return fmt.Errorf("failed to read account [%d]: %w", n, err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.Bump); err != nil {
+			return fmt.Errorf("failed to read bump: %w", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.Lamports); err != nil {
+			return fmt.Errorf("failed to read lamports: %w", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.RentEpoch); err != nil {
+			return fmt.Errorf("failed to read rent epoch: %w", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &result.Executable); err != nil {
+			return fmt.Errorf("failed to read executable flag: %w", err)
+		}
+
+		if n, err := reader.Read(result.Owner[:]); err != nil || n != SolanaPublicKeyLength {
+			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
+		}
+
+		len := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+			return fmt.Errorf("failed to read data len: %w", err)
+		}
+		result.Data = make([]byte, len)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+			return fmt.Errorf("failed to read data [%d]: %w", n, err)
+		}
+
+		sar.Results = append(sar.Results, result)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on a Solana sol_pda response.
+func (sar *SolanaPdaQueryResponse) Validate() error {
+	// Not checking for SlotNumber == 0, because maybe that could happen??
+	// Not checking for BlockTime == 0, because maybe that could happen??
+
+	// The block hash is fixed length, so don't need to check for nil.
+	if len(sar.BlockHash) != SolanaPublicKeyLength {
+		return fmt.Errorf("invalid block hash length")
+	}
+
+	if len(sar.Results) <= 0 {
+		return fmt.Errorf("does not contain any results")
+	}
+	if len(sar.Results) > math.MaxUint8 {
+		return fmt.Errorf("too many results")
+	}
+	for _, result := range sar.Results {
+		// Account is fixed length, so don't need to check for nil.
+		if len(result.Account) != SolanaPublicKeyLength {
+			return fmt.Errorf("invalid account length")
+		}
+		// Owner is fixed length, so don't need to check for nil.
+		if len(result.Owner) != SolanaPublicKeyLength {
+			return fmt.Errorf("invalid owner length")
+		}
+		if len(result.Data) > math.MaxUint32 {
+			return fmt.Errorf("data too long")
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two Solana sol_pda responses are equal.
+func (left *SolanaPdaQueryResponse) Equal(right *SolanaPdaQueryResponse) bool {
+	if left.SlotNumber != right.SlotNumber ||
+		left.BlockTime != right.BlockTime ||
+		!bytes.Equal(left.BlockHash[:], right.BlockHash[:]) {
+		return false
+	}
+
+	if len(left.Results) != len(right.Results) {
+		return false
+	}
+	for idx := range left.Results {
+		if !bytes.Equal(left.Results[idx].Account[:], right.Results[idx].Account[:]) ||
+			left.Results[idx].Bump != right.Results[idx].Bump ||
+			left.Results[idx].Lamports != right.Results[idx].Lamports ||
 			left.Results[idx].RentEpoch != right.Results[idx].RentEpoch ||
 			left.Results[idx].Executable != right.Results[idx].Executable ||
 			!bytes.Equal(left.Results[idx].Owner[:], right.Results[idx].Owner[:]) ||

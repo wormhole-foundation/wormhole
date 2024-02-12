@@ -37,6 +37,7 @@ type (
 		EthCallByTimestamp  *EthCallByTimestamp  `json:"ethCallByTimestamp"`
 		EthCallWithFinality *EthCallWithFinality `json:"ethCallWithFinality"`
 		SolanaAccount       *SolanaAccount       `json:"solAccount"`
+		SolanaPda           *SolanaPda           `json:"solPDA"`
 	}
 
 	EthCall struct {
@@ -60,6 +61,12 @@ type (
 	SolanaAccount struct {
 		Chain   int    `json:"chain"`
 		Account string `json:"account"`
+	}
+
+	SolanaPda struct {
+		Chain          int    `json:"chain"`
+		ProgramAddress string `json:"programAddress"`
+		// TODO: Should we make them specify seeds as well?
 	}
 
 	PermissionsMap map[string]*permissionEntry
@@ -234,8 +241,28 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 					}
 				}
 				callKey = fmt.Sprintf("solAccount:%d:%s", ac.SolanaAccount.Chain, account)
+			} else if ac.SolanaPda != nil {
+				// We assume the account is base58, but if it starts with "0x" it should be 32 bytes of hex.
+				pa := ac.SolanaPda.ProgramAddress
+				if strings.HasPrefix(pa, "0x") {
+					buf, err := hex.DecodeString(pa[2:])
+					if err != nil {
+						return nil, fmt.Errorf(`invalid solana program address hex string "%s" for user "%s": %w`, pa, user.UserName, err)
+					}
+					if len(buf) != query.SolanaPublicKeyLength {
+						return nil, fmt.Errorf(`invalid solana program address hex string "%s" for user "%s, must be %d bytes`, pa, user.UserName, query.SolanaPublicKeyLength)
+					}
+					pa = solana.PublicKey(buf).String()
+				} else {
+					// Make sure it is valid base58.
+					_, err := solana.PublicKeyFromBase58(pa)
+					if err != nil {
+						return nil, fmt.Errorf(`solana program address string "%s" for user "%s" is not valid base58: %w`, pa, user.UserName, err)
+					}
+				}
+				callKey = fmt.Sprintf("solPDA:%d:%s", ac.SolanaPda.Chain, pa)
 			} else {
-				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality" or "solAccount"`, user.UserName)
+				return nil, fmt.Errorf(`unsupported call type for user "%s", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality", "solAccount" or "solPDA"`, user.UserName)
 			}
 
 			if callKey == "" {

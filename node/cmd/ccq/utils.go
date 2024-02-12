@@ -112,6 +112,8 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 			status, err = validateCallData(logger, permsForUser, "ethCallWithFinality", pcq.ChainId, q.CallData)
 		case *query.SolanaAccountQueryRequest:
 			status, err = validateSolanaAccountQuery(logger, permsForUser, "solAccount", pcq.ChainId, q)
+		case *query.SolanaPdaQueryRequest:
+			status, err = validateSolanaPdaQuery(logger, permsForUser, "solPDA", pcq.ChainId, q)
 		default:
 			logger.Debug("unsupported query type", zap.String("userName", permsForUser.userName), zap.Any("type", pcq.Query))
 			invalidQueryRequestReceived.WithLabelValues("unsupported_query_type").Inc()
@@ -160,6 +162,22 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
 	for _, acct := range q.Accounts {
 		callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
+		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+			return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
+		}
+
+		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+	}
+
+	return http.StatusOK, nil
+}
+
+// validateSolanaPdaQuery performs verification on a Solana sol_account query.
+func validateSolanaPdaQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaPdaQueryRequest) (int, error) {
+	for _, acct := range q.PDAs {
+		callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct.ProgramAddress).String())
 		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
