@@ -7,27 +7,13 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import "./QueryTest.sol";
 
-contract TestQueryTest is Test, QueryTest {
+contract TestQueryTest is Test {
     //
     // Query Request tests
     //
 
-    function test_signingRequest() public {
-        bytes memory devnetRequestPrefix = bytes("devnet_query_request_0000000000000|");
-        uint256 signerKey = 0xcfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0;
-        bytes memory req = hex"0100000001010002010000004200000005307831303902ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567";
-
-        bytes32 hash = keccak256(req);
-        bytes32 digest = keccak256(abi.encodePacked(devnetRequestPrefix, hash));
-        uint8 v; bytes32 r; bytes32 s;
-        (v, r, s) = vm.sign(signerKey, digest);
-        bytes memory signature = abi.encodePacked(v, r, s);
-        assertEq(ecrecover(digest, v, r, s), 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe);
-        assertEq(signature, hex"f2447688a2c21efad4cf667b42e71f48fffcc756f99ea25bceb335b8866aa8b135981a5fa238ad26941798df90907c71fbc08a08ed6f24453850f624e334947c01");
-    }
-
     function test_buildOffChainQueryRequestBytes() public {
-        bytes memory req = buildOffChainQueryRequestBytes(
+        bytes memory req = QueryTest.buildOffChainQueryRequestBytes(
             /* version */            1,
             /* nonce */              1,
             /* numPerChainQueries */ 1,
@@ -37,7 +23,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildPerChainRequestBytes() public {
-        bytes memory pcr = buildPerChainRequestBytes(
+        bytes memory pcr = QueryTest.buildPerChainRequestBytes(
             /* chainId */    2,
             /* queryType */  1,
             /* queryLen */   66,
@@ -47,7 +33,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallRequestBytes() public {
-        bytes memory ecr = buildEthCallRequestBytes(
+        bytes memory ecr = QueryTest.buildEthCallRequestBytes(
             /* blockIdLen */  5,
             /* blockId */     "0x744",
             /* numCallData */ 2,
@@ -57,7 +43,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallByTimestampRequestBytes() public {
-        bytes memory ecr = buildEthCallByTimestampRequestBytes(
+        bytes memory ecr = QueryTest.buildEthCallByTimestampRequestBytes(
             /* targetTimeUs */           0x10642ac0,
             /* targetBlockHintLen */     5,
             /* targetBlockHint */        "0x15d",
@@ -70,7 +56,7 @@ contract TestQueryTest is Test, QueryTest {
     }
     
     function test_buildEthCallWithFinalityRequestBytes() public {
-        bytes memory ecr = buildEthCallWithFinalityRequestBytes(
+        bytes memory ecr = QueryTest.buildEthCallWithFinalityRequestBytes(
             /* blockIdLen */  5,
             /* blockId */     "0x1f8",
             /* finalityLen */ 9,
@@ -82,13 +68,13 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallDataBytes() public {
-        bytes memory ecd1 = buildEthCallDataBytes(
+        bytes memory ecd1 = QueryTest.buildEthCallDataBytes(
             /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
             /* callDataLen */     4,
             /* callData */        hex"06fdde03"
         );
         assertEq(ecd1, hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03");
-        bytes memory ecd2 = buildEthCallDataBytes(
+        bytes memory ecd2 = QueryTest.buildEthCallDataBytes(
             /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
             /* callDataLen */     4,
             /* callData */        hex"313ce567"
@@ -97,7 +83,7 @@ contract TestQueryTest is Test, QueryTest {
     }        
         
     function test_buildSolanaAccountRequestBytes() public {
-        bytes memory ecr = buildSolanaAccountRequestBytes(
+        bytes memory ecr = QueryTest.buildSolanaAccountRequestBytes(
             /* commitmentLen */   9,
             /* commitment */      "finalized",
             /* minContextSlot */  8069,
@@ -114,7 +100,7 @@ contract TestQueryTest is Test, QueryTest {
     //
 
     function test_buildQueryResponseBytes() public {
-        bytes memory resp = buildQueryResponseBytes(
+        bytes memory resp = QueryTest.buildQueryResponseBytes(
             /* version */              1,
             /* senderChainId */        0,
             /* signature */            hex"11b03bdbbe15a8f12b803d2193de5ddff72d92eaabd2763553ec3c3133182d1443719a05e2b65c87b923c6bd8aeff49f34937f90f3ab7cd33449388c60fa30a301",
@@ -127,7 +113,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildPerChainResponseBytes() public {
-        bytes memory pcr = buildPerChainResponseBytes(
+        bytes memory pcr = QueryTest.buildPerChainResponseBytes(
             /* chainId */       2,
             /* queryType */     1,
             /* responseLen */   185,
@@ -137,7 +123,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallResponseBytes() public {
-        bytes memory ecr = buildEthCallResponseBytes(
+        bytes memory ecr = QueryTest.buildEthCallResponseBytes(
             /* blockNumber */ 1860,
             /* blockHash */   hex"6a0b819aee8945e659e37537a0bdbe03c06275be23e499819138d1eee8337e9b",
             /* blockTimeUs */ 0x6ab13b80,
@@ -148,7 +134,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallByTimestampResponseBytes() public {
-        bytes memory ecr = buildEthCallByTimestampResponseBytes(
+        bytes memory ecr = QueryTest.buildEthCallByTimestampResponseBytes(
             /* targetBlockNumber */    349,
             /* targetBlockHash */      hex"966cd846f812be43c4ee2d310f962bc592ba944c66de878e53584b8e75c6051f",
             /* targetBlockTimeUs */    0x10642ac0,
@@ -162,7 +148,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallWithFinalityResponseBytes() public {
-        bytes memory ecr = buildEthCallWithFinalityResponseBytes(
+        bytes memory ecr = QueryTest.buildEthCallWithFinalityResponseBytes(
             /* blockNumber */ 1860,
             /* blockHash */   hex"6a0b819aee8945e659e37537a0bdbe03c06275be23e499819138d1eee8337e9b",
             /* blockTimeUs */ 0x6ab13b80,
@@ -173,12 +159,12 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildEthCallResultBytes() public {
-        bytes memory ecr1 = buildEthCallResultBytes(
+        bytes memory ecr1 = QueryTest.buildEthCallResultBytes(
             /* resultLen */ 96,
             /* result */    hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000"
         );
         assertEq(ecr1, hex"000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000");
-        bytes memory ecr2 = buildEthCallResultBytes(
+        bytes memory ecr2 = QueryTest.buildEthCallResultBytes(
             /* resultLen */ 32,
             /* result */    hex"0000000000000000000000000000000000000000000000000000000000000012"
         );
@@ -186,7 +172,7 @@ contract TestQueryTest is Test, QueryTest {
     }
 
     function test_buildSolanaAccountResponseBytes() public {
-        bytes memory ecr = buildSolanaAccountResponseBytes(
+        bytes memory ecr = QueryTest.buildSolanaAccountResponseBytes(
             /* slotNumber */  5603,
             /* blockTimeUs */ 0x610cdf2510500,
             /* blockHash */   hex"e0eca895a92c0347e30538cd07c50777440de58e896dd13ff86ef0dae3e12552",

@@ -5,7 +5,7 @@
 pragma solidity ^0.8.4;
 
 // @dev QueryTest is a library to build Cross Chain Query (CCQ) responses for testing purposes.
-abstract contract QueryTest {
+library QueryTest {
     //
     // Query Request stuff
     //

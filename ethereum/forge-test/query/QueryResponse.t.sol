@@ -16,7 +16,7 @@ contract QueryResponseContract is QueryResponse {
     constructor(address _wormhole) QueryResponse(_wormhole) {}
 }
 
-contract TestQueryResponse is Test, QueryTest {
+contract TestQueryResponse is Test {
     // Some happy case defaults
     uint8 version = 0x01;
     uint16 senderChainId = 0x0000;
@@ -75,13 +75,13 @@ contract TestQueryResponse is Test, QueryTest {
         uint8 _numPerChainResponses,
         bytes memory _perChainResponses
     ) internal pure returns (bytes memory){
-        bytes memory queryRequest = buildOffChainQueryRequestBytes(
+        bytes memory queryRequest = QueryTest.buildOffChainQueryRequestBytes(
             _queryRequestVersion,
             _queryRequestNonce,
             _numPerChainQueries,
             _perChainQueries
         );
-        return buildQueryResponseBytes(
+        return QueryTest.buildQueryResponseBytes(
             _version,
             _senderChainId,
             _signature,
