@@ -1,3 +1,9 @@
+## 0.0.10
+
+Fix SolanaAccount mock for bad rentEpoch parsing
+
+Add axios as dependency to avoid errors for mock users
+
 ## 0.0.9
 
 Fix SolanaAccount mock for minContextSlot
