@@ -88,6 +88,9 @@ func (ccq *ccqP2p) run(
 	}
 	components.Port = port
 
+	// Pass the gossip advertize address through to NewHost() if it was defined
+	components.GossipAdvertiseAddress = ccq.p2pComponents.GossipAdvertiseAddress
+
 	ccq.h, err = NewHost(ccq.logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
 		return fmt.Errorf("failed to create p2p: %w", err)
