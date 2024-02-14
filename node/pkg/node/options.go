@@ -52,10 +52,8 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 				components.SignedHeartbeatLogLevel = zapcore.InfoLevel
 			}
 
-			// Add the gossip advertisement address if it was specified
-			if gossipAdvertiseAddress != "" {
-				components.GossipAdvertiseAddress = gossipAdvertiseAddress
-			}
+			// Add the gossip advertisement address
+			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
 			g.runnables["p2p"] = p2p.Run(
 				g.obsvC,
