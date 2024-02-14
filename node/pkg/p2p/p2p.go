@@ -107,6 +107,8 @@ type Components struct {
 	SignedHeartbeatLogLevel zapcore.Level
 	// GossipParams is used to configure the GossipSub instance used by the Guardian.
 	GossipParams pubsub.GossipSubParams
+	// GossipAdvertiseAddress is an override for the external IP advertised via p2p to other peers.
+	GossipAdvertiseAddress string
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -204,6 +206,26 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 		libp2p.ListenAddrStrings(
 			components.ListeningAddresses()...,
 		),
+
+		// Takes the multiaddrs we are listening on and returns the multiaddrs to advertise to the network to
+		// connect to. Allows overriding the announce address for nodes running behind a NAT or in kubernetes
+		libp2p.AddrsFactory(func(addrs []multiaddr.Multiaddr) []multiaddr.Multiaddr {
+			if components.GossipAdvertiseAddress != "" {
+				addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
+				if err != nil {
+					// If the multiaddr is specified incorrectly, blow up
+					logger.Fatal("error with the specified gossip address",
+						zap.String("gossip_advertise_address", components.GossipAdvertiseAddress),
+						zap.Error(err),
+					)
+				}
+				logger.Info("Overriding the advertised p2p address",
+					zap.String("GossipAdvertiseAddress", addr.String()),
+				)
+				return []multiaddr.Multiaddr{addr}
+			}
+			return addrs
+		}),
 
 		// Enable TLS security as the only security protocol.
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),

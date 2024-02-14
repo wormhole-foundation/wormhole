@@ -224,6 +224,9 @@ var (
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
 	gatewayRelayerKeyPassPhrase *string
+
+	// This is the externally reachable address advertized over gossip for guardian p2p and ccq p2p.
+	gossipAdvertiseAddress *string
 )
 
 func init() {
@@ -399,6 +402,7 @@ func init() {
 	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
 	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (comma-separated)")
 	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
+	gossipAdvertiseAddress = NodeCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on Guardian and CCQ p2p (use if behind a NAT or running in k8s)")
 
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
@@ -1558,7 +1562,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionProcessor(),
 	}
