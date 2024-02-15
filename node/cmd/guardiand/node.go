@@ -225,7 +225,7 @@ var (
 	gatewayRelayerKeyPath       *string
 	gatewayRelayerKeyPassPhrase *string
 
-	// This is the externally reachable address advertized over gossip for guardian p2p and ccq p2p.
+	// This is the externally reachable address advertised over gossip for guardian p2p and ccq p2p.
 	gossipAdvertiseAddress *string
 )
 
