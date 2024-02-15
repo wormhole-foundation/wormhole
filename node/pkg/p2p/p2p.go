@@ -215,7 +215,7 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 				if err != nil {
 					// If the multiaddr is specified incorrectly, blow up
 					logger.Fatal("error with the specified gossip address",
-						zap.String("gossip_advertise_address", components.GossipAdvertiseAddress),
+						zap.String("GossipAdvertiseAddress", components.GossipAdvertiseAddress),
 						zap.Error(err),
 					)
 				}
