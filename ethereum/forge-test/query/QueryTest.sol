@@ -101,7 +101,7 @@ library QueryTest {
         );
     }
     
-    /// @dev buildSolanaAccountRequestBytes builds an sol_account query request from the specified fields.
+    /// @dev buildSolanaAccountRequestBytes builds a sol_account query request from the specified fields.
     function buildSolanaAccountRequestBytes(
         bytes memory _commitment,
         uint64 _minContextSlot,
@@ -119,6 +119,80 @@ library QueryTest {
             _numAccounts,
             _accounts
         );
+    }
+        
+    /// @dev buildSolanaPdaRequestBytes builds a sol_pda query request from the specified fields.
+    function buildSolanaPdaRequestBytes(
+        bytes memory _commitment,
+        uint64 _minContextSlot,
+        uint64 _dataSliceOffset,
+        uint64 _dataSliceLength,
+        uint8 _numPdas,
+        bytes memory _pdas // Created with buildSolanaPdaEntry()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            uint32(_commitment.length),
+            _commitment,
+            _minContextSlot,
+            _dataSliceOffset,            
+            _dataSliceLength,
+            _numPdas,
+            _pdas
+        );
+    }
+
+    /// @dev buildSolanaPdaEntry builds a PDA entry for a sol_pda query.
+    function buildSolanaPdaEntry(
+        bytes32 _programId,
+        uint8 _numSeeds,
+        bytes memory _seeds // Created with buildSolanaPdaSeedBytes()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _programId,
+            _numSeeds,
+            _seeds
+        );
+    }
+
+    // According to the spec, there may be at most 16 seeds.
+    // https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L559
+    uint public constant SolanaMaxSeeds = 16;
+
+    // According to the spec, a seed may be at most 32 bytes.
+    // https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L557
+    uint public constant SolanaMaxSeedLen = 32;
+
+    // Custom errors
+    error SolanaTooManySeeds();
+    error SolanaSeedTooLong();
+
+    /// @dev buildSolanaPdaSeedBytes packs the seeds for a PDA entry into an array of bytes.
+    function buildSolanaPdaSeedBytes(
+        bytes[] memory _seeds
+    ) internal pure returns (bytes memory){
+        if (_seeds.length > SolanaMaxSeeds) {
+            revert SolanaTooManySeeds();
+        }
+
+        bytes memory result;
+        uint numSeeds = _seeds.length;
+
+        for (uint idx; idx < numSeeds;) {
+            if (_seeds[idx].length > SolanaMaxSeedLen) {
+                revert SolanaSeedTooLong();
+            }
+            result = abi.encodePacked(
+                result,
+                abi.encodePacked(
+                    uint32(_seeds[idx].length),
+                    _seeds[idx]
+                )
+            );
+
+            unchecked { ++idx; }
+        }
+
+        return result;
     }
 
     //
@@ -228,6 +302,23 @@ library QueryTest {
 
     /// @dev buildSolanaAccountResponseBytes builds a sol_account response from the specified fields.
     function buildSolanaAccountResponseBytes(
+        uint64 _slotNumber,
+        uint64 _blockTimeUs,
+        bytes32 _blockHash,
+        uint8 _numResults,
+        bytes memory _results // Created with buildEthCallResultBytes()
+    ) internal pure returns (bytes memory){
+        return abi.encodePacked(
+            _slotNumber,
+            _blockTimeUs,            
+            _blockHash,
+            _numResults,
+            _results
+        );
+    } 
+
+    /// @dev buildSolanaPdaResponseBytes builds a sol_pda response from the specified fields.
+    function buildSolanaPdaResponseBytes(
         uint64 _slotNumber,
         uint64 _blockTimeUs,
         bytes32 _blockHash,

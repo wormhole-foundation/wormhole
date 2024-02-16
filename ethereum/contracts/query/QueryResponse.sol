@@ -86,6 +86,31 @@ struct SolanaAccountResult {
     bytes data;
 }
 
+// @dev SolanaPdaQueryResponse describes a Solana PDA query per-chain query.
+struct SolanaPdaQueryResponse {
+    bytes requestCommitment;
+    uint64 requestMinContextSlot;
+    uint64 requestDataSliceOffset;
+    uint64 requestDataSliceLength;
+    uint64 slotNumber;
+    uint64 blockTime;
+    bytes32 blockHash;
+    SolanaPdaResult [] results;
+}
+
+// @dev SolanaPdaResult describes a single Solana PDA query result.
+struct SolanaPdaResult {
+    bytes32 programId;
+    bytes[] seeds;
+    bytes32 account;
+    uint64 lamports;
+    uint64 rentEpoch;
+    bool executable;
+    bytes32 owner;
+    bytes data;
+    uint8 bump;
+}
+
 // Custom errors
 error EmptyWormholeAddress();
 error InvalidResponseVersion();
@@ -115,7 +140,8 @@ abstract contract QueryResponse {
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
     uint8 public constant QT_SOL_ACCOUNT = 4;
-    uint8 public constant QT_MAX = 5; // Keep this last
+    uint8 public constant QT_SOL_PDA = 5;
+    uint8 public constant QT_MAX = 6; // Keep this last
 
     constructor(address _wormhole) {
         if (_wormhole == address(0)) {
@@ -423,6 +449,71 @@ abstract contract QueryResponse {
 
             (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
+    }
+
+    /// @dev parseSolanaPdaQueryResponse parses a ParsedPerChainQueryResponse for a Solana Pda per-chain query.
+    function parseSolanaPdaQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaPdaQueryResponse memory r) {
+        if (pcr.queryType != QT_SOL_PDA) {
+            revert UnsupportedQueryType();
+        }
+
+        uint reqIdx;
+        uint respIdx;
+        uint32 len;
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
+        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
+        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
+        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
+        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
+
+        uint8 numPdas;
+        (numPdas, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_Pdas
+
+        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numPdas) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.results = new SolanaPdaResult[](numPdas);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx; idx < numPdas;) {
+            (r.results[idx].programId, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request programId
+
+            uint8 numSeeds; // Request number of seeds
+            (numSeeds, reqIdx) = pcr.request.asUint8Unchecked(reqIdx);
+            r.results[idx].seeds = new bytes[](numSeeds);
+            for (uint idx2; idx2 < numSeeds;) {
+                uint32 seedLen;
+                (seedLen, reqIdx) = pcr.request.asUint32Unchecked(reqIdx);
+                (r.results[idx].seeds[idx2], reqIdx) = pcr.request.sliceUnchecked(reqIdx, seedLen);
+                unchecked { ++idx2; }
+            }
+
+            (r.results[idx].account, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response account
+            (r.results[idx].bump, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response bump
+
+            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
+            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
+
+            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnckecked(respIdx); // Response executable
+
+            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);

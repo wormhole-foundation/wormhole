@@ -86,6 +86,65 @@ contract TestQueryTest is Test {
         assertEq(ecr, hex"0000000966696e616c697a65640000000000001f85000000000000000a000000000000001402165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7");
     }
 
+    function test_buildSolanaPdaRequestBytes() public {
+        bytes[] memory seeds = new bytes[](2);
+        seeds[0] = hex"477561726469616e536574";
+        seeds[1] = hex"00000000";
+        bytes memory seedBytes = QueryTest.buildSolanaPdaSeedBytes(seeds);
+        assertEq(seedBytes, hex"0000000b477561726469616e5365740000000400000000");
+
+        bytes32 programId = hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa";
+        bytes memory pdaBytes = QueryTest.buildSolanaPdaEntry(
+            programId,
+            uint8(seeds.length),
+            seedBytes
+        );
+        assertEq(pdaBytes, hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000");
+
+        bytes memory ecr = QueryTest.buildSolanaPdaRequestBytes(
+            /* commitment */      "finalized",
+            /* minContextSlot */  2303,
+            /* dataSliceOffset */ 12,
+            /* dataSliceLength */ 20,
+            /* numPdas */         1,
+            /* pdas */            pdaBytes
+        );
+        assertEq(ecr, hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000");
+    }
+
+    function test_buildSolanaPdaSeedBytesTooManySeeds() public {
+        bytes[] memory seeds = new bytes[](17);
+        seeds[0] = "junk";
+        seeds[1] = "junk";
+        seeds[2] = "junk";
+        seeds[3] = "junk";
+        seeds[4] = "junk";
+        seeds[5] = "junk";
+        seeds[6] = "junk";
+        seeds[7] = "junk";
+        seeds[8] = "junk";
+        seeds[9] = "junk";
+        seeds[10] = "junk";
+        seeds[11] = "junk";
+        seeds[12] = "junk";
+        seeds[13] = "junk";
+        seeds[14] = "junk";
+        seeds[15] = "junk";
+        seeds[16] = "junk";
+
+        vm.expectRevert(QueryTest.SolanaTooManySeeds.selector);
+        QueryTest.buildSolanaPdaSeedBytes(seeds);
+    }
+
+    function test_buildSolanaPdaSeedBytesSeedTooLong() public {
+        bytes[] memory seeds = new bytes[](2);
+        seeds[0] = "junk";
+        seeds[1] = "This seed is too long!!!!!!!!!!!!";
+
+        vm.expectRevert(QueryTest.SolanaSeedTooLong.selector);
+        QueryTest.buildSolanaPdaSeedBytes(seeds);
+    }
+
     //
     // Query Response tests
     //
@@ -167,5 +226,16 @@ contract TestQueryTest is Test {
             /* results */     hex"0000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
         );
         assertEq(ecr, hex"00000000000015e3000610cdf2510500e0eca895a92c0347e30538cd07c50777440de58e896dd13ff86ef0dae3e12552020000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000");
+    }
+
+    function test_buildSolanaPdaResponseBytes() public {
+        bytes memory ecr = QueryTest.buildSolanaPdaResponseBytes(
+            /* slotNumber */  2303,
+            /* blockTimeUs */ 0x6115e3f6d7540,
+            /* blockHash */   hex"e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b",
+            /* numResults */  1,
+            /* results */     hex"4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65"
+        );
+        assertEq(ecr, hex"00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65");
     }
 }
