@@ -22,7 +22,6 @@
 // The set of chains to be monitored is specified in chains.go, which can be edited by hand.
 //
 // To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
-
 package governor
 
 import (
@@ -58,6 +57,8 @@ type (
 		coinGeckoId string
 		decimals    int64
 		price       float64
+		// Whether incoming transfers using this asset can reduce the governor 
+		flowCancels bool
 	}
 
 	// Layout of the config data for each chain
@@ -83,6 +84,8 @@ type (
 		cfgPrice       *big.Float
 		coinGeckoPrice *big.Float
 		priceTime      time.Time
+		// Whether incoming transfers using this asset can reduce the governor 
+		flowCancels    bool
 	}
 
 	// Payload for each enqueued transfer

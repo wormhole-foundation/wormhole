@@ -88,3 +88,27 @@ func TestTokenListEmptyCoinGeckoId(t *testing.T) {
 		assert.Greater(t, len(tokenConfigEntry.coinGeckoId), 0)
 	}
 }
+
+
+func TestTokenListCorrectNumberOfFlowCancellingTokens(t *testing.T) {
+	tokenConfigEntries := tokenList()
+
+	/* Check that the number of tokens in the tokenList with `flowCancels = true` is the same as the number of tokens that are manually marked for flow cancelling */
+	markedCount := 0
+	for _, tokenConfigEntry := range tokenConfigEntries {
+		if tokenConfigEntry.flowCancels == true {
+			markedCount++
+		}
+	}
+
+	assert.Equal(t, len(flowCancelTokenList()), markedCount)
+}
+
+func TestTokenListNoNilValueForFlowCancelField(t *testing.T) {
+	tokenConfigEntries := tokenList()
+
+	/* Ensure that the flowCancels field is not nil */
+	for _, token := range tokenConfigEntries {
+		assert.NotNil(t, token.flowCancels)
+	}
+}
