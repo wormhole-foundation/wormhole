@@ -113,6 +113,18 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 	return
 }
 
+func checkTargetOnReleasedIsSet(t *testing.T, toBePublished []*common.MessagePublication, targetChain vaa.ChainID, targetAddressStr string) {
+	require.NotEqual(t, 0, len(toBePublished))
+	toAddr, err := vaa.StringToAddress(targetAddressStr)
+	require.NoError(t, err)
+	for _, msg := range toBePublished {
+		payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
+		require.NoError(t, err)
+		assert.Equal(t, targetChain, payload.TargetChain)
+		assert.Equal(t, toAddr, payload.TargetAddress)
+	}
+}
+
 func TestTrimEmptyTransfers(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
@@ -784,6 +796,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1011,6 +1024,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1234,6 +1248,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1324,6 +1339,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	assert.Equal(t, false, canPost)
