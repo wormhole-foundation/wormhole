@@ -66,7 +66,7 @@ type (
 	SolanaPda struct {
 		Chain          int    `json:"chain"`
 		ProgramAddress string `json:"programAddress"`
-		// TODO: Should we make them specify seeds as well?
+		// As a future enhancement, we may want to specify the allowed seeds.
 	}
 
 	PermissionsMap map[string]*permissionEntry

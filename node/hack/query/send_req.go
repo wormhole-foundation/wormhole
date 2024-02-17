@@ -509,9 +509,9 @@ func sendSolanaQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.Privat
 				for index := range response.PerChainResponses {
 					switch r := response.PerChainResponses[index].Response.(type) {
 					case *query.SolanaAccountQueryResponse:
-						logger.Info("solana query per chain response", zap.Int("index", index), zap.Any("pcr", r))
+						logger.Info("solana account query per chain response", zap.Int("index", index), zap.Any("pcr", r))
 					case *query.SolanaPdaQueryResponse:
-						logger.Info("solana query per chain response", zap.Int("index", index), zap.Any("pcr", r))
+						logger.Info("solana pda query per chain response", zap.Int("index", index), zap.Any("pcr", r))
 					default:
 						panic(fmt.Sprintf("unsupported query type, should be solana, index: %d", index))
 					}
