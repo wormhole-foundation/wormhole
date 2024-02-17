@@ -14,6 +14,7 @@ import {
   SolanaAccountQueryRequest,
   SolanaAccountQueryResponse,
   SolanaAccountResult,
+  SolanaPdaEntry,
   PerChainQueryRequest,
   QueryRequest,
   sign,
@@ -27,7 +28,9 @@ const ENV = "DEVNET";
 const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
 const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
 const QUERY_URL = CCQ_SERVER_URL + "/query";
-const SOLANA_NODE_URL = CI ? "http://solana-devnet:8899" : "http://localhost:8899";
+const SOLANA_NODE_URL = CI
+  ? "http://solana-devnet:8899"
+  : "http://localhost:8899";
 
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -35,6 +38,18 @@ const PRIVATE_KEY =
 const ACCOUNTS = [
   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
   "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
+];
+
+const PDAS: SolanaPdaEntry[] = [
+  {
+    programAddress: Uint8Array.from(
+      base58.decode("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
+    ), // Core Bridge address
+    seeds: [
+      new Uint8Array(Buffer.from("GuardianSet")),
+      new Uint8Array(Buffer.alloc(4)),
+    ], // Use index zero in tilt.
+  },
 ];
 
 async function getSolanaSlot(comm: string): Promise<bigint> {
