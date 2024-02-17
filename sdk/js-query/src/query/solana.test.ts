@@ -16,6 +16,7 @@ import {
   SolanaAccountResult,
   SolanaPdaEntry,
   SolanaPdaQueryRequest,
+  SolanaPdaQueryResponse,
   PerChainQueryRequest,
   QueryRequest,
   sign,
@@ -290,5 +291,41 @@ describe("solana", () => {
     );
     const solPdaReq2 = SolanaPdaQueryRequest.from(serialized);
     expect(solPdaReq2).toEqual(solPdaReq);
+  });
+
+  test("deserialize sol_pda response", () => {
+    const respBytes = Buffer.from(
+      "0100000c8418d81c00aad6283ba3eb30e141ccdd9296e013ca44e5cc713418921253004b93107ba0d858a548ce989e2bca4132e4c2f9a57a9892e3a87a8304cdb36d8f000000006b010000002b010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000010001050000009b00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65",
+      "hex"
+    );
+    const queryResponse = QueryResponse.from(respBytes);
+    expect(queryResponse.version).toEqual(1);
+    expect(queryResponse.requestChainId).toEqual(0);
+    expect(queryResponse.request.version).toEqual(1);
+    expect(queryResponse.request.requests.length).toEqual(1);
+    expect(queryResponse.request.requests[0].chainId).toEqual(1);
+    expect(queryResponse.request.requests[0].query.type()).toEqual(
+      ChainQueryType.SolanaPda
+    );
+
+    const sar = queryResponse.responses[0].response as SolanaPdaQueryResponse;
+
+    expect(sar.slotNumber).toEqual(BigInt(2303));
+    expect(sar.blockTime).toEqual(BigInt(0x0006115e3f6d7540));
+    expect(sar.results.length).toEqual(1);
+
+    expect(Buffer.from(sar.results[0].account).toString("hex")).toEqual(
+      "4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"
+    );
+    expect(sar.results[0].bump).toEqual(253);
+    expect(sar.results[0].lamports).toEqual(BigInt(1141440));
+    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(sar.results[0].executable).toEqual(false);
+    expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
+      "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
+    );
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "57cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65"
+    );
   });
 });
