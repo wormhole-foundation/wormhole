@@ -15,6 +15,7 @@ import {
   SolanaAccountQueryResponse,
   SolanaAccountResult,
   SolanaPdaEntry,
+  SolanaPdaQueryRequest,
   PerChainQueryRequest,
   QueryRequest,
   sign,
@@ -271,5 +272,23 @@ describe("solana", () => {
     expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
       "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
     );
+  });
+  test("serialize and deserialize sol_pda request with defaults", () => {
+    const solPdaReq = new SolanaPdaQueryRequest(
+      "finalized",
+      PDAS,
+      BigInt(123456),
+      BigInt(12),
+      BigInt(20)
+    );
+    expect(solPdaReq.minContextSlot).toEqual(BigInt(123456));
+    expect(solPdaReq.dataSliceOffset).toEqual(BigInt(12));
+    expect(solPdaReq.dataSliceLength).toEqual(BigInt(20));
+    const serialized = solPdaReq.serialize();
+    expect(Buffer.from(serialized).toString("hex")).toEqual(
+      "0000000966696e616c697a6564000000000001e240000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000"
+    );
+    const solPdaReq2 = SolanaPdaQueryRequest.from(serialized);
+    expect(solPdaReq2).toEqual(solPdaReq);
   });
 });
