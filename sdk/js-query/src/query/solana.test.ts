@@ -26,6 +26,11 @@ import {
 
 jest.setTimeout(125000);
 
+// @ts-ignore
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 const CI = process.env.CI;
 const ENV = "DEVNET";
 const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";

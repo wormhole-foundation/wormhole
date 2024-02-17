@@ -34,7 +34,7 @@
   "sideEffects": false,
   "dependencies": {
     "@ethersproject/keccak256": "^5.7.0",
-    "@solana/web3.js": "^1.90.0",
+    "@solana/web3.js": "^1.66.2",
     "@types/elliptic": "^6.4.14",
     "axios": "^1.6.7",
     "bs58": "^4.0.1",
