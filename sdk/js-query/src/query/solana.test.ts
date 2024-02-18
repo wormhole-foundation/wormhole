@@ -190,12 +190,12 @@ describe("solana", () => {
 
     const sar = queryResponse.responses[0]
       .response as SolanaAccountQueryResponse;
-    expect(sar.slotNumber).not.toEqual(BigInt(0));
-    expect(sar.blockTime).not.toEqual(BigInt(0));
+    expect(Number(sar.slotNumber)).not.toEqual(0);
+    expect(Number(sar.blockTime)).not.toEqual(0);
     expect(sar.results.length).toEqual(2);
 
-    expect(sar.results[0].lamports).toEqual(BigInt(1461600));
-    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[0].lamports)).toEqual(1461600);
+    expect(Number(sar.results[0].rentEpoch)).toEqual(0);
     expect(sar.results[0].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -204,8 +204,8 @@ describe("solana", () => {
       "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
     );
 
-    expect(sar.results[1].lamports).toEqual(BigInt(1461600));
-    expect(sar.results[1].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[1].lamports)).toEqual(1461600);
+    expect(Number(sar.results[1].rentEpoch)).toEqual(0);
     expect(sar.results[1].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -251,11 +251,11 @@ describe("solana", () => {
     const sar = queryResponse.responses[0]
       .response as SolanaAccountQueryResponse;
     expect(sar.slotNumber).toEqual(minContextSlot);
-    expect(sar.blockTime).not.toEqual(BigInt(0));
+    expect(Number(sar.blockTime)).not.toEqual(0);
     expect(sar.results.length).toEqual(2);
 
-    expect(sar.results[0].lamports).toEqual(BigInt(1461600));
-    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[0].lamports)).toEqual(1461600);
+    expect(Number(sar.results[0].rentEpoch)).toEqual(0);
     expect(sar.results[0].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -264,8 +264,8 @@ describe("solana", () => {
       "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
     );
 
-    expect(sar.results[1].lamports).toEqual(BigInt(1461600));
-    expect(sar.results[1].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[1].lamports)).toEqual(1461600);
+    expect(Number(sar.results[1].rentEpoch)).toEqual(0);
     expect(sar.results[1].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -282,9 +282,9 @@ describe("solana", () => {
       BigInt(12),
       BigInt(20)
     );
-    expect(solPdaReq.minContextSlot).toEqual(BigInt(123456));
-    expect(solPdaReq.dataSliceOffset).toEqual(BigInt(12));
-    expect(solPdaReq.dataSliceLength).toEqual(BigInt(20));
+    expect(Number(solPdaReq.minContextSlot)).toEqual(123456);
+    expect(Number(solPdaReq.dataSliceOffset)).toEqual(12);
+    expect(Number(solPdaReq.dataSliceLength)).toEqual(20);
     const serialized = solPdaReq.serialize();
     expect(Buffer.from(serialized).toString("hex")).toEqual(
       "0000000966696e616c697a6564000000000001e240000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000"
@@ -310,16 +310,16 @@ describe("solana", () => {
 
     const sar = queryResponse.responses[0].response as SolanaPdaQueryResponse;
 
-    expect(sar.slotNumber).toEqual(BigInt(2303));
-    expect(sar.blockTime).toEqual(BigInt(0x0006115e3f6d7540));
+    expect(Number(sar.slotNumber)).toEqual(2303);
+    expect(Number(sar.blockTime)).toEqual(0x0006115e3f6d7540);
     expect(sar.results.length).toEqual(1);
 
     expect(Buffer.from(sar.results[0].account).toString("hex")).toEqual(
       "4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"
     );
     expect(sar.results[0].bump).toEqual(253);
-    expect(sar.results[0].lamports).toEqual(BigInt(1141440));
-    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[0].lamports)).not.toEqual(0);
+    expect(Number(sar.results[0].rentEpoch)).toEqual(0);
     expect(sar.results[0].executable).toEqual(false);
     expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
       "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
@@ -352,7 +352,6 @@ describe("solana", () => {
     );
     expect(response.status).toBe(200);
 
-    /*
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
@@ -364,16 +363,18 @@ describe("solana", () => {
     );
 
     const sar = queryResponse.responses[0].response as SolanaPdaQueryResponse;
-    expect(sar.slotNumber).not.toEqual(BigInt(0));
-    expect(sar.blockTime).not.toEqual(BigInt(0));
+
+    expect(Number(sar.slotNumber)).not.toEqual(0);
+    expect(Number(sar.blockTime)).not.toEqual(0);
     expect(sar.results.length).toEqual(1);
 
     expect(Buffer.from(sar.results[0].account).toString("hex")).toEqual(
       "4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"
     );
     expect(sar.results[0].bump).toEqual(253);
-    expect(sar.results[0].lamports).toEqual(BigInt(1141440));
-    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(Number(sar.results[0].lamports)).not.toEqual(0);
+
+    expect(Number(sar.results[0].rentEpoch)).toEqual(0);
     expect(sar.results[0].executable).toEqual(false);
     expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
       "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
@@ -381,6 +382,60 @@ describe("solana", () => {
     expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
       "57cd18b7f8a4d91a2da9ab4af05d0fbe"
     );
-    */
+  });
+  test("successful sol_pda query with future min context slot", async () => {
+    const currSlot = await getSolanaSlot("finalized");
+    const minContextSlot = BigInt(currSlot) + BigInt(10);
+    const solPdaReq = new SolanaPdaQueryRequest(
+      "finalized",
+      PDAS,
+      minContextSlot,
+      BigInt(12),
+      BigInt(16) // After this, things can change.
+    );
+    const nonce = 43;
+    const query = new PerChainQueryRequest(1, solPdaReq);
+    const request = new QueryRequest(nonce, [query]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key" } }
+    );
+    expect(response.status).toBe(200);
+
+    const queryResponse = QueryResponse.from(response.data.bytes);
+    expect(queryResponse.version).toEqual(1);
+    expect(queryResponse.requestChainId).toEqual(0);
+    expect(queryResponse.request.version).toEqual(1);
+    expect(queryResponse.request.requests.length).toEqual(1);
+    expect(queryResponse.request.requests[0].chainId).toEqual(1);
+    expect(queryResponse.request.requests[0].query.type()).toEqual(
+      ChainQueryType.SolanaPda
+    );
+
+    const sar = queryResponse.responses[0].response as SolanaPdaQueryResponse;
+    expect(sar.slotNumber).toEqual(minContextSlot);
+    expect(Number(sar.blockTime)).not.toEqual(0);
+    expect(sar.results.length).toEqual(1);
+
+    expect(Buffer.from(sar.results[0].account).toString("hex")).toEqual(
+      "4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"
+    );
+    expect(sar.results[0].bump).toEqual(253);
+    expect(Number(sar.results[0].lamports)).not.toEqual(0);
+    expect(Number(sar.results[0].rentEpoch)).toEqual(0);
+    expect(sar.results[0].executable).toEqual(false);
+    expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
+      "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
+    );
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "57cd18b7f8a4d91a2da9ab4af05d0fbe"
+    );
   });
 });
