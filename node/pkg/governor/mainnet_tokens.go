@@ -2,7 +2,7 @@ package governor
 
 func tokenList() []tokenConfigEntry {
 	allTokens := append(manualTokenList(), generatedMainnetTokenList()...)
-	flowCancelTokens := flowCancelTokenList()
+	flowCancelTokens := FlowCancelTokenList()
 
 	// Modify tokens to be flow cancelling by rewriting the allTokens slice.
 	// Existing entries that should be flow-cancelled are overwritten by entries

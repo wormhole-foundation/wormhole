@@ -1,9 +1,9 @@
 package governor
 
-// flowCancelTokenList function    
+// FlowCancelTokenList function    
 // Returns a list of `tokenConfigEntry`s representing tokens that can 'Flow Cancel'. This means that incoming transfers
 // that use these tokens can reduce the 'daily limit' of the Governor configured for the destination chain. 
-func flowCancelTokenList() []tokenConfigEntry {
+func FlowCancelTokenList() []tokenConfigEntry {
 	// TODO: Remove price?
 	return []tokenConfigEntry{
 		// USDC variants
