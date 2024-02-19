@@ -606,7 +606,7 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   neutron: {
-    core: "neutron1rhqgnak5z0pla5sgqq7ykqh8glckk4h67fe0hgjfcyulx2nqa0yqaswtnp",
+    core: "neutron1enf63k37nnv9cugggpm06mg70emcnxgj9p64v2s8yx7a2yhhzk2q6xesk4",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
