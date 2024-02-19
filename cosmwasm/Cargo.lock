@@ -1261,6 +1261,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
+name = "ntt-global-accountant"
+version = "0.1.0"
+dependencies = [
+ "accountant",
+ "anyhow",
+ "base64",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus 0.13.4",
+ "cw2 0.13.4",
+ "cw_transcode",
+ "hex",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "serde_wormhole",
+ "thiserror",
+ "tinyvec",
+ "wormhole-bindings",
+ "wormhole-sdk",
+]
+
+[[package]]
 name = "num_cpus"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
