@@ -55,8 +55,6 @@ type (
 		coinGeckoId string
 		decimals    int64
 		price       float64
-		// Whether incoming transfers using this asset can reduce the governor 
-		flowCancels bool
 	}
 
 	// Layout of the config data for each chain
@@ -82,8 +80,6 @@ type (
 		cfgPrice       *big.Float
 		coinGeckoPrice *big.Float
 		priceTime      time.Time
-		// Whether incoming transfers using this asset can reduce the governor 
-		flowCancels    bool
 	}
 
 	// Payload for each enqueued transfer
