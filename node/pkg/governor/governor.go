@@ -698,9 +698,7 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime
 	return sum, nil
 }
 
-
-
-// SumFlowCancellingTransfersForChain iterates over a slice of transfers and sums their value.
+// SumTransferValues iterates over a slice of transfers and sums their value.
 func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint64, err error) {
 
 	// flowCancellingTransfers := gov.FlowCancellingTransfers(startTime)
