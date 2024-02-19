@@ -197,14 +197,13 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the desintation chain must be the same as the emitter chain
 	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain:originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain: originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
 
 	// Populate chainEntrys and ChainGovernor
 	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
 	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
 	gov.chains[emitter.emitterChainId] = emitter
 	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
-
 
 	//XXX: sanity check
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
@@ -215,7 +214,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// Calculate Governor Usage for emitter, including flow cancelling
 	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, emitterTransferValue - flowCancelValue, sum)
+	assert.Equal(t, emitterTransferValue-flowCancelValue, sum)
 }
 
 // Flow cancelling transfers are subtracted from the overall sum of all transfers from a given
@@ -257,7 +256,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the desintation chain must be the same as the emitter chain
 	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain:originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain: originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
 
 	// Populate chainEntrys and ChainGovernor
 	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
@@ -279,7 +278,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 
 // Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
 // the conifigured Governor limit. This should never happen, so we make sure that an error
-// is returned if the system is in this state 
+// is returned if the system is in this state
 func TestInvariantGovernorLimit(t *testing.T) {
 
 	ctx := context.Background()
@@ -296,7 +295,7 @@ func TestInvariantGovernorLimit(t *testing.T) {
 
 	emitterTransferValue := uint64(125000)
 
-	emitterLimit := emitterTransferValue * 20 
+	emitterLimit := emitterTransferValue * 20
 	emitterChainId := 1
 
 	// Create a lot of transfers. Their total value should exceed `emiitterLimit`
@@ -307,7 +306,6 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	// Populate chainEntry and ChainGovernor
 	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
 	gov.chains[emitter.emitterChainId] = emitter
-
 
 	// XXX: sanity check
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)

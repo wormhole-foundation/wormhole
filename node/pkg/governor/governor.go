@@ -356,7 +356,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
-
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
 		gov.logger.Error("total value has overflowed",
@@ -660,13 +659,13 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a 
+// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
-// that have the `emitter` as their destination chain. 
+// that have the `emitter` as their destination chain.
 // The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
-// 
+//
 // As a side-effect, this function modifies the parameter `emitter`, upating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
 func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
@@ -706,7 +705,7 @@ func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint6
 	// Iterate over all transfers usin tokens that have flow cancelling enabled.
 	// If the destination chain of the transfer is equal to the `ce` parameter, add the value
 	// of the transfer to the flow cancelling sum.
-	for _, transfer := range(transfers) {
+	for _, transfer := range transfers {
 		// Overflow check. Note that transfer.Value cannot be negative
 		if (sum + transfer.Value) < sum {
 			return 0, errors.New("Overflow when calculating flow cancelling sum")
@@ -739,8 +738,8 @@ func (gov *ChainGovernor) FlowCancellingTransfersForChain(destinationChainID vaa
 			}
 
 			for _, flowCancelToken := range flowCancelTokens {
-				if uint16(transfer.OriginChain) == flowCancelToken.chain &&  // convert vaa.ChainID to uint16
-				transfer.OriginAddress.String() == flowCancelToken.addr {    // convert vaa.Address to String
+				if uint16(transfer.OriginChain) == flowCancelToken.chain && // convert vaa.ChainID to uint16
+					transfer.OriginAddress.String() == flowCancelToken.addr { // convert vaa.Address to String
 					transfers = append(transfers, transfer)
 				}
 			}
@@ -749,7 +748,6 @@ func (gov *ChainGovernor) FlowCancellingTransfersForChain(destinationChainID vaa
 
 	return transfers
 }
-
 
 // TrimAndSumValue iterates over a slice of db.Transfer structs. It filters out transfers that have a Timestamp value that
 // is earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
