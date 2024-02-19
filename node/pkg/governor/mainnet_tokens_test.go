@@ -101,7 +101,7 @@ func TestTokenListCorrectNumberOfFlowCancellingTokens(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, len(flowCancelTokenList()), markedCount)
+	assert.Equal(t, len(FlowCancelTokenList()), markedCount)
 }
 
 func TestTokenListNoNilValueForFlowCancelField(t *testing.T) {

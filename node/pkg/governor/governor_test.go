@@ -163,6 +163,61 @@ func TestSumAllFromToday(t *testing.T) {
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
+func TestSumWithFlowCancelling(t *testing.T) {
+
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var originChain vaa.ChainID
+	originChain = 2
+	var originAddress vaa.Address
+	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	var transfers_from_emitter []*db.Transfer
+	var transfers_that_flow_cancel []*db.Transfer
+	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	// Set up values and governor limit
+	emitterTransferValue := uint64(125000)
+	flowCancelValue := uint64(100000)
+
+	emitterLimit := emitterTransferValue * 2 // make sure the limit always exceeds the transfer value
+	emitterChainId := 1
+
+	// Setup transfers
+	// - Transfer from emitter: we only care about Value
+	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
+	//				 and the desintation chain must be the same as the emitter chain
+	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain:originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+
+	// Populate chainEntrys and ChainGovernor
+	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
+	gov.chains[emitter.emitterChainId] = emitter
+	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
+
+
+	//XXX: sanity check
+	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
+	require.NoError(t, err)
+	assert.NotZero(t, len(transfers))
+	assert.NotZero(t, sum)
+
+	// Calculate Governor Usage for emitter
+	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.NoError(t, err)
+	assert.Equal(t, emitterTransferValue - flowCancelValue, sum)
+}
+
 func TestTrimOneOfTwoTransfers(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
