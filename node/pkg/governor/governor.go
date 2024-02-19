@@ -447,8 +447,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	emitter.transfers = append(emitter.transfers, &xfer)
-	// TODO: check against allow-list
-	// TODO: Add second transfer list with negative amounts -- OR add negative amounts to this transfer list
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
 }
