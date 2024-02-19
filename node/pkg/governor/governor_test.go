@@ -212,10 +212,114 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	assert.NotZero(t, len(transfers))
 	assert.NotZero(t, sum)
 
-	// Calculate Governor Usage for emitter
+	// Calculate Governor Usage for emitter, including flow cancelling
 	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, emitterTransferValue - flowCancelValue, sum)
+}
+
+// Flow cancelling transfers are subtracted from the overall sum of all transfers from a given
+// emitter chain. Since we are working with uint64 values, ensure that there is no underflow.
+// When the sum of all flow cancelling transfers is greater than emitted transfers for a chain,
+// the expected result is that the resulting Governor Usage equals 0 (and not a negative number
+// or a very large underflow result).
+// Also, the function should not return an error in this case.
+func TestFlowCancelCannotUnderflow(t *testing.T) {
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var originChain vaa.ChainID
+	originChain = 2
+	var originAddress vaa.Address
+	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	var transfers_from_emitter []*db.Transfer
+	var transfers_that_flow_cancel []*db.Transfer
+	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	// Set up values and governor limit
+	emitterTransferValue := uint64(100000)
+	flowCancelValue := emitterTransferValue + 25000 // make sure this value is higher than `emitterTransferValue`
+
+	emitterLimit := emitterTransferValue * 2 // make sure the limit always exceeds the transfer value
+	emitterChainId := 1
+
+	// Setup transfers
+	// - Transfer from emitter: we only care about Value
+	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
+	//				 and the desintation chain must be the same as the emitter chain
+	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain:originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+
+	// Populate chainEntrys and ChainGovernor
+	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
+	gov.chains[emitter.emitterChainId] = emitter
+	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
+
+	//XXX: sanity check: Sum of transfers without flow cancelling should be positive.
+	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
+	require.NoError(t, err)
+	assert.NotZero(t, len(transfers))
+	assert.Greater(t, sum, uint64(0))
+
+	// Calculate Governor Usage for emitter, including flow cancelling
+	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.NoError(t, err)
+	assert.Zero(t, sum)
+}
+
+// Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
+// the conifigured Governor limit. This should never happen, so we make sure that an error
+// is returned if the system is in this state 
+func TestInvariantGovernorLimit(t *testing.T) {
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	var transfers_from_emitter []*db.Transfer
+	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	emitterTransferValue := uint64(125000)
+
+	emitterLimit := emitterTransferValue * 20 
+	emitterChainId := 1
+
+	// Create a lot of transfers. Their total value should exceed `emiitterLimit`
+	for i := 0; i < 25; i++ {
+		transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+	}
+
+	// Populate chainEntry and ChainGovernor
+	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	gov.chains[emitter.emitterChainId] = emitter
+
+
+	// XXX: sanity check
+	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
+	require.NoError(t, err)
+	assert.NotZero(t, len(transfers))
+	assert.NotZero(t, sum)
+
+	// Make sure we trigger the Invariant
+	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Invariant violation: calculated sum")
+	assert.Zero(t, sum)
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
