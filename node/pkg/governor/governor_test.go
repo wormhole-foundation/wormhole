@@ -166,8 +166,7 @@ func TestSumAllFromToday(t *testing.T) {
 func TestSumWithFlowCancelling(t *testing.T) {
 
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
-	var originChain vaa.ChainID
-	originChain = 2
+	var originChain vaa.ChainID = 2
 	var originAddress vaa.Address
 	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
 	require.NoError(t, err)
@@ -225,8 +224,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 // Also, the function should not return an error in this case.
 func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
-	var originChain vaa.ChainID
-	originChain = 2
+	var originChain vaa.ChainID = 2
 	var originAddress vaa.Address
 	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
 	require.NoError(t, err)
