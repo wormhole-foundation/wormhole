@@ -302,7 +302,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	msgIsGoverned, emitter, token, payload, err := gov.parseMsgAlreadyLocked(msg)
+	msgIsGoverned, emitterChainEntry, token, payload, err := gov.parseMsgAlreadyLocked(msg)
 	if err != nil {
 		return false, err
 	}
@@ -331,9 +331,9 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
-	// Get all outgoing transfers for `emitter` that happened within the last 24 hours
+	// Get all outgoing transfers for `emitterChainEntry` that happened within the last 24 hours
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(emitter, startTime)
+	prevTotalValue, err := gov.TrimAndSumValueForChain(emitterChainEntry, startTime)
 	if err != nil {
 		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
@@ -370,7 +370,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	enqueueIt := false
 	var releaseTime time.Time
-	if emitter.isBigTransfer(value) {
+	if emitterChainEntry.isBigTransfer(value) {
 		enqueueIt = true
 		releaseTime = now.Add(maxEnqueuedTime)
 		gov.logger.Error("enqueuing vaa because it is a big transaction",
@@ -379,11 +379,11 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("newTotalValue", newTotalValue),
 			zap.String("msgID", msg.MessageIDString()),
 			zap.Stringer("releaseTime", releaseTime),
-			zap.Uint64("bigTransactionSize", emitter.bigTransactionSize),
+			zap.Uint64("bigTransactionSize", emitterChainEntry.bigTransactionSize),
 			zap.String("hash", hash),
 			zap.Stringer("txHash", msg.TxHash),
 		)
-	} else if newTotalValue > emitter.dailyLimit {
+	} else if newTotalValue > emitterChainEntry.dailyLimit {
 		enqueueIt = true
 		releaseTime = now.Add(maxEnqueuedTime)
 		gov.logger.Error("enqueuing vaa because it would exceed the daily limit",
@@ -410,7 +410,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			return false, err
 		}
 
-		emitter.pending = append(emitter.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
+		emitterChainEntry.pending = append(emitterChainEntry.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
 		gov.msgsSeen[hash] = transferEnqueued
 		return false, nil
 	}
@@ -445,7 +445,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
-	emitter.transfers = append(emitter.transfers, &xfer)
+	emitterChainEntry.transfers = append(emitterChainEntry.transfers, &xfer)
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
 }
@@ -738,8 +738,11 @@ func (gov *ChainGovernor) FlowCancellingTransfersForChain(destinationChainID vaa
 			}
 
 			for _, flowCancelToken := range flowCancelTokens {
-				if uint16(transfer.OriginChain) == flowCancelToken.chain && // convert vaa.ChainID to uint16
-					transfer.OriginAddress.String() == flowCancelToken.addr { // convert vaa.Address to String
+				// Compare flow cancel fields with transfer fields. This requires a couple of conversions:
+				// - vaa.ChainID to uint16
+				// - vaa.Address to String
+				if uint16(transfer.OriginChain) == flowCancelToken.chain &&
+					transfer.OriginAddress.String() == flowCancelToken.addr {
 					transfers = append(transfers, transfer)
 				}
 			}
