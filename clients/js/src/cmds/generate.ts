@@ -1,4 +1,3 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk/lib/esm/utils/array";
 import {
   assertChain,
   ChainName,
@@ -7,6 +6,12 @@ import {
   isEVMChain,
   toChainId,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  Chain,
+  Wormhole,
+  chains,
+  serialize,
+} from "@wormhole-foundation/connect-sdk";
 import { fromBech32, toHex } from "@cosmjs/encoding";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
@@ -59,6 +64,60 @@ export const builder = function (y: typeof yargs) {
         describe: "Guardians' secret keys (CSV)",
         type: "string",
       })
+      // NTT Transfer VAA
+      .command(
+        "transfer",
+        "Generate an NTT transfer VAA",
+        (yargs) =>
+          yargs
+            .option("source-chain", {
+              alias: "sc",
+              describe: "Chain to send from",
+              choices: Object.keys(chains) as Chain[],
+              demandOption: true,
+            } as const)
+            .option("token-address", {
+              alias: "t",
+              describe: "token to transfer",
+              type: "string",
+              demandOption: true,
+            })
+            .option("amount", {
+              alias: "a",
+              describe: "Amount of token to send",
+              type: "number",
+              demandOption: true,
+            } as const)
+            .option("receiver", {
+              alias: "r",
+              describe: "Address of receiver on destination chain",
+              type: "string",
+              demandOption: true,
+            } as const)
+            .option("destination-chain", {
+              alias: "dc",
+              describe: "Chain to send to",
+              choices: Object.keys(chains) as Chain[],
+              demandOption: true,
+            } as const)
+            .option("payload", {
+              alias: "p",
+              describe: "Payload to pass along with the transfer",
+              type: "string",
+            } as const),
+        (argv) => {
+          const payload = {
+            type: "NTT:TokenTransfer",
+            chain: argv["source-chain"],
+            emitter: Wormhole.parseAddress(
+              argv["chain"] as Chain,
+              argv["contract-address"] as string
+            ),
+          };
+          // ...
+          console.log(payload);
+        }
+      )
       // Registration
       .command(
         "registration",
@@ -144,6 +203,7 @@ export const builder = function (y: typeof yargs) {
           console.log(serialiseVAA(vaa));
         }
       )
+      // Attest token
       .command(
         "attestation",
         "Generate a token attestation VAA",
@@ -255,6 +315,7 @@ export const builder = function (y: typeof yargs) {
           console.log(serialiseVAA(vaa));
         }
       )
+      // SetDefaultDeliveryProvider
       .command(
         "set-default-delivery-provider",
         "Sets the default delivery provider for the Wormhole Relayer contract",
