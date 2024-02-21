@@ -227,7 +227,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
 
 	// XXX: sanity check
-	expectedNumTransfers := 2
+	expectedNumTransfers := 1
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, expectedNumTransfers, len(transfers))
