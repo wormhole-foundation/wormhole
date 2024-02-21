@@ -357,7 +357,7 @@ func TestInvariantGovernorLimit(t *testing.T) {
 
 	// Make sure we trigger the Invariant
 	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
-	require.ErrorContains(t, err, "Invariant violation: calculated sum")
+	require.ErrorContains(t, err, "invariant violation: calculated sum")
 	assert.Zero(t, sum)
 }
 
@@ -377,7 +377,7 @@ func TestInvariantSumOverflow(t *testing.T) {
 	transfers = append(transfers, &db.Transfer{Value: 1, Timestamp: transferTime})
 
 	sum, err := gov.SumTransferValues(transfers)
-	require.ErrorContains(t, err, "Overflow when calculating flow cancelling sum")
+	require.ErrorContains(t, err, "overflow when calculating flow cancelling sum")
 	assert.Zero(t, sum)
 }
 
