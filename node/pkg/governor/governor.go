@@ -1,5 +1,8 @@
 package governor
 
+// The purpose of the Chain Governor is to limit the notional TVL that can leave a chain in a single day.
+// It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
+//
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
 // its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
