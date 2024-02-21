@@ -17,12 +17,9 @@ import {
   isNative,
   serializeLayout,
   toUniversal,
-  Wormhole,
-} from "@wormhole-foundation/connect-sdk";
-import {
   NativeTokenTransfer,
   nativeTokenTransferLayout,
-} from "@wormhole-foundation/sdk-definitions/dist/cjs/payloads/ntt";
+} from "@wormhole-foundation/connect-sdk";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";

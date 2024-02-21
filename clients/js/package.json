@@ -29,9 +29,9 @@
     "cli"
   ],
   "dependencies": {
-    "@wormhole-foundation/connect-sdk": "^0.4.2-beta.0",
-    "@wormhole-foundation/connect-sdk-evm": "^0.4.2-beta.0",
-    "@wormhole-foundation/connect-sdk-solana": "^0.4.2-beta.0",
+    "@wormhole-foundation/connect-sdk": "^0.4.2-beta.1",
+    "@wormhole-foundation/connect-sdk-evm": "^0.4.2-beta.1",
+    "@wormhole-foundation/connect-sdk-solana": "^0.4.2-beta.1",
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
     "@certusone/wormhole-sdk": "^0.10.10",
     "@cosmjs/encoding": "^0.26.2",
