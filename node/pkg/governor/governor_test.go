@@ -49,7 +49,12 @@ func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
 	gov.dayLengthInMinutes = min
 }
 
-func (gov *ChainGovernor) setChainForTesting(emitterChainId vaa.ChainID, emitterAddrStr string, dailyLimit uint64, bigTransactionSize uint64) error {
+func (gov *ChainGovernor) setChainForTesting(
+	emitterChainId vaa.ChainID,
+	emitterAddrStr string,
+	dailyLimit uint64,
+	bigTransactionSize uint64,
+) error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -70,7 +75,12 @@ func (gov *ChainGovernor) setChainForTesting(emitterChainId vaa.ChainID, emitter
 	return nil
 }
 
-func (gov *ChainGovernor) setTokenForTesting(tokenChainID vaa.ChainID, tokenAddrStr string, symbol string, price float64) error {
+func (gov *ChainGovernor) setTokenForTesting(
+	tokenChainID vaa.ChainID,
+	tokenAddrStr string,
+	symbol string,
+	price float64,
+) error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -164,7 +174,6 @@ func TestSumAllFromToday(t *testing.T) {
 }
 
 func TestSumWithFlowCancelling(t *testing.T) {
-
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var originChain vaa.ChainID = 2
 	var originAddress vaa.Address
@@ -196,18 +205,32 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the desintation chain must be the same as the emitter chain
 	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain: originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(
+		transfers_that_flow_cancel,
+		&db.Transfer{
+			OriginChain:   originChain,
+			OriginAddress: originAddress,
+			TargetChain:   vaa.ChainID(emitterChainId),
+			Value:         flowCancelValue,
+			Timestamp:     transferTime,
+		},
+	)
 
 	// Populate chainEntrys and ChainGovernor
-	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	emitter := &chainEntry{
+		transfers:      transfers_from_emitter,
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     emitterLimit,
+	}
 	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
 	gov.chains[emitter.emitterChainId] = emitter
 	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
 
-	//XXX: sanity check
+	// XXX: sanity check
+	expectedNumTransfers := 2
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
-	assert.NotZero(t, len(transfers))
+	assert.Equal(t, expectedNumTransfers, len(transfers))
 	assert.NotZero(t, sum)
 
 	// Calculate Governor Usage for emitter, including flow cancelling
@@ -252,20 +275,34 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// Setup transfers
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
-	//				 and the desintation chain must be the same as the emitter chain
+	//				 and the destination chain must be the same as the emitter chain
 	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(transfers_that_flow_cancel, &db.Transfer{OriginChain: originChain, OriginAddress: originAddress, TargetChain: vaa.ChainID(emitterChainId), Value: flowCancelValue, Timestamp: transferTime})
+	transfers_that_flow_cancel = append(
+		transfers_that_flow_cancel,
+		&db.Transfer{
+			OriginChain:   originChain,
+			OriginAddress: originAddress,
+			TargetChain:   vaa.ChainID(emitterChainId),
+			Value:         flowCancelValue,
+			Timestamp:     transferTime,
+		},
+	)
 
 	// Populate chainEntrys and ChainGovernor
-	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	emitter := &chainEntry{
+		transfers:      transfers_from_emitter,
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     emitterLimit,
+	}
 	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
 	gov.chains[emitter.emitterChainId] = emitter
 	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
 
-	//XXX: sanity check: Sum of transfers without flow cancelling should be positive.
+	// XXX: sanity check: Sum of transfers without flow cancelling should be positive.
+	expectedNumTransfers := 1
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
-	assert.NotZero(t, len(transfers))
+	assert.Equal(t, expectedNumTransfers, len(transfers))
 	assert.Greater(t, sum, uint64(0))
 
 	// Calculate Governor Usage for emitter, including flow cancelling
@@ -275,10 +312,9 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 }
 
 // Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
-// the conifigured Governor limit. This should never happen, so we make sure that an error
+// the configured Governor limit. This should never happen, so we make sure that an error
 // is returned if the system is in this state
 func TestInvariantGovernorLimit(t *testing.T) {
-
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 	require.NoError(t, err)
@@ -296,19 +332,27 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	emitterLimit := emitterTransferValue * 20
 	emitterChainId := 1
 
-	// Create a lot of transfers. Their total value should exceed `emiitterLimit`
+	// Create a lot of transfers. Their total value should exceed `emitterLimit`
 	for i := 0; i < 25; i++ {
-		transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+		transfers_from_emitter = append(
+			transfers_from_emitter,
+			&db.Transfer{Value: emitterTransferValue, Timestamp: transferTime},
+		)
 	}
 
 	// Populate chainEntry and ChainGovernor
-	emitter := &chainEntry{transfers: transfers_from_emitter, emitterChainId: vaa.ChainID(emitterChainId), dailyLimit: emitterLimit}
+	emitter := &chainEntry{
+		transfers:      transfers_from_emitter,
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     emitterLimit,
+	}
 	gov.chains[emitter.emitterChainId] = emitter
 
 	// XXX: sanity check
+	expectedNumTransfers := 25
 	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
-	assert.NotZero(t, len(transfers))
+	assert.Equal(t, expectedNumTransfers, len(transfers))
 	assert.NotZero(t, sum)
 
 	// Make sure we trigger the Invariant
@@ -335,7 +379,6 @@ func TestInvariantSumOverflow(t *testing.T) {
 	sum, err := gov.SumTransferValues(transfers)
 	require.ErrorContains(t, err, "Overflow when calculating flow cancelling sum")
 	assert.Zero(t, sum)
-
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
@@ -491,7 +534,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
-	var payload = []byte{1, 97, 97, 97, 97, 97}
+	payload := []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -523,7 +566,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
-	var payload = []byte{1, 97, 97, 97, 97, 97}
+	payload := []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -556,7 +599,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	var payload = []byte{2, 97, 97, 97, 97, 97}
+	payload := []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),

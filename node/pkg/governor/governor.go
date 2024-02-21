@@ -1,3 +1,5 @@
+package governor
+
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
 // its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
@@ -19,7 +21,6 @@
 // The set of chains to be monitored is specified in chains.go, which can be edited by hand.
 //
 // To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
-package governor
 
 import (
 	"context"
@@ -201,7 +202,14 @@ func (gov *ChainGovernor) initConfig() error {
 		}
 
 		key := tokenKey{chain: vaa.ChainID(ct.chain), addr: addr}
-		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: symbol, coinGeckoId: ct.coinGeckoId, token: key}
+		te := &tokenEntry{
+			cfgPrice:    cfgPrice,
+			price:       initialPrice,
+			decimals:    decimals,
+			symbol:      symbol,
+			coinGeckoId: ct.coinGeckoId,
+			token:       key,
+		}
 		te.updatePrice()
 
 		gov.tokens[key] = te
@@ -410,7 +418,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			return false, err
 		}
 
-		emitterChainEntry.pending = append(emitterChainEntry.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
+		emitterChainEntry.pending = append(
+			emitterChainEntry.pending,
+			&pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData},
+		)
 		gov.msgsSeen[hash] = transferEnqueued
 		return false, nil
 	}
@@ -424,7 +435,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Stringer("txHash", msg.TxHash),
 	)
 
-	xfer := db.Transfer{Timestamp: now,
+	xfer := db.Transfer{
+		Timestamp:      now,
 		Value:          value,
 		OriginChain:    token.token.chain,
 		OriginAddress:  token.token.addr,
@@ -459,19 +471,27 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 }
 
 // parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor. It assumes the caller holds the lock.
-func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+func (gov *ChainGovernor) parseMsgAlreadyLocked(
+	msg *common.MessagePublication,
+) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
-			gov.logger.Info("ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
+			gov.logger.Info(
+				"ignoring vaa because the emitter chain is not configured",
+				zap.String("msgID", msg.MessageIDString()),
+			)
 		}
 		return false, nil, nil, nil, nil
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
 	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Info("ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
+		gov.logger.Info(
+			"ignoring vaa because the emitter address is not configured",
+			zap.String("msgID", msg.MessageIDString()),
+		)
 		return false, nil, nil, nil, nil
 	}
 
@@ -592,6 +612,29 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Error(err),
 					)
 					delete(gov.msgsSeen, pe.hash) // Rest of the clean up happens below.
+
+				// If we get here, publish it and remove it from the pending list.
+				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
+
+				if countsTowardsTransfers {
+					xfer := db.Transfer{
+						Timestamp:      now,
+						Value:          value,
+						OriginChain:    pe.token.token.chain,
+						OriginAddress:  pe.token.token.addr,
+						EmitterChain:   pe.dbData.Msg.EmitterChain,
+						EmitterAddress: pe.dbData.Msg.EmitterAddress,
+						MsgID:          pe.dbData.Msg.MessageIDString(),
+						Hash:           pe.hash,
+					}
+
+					if err := gov.db.StoreTransfer(&xfer); err != nil {
+						gov.msgsToPublish = msgsToPublish
+						return nil, err
+					}
+
+					ce.transfers = append(ce.transfers, &xfer)
+					gov.msgsSeen[pe.hash] = transferComplete
 				} else {
 					// If we get here, publish it and remove it from the pending list.
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
@@ -668,6 +711,9 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 //
 // As a side-effect, this function modifies the parameter `emitter`, upating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
+//
+// SECURITY Invariant: The `sum` return value should never be less than 0
+// SECURITY Invariant: The `sum` return value should never exceed the "Governor limit" for the chain
 func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
 	// Sum the value of all outgoing transfers
 	var sumOutgoing uint64
@@ -682,8 +728,8 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime
 		return 0, err
 	}
 
-	// If flowCancelSum is larger than or equal to sumOutgoing, simply return 0 as this means that all outgoing transfers
-	// have been cancelled by incoming transfers.
+	// If flowCancelSum is larger than or equal to sumOutgoing, simply return 0 as this means that all outgoing
+	// transfers have been cancelled by incoming transfers.
 	// This also avoids integer underflow.
 	if flowCancelSum >= sumOutgoing {
 		return 0, nil
@@ -691,7 +737,11 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime
 
 	sum = sumOutgoing - flowCancelSum
 	if sum > emitter.dailyLimit {
-		return 0, fmt.Errorf("Invariant violation: calculated sum %d exceeds Governor limit %d", sum, emitter.dailyLimit)
+		return 0, fmt.Errorf(
+			"invariant violation: calculated sum %d exceeds Governor limit %d",
+			sum,
+			emitter.dailyLimit,
+		)
 	}
 
 	return sum, nil
@@ -699,8 +749,6 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime
 
 // SumTransferValues iterates over a slice of transfers and sums their value.
 func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint64, err error) {
-
-	// flowCancellingTransfers := gov.FlowCancellingTransfers(startTime)
 	sum = 0
 	// Iterate over all transfers usin tokens that have flow cancelling enabled.
 	// If the destination chain of the transfer is equal to the `ce` parameter, add the value
@@ -708,7 +756,7 @@ func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint6
 	for _, transfer := range transfers {
 		// Overflow check. Note that transfer.Value cannot be negative
 		if (sum + transfer.Value) < sum {
-			return 0, errors.New("Overflow when calculating flow cancelling sum")
+			return 0, errors.New("overflow when calculating flow cancelling sum")
 		}
 		sum += transfer.Value
 
@@ -716,19 +764,22 @@ func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint6
 	return sum, nil
 }
 
-// FlowCancellingTransfersForChain builds a list of Transfers that contain assets that can 'flow cancel' (reduce the Governor usage of) a
-// governed chain represented by `destinationChainID`.
-func (gov *ChainGovernor) FlowCancellingTransfersForChain(destinationChainID vaa.ChainID, startTime time.Time) (transfers []*db.Transfer) {
-
+// FlowCancellingTransfersForChain builds a list of Transfers that contain assets that can 'flow cancel'
+// (reduce the Governor usage of) a governed chain represented by `destinationChainID`.
+func (gov *ChainGovernor) FlowCancellingTransfersForChain(
+	destinationChainID vaa.ChainID,
+	startTime time.Time,
+) (transfers []*db.Transfer) {
 	flowCancelTokens := FlowCancelTokenList()
 	// transfers = make([]*db.Transfer, 0)
 	// Iterate over all transfers for all governed chains
-	for _, ce := range gov.chains {
-		for _, transfer := range ce.transfers {
+	for _, emitterChainEntry := range gov.chains {
+		for _, transfer := range emitterChainEntry.transfers {
 			// We care about the transfer if:
 			// - Its target chain is equal to the `destinationChainID` parameter
 			// - It happened after `startTime`
-			// - It is a flow cancelling token (The transfer's origin chain and origin address match a hard-coded flow cancelling asset)
+			// - It is a flow cancelling token (The transfer's origin chain and
+			//	origin address match a hard-coded flow cancelling asset)
 			if transfer.TargetChain != destinationChainID {
 				continue
 			}
@@ -738,7 +789,7 @@ func (gov *ChainGovernor) FlowCancellingTransfersForChain(destinationChainID vaa
 			}
 
 			for _, flowCancelToken := range flowCancelTokens {
-				// Compare flow cancel fields with transfer fields. This requires a couple of conversions:
+				// Compare flow cancel fields with transfer fields. This requires conversions:
 				// - vaa.ChainID to uint16
 				// - vaa.Address to String
 				if uint16(transfer.OriginChain) == flowCancelToken.chain &&
