@@ -7,8 +7,8 @@ use accountant::state::{
     transfer, Kind, Modification, Transfer,
 };
 use cosmwasm_std::Uint256;
-use ntt_global_accountant::msg::TransferStatus;
 use helpers::*;
+use ntt_global_accountant::msg::TransferStatus;
 use wormhole_bindings::fake;
 use wormhole_sdk::{token::Message, vaa::Body, Address, Amount};
 

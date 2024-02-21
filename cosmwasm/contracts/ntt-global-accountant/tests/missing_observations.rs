@@ -2,8 +2,8 @@ mod helpers;
 
 use accountant::state::transfer;
 use cosmwasm_std::{to_binary, Uint256};
-use ntt_global_accountant::msg::Observation;
 use helpers::*;
+use ntt_global_accountant::msg::Observation;
 use wormhole_sdk::{token::Message, Address, Amount, Chain};
 
 fn create_observation() -> Observation {

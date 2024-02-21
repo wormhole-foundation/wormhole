@@ -2,8 +2,8 @@ mod helpers;
 
 use accountant::state::{transfer, TokenAddress};
 use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
-use ntt_global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
+use ntt_global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use serde_wormhole::RawMessage;
 use wormhole_bindings::fake::WormholeKeeper;
 use wormhole_sdk::{

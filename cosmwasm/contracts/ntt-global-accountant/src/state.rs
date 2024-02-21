@@ -5,7 +5,10 @@ use cw_storage_plus::Map;
 use tinyvec::TinyVec;
 
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
+// TODO: change to Standard Relayer chain registrations
 pub const CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("chain_registrations");
+// TODO: NTT endpoint registrations
+// TODO: NTT locking hubs
 pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
 
 #[cw_serde]

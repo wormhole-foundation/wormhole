@@ -113,6 +113,7 @@ fn submit_observations(
     let mut responses = Vec::with_capacity(observations.len());
     let mut events = Vec::with_capacity(observations.len());
     for o in observations {
+        // this key is for the VAA, which is how the guardian is tracking messages
         let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
         match handle_observation(deps.branch(), o, guardian_set_index, quorum, signature) {
             Ok((status, event)) => {
@@ -153,6 +154,9 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
+    // TODO: check if the emitter is an Standard Relayer contract
+    // TODO: if it is, parse out the inner sender and payload
+    // TODO: check the emitter is cross registered to the destination contract
     let registered_emitter = CHAIN_REGISTRATIONS
         .may_load(deps.storage, o.emitter_chain)
         .context("failed to load chain registration")?
@@ -212,6 +216,9 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
+    // TODO: parse ntt::Message instead of token::Message and only handle transfers
+    // TODO: both AR and Core messages will need to use the same key per endpoint,
+    // so the token chain and token endpoint should be mapped to the hub chain and endpoint
     let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
@@ -339,10 +346,12 @@ fn handle_vaa(
         }
         let module = &body.payload[..32];
 
+        // TODO: handle AR registrations instead of token bridge
         if module == token::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse tokenbridge governance packet")?;
             handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        // TODO: unique NTT accountant module
         } else if module == accountant_module::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse accountant governance packet")?;
@@ -350,6 +359,7 @@ fn handle_vaa(
         } else {
             bail!("unknown governance module")
         }
+    // TODO: handle NTT emitter inits and registration VAAs
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
