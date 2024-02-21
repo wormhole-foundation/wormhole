@@ -157,6 +157,8 @@ fn handle_observation(
     // TODO: check if the emitter is an Standard Relayer contract
     // TODO: if it is, parse out the inner sender and payload
     // TODO: check the emitter is cross registered to the destination contract
+    // expected_recipient = registrations[source_chain][source_sender][destination_chain]
+    // registrations[destination_chain][expected_recipient][source_chain] == source_sender
     let registered_emitter = CHAIN_REGISTRATIONS
         .may_load(deps.storage, o.emitter_chain)
         .context("failed to load chain registration")?
@@ -219,6 +221,9 @@ fn handle_observation(
     // TODO: parse ntt::Message instead of token::Message and only handle transfers
     // TODO: both AR and Core messages will need to use the same key per endpoint,
     // so the token chain and token endpoint should be mapped to the hub chain and endpoint
+    // TODO: WARNING the amounts are NOT normalized among different chains / tokens,
+    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals normalized,
+    // and another that uses 8... this is maxed at 8, but should be normalized to 8 for accounting purposes
     let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
@@ -451,6 +456,7 @@ fn handle_tokenbridge_vaa(
     mut deps: DepsMut<WormholeQuery>,
     body: Body<token::Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
+    // TODO: update this method akin to handle_observation
     let registered_emitter = CHAIN_REGISTRATIONS
         .may_load(deps.storage, body.emitter_chain.into())
         .context("failed to load chain registration")?
