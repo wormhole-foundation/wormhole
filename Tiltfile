@@ -274,16 +274,26 @@ def build_node_yaml():
                     "--wormchainURL",
                     "wormchain:9090",
 
+                     "--accountantWS",
+                    "http://wormchain:26657",
+
                     "--accountantContract",
                     "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
                     "--accountantKeyPath",
                     "/tmp/mounted-keys/wormchain/accountantKey",
                     "--accountantKeyPassPhrase",
                     "test0000",
-                    "--accountantWS",
-                    "http://wormchain:26657",
                     "--accountantCheckEnabled",
                     "true",
+
+                    "--accountantNttContract",
+                    "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+                    "--accountantNttKeyPath",
+                    "/tmp/mounted-keys/wormchain/accountantNttKey",
+                    "--accountantNttKeyPassPhrase",
+                    "test0000",
+                    "--accountantNttCheckEnabled",
+                    "true",                    
 
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj",

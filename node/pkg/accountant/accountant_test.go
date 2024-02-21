@@ -121,6 +121,9 @@ func newAccountantForTest(
 		"none",       // accountantWS
 		wormchainConn,
 		accountantCheckEnabled,
+		"",
+		nil,
+		false,
 		gk,
 		gst,
 		acctWriteC,

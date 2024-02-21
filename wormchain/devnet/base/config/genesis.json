@@ -63,6 +63,20 @@
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
         }
       ]
     },
@@ -126,6 +140,32 @@
         },
         {
           "address": "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
+          "coins": [
+            {
+              "denom": "utest",
+              "amount": "100000000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "200000000"
+            }
+          ]
+        },
+        {
+          "address": "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
+          "coins": [
+            {
+              "denom": "utest",
+              "amount": "100000000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "200000000"
+            }
+          ]
+        },
+        {
+          "address": "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
           "coins": [
             {
               "denom": "utest",

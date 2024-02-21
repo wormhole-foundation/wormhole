@@ -115,14 +115,22 @@ func GuardianOptionNoAccountant() *GuardianOption {
 	return &GuardianOption{
 		name: "accountant",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
-			logger.Info("acct: accountant is disabled", zap.String("component", "gacct"))
+			logger.Info("accountant is disabled", zap.String("component", "gacct"))
 			return nil
 		}}
 }
 
 // GuardianOptionAccountant configures the Accountant module.
 // Dependencies: db
-func GuardianOptionAccountant(contract string, websocket string, enforcing bool, wormchainConn *wormconn.ClientConn) *GuardianOption {
+func GuardianOptionAccountant(
+	websocket string,
+	contract string,
+	enforcing bool,
+	wormchainConn *wormconn.ClientConn,
+	nttContract string,
+	nttEnforcing bool,
+	nttWormchainConn *wormconn.ClientConn,
+) *GuardianOption {
 	return &GuardianOption{
 		name:         "accountant",
 		dependencies: []string{"db"},
@@ -132,20 +140,25 @@ func GuardianOptionAccountant(contract string, websocket string, enforcing bool,
 			// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 			// are approved by the accountant smart contract.
 			if contract == "" {
-				logger.Info("acct: accountant is disabled", zap.String("component", "gacct"))
+				logger.Info("accountant is disabled", zap.String("component", "gacct"))
 				return nil
 			}
 
 			if websocket == "" {
-				return errors.New("acct: if accountantContract is specified, accountantWS is required")
+				return errors.New("if accountantContract is specified, accountantWS is required")
 			}
 			if wormchainConn == nil {
-				return errors.New("acct: if accountantContract is specified, the wormchain sending connection must be enabled before.")
+				return errors.New("if accountantContract is specified, the wormchain sending connection must be enabled before")
 			}
 			if enforcing {
-				logger.Info("acct: accountant is enabled and will be enforced", zap.String("component", "gacct"))
+				logger.Info("accountant is enabled and will be enforced", zap.String("component", "gacct"))
 			} else {
-				logger.Info("acct: accountant is enabled but will not be enforced", zap.String("component", "gacct"))
+				logger.Info("accountant is enabled but will not be enforced", zap.String("component", "gacct"))
+			}
+			if nttEnforcing {
+				logger.Info("NTT accountant is enabled and will be enforced", zap.String("component", "gacct"))
+			} else {
+				logger.Info("NTT accountant is enabled but will not be enforced", zap.String("component", "gacct"))
 			}
 
 			g.acct = accountant.NewAccountant(
@@ -157,6 +170,9 @@ func GuardianOptionAccountant(contract string, websocket string, enforcing bool,
 				websocket,
 				wormchainConn,
 				enforcing,
+				nttContract,
+				nttWormchainConn,
+				nttEnforcing,
 				g.gk,
 				g.gst,
 				g.acctC.writeC,
