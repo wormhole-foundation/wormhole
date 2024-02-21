@@ -130,9 +130,7 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainURL           *string
-	wormchainKeyPath       *string
-	wormchainKeyPassPhrase *string
+	wormchainURL *string
 
 	ibcWS             *string
 	ibcLCD            *string
@@ -144,6 +142,11 @@ var (
 	accountantCheckEnabled  *bool
 	accountantKeyPath       *string
 	accountantKeyPassPhrase *string
+
+	accountantNttContract      *string
+	accountantNttCheckEnabled  *bool
+	accountantNttKeyPath       *string
+	accountantNttKeyPassPhrase *string
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -309,9 +312,6 @@ func init() {
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
 
 	wormchainURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
-	// TODO: These are deprecated. Get rid of them once the guardians have had a chance to migrate off of them.
-	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
-	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
 	ibcWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "ibcWS", "Websocket used to listen to the IBC receiver smart contract on wormchain", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
 	ibcLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "ibcLCD", "Path to LCD service root for http calls", "http://wormchain:1317", []string{"http", "https"})
@@ -323,6 +323,11 @@ func init() {
 	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
 	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
 	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
+
+	accountantNttContract = NodeCmd.Flags().String("accountantNttContract", "", "Address of the NTT accountant smart contract on wormchain")
+	accountantNttKeyPath = NodeCmd.Flags().String("accountantNttKeyPath", "", "path to NTT accountant private key for signing transactions")
+	accountantNttKeyPassPhrase = NodeCmd.Flags().String("accountantNttKeyPassPhrase", "", "pass phrase used to unarmor the NTT accountant key file")
+	accountantNttCheckEnabled = NodeCmd.Flags().Bool("accountantNttCheckEnabled", false, "Should NTT accountant be enforced on transfers")
 
 	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -1027,51 +1032,67 @@ func runNode(cmd *cobra.Command, args []string) {
 		wormchainId = "wormchain-testnet-0"
 	}
 
-	var accountantWormchainConn *wormconn.ClientConn
+	var accountantWormchainConn, accountantNttWormchainConn *wormconn.ClientConn
 	if *accountantContract != "" {
-		// TODO: wormchainKeyPath and wormchainKeyPassPhrase are being replaced by accountantKeyPath and accountantKeyPassPhrase.
-		//       Give the guardians time to migrate off of the old parameters, but then remove them.
-		keyPath := *accountantKeyPath
-		if keyPath == "" {
-			if *wormchainKeyPath == "" {
-				logger.Fatal("if accountantContract is specified, accountantKeyPath is required", zap.String("component", "gacct"))
-			}
-			logger.Error("the wormchainKeyPath parameter is deprecated, please change to accountantKeyPath", zap.String("component", "gacct"))
-			keyPath = *wormchainKeyPath
-		} else if *wormchainKeyPath != "" {
-			logger.Fatal("the wormchainKeyPath parameter is obsolete, please remove it", zap.String("component", "gacct"))
+		if *accountantKeyPath == "" {
+			logger.Fatal("if accountantContract is specified, accountantKeyPath is required", zap.String("component", "gacct"))
 		}
 
-		keyPassPhrase := *accountantKeyPassPhrase
-		if keyPassPhrase == "" {
-			if *wormchainKeyPassPhrase == "" {
-				logger.Fatal("if accountantContract is specified, accountantKeyPassPhrase is required", zap.String("component", "gacct"))
-			}
-			logger.Error("the wormchainKeyPassPhrase parameter is deprecated, please change to accountantKeyPassPhrase", zap.String("component", "gacct"))
-			keyPassPhrase = *wormchainKeyPassPhrase
-		} else if *wormchainKeyPassPhrase != "" {
-			logger.Fatal("the wormchainKeyPassPhrase parameter is obsolete, please remove it", zap.String("component", "gacct"))
+		if *accountantKeyPassPhrase == "" {
+			logger.Fatal("if accountantContract is specified, accountantKeyPassPhrase is required", zap.String("component", "gacct"))
 		}
 
-		keyPathName := keyPath
+		keyPathName := *accountantKeyPath
 		if *unsafeDevMode {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
 				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
 			}
-			keyPathName = fmt.Sprint(keyPath, idx)
+			keyPathName = fmt.Sprint(*accountantKeyPath, idx)
 		}
 
-		wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, keyPassPhrase)
+		wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, *accountantKeyPassPhrase)
 		if err != nil {
-			logger.Fatal("failed to load wormchain private key", zap.Error(err), zap.String("component", "gacct"))
+			logger.Fatal("failed to load accountant private key", zap.Error(err), zap.String("component", "gacct"))
 		}
 
-		// Connect to wormchain.
-		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
+		// Connect to wormchain for the accountant.
+		logger.Info("Connecting to wormchain for accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
 		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
-			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gacct"))
+			logger.Fatal("failed to connect to wormchain for accountant", zap.Error(err), zap.String("component", "gacct"))
+		}
+
+		// If the NTT accountant is enabled, create a wormchain connection for it.
+		if *accountantNttContract != "" {
+			if *accountantNttKeyPath == "" {
+				logger.Fatal("if accountantNttContract is specified, accountantNttKeyPath is required", zap.String("component", "gacct"))
+			}
+
+			if *accountantNttKeyPassPhrase == "" {
+				logger.Fatal("if accountantNttContract is specified, accountantNttKeyPassPhrase is required", zap.String("component", "gacct"))
+			}
+
+			keyPathName := *accountantNttKeyPath
+			if *unsafeDevMode {
+				idx, err := devnet.GetDevnetIndex()
+				if err != nil {
+					logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
+				}
+				keyPathName = fmt.Sprint(*accountantNttKeyPath, idx)
+			}
+
+			wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, *accountantNttKeyPassPhrase)
+			if err != nil {
+				logger.Fatal("failed to load NTT accountant private key", zap.Error(err), zap.String("component", "gacct"))
+			}
+
+			// Connect to wormchain for the NTT accountant.
+			logger.Info("Connecting to wormchain for NTT accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
+			accountantNttWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+			if err != nil {
+				logger.Fatal("failed to connect to wormchain for NTT accountant", zap.Error(err), zap.String("component", "gacct"))
+			}
 		}
 	}
 
@@ -1553,7 +1574,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
-		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled, accountantWormchainConn),
+		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, *accountantNttCheckEnabled, accountantNttWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),

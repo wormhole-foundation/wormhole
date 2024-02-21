@@ -21,29 +21,45 @@ import (
 	"go.uber.org/zap"
 )
 
-// watcher reads transaction events from the smart contract and publishes them.
-func (acct *Accountant) watcher(ctx context.Context) error {
+// baseWatcher is the entry point for the base accountant watcher.
+func (acct *Accountant) baseWatcher(ctx context.Context) error {
+	return acct.watcher(ctx, false)
+}
+
+// nttWatcher is the entry point for the NTT accountant watcher.
+func (acct *Accountant) nttWatcher(ctx context.Context) error {
+	return acct.watcher(ctx, true)
+}
+
+// watcher reads transaction events from an accountant smart contract and publishes them.
+func (acct *Accountant) watcher(ctx context.Context, isNTT bool) error {
+	tag := "accountant"
+	contract := acct.contract
+	if isNTT {
+		tag = "ntt-accountant"
+		contract = acct.nttContract
+	}
 	errC := make(chan error)
 
-	acct.logger.Info("acctwatch: creating watcher", zap.String("url", acct.wsUrl), zap.String("contract", acct.contract))
+	acct.logger.Info(fmt.Sprintf("acctwatch: creating %s watcher", tag), zap.String("url", acct.wsUrl), zap.String("contract", contract))
 	tmConn, err := tmHttp.New(acct.wsUrl, "/websocket")
 	if err != nil {
 		connectionErrors.Inc()
-		return fmt.Errorf("failed to establish tendermint connection: %w", err)
+		return fmt.Errorf("failed to establish %s tendermint connection: %w", tag, err)
 	}
 
 	if err := tmConn.Start(); err != nil {
 		connectionErrors.Inc()
-		return fmt.Errorf("failed to start tendermint connection: %w", err)
+		return fmt.Errorf("failed to start %s tendermint connection: %w", tag, err)
 	}
 	defer func() {
 		if err := tmConn.Stop(); err != nil {
 			connectionErrors.Inc()
-			acct.logger.Error("acctwatch: failed to stop tendermint connection", zap.Error(err))
+			acct.logger.Error(fmt.Sprintf("acctwatch: failed to stop %s tendermint connection", tag), zap.Error(err))
 		}
 	}()
 
-	query := fmt.Sprintf("execute._contract_address='%s'", acct.contract)
+	query := fmt.Sprintf("execute._contract_address='%s'", contract)
 	events, err := tmConn.Subscribe(
 		ctx,
 		"guardiand",
@@ -51,15 +67,15 @@ func (acct *Accountant) watcher(ctx context.Context) error {
 		64, // channel capacity
 	)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to accountant events: %w", err)
+		return fmt.Errorf("failed to subscribe to %s events: %w", tag, err)
 	}
 	defer func() {
 		if err := tmConn.UnsubscribeAll(ctx, "guardiand"); err != nil {
-			acct.logger.Error("acctwatch: failed to unsubscribe from events", zap.Error(err))
+			acct.logger.Error(fmt.Sprintf("acctwatch: failed to unsubscribe from %s events", tag), zap.Error(err))
 		}
 	}()
 
-	go acct.handleEvents(ctx, events, errC)
+	go acct.handleEvents(ctx, events, errC, contract, tag)
 
 	select {
 	case <-ctx.Done():
@@ -70,7 +86,7 @@ func (acct *Accountant) watcher(ctx context.Context) error {
 }
 
 // handleEvents handles events from the tendermint client library.
-func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreTypes.ResultEvent, errC chan error) {
+func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreTypes.ResultEvent, errC chan error, contract string, tag string) {
 	defer close(errC)
 
 	for {
@@ -80,31 +96,31 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 		case e := <-evts:
 			tx, ok := e.Data.(tmTypes.EventDataTx)
 			if !ok {
-				acct.logger.Error("unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
+				acct.logger.Error(fmt.Sprintf("unknown data from %s event subscription", tag), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
 				continue
 			}
 
 			for _, event := range tx.Result.Events {
 				if event.Type == "wasm-Observation" {
-					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", acct.contract)
+					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", contract)
 					if err != nil {
-						acct.logger.Error("failed to parse wasm transfer event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						acct.logger.Error(fmt.Sprintf("failed to parse wasm transfer event from %s", tag), zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					eventsReceived.Inc()
-					acct.processPendingTransfer(evt)
+					acct.processPendingTransfer(evt, tag)
 				} else if event.Type == "wasm-ObservationError" {
-					evt, err := parseEvent[WasmObservationError](acct.logger, event, "wasm-ObservationError", acct.contract)
+					evt, err := parseEvent[WasmObservationError](acct.logger, event, "wasm-ObservationError", contract)
 					if err != nil {
-						acct.logger.Error("failed to parse wasm observation error event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						acct.logger.Error(fmt.Sprintf("failed to parse wasm observation error event from %s", tag), zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					errorEventsReceived.Inc()
-					acct.handleTransferError(evt.Key.String(), evt.Error, "transfer error event received")
+					acct.handleTransferError(evt.Key.String(), evt.Error, fmt.Sprintf("transfer error event received from %s", tag))
 				} else {
-					acct.logger.Debug("ignoring uninteresting event", zap.String("eventType", event.Type))
+					acct.logger.Debug(fmt.Sprintf("ignoring uninteresting event from %s", tag), zap.String("eventType", event.Type))
 				}
 			}
 		}
@@ -149,11 +165,11 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 }
 
 // processPendingTransfer takes a WasmObservation event, determines if we are expecting it, and if so, publishes it.
-func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
+func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string) {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	acct.logger.Info("acctwatch: transfer event detected",
+	acct.logger.Info(fmt.Sprintf("acctwatch: transfer event detected from %s", tag),
 		zap.String("tx_hash", hex.EncodeToString(xfer.TxHash)),
 		zap.Uint32("timestamp", xfer.Timestamp),
 		zap.Uint32("nonce", xfer.Nonce),
