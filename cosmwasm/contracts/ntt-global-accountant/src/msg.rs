@@ -9,7 +9,7 @@ use wormhole_sdk::{
 
 use crate::state::{self, PendingTransfer};
 
-pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"acct_sub_obsfig_000000000000000000|";
+pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"ntt_acct_sub_obsfig_00000000000000|";
 
 #[cw_serde]
 #[derive(Default)]
