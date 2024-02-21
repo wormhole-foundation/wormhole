@@ -24,7 +24,15 @@ import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORK_OPTIONS, NETWORKS } from "../consts";
 import { assertNetwork, Network } from "../utils";
-import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
+import {
+  parse,
+  Payload,
+  serialiseVAA,
+  sign,
+  Signature,
+  VAA,
+  vaaDigest,
+} from "../vaa";
 
 export const command = "edit-vaa";
 export const desc = "Edits or generates a VAA";
@@ -193,7 +201,7 @@ export const handler = async (
     );
   } else if (argv["guardian-secret"]) {
     vaa.guardianSetIndex = 0;
-    vaa.signatures = sign([argv["guardian-secret"]], vaa as VAA<Payload>);
+    vaa.signatures = sign([argv["guardian-secret"]], vaaDigest(vaa));
   }
 
   if (argv["emitter-chain-id"]) {

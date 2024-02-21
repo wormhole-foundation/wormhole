@@ -1,3 +1,5 @@
+import "@wormhole-foundation/connect-sdk-evm";
+import "@wormhole-foundation/connect-sdk-solana";
 import {
   assertChain,
   ChainName,
@@ -6,13 +8,21 @@ import {
   isEVMChain,
   toChainId,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import {
   Chain,
-  Wormhole,
   chains,
-  serialize,
+  toChainId as chainToChainId,
+  encoding,
+  isNative,
+  serializeLayout,
+  toUniversal,
+  Wormhole,
 } from "@wormhole-foundation/connect-sdk";
-import { fromBech32, toHex } from "@cosmjs/encoding";
+import {
+  NativeTokenTransfer,
+  nativeTokenTransferLayout,
+} from "@wormhole-foundation/sdk-definitions/dist/cjs/payloads/ntt";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
@@ -21,6 +31,7 @@ import { evm_address } from "../utils";
 import {
   ContractUpgrade,
   impossible,
+  Other,
   Payload,
   PortalRegisterChain,
   RecoverChainId,
@@ -28,6 +39,7 @@ import {
   sign,
   TokenBridgeAttestMeta,
   VAA,
+  vaaDigest,
   WormholeRelayerSetDefaultDeliveryProvider,
 } from "../vaa";
 
@@ -49,7 +61,7 @@ function makeVAA(
     consistencyLevel: 0,
     payload: p,
   };
-  v.signatures = sign(signers, v);
+  v.signatures = sign(signers, vaaDigest(v));
   return v;
 }
 
@@ -64,16 +76,22 @@ export const builder = function (y: typeof yargs) {
         describe: "Guardians' secret keys (CSV)",
         type: "string",
       })
-      // NTT Transfer VAA
+      // NTT Transfer
       .command(
-        "transfer",
+        "ntt-transfer",
         "Generate an NTT transfer VAA",
         (yargs) =>
           yargs
             .option("source-chain", {
               alias: "sc",
               describe: "Chain to send from",
-              choices: Object.keys(chains) as Chain[],
+              choices: Object.values(chains) as Chain[],
+              demandOption: true,
+            } as const)
+            .option("source-emitter", {
+              alias: "e",
+              describe: "Emitter address on source chain",
+              type: "string",
               demandOption: true,
             } as const)
             .option("token-address", {
@@ -97,7 +115,7 @@ export const builder = function (y: typeof yargs) {
             .option("destination-chain", {
               alias: "dc",
               describe: "Chain to send to",
-              choices: Object.keys(chains) as Chain[],
+              choices: Object.values(chains) as Chain[],
               demandOption: true,
             } as const)
             .option("payload", {
@@ -106,16 +124,46 @@ export const builder = function (y: typeof yargs) {
               type: "string",
             } as const),
         (argv) => {
-          const payload = {
-            type: "NTT:TokenTransfer",
-            chain: argv["source-chain"],
-            emitter: Wormhole.parseAddress(
-              argv["chain"] as Chain,
-              argv["contract-address"] as string
-            ),
+          const srcChain = argv["source-chain"];
+          const dstChain = argv["destination-chain"];
+
+          const token = toUniversal(srcChain, argv["token-address"]);
+          const receiver = toUniversal(dstChain, argv["receiver"]);
+          const emitter = toUniversal(srcChain, argv["source-emitter"]);
+
+          if (isNative(token.address)) throw "no";
+
+          const nttPayload = {
+            normalizedAmount: {
+              decimals: 18,
+              amount: BigInt(argv["amount"]),
+            },
+            sourceToken: token,
+            recipientAddress: receiver,
+            recipientChain: dstChain,
+          } satisfies NativeTokenTransfer;
+          //
+
+          let v: VAA<Other> = {
+            version: 1,
+            guardianSetIndex: 0,
+            signatures: [],
+            timestamp: 1,
+            nonce: 1,
+            emitterChain: chainToChainId(srcChain),
+            emitterAddress: emitter.toString(),
+            sequence: BigInt(Math.floor(Math.random() * 100000000)),
+            consistencyLevel: 0,
+            payload: {
+              type: "Other",
+              hex: encoding.hex.encode(
+                serializeLayout(nativeTokenTransferLayout, nttPayload)
+              ),
+            },
           };
-          // ...
-          console.log(payload);
+          const signers = argv["guardian-secret"].split(",");
+          v.signatures = sign(signers, vaaDigest(v));
+          console.log(serialiseVAA(v));
         }
       )
       // Registration

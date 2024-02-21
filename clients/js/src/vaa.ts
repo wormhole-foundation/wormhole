@@ -183,7 +183,7 @@ const vaaParser = new Parser()
     assert: (str) => str === "",
   });
 
-export function serialiseVAA(vaa: VAA<Payload>) {
+export function serialiseVAA(vaa: VAA<Payload | Other>) {
   const body = [
     encode("uint8", vaa.version),
     encode("uint32", vaa.guardianSetIndex),
@@ -302,8 +302,7 @@ function vaaBody(vaa: VAA<Payload | Other>) {
   return body.join("");
 }
 
-export function sign(signers: string[], vaa: VAA<Payload>): Signature[] {
-  const hash = vaaDigest(vaa);
+export function sign(signers: string[], hash: string): Signature[] {
   const ec = new elliptic.ec("secp256k1");
 
   return signers.map((signer, i) => {
