@@ -356,8 +356,7 @@ fn handle_vaa(
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse tokenbridge governance packet")?;
             handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
-        // TODO: unique NTT accountant module
-        } else if module == accountant_module::MODULE {
+        } else if module == accountant_module::NTT_MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse accountant governance packet")?;
             handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?

@@ -1,6 +1,6 @@
 //! Parsers for Accountant Actions..
 //!
-//! Accountant is a security mechanism for the token bridge.
+//! Accountant is a security mechanism for the token bridge and NTT locking hubs.
 //! It needs a modify_balance message to be able to correct for unforeseen events.
 
 use bstr::BString;
@@ -84,6 +84,9 @@ pub struct GovernancePacket {
 // MODULE = "GlobalAccountant"
 pub const MODULE: [u8; 32] =
     *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00GlobalAccountant";
+// NTT_MODULE = "NTTGlobalAccountant"
+pub const NTT_MODULE: [u8; 32] =
+    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00NTTGlobalAccountant";
 
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
