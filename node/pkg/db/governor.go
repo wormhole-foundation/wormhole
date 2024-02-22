@@ -95,12 +95,12 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 	}
 
 	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+		return nil, fmt.Errorf("failed to read origin chain id: %w", err)
 	}
 
 	originAddress := vaa.Address{}
 	if n, err := reader.Read(originAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+		return nil, fmt.Errorf("failed to read origin address [%d]: %w", n, err)
 	}
 	t.OriginAddress = originAddress
 
@@ -122,8 +122,8 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 	if msgIdLen > 0 {
 		msgID := make([]byte, msgIdLen)
 		n, err := reader.Read(msgID)
-		if err != nil || n == 0 {
-			return nil, fmt.Errorf("failed to read vaa id [%d]: %w", n, err)
+		if err != nil || n != int(msgIdLen) {
+			return nil, fmt.Errorf("failed to read msg id [%d]: %w", n, err)
 		}
 		t.MsgID = string(msgID[:n])
 	}
@@ -136,7 +136,7 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 	if hashLen > 0 {
 		hash := make([]byte, hashLen)
 		n, err := reader.Read(hash)
-		if err != nil || n == 0 {
+		if err != nil || n != int(hashLen) {
 			return nil, fmt.Errorf("failed to read hash [%d]: %w", n, err)
 		}
 		t.Hash = string(hash[:n])
@@ -171,7 +171,7 @@ func unmarshalOldTransfer(data []byte) (*Transfer, error) {
 	}
 
 	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+		return nil, fmt.Errorf("failed to read origin chain id: %w", err)
 	}
 
 	originAddress := vaa.Address{}
