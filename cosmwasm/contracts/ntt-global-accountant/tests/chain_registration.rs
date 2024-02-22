@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Event};
 use helpers::*;
 use ntt_global_accountant::msg::ChainRegistrationResponse;
 use wormhole_sdk::{
-    token::{Action, GovernancePacket},
+    relayer::{Action, GovernancePacket},
     vaa::Body,
     Address, Chain,
 };
@@ -104,7 +104,7 @@ fn wrong_target() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration VAA for different chain");
     assert_eq!(
-        "this token governance vaa is for another chain",
+        "this relayer governance vaa is for another chain",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -121,12 +121,12 @@ fn non_governance_chain() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance chain");
 
-    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    // A governance message with wrong chain or emitter will be parsed as an NTT message
     assert!(err
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse tokenbridge message",));
+        .contains("failed to parse NTT message",));
 }
 
 #[test]
@@ -141,12 +141,12 @@ fn non_governance_emitter() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance emitter");
 
-    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    // A governance message with wrong chain or emitter will be parsed as an NTT message
     assert!(err
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse tokenbridge message",));
+        .contains("failed to parse NTT message",));
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn bad_signature() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with bad signature");
     assert_eq!(
-        "generic error: querier contract error: failed to recover verifying key",
+        "generic error: querier contract error: failed to verify signature",
         err.root_cause().to_string().to_lowercase()
     );
 }

@@ -18,7 +18,7 @@ use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole_bindings::WormholeQuery;
 use wormhole_sdk::{
-    accountant as accountant_module, token,
+    ntt_accountant as ntt_accountant_module, relayer, token,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -33,7 +33,7 @@ use crate::{
         ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
         SUBMITTED_OBSERVATIONS_PREFIX,
     },
-    state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
+    state::{Data, PendingTransfer, DIGESTS, PENDING_TRANSFERS, RELAYER_CHAIN_REGISTRATIONS},
 };
 
 // version info for migration info
@@ -159,7 +159,7 @@ fn handle_observation(
     // TODO: check the emitter is cross registered to the destination contract
     // expected_recipient = registrations[source_chain][source_sender][destination_chain]
     // registrations[destination_chain][expected_recipient][source_chain] == source_sender
-    let registered_emitter = CHAIN_REGISTRATIONS
+    let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
         .may_load(deps.storage, o.emitter_chain)
         .context("failed to load chain registration")?
         .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
@@ -351,12 +351,11 @@ fn handle_vaa(
         }
         let module = &body.payload[..32];
 
-        // TODO: handle AR registrations instead of token bridge
-        if module == token::MODULE {
+        if module == relayer::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
-                .context("failed to parse tokenbridge governance packet")?;
-            handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
-        } else if module == accountant_module::NTT_MODULE {
+                .context("failed to parse standardized relayer governance packet")?;
+            handle_relayer_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        } else if module == ntt_accountant_module::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse accountant governance packet")?;
             handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
@@ -365,9 +364,9 @@ fn handle_vaa(
         }
     // TODO: handle NTT emitter inits and registration VAAs
     } else {
-        let msg = serde_wormhole::from_slice(body.payload)
-            .context("failed to parse tokenbridge message")?;
-        handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
+        let msg =
+            serde_wormhole::from_slice(body.payload).context("failed to parse NTT message")?;
+        handle_ntt_vaa(deps.branch(), body.with_payload(msg))?
     };
 
     digest_key
@@ -379,21 +378,21 @@ fn handle_vaa(
     Ok(evt)
 }
 
-fn handle_token_governance_vaa(
+fn handle_relayer_governance_vaa(
     deps: DepsMut<WormholeQuery>,
-    body: Body<token::GovernancePacket>,
+    body: Body<relayer::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
-        "this token governance VAA is for another chain"
+        "this relayer governance VAA is for another chain"
     );
 
     match body.payload.action {
-        token::Action::RegisterChain {
+        relayer::Action::RegisterChain {
             chain,
             emitter_address,
         } => {
-            CHAIN_REGISTRATIONS
+            RELAYER_CHAIN_REGISTRATIONS
                 .save(
                     deps.storage,
                     chain.into(),
@@ -411,7 +410,7 @@ fn handle_token_governance_vaa(
 fn handle_accountant_governance_vaa(
     deps: DepsMut<WormholeQuery>,
     info: &MessageInfo,
-    body: Body<accountant_module::GovernancePacket>,
+    body: Body<ntt_accountant_module::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Wormchain,
@@ -419,7 +418,7 @@ fn handle_accountant_governance_vaa(
     );
 
     match body.payload.action {
-        accountant_module::Action::ModifyBalance {
+        ntt_accountant_module::Action::ModifyBalance {
             sequence,
             chain_id,
             token_chain,
@@ -430,9 +429,9 @@ fn handle_accountant_governance_vaa(
         } => {
             let token_address = TokenAddress::new(token_address.0);
             let kind = match kind {
-                accountant_module::ModificationKind::Add => Kind::Add,
-                accountant_module::ModificationKind::Subtract => Kind::Sub,
-                accountant_module::ModificationKind::Unknown => {
+                ntt_accountant_module::ModificationKind::Add => Kind::Add,
+                ntt_accountant_module::ModificationKind::Subtract => Kind::Sub,
+                ntt_accountant_module::ModificationKind::Unknown => {
                     bail!("unsupported governance action")
                 }
             };
@@ -451,12 +450,12 @@ fn handle_accountant_governance_vaa(
     }
 }
 
-fn handle_tokenbridge_vaa(
+fn handle_ntt_vaa(
     mut deps: DepsMut<WormholeQuery>,
     body: Body<token::Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
     // TODO: update this method akin to handle_observation
-    let registered_emitter = CHAIN_REGISTRATIONS
+    let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
         .may_load(deps.storage, body.emitter_chain.into())
         .context("failed to load chain registration")?
         .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
@@ -680,7 +679,7 @@ fn query_chain_registration(
     deps: Deps<WormholeQuery>,
     chain: u16,
 ) -> StdResult<ChainRegistrationResponse> {
-    CHAIN_REGISTRATIONS
+    RELAYER_CHAIN_REGISTRATIONS
         .load(deps.storage, chain)
         .map(|address| ChainRegistrationResponse { address })
 }

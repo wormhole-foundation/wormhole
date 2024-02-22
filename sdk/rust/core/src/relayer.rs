@@ -1,77 +1,34 @@
-//! Parsers for Accountant Actions..
+//! Parsers for Standardized Relayer VAAs.
 //!
-//! Accountant is a security mechanism for the token bridge.
-//! It needs a modify_balance message to be able to correct for unforeseen events.
+//! The Standardized Relayer uses VAAs for delivery and redelivery instructions as well as governance.
+//! The delivery VAA contain the sender and may contain an optional payload.
 
-use bstr::BString;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+// Example devnet registration governance VAAs
+// 010000000001007349c3b9b892432e4d371b37085547eea089533667cd16c0237f4012bc4a011562731487b93c31e9a9b7ab37df1e39ecad3a0a249f019759ef4afe66500db5180165d760ad00000001000100000000000000000000000000000000000000000000000000000000000000040000000000000001010000000000000000000000000000000000576f726d686f6c6552656c61796572010000000200000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5
+// 01000000000100e4e0dd18bf7a1867027a6f4f9d53c07cab84950de5150e05d48ac7ba84e18f90394d4e825faac2b76b0ce95e34b0e3f91da75d457fc1dfae4720b1fbedc2e6540165d7609e00000001000100000000000000000000000000000000000000000000000000000000000000040000000000000001010000000000000000000000000000000000576f726d686f6c6552656c61796572010000000400000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5
 
-use crate::{Address, Amount, Chain};
+use serde::{Deserialize, Serialize};
 
-#[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
-pub enum ModificationKind {
-    Unknown = 0,
-    Add = 1,
-    Subtract = 2,
-}
+use crate::{Address, Chain};
 
-impl From<u8> for ModificationKind {
-    fn from(other: u8) -> ModificationKind {
-        match other {
-            1 => ModificationKind::Add,
-            2 => ModificationKind::Subtract,
-            _ => ModificationKind::Unknown,
-        }
-    }
-}
-
-impl From<ModificationKind> for u8 {
-    fn from(other: ModificationKind) -> u8 {
-        match other {
-            ModificationKind::Unknown => 0,
-            ModificationKind::Add => 1,
-            ModificationKind::Subtract => 2,
-        }
-    }
-}
-
-impl Serialize for ModificationKind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u8((*self).into())
-    }
-}
-
-impl<'de> Deserialize<'de> for ModificationKind {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        <u8 as Deserialize>::deserialize(deserializer).map(Self::from)
-    }
-}
-
-/// Represents a governance action targeted at the Accountant.
+/// Represents a governance action targeted at the standardized relayer.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
-    // Modify balance for accountant
+    /// Registers an emitter address for a particular chain on a different chain.  An emitter
+    /// address must be registered for a chain and must match the emitter address in the VAA before
+    /// the standardized relayer will accept VAAs from that chain.
     #[serde(rename = "1")]
-    ModifyBalance {
-        sequence: u64,
-        chain_id: u16,
-        token_chain: u16,
-        token_address: Address,
-        kind: ModificationKind,
-        amount: Amount,
-        #[serde(with = "crate::arraystring")]
-        reason: BString,
+    RegisterChain {
+        chain: Chain,
+        emitter_address: Address,
     },
+
+    /// Upgrades the standardized relayer contract to a new address.
+    #[serde(rename = "2")]
+    ContractUpgrade { new_contract: Address },
 }
 
-/// Represents the payload for a governance VAA targeted at the Accountant.
+/// Represents the payload for a governance VAA targeted at the standardized relayer.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GovernancePacket {
     /// The chain on which the governance action should be carried out.
@@ -81,9 +38,9 @@ pub struct GovernancePacket {
     pub action: Action,
 }
 
-// MODULE = "GlobalAccountant"
+// MODULE = "WormholeRelayer"
 pub const MODULE: [u8; 32] =
-    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00GlobalAccountant";
+    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00WormholeRelayer";
 
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
@@ -97,8 +54,8 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        accountant::{Action, GovernancePacket, MODULE},
-        Address, Amount,
+        relayer::{Action, GovernancePacket, MODULE},
+        Address, Chain,
     };
 
     struct Module;
@@ -123,22 +80,21 @@ mod governance_packet_impl {
                 Ok(Module)
             } else {
                 Err(Error::custom(
-                    "invalid governance module, expected \"GlobalAccountant\"",
+                    "invalid governance module, expected \"WormholeRelayer\"",
                 ))
             }
         }
     }
 
     #[derive(Serialize, Deserialize)]
-    struct ModifyBalance {
-        sequence: u64,
-        chain_id: u16,
-        token_chain: u16,
-        token_address: Address,
-        kind: super::ModificationKind,
-        amount: Amount,
-        #[serde(with = "crate::arraystring")]
-        reason: bstr::BString,
+    struct ContractUpgrade {
+        new_contract: Address,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct RegisterChain {
+        chain: Chain,
+        emitter_address: Address,
     }
 
     impl Serialize for GovernancePacket {
@@ -152,29 +108,24 @@ mod governance_packet_impl {
             // The wire format encodes the action before the chain and then appends the actual
             // action payload.
             match self.action.clone() {
-                Action::ModifyBalance {
-                    sequence,
-                    chain_id,
-                    token_chain,
-                    token_address,
-                    kind,
-                    amount,
-                    reason,
+                Action::RegisterChain {
+                    chain,
+                    emitter_address,
                 } => {
                     seq.serialize_field("action", &1u8)?;
                     seq.serialize_field("chain", &self.chain)?;
                     seq.serialize_field(
                         "payload",
-                        &ModifyBalance {
-                            sequence,
-                            chain_id,
-                            token_chain,
-                            token_address,
-                            kind,
-                            amount,
-                            reason,
+                        &RegisterChain {
+                            chain,
+                            emitter_address,
                         },
                     )?;
+                }
+                Action::ContractUpgrade { new_contract } => {
+                    seq.serialize_field("action", &2u8)?;
+                    seq.serialize_field("chain", &self.chain)?;
+                    seq.serialize_field("payload", &ContractUpgrade { new_contract })?;
                 }
             }
 
@@ -210,30 +161,28 @@ mod governance_packet_impl {
 
             let action = match act {
                 1 => {
-                    let ModifyBalance {
-                        sequence,
-                        chain_id,
-                        token_chain,
-                        token_address,
-                        kind,
-                        amount,
-                        reason,
+                    let RegisterChain {
+                        chain,
+                        emitter_address,
                     } = seq
                         .next_element()?
                         .ok_or_else(|| Error::invalid_length(3, &EXPECTING))?;
-                    Action::ModifyBalance {
-                        sequence,
-                        chain_id,
-                        token_chain,
-                        token_address,
-                        kind,
-                        amount,
-                        reason,
+
+                    Action::RegisterChain {
+                        chain,
+                        emitter_address,
                     }
+                }
+                2 => {
+                    let ContractUpgrade { new_contract } = seq
+                        .next_element()?
+                        .ok_or_else(|| Error::invalid_length(3, &EXPECTING))?;
+
+                    Action::ContractUpgrade { new_contract }
                 }
                 v => {
                     return Err(Error::custom(format_args!(
-                        "invalid value {v}, expected one of 1"
+                        "invalid value: {v}, expected one of 1, 2"
                     )))
                 }
             };
@@ -293,28 +242,24 @@ mod governance_packet_impl {
 
                         let p = match a {
                             1 => {
-                                let ModifyBalance {
-                                    sequence,
-                                    chain_id,
-                                    token_chain,
-                                    token_address,
-                                    kind,
-                                    amount,
-                                    reason,
+                                let RegisterChain {
+                                    chain,
+                                    emitter_address,
                                 } = map.next_value()?;
-                                Action::ModifyBalance {
-                                    sequence,
-                                    chain_id,
-                                    token_chain,
-                                    token_address,
-                                    kind,
-                                    amount,
-                                    reason,
+
+                                Action::RegisterChain {
+                                    chain,
+                                    emitter_address,
                                 }
+                            }
+                            2 => {
+                                let ContractUpgrade { new_contract } = map.next_value()?;
+
+                                Action::ContractUpgrade { new_contract }
                             }
                             v => {
                                 return Err(Error::custom(format_args!(
-                                    "invalid action: {v}, expected one of: 1"
+                                    "invalid action: {v}, expected one of: 1, 2"
                                 )))
                             }
                         };
@@ -350,36 +295,22 @@ mod test {
     use super::*;
 
     #[test]
-    fn modify_balance() {
+    fn register_chain() {
         let buf = [
-            0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xb0, 0x72, 0x50, 0x5b, 0x5b, 0x99, 0x9c,
-            0x1d, 0x08, 0x90, 0x5c, 0x02, 0xe2, 0xb6, 0xb2, 0x83, 0x2e, 0xf7, 0x2c, 0x0b, 0xa6,
-            0xc8, 0xdb, 0x4f, 0x77, 0xfe, 0x45, 0x7e, 0xf2, 0xb3, 0xd0, 0x53, 0x41, 0x0b, 0x1e,
-            0x92, 0xa9, 0x19, 0x4d, 0x92, 0x10, 0xdf, 0x24, 0xd9, 0x87, 0xac, 0x83, 0xd7, 0xb6,
-            0xf0, 0xc2, 0x1c, 0xe9, 0x0f, 0x8b, 0xc1, 0x86, 0x9d, 0xe0, 0x89, 0x8b, 0xda, 0x7e,
-            0x98, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x73, 0x49, 0xc3, 0xb9, 0xb8, 0x92, 0x43,
+            0x2e, 0x4d, 0x37, 0x1b, 0x37, 0x08, 0x55, 0x47, 0xee, 0xa0, 0x89, 0x53, 0x36, 0x67,
+            0xcd, 0x16, 0xc0, 0x23, 0x7f, 0x40, 0x12, 0xbc, 0x4a, 0x01, 0x15, 0x62, 0x73, 0x14,
+            0x87, 0xb9, 0x3c, 0x31, 0xe9, 0xa9, 0xb7, 0xab, 0x37, 0xdf, 0x1e, 0x39, 0xec, 0xad,
+            0x3a, 0x0a, 0x24, 0x9f, 0x01, 0x97, 0x59, 0xef, 0x4a, 0xfe, 0x66, 0x50, 0x0d, 0xb5,
+            0x18, 0x01, 0x65, 0xd7, 0x60, 0xad, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3c, 0x1b, 0xfa, 0x00, 0x00, 0x00, 0x00,
-            //  module = "GlobalAccountant"
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47,
-            0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x61, 0x6e,
-            0x74, // action
-            0x01, // chain
-            0x00, 0x01, // sequence
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // chain_id
-            0x00, 0x02, // token chain
-            0x00, 0x03, // token address
-            0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32,
-            0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32,
-            0x32, 0x32, 0x32, 0x32, // kind
-            0x01, // amount
-            0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
-            0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
-            0x31, 0x31, 0x31, 0x31, // reason
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x41,
-            0x42, 0x42, 0x43, 0x43,
+            0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65,
+            0x72, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x53, 0x85, 0x5d, 0x4b, 0x64, 0xe9, 0xa3, 0xcf, 0x59, 0xa8,
+            0x4b, 0xc7, 0x68, 0xad, 0xa7, 0x16, 0xb5, 0x53, 0x6b, 0xc5,
         ];
 
         let vaa = Vaa {
@@ -388,29 +319,28 @@ mod test {
             signatures: vec![Signature {
                 index: 0,
                 signature: [
-                    0xb0, 0x72, 0x50, 0x5b, 0x5b, 0x99, 0x9c, 0x1d, 0x08, 0x90, 0x5c, 0x02, 0xe2,
-                    0xb6, 0xb2, 0x83, 0x2e, 0xf7, 0x2c, 0x0b, 0xa6, 0xc8, 0xdb, 0x4f, 0x77, 0xfe,
-                    0x45, 0x7e, 0xf2, 0xb3, 0xd0, 0x53, 0x41, 0x0b, 0x1e, 0x92, 0xa9, 0x19, 0x4d,
-                    0x92, 0x10, 0xdf, 0x24, 0xd9, 0x87, 0xac, 0x83, 0xd7, 0xb6, 0xf0, 0xc2, 0x1c,
-                    0xe9, 0x0f, 0x8b, 0xc1, 0x86, 0x9d, 0xe0, 0x89, 0x8b, 0xda, 0x7e, 0x98, 0x01,
+                    0x73, 0x49, 0xc3, 0xb9, 0xb8, 0x92, 0x43, 0x2e, 0x4d, 0x37, 0x1b, 0x37, 0x08,
+                    0x55, 0x47, 0xee, 0xa0, 0x89, 0x53, 0x36, 0x67, 0xcd, 0x16, 0xc0, 0x23, 0x7f,
+                    0x40, 0x12, 0xbc, 0x4a, 0x01, 0x15, 0x62, 0x73, 0x14, 0x87, 0xb9, 0x3c, 0x31,
+                    0xe9, 0xa9, 0xb7, 0xab, 0x37, 0xdf, 0x1e, 0x39, 0xec, 0xad, 0x3a, 0x0a, 0x24,
+                    0x9f, 0x01, 0x97, 0x59, 0xef, 0x4a, 0xfe, 0x66, 0x50, 0x0d, 0xb5, 0x18, 0x01,
                 ],
             }],
-            timestamp: 1,
+            timestamp: 1708613805,
             nonce: 1,
             emitter_chain: Chain::Solana,
             emitter_address: GOVERNANCE_EMITTER,
-            sequence: 20_716_538,
-            consistency_level: 0,
+            sequence: 1,
+            consistency_level: 1,
             payload: GovernancePacket {
-                chain: Chain::Solana,
-                action: Action::ModifyBalance {
-                    sequence: 1,
-                    chain_id: 2,
-                    token_chain: 3,
-                    token_address: Address([0x32u8; 32]),
-                    kind: ModificationKind::Add,
-                    amount: Amount([0x31u8; 32]),
-                    reason: "AABBCC".into(),
+                chain: Chain::Any,
+                action: Action::RegisterChain {
+                    chain: Chain::Ethereum,
+                    emitter_address: Address([
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x53, 0x85, 0x5d, 0x4b, 0x64, 0xe9, 0xa3, 0xcf, 0x59, 0xa8, 0x4b, 0xc7,
+                        0x68, 0xad, 0xa7, 0x16, 0xb5, 0x53, 0x6b, 0xc5,
+                    ]),
                 },
             },
         };
