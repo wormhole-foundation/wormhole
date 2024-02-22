@@ -1,6 +1,6 @@
-//! Parsers for Accountant Actions..
+//! Parsers for NTT Accountant Actions.
 //!
-//! Accountant is a security mechanism for the token bridge hubs.
+//! NTT Accountant is a security mechanism for the NTT locking hubs.
 //! It needs a modify_balance message to be able to correct for unforeseen events.
 
 use bstr::BString;
@@ -81,9 +81,9 @@ pub struct GovernancePacket {
     pub action: Action,
 }
 
-// MODULE = "GlobalAccountant"
+// MODULE = "NTTGlobalAccountant"
 pub const MODULE: [u8; 32] =
-    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00GlobalAccountant";
+    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00NTTGlobalAccountant";
 
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
@@ -97,7 +97,7 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        accountant::{Action, GovernancePacket, MODULE},
+        ntt_accountant::{Action, GovernancePacket, MODULE},
         Address, Amount,
     };
 
@@ -123,7 +123,7 @@ mod governance_packet_impl {
                 Ok(Module)
             } else {
                 Err(Error::custom(
-                    "invalid governance module, expected \"GlobalAccountant\"",
+                    "invalid governance module, expected \"NTTGlobalAccountant\"",
                 ))
             }
         }
@@ -361,9 +361,9 @@ mod test {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3c, 0x1b, 0xfa, 0x00, 0x00, 0x00, 0x00,
-            //  module = "GlobalAccountant"
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47,
-            0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x61, 0x6e,
+            //  module = "NTTGlobalAccountant"
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4E, 0x54, 0x54, 0x47,
+            0x6C, 0x6F, 0x62, 0x61, 0x6C, 0x41, 0x63, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x61, 0x6E,
             0x74, // action
             0x01, // chain
             0x00, 0x01, // sequence
