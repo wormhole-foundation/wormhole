@@ -29,26 +29,24 @@ library QueryTest {
     function buildPerChainRequestBytes(
         uint16 _chainId,
         uint8 _queryType,
-        uint32 _queryLen,
         bytes memory _queryBytes
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
             _chainId,
             _queryType,
-            _queryLen,
+            uint32(_queryBytes.length),
             _queryBytes
         );
     }
 
     /// @dev buildEthCallRequestBytes builds an eth_call query request from the specified fields.
     function buildEthCallRequestBytes(
-        uint32 _blockIdLen,
         bytes memory _blockId,
         uint8 _numCallData,
         bytes memory _callData // Created with buildEthCallDataBytes()
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
-            _blockIdLen,
+            uint32(_blockId.length),
             _blockId,
             _numCallData,
             _callData
@@ -58,18 +56,16 @@ library QueryTest {
     /// @dev buildEthCallByTimestampRequestBytes builds an eth_call_by_timestamp query request from the specified fields.
     function buildEthCallByTimestampRequestBytes(
         uint64 _targetTimeUs,
-        uint32 _targetBlockHintLen,
         bytes memory _targetBlockHint,
-        uint32 _followingBlockHintLen,
         bytes memory _followingBlockHint,        
         uint8 _numCallData,
         bytes memory _callData // Created with buildEthCallDataBytes()
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
             _targetTimeUs,
-            _targetBlockHintLen,
+            uint32(_targetBlockHint.length),
             _targetBlockHint,
-            _followingBlockHintLen,
+            uint32(_followingBlockHint.length),
             _followingBlockHint,
             _numCallData,
             _callData
@@ -78,17 +74,15 @@ library QueryTest {
 
     /// @dev buildEthCallWithFinalityRequestBytes builds an eth_call_with_finality query request from the specified fields.
     function buildEthCallWithFinalityRequestBytes(
-        uint32 _blockIdLen,
         bytes memory _blockId,
-        uint32 _finalityLen,
         bytes memory _finality,        
         uint8 _numCallData,
         bytes memory _callData // Created with buildEthCallDataBytes()
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
-            _blockIdLen,
+            uint32(_blockId.length),
             _blockId,
-            _finalityLen,
+            uint32(_finality.length),
             _finality,            
             _numCallData,
             _callData
@@ -98,19 +92,17 @@ library QueryTest {
     /// @dev buildEthCallDataBytes builds the call data associated with one of the eth_call family of queries.
     function buildEthCallDataBytes(
         address _contractAddress,
-        uint32 _callDataLen,
         bytes memory _callData
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
             _contractAddress,
-            _callDataLen,
+            uint32(_callData.length),
             _callData
         );
     }
     
     /// @dev buildSolanaAccountRequestBytes builds an sol_account query request from the specified fields.
     function buildSolanaAccountRequestBytes(
-        uint32 _commitmentLen,
         bytes memory _commitment,
         uint64 _minContextSlot,
         uint64 _dataSliceOffset,
@@ -119,7 +111,7 @@ library QueryTest {
         bytes memory _accounts // Each account is 32 bytes.
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
-            _commitmentLen,
+            uint32(_commitment.length),
             _commitment,
             _minContextSlot,
             _dataSliceOffset,            
@@ -138,7 +130,6 @@ library QueryTest {
         uint8 _version,
         uint16 _senderChainId,
         bytes memory _signature,
-        uint32 _queryRequestLen,
         bytes memory _queryRequest,
         uint8 _numPerChainResponses,
         bytes memory _perChainResponses
@@ -147,7 +138,7 @@ library QueryTest {
             _version,
             _senderChainId,
             _signature,
-            _queryRequestLen,
+            uint32(_queryRequest.length),
             _queryRequest,
             _numPerChainResponses,
             _perChainResponses // Each created by buildPerChainResponseBytes()
@@ -158,13 +149,12 @@ library QueryTest {
     function buildPerChainResponseBytes(
         uint16 _chainId,
         uint8 _queryType,
-        uint32 _responseLen,
         bytes memory _responseBytes
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
             _chainId,
             _queryType,
-            _responseLen,
+            uint32(_responseBytes.length),
             _responseBytes
         );
     }
@@ -228,11 +218,10 @@ library QueryTest {
 
     /// @dev buildEthCallResultBytes builds an eth_call result from the specified fields.
     function buildEthCallResultBytes(
-        uint32 _resultLen,
         bytes memory _result
     ) internal pure returns (bytes memory){
         return abi.encodePacked(
-            _resultLen,
+            uint32(_result.length),
             _result
         );
     }

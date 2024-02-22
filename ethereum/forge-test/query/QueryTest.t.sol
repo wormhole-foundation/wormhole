@@ -26,7 +26,6 @@ contract TestQueryTest is Test {
         bytes memory pcr = QueryTest.buildPerChainRequestBytes(
             /* chainId */    2,
             /* queryType */  1,
-            /* queryLen */   66,
             /* queryBytes */ hex"00000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
         );
         assertEq(pcr, hex"0002010000004200000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
@@ -34,7 +33,6 @@ contract TestQueryTest is Test {
 
     function test_buildEthCallRequestBytes() public {
         bytes memory ecr = QueryTest.buildEthCallRequestBytes(
-            /* blockIdLen */  5,
             /* blockId */     "0x744",
             /* numCallData */ 2,
             /* callData */    hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
@@ -44,22 +42,18 @@ contract TestQueryTest is Test {
 
     function test_buildEthCallByTimestampRequestBytes() public {
         bytes memory ecr = QueryTest.buildEthCallByTimestampRequestBytes(
-            /* targetTimeUs */           0x10642ac0,
-            /* targetBlockHintLen */     5,
-            /* targetBlockHint */        "0x15d",
-            /* followingBlockHintLen */  5,
-            /* followingBlockHint */     "0x15e",            
-            /* numCallData */            2,
-            /* callData */               hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
+            /* targetTimeUs */       0x10642ac0,
+            /* targetBlockHint */    "0x15d",
+            /* followingBlockHint */ "0x15e",            
+            /* numCallData */        2,
+            /* callData */           hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
         );
         assertEq(ecr, hex"0000000010642ac000000005307831356400000005307831356502ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
     }
     
     function test_buildEthCallWithFinalityRequestBytes() public {
         bytes memory ecr = QueryTest.buildEthCallWithFinalityRequestBytes(
-            /* blockIdLen */  5,
             /* blockId */     "0x1f8",
-            /* finalityLen */ 9,
             /* finality */    "finalized",            
             /* numCallData */ 2,
             /* callData */    hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567"
@@ -70,13 +64,11 @@ contract TestQueryTest is Test {
     function test_buildEthCallDataBytes() public {
         bytes memory ecd1 = QueryTest.buildEthCallDataBytes(
             /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
-            /* callDataLen */     4,
             /* callData */        hex"06fdde03"
         );
         assertEq(ecd1, hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03");
         bytes memory ecd2 = QueryTest.buildEthCallDataBytes(
             /* contractAddress */ 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E,
-            /* callDataLen */     4,
             /* callData */        hex"313ce567"
         );
         assertEq(ecd2, hex"ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567");
@@ -84,7 +76,6 @@ contract TestQueryTest is Test {
         
     function test_buildSolanaAccountRequestBytes() public {
         bytes memory ecr = QueryTest.buildSolanaAccountRequestBytes(
-            /* commitmentLen */   9,
             /* commitment */      "finalized",
             /* minContextSlot */  8069,
             /* dataSliceOffset */ 10,
@@ -104,7 +95,6 @@ contract TestQueryTest is Test {
             /* version */              1,
             /* senderChainId */        0,
             /* signature */            hex"11b03bdbbe15a8f12b803d2193de5ddff72d92eaabd2763553ec3c3133182d1443719a05e2b65c87b923c6bd8aeff49f34937f90f3ab7cd33449388c60fa30a301",
-            /* queryRequestLen */      79,
             /* queryRequest */         hex"0100000001010002010000004200000005307837343402ddb64fe46a91d46ee29420539fc25fd07c5fea3e0000000406fdde03ddb64fe46a91d46ee29420539fc25fd07c5fea3e00000004313ce567",
             /* numPerChainResponses */ 1,
             /* perChainResponses */    hex"000201000000b900000000000007446a0b819aee8945e659e37537a0bdbe03c06275be23e499819138d1eee8337e9b000000006ab13b8002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000012"
@@ -116,7 +106,6 @@ contract TestQueryTest is Test {
         bytes memory pcr = QueryTest.buildPerChainResponseBytes(
             /* chainId */       2,
             /* queryType */     1,
-            /* responseLen */   185,
             /* responseBytes */ hex"00000000000007446a0b819aee8945e659e37537a0bdbe03c06275be23e499819138d1eee8337e9b000000006ab13b8002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000012"
         );
         assertEq(pcr, hex"000201000000b900000000000007446a0b819aee8945e659e37537a0bdbe03c06275be23e499819138d1eee8337e9b000000006ab13b8002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000012");
@@ -160,12 +149,10 @@ contract TestQueryTest is Test {
 
     function test_buildEthCallResultBytes() public {
         bytes memory ecr1 = QueryTest.buildEthCallResultBytes(
-            /* resultLen */ 96,
             /* result */    hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000"
         );
         assertEq(ecr1, hex"000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000");
         bytes memory ecr2 = QueryTest.buildEthCallResultBytes(
-            /* resultLen */ 32,
             /* result */    hex"0000000000000000000000000000000000000000000000000000000000000012"
         );
         assertEq(ecr2, hex"000000200000000000000000000000000000000000000000000000000000000000000012");
