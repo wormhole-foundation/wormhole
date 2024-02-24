@@ -362,10 +362,9 @@ fn handle_vaa(
         } else {
             bail!("unknown governance module")
         }
-    // TODO: handle NTT emitter inits and registration VAAs
     } else {
         let msg =
-            serde_wormhole::from_slice(body.payload).context("failed to parse NTT message")?;
+            serde_wormhole::from_slice(body.payload).context("failed to parse raw message")?;
         handle_ntt_vaa(deps.branch(), body.with_payload(msg))?
     };
 
@@ -450,43 +449,30 @@ fn handle_accountant_governance_vaa(
     }
 }
 
-fn handle_ntt_vaa(
-    mut deps: DepsMut<WormholeQuery>,
-    body: Body<token::Message<&RawMessage>>,
-) -> anyhow::Result<Event> {
+fn handle_ntt_vaa(deps: DepsMut<WormholeQuery>, body: Body<&RawMessage>) -> anyhow::Result<Event> {
+    // TODO: handle NTT emitter inits and registration VAAs
+    // TODO: handle backfilling NTT transfers via Core *OR* AR
     // TODO: update this method akin to handle_observation
-    let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
-        .may_load(deps.storage, body.emitter_chain.into())
-        .context("failed to load chain registration")?
-        .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
+    // let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
+    //     .may_load(deps.storage, body.emitter_chain.into())
+    //     .context("failed to load chain registration")?
+    //     .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
 
-    ensure!(
-        *registered_emitter == body.emitter_address.0,
-        "unknown emitter address"
-    );
+    // ensure!(
+    //     *registered_emitter == body.emitter_address.0,
+    //     "unknown emitter address"
+    // );
 
-    let data = match body.payload {
-        token::Message::Transfer {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        }
-        | token::Message::TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        } => transfer::Data {
-            amount: Uint256::from_be_bytes(amount.0),
-            token_address: TokenAddress::new(token_address.0),
-            token_chain: token_chain.into(),
-            recipient_chain: recipient_chain.into(),
-        },
-        _ => bail!("Unknown tokenbridge payload"),
-    };
+    // let data = transfer::Data {
+    //     amount: Uint256::from(0u128),
+    //     token_address: TokenAddress::new([
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00,
+    //     ]),
+    //     token_chain: 0,
+    //     recipient_chain: 0,
+    // };
 
     let key = transfer::Key::new(
         body.emitter_chain.into(),
@@ -494,16 +480,17 @@ fn handle_ntt_vaa(
         body.sequence,
     );
 
-    let tx = Transfer {
-        key: key.clone(),
-        data,
-    };
-    let evt = accountant::commit_transfer(deps.branch(), tx)
-        .with_context(|| format!("failed to commit transfer for key {key}"))?;
+    // let tx = Transfer {
+    //     key: key.clone(),
+    //     data,
+    // };
+    // let evt = accountant::commit_transfer(deps.branch(), tx)
+    //     .with_context(|| format!("failed to commit transfer for key {key}"))?;
 
     PENDING_TRANSFERS.remove(deps.storage, key);
 
-    Ok(evt)
+    bail!("unimplemented");
+    // Ok(evt)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

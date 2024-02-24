@@ -4,13 +4,11 @@ use std::collections::BTreeMap;
 
 use accountant::state::{
     account::{self, Balance},
-    transfer, Kind, Modification, Transfer,
+    Kind, Modification,
 };
 use cosmwasm_std::Uint256;
 use helpers::*;
-use ntt_global_accountant::msg::TransferStatus;
 use wormhole_bindings::fake;
-use wormhole_sdk::{token::Message, vaa::Body, Address, Amount};
 
 fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
     let mut s = 0;
@@ -32,56 +30,56 @@ fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: us
     }
 }
 
-fn create_transfers(
-    wh: &fake::WormholeKeeper,
-    contract: &mut Contract,
-    count: usize,
-) -> Vec<Transfer> {
-    let mut out = Vec::with_capacity(count);
+// fn create_transfers(
+//     wh: &fake::WormholeKeeper,
+//     contract: &mut Contract,
+//     count: usize,
+// ) -> Vec<Transfer> {
+//     let mut out = Vec::with_capacity(count);
 
-    let mut vaas = Vec::with_capacity(count);
-    for i in 0..count {
-        let emitter_chain = i as u16;
-        let emitter_address = [i as u8; 32];
-        let sequence = i as u64;
-        let token_chain = emitter_chain;
-        let token_address = [i as u8; 32];
-        let recipient_chain = emitter_chain + 1;
-        let amount = Uint256::from(i as u128);
+//     let mut vaas = Vec::with_capacity(count);
+//     for i in 0..count {
+//         let emitter_chain = i as u16;
+//         let emitter_address = [i as u8; 32];
+//         let sequence = i as u64;
+//         let token_chain = emitter_chain;
+//         let token_address = [i as u8; 32];
+//         let recipient_chain = emitter_chain + 1;
+//         let amount = Uint256::from(i as u128);
 
-        let body: Body<Message> = Body {
-            timestamp: i as u32,
-            nonce: i as u32,
-            emitter_chain: emitter_chain.into(),
-            emitter_address: Address(emitter_address),
-            sequence,
-            consistency_level: 0,
-            payload: Message::Transfer {
-                amount: Amount(amount.to_be_bytes()),
-                token_address: Address(token_address),
-                token_chain: token_chain.into(),
-                recipient: Address([i as u8; 32]),
-                recipient_chain: recipient_chain.into(),
-                fee: Amount(Uint256::zero().to_be_bytes()),
-            },
-        };
+//         let body: Body<Message> = Body {
+//             timestamp: i as u32,
+//             nonce: i as u32,
+//             emitter_chain: emitter_chain.into(),
+//             emitter_address: Address(emitter_address),
+//             sequence,
+//             consistency_level: 0,
+//             payload: Message::Transfer {
+//                 amount: Amount(amount.to_be_bytes()),
+//                 token_address: Address(token_address),
+//                 token_chain: token_chain.into(),
+//                 recipient: Address([i as u8; 32]),
+//                 recipient_chain: recipient_chain.into(),
+//                 fee: Amount(Uint256::zero().to_be_bytes()),
+//             },
+//         };
 
-        let (_, data) = sign_vaa_body(wh, body);
-        vaas.push(data);
-        out.push(Transfer {
-            key: transfer::Key::new(emitter_chain, emitter_address.into(), sequence),
-            data: transfer::Data {
-                amount,
-                token_chain,
-                token_address: token_address.into(),
-                recipient_chain,
-            },
-        });
-    }
+//         let (_, data) = sign_vaa_body(wh, body);
+//         vaas.push(data);
+//         out.push(Transfer {
+//             key: transfer::Key::new(emitter_chain, emitter_address.into(), sequence),
+//             data: transfer::Data {
+//                 amount,
+//                 token_chain,
+//                 token_address: token_address.into(),
+//                 recipient_chain,
+//             },
+//         });
+//     }
 
-    contract.submit_vaas(vaas).unwrap();
-    out
-}
+//     contract.submit_vaas(vaas).unwrap();
+//     out
+// }
 
 pub fn create_modifications(
     wh: &fake::WormholeKeeper,
@@ -209,112 +207,117 @@ fn all_balances_sub_range() {
     }
 }
 
-#[test]
-fn transfer_data() {
-    let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    register_emitters(&wh, &mut contract, count);
-    create_transfers(&wh, &mut contract, count);
+// TODO: port test
+// #[test]
+// fn transfer_data() {
+//     let count = 2;
+//     let (wh, mut contract) = proper_instantiate();
+//     register_emitters(&wh, &mut contract, count);
+//     create_transfers(&wh, &mut contract, count);
 
-    for i in 0..count {
-        let expected = transfer::Data {
-            amount: Uint256::from(i as u128),
-            token_chain: i as u16,
-            token_address: [i as u8; 32].into(),
-            recipient_chain: (i + 1) as u16,
-        };
+//     for i in 0..count {
+//         let expected = transfer::Data {
+//             amount: Uint256::from(i as u128),
+//             token_chain: i as u16,
+//             token_address: [i as u8; 32].into(),
+//             recipient_chain: (i + 1) as u16,
+//         };
 
-        let key = transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64);
-        let actual = contract.query_transfer(key).unwrap();
+//         let key = transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64);
+//         let actual = contract.query_transfer(key).unwrap();
 
-        assert_eq!(expected, actual.data);
-    }
-}
+//         assert_eq!(expected, actual.data);
+//     }
+// }
 
-#[test]
-fn missing_transfer() {
-    let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    register_emitters(&wh, &mut contract, count);
-    create_transfers(&wh, &mut contract, count);
+// TODO: port test
+// #[test]
+// fn missing_transfer() {
+//     let count = 2;
+//     let (wh, mut contract) = proper_instantiate();
+//     register_emitters(&wh, &mut contract, count);
+//     create_transfers(&wh, &mut contract, count);
 
-    let missing = transfer::Key::new(
-        (count + 1) as u16,
-        [(count + 2) as u8; 32].into(),
-        (count + 3) as u64,
-    );
+//     let missing = transfer::Key::new(
+//         (count + 1) as u16,
+//         [(count + 2) as u8; 32].into(),
+//         (count + 3) as u64,
+//     );
 
-    let err = contract
-        .query_transfer(missing)
-        .expect_err("successfully queried missing transfer key");
-    assert!(err.to_string().to_lowercase().contains("not found"));
-}
+//     let err = contract
+//         .query_transfer(missing)
+//         .expect_err("successfully queried missing transfer key");
+//     assert!(err.to_string().to_lowercase().contains("not found"));
+// }
 
-#[test]
-fn all_transfer_data() {
-    let count = 3;
-    let (wh, mut contract) = proper_instantiate();
-    register_emitters(&wh, &mut contract, count);
-    let transfers = create_transfers(&wh, &mut contract, count);
+// TODO: port test
+// #[test]
+// fn all_transfer_data() {
+//     let count = 3;
+//     let (wh, mut contract) = proper_instantiate();
+//     register_emitters(&wh, &mut contract, count);
+//     let transfers = create_transfers(&wh, &mut contract, count);
 
-    let resp = contract.query_all_transfers(None, None).unwrap();
-    let found = resp
-        .transfers
-        .into_iter()
-        .map(|(acc, _)| (acc.key, acc.data))
-        .collect::<BTreeMap<_, _>>();
-    assert_eq!(found.len(), count);
+//     let resp = contract.query_all_transfers(None, None).unwrap();
+//     let found = resp
+//         .transfers
+//         .into_iter()
+//         .map(|(acc, _)| (acc.key, acc.data))
+//         .collect::<BTreeMap<_, _>>();
+//     assert_eq!(found.len(), count);
 
-    for t in transfers {
-        assert_eq!(found[&t.key], t.data);
-    }
-}
+//     for t in transfers {
+//         assert_eq!(found[&t.key], t.data);
+//     }
+// }
 
-#[test]
-fn batch_transfer_status() {
-    let count = 3;
-    let (wh, mut contract) = proper_instantiate();
-    register_emitters(&wh, &mut contract, count);
-    let transfers = create_transfers(&wh, &mut contract, count);
+// TODO: port test
+// #[test]
+// fn batch_transfer_status() {
+//     let count = 3;
+//     let (wh, mut contract) = proper_instantiate();
+//     register_emitters(&wh, &mut contract, count);
+//     let transfers = create_transfers(&wh, &mut contract, count);
 
-    let keys = transfers.iter().map(|t| &t.key).cloned().collect();
-    let resp = contract.query_batch_transfer_status(keys).unwrap();
+//     let keys = transfers.iter().map(|t| &t.key).cloned().collect();
+//     let resp = contract.query_batch_transfer_status(keys).unwrap();
 
-    for (tx, details) in transfers.into_iter().zip(resp.details) {
-        assert_eq!(tx.key, details.key);
-        match details.status {
-            Some(TransferStatus::Committed { data, .. }) => assert_eq!(tx.data, data),
-            s => panic!("unexpected transfer status: {s:?}"),
-        }
-    }
-}
+//     for (tx, details) in transfers.into_iter().zip(resp.details) {
+//         assert_eq!(tx.key, details.key);
+//         match details.status {
+//             Some(TransferStatus::Committed { data, .. }) => assert_eq!(tx.data, data),
+//             s => panic!("unexpected transfer status: {s:?}"),
+//         }
+//     }
+// }
 
-#[test]
-fn all_transfer_data_sub_range() {
-    let count = 5;
-    let (wh, mut contract) = proper_instantiate();
-    register_emitters(&wh, &mut contract, count);
-    create_transfers(&wh, &mut contract, count);
+// TODO: port test
+// #[test]
+// fn all_transfer_data_sub_range() {
+//     let count = 5;
+//     let (wh, mut contract) = proper_instantiate();
+//     register_emitters(&wh, &mut contract, count);
+//     create_transfers(&wh, &mut contract, count);
 
-    for i in 0..count {
-        for l in 1..count - i {
-            let start_after = Some(transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64));
-            let limit = Some(l as u32);
-            let resp = contract.query_all_transfers(start_after, limit).unwrap();
-            let found = resp
-                .transfers
-                .into_iter()
-                .map(|(acc, _)| (acc.key, acc.data))
-                .collect::<BTreeMap<_, _>>();
-            assert_eq!(found.len(), l);
+//     for i in 0..count {
+//         for l in 1..count - i {
+//             let start_after = Some(transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64));
+//             let limit = Some(l as u32);
+//             let resp = contract.query_all_transfers(start_after, limit).unwrap();
+//             let found = resp
+//                 .transfers
+//                 .into_iter()
+//                 .map(|(acc, _)| (acc.key, acc.data))
+//                 .collect::<BTreeMap<_, _>>();
+//             assert_eq!(found.len(), l);
 
-            for x in i + 1..=i + l {
-                let key = transfer::Key::new(x as u16, [x as u8; 32].into(), x as u64);
-                assert!(found.contains_key(&key));
-            }
-        }
-    }
-}
+//             for x in i + 1..=i + l {
+//                 let key = transfer::Key::new(x as u16, [x as u8; 32].into(), x as u64);
+//                 assert!(found.contains_key(&key));
+//             }
+//         }
+//     }
+// }
 
 #[test]
 fn modification_data() {
