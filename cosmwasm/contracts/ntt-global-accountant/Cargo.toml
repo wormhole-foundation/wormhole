@@ -16,6 +16,7 @@ library = []
 accountant = "0.1.0"
 anyhow = "1"
 base64 = "0.13"
+byteorder = "1.5.0"
 cosmwasm-schema = "1"
 cosmwasm-std = "1"
 cw-storage-plus = "0.13.2"
