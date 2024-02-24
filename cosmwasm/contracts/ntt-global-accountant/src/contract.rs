@@ -13,12 +13,16 @@ use cosmwasm_std::{
     MessageInfo, Order, Response, StdError, StdResult, Uint256,
 };
 use cw2::set_contract_version;
-use cw_storage_plus::Bound;
+use cw_storage_plus::{Bound, KeyDeserialize};
+use ntt_messages::{
+    endpoint::EndpointMessage, endpoints::wormhole::WormholeEndpoint, ntt::NativeTokenTransfer,
+};
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole_bindings::WormholeQuery;
+use wormhole_io::TypePrefixedPayload;
 use wormhole_sdk::{
-    ntt_accountant as ntt_accountant_module, relayer, token,
+    ntt_accountant as ntt_accountant_module, relayer,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -34,6 +38,7 @@ use crate::{
         SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{Data, PendingTransfer, DIGESTS, PENDING_TRANSFERS, RELAYER_CHAIN_REGISTRATIONS},
+    structs::DeliveryInstruction,
 };
 
 // version info for migration info
@@ -154,22 +159,33 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
-    // TODO: check if the emitter is an Standard Relayer contract
-    // TODO: if it is, parse out the inner sender and payload
+    let relayer_emitter = RELAYER_CHAIN_REGISTRATIONS.may_load(deps.storage, o.emitter_chain)?;
+
+    let digest = o.digest().context(ContractError::ObservationDigest)?;
+    let event = cw_transcode::to_event(&o)
+        .map(Some)
+        .context("failed to transcode `Observation` to `Event`")?;
+
+    let (sender, payload) =
+        if relayer_emitter.is_some_and(|relayer_address| relayer_address == o.emitter_address) {
+            // if the emitter is a known standard relayer, parse the sender and payload from the delivery instruction
+            let delivery_instruction = DeliveryInstruction::deserialize(&o.payload.0)?;
+            (
+                delivery_instruction.sender_address,
+                delivery_instruction.payload,
+            )
+        } else {
+            // otherwise, the sender and payload is the same as the VAA
+            (o.emitter_address, o.payload.0)
+        };
+
+    let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
+        TypePrefixedPayload::read_payload(&mut payload.as_slice())
+            .context("failed to parse observation payload")?;
+
     // TODO: check the emitter is cross registered to the destination contract
     // expected_recipient = registrations[source_chain][source_sender][destination_chain]
     // registrations[destination_chain][expected_recipient][source_chain] == source_sender
-    let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
-        .may_load(deps.storage, o.emitter_chain)
-        .context("failed to load chain registration")?
-        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
-
-    ensure!(
-        *registered_emitter == o.emitter_address,
-        "unknown emitter address"
-    );
-
-    let digest = o.digest().context(ContractError::ObservationDigest)?;
 
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
@@ -218,35 +234,16 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
-    // TODO: parse ntt::Message instead of token::Message and only handle transfers
     // TODO: both AR and Core messages will need to use the same key per endpoint,
     // so the token chain and token endpoint should be mapped to the hub chain and endpoint
-    // TODO: WARNING the amounts are NOT normalized among different chains / tokens,
-    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals normalized,
-    // and another that uses 8... this is maxed at 8, but should be normalized to 8 for accounting purposes
-    let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
-        .context("failed to parse observation payload")?;
-    let tx_data = match msg {
-        token::Message::Transfer {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        }
-        | token::Message::TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        } => transfer::Data {
-            amount: Uint256::from_be_bytes(amount.0),
-            token_address: TokenAddress::new(token_address.0),
-            token_chain: token_chain.into(),
-            recipient_chain: recipient_chain.into(),
-        },
-        _ => bail!("Unknown tokenbridge payload"),
+    // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
+    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
+    // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
+    let tx_data = transfer::Data {
+        amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
+        token_address: TokenAddress::new(sender),
+        token_chain: o.emitter_chain,
+        recipient_chain: message.manager_payload.payload.to_chain.id,
     };
 
     accountant::commit_transfer(
@@ -266,10 +263,6 @@ fn handle_observation(
 
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
-
-    let event = cw_transcode::to_event(&o)
-        .map(Some)
-        .context("failed to transcode `Observation` to `Event`")?;
 
     Ok((ObservationStatus::Committed, event))
 }
@@ -449,30 +442,48 @@ fn handle_accountant_governance_vaa(
     }
 }
 
-fn handle_ntt_vaa(deps: DepsMut<WormholeQuery>, body: Body<&RawMessage>) -> anyhow::Result<Event> {
+fn handle_ntt_vaa(
+    mut deps: DepsMut<WormholeQuery>,
+    body: Body<&RawMessage>,
+) -> anyhow::Result<Event> {
     // TODO: handle NTT emitter inits and registration VAAs
-    // TODO: handle backfilling NTT transfers via Core *OR* AR
-    // TODO: update this method akin to handle_observation
-    // let registered_emitter = RELAYER_CHAIN_REGISTRATIONS
-    //     .may_load(deps.storage, body.emitter_chain.into())
-    //     .context("failed to load chain registration")?
-    //     .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
+    let relayer_emitter =
+        RELAYER_CHAIN_REGISTRATIONS.may_load(deps.storage, body.emitter_chain.into())?;
 
-    // ensure!(
-    //     *registered_emitter == body.emitter_address.0,
-    //     "unknown emitter address"
-    // );
+    let (sender, payload) = if relayer_emitter
+        .is_some_and(|relayer_address| relayer_address == body.emitter_address.0)
+    {
+        // if the emitter is a known standard relayer, parse the sender and payload from the delivery instruction
+        let delivery_instruction =
+            DeliveryInstruction::deserialize(&Vec::from_slice(body.payload)?)?;
+        (
+            delivery_instruction.sender_address,
+            delivery_instruction.payload,
+        )
+    } else {
+        // otherwise, the sender and payload is the same as the VAA
+        (body.emitter_address.0, Vec::from_slice(body.payload)?)
+    };
 
-    // let data = transfer::Data {
-    //     amount: Uint256::from(0u128),
-    //     token_address: TokenAddress::new([
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00,
-    //     ]),
-    //     token_chain: 0,
-    //     recipient_chain: 0,
-    // };
+    let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
+        TypePrefixedPayload::read_payload(&mut payload.as_slice())
+            .context("failed to parse NTT payload")?;
+
+    // TODO: check the emitter is cross registered to the destination contract
+    // expected_recipient = registrations[source_chain][source_sender][destination_chain]
+    // registrations[destination_chain][expected_recipient][source_chain] == source_sender
+
+    // TODO: both AR and Core messages will need to use the same key per endpoint,
+    // so the token chain and token endpoint should be mapped to the hub chain and endpoint
+    // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
+    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
+    // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
+    let data = transfer::Data {
+        amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
+        token_address: TokenAddress::new(sender),
+        token_chain: body.emitter_chain.into(),
+        recipient_chain: message.manager_payload.payload.to_chain.id,
+    };
 
     let key = transfer::Key::new(
         body.emitter_chain.into(),
@@ -480,17 +491,16 @@ fn handle_ntt_vaa(deps: DepsMut<WormholeQuery>, body: Body<&RawMessage>) -> anyh
         body.sequence,
     );
 
-    // let tx = Transfer {
-    //     key: key.clone(),
-    //     data,
-    // };
-    // let evt = accountant::commit_transfer(deps.branch(), tx)
-    //     .with_context(|| format!("failed to commit transfer for key {key}"))?;
+    let tx = Transfer {
+        key: key.clone(),
+        data,
+    };
+    let evt = accountant::commit_transfer(deps.branch(), tx)
+        .with_context(|| format!("failed to commit transfer for key {key}"))?;
 
     PENDING_TRANSFERS.remove(deps.storage, key);
 
-    bail!("unimplemented");
-    // Ok(evt)
+    Ok(evt)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

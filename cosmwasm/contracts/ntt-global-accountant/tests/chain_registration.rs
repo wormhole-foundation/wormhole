@@ -122,7 +122,11 @@ fn non_governance_chain() {
         .expect_err("successfully executed chain registration with non-governance chain");
 
     // A governance message with wrong chain or emitter will be parsed as an NTT message
-    assert!(err.source().unwrap().to_string().contains("unimplemented",));
+    assert!(err
+        .source()
+        .unwrap()
+        .to_string()
+        .contains("failed to parse NTT payload",));
 }
 
 #[test]
@@ -138,7 +142,11 @@ fn non_governance_emitter() {
         .expect_err("successfully executed chain registration with non-governance emitter");
 
     // A governance message with wrong chain or emitter will be parsed as an NTT message
-    assert!(err.source().unwrap().to_string().contains("unimplemented",));
+    assert!(err
+        .source()
+        .unwrap()
+        .to_string()
+        .contains("failed to parse NTT payload",));
 }
 
 #[test]
