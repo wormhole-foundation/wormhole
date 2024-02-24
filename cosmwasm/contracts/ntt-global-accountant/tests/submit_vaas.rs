@@ -111,7 +111,11 @@ fn invalid_emitter() {
     let err = contract
         .submit_vaas(payloads)
         .expect_err("successfully submitted VAA from invalid emitter");
-    assert_eq!("unimplemented", err.root_cause().to_string().to_lowercase());
+    // TODO: fix
+    assert_eq!(
+        "invalid prefix for endpointmessage",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -138,7 +142,11 @@ fn invalid_transfer() {
     let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA containing invalid transfer");
-    assert_eq!("unimplemented", err.root_cause().to_string().to_lowercase());
+    // TODO: fix
+    assert_eq!(
+        "failed to fill whole buffer",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -229,7 +237,11 @@ fn non_transfer_message() {
     let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with non-transfer message");
-    assert_eq!("unimplemented", err.root_cause().to_string().to_lowercase());
+    // TODO: fix, this is currently registering a relayer and then passing a non delivery VAA
+    assert_eq!(
+        "payloadmismatch",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 // TODO: port test

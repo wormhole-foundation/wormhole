@@ -24,13 +24,13 @@ pub struct DeliveryInstruction {
 impl DeliveryInstruction {
     pub const PAYLOAD_ID: u8 = 1;
 
-    pub fn deserialize(data: &Vec<u8>) -> std::result::Result<DeliveryInstruction, std::io::Error> {
+    pub fn deserialize(data: &[u8]) -> std::result::Result<DeliveryInstruction, std::io::Error> {
         let mut rdr = Cursor::new(data);
         Self::deserialize_from_reader(&mut rdr)
     }
 
     pub fn deserialize_from_reader(
-        rdr: &mut Cursor<&Vec<u8>>,
+        rdr: &mut Cursor<&[u8]>,
     ) -> std::result::Result<DeliveryInstruction, std::io::Error> {
         let payload_id = rdr.read_u8()?;
         if payload_id != Self::PAYLOAD_ID {
@@ -105,13 +105,13 @@ pub struct MessageKey {
 impl MessageKey {
     pub const KEY_TYPE_VAA: u8 = 1;
 
-    pub fn deserialize(data: &Vec<u8>) -> std::result::Result<MessageKey, std::io::Error> {
+    pub fn deserialize(data: &[u8]) -> std::result::Result<MessageKey, std::io::Error> {
         let mut rdr = Cursor::new(data);
         Self::deserialize_from_reader(&mut rdr)
     }
 
     pub fn deserialize_from_reader(
-        rdr: &mut Cursor<&Vec<u8>>,
+        rdr: &mut Cursor<&[u8]>,
     ) -> std::result::Result<MessageKey, std::io::Error> {
         let key_type = rdr.read_u8()?;
 
@@ -171,7 +171,7 @@ mod test {
             0x06, 0x98, 0x21, 0x40, 0x4d, 0x27, 0x2b, 0x99, 0x4b, 0xb8, 0x0b, 0x1b, 0xa1, 0x63,
             0x19, 0x14, 0x00,
         ];
-        let delivery = DeliveryInstruction::deserialize(&payload.to_vec()).unwrap();
+        let delivery = DeliveryInstruction::deserialize(&payload).unwrap();
 
         assert_eq!(delivery.target_chain, 10002);
         assert_eq!(
