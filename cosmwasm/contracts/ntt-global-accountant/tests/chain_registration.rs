@@ -51,7 +51,7 @@ fn any_target() {
     };
 
     resp.assert_event(
-        &Event::new("wasm-RegisterChain")
+        &Event::new("wasm-RegisterRelayer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
@@ -82,7 +82,7 @@ fn wormchain_target() {
     };
 
     resp.assert_event(
-        &Event::new("wasm-RegisterChain")
+        &Event::new("wasm-RegisterRelayer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
@@ -126,7 +126,7 @@ fn non_governance_chain() {
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse NTT payload",));
+        .contains("unsupported NTT action",));
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn non_governance_emitter() {
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse NTT payload",));
+        .contains("unsupported NTT action",));
 }
 
 #[test]

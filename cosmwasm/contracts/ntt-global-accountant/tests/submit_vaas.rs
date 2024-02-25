@@ -112,10 +112,7 @@ fn invalid_emitter() {
         .submit_vaas(payloads)
         .expect_err("successfully submitted VAA from invalid emitter");
     // TODO: fix
-    assert_eq!(
-        "invalid prefix for endpointmessage",
-        err.root_cause().to_string().to_lowercase()
-    );
+    assert_eq!("unsupported NTT action", err.root_cause().to_string());
 }
 
 #[test]

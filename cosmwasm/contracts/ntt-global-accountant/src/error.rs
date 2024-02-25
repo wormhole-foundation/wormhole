@@ -9,8 +9,12 @@ use wormhole_sdk::Chain;
 pub enum ContractError {
     #[error("failed to verify quorum")]
     VerifyQuorum,
-    #[error("no registered emitter for chain {0}")]
-    MissingChainRegistration(Chain),
+    #[error("no registered hub")]
+    MissingHubRegistration,
+    #[error("no registered source peer for chain {0}")]
+    MissingSourcePeerRegistration(Chain),
+    #[error("no registered destination peer for chain {0}")]
+    MissingDestinationPeerRegistration(Chain),
     #[error("failed to calculate digest of observation")]
     ObservationDigest,
     #[error("message already processed")]

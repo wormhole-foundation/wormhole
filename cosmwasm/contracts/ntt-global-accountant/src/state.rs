@@ -6,8 +6,8 @@ use tinyvec::TinyVec;
 
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
 pub const RELAYER_CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("relayer_chain_registrations");
-// TODO: NTT endpoint registrations
-// TODO: NTT locking hubs
+pub const ENDPOINT_TO_HUB: Map<(u16, Vec<u8>), (u16, Vec<u8>)> = Map::new("endpoint_to_hub");
+pub const ENDPOINT_PEER: Map<(u16, Vec<u8>, u16), Vec<u8>> = Map::new("endpoint_peers");
 pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
 
 #[cw_serde]
