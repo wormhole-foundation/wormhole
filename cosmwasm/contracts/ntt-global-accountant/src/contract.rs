@@ -205,6 +205,9 @@ fn handle_observation(
         .context("failed to load destination peer")?
         .ok_or_else(|| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
     if destination_peer != sender {
+        // SECURITY defense-in-depth:
+        // should never get here due to strict registration ordering restrictions
+        // the lookups above would have failed instead
         bail!("peers are not cross-registered")
     }
 
@@ -518,6 +521,9 @@ fn handle_ntt_vaa(
                 ContractError::MissingDestinationPeerRegistration(source_chain.into())
             })?;
         if destination_peer != sender {
+            // SECURITY defense-in-depth:
+            // should never get here due to strict registration ordering restrictions
+            // the lookups above would have failed instead
             bail!("peers are not cross-registered")
         }
 
