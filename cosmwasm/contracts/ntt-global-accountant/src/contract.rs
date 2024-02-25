@@ -37,8 +37,11 @@ use crate::{
         ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
         SUBMITTED_OBSERVATIONS_PREFIX,
     },
-    state::{Data, PendingTransfer, DIGESTS, PENDING_TRANSFERS, RELAYER_CHAIN_REGISTRATIONS},
-    structs::DeliveryInstruction,
+    state::{
+        Data, PendingTransfer, DIGESTS, ENDPOINT_PEER, ENDPOINT_TO_HUB, PENDING_TRANSFERS,
+        RELAYER_CHAIN_REGISTRATIONS,
+    },
+    structs::{DeliveryInstruction, EndpointInit, EndpointRegister, EndpointTransfer, ManagerMode},
 };
 
 // version info for migration info
@@ -179,13 +182,31 @@ fn handle_observation(
             (o.emitter_address, o.payload.0)
         };
 
+    let hub_key = ENDPOINT_TO_HUB.key((o.emitter_chain, sender.to_vec()));
+
+    let hub = hub_key
+        .may_load(deps.storage)
+        .context("failed to load hub")?
+        .ok_or(ContractError::MissingHubRegistration)?;
+
     let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
         TypePrefixedPayload::read_payload(&mut payload.as_slice())
             .context("failed to parse observation payload")?;
 
-    // TODO: check the emitter is cross registered to the destination contract
-    // expected_recipient = registrations[source_chain][source_sender][destination_chain]
-    // registrations[destination_chain][expected_recipient][source_chain] == source_sender
+    let destination_chain = message.manager_payload.payload.to_chain.id;
+    let source_peer_key = ENDPOINT_PEER.key((o.emitter_chain, sender.to_vec(), destination_chain));
+    let source_peer = source_peer_key
+        .may_load(deps.storage)
+        .context("failed to load source peer")?
+        .ok_or_else(|| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
+    let destination_peer_key = ENDPOINT_PEER.key((destination_chain, source_peer, o.emitter_chain));
+    let destination_peer = destination_peer_key
+        .may_load(deps.storage)
+        .context("failed to load destination peer")?
+        .ok_or_else(|| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
+    if destination_peer != sender {
+        bail!("peers are not cross-registered")
+    }
 
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
@@ -234,15 +255,13 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
-    // TODO: both AR and Core messages will need to use the same key per endpoint,
-    // so the token chain and token endpoint should be mapped to the hub chain and endpoint
     // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
     // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
     // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
     let tx_data = transfer::Data {
         amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
-        token_address: TokenAddress::new(sender),
-        token_chain: o.emitter_chain,
+        token_address: TokenAddress::from_vec(hub.1)?,
+        token_chain: hub.0,
         recipient_chain: message.manager_payload.payload.to_chain.id,
     };
 
@@ -391,7 +410,7 @@ fn handle_relayer_governance_vaa(
                     &emitter_address.0.to_vec().into(),
                 )
                 .context("failed to save chain registration")?;
-            Ok(Event::new("RegisterChain")
+            Ok(Event::new("RegisterRelayer")
                 .add_attribute("chain", chain.to_string())
                 .add_attribute("emitter_address", emitter_address.to_string()))
         }
@@ -446,7 +465,6 @@ fn handle_ntt_vaa(
     mut deps: DepsMut<WormholeQuery>,
     body: Body<&RawMessage>,
 ) -> anyhow::Result<Event> {
-    // TODO: handle NTT emitter inits and registration VAAs
     let relayer_emitter =
         RELAYER_CHAIN_REGISTRATIONS.may_load(deps.storage, body.emitter_chain.into())?;
 
@@ -465,42 +483,151 @@ fn handle_ntt_vaa(
         (body.emitter_address.0, Vec::from_slice(body.payload)?)
     };
 
-    let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
-        TypePrefixedPayload::read_payload(&mut payload.as_slice())
-            .context("failed to parse NTT payload")?;
+    if payload.len() < 4 {
+        bail!("payload prefix missing");
+    }
+    let prefix = &payload[..4];
 
-    // TODO: check the emitter is cross registered to the destination contract
-    // expected_recipient = registrations[source_chain][source_sender][destination_chain]
-    // registrations[destination_chain][expected_recipient][source_chain] == source_sender
+    if prefix == EndpointTransfer::PREFIX {
+        let source_chain = body.emitter_chain.into();
+        let hub_key = ENDPOINT_TO_HUB.key((source_chain, sender.to_vec()));
 
-    // TODO: both AR and Core messages will need to use the same key per endpoint,
-    // so the token chain and token endpoint should be mapped to the hub chain and endpoint
-    // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
-    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
-    // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
-    let data = transfer::Data {
-        amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
-        token_address: TokenAddress::new(sender),
-        token_chain: body.emitter_chain.into(),
-        recipient_chain: message.manager_payload.payload.to_chain.id,
-    };
+        let hub = hub_key
+            .may_load(deps.storage)
+            .context("failed to load hub")?
+            .ok_or(ContractError::MissingHubRegistration)?;
 
-    let key = transfer::Key::new(
-        body.emitter_chain.into(),
-        TokenAddress::new(body.emitter_address.0),
-        body.sequence,
-    );
+        let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT transfer payload")?;
 
-    let tx = Transfer {
-        key: key.clone(),
-        data,
-    };
-    let evt = accountant::commit_transfer(deps.branch(), tx)
-        .with_context(|| format!("failed to commit transfer for key {key}"))?;
+        let destination_chain = message.manager_payload.payload.to_chain.id;
+        let source_peer_key = ENDPOINT_PEER.key((source_chain, sender.to_vec(), destination_chain));
+        let source_peer = source_peer_key
+            .may_load(deps.storage)
+            .context("failed to load source peer")?
+            .ok_or_else(|| {
+                ContractError::MissingSourcePeerRegistration(destination_chain.into())
+            })?;
+        let destination_peer_key =
+            ENDPOINT_PEER.key((destination_chain, source_peer, source_chain));
+        let destination_peer = destination_peer_key
+            .may_load(deps.storage)
+            .context("failed to load destination peer")?
+            .ok_or_else(|| {
+                ContractError::MissingDestinationPeerRegistration(source_chain.into())
+            })?;
+        if destination_peer != sender {
+            bail!("peers are not cross-registered")
+        }
 
-    PENDING_TRANSFERS.remove(deps.storage, key);
+        // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
+        // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
+        // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
+        let data = transfer::Data {
+            amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
+            token_address: TokenAddress::try_from(hub.1)?,
+            token_chain: hub.0,
+            recipient_chain: message.manager_payload.payload.to_chain.id,
+        };
 
-    Ok(evt)
+        let key = transfer::Key::new(
+            source_chain,
+            TokenAddress::new(body.emitter_address.0),
+            body.sequence,
+        );
+
+        let tx = Transfer {
+            key: key.clone(),
+            data,
+        };
+        let evt = accountant::commit_transfer(deps.branch(), tx)
+            .with_context(|| format!("failed to commit transfer for key {key}"))?;
+
+        PENDING_TRANSFERS.remove(deps.storage, key);
+
+        Ok(evt)
+    } else if prefix == EndpointInit::PREFIX {
+        // only process init messages for locking hubs, setting their hub mapping to themselves
+        let message = EndpointInit::deserialize(&payload)?;
+        if message.manager_mode == (ManagerMode::LOCKING as u8) {
+            let chain = body.emitter_chain.into();
+            let hub_key = ENDPOINT_TO_HUB.key((chain, sender.to_vec()));
+
+            if hub_key
+                .may_load(deps.storage)
+                .context("failed to load hub")?
+                .is_some()
+            {
+                bail!("hub entry already exists")
+            }
+            hub_key
+                .save(deps.storage, &(chain, sender.to_vec()))
+                .context("failed to save hub")?;
+            Ok(Event::new("RegisterHub")
+                .add_attribute("chain", chain.to_string())
+                .add_attribute("emitter_address", hex::encode(sender)))
+        } else {
+            bail!("ignoring non-locking NTT initialization")
+        }
+    } else if prefix == EndpointRegister::PREFIX {
+        // for ease of code assurances, all endpoints should register their hub first, followed by other peers
+        // this code will only add peers for which it can assure their hubs match so one less key can be loaded on transfers
+        let message = EndpointRegister::deserialize(&payload)?;
+
+        let peer_hub_key =
+            ENDPOINT_TO_HUB.key((message.endpoint_chain_id, message.endpoint_address.to_vec()));
+
+        let peer_hub = peer_hub_key
+            .may_load(deps.storage)
+            .context("failed to load peer hub")?
+            .ok_or(ContractError::MissingHubRegistration)?;
+
+        let chain = body.emitter_chain.into();
+        let peer_key = ENDPOINT_PEER.key((chain, sender.to_vec(), message.endpoint_chain_id));
+
+        if peer_key
+            .may_load(deps.storage)
+            .context("failed to load peer")?
+            .is_some()
+        {
+            bail!("peer entry for this chain already exists")
+        }
+
+        let hub_key = ENDPOINT_TO_HUB.key((chain, sender.to_vec()));
+
+        if let Some(endpoint_hub) = hub_key
+            .may_load(deps.storage)
+            .context("failed to load hub")?
+        {
+            // hubs must match
+            if endpoint_hub != peer_hub {
+                bail!("peer hub does not match")
+            }
+        } else {
+            // this endpoint does not have a known hub, check if this peer is a hub themselves
+            if peer_hub.0 == message.endpoint_chain_id && peer_hub.1 == message.endpoint_address {
+                // this peer is a hub, so set it as this endpoint's hub
+                hub_key
+                    .save(deps.storage, &peer_hub.clone())
+                    .context("failed to save hub")?;
+            } else {
+                // this peer is not a hub and we don't want to make indirect assumptions, so do nothing
+                bail!("ignoring attempt to register peer before hub")
+            }
+        }
+
+        peer_key
+            .save(deps.storage, &(message.endpoint_address.to_vec()))
+            .context("failed to save hub")?;
+        Ok(Event::new("RegisterPeer")
+            .add_attribute("chain", chain.to_string())
+            .add_attribute("emitter_address", hex::encode(sender))
+            .add_attribute("endpoint_chain", message.endpoint_chain_id.to_string())
+            .add_attribute("endpoint_address", hex::encode(message.endpoint_address)))
+    } else {
+        bail!("unsupported NTT action")
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

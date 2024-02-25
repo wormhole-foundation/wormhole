@@ -80,6 +80,13 @@ impl DeliveryInstruction {
             messages.push(MessageKey::deserialize_from_reader(rdr)?)
         }
 
+        if rdr.position() != rdr.get_ref().len() as u64 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "InvalidPayloadLength",
+            ));
+        }
+
         Ok(DeliveryInstruction {
             target_chain,
             target_address,
