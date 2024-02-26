@@ -9,17 +9,7 @@ import {
   toChainId,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { fromBech32, toHex } from "@cosmjs/encoding";
-import {
-  Chain,
-  chains,
-  toChainId as chainToChainId,
-  encoding,
-  isNative,
-  serializeLayout,
-  toUniversal,
-  NativeTokenTransfer,
-  nativeTokenTransferLayout,
-} from "@wormhole-foundation/connect-sdk";
+import * as sdk from "@wormhole-foundation/connect-sdk";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
@@ -82,7 +72,7 @@ export const builder = function (y: typeof yargs) {
             .option("source-chain", {
               alias: "sc",
               describe: "Chain to send from",
-              choices: Object.values(chains) as Chain[],
+              choices: Object.values(sdk.chains) as sdk.Chain[],
               demandOption: true,
             } as const)
             .option("source-emitter", {
@@ -112,7 +102,7 @@ export const builder = function (y: typeof yargs) {
             .option("destination-chain", {
               alias: "dc",
               describe: "Chain to send to",
-              choices: Object.values(chains) as Chain[],
+              choices: Object.values(sdk.chains) as sdk.Chain[],
               demandOption: true,
             } as const)
             .option("payload", {
@@ -124,11 +114,11 @@ export const builder = function (y: typeof yargs) {
           const srcChain = argv["source-chain"];
           const dstChain = argv["destination-chain"];
 
-          const token = toUniversal(srcChain, argv["token-address"]);
-          const receiver = toUniversal(dstChain, argv["receiver"]);
-          const emitter = toUniversal(srcChain, argv["source-emitter"]);
+          const token = sdk.toUniversal(srcChain, argv["token-address"]);
+          const receiver = sdk.toUniversal(dstChain, argv["receiver"]);
+          const emitter = sdk.toUniversal(srcChain, argv["source-emitter"]);
 
-          if (isNative(token.address)) throw "no";
+          if (sdk.isNative(token.address)) throw "what";
 
           const nttPayload = {
             normalizedAmount: {
@@ -138,25 +128,27 @@ export const builder = function (y: typeof yargs) {
             sourceToken: token,
             recipientAddress: receiver,
             recipientChain: dstChain,
-          } satisfies NativeTokenTransfer;
+          } satisfies sdk.NativeTokenTransfer;
           //
 
-          let v: VAA<Other> = {
-            version: 1,
-            guardianSetIndex: 0,
+          sdk.createVAA("NativeTokenTransfer", nttPayload);
+
+          let v: sdk.VAA<"Uint8Array"> = {
             signatures: [],
             timestamp: 1,
             nonce: 1,
-            emitterChain: chainToChainId(srcChain),
-            emitterAddress: emitter.toString(),
+            emitterChain: srcChain,
+            emitterAddress: emitter,
             sequence: BigInt(Math.floor(Math.random() * 100000000)),
             consistencyLevel: 0,
-            payload: {
-              type: "Other",
-              hex: encoding.hex.encode(
-                serializeLayout(nativeTokenTransferLayout, nttPayload)
-              ),
-            },
+            payload: sdk.serializeLayout(
+              sdk.nativeTokenTransferLayout,
+              nttPayload
+            ),
+            protocolName: null,
+            payloadName: "Uint8Array",
+            payloadLiteral: "Uint8Array",
+            guardianSet: 0,
           };
           const signers = argv["guardian-secret"].split(",");
           v.signatures = sign(signers, vaaDigest(v));
