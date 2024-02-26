@@ -144,7 +144,6 @@ var (
 	accountantKeyPassPhrase *string
 
 	accountantNttContract      *string
-	accountantNttCheckEnabled  *bool
 	accountantNttKeyPath       *string
 	accountantNttKeyPassPhrase *string
 
@@ -327,7 +326,6 @@ func init() {
 	accountantNttContract = NodeCmd.Flags().String("accountantNttContract", "", "Address of the NTT accountant smart contract on wormchain")
 	accountantNttKeyPath = NodeCmd.Flags().String("accountantNttKeyPath", "", "path to NTT accountant private key for signing transactions")
 	accountantNttKeyPassPhrase = NodeCmd.Flags().String("accountantNttKeyPassPhrase", "", "pass phrase used to unarmor the NTT accountant key file")
-	accountantNttCheckEnabled = NodeCmd.Flags().Bool("accountantNttCheckEnabled", false, "Should NTT accountant be enforced on transfers")
 
 	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -1574,7 +1572,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
-		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, *accountantNttCheckEnabled, accountantNttWormchainConn),
+		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),

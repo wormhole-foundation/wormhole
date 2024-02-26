@@ -912,7 +912,6 @@ func TestGuardianConfigs(t *testing.T) {
 					false, // enforcing
 					nil,   // wormchainConn
 					"",    // nttContract
-					false, // nttEnforcing
 					nil,   // nttWormchainConn
 				),
 			},

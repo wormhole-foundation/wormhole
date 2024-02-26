@@ -305,6 +305,16 @@
       "name": "10",
       "public": "0x610bb1573d1046fcb8a70bbbd395754cd57c2b60",
       "private": "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f"
+    },
+    {
+      "name": "11",
+      "public": "0x855FA758c77D68a04990E992aA4dcdeF899F654A",
+      "private": "0xd99b5b29e6da2528bf458b26237a6cf8655a3e3276c1cdc0de1f98cefee81c01"
+    },
+    {
+      "name": "12",
+      "public": "0xfA2435Eacf10Ca62ae6787ba2fB044f8733Ee843",
+      "private": "0x9b9c613a36396172eab2d34d72331c8ca83a358781883a535d2941f66db07b24"
     }
   ],
   "devnetGuardians": [

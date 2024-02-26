@@ -128,7 +128,6 @@ func GuardianOptionAccountant(
 	enforcing bool,
 	wormchainConn *wormconn.ClientConn,
 	nttContract string,
-	nttEnforcing bool,
 	nttWormchainConn *wormconn.ClientConn,
 ) *GuardianOption {
 	return &GuardianOption{
@@ -155,10 +154,8 @@ func GuardianOptionAccountant(
 			} else {
 				logger.Info("accountant is enabled but will not be enforced", zap.String("component", "gacct"))
 			}
-			if nttEnforcing {
-				logger.Info("NTT accountant is enabled and will be enforced", zap.String("component", "gacct"))
-			} else {
-				logger.Info("NTT accountant is enabled but will not be enforced", zap.String("component", "gacct"))
+			if nttContract != "" {
+				logger.Info("NTT accountant is enabled", zap.String("component", "gacct"))
 			}
 
 			g.acct = accountant.NewAccountant(
@@ -172,7 +169,6 @@ func GuardianOptionAccountant(
 				enforcing,
 				nttContract,
 				nttWormchainConn,
-				nttEnforcing,
 				g.gk,
 				g.gst,
 				g.acctC.writeC,
