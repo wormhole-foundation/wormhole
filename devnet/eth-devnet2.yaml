@@ -42,7 +42,7 @@ spec:
             - --wallet.deterministic
             - --chain.time="1970-01-01T00:00:00+00:00"
             - --host=0.0.0.0
-            - --wallet.totalAccounts=11
+            - --wallet.totalAccounts=13
             - --chain.chainId=1397
             - --chain.asyncRequestProcessing=false
           ports:
