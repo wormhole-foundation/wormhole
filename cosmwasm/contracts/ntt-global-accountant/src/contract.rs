@@ -31,15 +31,16 @@ use crate::{
     bail,
     error::{AnyError, ContractError},
     msg::{
-        AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
-        ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        SUBMITTED_OBSERVATIONS_PREFIX,
+        AllAccountsResponse, AllEndpointHubsResponse, AllEndpointPeersResponse,
+        AllModificationsResponse, AllPendingTransfersResponse, AllTransfersResponse,
+        BatchTransferStatusResponse, ExecuteMsg, MigrateMsg, MissingObservation,
+        MissingObservationsResponse, Observation, ObservationError, ObservationStatus, QueryMsg,
+        RelayerChainRegistrationResponse, SubmitObservationResponse, TransferDetails,
+        TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{
-        Data, PendingTransfer, DIGESTS, ENDPOINT_PEER, ENDPOINT_TO_HUB, PENDING_TRANSFERS,
-        RELAYER_CHAIN_REGISTRATIONS,
+        Data, EndpointHub, EndpointPeer, PendingTransfer, DIGESTS, ENDPOINT_PEER, ENDPOINT_TO_HUB,
+        PENDING_TRANSFERS, RELAYER_CHAIN_REGISTRATIONS,
     },
     structs::{DeliveryInstruction, EndpointInit, EndpointRegister, EndpointTransfer, ManagerMode},
 };
@@ -174,15 +175,15 @@ fn handle_observation(
             // if the emitter is a known standard relayer, parse the sender and payload from the delivery instruction
             let delivery_instruction = DeliveryInstruction::deserialize(&o.payload.0)?;
             (
-                delivery_instruction.sender_address,
+                delivery_instruction.sender_address.into(),
                 delivery_instruction.payload,
             )
         } else {
             // otherwise, the sender and payload is the same as the VAA
-            (o.emitter_address, o.payload.0)
+            (o.emitter_address.into(), o.payload.0)
         };
 
-    let hub_key = ENDPOINT_TO_HUB.key((o.emitter_chain, sender.to_vec()));
+    let hub_key = ENDPOINT_TO_HUB.key((o.emitter_chain, sender));
 
     let hub = hub_key
         .may_load(deps.storage)
@@ -194,7 +195,7 @@ fn handle_observation(
             .context("failed to parse observation payload")?;
 
     let destination_chain = message.manager_payload.payload.to_chain.id;
-    let source_peer_key = ENDPOINT_PEER.key((o.emitter_chain, sender.to_vec(), destination_chain));
+    let source_peer_key = ENDPOINT_PEER.key((o.emitter_chain, sender, destination_chain));
     let source_peer = source_peer_key
         .may_load(deps.storage)
         .context("failed to load source peer")?
@@ -263,7 +264,7 @@ fn handle_observation(
     // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
     let tx_data = transfer::Data {
         amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
-        token_address: TokenAddress::from_vec(hub.1)?,
+        token_address: hub.1,
         token_chain: hub.0,
         recipient_chain: message.manager_payload.payload.to_chain.id,
     };
@@ -478,12 +479,15 @@ fn handle_ntt_vaa(
         let delivery_instruction =
             DeliveryInstruction::deserialize(&Vec::from_slice(body.payload)?)?;
         (
-            delivery_instruction.sender_address,
+            delivery_instruction.sender_address.into(),
             delivery_instruction.payload,
         )
     } else {
         // otherwise, the sender and payload is the same as the VAA
-        (body.emitter_address.0, Vec::from_slice(body.payload)?)
+        (
+            body.emitter_address.0.into(),
+            Vec::from_slice(body.payload)?,
+        )
     };
 
     if payload.len() < 4 {
@@ -493,7 +497,7 @@ fn handle_ntt_vaa(
 
     if prefix == EndpointTransfer::PREFIX {
         let source_chain = body.emitter_chain.into();
-        let hub_key = ENDPOINT_TO_HUB.key((source_chain, sender.to_vec()));
+        let hub_key = ENDPOINT_TO_HUB.key((source_chain, sender));
 
         let hub = hub_key
             .may_load(deps.storage)
@@ -505,7 +509,7 @@ fn handle_ntt_vaa(
                 .context("failed to parse NTT transfer payload")?;
 
         let destination_chain = message.manager_payload.payload.to_chain.id;
-        let source_peer_key = ENDPOINT_PEER.key((source_chain, sender.to_vec(), destination_chain));
+        let source_peer_key = ENDPOINT_PEER.key((source_chain, sender, destination_chain));
         let source_peer = source_peer_key
             .may_load(deps.storage)
             .context("failed to load source peer")?
@@ -532,7 +536,7 @@ fn handle_ntt_vaa(
         // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
         let data = transfer::Data {
             amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
-            token_address: TokenAddress::try_from(hub.1)?,
+            token_address: hub.1,
             token_chain: hub.0,
             recipient_chain: message.manager_payload.payload.to_chain.id,
         };
@@ -558,7 +562,7 @@ fn handle_ntt_vaa(
         let message = EndpointInit::deserialize(&payload)?;
         if message.manager_mode == (ManagerMode::LOCKING as u8) {
             let chain = body.emitter_chain.into();
-            let hub_key = ENDPOINT_TO_HUB.key((chain, sender.to_vec()));
+            let hub_key = ENDPOINT_TO_HUB.key((chain, sender));
 
             if hub_key
                 .may_load(deps.storage)
@@ -568,7 +572,7 @@ fn handle_ntt_vaa(
                 bail!("hub entry already exists")
             }
             hub_key
-                .save(deps.storage, &(chain, sender.to_vec()))
+                .save(deps.storage, &(chain, sender))
                 .context("failed to save hub")?;
             Ok(Event::new("RegisterHub")
                 .add_attribute("chain", chain.to_string())
@@ -582,7 +586,7 @@ fn handle_ntt_vaa(
         let message = EndpointRegister::deserialize(&payload)?;
 
         let peer_hub_key =
-            ENDPOINT_TO_HUB.key((message.endpoint_chain_id, message.endpoint_address.to_vec()));
+            ENDPOINT_TO_HUB.key((message.endpoint_chain_id, message.endpoint_address.into()));
 
         let peer_hub = peer_hub_key
             .may_load(deps.storage)
@@ -590,7 +594,7 @@ fn handle_ntt_vaa(
             .ok_or(ContractError::MissingHubRegistration)?;
 
         let chain = body.emitter_chain.into();
-        let peer_key = ENDPOINT_PEER.key((chain, sender.to_vec(), message.endpoint_chain_id));
+        let peer_key = ENDPOINT_PEER.key((chain, sender, message.endpoint_chain_id));
 
         if peer_key
             .may_load(deps.storage)
@@ -600,7 +604,7 @@ fn handle_ntt_vaa(
             bail!("peer entry for this chain already exists")
         }
 
-        let hub_key = ENDPOINT_TO_HUB.key((chain, sender.to_vec()));
+        let hub_key = ENDPOINT_TO_HUB.key((chain, sender));
 
         if let Some(endpoint_hub) = hub_key
             .may_load(deps.storage)
@@ -612,7 +616,9 @@ fn handle_ntt_vaa(
             }
         } else {
             // this endpoint does not have a known hub, check if this peer is a hub themselves
-            if peer_hub.0 == message.endpoint_chain_id && peer_hub.1 == message.endpoint_address {
+            if peer_hub.0 == message.endpoint_chain_id
+                && peer_hub.1 == message.endpoint_address.into()
+            {
                 // this peer is a hub, so set it as this endpoint's hub
                 hub_key
                     .save(deps.storage, &peer_hub.clone())
@@ -624,7 +630,7 @@ fn handle_ntt_vaa(
         }
 
         peer_key
-            .save(deps.storage, &(message.endpoint_address.to_vec()))
+            .save(deps.storage, &(message.endpoint_address.into()))
             .context("failed to save hub")?;
         Ok(Event::new("RegisterPeer")
             .add_attribute("chain", chain.to_string())
@@ -662,8 +668,14 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
                 })
             })
             .and_then(|()| to_binary(&Empty {})),
-        QueryMsg::ChainRegistration { chain } => {
-            query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+        QueryMsg::RelayerChainRegistration { chain } => {
+            query_relayer_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::AllEndpointHubs { start_after, limit } => {
+            query_all_endpoint_hubs(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::AllEndpointPeers { start_after, limit } => {
+            query_all_endpoint_peers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
         QueryMsg::MissingObservations {
             guardian_set,
@@ -805,13 +817,61 @@ fn query_all_modifications(
     }
 }
 
-fn query_chain_registration(
+fn query_relayer_chain_registration(
     deps: Deps<WormholeQuery>,
     chain: u16,
-) -> StdResult<ChainRegistrationResponse> {
+) -> StdResult<RelayerChainRegistrationResponse> {
     RELAYER_CHAIN_REGISTRATIONS
         .load(deps.storage, chain)
-        .map(|address| ChainRegistrationResponse { address })
+        .map(|address| RelayerChainRegistrationResponse { address })
+}
+
+fn query_all_endpoint_hubs(
+    deps: Deps<WormholeQuery>,
+    start_after: Option<(u16, TokenAddress)>,
+    limit: Option<u32>,
+) -> StdResult<AllEndpointHubsResponse> {
+    let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
+
+    let iter = ENDPOINT_TO_HUB
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|item| item.map(|(key, data)| EndpointHub { key, data }));
+
+    if let Some(lim) = limit {
+        let l = lim
+            .try_into()
+            .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
+        iter.take(l)
+            .collect::<StdResult<Vec<_>>>()
+            .map(|hubs| AllEndpointHubsResponse { hubs })
+    } else {
+        iter.collect::<StdResult<Vec<_>>>()
+            .map(|hubs| AllEndpointHubsResponse { hubs })
+    }
+}
+
+fn query_all_endpoint_peers(
+    deps: Deps<WormholeQuery>,
+    start_after: Option<(u16, TokenAddress, u16)>,
+    limit: Option<u32>,
+) -> StdResult<AllEndpointPeersResponse> {
+    let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
+
+    let iter = ENDPOINT_PEER
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|item| item.map(|(key, data)| EndpointPeer { key, data }));
+
+    if let Some(lim) = limit {
+        let l = lim
+            .try_into()
+            .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
+        iter.take(l)
+            .collect::<StdResult<Vec<_>>>()
+            .map(|peers| AllEndpointPeersResponse { peers })
+    } else {
+        iter.collect::<StdResult<Vec<_>>>()
+            .map(|peers| AllEndpointPeersResponse { peers })
+    }
 }
 
 fn query_missing_observations(
