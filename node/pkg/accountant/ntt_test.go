@@ -1,6 +1,7 @@
 package accountant
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -44,8 +45,8 @@ func TestNttParseMsgSuccess(t *testing.T) {
 	payload, err := hex.DecodeString(goodPayload)
 	require.NoError(t, err)
 
-	emitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDEthereum, emitterAddr: emitterAddr}: {},
+	emitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDEthereum, emitterAddr: emitterAddr}: true,
 	}
 
 	msg := &common.MessagePublication{
@@ -59,7 +60,9 @@ func TestNttParseMsgSuccess(t *testing.T) {
 		Payload:          payload,
 	}
 
-	assert.True(t, nttIsMsgDirectNTT(msg, emitters))
+	isNTT, enforceFlag := nttIsMsgDirectNTT(msg, emitters)
+	assert.True(t, isNTT)
+	assert.True(t, enforceFlag)
 }
 
 func TestNttParseMsgWrongEmitterChain(t *testing.T) {
@@ -69,8 +72,8 @@ func TestNttParseMsgWrongEmitterChain(t *testing.T) {
 	payload, err := hex.DecodeString(goodPayload)
 	require.NoError(t, err)
 
-	emitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDEthereum, emitterAddr: emitterAddr}: {},
+	emitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDEthereum, emitterAddr: emitterAddr}: true,
 	}
 
 	msg := &common.MessagePublication{
@@ -84,7 +87,8 @@ func TestNttParseMsgWrongEmitterChain(t *testing.T) {
 		Payload:          payload,
 	}
 
-	assert.False(t, nttIsMsgDirectNTT(msg, emitters))
+	isNTT, _ := nttIsMsgDirectNTT(msg, emitters)
+	assert.False(t, isNTT)
 }
 
 func TestNttParseMsgWrongEmitterAddress(t *testing.T) {
@@ -97,8 +101,8 @@ func TestNttParseMsgWrongEmitterAddress(t *testing.T) {
 	payload, err := hex.DecodeString(goodPayload)
 	require.NoError(t, err)
 
-	emitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDEthereum, emitterAddr: goodEmitterAddr}: {},
+	emitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDEthereum, emitterAddr: goodEmitterAddr}: true,
 	}
 
 	msg := &common.MessagePublication{
@@ -112,96 +116,67 @@ func TestNttParseMsgWrongEmitterAddress(t *testing.T) {
 		Payload:          payload,
 	}
 
-	assert.False(t, nttIsMsgDirectNTT(msg, emitters))
+	isNTT, _ := nttIsMsgDirectNTT(msg, emitters)
+	assert.False(t, isNTT)
 }
 
-const arPayload = "01271200000000000000000000000079689ce600d3fd3524ec2b4bedcc70131eda67b60000009f9945ff10000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914007900000000000000070000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7004f994e54540800000000000003e8000000000000000000000000a88085e6370a551cc046fb6b1e3fb9be23ac3a210000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a120000000000000000000000000000000000000000000000000000000046f5399e7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db810000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db81000000000000000000000000e493cc4f069821404d272b994bb80b1ba163191400"
+const goodArPayload = "01271200000000000000000000000079689ce600d3fd3524ec2b4bedcc70131eda67b60000009f9945ff10000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914007900000000000000070000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7004f994e54540800000000000003e8000000000000000000000000a88085e6370a551cc046fb6b1e3fb9be23ac3a210000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a120000000000000000000000000000000000000000000000000000000046f5399e7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db810000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db81000000000000000000000000e493cc4f069821404d272b994bb80b1ba163191400"
 
 func TestNttParseArPayloadSuccess(t *testing.T) {
 	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
 	require.NoError(t, err)
 
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
-	}
-
-	payload, err := hex.DecodeString(arPayload)
+	payload, err := hex.DecodeString(goodArPayload)
 	require.NoError(t, err)
-	assert.True(t, nttIsArPayloadNTT(vaa.ChainIDArbitrumSepolia, payload, nttEmitters))
+
+	success, senderAddress := nttParseArPayload(payload)
+	require.True(t, success)
+	assert.True(t, bytes.Equal(nttEmitterAddr[:], senderAddress[:]))
 }
 
 func TestNttParseArPayloadWrongDeliveryInstruction(t *testing.T) {
 	badArPayload := "02271200000000000000000000000079689ce600d3fd3524ec2b4bedcc70131eda67b60000009f9945ff10000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914007900000000000000070000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7004f994e54540800000000000003e8000000000000000000000000a88085e6370a551cc046fb6b1e3fb9be23ac3a210000000000000000000000008f26a0025dccc6cfc07a7d38756280a10e295ad7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a120000000000000000000000000000000000000000000000000000000046f5399e7271200000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db810000000000000000000000007a0a53847776f7e94cc35742971acb2217b0db81000000000000000000000000e493cc4f069821404d272b994bb80b1ba163191400"
-	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
-	require.NoError(t, err)
-
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
-	}
-
 	payload, err := hex.DecodeString(badArPayload)
 	require.NoError(t, err)
-	assert.False(t, nttIsArPayloadNTT(vaa.ChainIDArbitrumSepolia, payload, nttEmitters))
+
+	success, _ := nttParseArPayload(payload)
+	require.False(t, success)
 }
 
 func TestNttParseArPayloadTooShort(t *testing.T) {
 	badArPayload := "01271200000000000000000000000079689ce600d3fd3524ec2b4bedcc70131eda67b60000009f9945ff10000000000000000000000000e4"
-	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
-	require.NoError(t, err)
-
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
-	}
-
 	payload, err := hex.DecodeString(badArPayload)
 	require.NoError(t, err)
-	assert.False(t, nttIsArPayloadNTT(vaa.ChainIDArbitrumSepolia, payload, nttEmitters))
+
+	success, _ := nttParseArPayload(payload)
+	require.False(t, success)
 }
 
 func TestNttParseArPayloadReallyTooShort(t *testing.T) {
 	badArPayload := "01"
-	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
-	require.NoError(t, err)
-
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
-	}
-
 	payload, err := hex.DecodeString(badArPayload)
 	require.NoError(t, err)
-	assert.False(t, nttIsArPayloadNTT(vaa.ChainIDArbitrumSepolia, payload, nttEmitters))
-}
 
-func TestNttParseArPayloadUnknownNttEmitter(t *testing.T) {
-	badArPayload := arPayload
-	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631915") // This is different.
-	require.NoError(t, err)
-
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
-	}
-
-	payload, err := hex.DecodeString(badArPayload)
-	require.NoError(t, err)
-	assert.False(t, nttIsArPayloadNTT(vaa.ChainIDArbitrumSepolia, payload, nttEmitters))
+	success, _ := nttParseArPayload(payload)
+	require.False(t, success)
 }
 
 func TestNttParseArMsgSuccess(t *testing.T) {
 	arEmitterAddr, err := vaa.StringToAddress("0000000000000000000000007b1bd7a6b4e61c2a123ac6bc2cbfc614437d0470")
 	require.NoError(t, err)
 
-	arEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: arEmitterAddr}: {},
+	arEmitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: arEmitterAddr}: true,
 	}
 
 	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
 	require.NoError(t, err)
 
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
+	nttEmitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: true,
 	}
 
-	payload, err := hex.DecodeString(arPayload)
+	payload, err := hex.DecodeString(goodArPayload)
 	require.NoError(t, err)
 
 	msg := &common.MessagePublication{
@@ -215,28 +190,30 @@ func TestNttParseArMsgSuccess(t *testing.T) {
 		Payload:          payload,
 	}
 
-	assert.True(t, nttIsMsgArNTT(msg, arEmitters, nttEmitters))
+	isNTT, enforceFlag := nttIsMsgArNTT(msg, arEmitters, nttEmitters)
+	assert.True(t, isNTT)
+	assert.True(t, enforceFlag)
 }
 
 func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 	arEmitterAddr, err := vaa.StringToAddress("0000000000000000000000007b1bd7a6b4e61c2a123ac6bc2cbfc614437d0470")
 	require.NoError(t, err)
 
-	arEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: arEmitterAddr}: {},
+	arEmitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: arEmitterAddr}: true,
 	}
 
 	nttEmitterAddr, err := vaa.StringToAddress("000000000000000000000000e493cc4f069821404d272b994bb80b1ba1631914")
 	require.NoError(t, err)
 
-	nttEmitters := map[emitterKey]struct{}{
-		emitterKey{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: {},
+	nttEmitters := map[emitterKey]bool{
+		{emitterChainId: vaa.ChainIDArbitrumSepolia, emitterAddr: nttEmitterAddr}: true,
 	}
 
 	differentEmitterAddr, err := vaa.StringToAddress("0000000000000000000000007b1bd7a6b4e61c2a123ac6bc2cbfc614437d0471") // This is different.
 	require.NoError(t, err)
 
-	payload, err := hex.DecodeString(arPayload)
+	payload, err := hex.DecodeString(goodArPayload)
 	require.NoError(t, err)
 
 	msg := &common.MessagePublication{
@@ -250,5 +227,6 @@ func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 		Payload:          payload,
 	}
 
-	assert.False(t, nttIsMsgArNTT(msg, arEmitters, nttEmitters))
+	isNTT, _ := nttIsMsgArNTT(msg, arEmitters, nttEmitters)
+	assert.False(t, isNTT)
 }

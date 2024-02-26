@@ -123,7 +123,6 @@ func newAccountantForTest(
 		accountantCheckEnabled,
 		"",
 		nil,
-		false,
 		gk,
 		gst,
 		acctWriteC,

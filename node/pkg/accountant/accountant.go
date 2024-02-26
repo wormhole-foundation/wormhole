@@ -47,20 +47,21 @@ type (
 		emitterAddr    vaa.Address
 	}
 
-	// validEmitters is a set of supported emitter chain / address pairs.
-	validEmitters map[emitterKey]struct{}
+	// validEmitters is a set of supported emitter chain / address pairs. The payload is the enforcement flag.
+	validEmitters map[emitterKey]bool
 
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
-		msg    *common.MessagePublication
-		msgId  string
-		digest string
-		isNTT  bool
+		msg         *common.MessagePublication
+		msgId       string
+		digest      string
+		isNTT       bool
+		enforceFlag bool
 
 		// stateLock is used to protect the contents of the state struct.
 		stateLock sync.Mutex
 
-		// The state struct contains anything that can be modifed. It is protected by the state lock.
+		// The state struct contains anything that can be modified. It is protected by the state lock.
 		state struct {
 			// updTime is the time that the state struct was last updated.
 			updTime time.Time
@@ -92,7 +93,6 @@ type Accountant struct {
 	subChan              chan *common.MessagePublication
 	env                  common.Environment
 
-	nttEnforceFlag    bool
 	nttContract       string
 	nttWormchainConn  AccountantWormchainConn
 	nttDirectEmitters validEmitters
@@ -115,7 +115,6 @@ func NewAccountant(
 	enforceFlag bool, // whether or not accountant should be enforced
 	nttContract string, // the address of the NTT smart contract on wormchain
 	nttWormchainConn AccountantWormchainConn, // used for communicating with the NTT smart contract
-	nttEnforceFlag bool, // whether or not NTT accountant should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
@@ -139,7 +138,6 @@ func NewAccountant(
 		subChan:          make(chan *common.MessagePublication, subChanSize),
 		env:              env,
 
-		nttEnforceFlag:    nttEnforceFlag,
 		nttContract:       nttContract,
 		nttWormchainConn:  nttWormchainConn,
 		nttDirectEmitters: make(validEmitters),
@@ -152,7 +150,7 @@ func NewAccountant(
 
 // Start initializes the accountant and starts the worker and watcher runnables.
 func (acct *Accountant) Start(ctx context.Context) error {
-	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("nttEnabled", acct.nttEnabled()), zap.Bool("nttEnforceFlag", acct.nttEnforceFlag))
+	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("nttEnabled", acct.nttEnabled()))
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
@@ -176,7 +174,7 @@ func (acct *Accountant) Start(ctx context.Context) error {
 			return fmt.Errorf("detected duplicate token bridge for chain: %v", chainId)
 		}
 
-		acct.tokenBridges[tbk] = struct{}{}
+		acct.tokenBridges[tbk] = acct.enforceFlag
 		acct.logger.Info("will monitor token bridge:", zap.Stringer("emitterChainId", tbk.emitterChainId), zap.Stringer("emitterAddr", tbk.emitterAddr))
 	}
 
@@ -234,11 +232,7 @@ func (acct *Accountant) FeatureString() string {
 		ret = "acct"
 	}
 	if acct.nttEnabled() {
-		if !acct.nttEnforceFlag {
-			ret += ":ntt-acct-logonly"
-		} else {
-			ret += ":ntt-acct"
-		}
+		ret += ":ntt-acct"
 	}
 
 	return ret
@@ -246,49 +240,52 @@ func (acct *Accountant) FeatureString() string {
 
 // IsMessageCoveredByAccountant returns `true` if a message should be processed by the Global Accountant, `false` if not.
 func (acct *Accountant) IsMessageCoveredByAccountant(msg *common.MessagePublication) bool {
-	ret, _ := acct.isMessageCoveredByAccountant(msg)
+	ret, _, _ := acct.isMessageCoveredByAccountant(msg)
 	return ret
 }
 
-// isMessageCoveredByAccountant returns `true` if a message should be processed by the Global Accountant, `false` if not.
-// It also returns whether or not it is a Native Token Transfer.
-func (acct *Accountant) isMessageCoveredByAccountant(msg *common.MessagePublication) (bool, bool) {
-	if acct.isTokenBridgeTransfer(msg) {
-		return true, false
+// isMessageCoveredByAccountant returns true if a message should be processed by the Global Accountant, false if not.
+// It also returns whether or not it is a Native Token Transfer and whether or not accounting is being enforced for this emitter.
+func (acct *Accountant) isMessageCoveredByAccountant(msg *common.MessagePublication) (bool, bool, bool) {
+	isTBT, enforceFlag := acct.isTokenBridgeTransfer(msg)
+	if isTBT {
+		return true, false, enforceFlag
 	}
 
-	if nttIsMsgDirectNTT(msg, acct.nttDirectEmitters) {
-		return true, true
+	isNTT, enforceFlag := nttIsMsgDirectNTT(msg, acct.nttDirectEmitters)
+	if isNTT {
+		return true, true, enforceFlag
 	}
 
-	if nttIsMsgArNTT(msg, acct.nttArEmitters, acct.nttDirectEmitters) {
-		return true, true
+	isNTT, enforceFlag = nttIsMsgArNTT(msg, acct.nttArEmitters, acct.nttDirectEmitters)
+	if isNTT {
+		return true, true, enforceFlag
 	}
 
-	return false, false
+	return false, false, false
 }
 
-// isTokenBridgeTransfer returns true if a message is a token bridge transfer.
-func (acct *Accountant) isTokenBridgeTransfer(msg *common.MessagePublication) bool {
+// isTokenBridgeTransfer returns true if a message is a token bridge transfer and whether or not accounting is being enforced for this emitter.
+func (acct *Accountant) isTokenBridgeTransfer(msg *common.MessagePublication) (bool, bool) {
 	msgId := msg.MessageIDString()
 
 	// We only care about token bridges.
-	tbk := emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}
-	if _, exists := acct.tokenBridges[tbk]; !exists {
+	enforceFlag, exists := acct.tokenBridges[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}]
+	if !exists {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
 			acct.logger.Debug("ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
 		}
 
-		return false
+		return false, false
 	}
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
 		acct.logger.Info("ignoring vaa because it is not a transfer", zap.String("msgID", msgId))
-		return false
+		return false, false
 	}
 
-	return true
+	return true, enforceFlag
 }
 
 // SubmitObservation will submit token bridge transfers to the accountant smart contract. This is called from the processor
@@ -298,14 +295,9 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("in SubmitObservation", zap.String("msgID", msgId))
 
-	coveredByAcct, isNTT := acct.isMessageCoveredByAccountant(msg)
+	coveredByAcct, isNTT, enforceFlag := acct.isMessageCoveredByAccountant(msg)
 	if !coveredByAcct {
 		return true, nil
-	}
-
-	enforceFlag := acct.enforceFlag
-	if isNTT {
-		enforceFlag = acct.nttEnforceFlag
 	}
 
 	digest := msg.CreateDigest()
@@ -330,7 +322,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	}
 
 	// Add it to the pending map and the database.
-	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT}
+	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT, enforceFlag: enforceFlag}
 	if err := acct.addPendingTransferAlreadyLocked(pe); err != nil {
 		acct.logger.Error("failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
 		return false, err
@@ -352,12 +344,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 
 // publishTransferAlreadyLocked publishes a pending transfer to the accountant channel and deletes it from the pending map. It assumes the caller holds the lock.
 func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
-	enforceFlag := acct.enforceFlag
-	if pe.isNTT {
-		enforceFlag = acct.nttEnforceFlag
-	}
-
-	if enforceFlag {
+	if pe.enforceFlag {
 		select {
 		case acct.msgChan <- pe.msg:
 			acct.logger.Debug("published transfer to channel", zap.String("msgId", pe.msgId))
@@ -410,7 +397,7 @@ func (acct *Accountant) loadPendingTransfers() error {
 
 	for _, msg := range pendingTransfers {
 		msgId := msg.MessageIDString()
-		coveredByAcct, isNTT := acct.isMessageCoveredByAccountant(msg)
+		coveredByAcct, isNTT, enforceFlag := acct.isMessageCoveredByAccountant(msg)
 		if !coveredByAcct {
 			acct.logger.Error("dropping reloaded pending transfer because it is not covered by the accountant", zap.String("msgID", msgId))
 			if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
@@ -422,7 +409,7 @@ func (acct *Accountant) loadPendingTransfers() error {
 		acct.logger.Info("reloaded pending transfer", zap.String("msgID", msgId))
 
 		digest := msg.CreateDigest()
-		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT}
+		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT, enforceFlag: enforceFlag}
 		pe.setUpdTime()
 		acct.pendingTransfers[msgId] = pe
 	}

@@ -292,8 +292,6 @@ def build_node_yaml():
                     "/tmp/mounted-keys/wormchain/accountantNttKey",
                     "--accountantNttKeyPassPhrase",
                     "test0000",
-                    "--accountantNttCheckEnabled",
-                    "true",                    
 
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj",

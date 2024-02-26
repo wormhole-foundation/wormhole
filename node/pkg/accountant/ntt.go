@@ -8,7 +8,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
@@ -27,8 +26,12 @@ func (acct *Accountant) nttStart(ctx context.Context) error {
 		return fmt.Errorf("failed to set up NTT emitters: %w", err)
 	}
 
-	for emitter := range acct.nttDirectEmitters {
-		acct.logger.Info("will monitor NTT emitter", zap.Stringer("emitterChainId", emitter.emitterChainId), zap.Stringer("emitterAddr", emitter.emitterAddr))
+	for emitter, enforceOnly := range acct.nttDirectEmitters {
+		tag := ""
+		if enforceOnly {
+			tag = " in log only mode"
+		}
+		acct.logger.Info(fmt.Sprintf("will monitor%s for NTT emitter", tag), zap.Stringer("emitterChainId", emitter.emitterChainId), zap.Stringer("emitterAddr", emitter.emitterAddr))
 	}
 
 	for emitter := range acct.nttArEmitters {
@@ -76,109 +79,115 @@ func nttIsPayloadNTT(payload []byte) bool {
 }
 
 // isMsgDirectNTT determines if a message publication is for a Native Token Transfer directly from an NTT endpoint.
-func nttIsMsgDirectNTT(msg *common.MessagePublication, emitters validEmitters) bool {
-	// Look up the emitter in the NTT map, return false if it's not there.
-	if _, exists := emitters[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}]; !exists {
-		return false
+// It also returns if NTT accounting should be enforced for this emitter.
+func nttIsMsgDirectNTT(msg *common.MessagePublication, emitters validEmitters) (bool, bool) {
+	enforceFlag, exists := emitters[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}]
+	if !exists {
+		return false, false
 	}
-	return nttIsPayloadNTT(msg.Payload)
+	if !nttIsPayloadNTT(msg.Payload) {
+		return false, false
+	}
+	return true, enforceFlag
 }
 
 // nttIsMsgArNTT determines if a message publication is for a Native Token Transfer forwarded from an automatic relayer.
-// It first checks if the emitter is a configured relayer. If so, it parses the AR payload to see get the sender and
+// It first checks if the emitter is a configured relayer. If so, it parses the AR payload to get the sender address and
 // checks to see if the emitter chain / sender address are for a Native Token Transfer emitter.
-func nttIsMsgArNTT(msg *common.MessagePublication, arEmitters validEmitters, nttEmitters validEmitters) bool {
-	// Look up the emitter in the AR map, return false if it's not there.
+// It also returns if NTT accounting should be enforced for this emitter.
+func nttIsMsgArNTT(msg *common.MessagePublication, arEmitters validEmitters, nttEmitters validEmitters) (bool, bool) {
 	if _, exists := arEmitters[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}]; !exists {
-		return false
+		return false, false
 	}
 
-	return nttIsArPayloadNTT(msg.EmitterChain, msg.Payload, nttEmitters)
+	if success, senderAddress := nttParseArPayload(msg.Payload); success {
+		// If msg.EmitterChain / ar.Sender is in nttEmitters then this is a Native Token Transfer.
+		if enforceFlag, exists := nttEmitters[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: senderAddress}]; exists {
+			return true, enforceFlag
+		}
+	}
+
+	return false, false
 }
 
-// nttIsArPayloadNTT extracts the sender from the AR payload and determines if it is a native token transfer. This is based on the following implementation:
+// nttParseArPayload extracts the sender address from an AR payload. This is based on the following implementation:
 // https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol#L70-L97
-func nttIsArPayloadNTT(emitterChain vaa.ChainID, msgPayload []byte, nttEmitters validEmitters) bool {
+func nttParseArPayload(msgPayload []byte) (bool, [32]byte) {
+	var senderAddress [32]byte
 	reader := bytes.NewReader(msgPayload[:])
 
 	var deliveryInstruction uint8
 	if err := binary.Read(reader, binary.BigEndian, &deliveryInstruction); err != nil {
-		return false
+		return false, senderAddress
 	}
 
 	if deliveryInstruction != 1 { // PAYLOAD_ID_DELIVERY_INSTRUCTION
-		return false
+		return false, senderAddress
 	}
 
 	var targetChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &targetChain); err != nil {
-		return false
+		return false, senderAddress
 	}
 
 	var targetAddress [32]byte
 	if n, err := reader.Read(targetAddress[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
 	var payloadLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &payloadLen); err != nil {
-		return false
+		return false, senderAddress
 	}
 
 	payload := make([]byte, payloadLen)
 	if n, err := reader.Read(payload[:]); err != nil || n != int(payloadLen) {
-		return false
+		return false, senderAddress
 	}
 
 	var requestedReceiverValue [32]byte
 	if n, err := reader.Read(requestedReceiverValue[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
 	var extraReceiverValue [32]byte
 	if n, err := reader.Read(extraReceiverValue[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
 	var encodedExecutionInfoLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &encodedExecutionInfoLen); err != nil {
-		return false
+		return false, senderAddress
 	}
 
 	encodedExecutionInfo := make([]byte, encodedExecutionInfoLen)
 	if n, err := reader.Read(encodedExecutionInfo[:]); err != nil || n != int(encodedExecutionInfoLen) {
-		return false
+		return false, senderAddress
 	}
 
 	var refundChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &refundChain); err != nil {
-		return false
+		return false, senderAddress
 	}
 
 	var refundAddress [32]byte
 	if n, err := reader.Read(refundAddress[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
 	var refundDeliveryProvider [32]byte
 	if n, err := reader.Read(refundDeliveryProvider[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
 	var sourceDeliveryProvider [32]byte
 	if n, err := reader.Read(sourceDeliveryProvider[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
-	var senderAddress [32]byte
 	if n, err := reader.Read(senderAddress[:]); err != nil || n != 32 {
-		return false
+		return false, senderAddress
 	}
 
-	// See if msg.EmitterChain / ar.Sender is in nttEmitters.
-	if _, exists := nttEmitters[emitterKey{emitterChainId: emitterChain, emitterAddr: senderAddress}]; !exists {
-		return false
-	}
-
-	return true
+	return true, senderAddress
 }
