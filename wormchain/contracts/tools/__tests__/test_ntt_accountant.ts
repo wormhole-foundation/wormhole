@@ -80,9 +80,9 @@ const NTT_GA_ADDRESS =
 const HUB_CHAIN = 2;
 const HUB_ENDPOINT = `0000000000000000000000000000000000000000000000000000000000000042`;
 const SPOKE_CHAIN_A = 4;
-const SPOKE_ENDPOINT_A = HUB_ENDPOINT;
+const SPOKE_ENDPOINT_A = `0000000000000000000000000000000000000000000000000000000000000043`;
 const SPOKE_CHAIN_B = 5;
-const SPOKE_ENDPOINT_B = HUB_ENDPOINT;
+const SPOKE_ENDPOINT_B = `0000000000000000000000000000000000000000000000000000000000000044`;
 const FAUX_HUB_CHAIN = 420;
 const FAUX_HUB_ENDPOINT =
   "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -266,6 +266,14 @@ describe("Global Accountant Tests", () => {
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
+      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
+        all_endpoint_hubs: {},
+      });
+      const hub = response.hubs.find(
+        (entry) => entry.key[0] === HUB_CHAIN && entry.key[1] === HUB_ENDPOINT
+      );
+      expect(hub).toBeDefined();
+      expect(hub.data).toStrictEqual([HUB_CHAIN, HUB_ENDPOINT]);
       // check replay protection
       {
         const result = await submitVAA(vaa);
@@ -313,6 +321,17 @@ describe("Global Accountant Tests", () => {
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
+      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
+        all_endpoint_peers: {},
+      });
+      const peer = response.peers.find(
+        (entry) =>
+          entry.key[0] === SPOKE_CHAIN_A &&
+          entry.key[1] === SPOKE_ENDPOINT_A &&
+          entry.key[2] === HUB_CHAIN
+      );
+      expect(peer).toBeDefined();
+      expect(peer.data).toStrictEqual(HUB_ENDPOINT);
       // check replay protection
       {
         const result = await submitVAA(vaa);
@@ -328,6 +347,17 @@ describe("Global Accountant Tests", () => {
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
+      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
+        all_endpoint_peers: {},
+      });
+      const peer = response.peers.find(
+        (entry) =>
+          entry.key[0] === HUB_CHAIN &&
+          entry.key[1] === HUB_ENDPOINT &&
+          entry.key[2] === SPOKE_CHAIN_A
+      );
+      expect(peer).toBeDefined();
+      expect(peer.data).toStrictEqual(SPOKE_ENDPOINT_A);
     });
     test("d. Ensure an endpoint registration to another endpoint without a known hub is rejected", async () => {
       const vaa = makeVAA(
@@ -360,6 +390,20 @@ describe("Global Accountant Tests", () => {
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
+        const response = await cosmWasmClient.queryContractSmart(
+          NTT_GA_ADDRESS,
+          {
+            all_endpoint_peers: {},
+          }
+        );
+        const peer = response.peers.find(
+          (entry) =>
+            entry.key[0] === SPOKE_CHAIN_B &&
+            entry.key[1] === SPOKE_ENDPOINT_B &&
+            entry.key[2] === HUB_CHAIN
+        );
+        expect(peer).toBeDefined();
+        expect(peer.data).toStrictEqual(HUB_ENDPOINT);
       }
       {
         const vaa = makeVAA(
@@ -369,6 +413,20 @@ describe("Global Accountant Tests", () => {
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
+        const response = await cosmWasmClient.queryContractSmart(
+          NTT_GA_ADDRESS,
+          {
+            all_endpoint_peers: {},
+          }
+        );
+        const peer = response.peers.find(
+          (entry) =>
+            entry.key[0] === SPOKE_CHAIN_A &&
+            entry.key[1] === SPOKE_ENDPOINT_A &&
+            entry.key[2] === SPOKE_CHAIN_B
+        );
+        expect(peer).toBeDefined();
+        expect(peer.data).toStrictEqual(SPOKE_ENDPOINT_B);
       }
     });
     test("g. Ensure a duplicate registration is rejected", async () => {
@@ -547,6 +605,10 @@ describe("Global Accountant Tests", () => {
   });
   describe("5. Relayers", () => {
     test("a. Ensure a relayer registration is saved", async () => {
+      const relayerEmitterAsBase64 = Buffer.from(
+        RELAYER_EMITTER,
+        "hex"
+      ).toString("base64");
       // register eth
       const vaa = makeVAA(
         GOVERNANCE_CHAIN,
@@ -555,6 +617,12 @@ describe("Global Accountant Tests", () => {
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
+      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
+        relayer_chain_registration: {
+          chain: 2,
+        },
+      });
+      expect(response.address).toEqual(relayerEmitterAsBase64);
       // check replay protection
       {
         const result = await submitVAA(vaa);
@@ -570,6 +638,15 @@ describe("Global Accountant Tests", () => {
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
+        const response = await cosmWasmClient.queryContractSmart(
+          NTT_GA_ADDRESS,
+          {
+            relayer_chain_registration: {
+              chain: 4,
+            },
+          }
+        );
+        expect(response.address).toEqual(relayerEmitterAsBase64);
       }
     });
     test("b. Ensure a valid NTT transfer works", async () => {

@@ -12,8 +12,8 @@ use cw_multi_test::{
 use ntt_global_accountant::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MissingObservationsResponse, QueryMsg, TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
+        AllTransfersResponse, BatchTransferStatusResponse, ExecuteMsg, MissingObservationsResponse,
+        QueryMsg, RelayerChainRegistrationResponse, TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state,
 };
@@ -234,10 +234,13 @@ impl Contract {
         )
     }
 
-    pub fn query_chain_registration(&self, chain: u16) -> StdResult<ChainRegistrationResponse> {
+    pub fn query_relayer_chain_registration(
+        &self,
+        chain: u16,
+    ) -> StdResult<RelayerChainRegistrationResponse> {
         self.app
             .wrap()
-            .query_wasm_smart(self.addr(), &QueryMsg::ChainRegistration { chain })
+            .query_wasm_smart(self.addr(), &QueryMsg::RelayerChainRegistration { chain })
     }
 
     pub fn query_missing_observations(

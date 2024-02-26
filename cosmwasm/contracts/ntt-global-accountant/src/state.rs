@@ -1,4 +1,4 @@
-use accountant::state::transfer;
+use accountant::state::{transfer, TokenAddress};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use cw_storage_plus::Map;
@@ -6,9 +6,22 @@ use tinyvec::TinyVec;
 
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
 pub const RELAYER_CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("relayer_chain_registrations");
-pub const ENDPOINT_TO_HUB: Map<(u16, Vec<u8>), (u16, Vec<u8>)> = Map::new("endpoint_to_hub");
-pub const ENDPOINT_PEER: Map<(u16, Vec<u8>, u16), Vec<u8>> = Map::new("endpoint_peers");
+pub const ENDPOINT_TO_HUB: Map<(u16, TokenAddress), (u16, TokenAddress)> =
+    Map::new("endpoint_to_hub");
+pub const ENDPOINT_PEER: Map<(u16, TokenAddress, u16), TokenAddress> = Map::new("endpoint_peers");
 pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
+
+#[cw_serde]
+pub struct EndpointHub {
+    pub key: (u16, TokenAddress),
+    pub data: (u16, TokenAddress),
+}
+
+#[cw_serde]
+pub struct EndpointPeer {
+    pub key: (u16, TokenAddress, u16),
+    pub data: TokenAddress,
+}
 
 #[cw_serde]
 pub struct PendingTransfer {

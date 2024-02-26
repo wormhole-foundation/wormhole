@@ -2,7 +2,7 @@ mod helpers;
 
 use cosmwasm_std::{to_binary, Event};
 use helpers::*;
-use ntt_global_accountant::msg::ChainRegistrationResponse;
+use ntt_global_accountant::msg::RelayerChainRegistrationResponse;
 use wormhole_sdk::{
     relayer::{Action, GovernancePacket},
     vaa::Body,
@@ -56,8 +56,9 @@ fn any_target() {
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
 
-    let ChainRegistrationResponse { address } =
-        contract.query_chain_registration(chain.into()).unwrap();
+    let RelayerChainRegistrationResponse { address } = contract
+        .query_relayer_chain_registration(chain.into())
+        .unwrap();
     assert_eq!(&*address, &emitter_address.0);
 }
 
@@ -87,8 +88,9 @@ fn wormchain_target() {
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
 
-    let ChainRegistrationResponse { address } =
-        contract.query_chain_registration(chain.into()).unwrap();
+    let RelayerChainRegistrationResponse { address } = contract
+        .query_relayer_chain_registration(chain.into())
+        .unwrap();
     assert_eq!(&*address, &emitter_address.0);
 }
 
