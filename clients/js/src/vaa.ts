@@ -183,7 +183,7 @@ const vaaParser = new Parser()
     assert: (str) => str === "",
   });
 
-export function serialiseVAA(vaa: VAA<Payload | Other>) {
+export function serialiseVAA(vaa: VAA<Payload>) {
   const body = [
     encode("uint8", vaa.version),
     encode("uint32", vaa.guardianSetIndex),
