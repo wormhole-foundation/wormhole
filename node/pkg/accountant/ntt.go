@@ -28,7 +28,7 @@ func (acct *Accountant) nttStart(ctx context.Context) error {
 
 	for emitter, enforceOnly := range acct.nttDirectEmitters {
 		tag := ""
-		if enforceOnly {
+		if !enforceOnly {
 			tag = " in log only mode"
 		}
 		acct.logger.Info(fmt.Sprintf("will monitor%s for NTT emitter", tag), zap.Stringer("emitterChainId", emitter.emitterChainId), zap.Stringer("emitterAddr", emitter.emitterAddr))
@@ -63,7 +63,7 @@ var NTT_PREFIX = []byte{0x99, 0x4E, 0x54, 0x54}
 // isNTT determines if the payload bytes are for a Native Token Transfer, according to the following implementation:
 // https://github.com/wormhole-foundation/example-native-token-transfers/blob/41ac7baae5bb0f60fff2ec87603970af39dced01/test/EndpointStructs.t.sol
 func nttIsPayloadNTT(payload []byte) bool {
-	if len(payload) < 84 {
+	if len(payload) < 116 {
 		return false
 	}
 
@@ -71,7 +71,7 @@ func nttIsPayloadNTT(payload []byte) bool {
 		return false
 	}
 
-	if !bytes.Equal(payload[80:84], NTT_PREFIX) {
+	if !bytes.Equal(payload[112:116], NTT_PREFIX) {
 		return false
 	}
 

@@ -606,6 +606,12 @@ if ci_tests:
         resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
     )
     k8s_resource(
+        "ntt-accountant-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+    )
+    k8s_resource(
         "query-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
