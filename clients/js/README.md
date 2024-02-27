@@ -143,6 +143,7 @@ Options:
 worm generate [command]
 
 Commands:
+  worm generate ntt-transfer                Generate an NTT transfer VAA
   worm generate registration                Generate registration VAA
   worm generate upgrade                     Generate contract upgrade VAA
   worm generate attestation                 Generate a token attestation VAA
