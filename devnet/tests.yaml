@@ -69,7 +69,32 @@ spec:
               command:
                 - test
                 - -e
-                - "/app/accountant/success"
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: ntt-accountant-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ntt-accountant-ci-tests
+          image: wormchain-deploy
+          command:
+            - /bin/sh
+            - -c
+            - "bash /app/tools/test_ntt_accountant.sh && touch /app/tools/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
             initialDelaySeconds: 5
             periodSeconds: 5
 ---
