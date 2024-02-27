@@ -104,11 +104,6 @@ export const builder = function (y: typeof yargs) {
               describe: "Chain to send to",
               choices: Object.values(sdk.chains) as sdk.Chain[],
               demandOption: true,
-            } as const)
-            .option("payload", {
-              alias: "p",
-              describe: "Payload to pass along with the transfer",
-              type: "string",
             } as const),
         (argv) => {
           const srcChain = argv["source-chain"];
@@ -120,20 +115,7 @@ export const builder = function (y: typeof yargs) {
 
           if (sdk.isNative(token.address)) throw "what";
 
-          const nttPayload = {
-            normalizedAmount: {
-              decimals: 18,
-              amount: BigInt(argv["amount"]),
-            },
-            sourceToken: token,
-            recipientAddress: receiver,
-            recipientChain: dstChain,
-          } satisfies sdk.NativeTokenTransfer;
-          //
-
-          sdk.createVAA("NativeTokenTransfer", nttPayload);
-
-          let v: sdk.VAA<"Uint8Array"> = {
+          let vaa = sdk.createVAA("NTT:Transfer", {
             signatures: [],
             timestamp: 1,
             nonce: 1,
@@ -141,18 +123,33 @@ export const builder = function (y: typeof yargs) {
             emitterAddress: emitter,
             sequence: BigInt(Math.floor(Math.random() * 100000000)),
             consistencyLevel: 0,
-            payload: sdk.serializeLayout(
-              sdk.nativeTokenTransferLayout,
-              nttPayload
-            ),
-            protocolName: null,
-            payloadName: "Uint8Array",
-            payloadLiteral: "Uint8Array",
+            payload: {
+              normalizedAmount: {
+                // TODO: lookup decimals for token
+                decimals: 18,
+                amount: BigInt(argv["amount"]),
+              },
+              sourceToken: token,
+              recipientAddress: receiver,
+              recipientChain: dstChain,
+            },
             guardianSet: 0,
-          };
+          });
+
           const signers = argv["guardian-secret"].split(",");
-          v.signatures = sign(signers, vaaDigest(v));
-          console.log(serialiseVAA(v));
+
+          // @ts-ignore -- complains about being read-only
+          vaa.signatures = sign(signers, sdk.encoding.hex.encode(vaa.hash)).map(
+            (sig) => {
+              return {
+                signature: sdk.Signature.decode(
+                  sdk.encoding.hex.decode(sig.signature)
+                ),
+                guardianIndex: sig.guardianSetIndex,
+              };
+            }
+          );
+          console.log(sdk.encoding.hex.encode(sdk.serialize(vaa)));
         }
       )
       // Registration
