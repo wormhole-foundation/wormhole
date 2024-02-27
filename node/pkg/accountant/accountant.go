@@ -143,8 +143,6 @@ func NewAccountant(
 		nttDirectEmitters: make(validEmitters),
 		nttArEmitters:     make(validEmitters),
 		nttSubChan:        make(chan *common.MessagePublication, subChanSize),
-
-		// The other NTT parameters will be set in nttStart().
 	}
 }
 
@@ -272,10 +270,6 @@ func (acct *Accountant) isTokenBridgeTransfer(msg *common.MessagePublication) (b
 	// We only care about token bridges.
 	enforceFlag, exists := acct.tokenBridges[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}]
 	if !exists {
-		if msg.EmitterChain != vaa.ChainIDPythNet {
-			acct.logger.Debug("ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
-		}
-
 		return false, false
 	}
 
