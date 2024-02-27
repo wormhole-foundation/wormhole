@@ -18,7 +18,7 @@ func (acct *Accountant) nttEnabled() bool {
 
 // nttStart initializes the NTT accountant and starts the NTT specific worker and watcher runnables.
 func (acct *Accountant) nttStart(ctx context.Context) error {
-	acct.logger.Debug("entering nttStart", zap.Bool("enforceFlag", acct.enforceFlag))
+	acct.logger.Debug("entering nttStart")
 
 	var err error
 	acct.nttDirectEmitters, acct.nttArEmitters, err = nttGetEmitters(acct.env)
@@ -26,9 +26,9 @@ func (acct *Accountant) nttStart(ctx context.Context) error {
 		return fmt.Errorf("failed to set up NTT emitters: %w", err)
 	}
 
-	for emitter, enforceOnly := range acct.nttDirectEmitters {
+	for emitter, enforceFlag := range acct.nttDirectEmitters {
 		tag := ""
-		if !enforceOnly {
+		if !enforceFlag {
 			tag = " in log only mode"
 		}
 		acct.logger.Info(fmt.Sprintf("will monitor%s for NTT emitter", tag), zap.Stringer("emitterChainId", emitter.emitterChainId), zap.Stringer("emitterAddr", emitter.emitterAddr))
