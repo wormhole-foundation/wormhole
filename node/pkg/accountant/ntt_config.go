@@ -16,8 +16,6 @@ type emitterConfigEntry struct {
 type emitterConfig []emitterConfigEntry
 
 // nttGetEmitters returns the set of direct NTT and AR emitters based on the environment passed in.
-// The automatic relayers for mainnet and testnet are defined here:
-// https://github.com/wormhole-foundation/connect-sdk/blob/d15564b12213016a8ead4a3638593ab2eaf386ca/core/base/src/constants/contracts/tokenBridgeRelayer.ts#L6-L34
 func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error) {
 	var directEmitterConfig, arEmitterConfig emitterConfig
 	if env == common.MainNet {
