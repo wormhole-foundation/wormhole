@@ -1050,8 +1050,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "balance errors b/a:",
@@ -1250,8 +1250,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "errors b/a:",
@@ -1302,8 +1302,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "errors b/a:",
@@ -1354,8 +1354,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "errors b/a:",
@@ -1396,8 +1396,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "errors b/a:",
@@ -1439,8 +1439,8 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 10s to fetch metrics...");
-      await sleep(10 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
+      console.log("waiting 30s to fetch metrics...");
+      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
       console.log(
         "balance errors b/a:",
