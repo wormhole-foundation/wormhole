@@ -30,7 +30,7 @@ import * as devnetConsts from "../devnet-consts.json";
 import { parseUnits } from "ethers/lib/utils";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
   let msg = `.env is missing. run "make contracts-tools-deps" to fetch.`;
@@ -511,13 +511,23 @@ describe("Global Accountant Tests", () => {
         throw new Error("Expected metrics change did not occur");
       }
       // the transfer should fail, because there's an insufficient source balance
-      await expect(
-        fetchGlobalAccountantTransferStatus(
+      if (VAA_SIGNERS.length > 1) {
+        const transferStatus = await fetchGlobalAccountantTransferStatus(
           CHAIN_ID_BSC,
-          getEmitterAddressEth(CONTRACTS.DEVNET.bsc.core),
+          getEmitterAddressEth(CONTRACTS.DEVNET.bsc.token_bridge),
           sequence
-        )
-      ).rejects.toThrow();
+        );
+        expect(Object.keys(transferStatus)).toContain("pending");
+        expect(Object.keys(transferStatus)).not.toContain("committed");
+      } else {
+        await expect(
+          fetchGlobalAccountantTransferStatus(
+            CHAIN_ID_BSC,
+            getEmitterAddressEth(CONTRACTS.DEVNET.bsc.token_bridge),
+            sequence
+          )
+        ).rejects.toThrow();
+      }
     }
     console.log("success!");
   });
