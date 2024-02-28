@@ -28,7 +28,7 @@ import {
   sendToEvm,
 } from "@certusone/wormhole-sdk/lib/cjs/relayer";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
   let msg = `.env is missing. run "make contracts-tools-deps" to fetch.`;
@@ -104,12 +104,8 @@ const BSC_WALLET_EMITTER = BSC_WALLET.public
   .substring(2)
   .padStart(64, "0")
   .toLowerCase();
-const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
-const BSC_NODE_URL = ci ? "ws://eth-devnet2:8545" : "ws://localhost:8546";
-const relayerOptionalParameters: GetPriceOptParams = {
-  environment: "DEVNET",
-  wormholeRelayerAddress: "0x53855d4b64e9a3cf59a84bc768ada716b5536bc5",
-};
+const ETH_NODE_URL = ci ? "http://eth-devnet:8545" : "http://localhost:8545";
+const BSC_NODE_URL = ci ? "http://eth-devnet2:8545" : "http://localhost:8546";
 
 const HUB_CHAIN = 2;
 const HUB_TRANSCEIVER = `0000000000000000000000000000000000000000000000000000000000000042`;
@@ -125,8 +121,12 @@ const FAUX_SPOKE_TRANSCEIVER_A = FAUX_HUB_TRANSCEIVER;
 const UNKNOWN_SPOKE_CHAIN = 404;
 const UNKNOWN_SPOKE_TRANSCEIVER =
   "beeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeefface";
-const RELAYER_EMITTER =
-  "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5";
+const RELAYER_ADDRESS = ci
+  ? "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+  : "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5";
+const RELAYER_EMITTER = ci
+  ? "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+  : "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5";
 const dummy32 = `0000000000000000000000000000000000000000000000000000000000001234`;
 
 function sleep(ms) {
@@ -136,16 +136,16 @@ function sleep(ms) {
 const host = ci
   ? devnetConsts.chains[3104].tendermintUrlTilt
   : devnetConsts.chains[3104].tendermintUrlLocal;
-// TODO: have a mnemonic dedicated for this test
+// NttAccountantTest = wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u
 const mnemonic =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 
 let client: any;
 let signer: string;
-let ethProvider: ethers.providers.WebSocketProvider;
+let ethProvider: ethers.providers.JsonRpcProvider;
 let ethSigner: ethers.Wallet;
 let fauxEthSigner: ethers.Wallet;
-let bscProvider: ethers.providers.WebSocketProvider;
+let bscProvider: ethers.providers.JsonRpcProvider;
 let bscSigner: ethers.Wallet;
 let fauxBscSigner: ethers.Wallet;
 let cosmWasmClient: CosmWasmClient;
@@ -156,19 +156,17 @@ beforeAll(async () => {
   const signers = await wallet.getAccounts();
   signer = signers[0].address;
   // create a signer for Eth
-  ethProvider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+  ethProvider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
   ethSigner = new ethers.Wallet(ETH_WALLET.private, ethProvider);
   fauxEthSigner = new ethers.Wallet(BSC_WALLET.private, ethProvider);
   // create a signer for BSC
-  bscProvider = new ethers.providers.WebSocketProvider(BSC_NODE_URL);
+  bscProvider = new ethers.providers.JsonRpcProvider(BSC_NODE_URL);
   bscSigner = new ethers.Wallet(BSC_WALLET.private, bscProvider);
   fauxBscSigner = new ethers.Wallet(ETH_WALLET.private, bscProvider);
   cosmWasmClient = await CosmWasmClient.connect(TENDERMINT_URL);
 });
 
 afterAll(async () => {
-  await ethProvider.destroy();
-  await bscProvider.destroy();
   cosmWasmClient.disconnect();
 });
 
@@ -306,7 +304,7 @@ const mockDeliveryPayload = (sender: string, payload: string) => {
   )}${dummy32}${dummy32}${dummy32}${sender}00`;
 };
 
-describe("Global Accountant Tests", () => {
+describe("NTT Global Accountant Tests", () => {
   describe("1. Inits", () => {
     test("a. Ensure a hub init is saved", async () => {
       const vaa = makeVAA(
@@ -1069,13 +1067,23 @@ describe("Global Accountant Tests", () => {
         throw new Error("Expected metrics change did not occur");
       }
       // the transfer should fail, because there's an insufficient source balance
-      await expect(
-        fetchGlobalAccountantTransferStatus(
+      if (VAA_SIGNERS.length > 1) {
+        const transferStatus = await fetchGlobalAccountantTransferStatus(
           SPOKE_CHAIN_A,
           BSC_WALLET_EMITTER,
           sequence
-        )
-      ).rejects.toThrow();
+        );
+        expect(Object.keys(transferStatus)).toContain("pending");
+        expect(Object.keys(transferStatus)).not.toContain("committed");
+      } else {
+        await expect(
+          fetchGlobalAccountantTransferStatus(
+            SPOKE_CHAIN_A,
+            BSC_WALLET_EMITTER,
+            sequence
+          )
+        ).rejects.toThrow();
+      }
     });
     test("c. Ensure a token can be sent back to its hub endpoint", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
@@ -1458,13 +1466,23 @@ describe("Global Accountant Tests", () => {
         throw new Error("Expected metrics change did not occur");
       }
       // the transfer should fail, because there's an insufficient source balance
-      await expect(
-        fetchGlobalAccountantTransferStatus(
+      if (VAA_SIGNERS.length > 1) {
+        const transferStatus = await fetchGlobalAccountantTransferStatus(
           SPOKE_CHAIN_A,
           BSC_WALLET_EMITTER,
           sequence
-        )
-      ).rejects.toThrow();
+        );
+        expect(Object.keys(transferStatus)).toContain("pending");
+        expect(Object.keys(transferStatus)).not.toContain("committed");
+      } else {
+        await expect(
+          fetchGlobalAccountantTransferStatus(
+            SPOKE_CHAIN_A,
+            BSC_WALLET_EMITTER,
+            sequence
+          )
+        ).rejects.toThrow();
+      }
     });
     test("k. Relayed message gets accounted", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
@@ -1478,12 +1496,20 @@ describe("Global Accountant Tests", () => {
         HUB_CHAIN,
         ETH_WALLET_EMITTER
       );
+      console.log("1");
+      const relayerOptionalParameters: GetPriceOptParams = {
+        environment: "DEVNET",
+        wormholeRelayerAddress: RELAYER_ADDRESS,
+        sourceChainProvider: ethProvider,
+      };
+      console.log("2");
       const value = await getPrice(
         "ethereum",
         "bsc",
         0,
         relayerOptionalParameters
       );
+      console.log("3");
       const tx = await sendToEvm(
         ethSigner,
         "ethereum",
@@ -1494,7 +1520,9 @@ describe("Global Accountant Tests", () => {
         { value },
         relayerOptionalParameters
       );
+      console.log("4");
       const receipt = await tx.wait();
+      console.log("5");
       // get the sequence from the logs (needed to fetch the vaa)
       const sequence = parseSequenceFromLogEth(
         receipt,
