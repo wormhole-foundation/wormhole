@@ -113,9 +113,20 @@ export const builder = function (y: typeof yargs) {
           const receiver = sdk.toUniversal(dstChain, argv["receiver"]);
           const emitter = sdk.toUniversal(srcChain, argv["source-emitter"]);
 
+          // TODO: wrong, should these be CLI args or consts?
+          const sender = emitter;
+          const srcNttMgr = emitter;
+          const rcvNttMgr = receiver;
+
           if (sdk.isNative(token.address)) throw "what";
 
-          let vaa = sdk.createVAA("NTT:Transfer", {
+          const trimmedAmount = {
+            // TODO: CLI arg or lookup decimals for token?
+            decimals: 18,
+            amount: BigInt(argv["amount"]),
+          };
+
+          let vaa = sdk.createVAA("NTT:WormholeTransfer", {
             signatures: [],
             timestamp: 1,
             nonce: 1,
@@ -124,14 +135,18 @@ export const builder = function (y: typeof yargs) {
             sequence: BigInt(Math.floor(Math.random() * 100000000)),
             consistencyLevel: 0,
             payload: {
-              normalizedAmount: {
-                // TODO: lookup decimals for token
-                decimals: 18,
-                amount: BigInt(argv["amount"]),
+              sourceNttManager: srcNttMgr,
+              recipientNttManager: rcvNttMgr,
+              nttManagerPayload: {
+                payload: {
+                  trimmedAmount: trimmedAmount,
+                  sourceToken: token,
+                  recipientAddress: receiver,
+                  recipientChain: dstChain,
+                },
+                sequence: BigInt(0),
+                sender: sender,
               },
-              sourceToken: token,
-              recipientAddress: receiver,
-              recipientChain: dstChain,
             },
             guardianSet: 0,
           });
