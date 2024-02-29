@@ -35,23 +35,23 @@ if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
  *      b. Ensure a duplicate hub init is rejected
  *      c. Ensure a non-hub init is rejected
  *   2. Registrations
- *      a. Ensure a hub registration to an endpoint without a known hub is rejected
- *      b. Ensure an endpoint registration to a hub is saved
- *      c. Ensure a hub registration to an endpoint with a known hub is saved
- *      d. Ensure an endpoint registration to another endpoint without a known hub is rejected
- *      e. Ensure an endpoint registration from an endpoint without a known hub to a non-hub is rejected
- *      f. Ensure an endpoint registration to another endpoint with a known hub is saved
+ *      a. Ensure a hub registration to an transceiver without a known hub is rejected
+ *      b. Ensure an transceiver registration to a hub is saved
+ *      c. Ensure a hub registration to an transceiver with a known hub is saved
+ *      d. Ensure an transceiver registration to another transceiver without a known hub is rejected
+ *      e. Ensure an transceiver registration from an transceiver without a known hub to a non-hub is rejected
+ *      f. Ensure an transceiver registration to another transceiver with a known hub is saved
  *      g. Ensure a duplicate registration is rejected
  *   3. Observations
- *      a. Ensure a token can be sent from its hub endpoint
+ *      a. Ensure a token can be sent from its hub transceiver
  *      b. Ensure a token decimal shift works as expected
- *      c. Ensure a token can be sent back to its hub endpoint
- *      d. Ensure a token can be sent between non-hub endpoints
- *      e. Ensure a token sent from a source endpoint without a known hub is rejected
- *      f. Ensure a token sent from a source chain without a known endpoint is rejected
- *      g. Ensure a token sent from a source chain without a matching endpoint is rejected
- *      h. Ensure a token sent to a destination chain without a known endpoint is rejected
- *      i. Ensure a token sent to a destination chain without a matching endpoint is rejected
+ *      c. Ensure a token can be sent back to its hub transceiver
+ *      d. Ensure a token can be sent between non-hub transceivers
+ *      e. Ensure a token sent from a source transceiver without a known hub is rejected
+ *      f. Ensure a token sent from a source chain without a known transceiver is rejected
+ *      g. Ensure a token sent from a source chain without a matching transceiver is rejected
+ *      h. Ensure a token sent to a destination chain without a known transceiver is rejected
+ *      i. Ensure a token sent to a destination chain without a matching transceiver is rejected
  *      j. Ensure spoofed tokens for more than the outstanding amount rejects successfully
  *   4. Transfer VAAs
  *      a-i. Repeat Observation tests
@@ -78,18 +78,18 @@ const NTT_GA_ADDRESS =
   "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k";
 
 const HUB_CHAIN = 2;
-const HUB_ENDPOINT = `0000000000000000000000000000000000000000000000000000000000000042`;
+const HUB_TRANSCEIVER = `0000000000000000000000000000000000000000000000000000000000000042`;
 const SPOKE_CHAIN_A = 4;
-const SPOKE_ENDPOINT_A = `0000000000000000000000000000000000000000000000000000000000000043`;
+const SPOKE_TRANSCEIVER_A = `0000000000000000000000000000000000000000000000000000000000000043`;
 const SPOKE_CHAIN_B = 5;
-const SPOKE_ENDPOINT_B = `0000000000000000000000000000000000000000000000000000000000000044`;
+const SPOKE_TRANSCEIVER_B = `0000000000000000000000000000000000000000000000000000000000000044`;
 const FAUX_HUB_CHAIN = 420;
-const FAUX_HUB_ENDPOINT =
+const FAUX_HUB_TRANSCEIVER =
   "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 const FAUX_SPOKE_CHAIN_A = SPOKE_CHAIN_A;
-const FAUX_SPOKE_ENDPOINT_A = FAUX_HUB_ENDPOINT;
+const FAUX_SPOKE_TRANSCEIVER_A = FAUX_HUB_TRANSCEIVER;
 const UNKNOWN_SPOKE_CHAIN = 404;
-const UNKNOWN_SPOKE_ENDPOINT =
+const UNKNOWN_SPOKE_TRANSCEIVER =
   "beeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeefface";
 const RELAYER_EMITTER =
   "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5";
@@ -261,19 +261,20 @@ describe("Global Accountant Tests", () => {
     test("a. Ensure a hub init is saved", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
-        "c83e3d2e000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
+        HUB_TRANSCEIVER,
+        "9c23bd3b000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
       const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
-        all_endpoint_hubs: {},
+        all_transceiver_hubs: {},
       });
       const hub = response.hubs.find(
-        (entry) => entry.key[0] === HUB_CHAIN && entry.key[1] === HUB_ENDPOINT
+        (entry) =>
+          entry.key[0] === HUB_CHAIN && entry.key[1] === HUB_TRANSCEIVER
       );
       expect(hub).toBeDefined();
-      expect(hub.data).toStrictEqual([HUB_CHAIN, HUB_ENDPOINT]);
+      expect(hub.data).toStrictEqual([HUB_CHAIN, HUB_TRANSCEIVER]);
       // check replay protection
       {
         const result = await submitVAA(vaa);
@@ -284,8 +285,8 @@ describe("Global Accountant Tests", () => {
     test("b. Ensure a duplicate hub init is rejected", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
-        "c83e3d2e000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
+        HUB_TRANSCEIVER,
+        "9c23bd3b000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
@@ -294,8 +295,8 @@ describe("Global Accountant Tests", () => {
     test("c. Ensure a non-hub init is rejected", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
-        "c83e3d2e0000000000000000000000001fc14f21b27579f4f23578731cd361cca8aa39f701000000000000000000000000eb502b1d35e975321b21cce0e8890d20a7eb289d12"
+        SPOKE_TRANSCEIVER_A,
+        "9c23bd3b0000000000000000000000001fc14f21b27579f4f23578731cd361cca8aa39f701000000000000000000000000eb502b1d35e975321b21cce0e8890d20a7eb289d12"
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
@@ -303,35 +304,35 @@ describe("Global Accountant Tests", () => {
     });
   });
   describe("2. Registrations", () => {
-    test("a. Ensure a hub registration to an endpoint without a known hub is rejected", async () => {
+    test("a. Ensure a hub registration to an transceiver without a known hub is rejected", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
-        `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+        HUB_TRANSCEIVER,
+        `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
       expect(result.rawLog).toMatch("no registered hub");
     });
-    test("b. Ensure an endpoint registration to a hub is saved", async () => {
+    test("b. Ensure an transceiver registration to a hub is saved", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
-        `d0d292f1${chainToHex(HUB_CHAIN)}${HUB_ENDPOINT}`
+        SPOKE_TRANSCEIVER_A,
+        `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
       const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
-        all_endpoint_peers: {},
+        all_transceiver_peers: {},
       });
       const peer = response.peers.find(
         (entry) =>
           entry.key[0] === SPOKE_CHAIN_A &&
-          entry.key[1] === SPOKE_ENDPOINT_A &&
+          entry.key[1] === SPOKE_TRANSCEIVER_A &&
           entry.key[2] === HUB_CHAIN
       );
       expect(peer).toBeDefined();
-      expect(peer.data).toStrictEqual(HUB_ENDPOINT);
+      expect(peer.data).toStrictEqual(HUB_TRANSCEIVER);
       // check replay protection
       {
         const result = await submitVAA(vaa);
@@ -339,41 +340,41 @@ describe("Global Accountant Tests", () => {
         expect(result.rawLog).toMatch("message already processed");
       }
     });
-    test("c. Ensure a hub registration to an endpoint with a known hub is saved", async () => {
+    test("c. Ensure a hub registration to an transceiver with a known hub is saved", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
-        `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+        HUB_TRANSCEIVER,
+        `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
       const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
-        all_endpoint_peers: {},
+        all_transceiver_peers: {},
       });
       const peer = response.peers.find(
         (entry) =>
           entry.key[0] === HUB_CHAIN &&
-          entry.key[1] === HUB_ENDPOINT &&
+          entry.key[1] === HUB_TRANSCEIVER &&
           entry.key[2] === SPOKE_CHAIN_A
       );
       expect(peer).toBeDefined();
-      expect(peer.data).toStrictEqual(SPOKE_ENDPOINT_A);
+      expect(peer.data).toStrictEqual(SPOKE_TRANSCEIVER_A);
     });
-    test("d. Ensure an endpoint registration to another endpoint without a known hub is rejected", async () => {
+    test("d. Ensure an transceiver registration to another transceiver without a known hub is rejected", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
-        `d0d292f1${chainToHex(SPOKE_CHAIN_B)}${SPOKE_ENDPOINT_B}`
+        SPOKE_TRANSCEIVER_A,
+        `18fc67c2${chainToHex(SPOKE_CHAIN_B)}${SPOKE_TRANSCEIVER_B}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
       expect(result.rawLog).toMatch("no registered hub");
     });
-    test("e. Ensure an endpoint registration from an endpoint without a known hub to a non-hub is rejected", async () => {
+    test("e. Ensure an transceiver registration from an transceiver without a known hub to a non-hub is rejected", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_B,
-        SPOKE_ENDPOINT_B,
-        `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+        SPOKE_TRANSCEIVER_B,
+        `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
@@ -381,60 +382,60 @@ describe("Global Accountant Tests", () => {
         "ignoring attempt to register peer before hub"
       );
     });
-    test("f. Ensure an endpoint registration to another endpoint with a known hub is saved", async () => {
+    test("f. Ensure an transceiver registration to another transceiver with a known hub is saved", async () => {
       {
         const vaa = makeVAA(
           SPOKE_CHAIN_B,
-          SPOKE_ENDPOINT_B,
-          `d0d292f1${chainToHex(HUB_CHAIN)}${HUB_ENDPOINT}`
+          SPOKE_TRANSCEIVER_B,
+          `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
         const response = await cosmWasmClient.queryContractSmart(
           NTT_GA_ADDRESS,
           {
-            all_endpoint_peers: {},
+            all_transceiver_peers: {},
           }
         );
         const peer = response.peers.find(
           (entry) =>
             entry.key[0] === SPOKE_CHAIN_B &&
-            entry.key[1] === SPOKE_ENDPOINT_B &&
+            entry.key[1] === SPOKE_TRANSCEIVER_B &&
             entry.key[2] === HUB_CHAIN
         );
         expect(peer).toBeDefined();
-        expect(peer.data).toStrictEqual(HUB_ENDPOINT);
+        expect(peer.data).toStrictEqual(HUB_TRANSCEIVER);
       }
       {
         const vaa = makeVAA(
           SPOKE_CHAIN_A,
-          SPOKE_ENDPOINT_A,
-          `d0d292f1${chainToHex(SPOKE_CHAIN_B)}${SPOKE_ENDPOINT_B}`
+          SPOKE_TRANSCEIVER_A,
+          `18fc67c2${chainToHex(SPOKE_CHAIN_B)}${SPOKE_TRANSCEIVER_B}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
         const response = await cosmWasmClient.queryContractSmart(
           NTT_GA_ADDRESS,
           {
-            all_endpoint_peers: {},
+            all_transceiver_peers: {},
           }
         );
         const peer = response.peers.find(
           (entry) =>
             entry.key[0] === SPOKE_CHAIN_A &&
-            entry.key[1] === SPOKE_ENDPOINT_A &&
+            entry.key[1] === SPOKE_TRANSCEIVER_A &&
             entry.key[2] === SPOKE_CHAIN_B
         );
         expect(peer).toBeDefined();
-        expect(peer.data).toStrictEqual(SPOKE_ENDPOINT_B);
+        expect(peer.data).toStrictEqual(SPOKE_TRANSCEIVER_B);
       }
     });
     test("g. Ensure a duplicate registration is rejected", async () => {
       {
         const vaa = makeVAA(
           SPOKE_CHAIN_B,
-          SPOKE_ENDPOINT_B,
-          `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+          SPOKE_TRANSCEIVER_B,
+          `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
@@ -442,8 +443,8 @@ describe("Global Accountant Tests", () => {
       {
         const vaa = makeVAA(
           SPOKE_CHAIN_B,
-          SPOKE_ENDPOINT_B,
-          `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+          SPOKE_TRANSCEIVER_B,
+          `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(5);
@@ -457,8 +458,8 @@ describe("Global Accountant Tests", () => {
         // set faux hub
         const vaa = makeVAA(
           FAUX_HUB_CHAIN,
-          FAUX_HUB_ENDPOINT,
-          "c83e3d2e000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
+          FAUX_HUB_TRANSCEIVER,
+          "9c23bd3b000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
@@ -467,8 +468,8 @@ describe("Global Accountant Tests", () => {
         // set attempt to register legit spoke with it
         const vaa = makeVAA(
           FAUX_HUB_CHAIN,
-          FAUX_HUB_ENDPOINT,
-          `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${SPOKE_ENDPOINT_A}`
+          FAUX_HUB_TRANSCEIVER,
+          `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(5);
@@ -477,10 +478,10 @@ describe("Global Accountant Tests", () => {
     });
   });
   describe("4. Transfer VAAs", () => {
-    test("a. Ensure a token can be sent from its hub endpoint", async () => {
+    test("a. Ensure a token can be sent from its hub transceiver", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
+        HUB_TRANSCEIVER,
         mockTransferPayload(8, 10, SPOKE_CHAIN_A)
       );
       const result = await submitVAA(vaa);
@@ -495,7 +496,7 @@ describe("Global Accountant Tests", () => {
     test("b. Ensure a token decimal shift works as expected", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
+        SPOKE_TRANSCEIVER_A,
         mockTransferPayload(6, 1, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
@@ -504,38 +505,38 @@ describe("Global Accountant Tests", () => {
         "insufficient balance in source account: Overflow: Cannot Sub with 10 and 100"
       );
     });
-    test("c. Ensure a token can be sent back to its hub endpoint", async () => {
+    test("c. Ensure a token can be sent back to its hub transceiver", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
+        SPOKE_TRANSCEIVER_A,
         mockTransferPayload(8, 1, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
     });
-    test("d. Ensure a token can be sent between non-hub endpoints", async () => {
+    test("d. Ensure a token can be sent between non-hub transceivers", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
+        SPOKE_TRANSCEIVER_A,
         mockTransferPayload(8, 1, SPOKE_CHAIN_B)
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(0);
     });
-    test("e. Ensure a token sent from a source endpoint without a known hub is rejected", async () => {
+    test("e. Ensure a token sent from a source transceiver without a known hub is rejected", async () => {
       const vaa = makeVAA(
         UNKNOWN_SPOKE_CHAIN,
-        UNKNOWN_SPOKE_ENDPOINT,
+        UNKNOWN_SPOKE_TRANSCEIVER,
         mockTransferPayload(8, 1, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
       expect(result.rawLog).toMatch("no registered hub");
     });
-    test("f. Ensure a token sent from a source chain without a known endpoint is rejected", async () => {
+    test("f. Ensure a token sent from a source chain without a known transceiver is rejected", async () => {
       const vaa = makeVAA(
         FAUX_HUB_CHAIN,
-        FAUX_HUB_ENDPOINT,
+        FAUX_HUB_TRANSCEIVER,
         mockTransferPayload(8, 1, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
@@ -544,14 +545,14 @@ describe("Global Accountant Tests", () => {
         "no registered source peer for chain Ethereum"
       );
     });
-    test("g. Ensure a token sent from a source chain without a matching endpoint is rejected", async () => {
+    test("g. Ensure a token sent from a source chain without a matching transceiver is rejected", async () => {
       {
         // set faux spoke registration to hub but not vice-versa
         {
           const vaa = makeVAA(
             FAUX_SPOKE_CHAIN_A,
-            FAUX_SPOKE_ENDPOINT_A,
-            `d0d292f1${chainToHex(FAUX_HUB_CHAIN)}${FAUX_HUB_ENDPOINT}`
+            FAUX_SPOKE_TRANSCEIVER_A,
+            `18fc67c2${chainToHex(FAUX_HUB_CHAIN)}${FAUX_HUB_TRANSCEIVER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
@@ -559,7 +560,7 @@ describe("Global Accountant Tests", () => {
       }
       const vaa = makeVAA(
         FAUX_SPOKE_CHAIN_A,
-        FAUX_SPOKE_ENDPOINT_A,
+        FAUX_SPOKE_TRANSCEIVER_A,
         mockTransferPayload(8, 1, FAUX_HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
@@ -568,20 +569,20 @@ describe("Global Accountant Tests", () => {
         "no registered destination peer for chain Bsc"
       );
     });
-    test("h. Ensure a token sent to a destination chain without a known endpoint is rejected", async () => {
+    test("h. Ensure a token sent to a destination chain without a known transceiver is rejected", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
-        HUB_ENDPOINT,
+        HUB_TRANSCEIVER,
         mockTransferPayload(8, 1, UNKNOWN_SPOKE_CHAIN)
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
       expect(result.rawLog).toMatch("no registered source peer for chain");
     });
-    test("i. Ensure a token sent to a destination chain without a matching endpoint is rejected", async () => {
+    test("i. Ensure a token sent to a destination chain without a matching transceiver is rejected", async () => {
       const vaa = makeVAA(
         FAUX_HUB_CHAIN,
-        FAUX_HUB_ENDPOINT,
+        FAUX_HUB_TRANSCEIVER,
         mockTransferPayload(8, 1, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
@@ -593,7 +594,7 @@ describe("Global Accountant Tests", () => {
     test("j. Ensure spoofed tokens for more than the outstanding amount rejects successfully", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
-        SPOKE_ENDPOINT_A,
+        SPOKE_TRANSCEIVER_A,
         mockTransferPayload(8, 9000, HUB_CHAIN)
       );
       const result = await submitVAA(vaa);
@@ -654,7 +655,7 @@ describe("Global Accountant Tests", () => {
         HUB_CHAIN,
         RELAYER_EMITTER,
         mockDeliveryPayload(
-          HUB_ENDPOINT,
+          HUB_TRANSCEIVER,
           mockTransferPayload(8, 1, SPOKE_CHAIN_A)
         )
       );
@@ -667,7 +668,7 @@ describe("Global Accountant Tests", () => {
           HUB_CHAIN,
           RELAYER_EMITTER,
           mockDeliveryPayload(
-            UNKNOWN_SPOKE_ENDPOINT,
+            UNKNOWN_SPOKE_TRANSCEIVER,
             mockTransferPayload(8, 1, SPOKE_CHAIN_A)
           )
         );
@@ -680,7 +681,7 @@ describe("Global Accountant Tests", () => {
           SPOKE_CHAIN_A,
           RELAYER_EMITTER,
           mockDeliveryPayload(
-            SPOKE_ENDPOINT_A,
+            SPOKE_TRANSCEIVER_A,
             mockTransferPayload(8, 9999, HUB_CHAIN)
           )
         );
