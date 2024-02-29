@@ -51,7 +51,7 @@ if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
  *      f. Ensure an transceiver registration to another transceiver with a known hub is saved
  *      g. Ensure a duplicate registration is rejected
  *   3. Transfer VAAs
- *      a. Ensure a token can be sent from its hub endpoint
+ *      a. Ensure a token can be sent from its hub transceiver
  *      b. Ensure a token decimal shift works as expected
  *      c. Ensure a token can be sent back to its hub transceiver
  *      d. Ensure a token can be sent between non-hub transceivers
@@ -129,10 +129,6 @@ const RELAYER_EMITTER = ci
   : "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5";
 const dummy32 = `0000000000000000000000000000000000000000000000000000000000001234`;
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 const host = ci
   ? devnetConsts.chains[3104].tendermintUrlTilt
   : devnetConsts.chains[3104].tendermintUrlLocal;
@@ -170,8 +166,7 @@ afterAll(async () => {
   cosmWasmClient.disconnect();
 });
 
-// Guardian metrics are prometheus data
-const fetchGlobalAccountantMetrics = async (): Promise<{
+type GuardianMetrics = {
   global_accountant_connection_errors_total: number;
   global_accountant_error_events_received: number;
   global_accountant_events_received: number;
@@ -181,7 +176,10 @@ const fetchGlobalAccountantMetrics = async (): Promise<{
   global_accountant_transfer_vaas_outstanding: number;
   global_accountant_transfer_vaas_submitted: number;
   global_accountant_transfer_vaas_submitted_and_approved: number;
-}> =>
+};
+
+// Guardian metrics are prometheus data
+const fetchGlobalAccountantMetrics = async (): Promise<GuardianMetrics> =>
   (await (await fetch(GUARDIAN_METRICS)).text())
     .split("\n")
     .filter((m) => m.startsWith("global_accountant"))
@@ -190,6 +188,32 @@ const fetchGlobalAccountantMetrics = async (): Promise<{
       p[k] = Number(v);
       return p;
     }, {} as any);
+
+async function waitForMetricsChange(
+  failurePredicate: (GuardianMetrics) => boolean,
+  retryTimeout: number = 1000,
+  retryAttempts: number = 30
+) {
+  let passed = false;
+  let attempts = 0;
+  while (!passed) {
+    attempts++;
+    await new Promise((resolve) => setTimeout(resolve, retryTimeout));
+    let afterMetrics;
+    try {
+      afterMetrics = await fetchGlobalAccountantMetrics();
+    } catch (e) {
+      continue;
+    }
+    if (failurePredicate(afterMetrics)) {
+      if (retryAttempts !== undefined && attempts > retryAttempts) {
+        throw new Error("Expected metrics change did not occur");
+      }
+    } else {
+      return;
+    }
+  }
+}
 
 const fetchGlobalAccountantBalance = async (
   chainId: ChainId,
@@ -526,7 +550,7 @@ describe("NTT Global Accountant Tests", () => {
     });
   });
   describe("3. Transfer VAAs", () => {
-    test("a. Ensure a token can be sent from its hub endpoint", async () => {
+    test("a. Ensure a token can be sent from its hub transceiver", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
         HUB_TRANSCEIVER,
@@ -768,14 +792,14 @@ describe("NTT Global Accountant Tests", () => {
         const vaa = makeVAA(
           HUB_CHAIN,
           ETH_WALLET_EMITTER,
-          "c83e3d2e000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
+          "9c23bd3b000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
         const response = await cosmWasmClient.queryContractSmart(
           NTT_GA_ADDRESS,
           {
-            all_endpoint_hubs: {},
+            all_transceiver_hubs: {},
           }
         );
         const hub = response.hubs.find(
@@ -791,14 +815,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             SPOKE_CHAIN_A,
             BSC_WALLET_EMITTER,
-            `d0d292f1${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -814,14 +838,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             SPOKE_CHAIN_B,
             ETH_WALLET_EMITTER,
-            `d0d292f1${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -840,14 +864,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             HUB_CHAIN,
             ETH_WALLET_EMITTER,
-            `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${BSC_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${BSC_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -863,14 +887,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             HUB_CHAIN,
             ETH_WALLET_EMITTER,
-            `d0d292f1${chainToHex(SPOKE_CHAIN_B)}${ETH_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(SPOKE_CHAIN_B)}${ETH_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -889,14 +913,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             SPOKE_CHAIN_A,
             BSC_WALLET_EMITTER,
-            `d0d292f1${chainToHex(SPOKE_CHAIN_B)}${ETH_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(SPOKE_CHAIN_B)}${ETH_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -912,14 +936,14 @@ describe("NTT Global Accountant Tests", () => {
           const vaa = makeVAA(
             SPOKE_CHAIN_B,
             ETH_WALLET_EMITTER,
-            `d0d292f1${chainToHex(SPOKE_CHAIN_A)}${BSC_WALLET_EMITTER}`
+            `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${BSC_WALLET_EMITTER}`
           );
           const result = await submitVAA(vaa);
           expect(result.code).toEqual(0);
           const response = await cosmWasmClient.queryContractSmart(
             NTT_GA_ADDRESS,
             {
-              all_endpoint_peers: {},
+              all_transceiver_peers: {},
             }
           );
           const peer = response.peers.find(
@@ -933,7 +957,7 @@ describe("NTT Global Accountant Tests", () => {
         }
       }
     });
-    test("a. Ensure a token can be sent from its hub endpoint", async () => {
+    test("a. Ensure a token can be sent from its hub transceiver", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const beforeEthBalance = await fetchGlobalAccountantBalance(
         HUB_CHAIN,
@@ -968,20 +992,19 @@ describe("NTT Global Accountant Tests", () => {
         sequence,
         {
           transport: NodeHttpTransport(),
-        }
+        },
+        1000,
+        30
       );
-      await sleep(500); // avoid socket hang up
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      if (
-        afterMetrics.global_accountant_events_received <=
-          beforeMetrics.global_accountant_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_events_received <=
+            beforeMetrics.global_accountant_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+      );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         HUB_CHAIN,
         ETH_WALLET_EMITTER,
@@ -1048,24 +1071,15 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "balance errors b/a:",
-        beforeMetrics.global_accountant_total_balance_errors,
-        afterMetrics.global_accountant_total_balance_errors
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_total_balance_errors <=
+            beforeMetrics.global_accountant_total_balance_errors
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_total_balance_errors <=
-          beforeMetrics.global_accountant_total_balance_errors
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       if (VAA_SIGNERS.length > 1) {
         const transferStatus = await fetchGlobalAccountantTransferStatus(
@@ -1085,7 +1099,7 @@ describe("NTT Global Accountant Tests", () => {
         ).rejects.toThrow();
       }
     });
-    test("c. Ensure a token can be sent back to its hub endpoint", async () => {
+    test("c. Ensure a token can be sent back to its hub transceiver", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const beforeEthBalance = await fetchGlobalAccountantBalance(
         HUB_CHAIN,
@@ -1120,20 +1134,19 @@ describe("NTT Global Accountant Tests", () => {
         sequence,
         {
           transport: NodeHttpTransport(),
-        }
+        },
+        1000,
+        30
       );
-      await sleep(500); // avoid socket hang up
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      if (
-        afterMetrics.global_accountant_events_received <=
-          beforeMetrics.global_accountant_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_events_received <=
+            beforeMetrics.global_accountant_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+      );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         SPOKE_CHAIN_A,
         BSC_WALLET_EMITTER,
@@ -1162,7 +1175,7 @@ describe("NTT Global Accountant Tests", () => {
       );
       expect(afterBscBalance).toBeLessThan(beforeBscBalance.valueOf());
     });
-    test("d. Ensure a token can be sent between non-hub endpoints", async () => {
+    test("d. Ensure a token can be sent between non-hub transceivers", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const beforeBscBalance = await fetchGlobalAccountantBalance(
         SPOKE_CHAIN_A,
@@ -1197,20 +1210,19 @@ describe("NTT Global Accountant Tests", () => {
         sequence,
         {
           transport: NodeHttpTransport(),
-        }
+        },
+        1000,
+        30
       );
-      await sleep(500); // avoid socket hang up
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      if (
-        afterMetrics.global_accountant_events_received <=
-          beforeMetrics.global_accountant_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_events_received <=
+            beforeMetrics.global_accountant_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+      );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         SPOKE_CHAIN_A,
         BSC_WALLET_EMITTER,
@@ -1241,7 +1253,7 @@ describe("NTT Global Accountant Tests", () => {
         beforePolygonBalance.valueOf()
       );
     });
-    test("e. Ensure a token sent from a source endpoint without a known hub is rejected", async () => {
+    test("e. Ensure a token sent from a source transceiver without a known hub is rejected", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const core = ethers_contracts.Implementation__factory.connect(
         CONTRACTS.DEVNET.ethereum.core,
@@ -1258,22 +1270,13 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "errors b/a:",
-        beforeMetrics.global_accountant_error_events_received,
-        afterMetrics.global_accountant_error_events_received
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       await expect(
         fetchGlobalAccountantTransferStatus(
@@ -1283,13 +1286,13 @@ describe("NTT Global Accountant Tests", () => {
         )
       ).rejects.toThrow();
     });
-    test("f. Ensure a token sent from a source chain without a known endpoint is rejected", async () => {
+    test("f. Ensure a token sent from a source chain without a known transceiver is rejected", async () => {
       {
         // init the locking hub
         const vaa = makeVAA(
           HUB_CHAIN,
           BSC_WALLET_EMITTER,
-          "c83e3d2e000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
+          "9c23bd3b000000000000000000000000bb807f76cda53b1b4256e1b6f33bb46be36508e3000000000000000000000000002a68f967bfa230780a385175d0c86ae4048d309612"
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
@@ -1310,22 +1313,13 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "errors b/a:",
-        beforeMetrics.global_accountant_error_events_received,
-        afterMetrics.global_accountant_error_events_received
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       await expect(
         fetchGlobalAccountantTransferStatus(
@@ -1335,13 +1329,13 @@ describe("NTT Global Accountant Tests", () => {
         )
       ).rejects.toThrow();
     });
-    test("g. Ensure a token sent from a source chain without a matching endpoint is rejected", async () => {
+    test("g. Ensure a token sent from a source chain without a matching transceiver is rejected", async () => {
       {
         // set faux spoke registration to hub but not vice-versa
         const vaa = makeVAA(
           FAUX_SPOKE_CHAIN_A,
           ETH_WALLET_EMITTER,
-          `d0d292f1${chainToHex(HUB_CHAIN)}${BSC_WALLET_EMITTER}`
+          `18fc67c2${chainToHex(HUB_CHAIN)}${BSC_WALLET_EMITTER}`
         );
         const result = await submitVAA(vaa);
         expect(result.code).toEqual(0);
@@ -1362,22 +1356,13 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "errors b/a:",
-        beforeMetrics.global_accountant_error_events_received,
-        afterMetrics.global_accountant_error_events_received
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       await expect(
         fetchGlobalAccountantTransferStatus(
@@ -1387,7 +1372,7 @@ describe("NTT Global Accountant Tests", () => {
         )
       ).rejects.toThrow();
     });
-    test("h. Ensure a token sent to a destination chain without a known endpoint is rejected", async () => {
+    test("h. Ensure a token sent to a destination chain without a known transceiver is rejected", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const core = ethers_contracts.Implementation__factory.connect(
         CONTRACTS.DEVNET.ethereum.core,
@@ -1404,22 +1389,13 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.ethereum.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "errors b/a:",
-        beforeMetrics.global_accountant_error_events_received,
-        afterMetrics.global_accountant_error_events_received
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       await expect(
         fetchGlobalAccountantTransferStatus(
@@ -1447,24 +1423,15 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 30s to fetch metrics...");
-      await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "balance errors b/a:",
-        beforeMetrics.global_accountant_total_balance_errors,
-        afterMetrics.global_accountant_total_balance_errors
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_error_events_received <=
+            beforeMetrics.global_accountant_error_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_total_balance_errors <=
+            beforeMetrics.global_accountant_total_balance_errors
       );
-      if (
-        afterMetrics.global_accountant_error_events_received <=
-          beforeMetrics.global_accountant_error_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_total_balance_errors <=
-          beforeMetrics.global_accountant_total_balance_errors
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
       // the transfer should fail, because there's an insufficient source balance
       if (VAA_SIGNERS.length > 1) {
         const transferStatus = await fetchGlobalAccountantTransferStatus(
@@ -1496,20 +1463,17 @@ describe("NTT Global Accountant Tests", () => {
         HUB_CHAIN,
         ETH_WALLET_EMITTER
       );
-      console.log("1");
       const relayerOptionalParameters: GetPriceOptParams = {
         environment: "DEVNET",
         wormholeRelayerAddress: RELAYER_ADDRESS,
         sourceChainProvider: ethProvider,
       };
-      console.log("2");
       const value = await getPrice(
         "ethereum",
         "bsc",
         0,
         relayerOptionalParameters
       );
-      console.log("3");
       const tx = await sendToEvm(
         ethSigner,
         "ethereum",
@@ -1520,9 +1484,7 @@ describe("NTT Global Accountant Tests", () => {
         { value },
         relayerOptionalParameters
       );
-      console.log("4");
       const receipt = await tx.wait();
-      console.log("5");
       // get the sequence from the logs (needed to fetch the vaa)
       const sequence = parseSequenceFromLogEth(
         receipt,
@@ -1536,20 +1498,19 @@ describe("NTT Global Accountant Tests", () => {
         sequence,
         {
           transport: NodeHttpTransport(),
-        }
+        },
+        1000,
+        30
       );
-      await sleep(500); // avoid socket hang up
-      const afterMetrics = await fetchGlobalAccountantMetrics();
-      if (
-        afterMetrics.global_accountant_events_received <=
-          beforeMetrics.global_accountant_events_received ||
-        afterMetrics.global_accountant_transfer_vaas_submitted <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted ||
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      ) {
-        throw new Error("Expected metrics change did not occur");
-      }
+      await waitForMetricsChange(
+        (afterMetrics) =>
+          afterMetrics.global_accountant_events_received <=
+            beforeMetrics.global_accountant_events_received ||
+          afterMetrics.global_accountant_transfer_vaas_submitted <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
+            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+      );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         HUB_CHAIN,
         RELAYER_EMITTER,
