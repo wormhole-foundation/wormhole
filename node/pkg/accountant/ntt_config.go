@@ -33,8 +33,11 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000855FA758c77D68a04990E992aA4dcdeF899F654A"},
 		}
 		arEmitterConfig = emitterConfig{
+			// There are different emitters in local dev and CI. Allow both.
 			{chainId: vaa.ChainIDEthereum, addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
+			{chainId: vaa.ChainIDEthereum, addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
 			{chainId: vaa.ChainIDBSC, addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
+			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
 		}
 	}
 
