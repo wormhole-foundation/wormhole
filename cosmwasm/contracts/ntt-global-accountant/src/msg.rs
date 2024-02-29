@@ -7,7 +7,7 @@ use wormhole_sdk::{
     Address,
 };
 
-use crate::state::{self, EndpointHub, EndpointPeer, PendingTransfer};
+use crate::state::{self, PendingTransfer, TransceiverHub, TransceiverPeer};
 
 pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"ntt_acct_sub_obsfig_00000000000000|";
 
@@ -144,13 +144,13 @@ pub enum QueryMsg {
     ValidateTransfer { transfer: Transfer },
     #[returns(RelayerChainRegistrationResponse)]
     RelayerChainRegistration { chain: u16 },
-    #[returns(AllEndpointHubsResponse)]
-    AllEndpointHubs {
+    #[returns(AllTransceiverHubsResponse)]
+    AllTransceiverHubs {
         start_after: Option<(u16, TokenAddress)>,
         limit: Option<u32>,
     },
-    #[returns(AllEndpointPeersResponse)]
-    AllEndpointPeers {
+    #[returns(AllTransceiverPeersResponse)]
+    AllTransceiverPeers {
         start_after: Option<(u16, TokenAddress, u16)>,
         limit: Option<u32>,
     },
@@ -189,13 +189,13 @@ pub struct RelayerChainRegistrationResponse {
 }
 
 #[cw_serde]
-pub struct AllEndpointHubsResponse {
-    pub hubs: Vec<EndpointHub>,
+pub struct AllTransceiverHubsResponse {
+    pub hubs: Vec<TransceiverHub>,
 }
 
 #[cw_serde]
-pub struct AllEndpointPeersResponse {
-    pub peers: Vec<EndpointPeer>,
+pub struct AllTransceiverPeersResponse {
+    pub peers: Vec<TransceiverPeer>,
 }
 
 #[cw_serde]

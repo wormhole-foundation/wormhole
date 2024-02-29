@@ -6,19 +6,20 @@ use tinyvec::TinyVec;
 
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
 pub const RELAYER_CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("relayer_chain_registrations");
-pub const ENDPOINT_TO_HUB: Map<(u16, TokenAddress), (u16, TokenAddress)> =
-    Map::new("endpoint_to_hub");
-pub const ENDPOINT_PEER: Map<(u16, TokenAddress, u16), TokenAddress> = Map::new("endpoint_peers");
+pub const TRANSCEIVER_TO_HUB: Map<(u16, TokenAddress), (u16, TokenAddress)> =
+    Map::new("transceiver_to_hub");
+pub const TRANSCEIVER_PEER: Map<(u16, TokenAddress, u16), TokenAddress> =
+    Map::new("transceiver_peers");
 pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
 
 #[cw_serde]
-pub struct EndpointHub {
+pub struct TransceiverHub {
     pub key: (u16, TokenAddress),
     pub data: (u16, TokenAddress),
 }
 
 #[cw_serde]
-pub struct EndpointPeer {
+pub struct TransceiverPeer {
     pub key: (u16, TokenAddress, u16),
     pub data: TokenAddress,
 }

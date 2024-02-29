@@ -15,7 +15,13 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_storage_plus::{Bound, KeyDeserialize};
 use ntt_messages::{
-    endpoint::EndpointMessage, endpoints::wormhole::WormholeEndpoint, ntt::NativeTokenTransfer,
+    mode::Mode,
+    ntt::NativeTokenTransfer,
+    transceiver::{Transceiver, TransceiverMessage},
+    transceivers::wormhole::{
+        WormholeTransceiver, WormholeTransceiverInfo, WormholeTransceiverRegistration,
+    },
+    trimmed_amount::TrimmedAmount,
 };
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
@@ -31,18 +37,18 @@ use crate::{
     bail,
     error::{AnyError, ContractError},
     msg::{
-        AllAccountsResponse, AllEndpointHubsResponse, AllEndpointPeersResponse,
-        AllModificationsResponse, AllPendingTransfersResponse, AllTransfersResponse,
+        AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
+        AllTransceiverHubsResponse, AllTransceiverPeersResponse, AllTransfersResponse,
         BatchTransferStatusResponse, ExecuteMsg, MigrateMsg, MissingObservation,
         MissingObservationsResponse, Observation, ObservationError, ObservationStatus, QueryMsg,
         RelayerChainRegistrationResponse, SubmitObservationResponse, TransferDetails,
         TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{
-        Data, EndpointHub, EndpointPeer, PendingTransfer, DIGESTS, ENDPOINT_PEER, ENDPOINT_TO_HUB,
-        PENDING_TRANSFERS, RELAYER_CHAIN_REGISTRATIONS,
+        Data, PendingTransfer, TransceiverHub, TransceiverPeer, DIGESTS, PENDING_TRANSFERS,
+        RELAYER_CHAIN_REGISTRATIONS, TRANSCEIVER_PEER, TRANSCEIVER_TO_HUB,
     },
-    structs::{DeliveryInstruction, EndpointInit, EndpointRegister, EndpointTransfer, ManagerMode},
+    structs::DeliveryInstruction,
 };
 
 // version info for migration info
@@ -85,6 +91,20 @@ pub fn execute(
         } => submit_observations(deps, info, observations, guardian_set_index, signature),
 
         ExecuteMsg::SubmitVaas { vaas } => submit_vaas(deps, info, vaas),
+    }
+}
+
+fn normalize_transfer_amount(trimmed_amount: TrimmedAmount) -> Uint256 {
+    let to_decimals = 8;
+    let from_decimals = trimmed_amount.decimals;
+    let amount = Uint256::from(trimmed_amount.amount);
+    if from_decimals == to_decimals {
+        return amount;
+    }
+    if from_decimals > to_decimals {
+        amount / Uint256::from(10u64).pow((from_decimals - to_decimals).into())
+    } else {
+        amount * Uint256::from(10u64).pow((to_decimals - from_decimals).into())
     }
 }
 
@@ -183,24 +203,25 @@ fn handle_observation(
             (o.emitter_address.into(), o.payload.0)
         };
 
-    let hub_key = ENDPOINT_TO_HUB.key((o.emitter_chain, sender));
+    let hub_key = TRANSCEIVER_TO_HUB.key((o.emitter_chain, sender));
 
     let hub = hub_key
         .may_load(deps.storage)
         .context("failed to load hub")?
         .ok_or(ContractError::MissingHubRegistration)?;
 
-    let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
+    let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
         TypePrefixedPayload::read_payload(&mut payload.as_slice())
             .context("failed to parse observation payload")?;
 
-    let destination_chain = message.manager_payload.payload.to_chain.id;
-    let source_peer_key = ENDPOINT_PEER.key((o.emitter_chain, sender, destination_chain));
+    let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
+    let source_peer_key = TRANSCEIVER_PEER.key((o.emitter_chain, sender, destination_chain));
     let source_peer = source_peer_key
         .may_load(deps.storage)
         .context("failed to load source peer")?
         .ok_or_else(|| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
-    let destination_peer_key = ENDPOINT_PEER.key((destination_chain, source_peer, o.emitter_chain));
+    let destination_peer_key =
+        TRANSCEIVER_PEER.key((destination_chain, source_peer, o.emitter_chain));
     let destination_peer = destination_peer_key
         .may_load(deps.storage)
         .context("failed to load destination peer")?
@@ -263,10 +284,10 @@ fn handle_observation(
     // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
     // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
     let tx_data = transfer::Data {
-        amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
+        amount: normalize_transfer_amount(message.ntt_manager_payload.payload.amount),
         token_address: hub.1,
         token_chain: hub.0,
-        recipient_chain: message.manager_payload.payload.to_chain.id,
+        recipient_chain: message.ntt_manager_payload.payload.to_chain.id,
     };
 
     accountant::commit_transfer(
@@ -495,21 +516,21 @@ fn handle_ntt_vaa(
     }
     let prefix = &payload[..4];
 
-    if prefix == EndpointTransfer::PREFIX {
+    if prefix == WormholeTransceiver::PREFIX {
         let source_chain = body.emitter_chain.into();
-        let hub_key = ENDPOINT_TO_HUB.key((source_chain, sender));
+        let hub_key = TRANSCEIVER_TO_HUB.key((source_chain, sender));
 
         let hub = hub_key
             .may_load(deps.storage)
             .context("failed to load hub")?
             .ok_or(ContractError::MissingHubRegistration)?;
 
-        let message: EndpointMessage<WormholeEndpoint, NativeTokenTransfer> =
+        let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
                 .context("failed to parse NTT transfer payload")?;
 
-        let destination_chain = message.manager_payload.payload.to_chain.id;
-        let source_peer_key = ENDPOINT_PEER.key((source_chain, sender, destination_chain));
+        let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
+        let source_peer_key = TRANSCEIVER_PEER.key((source_chain, sender, destination_chain));
         let source_peer = source_peer_key
             .may_load(deps.storage)
             .context("failed to load source peer")?
@@ -517,7 +538,7 @@ fn handle_ntt_vaa(
                 ContractError::MissingSourcePeerRegistration(destination_chain.into())
             })?;
         let destination_peer_key =
-            ENDPOINT_PEER.key((destination_chain, source_peer, source_chain));
+            TRANSCEIVER_PEER.key((destination_chain, source_peer, source_chain));
         let destination_peer = destination_peer_key
             .may_load(deps.storage)
             .context("failed to load destination peer")?
@@ -535,10 +556,10 @@ fn handle_ntt_vaa(
         // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
         // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
         let data = transfer::Data {
-            amount: Uint256::from(message.manager_payload.payload.amount.denormalize(8)),
+            amount: normalize_transfer_amount(message.ntt_manager_payload.payload.amount),
             token_address: hub.1,
             token_chain: hub.0,
-            recipient_chain: message.manager_payload.payload.to_chain.id,
+            recipient_chain: message.ntt_manager_payload.payload.to_chain.id,
         };
 
         let key = transfer::Key::new(
@@ -557,12 +578,15 @@ fn handle_ntt_vaa(
         PENDING_TRANSFERS.remove(deps.storage, key);
 
         Ok(evt)
-    } else if prefix == EndpointInit::PREFIX {
+    } else if prefix == WormholeTransceiver::INFO_PREFIX {
         // only process init messages for locking hubs, setting their hub mapping to themselves
-        let message = EndpointInit::deserialize(&payload)?;
-        if message.manager_mode == (ManagerMode::LOCKING as u8) {
+        let message: WormholeTransceiverInfo =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT info payload")?;
+        if message.manager_mode == (Mode::Burning) {
+            // TODO: this enum is backwards in the crate
             let chain = body.emitter_chain.into();
-            let hub_key = ENDPOINT_TO_HUB.key((chain, sender));
+            let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
 
             if hub_key
                 .may_load(deps.storage)
@@ -580,13 +604,15 @@ fn handle_ntt_vaa(
         } else {
             bail!("ignoring non-locking NTT initialization")
         }
-    } else if prefix == EndpointRegister::PREFIX {
-        // for ease of code assurances, all endpoints should register their hub first, followed by other peers
+    } else if prefix == WormholeTransceiver::PEER_INFO_PREFIX {
+        // for ease of code assurances, all transceivers should register their hub first, followed by other peers
         // this code will only add peers for which it can assure their hubs match so one less key can be loaded on transfers
-        let message = EndpointRegister::deserialize(&payload)?;
+        let message: WormholeTransceiverRegistration =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT registration payload")?;
 
         let peer_hub_key =
-            ENDPOINT_TO_HUB.key((message.endpoint_chain_id, message.endpoint_address.into()));
+            TRANSCEIVER_TO_HUB.key((message.chain_id.id, message.transceiver_address.into()));
 
         let peer_hub = peer_hub_key
             .may_load(deps.storage)
@@ -594,7 +620,7 @@ fn handle_ntt_vaa(
             .ok_or(ContractError::MissingHubRegistration)?;
 
         let chain = body.emitter_chain.into();
-        let peer_key = ENDPOINT_PEER.key((chain, sender, message.endpoint_chain_id));
+        let peer_key = TRANSCEIVER_PEER.key((chain, sender, message.chain_id.id));
 
         if peer_key
             .may_load(deps.storage)
@@ -604,22 +630,21 @@ fn handle_ntt_vaa(
             bail!("peer entry for this chain already exists")
         }
 
-        let hub_key = ENDPOINT_TO_HUB.key((chain, sender));
+        let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
 
-        if let Some(endpoint_hub) = hub_key
+        if let Some(transceiver_hub) = hub_key
             .may_load(deps.storage)
             .context("failed to load hub")?
         {
             // hubs must match
-            if endpoint_hub != peer_hub {
+            if transceiver_hub != peer_hub {
                 bail!("peer hub does not match")
             }
         } else {
-            // this endpoint does not have a known hub, check if this peer is a hub themselves
-            if peer_hub.0 == message.endpoint_chain_id
-                && peer_hub.1 == message.endpoint_address.into()
+            // this transceiver does not have a known hub, check if this peer is a hub themselves
+            if peer_hub.0 == message.chain_id.id && peer_hub.1 == message.transceiver_address.into()
             {
-                // this peer is a hub, so set it as this endpoint's hub
+                // this peer is a hub, so set it as this transceiver's hub
                 hub_key
                     .save(deps.storage, &peer_hub.clone())
                     .context("failed to save hub")?;
@@ -630,13 +655,16 @@ fn handle_ntt_vaa(
         }
 
         peer_key
-            .save(deps.storage, &(message.endpoint_address.into()))
+            .save(deps.storage, &(message.transceiver_address.into()))
             .context("failed to save hub")?;
         Ok(Event::new("RegisterPeer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", hex::encode(sender))
-            .add_attribute("endpoint_chain", message.endpoint_chain_id.to_string())
-            .add_attribute("endpoint_address", hex::encode(message.endpoint_address)))
+            .add_attribute("transceiver_chain", message.chain_id.id.to_string())
+            .add_attribute(
+                "transceiver_address",
+                hex::encode(message.transceiver_address),
+            ))
     } else {
         bail!("unsupported NTT action")
     }
@@ -671,11 +699,11 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::RelayerChainRegistration { chain } => {
             query_relayer_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::AllEndpointHubs { start_after, limit } => {
-            query_all_endpoint_hubs(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+        QueryMsg::AllTransceiverHubs { start_after, limit } => {
+            query_all_transceiver_hubs(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::AllEndpointPeers { start_after, limit } => {
-            query_all_endpoint_peers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+        QueryMsg::AllTransceiverPeers { start_after, limit } => {
+            query_all_transceiver_peers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
         QueryMsg::MissingObservations {
             guardian_set,
@@ -826,16 +854,16 @@ fn query_relayer_chain_registration(
         .map(|address| RelayerChainRegistrationResponse { address })
 }
 
-fn query_all_endpoint_hubs(
+fn query_all_transceiver_hubs(
     deps: Deps<WormholeQuery>,
     start_after: Option<(u16, TokenAddress)>,
     limit: Option<u32>,
-) -> StdResult<AllEndpointHubsResponse> {
+) -> StdResult<AllTransceiverHubsResponse> {
     let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
 
-    let iter = ENDPOINT_TO_HUB
+    let iter = TRANSCEIVER_TO_HUB
         .range(deps.storage, start, None, Order::Ascending)
-        .map(|item| item.map(|(key, data)| EndpointHub { key, data }));
+        .map(|item| item.map(|(key, data)| TransceiverHub { key, data }));
 
     if let Some(lim) = limit {
         let l = lim
@@ -843,23 +871,23 @@ fn query_all_endpoint_hubs(
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
         iter.take(l)
             .collect::<StdResult<Vec<_>>>()
-            .map(|hubs| AllEndpointHubsResponse { hubs })
+            .map(|hubs| AllTransceiverHubsResponse { hubs })
     } else {
         iter.collect::<StdResult<Vec<_>>>()
-            .map(|hubs| AllEndpointHubsResponse { hubs })
+            .map(|hubs| AllTransceiverHubsResponse { hubs })
     }
 }
 
-fn query_all_endpoint_peers(
+fn query_all_transceiver_peers(
     deps: Deps<WormholeQuery>,
     start_after: Option<(u16, TokenAddress, u16)>,
     limit: Option<u32>,
-) -> StdResult<AllEndpointPeersResponse> {
+) -> StdResult<AllTransceiverPeersResponse> {
     let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
 
-    let iter = ENDPOINT_PEER
+    let iter = TRANSCEIVER_PEER
         .range(deps.storage, start, None, Order::Ascending)
-        .map(|item| item.map(|(key, data)| EndpointPeer { key, data }));
+        .map(|item| item.map(|(key, data)| TransceiverPeer { key, data }));
 
     if let Some(lim) = limit {
         let l = lim
@@ -867,10 +895,10 @@ fn query_all_endpoint_peers(
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
         iter.take(l)
             .collect::<StdResult<Vec<_>>>()
-            .map(|peers| AllEndpointPeersResponse { peers })
+            .map(|peers| AllTransceiverPeersResponse { peers })
     } else {
         iter.collect::<StdResult<Vec<_>>>()
-            .map(|peers| AllEndpointPeersResponse { peers })
+            .map(|peers| AllTransceiverPeersResponse { peers })
     }
 }
 
