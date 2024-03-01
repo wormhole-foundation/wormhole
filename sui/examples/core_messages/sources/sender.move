@@ -104,7 +104,7 @@ module core_messages::sender_test {
         test_scenario::next_tx(scenario, admin);
         {
             let wormhole_state = take_state(scenario);
-            init_with_params(&mut wormhole_state, test_scenario::ctx(scenario));
+            init_with_params(&wormhole_state, test_scenario::ctx(scenario));
             return_state(wormhole_state);
         };
 

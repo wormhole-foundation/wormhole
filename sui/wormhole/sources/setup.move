@@ -40,6 +40,7 @@ module wormhole::setup {
         );
     }
 
+    #[allow(lint(share_owned))]
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
     public fun complete(
