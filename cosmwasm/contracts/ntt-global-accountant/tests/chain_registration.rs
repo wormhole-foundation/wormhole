@@ -1,10 +1,10 @@
 mod helpers;
 
 use cosmwasm_std::{to_binary, Event};
-use ntt_global_accountant::msg::ChainRegistrationResponse;
 use helpers::*;
+use ntt_global_accountant::msg::RelayerChainRegistrationResponse;
 use wormhole_sdk::{
-    token::{Action, GovernancePacket},
+    relayer::{Action, GovernancePacket},
     vaa::Body,
     Address, Chain,
 };
@@ -51,13 +51,14 @@ fn any_target() {
     };
 
     resp.assert_event(
-        &Event::new("wasm-RegisterChain")
+        &Event::new("wasm-RegisterRelayer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
 
-    let ChainRegistrationResponse { address } =
-        contract.query_chain_registration(chain.into()).unwrap();
+    let RelayerChainRegistrationResponse { address } = contract
+        .query_relayer_chain_registration(chain.into())
+        .unwrap();
     assert_eq!(&*address, &emitter_address.0);
 }
 
@@ -82,13 +83,14 @@ fn wormchain_target() {
     };
 
     resp.assert_event(
-        &Event::new("wasm-RegisterChain")
+        &Event::new("wasm-RegisterRelayer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", emitter_address.to_string()),
     );
 
-    let ChainRegistrationResponse { address } =
-        contract.query_chain_registration(chain.into()).unwrap();
+    let RelayerChainRegistrationResponse { address } = contract
+        .query_relayer_chain_registration(chain.into())
+        .unwrap();
     assert_eq!(&*address, &emitter_address.0);
 }
 
@@ -104,7 +106,7 @@ fn wrong_target() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration VAA for different chain");
     assert_eq!(
-        "this token governance vaa is for another chain",
+        "this relayer governance vaa is for another chain",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -121,12 +123,12 @@ fn non_governance_chain() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance chain");
 
-    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    // A governance message with wrong chain or emitter will be parsed as an NTT message
     assert!(err
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse tokenbridge message",));
+        .contains("unsupported NTT action",));
 }
 
 #[test]
@@ -141,12 +143,12 @@ fn non_governance_emitter() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance emitter");
 
-    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    // A governance message with wrong chain or emitter will be parsed as an NTT message
     assert!(err
         .source()
         .unwrap()
         .to_string()
-        .contains("failed to parse tokenbridge message",));
+        .contains("unsupported NTT action",));
 }
 
 #[test]
@@ -202,7 +204,7 @@ fn bad_signature() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with bad signature");
     assert_eq!(
-        "generic error: querier contract error: failed to recover verifying key",
+        "generic error: querier contract error: failed to verify signature",
         err.root_cause().to_string().to_lowercase()
     );
 }

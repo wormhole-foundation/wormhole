@@ -16,18 +16,21 @@ library = []
 accountant = "0.1.0"
 anyhow = "1"
 base64 = "0.13"
+byteorder = "1.5.0"
 cosmwasm-schema = "1"
 cosmwasm-std = "1"
 cw-storage-plus = "0.13.2"
 cw_transcode = "0.1.0"
 cw2 = "0.13.2"
 hex = { version = "0.4.3", features = ["serde"] }
+ntt-messages = { git = "https://github.com/wormhole-foundation/example-native-token-transfers.git", rev = "cd1f8fe13b9aba3bf1a38938d952841c98cb7288" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 serde_wormhole = "0.1.0"
 thiserror = { version = "1.0.31" }
 tinyvec = { version = "1.6", default-features = false, features = ["alloc", "serde"]}
 wormhole-bindings = "0.1.0"
+wormhole-io = "0.1.3"
 wormhole-sdk = { version = "0.1.0", features = ["schemars"] }
 
 [dev-dependencies]
