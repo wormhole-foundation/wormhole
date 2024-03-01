@@ -63,7 +63,7 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             [
-              "cd /tmp && ./scripts/wait_for_devnet.sh && worm sui setup-devnet && touch success && sleep infinity",
+              "cd /tmp && ./scripts/wait_for_devnet.sh && ./scripts/airdrop_devnet.sh && worm sui setup-devnet && touch success && sleep infinity",
             ]
           readinessProbe:
             periodSeconds: 5
