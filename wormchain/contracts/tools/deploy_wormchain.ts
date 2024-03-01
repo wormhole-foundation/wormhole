@@ -43,6 +43,7 @@ type ContractName = string;
 const artifacts: ContractName[] = [
   "global_accountant.wasm",
   "wormchain_ibc_receiver.wasm",
+  "ntt_global_accountant.wasm",
 ];
 
 const ARTIFACTS_PATH = "../artifacts/";
@@ -333,6 +334,38 @@ async function main() {
     updateIbcWhitelistRes.transactionHash,
     updateIbcWhitelistRes.code
   );
+
+  const nttGlobalAccountantInstantiateMsg = {};
+  addresses["ntt_global_accountant.wasm"] = await instantiate(
+    codeIds["ntt_global_accountant.wasm"],
+    nttGlobalAccountantInstantiateMsg,
+    "wormchainNTTAccounting"
+  );
+  console.log(
+    "instantiated NTT accounting: ",
+    addresses["ntt_global_accountant.wasm"]
+  );
+
+  // const accountingRegistrations = Object.values(registrations).map((r) =>
+  //   Buffer.from(r, "hex").toString("base64")
+  // );
+  // const msg = client.wasm.msgExecuteContract({
+  //   sender: signer,
+  //   contract: addresses["global_accountant.wasm"],
+  //   msg: toUtf8(
+  //     JSON.stringify({
+  //       submit_vaas: {
+  //         vaas: accountingRegistrations,
+  //       },
+  //     })
+  //   ),
+  //   funds: [],
+  // });
+  // const res = await client.signAndBroadcast(signer, [msg], {
+  //   ...ZERO_FEE,
+  //   gas: "10000000",
+  // });
+  // console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
 }
 
 try {
