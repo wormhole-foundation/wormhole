@@ -57,6 +57,7 @@ module token_bridge::complete_transfer {
         sequence: u64
     }
 
+    #[allow(lint(coin_field))]
     /// This type is only generated from `authorize_transfer` and can only be
     /// redeemed using `redeem_relayer_payout`. Integrators running relayer
     /// contracts are expected to implement `redeem_relayer_payout` within their
