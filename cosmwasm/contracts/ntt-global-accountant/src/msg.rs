@@ -1,4 +1,4 @@
-use accountant::state::{account, transfer, Account, Modification, Transfer};
+use accountant::state::{account, transfer, Account, Modification, TokenAddress, Transfer};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use serde_wormhole::RawMessage;
@@ -7,9 +7,9 @@ use wormhole_sdk::{
     Address,
 };
 
-use crate::state::{self, PendingTransfer};
+use crate::state::{self, PendingTransfer, TransceiverHub, TransceiverPeer};
 
-pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"acct_sub_obsfig_000000000000000000|";
+pub const SUBMITTED_OBSERVATIONS_PREFIX: &[u8; 35] = b"ntt_acct_sub_obsfig_00000000000000|";
 
 #[cw_serde]
 #[derive(Default)]
@@ -142,8 +142,18 @@ pub enum QueryMsg {
     },
     #[returns(cosmwasm_std::Empty)]
     ValidateTransfer { transfer: Transfer },
-    #[returns(ChainRegistrationResponse)]
-    ChainRegistration { chain: u16 },
+    #[returns(RelayerChainRegistrationResponse)]
+    RelayerChainRegistration { chain: u16 },
+    #[returns(AllTransceiverHubsResponse)]
+    AllTransceiverHubs {
+        start_after: Option<(u16, TokenAddress)>,
+        limit: Option<u32>,
+    },
+    #[returns(AllTransceiverPeersResponse)]
+    AllTransceiverPeers {
+        start_after: Option<(u16, TokenAddress, u16)>,
+        limit: Option<u32>,
+    },
     #[returns(MissingObservationsResponse)]
     MissingObservations { guardian_set: u32, index: u8 },
     #[returns(TransferStatus)]
@@ -174,8 +184,18 @@ pub struct AllModificationsResponse {
 }
 
 #[cw_serde]
-pub struct ChainRegistrationResponse {
+pub struct RelayerChainRegistrationResponse {
     pub address: Binary,
+}
+
+#[cw_serde]
+pub struct AllTransceiverHubsResponse {
+    pub hubs: Vec<TransceiverHub>,
+}
+
+#[cw_serde]
+pub struct AllTransceiverPeersResponse {
+    pub peers: Vec<TransceiverPeer>,
 }
 
 #[cw_serde]
