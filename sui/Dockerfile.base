@@ -1,27 +1,25 @@
-FROM docker.io/redhat/ubi8@sha256:56c374376a42da40f3aec753c4eab029b5ea162d70cb5f0cda24758780c31d81 as sui-node
+FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c as sui-node
 
-# RUN apt-get update && apt-get -y install libclang-dev jq cmake curl npm --no-install-recommends
-RUN dnf -y update
-RUN dnf -y install jq cmake curl npm git gcc openssl-devel gcc-c++ clang make git
-
-COPY sui/scripts/setup_rust.sh  /tmp
-RUN /tmp/setup_rust.sh
+RUN apt-get update && apt-get -y install libclang-dev jq cmake curl npm gcc g++ make lld
 
 WORKDIR /tmp
 
 COPY sui/scripts/node_builder.sh  /tmp
-
 RUN /tmp/node_builder.sh
 
-FROM docker.io/redhat/ubi8@sha256:56c374376a42da40f3aec753c4eab029b5ea162d70cb5f0cda24758780c31d81 as export-stage
+FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c as export-stage
 
-RUN dnf -y update
-RUN dnf -y install jq curl git make
+RUN apt-get update
+RUN apt-get install -y ca-certificates curl gnupg
+RUN mkdir -p /etc/apt/keyrings
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 
-# Update nodejs version from 10.24.0 to 18.x
-RUN yum install https://rpm.nodesource.com/pub_18.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y
-RUN yum install nodejs -y --setopt=nodesource-nodejs.module_hotfixes=1
+ARG NODE_MAJOR=18
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 
-COPY --from=sui-node /root/.cargo/bin/sui /bin/sui
-COPY --from=sui-node /root/.cargo/bin/sui-faucet /bin/sui-faucet
-COPY --from=sui-node /root/.cargo/bin/sui-node /bin/sui-node
+RUN apt-get update
+RUN apt-get install nodejs -y
+
+COPY --from=sui-node /usr/local/cargo/bin/sui /bin/sui
+COPY --from=sui-node /usr/local/cargo/bin/sui-faucet /bin/sui-faucet
+COPY --from=sui-node /usr/local/cargo/bin/sui-node /bin/sui-node
