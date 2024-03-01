@@ -583,8 +583,7 @@ fn handle_ntt_vaa(
         let message: WormholeTransceiverInfo =
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
                 .context("failed to parse NTT info payload")?;
-        if message.manager_mode == (Mode::Burning) {
-            // TODO: this enum is backwards in the crate
+        if message.manager_mode == (Mode::Locking) {
             let chain = body.emitter_chain.into();
             let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
 

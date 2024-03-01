@@ -23,7 +23,7 @@ cw-storage-plus = "0.13.2"
 cw_transcode = "0.1.0"
 cw2 = "0.13.2"
 hex = { version = "0.4.3", features = ["serde"] }
-ntt-messages = { git = "https://github.com/wormhole-foundation/example-native-token-transfers.git", rev = "22bde0c7d8139675582d861dc8245eb1912324fa" }
+ntt-messages = { git = "https://github.com/wormhole-foundation/example-native-token-transfers.git", rev = "cd1f8fe13b9aba3bf1a38938d952841c98cb7288" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 serde_wormhole = "0.1.0"

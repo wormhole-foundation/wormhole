@@ -1290,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "ntt-messages"
 version = "0.1.0"
-source = "git+https://github.com/wormhole-foundation/example-native-token-transfers.git?rev=22bde0c7d8139675582d861dc8245eb1912324fa#22bde0c7d8139675582d861dc8245eb1912324fa"
+source = "git+https://github.com/wormhole-foundation/example-native-token-transfers.git?rev=cd1f8fe13b9aba3bf1a38938d952841c98cb7288#cd1f8fe13b9aba3bf1a38938d952841c98cb7288"
 dependencies = [
  "wormhole-io",
 ]
