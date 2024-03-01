@@ -13,12 +13,22 @@ use cosmwasm_std::{
     MessageInfo, Order, Response, StdError, StdResult, Uint256,
 };
 use cw2::set_contract_version;
-use cw_storage_plus::Bound;
+use cw_storage_plus::{Bound, KeyDeserialize};
+use ntt_messages::{
+    mode::Mode,
+    ntt::NativeTokenTransfer,
+    transceiver::{Transceiver, TransceiverMessage},
+    transceivers::wormhole::{
+        WormholeTransceiver, WormholeTransceiverInfo, WormholeTransceiverRegistration,
+    },
+    trimmed_amount::TrimmedAmount,
+};
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole_bindings::WormholeQuery;
+use wormhole_io::TypePrefixedPayload;
 use wormhole_sdk::{
-    accountant as accountant_module, token,
+    ntt_accountant as ntt_accountant_module, relayer,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -28,12 +38,17 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
-        ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        SUBMITTED_OBSERVATIONS_PREFIX,
+        AllTransceiverHubsResponse, AllTransceiverPeersResponse, AllTransfersResponse,
+        BatchTransferStatusResponse, ExecuteMsg, MigrateMsg, MissingObservation,
+        MissingObservationsResponse, Observation, ObservationError, ObservationStatus, QueryMsg,
+        RelayerChainRegistrationResponse, SubmitObservationResponse, TransferDetails,
+        TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
-    state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
+    state::{
+        Data, PendingTransfer, TransceiverHub, TransceiverPeer, DIGESTS, PENDING_TRANSFERS,
+        RELAYER_CHAIN_REGISTRATIONS, TRANSCEIVER_PEER, TRANSCEIVER_TO_HUB,
+    },
+    structs::DeliveryInstruction,
 };
 
 // version info for migration info
@@ -79,6 +94,20 @@ pub fn execute(
     }
 }
 
+fn normalize_transfer_amount(trimmed_amount: TrimmedAmount) -> Uint256 {
+    let to_decimals = 8;
+    let from_decimals = trimmed_amount.decimals;
+    let amount = Uint256::from(trimmed_amount.amount);
+    if from_decimals == to_decimals {
+        return amount;
+    }
+    if from_decimals > to_decimals {
+        amount / Uint256::from(10u64).pow((from_decimals - to_decimals).into())
+    } else {
+        amount * Uint256::from(10u64).pow((to_decimals - from_decimals).into())
+    }
+}
+
 fn submit_observations(
     mut deps: DepsMut<WormholeQuery>,
     info: MessageInfo,
@@ -113,6 +142,7 @@ fn submit_observations(
     let mut responses = Vec::with_capacity(observations.len());
     let mut events = Vec::with_capacity(observations.len());
     for o in observations {
+        // this key is for the VAA, which is how the guardian is tracking messages
         let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
         match handle_observation(deps.branch(), o, guardian_set_index, quorum, signature) {
             Ok((status, event)) => {
@@ -153,17 +183,55 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
-    let registered_emitter = CHAIN_REGISTRATIONS
-        .may_load(deps.storage, o.emitter_chain)
-        .context("failed to load chain registration")?
-        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
-
-    ensure!(
-        *registered_emitter == o.emitter_address,
-        "unknown emitter address"
-    );
+    let relayer_emitter = RELAYER_CHAIN_REGISTRATIONS.may_load(deps.storage, o.emitter_chain)?;
 
     let digest = o.digest().context(ContractError::ObservationDigest)?;
+    let event = cw_transcode::to_event(&o)
+        .map(Some)
+        .context("failed to transcode `Observation` to `Event`")?;
+
+    let (sender, payload) =
+        if relayer_emitter.is_some_and(|relayer_address| relayer_address == o.emitter_address) {
+            // if the emitter is a known standard relayer, parse the sender and payload from the delivery instruction
+            let delivery_instruction = DeliveryInstruction::deserialize(&o.payload.0)?;
+            (
+                delivery_instruction.sender_address.into(),
+                delivery_instruction.payload,
+            )
+        } else {
+            // otherwise, the sender and payload is the same as the VAA
+            (o.emitter_address.into(), o.payload.0)
+        };
+
+    let hub_key = TRANSCEIVER_TO_HUB.key((o.emitter_chain, sender));
+
+    let hub = hub_key
+        .may_load(deps.storage)
+        .context("failed to load hub")?
+        .ok_or(ContractError::MissingHubRegistration)?;
+
+    let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
+        TypePrefixedPayload::read_payload(&mut payload.as_slice())
+            .context("failed to parse observation payload")?;
+
+    let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
+    let source_peer_key = TRANSCEIVER_PEER.key((o.emitter_chain, sender, destination_chain));
+    let source_peer = source_peer_key
+        .may_load(deps.storage)
+        .context("failed to load source peer")?
+        .ok_or_else(|| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
+    let destination_peer_key =
+        TRANSCEIVER_PEER.key((destination_chain, source_peer, o.emitter_chain));
+    let destination_peer = destination_peer_key
+        .may_load(deps.storage)
+        .context("failed to load destination peer")?
+        .ok_or_else(|| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
+    if destination_peer != sender {
+        // SECURITY defense-in-depth:
+        // should never get here due to strict registration ordering restrictions
+        // the lookups above would have failed instead
+        bail!("peers are not cross-registered")
+    }
 
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
@@ -212,29 +280,14 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
-    let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
-        .context("failed to parse observation payload")?;
-    let tx_data = match msg {
-        token::Message::Transfer {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        }
-        | token::Message::TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        } => transfer::Data {
-            amount: Uint256::from_be_bytes(amount.0),
-            token_address: TokenAddress::new(token_address.0),
-            token_chain: token_chain.into(),
-            recipient_chain: recipient_chain.into(),
-        },
-        _ => bail!("Unknown tokenbridge payload"),
+    // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
+    // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
+    // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
+    let tx_data = transfer::Data {
+        amount: normalize_transfer_amount(message.ntt_manager_payload.payload.amount),
+        token_address: hub.1,
+        token_chain: hub.0,
+        recipient_chain: message.ntt_manager_payload.payload.to_chain.id,
     };
 
     accountant::commit_transfer(
@@ -254,10 +307,6 @@ fn handle_observation(
 
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
-
-    let event = cw_transcode::to_event(&o)
-        .map(Some)
-        .context("failed to transcode `Observation` to `Event`")?;
 
     Ok((ObservationStatus::Committed, event))
 }
@@ -339,11 +388,11 @@ fn handle_vaa(
         }
         let module = &body.payload[..32];
 
-        if module == token::MODULE {
+        if module == relayer::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
-                .context("failed to parse tokenbridge governance packet")?;
-            handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
-        } else if module == accountant_module::MODULE {
+                .context("failed to parse standardized relayer governance packet")?;
+            handle_relayer_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        } else if module == ntt_accountant_module::MODULE {
             let govpacket = serde_wormhole::from_slice(body.payload)
                 .context("failed to parse accountant governance packet")?;
             handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
@@ -351,9 +400,9 @@ fn handle_vaa(
             bail!("unknown governance module")
         }
     } else {
-        let msg = serde_wormhole::from_slice(body.payload)
-            .context("failed to parse tokenbridge message")?;
-        handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
+        let msg =
+            serde_wormhole::from_slice(body.payload).context("failed to parse raw message")?;
+        handle_ntt_vaa(deps.branch(), body.with_payload(msg))?
     };
 
     digest_key
@@ -365,28 +414,28 @@ fn handle_vaa(
     Ok(evt)
 }
 
-fn handle_token_governance_vaa(
+fn handle_relayer_governance_vaa(
     deps: DepsMut<WormholeQuery>,
-    body: Body<token::GovernancePacket>,
+    body: Body<relayer::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
-        "this token governance VAA is for another chain"
+        "this relayer governance VAA is for another chain"
     );
 
     match body.payload.action {
-        token::Action::RegisterChain {
+        relayer::Action::RegisterChain {
             chain,
             emitter_address,
         } => {
-            CHAIN_REGISTRATIONS
+            RELAYER_CHAIN_REGISTRATIONS
                 .save(
                     deps.storage,
                     chain.into(),
                     &emitter_address.0.to_vec().into(),
                 )
                 .context("failed to save chain registration")?;
-            Ok(Event::new("RegisterChain")
+            Ok(Event::new("RegisterRelayer")
                 .add_attribute("chain", chain.to_string())
                 .add_attribute("emitter_address", emitter_address.to_string()))
         }
@@ -397,7 +446,7 @@ fn handle_token_governance_vaa(
 fn handle_accountant_governance_vaa(
     deps: DepsMut<WormholeQuery>,
     info: &MessageInfo,
-    body: Body<accountant_module::GovernancePacket>,
+    body: Body<ntt_accountant_module::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Wormchain,
@@ -405,7 +454,7 @@ fn handle_accountant_governance_vaa(
     );
 
     match body.payload.action {
-        accountant_module::Action::ModifyBalance {
+        ntt_accountant_module::Action::ModifyBalance {
             sequence,
             chain_id,
             token_chain,
@@ -416,9 +465,9 @@ fn handle_accountant_governance_vaa(
         } => {
             let token_address = TokenAddress::new(token_address.0);
             let kind = match kind {
-                accountant_module::ModificationKind::Add => Kind::Add,
-                accountant_module::ModificationKind::Subtract => Kind::Sub,
-                accountant_module::ModificationKind::Unknown => {
+                ntt_accountant_module::ModificationKind::Add => Kind::Add,
+                ntt_accountant_module::ModificationKind::Subtract => Kind::Sub,
+                ntt_accountant_module::ModificationKind::Unknown => {
                     bail!("unsupported governance action")
                 }
             };
@@ -437,59 +486,187 @@ fn handle_accountant_governance_vaa(
     }
 }
 
-fn handle_tokenbridge_vaa(
+fn handle_ntt_vaa(
     mut deps: DepsMut<WormholeQuery>,
-    body: Body<token::Message<&RawMessage>>,
+    body: Body<&RawMessage>,
 ) -> anyhow::Result<Event> {
-    let registered_emitter = CHAIN_REGISTRATIONS
-        .may_load(deps.storage, body.emitter_chain.into())
-        .context("failed to load chain registration")?
-        .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
+    let relayer_emitter =
+        RELAYER_CHAIN_REGISTRATIONS.may_load(deps.storage, body.emitter_chain.into())?;
 
-    ensure!(
-        *registered_emitter == body.emitter_address.0,
-        "unknown emitter address"
-    );
+    let (sender, payload) = if relayer_emitter
+        .is_some_and(|relayer_address| relayer_address == body.emitter_address.0)
+    {
+        // if the emitter is a known standard relayer, parse the sender and payload from the delivery instruction
+        let delivery_instruction =
+            DeliveryInstruction::deserialize(&Vec::from_slice(body.payload)?)?;
+        (
+            delivery_instruction.sender_address.into(),
+            delivery_instruction.payload,
+        )
+    } else {
+        // otherwise, the sender and payload is the same as the VAA
+        (
+            body.emitter_address.0.into(),
+            Vec::from_slice(body.payload)?,
+        )
+    };
 
-    let data = match body.payload {
-        token::Message::Transfer {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
+    if payload.len() < 4 {
+        bail!("payload prefix missing");
+    }
+    let prefix = &payload[..4];
+
+    if prefix == WormholeTransceiver::PREFIX {
+        let source_chain = body.emitter_chain.into();
+        let hub_key = TRANSCEIVER_TO_HUB.key((source_chain, sender));
+
+        let hub = hub_key
+            .may_load(deps.storage)
+            .context("failed to load hub")?
+            .ok_or(ContractError::MissingHubRegistration)?;
+
+        let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT transfer payload")?;
+
+        let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
+        let source_peer_key = TRANSCEIVER_PEER.key((source_chain, sender, destination_chain));
+        let source_peer = source_peer_key
+            .may_load(deps.storage)
+            .context("failed to load source peer")?
+            .ok_or_else(|| {
+                ContractError::MissingSourcePeerRegistration(destination_chain.into())
+            })?;
+        let destination_peer_key =
+            TRANSCEIVER_PEER.key((destination_chain, source_peer, source_chain));
+        let destination_peer = destination_peer_key
+            .may_load(deps.storage)
+            .context("failed to load destination peer")?
+            .ok_or_else(|| {
+                ContractError::MissingDestinationPeerRegistration(source_chain.into())
+            })?;
+        if destination_peer != sender {
+            // SECURITY defense-in-depth:
+            // should never get here due to strict registration ordering restrictions
+            // the lookups above would have failed instead
+            bail!("peers are not cross-registered")
         }
-        | token::Message::TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            recipient_chain,
-            ..
-        } => transfer::Data {
-            amount: Uint256::from_be_bytes(amount.0),
-            token_address: TokenAddress::new(token_address.0),
-            token_chain: token_chain.into(),
-            recipient_chain: recipient_chain.into(),
-        },
-        _ => bail!("Unknown tokenbridge payload"),
-    };
 
-    let key = transfer::Key::new(
-        body.emitter_chain.into(),
-        TokenAddress::new(body.emitter_address.0),
-        body.sequence,
-    );
+        // !IMPORTANT! the amounts are NOT normalized among different chains / tokens,
+        // i.e. the same token belonging to the same locking hub, can have message sourced from one chain that uses 4 decimals "normalized",
+        // and another that uses 8... this is maxed at 8, but should be actually normalized to 8 for accounting purposes.
+        let data = transfer::Data {
+            amount: normalize_transfer_amount(message.ntt_manager_payload.payload.amount),
+            token_address: hub.1,
+            token_chain: hub.0,
+            recipient_chain: message.ntt_manager_payload.payload.to_chain.id,
+        };
 
-    let tx = Transfer {
-        key: key.clone(),
-        data,
-    };
-    let evt = accountant::commit_transfer(deps.branch(), tx)
-        .with_context(|| format!("failed to commit transfer for key {key}"))?;
+        let key = transfer::Key::new(
+            source_chain,
+            TokenAddress::new(body.emitter_address.0),
+            body.sequence,
+        );
 
-    PENDING_TRANSFERS.remove(deps.storage, key);
+        let tx = Transfer {
+            key: key.clone(),
+            data,
+        };
+        let evt = accountant::commit_transfer(deps.branch(), tx)
+            .with_context(|| format!("failed to commit transfer for key {key}"))?;
 
-    Ok(evt)
+        PENDING_TRANSFERS.remove(deps.storage, key);
+
+        Ok(evt)
+    } else if prefix == WormholeTransceiver::INFO_PREFIX {
+        // only process init messages for locking hubs, setting their hub mapping to themselves
+        let message: WormholeTransceiverInfo =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT info payload")?;
+        if message.manager_mode == (Mode::Locking) {
+            let chain = body.emitter_chain.into();
+            let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
+
+            if hub_key
+                .may_load(deps.storage)
+                .context("failed to load hub")?
+                .is_some()
+            {
+                bail!("hub entry already exists")
+            }
+            hub_key
+                .save(deps.storage, &(chain, sender))
+                .context("failed to save hub")?;
+            Ok(Event::new("RegisterHub")
+                .add_attribute("chain", chain.to_string())
+                .add_attribute("emitter_address", hex::encode(sender)))
+        } else {
+            bail!("ignoring non-locking NTT initialization")
+        }
+    } else if prefix == WormholeTransceiver::PEER_INFO_PREFIX {
+        // for ease of code assurances, all transceivers should register their hub first, followed by other peers
+        // this code will only add peers for which it can assure their hubs match so one less key can be loaded on transfers
+        let message: WormholeTransceiverRegistration =
+            TypePrefixedPayload::read_payload(&mut payload.as_slice())
+                .context("failed to parse NTT registration payload")?;
+
+        let peer_hub_key =
+            TRANSCEIVER_TO_HUB.key((message.chain_id.id, message.transceiver_address.into()));
+
+        let peer_hub = peer_hub_key
+            .may_load(deps.storage)
+            .context("failed to load peer hub")?
+            .ok_or(ContractError::MissingHubRegistration)?;
+
+        let chain = body.emitter_chain.into();
+        let peer_key = TRANSCEIVER_PEER.key((chain, sender, message.chain_id.id));
+
+        if peer_key
+            .may_load(deps.storage)
+            .context("failed to load peer")?
+            .is_some()
+        {
+            bail!("peer entry for this chain already exists")
+        }
+
+        let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
+
+        if let Some(transceiver_hub) = hub_key
+            .may_load(deps.storage)
+            .context("failed to load hub")?
+        {
+            // hubs must match
+            if transceiver_hub != peer_hub {
+                bail!("peer hub does not match")
+            }
+        } else {
+            // this transceiver does not have a known hub, check if this peer is a hub themselves
+            if peer_hub.0 == message.chain_id.id && peer_hub.1 == message.transceiver_address.into()
+            {
+                // this peer is a hub, so set it as this transceiver's hub
+                hub_key
+                    .save(deps.storage, &peer_hub.clone())
+                    .context("failed to save hub")?;
+            } else {
+                // this peer is not a hub and we don't want to make indirect assumptions, so do nothing
+                bail!("ignoring attempt to register peer before hub")
+            }
+        }
+
+        peer_key
+            .save(deps.storage, &(message.transceiver_address.into()))
+            .context("failed to save hub")?;
+        Ok(Event::new("RegisterPeer")
+            .add_attribute("chain", chain.to_string())
+            .add_attribute("emitter_address", hex::encode(sender))
+            .add_attribute("transceiver_chain", message.chain_id.id.to_string())
+            .add_attribute(
+                "transceiver_address",
+                hex::encode(message.transceiver_address),
+            ))
+    } else {
+        bail!("unsupported NTT action")
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -518,8 +695,14 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
                 })
             })
             .and_then(|()| to_binary(&Empty {})),
-        QueryMsg::ChainRegistration { chain } => {
-            query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+        QueryMsg::RelayerChainRegistration { chain } => {
+            query_relayer_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::AllTransceiverHubs { start_after, limit } => {
+            query_all_transceiver_hubs(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::AllTransceiverPeers { start_after, limit } => {
+            query_all_transceiver_peers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
         QueryMsg::MissingObservations {
             guardian_set,
@@ -661,13 +844,61 @@ fn query_all_modifications(
     }
 }
 
-fn query_chain_registration(
+fn query_relayer_chain_registration(
     deps: Deps<WormholeQuery>,
     chain: u16,
-) -> StdResult<ChainRegistrationResponse> {
-    CHAIN_REGISTRATIONS
+) -> StdResult<RelayerChainRegistrationResponse> {
+    RELAYER_CHAIN_REGISTRATIONS
         .load(deps.storage, chain)
-        .map(|address| ChainRegistrationResponse { address })
+        .map(|address| RelayerChainRegistrationResponse { address })
+}
+
+fn query_all_transceiver_hubs(
+    deps: Deps<WormholeQuery>,
+    start_after: Option<(u16, TokenAddress)>,
+    limit: Option<u32>,
+) -> StdResult<AllTransceiverHubsResponse> {
+    let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
+
+    let iter = TRANSCEIVER_TO_HUB
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|item| item.map(|(key, data)| TransceiverHub { key, data }));
+
+    if let Some(lim) = limit {
+        let l = lim
+            .try_into()
+            .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
+        iter.take(l)
+            .collect::<StdResult<Vec<_>>>()
+            .map(|hubs| AllTransceiverHubsResponse { hubs })
+    } else {
+        iter.collect::<StdResult<Vec<_>>>()
+            .map(|hubs| AllTransceiverHubsResponse { hubs })
+    }
+}
+
+fn query_all_transceiver_peers(
+    deps: Deps<WormholeQuery>,
+    start_after: Option<(u16, TokenAddress, u16)>,
+    limit: Option<u32>,
+) -> StdResult<AllTransceiverPeersResponse> {
+    let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
+
+    let iter = TRANSCEIVER_PEER
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|item| item.map(|(key, data)| TransceiverPeer { key, data }));
+
+    if let Some(lim) = limit {
+        let l = lim
+            .try_into()
+            .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
+        iter.take(l)
+            .collect::<StdResult<Vec<_>>>()
+            .map(|peers| AllTransceiverPeersResponse { peers })
+    } else {
+        iter.collect::<StdResult<Vec<_>>>()
+            .map(|peers| AllTransceiverPeersResponse { peers })
+    }
 }
 
 fn query_missing_observations(
