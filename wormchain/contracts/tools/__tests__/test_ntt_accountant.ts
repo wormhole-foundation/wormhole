@@ -237,7 +237,7 @@ const mockTransferPayload = (
   amount: number,
   toChain: number
 ) => {
-  const seq = `0`.padStart(16, "0");
+  const seq = dummy32;
   const d = decimals.toString(16).padStart(2, "0");
   const a = amount.toString(16).padStart(16, "0");
   const payload = `994E5454${d}${a}${dummy32}${dummy32}${chainToHex(toChain)}`;
