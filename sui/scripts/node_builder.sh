@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source $HOME/.cargo/env
-
 git clone https://github.com/MystenLabs/sui.git --branch devnet
 cd sui
 # Corresponds to https://github.com/MystenLabs/sui/releases/tag/mainnet-v1.19.1
