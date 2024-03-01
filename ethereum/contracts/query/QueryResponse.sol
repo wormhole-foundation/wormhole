@@ -419,7 +419,7 @@ abstract contract QueryResponse {
             (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
             (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
 
-            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnckecked(respIdx); // Response executable
+            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnchecked(respIdx); // Response executable
 
             (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
