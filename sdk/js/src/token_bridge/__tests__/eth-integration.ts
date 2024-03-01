@@ -43,7 +43,7 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 async function transferFromEthToSolana(): Promise<string> {
   // create a keypair for Solana

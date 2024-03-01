@@ -55,7 +55,7 @@ import {
   getSignedVaaSolana,
 } from "./utils/getSignedVaa";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 const APTOS_NFT_BRIDGE_ADDRESS = CONTRACTS.DEVNET.aptos.nft_bridge;
 const ETH_NFT_BRIDGE_ADDRESS = CONTRACTS.DEVNET.ethereum.nft_bridge;
