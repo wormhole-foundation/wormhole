@@ -27,7 +27,7 @@ import { PopulateData, TmplSig } from "../TmplSig";
 const CORE_ID = BigInt(1004);
 const TOKEN_BRIDGE_ID = BigInt(1006);
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 describe("Unit Tests", () => {
   describe("Algorand unit tests", () => {

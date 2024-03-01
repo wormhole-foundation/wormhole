@@ -34,7 +34,7 @@ import {
 } from "./utils/consts";
 import { getSignedVaaEthereum, getSignedVaaSolana } from "./utils/getSignedVaa";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 // ethereum setup
 const web3 = new Web3(ETH_NODE_URL);

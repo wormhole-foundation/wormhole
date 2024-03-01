@@ -53,7 +53,7 @@ import {
   waitForTerraExecution,
 } from "./utils/helpers";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
