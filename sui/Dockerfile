@@ -1,10 +1,11 @@
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/sui:1.0.0-testnet_1@sha256:806fc83e7bbd59bca0a1960870d27b041d0b99a286d7eccfcec25beb74c2346c as sui
+FROM ghcr.io/wormhole-foundation/sui:1.19.1-mainnet@sha256:544a1b2aa5701fae25a19aed3c5e8c24e0caf7d1c9f511b6844d339a8f0b2a00 as sui
 
 RUN sui genesis -f
 
-COPY sui/devnet/ /root/.sui/sui_config/
+# COPY sui/devnet/client.yaml /root/.sui/sui_config/
+# COPY sui/devnet/sui.keystore /root/.sui/sui_config/
 
 WORKDIR /tmp
 
