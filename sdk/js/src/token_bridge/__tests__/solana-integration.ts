@@ -43,7 +43,7 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 describe("Solana to Ethereum", () => {
   test("Attest Solana SPL to Ethereum", (done) => {

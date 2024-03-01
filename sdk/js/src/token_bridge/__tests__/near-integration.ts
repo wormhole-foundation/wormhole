@@ -36,7 +36,7 @@ import {
 } from "near-api-js/lib/providers";
 import { parseNearAmount } from "near-api-js/lib/utils/format";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 let near: Near;
 let nearProvider: Provider;

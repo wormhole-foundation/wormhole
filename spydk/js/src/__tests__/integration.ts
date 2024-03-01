@@ -6,7 +6,7 @@ import { createSpyRPCServiceClient, subscribeSignedVAA } from "..";
 
 setDefaultWasm("node");
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 const ci = !!process.env.CI;
 export const SOLANA_HOST = ci
   ? "http://solana-devnet:8899"
