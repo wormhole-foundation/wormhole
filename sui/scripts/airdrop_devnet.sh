@@ -9,4 +9,4 @@ do
   sui client faucet --url http://localhost:5003/gas --address 0xed867315e3f7c83ae82e6d5858b6a6cc57c291fd84f7509646ebc8162169cf96
 done
 
-sleep 5
+sleep 10
