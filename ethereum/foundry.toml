@@ -7,16 +7,13 @@ src = "contracts"
 # We put the tests into the forge-test directory (instead of test) so that
 # truffle doesn't try to build them
 test = "forge-test"
-evm_version = "london"
-
+evm_version = "paris"
 out = 'build-forge'
 libs = ['lib', 'node_modules']
 remappings = [
-    '@openzeppelin/=node_modules/@openzeppelin/',
-    '@solidity-parser/=node_modules/@solidity-parser/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/',
-    'truffle/=node_modules/truffle/',
+    '@openzeppelin/=lib/openzeppelin-contracts/',
 ]
 
 [fmt]
@@ -27,5 +24,6 @@ multiline_func_header = "params_first"
 
 [profile.production]
 via_ir = true
+extra_output = ["metadata", "storageLayout", "evm.deployedBytecode.immutableReferences"]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

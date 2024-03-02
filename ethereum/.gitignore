@@ -1,6 +1,9 @@
 ganache.log
+anvil.log
 lib/*
 !lib/README.md
 flattened
 ethers-contracts
 build-forge/
+broadcast/
+deployment-addresses/

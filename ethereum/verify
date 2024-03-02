@@ -71,7 +71,7 @@ fi
 deployed=$(mktemp)
 local=$(mktemp)
 
-cat "$json_file" | jq -r .deployedBytecode > "$local"
+cat "$json_file" | jq -r .deployedBytecode.object > "$local"
 
 ret=0
 # Grab bytecode from the JSON RPC using the eth_getCode method.

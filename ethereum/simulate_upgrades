@@ -5,8 +5,10 @@ set -euo pipefail
 if [ $# == 0 ]
   then
     chain=ethereum
+    evm_chain_id=1
 else
     chain=$1
+    evm_chain_id=$2
 fi
 
 # Run the upgrade simulation (./simulate_upgrade) against each contract twice
@@ -29,22 +31,22 @@ ANVIL_PID=$!
 sleep 10
 
 echo "========================= Updating core contract ============================"
-./simulate_upgrade -m bridge -c $chain -d
+./simulate_upgrade -m bridge -c $chain -d -e $evm_chain_id
 echo "========================= Shutting down core contract ======================="
-./simulate_upgrade -m bridge -c $chain -d -s
+./simulate_upgrade -m bridge -c $chain -d -s -e $evm_chain_id
 echo "========================= Re-enabling core contract ========================="
-./simulate_upgrade -m bridge -c $chain -d
+./simulate_upgrade -m bridge -c $chain -d -e $evm_chain_id
 
 echo "===================== Updating token bridge contract ========================"
-./simulate_upgrade -m token_bridge -c $chain -d
+./simulate_upgrade -m token_bridge -c $chain -d -e $evm_chain_id
 echo "===================== Shutting down token bridge contract ==================="
-./simulate_upgrade -m token_bridge -c $chain -d -s
+./simulate_upgrade -m token_bridge -c $chain -d -s -e $evm_chain_id
 echo "===================== Re-enabling token bridge contract ====================="
-./simulate_upgrade -m token_bridge -c $chain -d
+./simulate_upgrade -m token_bridge -c $chain -d -e $evm_chain_id
 
 echo "====================== Updating NFT bridge contract ========================="
-./simulate_upgrade -m nft_bridge -c $chain -d
+./simulate_upgrade -m nft_bridge -c $chain -d -e $evm_chain_id
 echo "====================== Shutting down NFT bridge contract ===================="
-./simulate_upgrade -m nft_bridge -c $chain -d -s
+./simulate_upgrade -m nft_bridge -c $chain -d -s -e $evm_chain_id
 echo "====================== Re-enabling NFT bridge contract ======================"
-./simulate_upgrade -m nft_bridge -c $chain -d
+./simulate_upgrade -m nft_bridge -c $chain -d -e $evm_chain_id

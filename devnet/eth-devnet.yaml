@@ -31,19 +31,16 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: ganache
+        - name: anvil
           image: eth-node
           command:
-            - npx
-            - ganache-cli
-            - --logging.quiet
-            - --wallet.defaultBalance=10000
-            - --wallet.deterministic
-            - --chain.time="1970-01-01T00:00:00+00:00"
+            - anvil
             - --host=0.0.0.0
-            - --wallet.totalAccounts=11
-            - --chain.chainId=1
-            - --chain.asyncRequestProcessing=false
+            - --accounts=11
+            - --chain-id=1
+            - --silent
+            - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
+            - --block-time=1
           ports:
             - containerPort: 8545
               name: rpc
@@ -57,18 +54,12 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run deploy-relayers-evm1 && nc -lkn 2000"
+            - "CHAIN_ID=2 NETWORK=devnet ./forge-scripts/devnetInitialization.sh"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
             initialDelaySeconds: 90
             tcpSocket:
               port: 2000
-        - name: mine
-          image: eth-node
-          command:
-            - /bin/sh
-            - -c
-            - "npx truffle exec mine.js"
 ---
 

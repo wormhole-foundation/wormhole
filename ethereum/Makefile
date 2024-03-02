@@ -12,8 +12,7 @@ FLATTEN_FILES:= contracts/Implementation.sol \
                 contracts/nft/NFTBridgeImplementation.sol \
                 contracts/nft/NFTBridgeEntrypoint.sol \
                 contracts/nft/token/NFT.sol \
-                contracts/nft/token/NFTImplementation.sol \
-                contracts/nft/token/NFT.sol
+                contracts/nft/token/NFTImplementation.sol
 
 .PHONY: dependencies test clean all
 
@@ -38,7 +37,7 @@ lib/forge-std:
 	forge install foundry-rs/forge-std@v1.5.5 --no-git --no-commit
 
 lib/openzeppelin-contracts:
-	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
+	forge install openzeppelin/openzeppelin-contracts@v4.8.1 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
@@ -53,23 +52,16 @@ flattened/%.sol: contracts/%.sol node_modules
     # We remove the license (SPDX) lines and ABIEncoderV2 lines because they
     # break compilation in the flattened file if there are multiple conflicting
     # declarations.
-	npx truffle-flattener $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
+	FOUNDRY_PROFILE=production forge flatten $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
 
 .PHONY: flattened
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
+	echo "Prefer using the 'forge verify-contract' plugin over the flattened contracts. It's best to verify the contracts with the compiler standard JSON input."
 
 .env: .env.test
 	cp $< $@
 
-test: test-forge test-identifiers test-ganache
-
-.PHONY: test-ganache
-test-ganache: build .env dependencies
-	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
-	. ./.env && npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId $$INIT_EVM_CHAIN_ID --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false > ganache.log &
-	sleep 5
-	npm test || (pkill ganache-cli && exit 1)
-	pkill ganache-cli || true
+test: test-forge test-identifiers 
 
 .PHONY: test-upgrade
 test-upgrade: build .env node_modules
@@ -91,4 +83,4 @@ test-push0: dependencies
 	@if grep -qr --include \*.json PUSH0 ./build-forge; then echo "Contract uses PUSH0 instruction" 1>&2; exit 1; fi
 
 clean:
-	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
+	rm -rf .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts

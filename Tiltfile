@@ -523,7 +523,7 @@ k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 k8s_resource(
     "eth-devnet",
     port_forwards = [
-        port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
+        port_forward(8545, name = "Anvil RPC [:8545]", host = webHost),
     ],
     labels = ["evm"],
     trigger_mode = trigger_mode,
@@ -535,7 +535,7 @@ if evm2:
     k8s_resource(
         "eth-devnet2",
         port_forwards = [
-            port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
+            port_forward(8546, name = "Anvil RPC [:8546]", host = webHost),
         ],
         labels = ["evm"],
         trigger_mode = trigger_mode,

@@ -13,8 +13,11 @@ RUN curl -L https://foundry.paradigm.xyz | bash
 RUN $HOME/.foundry/bin/foundryup
 RUN ls $HOME/.foundry/bin
 
+RUN apt-get -y install jq
+
 # Run as user, otherwise, npx explodes.
 RUN mv /root/.foundry/bin/forge /bin/forge
+RUN mv /root/.foundry/bin/anvil /bin/anvil
 USER 1000
 
 

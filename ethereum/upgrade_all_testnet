@@ -5,9 +5,15 @@ modules=(Core TokenBridge NFTBridge)
 network=testnet
 chains=$(worm evm chains)
 
+# Source the prompt_functions.sh file
+source "./forge-scripts/prompt_functions.sh"
+
+prompt_for_variable "PRIVATE_KEY" "Please provide your private key"
 
 for module in ${modules[@]}; do
   for chain in ${chains[@]}; do
-    ./upgrade "$network" "$module" "$chain"
+    read -p "Input the EVM Chain ID for $chain on $testnet" evm_chain_id
+    read -p "Input the RPC URL for $chain on $testnet" rpc_url
+    ./upgrade "$network" "$module" "$chain" "$evm_chain_id" "$rpc_url" "$PRIVATE_KEY"
   done
 done

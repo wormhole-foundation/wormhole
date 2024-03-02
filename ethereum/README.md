@@ -16,9 +16,9 @@ To build the contracts:
 ### Deploying
 
 To deploy the bridge on Ethereum you first need to compile all smart contracts:
-`npx truffle compile`
+`npm run build:forge`
 
-To deploy you can either use the bytecode from the `build/contracts` folder or the oz cli `oz deploy <Contract>`
+To deploy you can either use the bytecode from the `build-forge/` folder or the oz cli `oz deploy <Contract>`
 ([Documentation](https://docs.openzeppelin.com/learn/deploying-and-interacting)).
 
 You first need to deploy one `Wrapped Asset` and initialize it using dummy data.
@@ -31,13 +31,11 @@ assets.
 
 For each test run:
 
-Run `npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId 1 --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false` to start a chain.
+Run `anvil --host=0.0.0.0 --accounts=11 --chain-id=1 --block-time=1 --mnemonic="myth like bonus scare over problem client lizard pioneer submit female collect"` to start a chain.
 
 Run the all ethereum tests using `DEV=True make test`
 
-Run a specific test file using `npx truffle test test/wormhole.js`
-
-Run a specific test file while skipping compile `npx truffle test test/wormhole.js --compile-none`
+See https://book.getfoundry.sh/reference/forge/forge-test for options on running specific tests
 
 ### User methods
 
