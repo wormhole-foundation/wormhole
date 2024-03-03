@@ -24,14 +24,13 @@ Make sure your Cargo version is at least 1.65.0 and then follow the steps below:
 Install the `Sui` CLI. This tool is used to compile the contracts and run the tests.
 
 ```sh
-cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 041c5f2bae2fe52079e44b70514333532d69f4e6 sui sui-faucet
+cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 041c5f2bae2fe52079e44b70514333532d69f4e6 sui
 ```
 
 Some useful Sui CLI commands are
 
 - `sui start` to spin up a local network
 - `rpc-server` to start a server for handling rpc calls
-- `sui-faucet` to start a faucet for requesting funds from active-address
 
 Next, install the [worm](../clients/js/README.md) CLI tool by running
 
@@ -93,13 +92,7 @@ Simply run
 worm start-validator sui
 ```
 
-which will start a local sui validator with an RPC endpoint at `0.0.0.0:9000`
-and the faucet endpoint at `0.0.0.0:5003/gas`. Note that the faucet takes a few
-(~10) seconds to come up, so only proceed when you see the following:
-
-```text
-Faucet is running.  Faucet endpoint: 0.0.0.0:5003/gas
-```
+which will start a local sui validator with an RPC endpoint at `0.0.0.0:9000`.
 
 Once the validator is running, the contracts are ready to deploy. In the
 [scripts](./scripts) directory, run
