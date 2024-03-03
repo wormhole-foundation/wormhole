@@ -92,6 +92,3 @@ export const APTOS_PRIVATE_KEY =
   "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d";
 
 export const SUI_NODE_URL = ci ? "http://sui:9000" : "http://localhost:9000";
-export const SUI_FAUCET_URL = ci
-  ? "http://sui:5003/gas"
-  : "http://localhost:5003/gas";

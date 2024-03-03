@@ -1,0 +1,55 @@
+---
+ssfn_config_info: ~
+validator_config_info: ~
+parameters:
+  chain_start_timestamp_ms: 1709486339140
+  protocol_version: 36
+  allow_insertion_of_extra_objects: true
+  epoch_duration_ms: 86400000
+  stake_subsidy_start_epoch: 0
+  stake_subsidy_initial_distribution_amount: 1000000000000000
+  stake_subsidy_period_length: 10
+  stake_subsidy_decrease_rate: 1000
+accounts:
+  - address: "0x2e425dd30f43ff1d59547322839cfc4b8fbaae54d72075181ebd7388b644fdbe"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+  - address: "0x8a8bb058d6c86aa175566c9e2d19278dd22ed9fecdda8fb486018f93a0629bb5"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+  - address: "0xa0f33ce147ecae789f535c64634851724284dd618a529672702b991a5f7bf816"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+  - address: "0xbd00a48078c0513a5f9a0d1c9352cd5c23a0e0cf3e6a82673cdae857cd00021e"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+  - address: "0xfd5f84cf9285f2b206e03727224b9daffa6092661b840d92434751792010b7de"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+  - address: "0xed867315e3f7c83ae82e6d5858b6a6cc57c291fd84f7509646ebc8162169cf96"
+    gas_amounts:
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000
+      - 30000000000000000

@@ -715,7 +715,6 @@ if sui:
         "sui",
         port_forwards = [
             port_forward(9000, 9000, name = "RPC [:9000]", host = webHost),
-            port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
         labels = ["sui"],

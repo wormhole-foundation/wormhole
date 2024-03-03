@@ -67,7 +67,6 @@ import { Payload, VAA, parse, serialiseVAA } from "../../vaa/generic";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY10,
-  SUI_FAUCET_URL,
   SUI_NODE_URL,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
@@ -92,7 +91,6 @@ const suiAddress: string = suiKeypair.getPublicKey().toSuiAddress();
 const suiProvider: JsonRpcProvider = new JsonRpcProvider(
   new Connection({
     fullnode: SUI_NODE_URL,
-    faucet: SUI_FAUCET_URL,
   })
 );
 const suiSigner: RawSigner = new RawSigner(suiKeypair, suiProvider);
