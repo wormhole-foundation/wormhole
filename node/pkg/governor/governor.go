@@ -1,3 +1,5 @@
+package governor
+
 // The purpose of the Chain Governor is to limit the notional TVL that can leave a chain in a single day.
 // It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
 //
@@ -23,11 +25,10 @@
 //
 // To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
 
-package governor
-
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -204,7 +205,14 @@ func (gov *ChainGovernor) initConfig() error {
 		}
 
 		key := tokenKey{chain: vaa.ChainID(ct.chain), addr: addr}
-		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: symbol, coinGeckoId: ct.coinGeckoId, token: key}
+		te := &tokenEntry{
+			cfgPrice:    cfgPrice,
+			price:       initialPrice,
+			decimals:    decimals,
+			symbol:      symbol,
+			coinGeckoId: ct.coinGeckoId,
+			token:       key,
+		}
 		te.updatePrice()
 
 		gov.tokens[key] = te
@@ -294,6 +302,10 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 }
 
 func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
+	// Validation:
+	// - ensure MessagePublication is not nil
+	// - check that the MessagePublication is governed
+	// - check that the message is not a duplicate
 	if msg == nil {
 		return false, fmt.Errorf("msg is nil")
 	}
@@ -301,7 +313,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	msgIsGoverned, ce, token, payload, err := gov.parseMsgAlreadyLocked(msg)
+	msgIsGoverned, emitterChainEntry, token, payload, err := gov.parseMsgAlreadyLocked(msg)
 	if err != nil {
 		return false, err
 	}
@@ -330,10 +342,11 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
+	// Get all outgoing transfers for `emitterChainEntry` that happened within the last 24 hours
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
+	prevTotalValue, err := gov.TrimAndSumValueForChain(emitterChainEntry, startTime)
 	if err != nil {
-		gov.logger.Error("failed to trim transfers",
+		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
 			zap.Stringer("txHash", msg.TxHash),
@@ -342,6 +355,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
+	// Compute the notional USD value of the transfers
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
 		gov.logger.Error("failed to compute value of transfer",
@@ -367,7 +381,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	enqueueIt := false
 	var releaseTime time.Time
-	if ce.isBigTransfer(value) {
+	if emitterChainEntry.isBigTransfer(value) {
 		enqueueIt = true
 		releaseTime = now.Add(maxEnqueuedTime)
 		gov.logger.Error("enqueuing vaa because it is a big transaction",
@@ -376,11 +390,11 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("newTotalValue", newTotalValue),
 			zap.String("msgID", msg.MessageIDString()),
 			zap.Stringer("releaseTime", releaseTime),
-			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+			zap.Uint64("bigTransactionSize", emitterChainEntry.bigTransactionSize),
 			zap.String("hash", hash),
 			zap.Stringer("txHash", msg.TxHash),
 		)
-	} else if newTotalValue > ce.dailyLimit {
+	} else if newTotalValue > emitterChainEntry.dailyLimit {
 		enqueueIt = true
 		releaseTime = now.Add(maxEnqueuedTime)
 		gov.logger.Error("enqueuing vaa because it would exceed the daily limit",
@@ -407,7 +421,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			return false, err
 		}
 
-		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
+		emitterChainEntry.pending = append(
+			emitterChainEntry.pending,
+			&pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData},
+		)
 		gov.msgsSeen[hash] = transferEnqueued
 		return false, nil
 	}
@@ -421,7 +438,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Stringer("txHash", msg.TxHash),
 	)
 
-	xfer := db.Transfer{Timestamp: now,
+	xfer := db.Transfer{
+		Timestamp:      now,
 		Value:          value,
 		OriginChain:    token.token.chain,
 		OriginAddress:  token.token.addr,
@@ -440,7 +458,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
-	ce.transfers = append(ce.transfers, &xfer)
+	emitterChainEntry.transfers = append(emitterChainEntry.transfers, &xfer)
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
 }
@@ -454,19 +472,27 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 }
 
 // parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor. It assumes the caller holds the lock.
-func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+func (gov *ChainGovernor) parseMsgAlreadyLocked(
+	msg *common.MessagePublication,
+) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
-			gov.logger.Info("ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
+			gov.logger.Info(
+				"ignoring vaa because the emitter chain is not configured",
+				zap.String("msgID", msg.MessageIDString()),
+			)
 		}
 		return false, nil, nil, nil, nil
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
 	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Info("ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
+		gov.logger.Info(
+			"ignoring vaa because the emitter address is not configured",
+			zap.String("msgID", msg.MessageIDString()),
+		)
 		return false, nil, nil, nil, nil
 	}
 
@@ -517,7 +543,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 			foundOne := false
 			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 			if err != nil {
-				gov.logger.Error("failed to trim transfers", zap.Error(err))
+				gov.logger.Error("Error when attempting to trim and sum transfers", zap.Error(err))
 				gov.msgsToPublish = msgsToPublish
 				return nil, err
 			}
@@ -583,7 +609,8 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 				if countsTowardsTransfers {
-					xfer := db.Transfer{Timestamp: now,
+					xfer := db.Transfer{
+						Timestamp:      now,
 						Value:          value,
 						OriginChain:    pe.token.token.chain,
 						OriginAddress:  pe.token.token.addr,
@@ -642,11 +669,110 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-func (gov *ChainGovernor) TrimAndSumValueForChain(ce *chainEntry, startTime time.Time) (sum uint64, err error) {
-	sum, ce.transfers, err = gov.TrimAndSumValue(ce.transfers, startTime)
-	return sum, err
+// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a
+// chain's "Governor Usage" for a given 24 hour period.
+// This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
+// that have the `emitter` as their destination chain.
+// The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
+// into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
+//
+// As a side-effect, this function modifies the parameter `emitter`, upating its `transfers` field so that it only includes
+// filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
+//
+// SECURITY Invariant: The `sum` return value should never be less than 0
+// SECURITY Invariant: The `sum` return value should never exceed the "Governor limit" for the chain
+func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
+	// Sum the value of all outgoing transfers
+	var sumOutgoing uint64
+	sumOutgoing, emitter.transfers, err = gov.TrimAndSumValue(emitter.transfers, startTime)
+	if err != nil {
+		return 0, err
+	}
+	// Subtract the sum of all flow cancelling transfers. Here the emitter's chainID is actually used as the destination
+	// chain in in the context of FlowCancellingTransfersForChain.
+	flowCancelSum, err := gov.SumTransferValues(gov.FlowCancellingTransfersForChain(emitter.emitterChainId, startTime))
+	if err != nil {
+		return 0, err
+	}
+
+	// If flowCancelSum is larger than or equal to sumOutgoing, simply return 0 as this means that all outgoing
+	// transfers have been cancelled by incoming transfers.
+	// This also avoids integer underflow.
+	if flowCancelSum >= sumOutgoing {
+		return 0, nil
+	}
+
+	sum = sumOutgoing - flowCancelSum
+	if sum > emitter.dailyLimit {
+		return 0, fmt.Errorf(
+			"invariant violation: calculated sum %d exceeds Governor limit %d",
+			sum,
+			emitter.dailyLimit,
+		)
+	}
+
+	return sum, nil
 }
 
+// SumTransferValues iterates over a slice of transfers and sums their value.
+func (gov *ChainGovernor) SumTransferValues(transfers []*db.Transfer) (sum uint64, err error) {
+	sum = 0
+	// Iterate over all transfers usin tokens that have flow cancelling enabled.
+	// If the destination chain of the transfer is equal to the `ce` parameter, add the value
+	// of the transfer to the flow cancelling sum.
+	for _, transfer := range transfers {
+		// Overflow check. Note that transfer.Value cannot be negative
+		if (sum + transfer.Value) < sum {
+			return 0, errors.New("overflow when calculating flow cancelling sum")
+		}
+		sum += transfer.Value
+
+	}
+	return sum, nil
+}
+
+// FlowCancellingTransfersForChain builds a list of Transfers that contain assets that can 'flow cancel'
+// (reduce the Governor usage of) a governed chain represented by `destinationChainID`.
+func (gov *ChainGovernor) FlowCancellingTransfersForChain(
+	destinationChainID vaa.ChainID,
+	startTime time.Time,
+) (transfers []*db.Transfer) {
+	flowCancelTokens := FlowCancelTokenList()
+	// transfers = make([]*db.Transfer, 0)
+	// Iterate over all transfers for all governed chains
+	for _, emitterChainEntry := range gov.chains {
+		for _, transfer := range emitterChainEntry.transfers {
+			// We care about the transfer if:
+			// - Its target chain is equal to the `destinationChainID` parameter
+			// - It happened after `startTime`
+			// - It is a flow cancelling token (The transfer's origin chain and
+			//	origin address match a hard-coded flow cancelling asset)
+			if transfer.TargetChain != destinationChainID {
+				continue
+			}
+
+			if transfer.Timestamp.Before(startTime) {
+				continue
+			}
+
+			for _, flowCancelToken := range flowCancelTokens {
+				// Compare flow cancel fields with transfer fields. This requires conversions:
+				// - vaa.ChainID to uint16
+				// - vaa.Address to String
+				if uint16(transfer.OriginChain) == flowCancelToken.chain &&
+					transfer.OriginAddress.String() == flowCancelToken.addr {
+					transfers = append(transfers, transfer)
+				}
+			}
+		}
+	}
+
+	return transfers
+}
+
+// TrimAndSumValue iterates over a slice of db.Transfer structs. It filters out transfers that have a Timestamp value that
+// is earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
+// and returns the sum and the filtered transfers.
 func (gov *ChainGovernor) TrimAndSumValue(transfers []*db.Transfer, startTime time.Time) (uint64, []*db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
