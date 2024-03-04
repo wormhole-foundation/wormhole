@@ -13,7 +13,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "file:../sdk/js",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts": "^4.9.6",
     "big.js": "^5.2.2",
     "bn.js": "^5.2.0",
     "borsh": "^0.4.0",
