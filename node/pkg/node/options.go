@@ -155,6 +155,9 @@ func GuardianOptionAccountant(
 				logger.Info("accountant is enabled but will not be enforced", zap.String("component", "gacct"))
 			}
 			if nttContract != "" {
+				if nttWormchainConn == nil {
+					return errors.New("if accountantNttContract is specified, the NTT wormchain sending connection must be enabled")
+				}
 				logger.Info("NTT accountant is enabled", zap.String("component", "gacct"))
 			}
 
