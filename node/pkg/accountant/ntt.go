@@ -60,10 +60,13 @@ func (acct *Accountant) nttStart(ctx context.Context) error {
 var WH_PREFIX = []byte{0x99, 0x45, 0xFF, 0x10}
 var NTT_PREFIX = []byte{0x99, 0x4E, 0x54, 0x54}
 
+const NTT_PREFIX_OFFSET = 136
+const NTT_PREFIX_END = NTT_PREFIX_OFFSET + 4
+
 // isNTT determines if the payload bytes are for a Native Token Transfer, according to the following implementation:
-// https://github.com/wormhole-foundation/example-native-token-transfers/blob/41ac7baae5bb0f60fff2ec87603970af39dced01/test/EndpointStructs.t.sol
+// https://github.com/wormhole-foundation/example-native-token-transfers/blob/22bde0c7d8139675582d861dc8245eb1912324fa/evm/test/TransceiverStructs.t.sol#L42
 func nttIsPayloadNTT(payload []byte) bool {
-	if len(payload) < 140 {
+	if len(payload) < NTT_PREFIX_END {
 		return false
 	}
 
@@ -71,7 +74,7 @@ func nttIsPayloadNTT(payload []byte) bool {
 		return false
 	}
 
-	if !bytes.Equal(payload[136:140], NTT_PREFIX) {
+	if !bytes.Equal(payload[NTT_PREFIX_OFFSET:NTT_PREFIX_END], NTT_PREFIX) {
 		return false
 	}
 
@@ -110,6 +113,8 @@ func nttIsMsgArNTT(msg *common.MessagePublication, arEmitters validEmitters, ntt
 	return false, false
 }
 
+const PAYLOAD_ID_DELIVERY_INSTRUCTION = uint8(1)
+
 // nttParseArPayload extracts the sender address from an AR payload. This is based on the following implementation:
 // https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol#L70-L97
 func nttParseArPayload(msgPayload []byte) (bool, [32]byte) {
@@ -121,7 +126,7 @@ func nttParseArPayload(msgPayload []byte) (bool, [32]byte) {
 		return false, senderAddress
 	}
 
-	if deliveryInstruction != 1 { // PAYLOAD_ID_DELIVERY_INSTRUCTION
+	if deliveryInstruction != PAYLOAD_ID_DELIVERY_INSTRUCTION {
 		return false, senderAddress
 	}
 
