@@ -144,8 +144,9 @@ export const builder = function (y: typeof yargs) {
                   recipientAddress: receiver,
                   recipientChain: dstChain,
                 },
-                sequence: BigInt(0),
                 sender: sender,
+                // TODO: CLI arg?
+                id: new Uint8Array(32),
               },
             },
             guardianSet: 0,
