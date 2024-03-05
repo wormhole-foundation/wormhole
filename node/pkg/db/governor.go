@@ -53,6 +53,8 @@ type Transfer struct {
 	EmitterAddress vaa.Address
 	MsgID          string
 	Hash           string
+	TargetAddress  vaa.Address
+	TargetChain    vaa.ChainID
 }
 
 func (t *Transfer) Marshal() ([]byte, error) {
@@ -72,6 +74,8 @@ func (t *Transfer) Marshal() ([]byte, error) {
 	if len(t.Hash) > 0 {
 		buf.Write([]byte(t.Hash))
 	}
+	vaa.MustWrite(buf, binary.BigEndian, t.TargetChain)
+	buf.Write(t.TargetAddress[:])
 	return buf.Bytes(), nil
 }
 
@@ -91,17 +95,93 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 	}
 
 	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+		return nil, fmt.Errorf("failed to read origin chain id: %w", err)
 	}
 
 	originAddress := vaa.Address{}
 	if n, err := reader.Read(originAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+		return nil, fmt.Errorf("failed to read origin address [%d]: %w", n, err)
 	}
 	t.OriginAddress = originAddress
 
 	if err := binary.Read(reader, binary.BigEndian, &t.EmitterChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+		return nil, fmt.Errorf("failed to read emitter chain id: %w", err)
+	}
+
+	emitterAddress := vaa.Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	t.EmitterAddress = emitterAddress
+
+	msgIdLen := uint16(0)
+	if err := binary.Read(reader, binary.BigEndian, &msgIdLen); err != nil {
+		return nil, fmt.Errorf("failed to read msgID length: %w", err)
+	}
+
+	if msgIdLen > 0 {
+		msgID := make([]byte, msgIdLen)
+		n, err := reader.Read(msgID)
+		if err != nil || n != int(msgIdLen) {
+			return nil, fmt.Errorf("failed to read msg id [%d]: %w", n, err)
+		}
+		t.MsgID = string(msgID[:n])
+	}
+
+	hashLen := uint16(0)
+	if err := binary.Read(reader, binary.BigEndian, &hashLen); err != nil {
+		return nil, fmt.Errorf("failed to read hash length: %w", err)
+	}
+
+	if hashLen > 0 {
+		hash := make([]byte, hashLen)
+		n, err := reader.Read(hash)
+		if err != nil || n != int(hashLen) {
+			return nil, fmt.Errorf("failed to read hash [%d]: %w", n, err)
+		}
+		t.Hash = string(hash[:n])
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &t.TargetChain); err != nil {
+		return nil, fmt.Errorf("failed to read target chain id: %w", err)
+	}
+
+	targetAddress := vaa.Address{}
+	if n, err := reader.Read(targetAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read target address [%d]: %w", n, err)
+	}
+	t.TargetAddress = targetAddress
+
+	return t, nil
+}
+
+func unmarshalOldTransfer(data []byte) (*Transfer, error) {
+	t := &Transfer{}
+
+	reader := bytes.NewReader(data[:])
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read timestamp: %w", err)
+	}
+	t.Timestamp = time.Unix(int64(unixSeconds), 0)
+
+	if err := binary.Read(reader, binary.BigEndian, &t.Value); err != nil {
+		return nil, fmt.Errorf("failed to read value: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
+		return nil, fmt.Errorf("failed to read origin chain id: %w", err)
+	}
+
+	originAddress := vaa.Address{}
+	if n, err := reader.Read(originAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read origin address [%d]: %w", n, err)
+	}
+	t.OriginAddress = originAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &t.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain id: %w", err)
 	}
 
 	emitterAddress := vaa.Address{}
@@ -138,50 +218,7 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 		t.Hash = string(hash[:n])
 	}
 
-	return t, nil
-}
-
-func unmarshalOldTransfer(data []byte) (*Transfer, error) {
-	t := &Transfer{}
-
-	reader := bytes.NewReader(data[:])
-
-	unixSeconds := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
-		return nil, fmt.Errorf("failed to read timestamp: %w", err)
-	}
-	t.Timestamp = time.Unix(int64(unixSeconds), 0)
-
-	if err := binary.Read(reader, binary.BigEndian, &t.Value); err != nil {
-		return nil, fmt.Errorf("failed to read value: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
-	}
-
-	originAddress := vaa.Address{}
-	if n, err := reader.Read(originAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
-	}
-	t.OriginAddress = originAddress
-
-	if err := binary.Read(reader, binary.BigEndian, &t.EmitterChain); err != nil {
-		return nil, fmt.Errorf("failed to read token chain id: %w", err)
-	}
-
-	emitterAddress := vaa.Address{}
-	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
-	}
-	t.EmitterAddress = emitterAddress
-
-	msgID := make([]byte, 256)
-	n, err := reader.Read(msgID)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("failed to read vaa id [%d]: %w", n, err)
-	}
-	t.MsgID = string(msgID[:n])
+	// Do not include the target chain or address.
 
 	return t, nil
 }
@@ -238,10 +275,10 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 	return p, nil
 }
 
-const oldTransfer = "GOV:XFER:"
+const oldTransfer = "GOV:XFER2:"
 const oldTransferLen = len(oldTransfer)
 
-const transfer = "GOV:XFER2:"
+const transfer = "GOV:XFER3:"
 const transferLen = len(transfer)
 
 // Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.

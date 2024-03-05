@@ -427,6 +427,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		OriginAddress:  token.token.addr,
 		EmitterChain:   msg.EmitterChain,
 		EmitterAddress: msg.EmitterAddress,
+		TargetChain:    payload.TargetChain,
+		TargetAddress:  payload.TargetAddress,
 		MsgID:          msg.MessageIDString(),
 		Hash:           hash,
 	}
@@ -579,29 +581,41 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
 				}
 
-				// If we get here, publish it and remove it from the pending list.
-				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
-
-				if countsTowardsTransfers {
-					xfer := db.Transfer{Timestamp: now,
-						Value:          value,
-						OriginChain:    pe.token.token.chain,
-						OriginAddress:  pe.token.token.addr,
-						EmitterChain:   pe.dbData.Msg.EmitterChain,
-						EmitterAddress: pe.dbData.Msg.EmitterAddress,
-						MsgID:          pe.dbData.Msg.MessageIDString(),
-						Hash:           pe.hash,
-					}
-
-					if err := gov.db.StoreTransfer(&xfer); err != nil {
-						gov.msgsToPublish = msgsToPublish
-						return nil, err
-					}
-
-					ce.transfers = append(ce.transfers, &xfer)
-					gov.msgsSeen[pe.hash] = transferComplete
+				payload, err := vaa.DecodeTransferPayloadHdr(pe.dbData.Msg.Payload)
+				if err != nil {
+					gov.logger.Error("failed to decode payload for pending VAA, dropping it",
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()),
+						zap.String("hash", pe.hash),
+						zap.Error(err),
+					)
+					delete(gov.msgsSeen, pe.hash) // Rest of the clean up happens below.
 				} else {
-					delete(gov.msgsSeen, pe.hash)
+					// If we get here, publish it and remove it from the pending list.
+					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
+
+					if countsTowardsTransfers {
+						xfer := db.Transfer{Timestamp: now,
+							Value:          value,
+							OriginChain:    pe.token.token.chain,
+							OriginAddress:  pe.token.token.addr,
+							EmitterChain:   pe.dbData.Msg.EmitterChain,
+							EmitterAddress: pe.dbData.Msg.EmitterAddress,
+							TargetChain:    payload.TargetChain,
+							TargetAddress:  payload.TargetAddress,
+							MsgID:          pe.dbData.Msg.MessageIDString(),
+							Hash:           pe.hash,
+						}
+
+						if err := gov.db.StoreTransfer(&xfer); err != nil {
+							gov.msgsToPublish = msgsToPublish
+							return nil, err
+						}
+
+						ce.transfers = append(ce.transfers, &xfer)
+						gov.msgsSeen[pe.hash] = transferComplete
+					} else {
+						delete(gov.msgsSeen, pe.hash)
+					}
 				}
 
 				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {

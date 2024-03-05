@@ -29,7 +29,10 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -38,7 +41,9 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		Hash:           "Hash1",
 	}
@@ -51,12 +56,12 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
 func TestPendingMsgID(t *testing.T) {
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
@@ -65,7 +70,7 @@ func TestPendingMsgID(t *testing.T) {
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
-		EmitterAddress:   tokenBridgeAddr,
+		EmitterAddress:   ethereumTokenBridgeAddr,
 		Payload:          []byte{},
 		ConsistencyLevel: 16,
 	}
@@ -77,7 +82,10 @@ func TestTransferMsgID(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	xfer := &Transfer{
@@ -86,32 +94,34 @@ func TestTransferMsgID(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		Hash:           "Hash1",
 	}
 
-	assert.Equal(t, []byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
+	assert.Equal(t, []byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
 }
 
 func TestIsTransfer(t *testing.T) {
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:1")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:1/1/1")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
+	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:1")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:1/1/1")))
+	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
+	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
 	assert.Equal(t, false, IsTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsTransfer([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsTransfer([]byte{}))
-	assert.Equal(t, true, isOldTransfer([]byte("GOV:XFER:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, isOldTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, isOldTransfer([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 
 }
 
 func TestIsPendingMsg(t *testing.T) {
 	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1/1/1")))
@@ -132,7 +142,7 @@ func TestGetChainGovernorData(t *testing.T) {
 	}
 	defer db.Close()
 
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	transfers, pending, err2 := db.GetChainGovernorData(logger)
 
@@ -152,7 +162,10 @@ func TestStoreTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -161,7 +174,9 @@ func TestStoreTransfer(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		Hash:           "Hash1",
 	}
@@ -181,7 +196,10 @@ func TestDeleteTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -190,7 +208,9 @@ func TestDeleteTransfer(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		Hash:           "Hash1",
 	}
@@ -315,7 +335,10 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -327,7 +350,9 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		Hash:           "Hash1",
 	}
@@ -341,7 +366,9 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
 		Hash:           "Hash2",
 	}
@@ -357,7 +384,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 			Nonce:            123456,
 			Sequence:         789101112131417,
 			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   tokenBridgeAddr,
+			EmitterAddress:   ethereumTokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
 		},
@@ -374,7 +401,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 			Nonce:            123456,
 			Sequence:         789101112131418,
 			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   tokenBridgeAddr,
+			EmitterAddress:   ethereumTokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
 		},
@@ -394,6 +421,164 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	assert.Equal(t, xfer2, xfers[1])
 	assert.Equal(t, pending1, pending[0])
 	assert.Equal(t, pending2, pending[1])
+}
+
+func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
+	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
+	require.NoError(t, err)
+
+	xfer1 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
+		// Don't set MsgID or Hash, should handle empty slices.
+	}
+
+	bytes, err := xfer1.Marshal()
+	require.NoError(t, err)
+
+	xfer2, err := UnmarshalTransfer(bytes)
+	require.NoError(t, err)
+	require.Equal(t, xfer1, xfer2)
+}
+
+// Note that Transfer.Marshal can't fail, so there are no negative tests for that.
+
+func TestUnmarshalTransferFailures(t *testing.T) {
+	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
+	require.NoError(t, err)
+
+	xfer1 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Hash:           "Hash1",
+	}
+
+	bytes, err := xfer1.Marshal()
+	require.NoError(t, err)
+
+	// First make sure regular unmarshal works.
+	xfer2, err := UnmarshalTransfer(bytes)
+	require.NoError(t, err)
+	require.Equal(t, xfer1, xfer2)
+
+	// Truncate the timestamp.
+	_, err = UnmarshalTransfer(bytes[0 : 4-1])
+	assert.ErrorContains(t, err, "failed to read timestamp: ")
+
+	// Truncate the value.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8-1])
+	assert.ErrorContains(t, err, "failed to read value: ")
+
+	// Truncate the origin chain.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2-1])
+	assert.ErrorContains(t, err, "failed to read origin chain id: ")
+
+	// Truncate the origin address.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32-1])
+	assert.ErrorContains(t, err, "failed to read origin address")
+
+	// Truncate the emitter chain.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2-1])
+	assert.ErrorContains(t, err, "failed to read emitter chain id: ")
+
+	// Truncate the emitter address.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32-1])
+	assert.ErrorContains(t, err, "failed to read emitter address")
+
+	// Truncate the message ID length.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2-1])
+	assert.ErrorContains(t, err, "failed to read msgID length: ")
+
+	// Truncate the message ID data.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+3])
+	assert.ErrorContains(t, err, "failed to read msg id")
+
+	// Truncate the hash length.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2-1])
+	assert.ErrorContains(t, err, "failed to read hash length: ")
+
+	// Truncate the hash data.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+3])
+	assert.ErrorContains(t, err, "failed to read hash")
+
+	// Truncate the target chain.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2-1])
+	assert.ErrorContains(t, err, "failed to read target chain id: ")
+
+	// Truncate the target address.
+	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2+32-1])
+	assert.ErrorContains(t, err, "failed to read target address")
+}
+
+// Note that PendingTransfer.Marshal can't fail, so there are no negative tests for that.
+
+func TestUnmarshalPendingTransferFailures(t *testing.T) {
+	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	msg := common.MessagePublication{
+		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		ConsistencyLevel: 16,
+		IsReobservation:  true,
+	}
+
+	pending1 := &PendingTransfer{
+		ReleaseTime: time.Unix(int64(1654516425+72*60*60), 0),
+		Msg:         msg,
+	}
+
+	bytes, err := pending1.Marshal()
+	require.NoError(t, err)
+
+	// First make sure regular unmarshal works.
+	pending2, err := UnmarshalPendingTransfer(bytes, false)
+	require.NoError(t, err)
+	assert.Equal(t, pending1, pending2)
+
+	// Truncate the release time.
+	_, err = UnmarshalPendingTransfer(bytes[0:4-1], false)
+	assert.ErrorContains(t, err, "failed to read pending transfer release time: ")
+
+	// The remainder is the marshaled message publication as a single buffer.
+
+	// Truncate the entire serialized message.
+	_, err = UnmarshalPendingTransfer(bytes[0:4], false)
+	assert.ErrorContains(t, err, "failed to read pending transfer msg")
+
+	// Truncate some of the serialized message.
+	_, err = UnmarshalPendingTransfer(bytes[0:len(bytes)-10], false)
+	assert.ErrorContains(t, err, "failed to unmarshal pending transfer msg")
 }
 
 func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
@@ -439,39 +624,76 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	xfer1 := &Transfer{
+	oldXfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
 		Value:          125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		Hash:           "Hash1",
+		EmitterAddress: ethereumTokenBridgeAddr,
+		// Don't set TargetChain or TargetAddress.
+		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Hash:  "Hash1",
 	}
 
-	err = db.StoreTransfer(xfer1)
-	require.Nil(t, err)
+	err = db.storeOldTransfer(oldXfer1)
+	require.NoError(t, err)
 
-	xfer2 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516430), 0),
+	newXfer1 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516426), 0),
 		Value:          125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
+		Hash:           "Hash1",
+	}
+
+	err = db.StoreTransfer(newXfer1)
+	require.NoError(t, err)
+
+	oldXfer2 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516427), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		// Don't set TargetChain or TargetAddress.
+		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131417",
+		Hash:  "Hash2",
+	}
+
+	err = db.storeOldTransfer(oldXfer2)
+	require.NoError(t, err)
+
+	newXfer2 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516428), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131418",
 		Hash:           "Hash2",
 	}
 
-	err = db.StoreTransfer(xfer2)
-	require.Nil(t, err)
+	err = db.StoreTransfer(newXfer2)
+	require.NoError(t, err)
 
 	now := time.Unix(time.Now().Unix(), 0)
 
@@ -484,7 +706,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 			Nonce:            123456,
 			Sequence:         789101112131417,
 			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   tokenBridgeAddr,
+			EmitterAddress:   ethereumTokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
 			// IsReobservation will not be serialized. It should be set to false on reload.
@@ -492,7 +714,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	}
 
 	db.storeOldPendingMsg(t, pending1)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	now2 := now.Add(time.Second * 5)
 
@@ -505,7 +727,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 			Nonce:            123456,
 			Sequence:         789101112131418,
 			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   tokenBridgeAddr,
+			EmitterAddress:   ethereumTokenBridgeAddr,
 			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			ConsistencyLevel: 16,
 			IsReobservation:  true,
@@ -513,22 +735,29 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	}
 
 	err = db.StorePendingMsg(pending2)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	logger := zap.NewNop()
 	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
 
-	require.Nil(t, err)
-	require.Equal(t, 2, len(xfers))
+	require.NoError(t, err)
+	require.Equal(t, 4, len(xfers))
 	require.Equal(t, 2, len(pendings))
+
+	sort.SliceStable(xfers, func(i, j int) bool {
+		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
+	})
+
+	assert.Equal(t, oldXfer1, xfers[0])
+	assert.Equal(t, newXfer1, xfers[1])
+	assert.Equal(t, oldXfer2, xfers[2])
+	assert.Equal(t, newXfer2, xfers[3])
 
 	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
 	sort.SliceStable(pendings, func(i, j int) bool {
 		return pendings[i].Msg.Timestamp.Before(pendings[j].Msg.Timestamp)
 	})
 
-	assert.Equal(t, xfer1, xfers[0])
-	assert.Equal(t, xfer2, xfers[1])
 	assert.Equal(t, pending1.Msg, pendings[0].Msg)
 	assert.Equal(t, pending2.Msg, pendings[1].Msg)
 
@@ -536,25 +765,40 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	xfers2, pendings2, err := db.GetChainGovernorDataForTime(logger, now)
 
-	require.Nil(t, err)
-	require.Equal(t, 2, len(xfers2))
+	require.NoError(t, err)
+	require.Equal(t, 4, len(xfers2))
 	require.Equal(t, 2, len(pendings2))
 
-	assert.Equal(t, xfer1, xfers2[0])
-	assert.Equal(t, xfer2, xfers2[1])
+	sort.SliceStable(xfers2, func(i, j int) bool {
+		return xfers2[i].Timestamp.Before(xfers2[j].Timestamp)
+	})
+
+	assert.Equal(t, oldXfer1, xfers2[0])
+	assert.Equal(t, newXfer1, xfers2[1])
+	assert.Equal(t, oldXfer2, xfers2[2])
+	assert.Equal(t, newXfer2, xfers2[3])
+
 	assert.Equal(t, pending1.Msg, pendings2[0].Msg)
 	assert.Equal(t, pending2.Msg, pendings2[1].Msg)
 }
 
 func marshalOldTransfer(xfer *Transfer) []byte {
 	buf := new(bytes.Buffer)
+
 	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix()))
 	vaa.MustWrite(buf, binary.BigEndian, xfer.Value)
 	vaa.MustWrite(buf, binary.BigEndian, xfer.OriginChain)
 	buf.Write(xfer.OriginAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, xfer.EmitterChain)
 	buf.Write(xfer.EmitterAddress[:])
-	buf.Write([]byte(xfer.MsgID))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID)))
+	if len(xfer.MsgID) > 0 {
+		buf.Write([]byte(xfer.MsgID))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash)))
+	if len(xfer.Hash) > 0 {
+		buf.Write([]byte(xfer.Hash))
+	}
 	return buf.Bytes()
 }
 
@@ -574,7 +818,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
@@ -583,9 +827,10 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		// Do not set the Hash.
+		EmitterAddress: ethereumTokenBridgeAddr,
+		// Don't set TargetChain or TargetAddress.
+		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Hash:  "Hash1",
 	}
 
 	bytes := marshalOldTransfer(xfer1)
@@ -595,7 +840,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
@@ -608,7 +853,10 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
 	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -621,8 +869,9 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		EmitterAddress: ethereumTokenBridgeAddr,
+		// Don't set TargetChain or TargetAddress.
+		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 		// Do not set the Hash.
 	}
 
@@ -636,7 +885,9 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
 		Hash:           "Hash2",
 	}
