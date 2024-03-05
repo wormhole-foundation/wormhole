@@ -469,6 +469,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
+	defer headerSubscription.Unsubscribe()
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
 		stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
@@ -477,6 +478,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case err := <-headerSubscription.Err():
+				logger.Error("error while processing header subscription", zap.Error(err))
 				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing header subscription: %w", err)
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -731,6 +733,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	if w.unsafeDevMode {
 		// Devnet supports finalized and safe (although they returns the same value as latest).
 		finalized = true
+		safe = true
 	} else if w.chainID == vaa.ChainIDAcala ||
 		w.chainID == vaa.ChainIDArbitrum ||
 		w.chainID == vaa.ChainIDBase ||
