@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -489,63 +488,51 @@ func TestUnmarshalTransferFailures(t *testing.T) {
 
 	// Truncate the timestamp.
 	_, err = UnmarshalTransfer(bytes[0 : 4-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read timestamp: "))
+	assert.ErrorContains(t, err, "failed to read timestamp: ")
 
 	// Truncate the value.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read value: "))
+	assert.ErrorContains(t, err, "failed to read value: ")
 
 	// Truncate the origin chain.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read origin chain id: "))
+	assert.ErrorContains(t, err, "failed to read origin chain id: ")
 
 	// Truncate the origin address.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read origin address"))
+	assert.ErrorContains(t, err, "failed to read origin address")
 
 	// Truncate the emitter chain.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read emitter chain id: "))
+	assert.ErrorContains(t, err, "failed to read emitter chain id: ")
 
 	// Truncate the emitter address.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read emitter address"))
+	assert.ErrorContains(t, err, "failed to read emitter address")
 
 	// Truncate the message ID length.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read msgID length: "))
+	assert.ErrorContains(t, err, "failed to read msgID length: ")
 
 	// Truncate the message ID data.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+3])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read msg id"))
+	assert.ErrorContains(t, err, "failed to read msg id")
 
 	// Truncate the hash length.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read hash length: "))
+	assert.ErrorContains(t, err, "failed to read hash length: ")
 
 	// Truncate the hash data.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+3])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read hash"))
+	assert.ErrorContains(t, err, "failed to read hash")
 
 	// Truncate the target chain.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read target chain id: "))
+	assert.ErrorContains(t, err, "failed to read target chain id: ")
 
 	// Truncate the target address.
 	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2+32-1])
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read target address"))
+	assert.ErrorContains(t, err, "failed to read target address")
 }
 
 // Note that PendingTransfer.Marshal can't fail, so there are no negative tests for that.
@@ -581,20 +568,17 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 
 	// Truncate the release time.
 	_, err = UnmarshalPendingTransfer(bytes[0:4-1], false)
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read pending transfer release time: "))
+	assert.ErrorContains(t, err, "failed to read pending transfer release time: ")
 
 	// The remainder is the marshaled message publication as a single buffer.
 
 	// Truncate the entire serialized message.
 	_, err = UnmarshalPendingTransfer(bytes[0:4], false)
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to read pending transfer msg"))
+	assert.ErrorContains(t, err, "failed to read pending transfer msg")
 
 	// Truncate some of the serialized message.
 	_, err = UnmarshalPendingTransfer(bytes[0:len(bytes)-10], false)
-	require.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "failed to unmarshal pending transfer msg"))
+	assert.ErrorContains(t, err, "failed to unmarshal pending transfer msg")
 }
 
 func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
