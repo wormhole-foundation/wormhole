@@ -14,7 +14,7 @@
   "license": "ISC",
   "devDependencies": {
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "@openzeppelin/contracts": "^4.8.3",
+    "@openzeppelin/contracts": "^4.9.6",
     "@typechain/ethers-v5": "^7.0.1",
     "@types/jest": "^27.0.2",
     "@types/long": "^4.0.1",
