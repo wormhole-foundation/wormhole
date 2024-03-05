@@ -61,6 +61,7 @@ config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
+config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
 config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
@@ -86,6 +87,7 @@ sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 pythnet = cfg.get("pythnet", False)
+solana_watcher = cfg.get("solana_watcher", solana or pythnet)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
@@ -202,7 +204,7 @@ def build_node_yaml():
                     "ws://eth-devnet:8545",
                 ]
 
-            if solana:
+            if solana_watcher:
                 container["command"] += [
                     "--solanaRPC",
                     "http://solana-devnet:8899",
@@ -312,7 +314,7 @@ k8s_yaml_with_ns(build_node_yaml())
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
-if solana or pythnet:
+if solana_watcher:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
     guardian_resource_deps = guardian_resource_deps + ["near"]
