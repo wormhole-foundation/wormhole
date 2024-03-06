@@ -29,7 +29,7 @@ The guardians will have a new allow list of NTTs and will be expected to submit 
 
 ## Caveats
 
-1. The NTT Global Accountant can only account for NTTs which are in `lock` mode. In `burn` mode, the tokens have a potentially unlimited supply on every chain or other legitimate methods of minting which cannot be known to the accountant.
+1. The NTT Global Accountant can only account for NTTs which have _exactly_ one Manager in `lock` mode. In an all `burn` mode network, the tokens have a potentially unlimited supply on every chain or other legitimate methods of minting which cannot be known to the accountant. In a multiple `lock` setup, the existing accountant logic, which is single-source chain per "token", would no longer directly apply. It is possible for these cases to be covered in the future, but may require further NTT protocol and significant accountant logic changes.
 1. The NTT Global Accountant expects each transceiver to be associated with exactly 1 token.
 1. In order to avoid backfilling (the process of relaying VAAs emitted prior to the enforcement of Global Accountant on a network of NTTs), these initial steps should be completed, in order, before making any transfers.
    1. Initialize the NTT transceivers.
