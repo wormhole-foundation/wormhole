@@ -138,7 +138,7 @@ func GuardianOptionAccountant(
 			// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 			// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 			// are approved by the accountant smart contract.
-			if contract == "" {
+			if contract == "" && nttContract == "" {
 				logger.Info("accountant is disabled", zap.String("component", "gacct"))
 				return nil
 			}
@@ -146,13 +146,15 @@ func GuardianOptionAccountant(
 			if websocket == "" {
 				return errors.New("if accountantContract is specified, accountantWS is required")
 			}
-			if wormchainConn == nil {
-				return errors.New("if accountantContract is specified, the wormchain sending connection must be enabled before")
-			}
-			if enforcing {
-				logger.Info("accountant is enabled and will be enforced", zap.String("component", "gacct"))
-			} else {
-				logger.Info("accountant is enabled but will not be enforced", zap.String("component", "gacct"))
+			if contract != "" {
+				if wormchainConn == nil {
+					return errors.New("if accountantContract is specified, the wormchain sending connection must be enabled before")
+				}
+				if enforcing {
+					logger.Info("accountant is enabled and will be enforced", zap.String("component", "gacct"))
+				} else {
+					logger.Info("accountant is enabled but will not be enforced", zap.String("component", "gacct"))
+				}
 			}
 			if nttContract != "" {
 				if nttWormchainConn == nil {
