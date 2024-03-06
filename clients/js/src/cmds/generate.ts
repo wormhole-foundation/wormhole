@@ -1,5 +1,7 @@
-import "@wormhole-foundation/connect-sdk-evm";
-import "@wormhole-foundation/connect-sdk-solana";
+import "@wormhole-foundation/sdk/evm";
+import "@wormhole-foundation/sdk/solana";
+import * as sdk from "@wormhole-foundation/sdk";
+
 import {
   assertChain,
   ChainName,
@@ -9,7 +11,6 @@ import {
   toChainId,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { fromBech32, toHex } from "@cosmjs/encoding";
-import * as sdk from "@wormhole-foundation/connect-sdk";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
@@ -18,7 +19,6 @@ import { evm_address } from "../utils";
 import {
   ContractUpgrade,
   impossible,
-  Other,
   Payload,
   PortalRegisterChain,
   RecoverChainId,
