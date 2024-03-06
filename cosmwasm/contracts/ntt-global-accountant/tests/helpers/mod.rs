@@ -20,8 +20,8 @@ use ntt_global_accountant::{
 use serde::Serialize;
 use wormhole_bindings::{fake, WormholeQuery};
 use wormhole_sdk::{
-    ntt_accountant::{self as ntt_accountant_module, ModificationKind},
-    relayer,
+    accountant_modification::ModificationKind,
+    ntt_accountant as ntt_accountant_module, relayer,
     vaa::{Body, Header, Signature},
     Address, Amount, Chain, Vaa,
 };

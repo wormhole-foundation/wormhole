@@ -16,6 +16,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 pub mod accountant;
+pub mod accountant_modification;
 mod arraystring;
 mod chain;
 pub mod core;
