@@ -42,63 +42,7 @@ fn create_vaa_body(i: usize) -> Body<Message> {
     }
 }
 
-// fn transfer_data_from_token_message<P>(msg: Message<P>) -> transfer::Data {
-//     match msg {
-//         Message::Transfer {
-//             amount,
-//             token_address,
-//             token_chain,
-//             recipient_chain,
-//             ..
-//         }
-//         | Message::TransferWithPayload {
-//             amount,
-//             token_address,
-//             token_chain,
-//             recipient_chain,
-//             ..
-//         } => transfer::Data {
-//             amount: Uint256::from_be_bytes(amount.0),
-//             token_address: TokenAddress::new(token_address.0),
-//             token_chain: token_chain.into(),
-//             recipient_chain: recipient_chain.into(),
-//         },
-//         _ => panic!("not a transfer payload"),
-//     }
-// }
-
-// TODO: port test
-// #[test]
-// fn basic() {
-//     const COUNT: usize = 7;
-
-//     let (wh, mut contract) = proper_instantiate();
-
-//     register_emitters(&wh, &mut contract, COUNT);
-
-//     let (vaas, payloads) = create_transfer_vaas(&wh, COUNT);
-
-//     let resp = contract.submit_vaas(payloads).unwrap();
-
-//     for v in vaas {
-//         let key = transfer::Key::new(
-//             v.emitter_chain.into(),
-//             TokenAddress::new(v.emitter_address.0),
-//             v.sequence,
-//         );
-//         let (_, body) = v.into();
-//         let digest = body.digest().unwrap().secp256k_hash;
-//         let data = transfer_data_from_token_message(body.payload);
-//         let tx = contract.query_transfer(key.clone()).unwrap();
-//         assert_eq!(data, tx.data);
-//         assert_eq!(&digest[..], &*tx.digest);
-//         resp.assert_event(
-//             &Event::new("wasm-Transfer")
-//                 .add_attribute("key", serde_json_wasm::to_string(&key).unwrap())
-//                 .add_attribute("data", serde_json_wasm::to_string(&data).unwrap()),
-//         );
-//     }
-// }
+// TODO: port basic test
 
 #[test]
 fn invalid_emitter() {
@@ -241,62 +185,6 @@ fn non_transfer_message() {
     );
 }
 
-// TODO: port test
-// #[test]
-// fn transfer_with_payload() {
-//     let (wh, mut contract) = proper_instantiate();
-//     register_emitters(&wh, &mut contract, 3);
-//     let payload = [0x88; 17];
-//     let body = Body {
-//         timestamp: 2,
-//         nonce: 2,
-//         emitter_chain: Chain::Ethereum,
-//         emitter_address: Address([2u8; 32]),
-//         sequence: 2,
-//         consistency_level: 32,
-//         payload: Message::TransferWithPayload {
-//             amount: Amount(Uint256::from(2u128).to_be_bytes()),
-//             token_address: Address([3u8; 32]),
-//             token_chain: Chain::Ethereum,
-//             recipient: Address([2u8; 32]),
-//             recipient_chain: Chain::Bsc,
-//             sender_address: Address([0u8; 32]),
-//             payload: RawMessage::new(&payload[..]),
-//         },
-//     };
-
-//     let data = serde_wormhole::to_vec(&body).unwrap();
-
-//     let signatures = wh.sign(&data);
-//     let header = Header {
-//         version: 1,
-//         guardian_set_index: wh.guardian_set_index(),
-//         signatures,
-//     };
-
-//     let v = Vaa::from((header, body));
-
-//     let data = serde_wormhole::to_vec(&v).unwrap();
-//     let resp = contract.submit_vaas(vec![data.into()]).unwrap();
-
-//     let key = transfer::Key::new(
-//         v.emitter_chain.into(),
-//         TokenAddress::new(v.emitter_address.0),
-//         v.sequence,
-//     );
-//     let (_, body) = v.into();
-//     let digest = body.digest().unwrap().secp256k_hash;
-//     let data = transfer_data_from_token_message(body.payload);
-//     let tx = contract.query_transfer(key.clone()).unwrap();
-//     assert_eq!(data, tx.data);
-//     assert_eq!(&digest[..], &*tx.digest);
-//     resp.assert_event(
-//         &Event::new("wasm-Transfer")
-//             .add_attribute("key", serde_json_wasm::to_string(&key).unwrap())
-//             .add_attribute("data", serde_json_wasm::to_string(&data).unwrap()),
-//     );
-// }
-
 #[test]
 fn unsupported_version() {
     let (wh, mut contract) = proper_instantiate();
@@ -315,85 +203,6 @@ fn unsupported_version() {
     );
 }
 
-// TODO: port test
-// #[test]
-// fn reobservation() {
-//     let (wh, mut contract) = proper_instantiate();
-//     register_emitters(&wh, &mut contract, 7);
+// TODO: port reobservation test
 
-//     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
-//     contract
-//         .submit_vaas(vec![data])
-//         .expect("failed to submit VAA");
-
-//     // Now try submitting the same transfer as an observation.  This can happen when a guardian
-//     // re-observes a tx.
-//     let o = Observation {
-//         tx_hash: vec![0x55u8; 20].into(),
-//         timestamp: v.timestamp,
-//         nonce: v.nonce,
-//         emitter_chain: v.emitter_chain.into(),
-//         emitter_address: v.emitter_address.0,
-//         sequence: v.sequence,
-//         consistency_level: v.consistency_level,
-//         payload: serde_wormhole::to_vec(&v.payload).unwrap().into(),
-//     };
-//     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
-
-//     let obs = to_binary(&vec![o]).unwrap();
-//     let index = wh.guardian_set_index();
-//     let signatures = sign_observations(&wh, &obs);
-//     for s in signatures {
-//         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
-//         let mut responses: Vec<SubmitObservationResponse> =
-//             from_binary(&resp.data.unwrap()).unwrap();
-
-//         assert_eq!(1, responses.len());
-//         let d = responses.remove(0);
-//         assert_eq!(key, d.key);
-//         assert!(matches!(d.status, ObservationStatus::Committed));
-//     }
-// }
-
-// TODO: port test
-// #[test]
-// fn digest_mismatch() {
-//     let (wh, mut contract) = proper_instantiate();
-//     register_emitters(&wh, &mut contract, 7);
-
-//     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
-//     contract
-//         .submit_vaas(vec![data])
-//         .expect("failed to submit VAA");
-
-//     // Now try submitting an observation with the same (chain, address, sequence) tuple but with
-//     // different details.
-//     let o = Observation {
-//         tx_hash: vec![0x55u8; 20].into(),
-//         timestamp: v.timestamp,
-//         nonce: v.nonce ^ u32::MAX,
-//         emitter_chain: v.emitter_chain.into(),
-//         emitter_address: v.emitter_address.0,
-//         sequence: v.sequence,
-//         consistency_level: v.consistency_level,
-//         payload: serde_wormhole::to_vec(&v.payload).unwrap().into(),
-//     };
-
-//     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
-//     let obs = to_binary(&vec![o]).unwrap();
-//     let index = wh.guardian_set_index();
-//     let signatures = sign_observations(&wh, &obs);
-//     for s in signatures {
-//         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
-//         let responses = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap()).unwrap();
-//         assert_eq!(key, responses[0].key);
-//         if let ObservationStatus::Error(ref err) = responses[0].status {
-//             assert!(err.contains("digest mismatch"));
-//         } else {
-//             panic!(
-//                 "unexpected status for observation with mismatched digest: {:?}",
-//                 responses[0].status
-//             );
-//         }
-//     }
-// }
+// TODO: port digest_mismatch test
