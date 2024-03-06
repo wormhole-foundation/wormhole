@@ -103,6 +103,11 @@ type Accountant struct {
 // On startup, there can be a large number of re-submission requests.
 const subChanSize = 500
 
+// baseEnabled returns true if the base accountant is enabled, false if not.
+func (acct *Accountant) baseEnabled() bool {
+	return acct.contract != ""
+}
+
 // NewAccountant creates a new instance of the Accountant object.
 func NewAccountant(
 	ctx context.Context,
@@ -148,32 +153,38 @@ func NewAccountant(
 
 // Start initializes the accountant and starts the worker and watcher runnables.
 func (acct *Accountant) Start(ctx context.Context) error {
-	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("nttEnabled", acct.nttEnabled()))
+	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()))
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	emitterMap := sdk.KnownTokenbridgeEmitters
-	if acct.env == common.TestNet {
-		emitterMap = sdk.KnownTestnetTokenbridgeEmitters
-	} else if acct.env == common.UnsafeDevNet || acct.env == common.GoTest || acct.env == common.AccountantMock {
-		emitterMap = sdk.KnownDevnetTokenbridgeEmitters
+	if !acct.baseEnabled() && !acct.nttEnabled() {
+		return fmt.Errorf("start should not be called when neither base nor NTT accountant are enabled")
 	}
 
-	// Build the map of token bridges to be monitored.
-	for chainId, emitterAddrBytes := range emitterMap {
-		emitterAddr, err := vaa.BytesToAddress(emitterAddrBytes)
-		if err != nil {
-			return fmt.Errorf("failed to convert emitter address for chain: %v", chainId)
+	if acct.baseEnabled() {
+		emitterMap := sdk.KnownTokenbridgeEmitters
+		if acct.env == common.TestNet {
+			emitterMap = sdk.KnownTestnetTokenbridgeEmitters
+		} else if acct.env == common.UnsafeDevNet || acct.env == common.GoTest || acct.env == common.AccountantMock {
+			emitterMap = sdk.KnownDevnetTokenbridgeEmitters
 		}
 
-		tbk := emitterKey{emitterChainId: chainId, emitterAddr: emitterAddr}
-		_, exists := acct.tokenBridges[tbk]
-		if exists {
-			return fmt.Errorf("detected duplicate token bridge for chain: %v", chainId)
-		}
+		// Build the map of token bridges to be monitored.
+		for chainId, emitterAddrBytes := range emitterMap {
+			emitterAddr, err := vaa.BytesToAddress(emitterAddrBytes)
+			if err != nil {
+				return fmt.Errorf("failed to convert emitter address for chain: %v", chainId)
+			}
 
-		acct.tokenBridges[tbk] = acct.enforceFlag
-		acct.logger.Info("will monitor token bridge:", zap.Stringer("emitterChainId", tbk.emitterChainId), zap.Stringer("emitterAddr", tbk.emitterAddr))
+			tbk := emitterKey{emitterChainId: chainId, emitterAddr: emitterAddr}
+			_, exists := acct.tokenBridges[tbk]
+			if exists {
+				return fmt.Errorf("detected duplicate token bridge for chain: %v", chainId)
+			}
+
+			acct.tokenBridges[tbk] = acct.enforceFlag
+			acct.logger.Info("will monitor token bridge:", zap.Stringer("emitterChainId", tbk.emitterChainId), zap.Stringer("emitterAddr", tbk.emitterAddr))
+		}
 	}
 
 	// The NTT data structures should be set up before we reload from the db.
@@ -189,22 +200,24 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	}
 
 	// Start the watcher to listen to transfer events from the smart contract.
-	if acct.env == common.AccountantMock {
-		// We're not in a runnable context, so we can't use supervisor.
-		go func() {
-			_ = acct.baseWorker(ctx)
-		}()
-	} else if acct.env != common.GoTest {
-		if err := supervisor.Run(ctx, "acctworker", common.WrapWithScissors(acct.baseWorker, "acctworker")); err != nil {
-			return fmt.Errorf("failed to start submit observation worker: %w", err)
-		}
+	if acct.baseEnabled() {
+		if acct.env == common.AccountantMock {
+			// We're not in a runnable context, so we can't use supervisor.
+			go func() {
+				_ = acct.baseWorker(ctx)
+			}()
+		} else if acct.env != common.GoTest {
+			if err := supervisor.Run(ctx, "acctworker", common.WrapWithScissors(acct.baseWorker, "acctworker")); err != nil {
+				return fmt.Errorf("failed to start submit observation worker: %w", err)
+			}
 
-		if err := supervisor.Run(ctx, "acctwatcher", common.WrapWithScissors(acct.baseWatcher, "acctwatcher")); err != nil {
-			return fmt.Errorf("failed to start watcher: %w", err)
-		}
+			if err := supervisor.Run(ctx, "acctwatcher", common.WrapWithScissors(acct.baseWatcher, "acctwatcher")); err != nil {
+				return fmt.Errorf("failed to start watcher: %w", err)
+			}
 
-		if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
-			return fmt.Errorf("failed to start audit worker: %w", err)
+			if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
+				return fmt.Errorf("failed to start audit worker: %w", err)
+			}
 		}
 	}
 
@@ -230,7 +243,10 @@ func (acct *Accountant) FeatureString() string {
 		ret = "acct"
 	}
 	if acct.nttEnabled() {
-		ret += ":ntt-acct"
+		if ret != "" {
+			ret += ":"
+		}
+		ret += "ntt-acct"
 	}
 
 	return ret

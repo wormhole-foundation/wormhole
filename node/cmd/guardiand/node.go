@@ -1060,37 +1060,37 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain for accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
+	}
 
-		// If the NTT accountant is enabled, create a wormchain connection for it.
-		if *accountantNttContract != "" {
-			if *accountantNttKeyPath == "" {
-				logger.Fatal("if accountantNttContract is specified, accountantNttKeyPath is required", zap.String("component", "gacct"))
-			}
+	// If the NTT accountant is enabled, create a wormchain connection for it.
+	if *accountantNttContract != "" {
+		if *accountantNttKeyPath == "" {
+			logger.Fatal("if accountantNttContract is specified, accountantNttKeyPath is required", zap.String("component", "gacct"))
+		}
 
-			if *accountantNttKeyPassPhrase == "" {
-				logger.Fatal("if accountantNttContract is specified, accountantNttKeyPassPhrase is required", zap.String("component", "gacct"))
-			}
+		if *accountantNttKeyPassPhrase == "" {
+			logger.Fatal("if accountantNttContract is specified, accountantNttKeyPassPhrase is required", zap.String("component", "gacct"))
+		}
 
-			keyPathName := *accountantNttKeyPath
-			if *unsafeDevMode {
-				idx, err := devnet.GetDevnetIndex()
-				if err != nil {
-					logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
-				}
-				keyPathName = fmt.Sprint(*accountantNttKeyPath, idx)
-			}
-
-			wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, *accountantNttKeyPassPhrase)
+		keyPathName := *accountantNttKeyPath
+		if *unsafeDevMode {
+			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
-				logger.Fatal("failed to load NTT accountant private key", zap.Error(err), zap.String("component", "gacct"))
+				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
 			}
+			keyPathName = fmt.Sprint(*accountantNttKeyPath, idx)
+		}
 
-			// Connect to wormchain for the NTT accountant.
-			logger.Info("Connecting to wormchain for NTT accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-			accountantNttWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
-			if err != nil {
-				logger.Fatal("failed to connect to wormchain for NTT accountant", zap.Error(err), zap.String("component", "gacct"))
-			}
+		wormchainKey, err := wormconn.LoadWormchainPrivKey(keyPathName, *accountantNttKeyPassPhrase)
+		if err != nil {
+			logger.Fatal("failed to load NTT accountant private key", zap.Error(err), zap.String("component", "gacct"))
+		}
+
+		// Connect to wormchain for the NTT accountant.
+		logger.Info("Connecting to wormchain for NTT accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
+		accountantNttWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		if err != nil {
+			logger.Fatal("failed to connect to wormchain for NTT accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
 	}
 
