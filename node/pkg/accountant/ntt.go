@@ -103,10 +103,12 @@ func nttIsMsgArNTT(msg *common.MessagePublication, arEmitters validEmitters, ntt
 		return false, false
 	}
 
-	if success, senderAddress := nttParseArPayload(msg.Payload); success {
+	if success, senderAddress, nttPayload := nttParseArPayload(msg.Payload); success {
 		// If msg.EmitterChain / ar.Sender is in nttEmitters then this is a Native Token Transfer.
 		if enforceFlag, exists := nttEmitters[emitterKey{emitterChainId: msg.EmitterChain, emitterAddr: senderAddress}]; exists {
-			return true, enforceFlag
+			if nttIsPayloadNTT(nttPayload) {
+				return true, enforceFlag
+			}
 		}
 	}
 
@@ -117,82 +119,82 @@ const PAYLOAD_ID_DELIVERY_INSTRUCTION = uint8(1)
 
 // nttParseArPayload extracts the sender address from an AR payload. This is based on the following implementation:
 // https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol#L70-L97
-func nttParseArPayload(msgPayload []byte) (bool, [32]byte) {
+func nttParseArPayload(msgPayload []byte) (bool, [32]byte, []byte) {
 	var senderAddress [32]byte
 	reader := bytes.NewReader(msgPayload[:])
 
 	var deliveryInstruction uint8
 	if err := binary.Read(reader, binary.BigEndian, &deliveryInstruction); err != nil {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	if deliveryInstruction != PAYLOAD_ID_DELIVERY_INSTRUCTION {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var targetChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &targetChain); err != nil {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var targetAddress [32]byte
 	if n, err := reader.Read(targetAddress[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var payloadLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &payloadLen); err != nil {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	payload := make([]byte, payloadLen)
 	if n, err := reader.Read(payload[:]); err != nil || n != int(payloadLen) {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var requestedReceiverValue [32]byte
 	if n, err := reader.Read(requestedReceiverValue[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var extraReceiverValue [32]byte
 	if n, err := reader.Read(extraReceiverValue[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var encodedExecutionInfoLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &encodedExecutionInfoLen); err != nil {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	encodedExecutionInfo := make([]byte, encodedExecutionInfoLen)
 	if n, err := reader.Read(encodedExecutionInfo[:]); err != nil || n != int(encodedExecutionInfoLen) {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var refundChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &refundChain); err != nil {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var refundAddress [32]byte
 	if n, err := reader.Read(refundAddress[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var refundDeliveryProvider [32]byte
 	if n, err := reader.Read(refundDeliveryProvider[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	var sourceDeliveryProvider [32]byte
 	if n, err := reader.Read(sourceDeliveryProvider[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
 	if n, err := reader.Read(senderAddress[:]); err != nil || n != 32 {
-		return false, senderAddress
+		return false, senderAddress, nil
 	}
 
-	return true, senderAddress
+	return true, senderAddress, payload
 }
