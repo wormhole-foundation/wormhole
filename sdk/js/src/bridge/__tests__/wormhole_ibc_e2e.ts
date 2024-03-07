@@ -16,7 +16,7 @@ import {
   getSignedVAABySequence,
   waitForTerraExecution,
 } from "../../token_bridge/__tests__/utils/helpers";
-import { CHAIN_ID_SEI, CHAIN_ID_TERRA2 } from "../../utils/consts";
+import { CHAIN_ID_TERRA2 } from "../../utils/consts";
 
 const TERRA2_PRIVATE_KEY_4 =
   "bounce success option birth apple portion aunt rural episode solution hockey pencil lend session cause hedgehog slender journey system canvas decorate razor catch empty";
@@ -58,12 +58,12 @@ const terraBroadcastTxAndGetSignedVaa = async (
   if (!txSequence) {
     throw new Error("tx sequence not found");
   }
-  console.log(`${CHAIN_ID_SEI}/${emitter}/${txSequence}`);
-  return await getSignedVAABySequence(CHAIN_ID_SEI, txSequence, emitter);
+  console.log(`${CHAIN_ID_TERRA2}/${emitter}/${txSequence}`);
+  return await getSignedVAABySequence(CHAIN_ID_TERRA2, txSequence, emitter);
 };
 
 describe("IBC Watcher Integration Tests", () => {
-  test('Send a message from "Sei" (Terra2) via IBC', async () => {
+  test("Emit a generic message via IBC from Terra2", async () => {
     const postMsg = new MsgExecuteContract(
       terraWalletAddress,
       "terra1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgsnyey7t",

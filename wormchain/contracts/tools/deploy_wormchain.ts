@@ -28,6 +28,11 @@ if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
   throw msg;
 }
 
+const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
+if (!init_guardians || init_guardians.length === 0) {
+  throw "failed to get initial guardians from .env file.";
+}
+
 const VAA_SIGNERS = process.env.INIT_SIGNERS_KEYS_CSV.split(",");
 const GOVERNANCE_CHAIN = Number(devnetConsts.global.governanceChainId);
 const GOVERNANCE_EMITTER = devnetConsts.global.governanceEmitterAddress;
@@ -43,7 +48,16 @@ type ContractName = string;
 const artifacts: ContractName[] = [
   "global_accountant.wasm",
   "wormchain_ibc_receiver.wasm",
+  "cw_wormhole.wasm",
+  "cw_token_bridge.wasm",
+  "cw20_wrapped_2.wasm",
+  "ibc_translator.wasm",
 ];
+
+// Governance constants defined by the Wormhole spec.
+const govChain = 1;
+const govAddress =
+  "0000000000000000000000000000000000000000000000000000000000000004";
 
 const ARTIFACTS_PATH = "../artifacts/";
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -333,6 +347,237 @@ async function main() {
     updateIbcWhitelistRes.transactionHash,
     updateIbcWhitelistRes.code
   );
+
+  // instantiate wormhole core bridge
+  addresses["cw_wormhole.wasm"] = await instantiate(
+    codeIds["cw_wormhole.wasm"],
+    {
+      gov_chain: govChain,
+      gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+      guardian_set_expirity: 86400,
+      initial_guardian_set: {
+        addresses: init_guardians.map((hex) => {
+          return {
+            bytes: Buffer.from(hex, "hex").toString("base64"),
+          };
+        }),
+        expiration_time: 0,
+      },
+      chain_id: 3104,
+      fee_denom: "utest",
+    },
+    "wormhole"
+  );
+  console.log(
+    "instantiated wormhole core bridge contract: ",
+    addresses["cw_wormhole.wasm"]
+  );
+
+  // instantiate wormhole token bridge
+  addresses["cw_token_bridge.wasm"] = await instantiate(
+    codeIds["cw_token_bridge.wasm"],
+    {
+      gov_chain: govChain,
+      gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+      wormhole_contract: addresses["cw_wormhole.wasm"],
+      wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+      chain_id: 3104,
+      native_denom: "",
+      native_symbol: "",
+      native_decimals: 6,
+    },
+    "tokenBridge"
+  );
+  console.log(
+    "instantiated wormhole token bridge contract: ",
+    addresses["cw_token_bridge.wasm"]
+  );
+
+  /* Registrations: tell the bridge contracts to know about each other */
+
+  const contract_registrations = {
+    "cw_token_bridge.wasm": [
+      // Solana
+      process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA,
+      // Ethereum
+      process.env.REGISTER_ETH_TOKEN_BRIDGE_VAA,
+      // BSC
+      process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA,
+      // ALGO
+      process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
+      // TERRA
+      process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
+      // TERRA2
+      process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA,
+      // NEAR
+      process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
+      // APTOS
+      process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
+    ],
+  };
+
+  for (const [contract, registrations] of Object.entries(
+    contract_registrations
+  )) {
+    console.log(`Registering chains for ${contract}:`);
+    for (const registration of registrations) {
+      const executeMsg = client.wasm.msgExecuteContract({
+        sender: signer,
+        contract: addresses[contract],
+        msg: toUtf8(JSON.stringify({
+          submit_vaa: {
+            data: Buffer.from(registration, "hex").toString("base64")
+          }
+        })),
+        funds: [],
+      });
+      const executeRes = await client.signAndBroadcast(
+        signer,
+        [executeMsg],
+        {
+          ...ZERO_FEE,
+          gas: "10000000",
+        }
+      );
+      console.log(
+        "updated token bridge registration: ",
+        executeRes.transactionHash,
+      );
+    }
+  }
+
+  // add the wasm instantiate allowlist for token bridge
+  // contract address bech32 to hex conversion
+  const { data } = fromBech32(addresses["cw_token_bridge.wasm"]);
+  const contractBuf = Buffer.from(data);
+
+  // code ID number to uint64 hex conversion
+  const codeIdBuf = Buffer.alloc(8);
+  const cw20CodeId = codeIds["cw20_wrapped_2.wasm"];
+  codeIdBuf.writeUInt32BE(cw20CodeId >> 8, 0); //write the high order bits (shifted over)
+  codeIdBuf.writeUInt32BE(cw20CodeId & 0x00ff, 4); //write the low order bits
+  const payload = `${contractBuf.toString("hex")}${codeIdBuf.toString("hex")}`;
+  let vaa: VAA<Other> = {
+    version: 1,
+    guardianSetIndex: 0,
+    signatures: [],
+    timestamp: 0,
+    nonce: 0,
+    emitterChain: GOVERNANCE_CHAIN,
+    emitterAddress: GOVERNANCE_EMITTER,
+    sequence: BigInt(Math.floor(Math.random() * 100000000)),
+    consistencyLevel: 0,
+    payload: {
+      type: "Other",
+      hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65040${CHAIN_ID_WORMCHAIN.toString(
+        16
+      )}${payload}`,
+    },
+  };
+  vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
+
+  const msgInstantiateAllowlist = client.core.msgAddWasmInstantiateAllowlist({
+    signer: signer,
+    address: addresses["cw_token_bridge.wasm"],
+    code_id: codeIds["cw20_wrapped_2.wasm"],
+    vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+  });
+  const msgInstantiateAllowlistRes = await client.signAndBroadcast(signer, [msgInstantiateAllowlist], {
+    ...ZERO_FEE,
+    gas: "10000000",
+  });
+  console.log("wasm instantiate allowlist msg: ", msgInstantiateAllowlist);
+  console.log("wasm instantiate allowlist result: ", msgInstantiateAllowlistRes);
+
+  // instantiate ibc translator
+  addresses["ibc_translator.wasm"] = await instantiate(
+    codeIds["ibc_translator.wasm"],
+    {
+      token_bridge_contract: addresses["cw_token_bridge.wasm"]
+    },
+    "ibcTranslator"
+  );
+  console.log(
+    "instantiated ibc translator contract: ",
+    addresses["ibc_translator.wasm"]
+  );
+
+  // update channel mapping
+  let updateChannelVaa: VAA<Other> = {
+    version: 1,
+    guardianSetIndex: 0,
+    signatures: [],
+    timestamp: 0,
+    nonce: 0,
+    emitterChain: GOVERNANCE_CHAIN,
+    emitterAddress: GOVERNANCE_EMITTER,
+    sequence: BigInt(Math.floor(Math.random() * 100000000)),
+    consistencyLevel: 0,
+    payload: {
+      type: "Other",
+      hex:
+        '000000000000000000000000000000000000004962635472616e736c61746f72' + // module IbcTranslator
+        '01' + // action IbcReceiverActionUpdateChannelChain
+        '0c20' + // target chain id wormchain
+        '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d31' + // channel-1
+        '0012' // chain id terra2 (18)
+    },
+  };
+  updateChannelVaa.signatures = sign(VAA_SIGNERS, updateChannelVaa as unknown as VAA<Payload>);
+  const updateMsg = client.wasm.msgExecuteContract({
+    sender: signer,
+    contract: addresses['ibc_translator.wasm'],
+    msg: toUtf8(JSON.stringify({
+      submit_update_chain_to_channel_map: {
+        vaa: Buffer.from(serialiseVAA(updateChannelVaa as unknown as VAA<Payload>), 'hex').toString('base64')
+      }
+    })),
+    funds: [],
+  });
+  const executeRes = await client.signAndBroadcast(
+    signer,
+    [updateMsg],
+    {
+      ...ZERO_FEE,
+      gas: "10000000",
+    }
+  );
+  console.log(
+    "updated channel mapping: ",
+    executeRes.transactionHash,
+  );
+
+  // set params for tokenfactory and PFM
+  let setDefaultParamsVaa: VAA<Other> = {
+    version: 1,
+    guardianSetIndex: 0,
+    signatures: [],
+    timestamp: 0,
+    nonce: 0,
+    emitterChain: GOVERNANCE_CHAIN,
+    emitterAddress: GOVERNANCE_EMITTER,
+    sequence: BigInt(Math.floor(Math.random() * 100000000)),
+    consistencyLevel: 0,
+    payload: {
+      type: "Other",
+      hex:
+        ''
+    },
+  };
+  const setParamsMsg = client.core.msgExecuteGatewayGovernanceVaa({
+    signer: signer,
+    vaa: hexToUint8Array(serialiseVAA(setDefaultParamsVaa as unknown as VAA<Payload>))
+  });
+  await client.signAndBroadcast(
+    signer,
+    [setParamsMsg],
+    {
+      ...ZERO_FEE,
+      gas: "10000000"
+    }
+  ).then(res => {
+    console.log("set params for tokenfactory and pfm: ", res.transactionHash);
+  });  
 }
 
 try {
