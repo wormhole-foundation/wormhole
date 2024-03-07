@@ -6,6 +6,11 @@ pragma solidity ^0.8.4;
 
 // @dev QueryTest is a library to build Cross Chain Query (CCQ) responses for testing purposes.
 library QueryTest {
+    // Custom errors
+    error SolanaTooManyPDAs();
+    error SolanaTooManySeeds();
+    error SolanaSeedTooLong();
+
     //
     // Query Request stuff
     //
@@ -127,18 +132,31 @@ library QueryTest {
         uint64 _minContextSlot,
         uint64 _dataSliceOffset,
         uint64 _dataSliceLength,
-        uint8 _numPdas,
-        bytes memory _pdas // Created with buildSolanaPdaEntry()
+        bytes[] memory _pdas // Created with multiple calls to buildSolanaPdaEntry()
     ) internal pure returns (bytes memory){
-        return abi.encodePacked(
+        uint numPdas = _pdas.length;
+        if (numPdas > 255) {
+            revert SolanaTooManyPDAs();
+        }
+        bytes memory result = abi.encodePacked(
             uint32(_commitment.length),
             _commitment,
             _minContextSlot,
             _dataSliceOffset,            
             _dataSliceLength,
-            _numPdas,
-            _pdas
+            uint8(numPdas)
         );
+
+        for (uint idx; idx < numPdas;) {
+            result = abi.encodePacked(
+                result,
+                _pdas[idx]
+            );
+
+            unchecked { ++idx; }
+        }
+
+        return result;
     }
 
     /// @dev buildSolanaPdaEntry builds a PDA entry for a sol_pda query.
@@ -147,6 +165,9 @@ library QueryTest {
         uint8 _numSeeds,
         bytes memory _seeds // Created with buildSolanaPdaSeedBytes()
     ) internal pure returns (bytes memory){
+        if (_numSeeds > SolanaMaxSeeds) {
+            revert SolanaTooManySeeds();
+        }
         return abi.encodePacked(
             _programId,
             _numSeeds,
@@ -162,29 +183,26 @@ library QueryTest {
     // https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L557
     uint public constant SolanaMaxSeedLen = 32;
 
-    // Custom errors
-    error SolanaTooManySeeds();
-    error SolanaSeedTooLong();
-
     /// @dev buildSolanaPdaSeedBytes packs the seeds for a PDA entry into an array of bytes.
     function buildSolanaPdaSeedBytes(
         bytes[] memory _seeds
-    ) internal pure returns (bytes memory){
-        if (_seeds.length > SolanaMaxSeeds) {
+    ) internal pure returns (bytes memory, uint8){
+        uint numSeeds = _seeds.length;
+        if (numSeeds > SolanaMaxSeeds) {
             revert SolanaTooManySeeds();
         }
 
         bytes memory result;
-        uint numSeeds = _seeds.length;
 
         for (uint idx; idx < numSeeds;) {
-            if (_seeds[idx].length > SolanaMaxSeedLen) {
+            uint seedLen = _seeds[idx].length;
+            if (seedLen > SolanaMaxSeedLen) {
                 revert SolanaSeedTooLong();
             }
             result = abi.encodePacked(
                 result,
                 abi.encodePacked(
-                    uint32(_seeds[idx].length),
+                    uint32(seedLen),
                     _seeds[idx]
                 )
             );
@@ -192,7 +210,7 @@ library QueryTest {
             unchecked { ++idx; }
         }
 
-        return result;
+        return (result, uint8(numSeeds));
     }
 
     //

@@ -87,50 +87,101 @@ contract TestQueryTest is Test {
     }
 
     function test_buildSolanaPdaRequestBytes() public {
+        bytes32 programId = hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa";
+        bytes[] memory pdas = new bytes[](2);
+
         bytes[] memory seeds = new bytes[](2);
         seeds[0] = hex"477561726469616e536574";
         seeds[1] = hex"00000000";
-        bytes memory seedBytes = QueryTest.buildSolanaPdaSeedBytes(seeds);
+        (bytes memory seedBytes, uint8 numSeeds) = QueryTest.buildSolanaPdaSeedBytes(seeds);
         assertEq(seedBytes, hex"0000000b477561726469616e5365740000000400000000");
 
-        bytes32 programId = hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa";
-        bytes memory pdaBytes = QueryTest.buildSolanaPdaEntry(
+        pdas[0] = QueryTest.buildSolanaPdaEntry(
             programId,
-            uint8(seeds.length),
+            numSeeds,
             seedBytes
         );
-        assertEq(pdaBytes, hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000");
+        assertEq(pdas[0], hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000");
+        assertEq(numSeeds, uint8(seeds.length));
+
+        bytes[] memory seeds2 = new bytes[](2);
+        seeds2[0] = hex"477561726469616e536574";
+        seeds2[1] = hex"00000001";
+        (bytes memory seedBytes2, uint8 numSeeds2) = QueryTest.buildSolanaPdaSeedBytes(seeds2);
+        assertEq(seedBytes2, hex"0000000b477561726469616e5365740000000400000001");
+
+        pdas[1] = QueryTest.buildSolanaPdaEntry(
+            programId,
+            numSeeds2,
+            seedBytes2
+        );
+        assertEq(pdas[1], hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000001");
+        assertEq(numSeeds2, uint8(seeds2.length));
 
         bytes memory ecr = QueryTest.buildSolanaPdaRequestBytes(
             /* commitment */      "finalized",
             /* minContextSlot */  2303,
             /* dataSliceOffset */ 12,
             /* dataSliceLength */ 20,
-            /* numPdas */         1,
-            /* pdas */            pdaBytes
+            /* pdas */            pdas
         );
-        assertEq(ecr, hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000");
+        assertEq(ecr, hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e536574000000040000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000001");
+    }
+
+    function test_buildSolanaPdaRequestBytesTooManyPDAs() public {
+        bytes32 programId = hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa";
+        bytes[] memory pdas = new bytes[](256);
+
+        uint numPDAs = pdas.length;
+        for (uint idx; idx < numPDAs;) {
+            bytes[] memory seeds = new bytes[](2);
+            seeds[0] = hex"477561726469616e536574";
+            seeds[1] = hex"00000000";
+            (bytes memory seedBytes, uint8 numSeeds) = QueryTest.buildSolanaPdaSeedBytes(seeds);
+
+            pdas[idx] = QueryTest.buildSolanaPdaEntry(
+                programId,
+                numSeeds,
+                seedBytes
+            );
+
+            unchecked { ++idx; }
+        }
+
+        vm.expectRevert(QueryTest.SolanaTooManyPDAs.selector);
+        QueryTest.buildSolanaPdaRequestBytes(
+            /* commitment */      "finalized",
+            /* minContextSlot */  2303,
+            /* dataSliceOffset */ 12,
+            /* dataSliceLength */ 20,
+            /* pdas */            pdas
+        );
+    }
+
+    function test_buildSolanaPdaEntryTooManySeeds() public {
+        bytes[] memory seeds = new bytes[](2);
+        seeds[0] = hex"477561726469616e536574";
+        seeds[1] = hex"00000000";
+        (bytes memory seedBytes,) = QueryTest.buildSolanaPdaSeedBytes(seeds);
+        assertEq(seedBytes, hex"0000000b477561726469616e5365740000000400000000");
+
+        bytes32 programId = hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa";
+
+        vm.expectRevert(QueryTest.SolanaTooManySeeds.selector);
+        QueryTest.buildSolanaPdaEntry(
+            programId,
+            uint8(QueryTest.SolanaMaxSeeds + 1),
+            seedBytes
+        );
     }
 
     function test_buildSolanaPdaSeedBytesTooManySeeds() public {
-        bytes[] memory seeds = new bytes[](17);
-        seeds[0] = "junk";
-        seeds[1] = "junk";
-        seeds[2] = "junk";
-        seeds[3] = "junk";
-        seeds[4] = "junk";
-        seeds[5] = "junk";
-        seeds[6] = "junk";
-        seeds[7] = "junk";
-        seeds[8] = "junk";
-        seeds[9] = "junk";
-        seeds[10] = "junk";
-        seeds[11] = "junk";
-        seeds[12] = "junk";
-        seeds[13] = "junk";
-        seeds[14] = "junk";
-        seeds[15] = "junk";
-        seeds[16] = "junk";
+        bytes[] memory seeds = new bytes[](QueryTest.SolanaMaxSeeds + 1);
+        uint numSeeds = seeds.length;
+        for (uint idx; idx < numSeeds;) {
+            seeds[idx] = "junk";
+            unchecked { ++idx; }
+        }
 
         vm.expectRevert(QueryTest.SolanaTooManySeeds.selector);
         QueryTest.buildSolanaPdaSeedBytes(seeds);
