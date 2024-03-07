@@ -70,3 +70,25 @@ var knownTestnetNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDBaseSepolia:     "000000000000000000000000268557122Ffd64c85750d630b716471118F323c8",
 	vaa.ChainIDOptimismSepolia: "00000000000000000000000027812285fbe85BA1DF242929B906B31EE3dd1b9f",
 }
+
+// KnownTestnetAutomaticRelayerEmitters is a list of well-known testnet emitters for the Automatic Relayers.
+// It is based on this: https://github.com/wormhole-foundation/wormhole/blob/2c9703670eadc48a7dc8967e81ed2823affcc679/sdk/js/src/relayer/consts.ts#L14
+// Note that the format of this is different from the other maps because we don't want to limit it to one per chain.
+var KnownTestnetAutomaticRelayerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000028D8F1Be96f97C1387e94A53e00eCcFb4E75175a"},
+	{ChainId: vaa.ChainIDBSC, Addr: "00000000000000000000000080aC94316391752A193C1c47E27D382b507c93F3"},
+	{ChainId: vaa.ChainIDPolygon, Addr: "0000000000000000000000000591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0"},
+	{ChainId: vaa.ChainIDAvalanche, Addr: "000000000000000000000000A3cF45939bD6260bcFe3D66bc73d60f19e49a8BB"},
+	{ChainId: vaa.ChainIDCelo, Addr: "000000000000000000000000306B68267Deb7c5DfCDa3619E22E9Ca39C374f84"},
+	{ChainId: vaa.ChainIDMoonbeam, Addr: "0000000000000000000000000591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0"},
+	{ChainId: vaa.ChainIDArbitrum, Addr: "000000000000000000000000Ad753479354283eEE1b86c9470c84D42f229FF43"},
+	{ChainId: vaa.ChainIDOptimism, Addr: "00000000000000000000000001A957A525a5b7A72808bA9D10c389674E459891"},
+	{ChainId: vaa.ChainIDBase, Addr: "000000000000000000000000ea8029CD7FCAEFFcD1F53686430Db0Fc8ed384E1"},
+	{ChainId: vaa.ChainIDSepolia, Addr: "0000000000000000000000007B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470"},
+	{ChainId: vaa.ChainIDArbitrumSepolia, Addr: "0000000000000000000000007B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470"},
+	{ChainId: vaa.ChainIDOptimismSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
+	{ChainId: vaa.ChainIDBaseSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
+}

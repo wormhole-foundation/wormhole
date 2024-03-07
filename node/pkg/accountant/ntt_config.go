@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -17,13 +18,13 @@ type emitterConfig []emitterConfigEntry
 
 // nttGetEmitters returns the set of direct NTT and AR emitters based on the environment passed in.
 func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error) {
-	var directEmitterConfig, arEmitterConfig emitterConfig
+	var directEmitterConfig emitterConfig
+	arEmitterConfig := sdk.KnownAutomaticRelayerEmitters
 	if env == common.MainNet {
 		directEmitterConfig = emitterConfig{}
-		arEmitterConfig = emitterConfig{}
 	} else if env == common.TestNet {
 		directEmitterConfig = emitterConfig{}
-		arEmitterConfig = emitterConfig{}
+		arEmitterConfig = sdk.KnownTestnetAutomaticRelayerEmitters
 	} else {
 		// Every other environment uses the devnet ones.
 		directEmitterConfig = emitterConfig{
@@ -32,37 +33,36 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000fA2435Eacf10Ca62ae6787ba2fB044f8733Ee843"},
 			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000855FA758c77D68a04990E992aA4dcdeF899F654A"},
 		}
-		arEmitterConfig = emitterConfig{
-			// There are different emitters in local dev and CI. Allow both.
-			{chainId: vaa.ChainIDEthereum, addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
-			{chainId: vaa.ChainIDEthereum, addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
-			{chainId: vaa.ChainIDBSC, addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
-			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
+		arEmitterConfig = sdk.KnownDevnetAutomaticRelayerEmitters
+	}
+
+	// Build the direct emitter map, setting the payload based on whether or not the config says it should be log only.
+	directEmitters := make(validEmitters)
+	for _, emitter := range directEmitterConfig {
+		addr, err := vaa.StringToAddress(emitter.addr)
+		if err != nil {
+			return nil, nil, fmt.Errorf(`failed to parse direct emitter address "%s": %w`, emitter.addr, err)
 		}
+		ek := emitterKey{emitterChainId: emitter.chainId, emitterAddr: addr}
+		if _, exists := directEmitters[ek]; exists {
+			return nil, nil, fmt.Errorf(`duplicate direct emitter "%s:%s"`, emitter.chainId.String(), emitter.addr)
+		}
+		directEmitters[ek] = !emitter.logOnly
 	}
 
-	directEmitters, err := nttBuildEmitterMap(directEmitterConfig)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build direct emitter map: %w", err)
-	}
-
-	arEmitters, err := nttBuildEmitterMap(arEmitterConfig)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build AR emitter map: %w", err)
+	// Build the automatic relayer emitter map based on the standard config in the SDK.
+	arEmitters := make(validEmitters)
+	for _, emitter := range arEmitterConfig {
+		addr, err := vaa.StringToAddress(emitter.Addr)
+		if err != nil {
+			return nil, nil, fmt.Errorf(`failed to parse AR emitter address "%s": %w`, emitter.Addr, err)
+		}
+		ek := emitterKey{emitterChainId: emitter.ChainId, emitterAddr: addr}
+		if _, exists := directEmitters[ek]; exists {
+			return nil, nil, fmt.Errorf(`duplicate AR emitter "%s:%s"`, emitter.ChainId.String(), emitter.Addr)
+		}
+		arEmitters[ek] = true
 	}
 
 	return directEmitters, arEmitters, nil
-}
-
-// nttBuildEmitterMap converts a vector of configured emitters to an emitters map.
-func nttBuildEmitterMap(cfg emitterConfig) (validEmitters, error) {
-	emitters := make(validEmitters)
-	for _, emitter := range cfg {
-		addr, err := vaa.StringToAddress(emitter.addr)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to parse emitter address "%s": %w`, emitter.addr, err)
-		}
-		emitters[emitterKey{emitterChainId: emitter.chainId, emitterAddr: addr}] = !emitter.logOnly
-	}
-	return emitters, nil
 }
