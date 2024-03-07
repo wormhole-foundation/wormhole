@@ -21,7 +21,7 @@ use ntt_messages::{
     transceivers::wormhole::{
         WormholeTransceiver, WormholeTransceiverInfo, WormholeTransceiverRegistration,
     },
-    trimmed_amount::TrimmedAmount,
+    trimmed_amount::{TrimmedAmount, TRIMMED_DECIMALS},
 };
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
@@ -92,20 +92,6 @@ pub fn execute(
         } => submit_observations(deps, info, observations, guardian_set_index, signature),
 
         ExecuteMsg::SubmitVaas { vaas } => submit_vaas(deps, info, vaas),
-    }
-}
-
-fn normalize_transfer_amount(trimmed_amount: TrimmedAmount) -> Uint256 {
-    let to_decimals = 8;
-    let from_decimals = trimmed_amount.decimals;
-    let amount = Uint256::from(trimmed_amount.amount);
-    if from_decimals == to_decimals {
-        return amount;
-    }
-    if from_decimals > to_decimals {
-        amount / Uint256::from(10u64).pow((from_decimals - to_decimals).into())
-    } else {
-        amount * Uint256::from(10u64).pow((to_decimals - from_decimals).into())
     }
 }
 
@@ -204,29 +190,24 @@ fn handle_observation(
             (o.emitter_address.into(), o.payload.0)
         };
 
-    let hub_key = TRANSCEIVER_TO_HUB.key((o.emitter_chain, sender));
-
-    let hub = hub_key
-        .may_load(deps.storage)
-        .context("failed to load hub")?
-        .ok_or(ContractError::MissingHubRegistration)?;
+    let hub = TRANSCEIVER_TO_HUB
+        .load(deps.storage, (o.emitter_chain, sender))
+        .map_err(|_| ContractError::MissingHubRegistration)?;
 
     let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
         TypePrefixedPayload::read_payload(&mut payload.as_slice())
             .context("failed to parse observation payload")?;
 
     let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
-    let source_peer_key = TRANSCEIVER_PEER.key((o.emitter_chain, sender, destination_chain));
-    let source_peer = source_peer_key
-        .may_load(deps.storage)
-        .context("failed to load source peer")?
-        .ok_or_else(|| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
-    let destination_peer_key =
-        TRANSCEIVER_PEER.key((destination_chain, source_peer, o.emitter_chain));
-    let destination_peer = destination_peer_key
-        .may_load(deps.storage)
-        .context("failed to load destination peer")?
-        .ok_or_else(|| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
+    let source_peer = TRANSCEIVER_PEER
+        .load(deps.storage, (o.emitter_chain, sender, destination_chain))
+        .map_err(|_| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
+    let destination_peer = TRANSCEIVER_PEER
+        .load(
+            deps.storage,
+            (destination_chain, source_peer, o.emitter_chain),
+        )
+        .map_err(|_| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
     if destination_peer != sender {
         // SECURITY defense-in-depth:
         // should never get here due to strict registration ordering restrictions
@@ -519,33 +500,22 @@ fn handle_ntt_vaa(
 
     if prefix == WormholeTransceiver::PREFIX {
         let source_chain = body.emitter_chain.into();
-        let hub_key = TRANSCEIVER_TO_HUB.key((source_chain, sender));
 
-        let hub = hub_key
-            .may_load(deps.storage)
-            .context("failed to load hub")?
-            .ok_or(ContractError::MissingHubRegistration)?;
+        let hub = TRANSCEIVER_TO_HUB
+            .load(deps.storage, (source_chain, sender))
+            .map_err(|_| ContractError::MissingHubRegistration)?;
 
         let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer> =
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
                 .context("failed to parse NTT transfer payload")?;
 
         let destination_chain = message.ntt_manager_payload.payload.to_chain.id;
-        let source_peer_key = TRANSCEIVER_PEER.key((source_chain, sender, destination_chain));
-        let source_peer = source_peer_key
-            .may_load(deps.storage)
-            .context("failed to load source peer")?
-            .ok_or_else(|| {
-                ContractError::MissingSourcePeerRegistration(destination_chain.into())
-            })?;
-        let destination_peer_key =
-            TRANSCEIVER_PEER.key((destination_chain, source_peer, source_chain));
-        let destination_peer = destination_peer_key
-            .may_load(deps.storage)
-            .context("failed to load destination peer")?
-            .ok_or_else(|| {
-                ContractError::MissingDestinationPeerRegistration(source_chain.into())
-            })?;
+        let source_peer = TRANSCEIVER_PEER
+            .load(deps.storage, (source_chain, sender, destination_chain))
+            .map_err(|_| ContractError::MissingSourcePeerRegistration(destination_chain.into()))?;
+        let destination_peer = TRANSCEIVER_PEER
+            .load(deps.storage, (destination_chain, source_peer, source_chain))
+            .map_err(|_| ContractError::MissingDestinationPeerRegistration(source_chain.into()))?;
         if destination_peer != sender {
             // SECURITY defense-in-depth:
             // should never get here due to strict registration ordering restrictions
@@ -611,31 +581,23 @@ fn handle_ntt_vaa(
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
                 .context("failed to parse NTT registration payload")?;
 
-        let peer_hub_key =
-            TRANSCEIVER_TO_HUB.key((message.chain_id.id, message.transceiver_address.into()));
-
-        let peer_hub = peer_hub_key
-            .may_load(deps.storage)
-            .context("failed to load peer hub")?
-            .ok_or(ContractError::MissingHubRegistration)?;
+        let peer_hub = TRANSCEIVER_TO_HUB
+            .load(
+                deps.storage,
+                (message.chain_id.id, message.transceiver_address.into()),
+            )
+            .map_err(|_| ContractError::MissingHubRegistration)?;
 
         let chain = body.emitter_chain.into();
         let peer_key = TRANSCEIVER_PEER.key((chain, sender, message.chain_id.id));
 
-        if peer_key
-            .may_load(deps.storage)
-            .context("failed to load peer")?
-            .is_some()
-        {
+        if peer_key.may_load(deps.storage)?.is_some() {
             bail!("peer entry for this chain already exists")
         }
 
         let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
 
-        if let Some(transceiver_hub) = hub_key
-            .may_load(deps.storage)
-            .context("failed to load hub")?
-        {
+        if let Some(transceiver_hub) = hub_key.may_load(deps.storage)? {
             // hubs must match
             if transceiver_hub != peer_hub {
                 bail!("peer hub does not match")
@@ -859,7 +821,8 @@ fn query_all_transceiver_hubs(
     start_after: Option<(u16, TokenAddress)>,
     limit: Option<u32>,
 ) -> StdResult<AllTransceiverHubsResponse> {
-    let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
+    let start: Option<Bound<'_, (u16, TokenAddress)>> =
+        start_after.map(|key| Bound::Exclusive((key, PhantomData)));
 
     let iter = TRANSCEIVER_TO_HUB
         .range(deps.storage, start, None, Order::Ascending)
@@ -959,4 +922,61 @@ fn query_batch_transfer_status(
         })
         .collect::<StdResult<Vec<_>>>()
         .map(|details| BatchTransferStatusResponse { details })
+}
+
+fn normalize_transfer_amount(trimmed_amount: TrimmedAmount) -> Uint256 {
+    let to_decimals = TRIMMED_DECIMALS;
+    let from_decimals = trimmed_amount.decimals;
+    let amount = Uint256::from(trimmed_amount.amount);
+    if from_decimals == to_decimals {
+        return amount;
+    }
+    if from_decimals > to_decimals {
+        amount / Uint256::from(10u64).pow((from_decimals - to_decimals).into())
+    } else {
+        amount * Uint256::from(10u64).pow((to_decimals - from_decimals).into())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn consts() {
+        // the accountant contract would need this to never change, and if it did change, would require a migration
+        assert_eq!(TRIMMED_DECIMALS, 8)
+    }
+
+    #[test]
+    fn normalize() {
+        assert_eq!(
+            normalize_transfer_amount(TrimmedAmount {
+                amount: 1_000,
+                decimals: 3
+            }),
+            Uint256::from(100_000_000u64)
+        );
+        assert_eq!(
+            normalize_transfer_amount(TrimmedAmount {
+                amount: 1_000_000_000_000_000_000,
+                decimals: 18
+            }),
+            Uint256::from(100_000_000u64)
+        );
+        assert_eq!(
+            normalize_transfer_amount(TrimmedAmount {
+                amount: 10_000_000_000,
+                decimals: 18
+            }),
+            Uint256::from(1u64)
+        );
+        assert_eq!(
+            normalize_transfer_amount(TrimmedAmount {
+                amount: 1,
+                decimals: 18
+            }),
+            Uint256::from(0u64)
+        );
+    }
 }
