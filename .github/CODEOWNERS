@@ -36,6 +36,7 @@
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
+/wormchain/devnet/ @evan-gray @bruce-riley
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
 /deployments @evan-gray @kev1n-peters @panoel @bruce-riley
 
