@@ -231,12 +231,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		w.ethConn, err = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
+		w.ethConn = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
 	} else if w.chainID == vaa.ChainIDCelo {
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
