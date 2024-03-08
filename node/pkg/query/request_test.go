@@ -787,7 +787,65 @@ func TestSolanaPublicKeyLengthIsAsExpected(t *testing.T) {
 	require.Equal(t, 32, SolanaPublicKeyLength)
 }
 
-///////////// End of Solana Account Query tests ///////////////////////////
+///////////// Solana PDA Query tests /////////////////////////////////
+
+func TestSolanaSeedConstsAreAsExpected(t *testing.T) {
+	// It might break the spec if these ever changes!
+	require.Equal(t, 16, SolanaMaxSeeds)
+	require.Equal(t, 32, SolanaMaxSeedLen)
+}
+
+func createSolanaPdaQueryRequestForTesting(t *testing.T) *QueryRequest {
+	t.Helper()
+
+	callRequest1 := &SolanaPdaQueryRequest{
+		Commitment: "finalized",
+		PDAs: []SolanaPDAEntry{
+			SolanaPDAEntry{
+				ProgramAddress: ethCommon.HexToHash("0x02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"), // Devnet core bridge
+				Seeds: [][]byte{
+					[]byte("GuardianSet"),
+					make([]byte, 4),
+				},
+			},
+		},
+	}
+
+	perChainQuery1 := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDSolana,
+		Query:   callRequest1,
+	}
+
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery1},
+	}
+
+	return queryRequest
+}
+
+func TestSolanaPdaQueryRequestMarshalUnmarshal(t *testing.T) {
+	queryRequest := createSolanaPdaQueryRequestForTesting(t)
+	queryRequestBytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	var queryRequest2 QueryRequest
+	err = queryRequest2.Unmarshal(queryRequestBytes)
+	require.NoError(t, err)
+
+	assert.True(t, queryRequest.Equal(&queryRequest2))
+}
+
+func TestSolanaPdaQueryUnmarshalFromSDK(t *testing.T) {
+	serialized, err := hex.DecodeString("010000002b010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000")
+	require.NoError(t, err)
+
+	var solQuery QueryRequest
+	err = solQuery.Unmarshal(serialized)
+	require.NoError(t, err)
+}
+
+///////////// End of Solana PDA Query tests ///////////////////////////
 
 func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {
 	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)

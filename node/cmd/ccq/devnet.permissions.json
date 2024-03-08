@@ -146,6 +146,13 @@
             "chain": 1,
             "account": "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna"
           }
+        },
+        {
+          "solPDA": {
+            "note:": "Core Bridge on Devnet",
+            "chain": 1,
+            "programAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+          }
         }
       ]
     },
