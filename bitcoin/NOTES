@@ -1,8 +1,0 @@
-
-use this node https://github.com/btcsuite/btcd and run with the --addrindex option
-https://gist.github.com/davecgh/2992ed85d41307e794f6
-
-# DOCKER_BUILDKIT=1 docker build --progress plain -f Dockerfile -t foo .
-% docker run -it -v `pwd`:`pwd` -w `pwd` foo bash
-
-kubectl exec -it btc-0 -c btc-node -- /bin/bash
