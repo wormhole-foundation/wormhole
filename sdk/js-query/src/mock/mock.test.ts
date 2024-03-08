@@ -21,7 +21,7 @@ import {
   SolanaAccountQueryResponse,
 } from "..";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 const SOLANA_NODE_URL = "http://localhost:8899";
 const POLYGON_NODE_URL = "https://polygon-mumbai-bor.publicnode.com";

@@ -128,26 +128,33 @@ func (acct *Accountant) audit(ctx context.Context) error {
 
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit() {
-	tmpMap := acct.createAuditMap()
-	acct.logger.Debug("in AuditPendingTransfers: starting audit", zap.Int("numPending", len(tmpMap)))
-	acct.performAudit(tmpMap)
-	acct.logger.Debug("leaving AuditPendingTransfers")
+	tmpMap := acct.createAuditMap(false)
+	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", len(tmpMap)))
+	acct.performAudit(tmpMap, acct.wormchainConn, acct.contract)
+	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
+
+	tmpMap = acct.createAuditMap(true)
+	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", len(tmpMap)))
+	acct.performAudit(tmpMap, acct.nttWormchainConn, acct.nttContract)
+	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
 }
 
 // createAuditMap creates a temporary map of all pending transfers. It grabs the pending transfer lock.
-func (acct *Accountant) createAuditMap() map[string]*pendingEntry {
+func (acct *Accountant) createAuditMap(isNTT bool) map[string]*pendingEntry {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
 	tmpMap := make(map[string]*pendingEntry)
 	for _, pe := range acct.pendingTransfers {
-		if pe.hasBeenPendingForTooLong() {
-			auditErrors.Inc()
-			acct.logger.Error("transfer has been in the submit pending state for too long", zap.Stringer("lastUpdateTime", pe.updTime()))
+		if pe.isNTT == isNTT {
+			if pe.hasBeenPendingForTooLong() {
+				auditErrors.Inc()
+				acct.logger.Error("transfer has been in the submit pending state for too long", zap.Stringer("lastUpdateTime", pe.updTime()))
+			}
+			key := pe.makeAuditKey()
+			acct.logger.Debug("will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
+			tmpMap[key] = pe
 		}
-		key := pe.makeAuditKey()
-		acct.logger.Debug("will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
-		tmpMap[key] = pe
 	}
 
 	return tmpMap
@@ -162,9 +169,9 @@ func (pe *pendingEntry) hasBeenPendingForTooLong() bool {
 
 // performAudit audits the temporary map against the smart contract. It is meant to be run in a go routine. It takes a temporary map of all pending transfers
 // and validates that against what is reported by the smart contract. For more details, please see the prologue of this file.
-func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
-	acct.logger.Debug("entering performAudit")
-	missingObservations, err := acct.queryMissingObservations()
+func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry, wormchainConn AccountantWormchainConn, contract string) {
+	acct.logger.Debug("entering performAudit", zap.String("contract", contract))
+	missingObservations, err := acct.queryMissingObservations(wormchainConn, contract)
 	if err != nil {
 		acct.logger.Error("unable to perform audit, failed to query missing observations", zap.Error(err))
 		for _, pe := range tmpMap {
@@ -198,7 +205,7 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 			pendingTransfers = append(pendingTransfers, pe)
 		}
 
-		transferDetails, err := acct.queryBatchTransferStatus(keys)
+		transferDetails, err := acct.queryBatchTransferStatus(keys, wormchainConn, contract)
 		if err != nil {
 			acct.logger.Error("unable to finish audit, failed to query for transfer statuses", zap.Error(err))
 			for _, pe := range tmpMap {
@@ -270,7 +277,7 @@ func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
 }
 
 // queryMissingObservations queries the contract for the set of observations it thinks are missing for this guardian.
-func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error) {
+func (acct *Accountant) queryMissingObservations(wormchainConn AccountantWormchainConn, contract string) ([]MissingObservation, error) {
 	gs := acct.gst.Get()
 	if gs == nil {
 		return nil, fmt.Errorf("failed to get guardian set")
@@ -283,7 +290,7 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 
 	query := fmt.Sprintf(`{"missing_observations":{"guardian_set": %d, "index": %d}}`, gs.Index, guardianIndex)
 	acct.logger.Debug("submitting missing_observations query", zap.String("query", query))
-	respBytes, err := acct.wormchainConn.SubmitQuery(acct.ctx, acct.contract, []byte(query))
+	respBytes, err := wormchainConn.SubmitQuery(acct.ctx, contract, []byte(query))
 	if err != nil {
 		return nil, fmt.Errorf("missing_observations query failed: %w, %s", err, query)
 	}
@@ -303,8 +310,8 @@ type queryConn interface {
 }
 
 // queryBatchTransferStatus queries the status of the specified transfers and returns a map keyed by transfer key (as a string) to the status.
-func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string]*TransferStatus, error) {
-	return queryBatchTransferStatusWithConn(acct.ctx, acct.logger, acct.wormchainConn, acct.contract, keys)
+func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey, wormchainConn AccountantWormchainConn, contract string) (map[string]*TransferStatus, error) {
+	return queryBatchTransferStatusWithConn(acct.ctx, acct.logger, wormchainConn, contract, keys)
 }
 
 // queryBatchTransferStatus is a free function that queries the status of the specified transfers and returns a map keyed by transfer key (as a string)

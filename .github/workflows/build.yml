@@ -35,7 +35,7 @@ jobs:
           kubectl config use-context ci
 
       # temporarily set --guardiand_loglevel=info to debug https://github.com/wormhole-foundation/wormhole/issues/3052
-      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2 --guardiand_loglevel=info
+      - run: tilt ci --timeout 45m0s -- --ci --namespace=$DEPLOY_NS --num=2 --guardiand_loglevel=info
         timeout-minutes: 60
 
       # Clean up k8s resources

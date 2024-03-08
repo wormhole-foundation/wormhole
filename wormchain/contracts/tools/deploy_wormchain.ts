@@ -346,26 +346,50 @@ async function main() {
     addresses["ntt_global_accountant.wasm"]
   );
 
-  // const accountingRegistrations = Object.values(registrations).map((r) =>
-  //   Buffer.from(r, "hex").toString("base64")
-  // );
-  // const msg = client.wasm.msgExecuteContract({
-  //   sender: signer,
-  //   contract: addresses["global_accountant.wasm"],
-  //   msg: toUtf8(
-  //     JSON.stringify({
-  //       submit_vaas: {
-  //         vaas: accountingRegistrations,
-  //       },
-  //     })
-  //   ),
-  //   funds: [],
-  // });
-  // const res = await client.signAndBroadcast(signer, [msg], {
-  //   ...ZERO_FEE,
-  //   gas: "10000000",
-  // });
-  // console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+  const allowListResponse = await client.signAndBroadcast(
+    signer,
+    [
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
+        name: "ibcRelayer",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
+        name: "guardianGatewayRelayer0",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
+        name: "guardianGatewayRelayer1",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
+        name: "guardianNttAccountant0",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
+        name: "guardianNttAccountant1",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
+        name: "nttAccountantTest",
+      }),
+    ],
+    {
+      ...ZERO_FEE,
+      gas: "10000000",
+    }
+  );
+  console.log(
+    "created allowlist entries: ",
+    allowListResponse.transactionHash,
+    allowListResponse.code
+  );
 }
 
 try {

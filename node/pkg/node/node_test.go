@@ -906,7 +906,14 @@ func TestGuardianConfigs(t *testing.T) {
 		{
 			name: "unfulfilled-dependency",
 			opts: []*GuardianOption{
-				GuardianOptionAccountant("", "", false, nil),
+				GuardianOptionAccountant(
+					"",    // websocket
+					"",    // contract
+					false, // enforcing
+					nil,   // wormchainConn
+					"",    // nttContract
+					nil,   // nttWormchainConn
+				),
 			},
 			err: "Check the order of your options.",
 		},

@@ -26,3 +26,18 @@ var knownDevnetNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDEthereum: "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
 	vaa.ChainIDBSC:      "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
 }
+
+// KnownDevnetAutomaticRelayerEmitters is a list of well-known devnet emitters for the Automatic Relayers.
+// It is based on this: https://github.com/wormhole-foundation/wormhole/blob/2c9703670eadc48a7dc8967e81ed2823affcc679/sdk/js/src/relayer/consts.ts#L82
+// Note that the format of this is different from the other maps because we don't want to limit it to one per chain.
+var KnownDevnetAutomaticRelayerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDEthereum, Addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
+	{ChainId: vaa.ChainIDBSC, Addr: "000000000000000000000000E66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"},
+
+	// NTT end to end testing uses special emitters in local dev and CI.
+	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
+	{ChainId: vaa.ChainIDBSC, Addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
+}
