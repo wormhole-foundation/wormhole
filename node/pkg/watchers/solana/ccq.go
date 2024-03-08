@@ -442,7 +442,9 @@ func (pub ccqPdaPublisher) publish(pcrResp *query.PerChainQueryResponseInternal,
 	}
 
 	if pcrResp.Status != query.QuerySuccess {
+		// publish() should only get called in success cases.
 		pub.w.ccqLogger.Error("received an unexpected query response for sol_pda query", zap.String("requestId", pub.requestId), zap.Any("pcrResp", pcrResp))
+		pub.w.ccqSendErrorResponse(pub.queryRequest, query.QueryFatalError)
 		return
 	}
 
