@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script allows devnet initalization with more than one guardian.
+# This script allows devnet initialization with more than one guardian.
 # First argument is the number of guardians for the initial guardian set.
 set -exuo pipefail
 
@@ -46,7 +46,7 @@ if ! type -p jq; then
     exit 1
 fi
 
-# 1) guardian public keys - used as the inital guardian set when initializing contracts.
+# 1) guardian public keys - used as the initial guardian set when initializing contracts.
 echo "generating guardian set addresses"
 # create an array of strings containing the ECDSA public keys of the devnet guardians in the guardianset:
 # guardiansPublicEth has the leading "0x" that Eth scripts expect.
