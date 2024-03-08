@@ -559,7 +559,6 @@ export class QueryProxyMock {
         let results: SolanaPdaResult[] = [];
         let idx = 0;
         response.data.result.value.forEach((val) => {
-          const account = Buffer.from(base58.decode(accounts[idx].toString()));
           results.push({
             account: Uint8Array.from(base58.decode(accounts[idx].toString())),
             bump: bumps[idx],

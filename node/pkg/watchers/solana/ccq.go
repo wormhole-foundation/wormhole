@@ -436,7 +436,8 @@ type ccqPdaPublisher struct {
 
 func (pub ccqPdaPublisher) publish(pcrResp *query.PerChainQueryResponseInternal, acctResp *query.SolanaAccountQueryResponse) {
 	if pcrResp == nil {
-		// This is the case where we are doing a fast retry, so we don't want to publish anything yet.
+		pub.w.ccqLogger.Error("sol_pda query failed, pcrResp is nil", zap.String("requestId", pub.requestId))
+		pub.w.ccqSendErrorResponse(pub.queryRequest, query.QueryFatalError)
 		return
 	}
 

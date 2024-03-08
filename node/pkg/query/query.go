@@ -434,7 +434,6 @@ func (pcq *perChainQuery) ccqForwardToWatcher(qLogger *zap.Logger, receiveTime t
 		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.Request.ChainId))
 		totalRequestsByChain.WithLabelValues(pcq.req.Request.ChainId.String()).Inc()
 	default:
-		// By leaving lastUpdateTime unset, we will retry next interval.
 		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chain_id", pcq.req.Request.ChainId))
 	}
 	pcq.lastUpdateTime = receiveTime
