@@ -1,8 +1,8 @@
 ---
 name: Tracking issue
 about: Tracking issues are task lists used to better organize regular work items.
-title: 'Tracking issue for *ADD_PROJECT* - *ADD_COMPONENT*'
-labels: 'epic'
+title: Tracking issue for *ADD_PROJECT* - *ADD_COMPONENT*
+labels: ''
 assignees: ''
 
 ---
