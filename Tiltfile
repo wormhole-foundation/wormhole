@@ -61,6 +61,7 @@ config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
+config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
 config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
@@ -86,6 +87,7 @@ sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 pythnet = cfg.get("pythnet", False)
+solana_watcher = cfg.get("solana_watcher", solana or pythnet)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
@@ -202,7 +204,7 @@ def build_node_yaml():
                     "ws://eth-devnet:8545",
                 ]
 
-            if solana:
+            if solana_watcher:
                 container["command"] += [
                     "--solanaRPC",
                     "http://solana-devnet:8899",
@@ -272,16 +274,24 @@ def build_node_yaml():
                     "--wormchainURL",
                     "wormchain:9090",
 
+                     "--accountantWS",
+                    "http://wormchain:26657",
+
                     "--accountantContract",
                     "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
                     "--accountantKeyPath",
                     "/tmp/mounted-keys/wormchain/accountantKey",
                     "--accountantKeyPassPhrase",
                     "test0000",
-                    "--accountantWS",
-                    "http://wormchain:26657",
                     "--accountantCheckEnabled",
                     "true",
+
+                    "--accountantNttContract",
+                    "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+                    "--accountantNttKeyPath",
+                    "/tmp/mounted-keys/wormchain/accountantNttKey",
+                    "--accountantNttKeyPassPhrase",
+                    "test0000",
 
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj",
@@ -312,7 +322,7 @@ k8s_yaml_with_ns(build_node_yaml())
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
-if solana or pythnet:
+if solana_watcher:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
     guardian_resource_deps = guardian_resource_deps + ["near"]
@@ -594,6 +604,12 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+    )
+    k8s_resource(
+        "ntt-accountant-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
     )
     k8s_resource(
         "query-ci-tests",

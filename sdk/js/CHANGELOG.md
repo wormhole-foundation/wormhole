@@ -2,6 +2,12 @@
 
 ## 0.10.11
 
+### Changes
+
+Add Dymension to cosmwasm chains
+
+base64 encode payload being sent to injective token bridge
+
 ### Removed
 
 getSignedBatchVAA, getSignedBatchVAAWithRetry

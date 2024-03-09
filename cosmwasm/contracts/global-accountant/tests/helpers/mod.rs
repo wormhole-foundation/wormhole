@@ -20,7 +20,8 @@ use global_accountant::{
 use serde::Serialize;
 use wormhole_bindings::{fake, WormholeQuery};
 use wormhole_sdk::{
-    accountant::{self as accountant_module, ModificationKind},
+    accountant as accountant_module,
+    accountant_modification::ModificationKind,
     token,
     vaa::{Body, Header, Signature},
     Address, Amount, Chain, Vaa,

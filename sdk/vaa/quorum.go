@@ -11,7 +11,7 @@ func CalculateQuorum(numGuardians int) int {
 		panic("Invalid numGuardians is less than zero")
 	}
 
-	// The goal here is to acheive a 2/3 quorum, but since we're
+	// The goal here is to achieve a 2/3 quorum, but since we're
 	// dividing on int, we need to +1 to avoid the rounding down
 	// effect of integer division
 	//

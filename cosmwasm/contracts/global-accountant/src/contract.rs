@@ -18,7 +18,9 @@ use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole_bindings::WormholeQuery;
 use wormhole_sdk::{
-    accountant as accountant_module, token,
+    accountant as accountant_module,
+    accountant_modification::ModificationKind,
+    token,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -416,9 +418,9 @@ fn handle_accountant_governance_vaa(
         } => {
             let token_address = TokenAddress::new(token_address.0);
             let kind = match kind {
-                accountant_module::ModificationKind::Add => Kind::Add,
-                accountant_module::ModificationKind::Subtract => Kind::Sub,
-                accountant_module::ModificationKind::Unknown => {
+                ModificationKind::Add => Kind::Add,
+                ModificationKind::Subtract => Kind::Sub,
+                ModificationKind::Unknown => {
                     bail!("unsupported governance action")
                 }
             };

@@ -78,7 +78,7 @@ var (
 	ActionCancelUpgrade                 GovernanceAction = 2
 	ActionSetIbcComposabilityMwContract GovernanceAction = 3
 
-	// Accountant goverance actions
+	// Accountant governance actions
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions

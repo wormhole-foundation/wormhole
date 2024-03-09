@@ -19,6 +19,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -124,7 +125,7 @@ func main() {
 	//
 
 	{
-		logger.Info("Running Solana tests")
+		logger.Info("Running Solana account test")
 
 		// Start of query creation...
 		account1, err := solana.PublicKeyFromBase58("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
@@ -142,11 +143,50 @@ func main() {
 			Accounts:        [][query.SolanaPublicKeyLength]byte{account1, account2},
 		}
 
-		queryRequest := createSolanaQueryRequest(callRequest)
+		queryRequest := &query.QueryRequest{
+			Nonce: rand.Uint32(),
+			PerChainQueries: []*query.PerChainQueryRequest{
+				{
+					ChainId: 1,
+					Query:   callRequest,
+				},
+			},
+		}
 		sendSolanaQueryAndGetRsp(queryRequest, sk, th_req, ctx, logger, sub)
-
-		logger.Info("Solana tests complete!")
 	}
+
+	{
+		logger.Info("Running Solana PDA test")
+
+		// Start of query creation...
+		callRequest := &query.SolanaPdaQueryRequest{
+			Commitment:      "finalized",
+			DataSliceOffset: 0,
+			DataSliceLength: 100,
+			PDAs: []query.SolanaPDAEntry{
+				query.SolanaPDAEntry{
+					ProgramAddress: ethCommon.HexToHash("0x02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"), // Devnet core bridge
+					Seeds: [][]byte{
+						[]byte("GuardianSet"),
+						make([]byte, 4),
+					},
+				},
+			},
+		}
+
+		queryRequest := &query.QueryRequest{
+			Nonce: rand.Uint32(),
+			PerChainQueries: []*query.PerChainQueryRequest{
+				{
+					ChainId: 1,
+					Query:   callRequest,
+				},
+			},
+		}
+		sendSolanaQueryAndGetRsp(queryRequest, sk, th_req, ctx, logger, sub)
+	}
+
+	logger.Info("Solana tests complete!")
 	// return
 
 	//
@@ -392,19 +432,6 @@ func sendQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.PrivateKey, 
 	}
 }
 
-func createSolanaQueryRequest(callRequest *query.SolanaAccountQueryRequest) *query.QueryRequest {
-	queryRequest := &query.QueryRequest{
-		Nonce: rand.Uint32(),
-		PerChainQueries: []*query.PerChainQueryRequest{
-			{
-				ChainId: 1,
-				Query:   callRequest,
-			},
-		},
-	}
-	return queryRequest
-}
-
 func sendSolanaQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription) {
 	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
@@ -482,7 +509,9 @@ func sendSolanaQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.Privat
 				for index := range response.PerChainResponses {
 					switch r := response.PerChainResponses[index].Response.(type) {
 					case *query.SolanaAccountQueryResponse:
-						logger.Info("solana query per chain response", zap.Int("index", index), zap.Any("pcr", r))
+						logger.Info("solana account query per chain response", zap.Int("index", index), zap.Any("pcr", r))
+					case *query.SolanaPdaQueryResponse:
+						logger.Info("solana pda query per chain response", zap.Int("index", index), zap.Any("pcr", r))
 					default:
 						panic(fmt.Sprintf("unsupported query type, should be solana, index: %d", index))
 					}

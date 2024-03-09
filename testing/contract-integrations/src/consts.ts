@@ -11,7 +11,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { getAddress } from "ethers/lib/utils";
 
-//Devnet here means the locahost kubernetes environment used by the wormhole-foundation/wormhole official git repository.
+//Devnet here means the localhost kubernetes environment used by the wormhole-foundation/wormhole official git repository.
 //Testnet is the official Wormhole testnet
 export type Environment = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Environment = "devnet" as Environment; //This is the currently selected environment.

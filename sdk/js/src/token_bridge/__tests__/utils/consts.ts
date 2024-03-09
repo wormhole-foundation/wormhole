@@ -24,6 +24,10 @@ export const ETH_PRIVATE_KEY9 =
   "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"; // account 9 - accountant tests
 export const ETH_PRIVATE_KEY10 =
   "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f"; // account 10 - sui tests
+export const ETH_PRIVATE_KEY11 =
+  "0xd99b5b29e6da2528bf458b26237a6cf8655a3e3276c1cdc0de1f98cefee81c01"; // account 11 - ntt-accountant tests
+export const ETH_PRIVATE_KEY12 =
+  "0x9b9c613a36396172eab2d34d72331c8ca83a358781883a535d2941f66db07b24"; // account 12 - ntt-accountant tests
 export const SOLANA_HOST = ci
   ? "http://solana-devnet:8899"
   : "http://localhost:8899";

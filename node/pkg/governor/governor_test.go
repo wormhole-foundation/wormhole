@@ -20,6 +20,9 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // This is so we can have consistent config data for unit tests.
@@ -111,6 +114,18 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 	}
 
 	return
+}
+
+func checkTargetOnReleasedIsSet(t *testing.T, toBePublished []*common.MessagePublication, targetChain vaa.ChainID, targetAddressStr string) {
+	require.NotEqual(t, 0, len(toBePublished))
+	toAddr, err := vaa.StringToAddress(targetAddressStr)
+	require.NoError(t, err)
+	for _, msg := range toBePublished {
+		payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
+		require.NoError(t, err)
+		assert.Equal(t, targetChain, payload.TargetChain)
+		assert.Equal(t, toAddr, payload.TargetAddress)
+	}
 }
 
 func TestTrimEmptyTransfers(t *testing.T) {
@@ -244,11 +259,14 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 }
 
 func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
+	return newChainGovernorForTestWithLogger(ctx, zap.NewNop())
+}
+
+func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) (*ChainGovernor, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
-	logger := zap.NewNop()
 	var db db.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.GoTest)
 
@@ -784,6 +802,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1011,6 +1030,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1234,6 +1254,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	require.NoError(t, err)
@@ -1324,6 +1345,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -1791,4 +1813,126 @@ func TestCoinGeckoQueries(t *testing.T) {
 			}
 		})
 	}
+}
+
+// setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
+func setupLogsCapture(t testing.TB, options ...zap.Option) (*zap.Logger, *observer.ObservedLogs) {
+	t.Helper()
+	observedCore, observedLogs := observer.New(zap.InfoLevel)
+	consoleLogger := zaptest.NewLogger(t, zaptest.Level(zap.InfoLevel))
+	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core()), options...)
+	return parentLogger, observedLogs
+}
+
+func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
+	ctx := context.Background()
+	zapLogger, zapObserver := setupLogsCapture(t)
+	gov, err := newChainGovernorForTestWithLogger(ctx, zapLogger)
+	require.NoError(t, err)
+	require.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 10000, 100000)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	// Create two big transactions.
+	msg1 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			5000,
+		),
+	}
+
+	msg2 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(2),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			5000,
+		),
+	}
+
+	// Post the two big transfers and and verify they get enqueued.
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+	canPost, err := gov.ProcessMsgForTime(&msg1, now)
+	require.NoError(t, err)
+	assert.Equal(t, false, canPost)
+
+	canPost, err = gov.ProcessMsgForTime(&msg2, now)
+	require.NoError(t, err)
+	assert.Equal(t, false, canPost)
+
+	numTrans, _, numPending, _ := gov.getStatsForAllChains()
+	assert.Equal(t, 2, len(gov.msgsSeen))
+	assert.Equal(t, 0, numTrans)
+	assert.Equal(t, 2, numPending)
+
+	// Corrupt the payload of msg2 so that when we try to release it, it will get dropped.
+	gov.mutex.Lock()
+	ce, exists := gov.chains[vaa.ChainIDEthereum]
+	require.True(t, exists)
+	require.Equal(t, 2, len(ce.pending))
+	require.Equal(t, "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/2", ce.pending[1].dbData.Msg.MessageIDString())
+	ce.pending[1].dbData.Msg.Payload = nil
+	gov.mutex.Unlock()
+
+	// After 24hrs, msg1 should get released but msg2 should get dropped.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
+	toBePublished, err := gov.CheckPendingForTime(now)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(toBePublished))
+	checkTargetOnReleasedIsSet(t, toBePublished, vaa.ChainIDPolygon, toAddrStr)
+	assert.Equal(t, "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1", toBePublished[0].MessageIDString())
+
+	// Verify that we got the expected error in the logs.
+	loggedEntries := zapObserver.FilterMessage("failed to decode payload for pending VAA, dropping it").All()
+	require.Equal(t, 1, len(loggedEntries))
+
+	foundIt := false
+	for _, f := range loggedEntries[0].Context {
+		if f.Key == "msgID" && f.String == "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/2" {
+			foundIt = true
+		}
+	}
+	assert.True(t, foundIt)
+
+	// Verify that the message is no longer pending.
+	gov.mutex.Lock()
+	ce, exists = gov.chains[vaa.ChainIDEthereum]
+	require.True(t, exists)
+	assert.Equal(t, 0, len(ce.pending))
+	gov.mutex.Unlock()
+
+	// Neither one should be in the map of messages seen.
+	_, exists = gov.msgsSeen[gov.HashFromMsg(&msg1)]
+	assert.False(t, exists)
+	_, exists = gov.msgsSeen[gov.HashFromMsg(&msg2)]
+	assert.False(t, exists)
 }

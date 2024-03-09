@@ -7,6 +7,7 @@ import {
   test,
 } from "@jest/globals";
 import axios from "axios";
+import base58 from "bs58";
 import { eth } from "web3";
 import {
   EthCallByTimestampQueryRequest,
@@ -19,14 +20,29 @@ import {
   QueryResponse,
   SolanaAccountQueryRequest,
   SolanaAccountQueryResponse,
+  SolanaPdaEntry,
+  SolanaPdaQueryRequest,
+  SolanaPdaQueryResponse,
 } from "..";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 const SOLANA_NODE_URL = "http://localhost:8899";
 const POLYGON_NODE_URL = "https://polygon-mumbai-bor.publicnode.com";
 const ARBITRUM_NODE_URL = "https://arbitrum-goerli.publicnode.com";
 const QUERY_URL = "https://testnet.ccq.vaa.dev/v1/query";
+
+const SOL_PDAS: SolanaPdaEntry[] = [
+  {
+    programAddress: Uint8Array.from(
+      base58.decode("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
+    ), // Core Bridge address
+    seeds: [
+      new Uint8Array(Buffer.from("GuardianSet")),
+      new Uint8Array(Buffer.alloc(4)),
+    ], // Use index zero in tilt.
+  },
+];
 
 let mock: QueryProxyMock;
 
@@ -339,6 +355,39 @@ describe.skip("mocks match testnet", () => {
     );
     expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
       "000000574108aed69daf"
+    );
+  });
+  test("SolanaPda to devnet", async () => {
+    const query = new QueryRequest(42, [
+      new PerChainQueryRequest(
+        1,
+        new SolanaPdaQueryRequest(
+          "finalized",
+          SOL_PDAS,
+          BigInt(0),
+          BigInt(12),
+          BigInt(16) // After this, things can change.
+        )
+      ),
+    ]);
+    const resp = await mock.mock(query);
+    const queryResponse = QueryResponse.from(resp.bytes);
+    const sar = queryResponse.responses[0].response as SolanaPdaQueryResponse;
+    expect(sar.blockTime).not.toEqual(BigInt(0));
+    expect(sar.results.length).toEqual(1);
+
+    expect(Buffer.from(sar.results[0].account).toString("hex")).toEqual(
+      "4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"
+    );
+    expect(sar.results[0].bump).toEqual(253);
+    expect(sar.results[0].lamports).toEqual(BigInt(1141440));
+    expect(sar.results[0].rentEpoch).toEqual(BigInt(0));
+    expect(sar.results[0].executable).toEqual(false);
+    expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
+      "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
+    );
+    expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+      "57cd18b7f8a4d91a2da9ab4af05d0fbe"
     );
   });
 });

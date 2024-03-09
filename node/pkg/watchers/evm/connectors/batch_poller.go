@@ -101,6 +101,7 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 				sub.unsubDone <- struct{}{}
 				return nil
 			case v := <-innerErrSink:
+				b.logger.Info("batch_poller innerErrSink received an error, forwarding it on", zap.String("v", v))
 				sub.err <- fmt.Errorf(v)
 			case ev := <-headSink:
 				if ev == nil {
@@ -150,10 +151,12 @@ func (b *BatchPollConnector) run(ctx context.Context, logger *zap.Logger) error 
 				errCount++
 				logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 				if errCount > 3 {
+					logger.Error("batch poller is posting the error to errFeed", zap.Error(err))
 					b.errFeed.Send(fmt.Sprint("polling encountered an error: ", err))
 					errCount = 0
 				}
-			} else {
+			} else if errCount != 0 {
+				logger.Info("batch polling has resumed processing blocks")
 				errCount = 0
 			}
 

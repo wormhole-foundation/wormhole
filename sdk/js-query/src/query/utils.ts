@@ -48,3 +48,11 @@ export function sign(key: string, data: Uint8Array): string {
     Buffer.from([signature.recoveryParam ?? 0]).toString("hex");
   return packed;
 }
+
+/**
+ * @param val value to be converted to a big int
+ * @returns the value or zero as a bigint
+ */
+export function bigIntWithDef(val: bigint | undefined): bigint {
+  return BigInt(val !== undefined ? val : BigInt(0));
+}

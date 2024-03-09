@@ -78,7 +78,7 @@ import {
   mintAndTransferCoinSui,
 } from "./utils/helpers";
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 // Sui constants
 const SUI_CORE_BRIDGE_STATE_OBJECT_ID = CONTRACTS.DEVNET.sui.core;

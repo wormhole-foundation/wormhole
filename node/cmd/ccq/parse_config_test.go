@@ -157,7 +157,7 @@ func TestParseConfigUnsupportedCallType(t *testing.T) {
 
 	_, err := parseConfig([]byte(str))
 	require.Error(t, err)
-	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality" or "solAccount"`, err.Error())
+	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality", "solAccount" or "solPDA"`, err.Error())
 }
 
 func TestParseConfigInvalidContractAddress(t *testing.T) {
@@ -295,7 +295,29 @@ func TestParseConfigSuccess(t *testing.T) {
             "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d7",
             "call": "0x06fdde03"
           }
-        }			
+        },
+        {
+          "ethCallWithFinality": {
+            "note:": "Decimals of WETH on Devnet",
+            "chain": 2,
+            "contractAddress": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+            "call": "0x313ce567"
+          }
+        },        
+        {
+          "solAccount": {
+            "note:": "Example NFT on Devnet",
+            "chain": 1,
+            "account": "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna"
+          }
+        },
+        {
+          "solPDA": {
+            "note:": "Core Bridge on Devnet",
+            "chain": 1,
+            "programAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+          }
+        }
       ]
     }
   ]
@@ -308,9 +330,20 @@ func TestParseConfigSuccess(t *testing.T) {
 	perm, exists := perms["my_secret_key"]
 	require.True(t, exists)
 
+	assert.Equal(t, 5, len(perm.allowedCalls))
+
 	_, exists = perm.allowedCalls["ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"]
 	assert.True(t, exists)
 
 	_, exists = perm.allowedCalls["ethCallByTimestamp:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d7:06fdde03"]
+	assert.True(t, exists)
+
+	_, exists = perm.allowedCalls["ethCallWithFinality:2:000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e:313ce567"]
+	assert.True(t, exists)
+
+	_, exists = perm.allowedCalls["solAccount:1:BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna"]
+	assert.True(t, exists)
+
+	_, exists = perm.allowedCalls["solPDA:1:Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"]
 	assert.True(t, exists)
 }

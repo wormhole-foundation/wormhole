@@ -23,6 +23,9 @@ and code reviews are our most important tools to accomplish that.
   Small commits, meaningful commit messages and useful comments make it easier to review code and improve the
   quality of code review as well as review turnaround times. It's much easier to spot mistakes in small,
   well-defined changes.
+- We welcome typo and grammar fixes to *public facing* documents. This includes
+  things like the whitepapers, but excludes inline code comments. PRs that touch
+  only the latter will be rejected. Fixing typos in comments alongside other non-trivial engineering work is welcome.
 
 Documentation for the in-the-wild deployments lives in the
 [wormhole-networks](https://github.com/certusone/wormhole-networks) repository.

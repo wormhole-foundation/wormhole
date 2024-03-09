@@ -437,5 +437,5 @@ func submit(
 	gsIndex := uint32(0)
 	guardianIndex := uint32(0)
 
-	return accountant.SubmitObservationsToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, msgs)
+	return accountant.SubmitObservationsToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, accountant.SubmitObservationPrefix, msgs)
 }

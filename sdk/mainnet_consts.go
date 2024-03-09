@@ -160,3 +160,25 @@ func GetEmitterAddressForChain(chainID vaa.ChainID, emitterType EmitterType) (va
 
 	return vaa.Address{}, fmt.Errorf("lookup failed")
 }
+
+// KnownAutomaticRelayerEmitters is a list of well-known mainnet emitters for the Automatic Relayers.
+// It is based on this: https://github.com/wormhole-foundation/wormhole/blob/2c9703670eadc48a7dc8967e81ed2823affcc679/sdk/js/src/relayer/consts.ts#L95
+// Note that the format of this is different from the other maps because we don't want to limit it to one per chain.
+var KnownAutomaticRelayerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDBSC, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDPolygon, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDAvalanche, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDFantom, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDKlaytn, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDCelo, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDAcala, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDKarura, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDMoonbeam, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDArbitrum, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDOptimism, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDBase, Addr: "000000000000000000000000706f82e9bb5b0813501714ab5974216704980e31"},
+}

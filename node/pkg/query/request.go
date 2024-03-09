@@ -138,7 +138,7 @@ type SolanaAccountQueryRequest struct {
 	// The length of the data to be returned. Zero means all data is returned.
 	DataSliceLength uint64
 
-	// Accounts is an array of accounts to be queried, in base58 representation.
+	// Accounts is an array of accounts to be queried.
 	Accounts [][SolanaPublicKeyLength]byte
 }
 
@@ -155,6 +155,48 @@ const SolanaMaxAccountsPerQuery = 100
 
 func (saq *SolanaAccountQueryRequest) AccountList() [][SolanaPublicKeyLength]byte {
 	return saq.Accounts
+}
+
+// SolanaPdaQueryRequestType is the type of a Solana sol_pda query request.
+const SolanaPdaQueryRequestType ChainSpecificQueryType = 5
+
+// SolanaPdaQueryRequest implements ChainSpecificQuery for a Solana sol_pda query request.
+type SolanaPdaQueryRequest struct {
+	// Commitment identifies the commitment level to be used in the queried. Currently it may only "finalized".
+	// Before we can support "confirmed", we need a way to read the account data and the block information atomically.
+	// We would also need to deal with the fact that queries are only handled in the finalized watcher and it does not
+	// have access to the latest confirmed slot needed for MinContextSlot retries.
+	Commitment string
+
+	// The minimum slot that the request can be evaluated at. Zero means unused.
+	MinContextSlot uint64
+
+	// The offset of the start of data to be returned. Unused if DataSliceLength is zero.
+	DataSliceOffset uint64
+
+	// The length of the data to be returned. Zero means all data is returned.
+	DataSliceLength uint64
+
+	// PDAs is an array of PDAs to be queried.
+	PDAs []SolanaPDAEntry
+}
+
+// SolanaPDAEntry defines a single Solana Program derived address (PDA).
+type SolanaPDAEntry struct {
+	ProgramAddress [SolanaPublicKeyLength]byte
+	Seeds          [][]byte
+}
+
+// According to the spec, there may be at most 16 seeds.
+// https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L559
+const SolanaMaxSeeds = solana.MaxSeeds
+
+// According to the spec, a seed may be at most 32 bytes.
+// https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L557
+const SolanaMaxSeedLen = solana.MaxSeedLength
+
+func (spda *SolanaPdaQueryRequest) PDAList() []SolanaPDAEntry {
+	return spda.PDAs
 }
 
 // PerChainQueryInternal is an internal representation of a query request that is passed to the watcher.
@@ -190,6 +232,16 @@ func PostSignedQueryRequest(signedQueryReqSendC chan<- *gossipv1.SignedQueryRequ
 	default:
 		return common.ErrChanFull
 	}
+}
+
+func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.SignedQueryRequest) bool {
+	if !bytes.Equal(left.QueryRequest, right.QueryRequest) {
+		return false
+	}
+	if !bytes.Equal(left.Signature, right.Signature) {
+		return false
+	}
+	return true
 }
 
 //
@@ -382,6 +434,12 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 			return fmt.Errorf("failed to unmarshal solana account query request: %w", err)
 		}
 		perChainQuery.Query = &q
+	case SolanaPdaQueryRequestType:
+		q := SolanaPdaQueryRequest{}
+		if err := q.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal solana PDA query request: %w", err)
+		}
+		perChainQuery.Query = &q
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
@@ -408,6 +466,14 @@ func (perChainQuery *PerChainQueryRequest) Validate() error {
 		return fmt.Errorf("chain specific query is invalid: %w", err)
 	}
 
+	return nil
+}
+
+func ValidatePerChainQueryRequestType(qt ChainSpecificQueryType) error {
+	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType && qt != EthCallWithFinalityQueryRequestType &&
+		qt != SolanaAccountQueryRequestType && qt != SolanaPdaQueryRequestType {
+		return fmt.Errorf("invalid query request type: %d", qt)
+	}
 	return nil
 }
 
@@ -457,6 +523,13 @@ func (left *PerChainQueryRequest) Equal(right *PerChainQueryRequest) bool {
 			return leftQuery.Equal(rightQuery)
 		default:
 			panic("unsupported query type on right, must be sol_account")
+		}
+	case *SolanaPdaQueryRequest:
+		switch rightQuery := right.Query.(type) {
+		case *SolanaPdaQueryRequest:
+			return leftQuery.Equal(rightQuery)
+		default:
+			panic("unsupported query type on right, must be sol_pda")
 		}
 	default:
 		panic("unsupported query type on left")
@@ -1052,19 +1125,187 @@ func (left *SolanaAccountQueryRequest) Equal(right *SolanaAccountQueryRequest) b
 	return true
 }
 
-func ValidatePerChainQueryRequestType(qt ChainSpecificQueryType) error {
-	if qt != EthCallQueryRequestType && qt != EthCallByTimestampQueryRequestType && qt != EthCallWithFinalityQueryRequestType && qt != SolanaAccountQueryRequestType {
-		return fmt.Errorf("invalid query request type: %d", qt)
+//
+// Implementation of SolanaPdaQueryRequest, which implements the ChainSpecificQuery interface.
+//
+
+func (e *SolanaPdaQueryRequest) Type() ChainSpecificQueryType {
+	return SolanaPdaQueryRequestType
+}
+
+// Marshal serializes the binary representation of a Solana sol_pda request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (spda *SolanaPdaQueryRequest) Marshal() ([]byte, error) {
+	if err := spda.Validate(); err != nil {
+		return nil, err
 	}
+
+	buf := new(bytes.Buffer)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(spda.Commitment)))
+	buf.Write([]byte(spda.Commitment))
+
+	vaa.MustWrite(buf, binary.BigEndian, spda.MinContextSlot)
+	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceOffset)
+	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceLength)
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(spda.PDAs)))
+	for _, pda := range spda.PDAs {
+		buf.Write(pda.ProgramAddress[:])
+		vaa.MustWrite(buf, binary.BigEndian, uint8(len(pda.Seeds)))
+		for _, seed := range pda.Seeds {
+			vaa.MustWrite(buf, binary.BigEndian, uint32(len(seed)))
+			buf.Write(seed)
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes a Solana sol_pda query from a byte array
+func (spda *SolanaPdaQueryRequest) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return spda.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes a Solana sol_pda query from a byte array
+func (spda *SolanaPdaQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
+	len := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		return fmt.Errorf("failed to read commitment len: %w", err)
+	}
+
+	if len > SolanaMaxCommitmentLength {
+		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
+	}
+
+	commitment := make([]byte, len)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
+	}
+	spda.Commitment = string(commitment)
+
+	if err := binary.Read(reader, binary.BigEndian, &spda.MinContextSlot); err != nil {
+		return fmt.Errorf("failed to read min slot: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &spda.DataSliceOffset); err != nil {
+		return fmt.Errorf("failed to read data slice offset: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &spda.DataSliceLength); err != nil {
+		return fmt.Errorf("failed to read data slice length: %w", err)
+	}
+
+	numPDAs := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numPDAs); err != nil {
+		return fmt.Errorf("failed to read number of PDAs: %w", err)
+	}
+
+	for count := 0; count < int(numPDAs); count++ {
+		programAddress := [SolanaPublicKeyLength]byte{}
+		if n, err := reader.Read(programAddress[:]); err != nil || n != SolanaPublicKeyLength {
+			return fmt.Errorf("failed to read program address [%d]: %w", n, err)
+		}
+
+		pda := SolanaPDAEntry{ProgramAddress: programAddress}
+		numSeeds := uint8(0)
+		if err := binary.Read(reader, binary.BigEndian, &numSeeds); err != nil {
+			return fmt.Errorf("failed to read number of seeds: %w", err)
+		}
+
+		for count := 0; count < int(numSeeds); count++ {
+			seedLen := uint32(0)
+			if err := binary.Read(reader, binary.BigEndian, &seedLen); err != nil {
+				return fmt.Errorf("failed to read call Data len: %w", err)
+			}
+			seed := make([]byte, seedLen)
+			if n, err := reader.Read(seed[:]); err != nil || n != int(seedLen) {
+				return fmt.Errorf("failed to read seed [%d]: %w", n, err)
+			}
+
+			pda.Seeds = append(pda.Seeds, seed)
+		}
+
+		spda.PDAs = append(spda.PDAs, pda)
+	}
+
 	return nil
 }
 
-func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.SignedQueryRequest) bool {
-	if !bytes.Equal(left.QueryRequest, right.QueryRequest) {
+// Validate does basic validation on a Solana sol_pda query.
+func (spda *SolanaPdaQueryRequest) Validate() error {
+	if len(spda.Commitment) > SolanaMaxCommitmentLength {
+		return fmt.Errorf("commitment too long")
+	}
+	if spda.Commitment != "finalized" {
+		return fmt.Errorf(`commitment must be "finalized"`)
+	}
+
+	if spda.DataSliceLength == 0 && spda.DataSliceOffset != 0 {
+		return fmt.Errorf("data slice offset may not be set if data slice length is zero")
+	}
+
+	if len(spda.PDAs) <= 0 {
+		return fmt.Errorf("does not contain any PDAs entries")
+	}
+	if len(spda.PDAs) > SolanaMaxAccountsPerQuery {
+		return fmt.Errorf("too many PDA entries, may not be more than %d", SolanaMaxAccountsPerQuery)
+	}
+	for _, pda := range spda.PDAs {
+		// The program address is fixed length, so don't need to check for nil.
+		if len(pda.ProgramAddress) != SolanaPublicKeyLength {
+			return fmt.Errorf("invalid program address length")
+		}
+
+		if len(pda.Seeds) == 0 {
+			return fmt.Errorf("PDA does not contain any seeds")
+		}
+
+		if len(pda.Seeds) > SolanaMaxSeeds {
+			return fmt.Errorf("PDA contains too many seeds")
+		}
+
+		for _, seed := range pda.Seeds {
+			if len(seed) == 0 {
+				return fmt.Errorf("seed is null")
+			}
+
+			if len(seed) > SolanaMaxSeedLen {
+				return fmt.Errorf("seed is too long")
+			}
+		}
+	}
+
+	return nil
+}
+
+// Equal verifies that two Solana sol_pda queries are equal.
+func (left *SolanaPdaQueryRequest) Equal(right *SolanaPdaQueryRequest) bool {
+	if left.Commitment != right.Commitment ||
+		left.MinContextSlot != right.MinContextSlot ||
+		left.DataSliceOffset != right.DataSliceOffset ||
+		left.DataSliceLength != right.DataSliceLength {
 		return false
 	}
-	if !bytes.Equal(left.Signature, right.Signature) {
+
+	if len(left.PDAs) != len(right.PDAs) {
 		return false
 	}
+	for idx := range left.PDAs {
+		if !bytes.Equal(left.PDAs[idx].ProgramAddress[:], right.PDAs[idx].ProgramAddress[:]) {
+			return false
+		}
+
+		if len(left.PDAs[idx].Seeds) != len(right.PDAs[idx].Seeds) {
+			return false
+		}
+
+		for idx2 := range left.PDAs[idx].Seeds {
+			if !bytes.Equal(left.PDAs[idx].Seeds[idx2][:], right.PDAs[idx].Seeds[idx2][:]) {
+				return false
+			}
+		}
+	}
+
 	return true
 }

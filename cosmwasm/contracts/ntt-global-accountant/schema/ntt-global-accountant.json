@@ -1,0 +1,1118 @@
+{
+  "contract_name": "ntt-global-accountant",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
+    "type": "object"
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Submit a series of observations.  Once the contract has received a quorum of signatures for a particular observation, the transfer associated with the observation will be committed to the on-chain state.",
+        "type": "object",
+        "required": ["submit_observations"],
+        "properties": {
+          "submit_observations": {
+            "type": "object",
+            "required": ["guardian_set_index", "observations", "signature"],
+            "properties": {
+              "guardian_set_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "observations": {
+                "$ref": "#/definitions/Binary"
+              },
+              "signature": {
+                "$ref": "#/definitions/Signature"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Modifies the balance of a single account.  Used to manually override the balance.",
+        "type": "object",
+        "required": ["modify_balance"],
+        "properties": {
+          "modify_balance": {
+            "type": "object",
+            "required": ["guardian_set_index", "modification", "signatures"],
+            "properties": {
+              "guardian_set_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "modification": {
+                "$ref": "#/definitions/Binary"
+              },
+              "signatures": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Signature"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["upgrade_contract"],
+        "properties": {
+          "upgrade_contract": {
+            "type": "object",
+            "required": ["guardian_set_index", "signatures", "upgrade"],
+            "properties": {
+              "guardian_set_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "signatures": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Signature"
+                }
+              },
+              "upgrade": {
+                "$ref": "#/definitions/Binary"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs returns an error, the entire transaction is aborted and none of the VAAs are committed.",
+        "type": "object",
+        "required": ["submit_v_a_as"],
+        "properties": {
+          "submit_v_a_as": {
+            "type": "object",
+            "required": ["vaas"],
+            "properties": {
+              "vaas": {
+                "description": "One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole wire format.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Binary"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+        "type": "string"
+      },
+      "Signature": {
+        "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
+        "type": "object",
+        "required": ["index", "signature"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
+          },
+          "signature": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "maxItems": 65,
+            "minItems": 65
+          }
+        }
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": ["balance"],
+        "properties": {
+          "balance": {
+            "$ref": "#/definitions/Key"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["all_accounts"],
+        "properties": {
+          "all_accounts": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": ["integer", "null"],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Key"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["all_transfers"],
+        "properties": {
+          "all_transfers": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": ["integer", "null"],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Key"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["all_pending_transfers"],
+        "properties": {
+          "all_pending_transfers": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": ["integer", "null"],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Key"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["modification"],
+        "properties": {
+          "modification": {
+            "type": "object",
+            "required": ["sequence"],
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["all_modifications"],
+        "properties": {
+          "all_modifications": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": ["integer", "null"],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": ["integer", "null"],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["validate_transfer"],
+        "properties": {
+          "validate_transfer": {
+            "type": "object",
+            "required": ["transfer"],
+            "properties": {
+              "transfer": {
+                "$ref": "#/definitions/Transfer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["chain_registration"],
+        "properties": {
+          "chain_registration": {
+            "type": "object",
+            "required": ["chain"],
+            "properties": {
+              "chain": {
+                "type": "integer",
+                "format": "uint16",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["missing_observations"],
+        "properties": {
+          "missing_observations": {
+            "type": "object",
+            "required": ["guardian_set", "index"],
+            "properties": {
+              "guardian_set": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "index": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["transfer_status"],
+        "properties": {
+          "transfer_status": {
+            "$ref": "#/definitions/Key"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["batch_transfer_status"],
+        "properties": {
+          "batch_transfer_status": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Key"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Data": {
+        "type": "object",
+        "required": [
+          "amount",
+          "recipient_chain",
+          "token_address",
+          "token_chain"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint256"
+          },
+          "recipient_chain": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "token_address": {
+            "$ref": "#/definitions/TokenAddress"
+          },
+          "token_chain": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Key": {
+        "type": "object",
+        "required": ["chain_id", "token_address", "token_chain"],
+        "properties": {
+          "chain_id": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "token_address": {
+            "$ref": "#/definitions/TokenAddress"
+          },
+          "token_chain": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenAddress": {
+        "type": "string"
+      },
+      "Transfer": {
+        "type": "object",
+        "required": ["data", "key"],
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/Data"
+          },
+          "key": {
+            "$ref": "#/definitions/Key"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint256": {
+        "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+        "type": "string"
+      }
+    }
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "all_accounts": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllAccountsResponse",
+      "type": "object",
+      "required": ["accounts"],
+      "properties": {
+        "accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Account"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Account": {
+          "type": "object",
+          "required": ["balance", "key"],
+          "properties": {
+            "balance": {
+              "$ref": "#/definitions/Balance"
+            },
+            "key": {
+              "$ref": "#/definitions/Key"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Balance": {
+          "$ref": "#/definitions/Uint256"
+        },
+        "Key": {
+          "type": "object",
+          "required": ["chain_id", "token_address", "token_chain"],
+          "properties": {
+            "chain_id": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "token_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "token_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "Uint256": {
+          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+          "type": "string"
+        }
+      }
+    },
+    "all_modifications": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllModificationsResponse",
+      "type": "object",
+      "required": ["modifications"],
+      "properties": {
+        "modifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Modification"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Kind": {
+          "type": "string",
+          "enum": ["add", "sub"]
+        },
+        "Modification": {
+          "type": "object",
+          "required": [
+            "amount",
+            "chain_id",
+            "kind",
+            "reason",
+            "sequence",
+            "token_address",
+            "token_chain"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint256"
+            },
+            "chain_id": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "kind": {
+              "$ref": "#/definitions/Kind"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "token_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "token_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "Uint256": {
+          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+          "type": "string"
+        }
+      }
+    },
+    "all_pending_transfers": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllPendingTransfersResponse",
+      "type": "object",
+      "required": ["pending"],
+      "properties": {
+        "pending": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PendingTransfer"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "digest",
+            "emitter_chain",
+            "guardian_set_index",
+            "signatures",
+            "tx_hash"
+          ],
+          "properties": {
+            "digest": {
+              "$ref": "#/definitions/Binary"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "signatures": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Key": {
+          "type": "object",
+          "required": ["emitter_address", "emitter_chain", "sequence"],
+          "properties": {
+            "emitter_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "PendingTransfer": {
+          "type": "object",
+          "required": ["data", "key"],
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Data"
+              }
+            },
+            "key": {
+              "$ref": "#/definitions/Key"
+            }
+          },
+          "additionalProperties": false
+        },
+        "TokenAddress": {
+          "type": "string"
+        }
+      }
+    },
+    "all_transfers": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllTransfersResponse",
+      "type": "object",
+      "required": ["transfers"],
+      "properties": {
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/Transfer"
+              },
+              {
+                "$ref": "#/definitions/Binary"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "amount",
+            "recipient_chain",
+            "token_address",
+            "token_chain"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint256"
+            },
+            "recipient_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "token_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "token_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "Key": {
+          "type": "object",
+          "required": ["emitter_address", "emitter_chain", "sequence"],
+          "properties": {
+            "emitter_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "Transfer": {
+          "type": "object",
+          "required": ["data", "key"],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Data"
+            },
+            "key": {
+              "$ref": "#/definitions/Key"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint256": {
+          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+          "type": "string"
+        }
+      }
+    },
+    "balance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Balance",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint256"
+        }
+      ],
+      "definitions": {
+        "Uint256": {
+          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+          "type": "string"
+        }
+      }
+    },
+    "batch_transfer_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BatchTransferStatusResponse",
+      "type": "object",
+      "required": ["details"],
+      "properties": {
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TransferDetails"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "digest",
+            "emitter_chain",
+            "guardian_set_index",
+            "signatures",
+            "tx_hash"
+          ],
+          "properties": {
+            "digest": {
+              "$ref": "#/definitions/Binary"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "signatures": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Key": {
+          "type": "object",
+          "required": ["emitter_address", "emitter_chain", "sequence"],
+          "properties": {
+            "emitter_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "TransferDetails": {
+          "type": "object",
+          "required": ["key"],
+          "properties": {
+            "key": {
+              "$ref": "#/definitions/Key"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/TransferStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "TransferStatus": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["pending"],
+              "properties": {
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Data"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["committed"],
+              "properties": {
+                "committed": {
+                  "type": "object",
+                  "required": ["data", "digest"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/Data"
+                    },
+                    "digest": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "chain_registration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChainRegistrationResponse",
+      "type": "object",
+      "required": ["address"],
+      "properties": {
+        "address": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        }
+      }
+    },
+    "missing_observations": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MissingObservationsResponse",
+      "type": "object",
+      "required": ["missing"],
+      "properties": {
+        "missing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MissingObservation"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "MissingObservation": {
+          "type": "object",
+          "required": ["chain_id", "tx_hash"],
+          "properties": {
+            "chain_id": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "modification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Modification",
+      "type": "object",
+      "required": [
+        "amount",
+        "chain_id",
+        "kind",
+        "reason",
+        "sequence",
+        "token_address",
+        "token_chain"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint256"
+        },
+        "chain_id": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "kind": {
+          "$ref": "#/definitions/Kind"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "token_address": {
+          "$ref": "#/definitions/TokenAddress"
+        },
+        "token_chain": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Kind": {
+          "type": "string",
+          "enum": ["add", "sub"]
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "Uint256": {
+          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
+          "type": "string"
+        }
+      }
+    },
+    "transfer_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TransferStatus",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["pending"],
+          "properties": {
+            "pending": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Data"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["committed"],
+          "properties": {
+            "committed": {
+              "type": "object",
+              "required": ["data", "digest"],
+              "properties": {
+                "data": {
+                  "$ref": "#/definitions/Data"
+                },
+                "digest": {
+                  "$ref": "#/definitions/Binary"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "digest",
+            "emitter_chain",
+            "guardian_set_index",
+            "signatures",
+            "tx_hash"
+          ],
+          "properties": {
+            "digest": {
+              "$ref": "#/definitions/Binary"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "signatures": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "validate_transfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Empty",
+      "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
+      "type": "object"
+    }
+  }
+}

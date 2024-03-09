@@ -1,9 +1,8 @@
 import { Buffer } from "buffer";
 import base58 from "bs58";
 import { BinaryWriter } from "./BinaryWriter";
-import { HexString } from "./consts";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
-import { coalesceUint8Array, hexToUint8Array, isValidHexString } from "./utils";
+import { bigIntWithDef, coalesceUint8Array } from "./utils";
 import { BinaryReader } from "./BinaryReader";
 import { ChainSpecificResponse } from "./response";
 
@@ -180,8 +179,4 @@ export interface SolanaAccountResult {
   executable: boolean;
   owner: Uint8Array;
   data: Uint8Array;
-}
-
-function bigIntWithDef(val: bigint | undefined): bigint {
-  return BigInt(val !== undefined ? val : BigInt(0));
 }

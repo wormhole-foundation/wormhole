@@ -6,13 +6,14 @@
   "scripts": {
     "deploy-wormchain": "ts-node deploy_wormchain.ts",
     "test-accountant": "jest test_accountant.ts --verbose",
+    "test-ntt-accountant": "jest test_ntt_accountant.ts --verbose",
     "test-wormchain": "ts-node test_wormchain.ts",
     "deploy-and-test": "npm run deploy-wormchain && npm run test-wormchain"
   },
   "keywords": [],
   "author": "",
   "dependencies": {
-    "@certusone/wormhole-sdk": "0.9.9",
+    "@certusone/wormhole-sdk": "0.10.10",
     "@cosmjs/cosmwasm-stargate": "0.29.5",
     "@improbable-eng/grpc-web-node-http-transport": "0.15.0",
     "@wormhole-foundation/wormchain-sdk": "file:../../ts-sdk",
