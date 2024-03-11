@@ -559,11 +559,18 @@ export class QueryProxyMock {
         let results: SolanaPdaResult[] = [];
         let idx = 0;
         response.data.result.value.forEach((val) => {
+          const rentEpoch = BigInt(val.rentEpoch);
           results.push({
             account: Uint8Array.from(base58.decode(accounts[idx].toString())),
             bump: bumps[idx],
             lamports: BigInt(val.lamports),
-            rentEpoch: BigInt(val.rentEpoch),
+            rentEpoch:
+              // this is a band-aid for an axios / JSON.parse effect where numbers > Number.MAX_SAFE_INTEGER are not parsed correctly
+              // e.g. 18446744073709551615 becomes 18446744073709552000
+              // https://github.com/axios/axios/issues/4846
+              rentEpoch > SOLANA_MAX_RENT_EPOCH
+                ? SOLANA_MAX_RENT_EPOCH
+                : rentEpoch,
             executable: Boolean(val.executable),
             owner: Uint8Array.from(base58.decode(val.owner.toString())),
             data: Uint8Array.from(

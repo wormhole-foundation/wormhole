@@ -1,3 +1,11 @@
+## 0.0.12
+
+Fix SolanaPda mock for bad rentEpoch parsing
+
+## 0.0.11
+
+Add Solana PDA support
+
 ## 0.0.10
 
 Fix SolanaAccount mock for bad rentEpoch parsing
