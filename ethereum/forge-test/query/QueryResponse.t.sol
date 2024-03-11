@@ -202,7 +202,7 @@ contract TestQueryResponse is Test {
             response: hex"0000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 2, queryResponse.QT_ETH_CALL()));
         queryResponse.parseEthCallQueryResponse(r);
     }
 
@@ -273,7 +273,7 @@ contract TestQueryResponse is Test {
             response: hex"0000000000004271ec70d2f70cf1933770ae760050a75334ce650aa091665ee43a6ed488cd154b0800000003f4810cc000000000000042720b1608c2cddfd9d7fb4ec94f79ec1389e2410e611a2c2bbde94e9ad37519ebbb00000003f4904f0002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_ETH_CALL_BY_TIMESTAMP()));
         queryResponse.parseEthCallByTimestampQueryResponse(r);
     }
 
@@ -312,7 +312,7 @@ contract TestQueryResponse is Test {
             response: hex"00000000000060299eb9c56ffdae81214867ed217f5ab37e295c196b4f04b23a795d3e4aea6ff3d700000005bb1bd58002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_ETH_CALL_WITH_FINALITY()));
         queryResponse.parseEthCallWithFinalityQueryResponse(r);
     }
 
@@ -371,7 +371,7 @@ contract TestQueryResponse is Test {
             response: solanaAccountPerChainResponsesInner
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_SOL_ACCOUNT()));
         queryResponse.parseSolanaAccountQueryResponse(r);
     }
 
@@ -460,7 +460,7 @@ contract TestQueryResponse is Test {
             response: solanaPdaPerChainResponsesInner
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_SOL_PDA()));
         queryResponse.parseSolanaPdaQueryResponse(r);
     }
 
@@ -642,7 +642,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(UnsupportedQueryType.selector, _requestQueryType));
         queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
