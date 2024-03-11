@@ -749,10 +749,11 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDOptimismSepolia {
 		finalized = true
 		safe = true
-	} else if w.chainID == vaa.ChainIDScroll || // As of 11/10/2023 Scroll supports polling for finalized but not safe.
-		w.chainID == vaa.ChainIDPolygonSepolia { // As of 3/11/2024 Polygon Sepolia supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDScroll {
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
 		finalized = true
-	} else if w.chainID == vaa.ChainIDPolygon {
+	} else if w.chainID == vaa.ChainIDPolygon ||
+		w.chainID == vaa.ChainIDPolygonSepolia {
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
 		finalized = true
