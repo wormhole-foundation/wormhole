@@ -24,7 +24,7 @@ struct ParsedPerChainQueryResponse {
     bytes response;
 }
 
-// @dev EthCallQueryResponse describes an ETH call per-chain query.
+// @dev EthCallQueryResponse describes the response to an ETH call per-chain query.
 struct EthCallQueryResponse {
     bytes requestBlockId;
     uint64 blockNum;
@@ -33,7 +33,7 @@ struct EthCallQueryResponse {
     EthCallData [] result;
 }
 
-// @dev EthCallByTimestampQueryResponse describes an ETH call by timestamp per-chain query.
+// @dev EthCallByTimestampQueryResponse describes the response to an ETH call by timestamp per-chain query.
 struct EthCallByTimestampQueryResponse {
     bytes requestTargetBlockIdHint;
     bytes requestFollowingBlockIdHint;
@@ -47,7 +47,7 @@ struct EthCallByTimestampQueryResponse {
     EthCallData [] result;
 }
 
-// @dev EthCallWithFinalityQueryResponse describes an ETH call with finality per-chain query.
+// @dev EthCallWithFinalityQueryResponse describes the response to an ETH call with finality per-chain query.
 struct EthCallWithFinalityQueryResponse {
     bytes requestBlockId;
     bytes requestFinality;
@@ -64,7 +64,7 @@ struct EthCallData {
     bytes result;
 }
 
-// @dev SolanaAccountQueryResponse describes a Solana Account query per-chain query.
+// @dev SolanaAccountQueryResponse describes the response to a Solana Account query per-chain query.
 struct SolanaAccountQueryResponse {
     bytes requestCommitment;
     uint64 requestMinContextSlot;
@@ -86,6 +86,31 @@ struct SolanaAccountResult {
     bytes data;
 }
 
+// @dev SolanaPdaQueryResponse describes the response to a Solana PDA (Program Derived Address) query per-chain query.
+struct SolanaPdaQueryResponse {
+    bytes requestCommitment;
+    uint64 requestMinContextSlot;
+    uint64 requestDataSliceOffset;
+    uint64 requestDataSliceLength;
+    uint64 slotNumber;
+    uint64 blockTime;
+    bytes32 blockHash;
+    SolanaPdaResult [] results;
+}
+
+// @dev SolanaPdaResult describes a single Solana PDA (Program Derived Address) query result.
+struct SolanaPdaResult {
+    bytes32 programId;
+    bytes[] seeds;
+    bytes32 account;
+    uint64 lamports;
+    uint64 rentEpoch;
+    bool executable;
+    bytes32 owner;
+    bytes data;
+    uint8 bump;
+}
+
 // Custom errors
 error EmptyWormholeAddress();
 error InvalidResponseVersion();
@@ -94,7 +119,8 @@ error ZeroQueries();
 error NumberOfResponsesMismatch();
 error ChainIdMismatch();
 error RequestTypeMismatch();
-error UnsupportedQueryType();
+error UnsupportedQueryType(uint8 received);
+error WrongQueryType(uint8 received, uint8 expected);
 error UnexpectedNumberOfResults();
 error InvalidPayloadLength(uint256 received, uint256 expected);
 error InvalidContractAddress();
@@ -104,6 +130,8 @@ error StaleBlockNum();
 error StaleBlockTime();
 
 // @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
+// For a detailed discussion of these query responses, please see the white paper:
+// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0013_ccq.md
 abstract contract QueryResponse {
     using BytesParsing for bytes;
 
@@ -111,11 +139,14 @@ abstract contract QueryResponse {
 
     bytes public constant responsePrefix = bytes("query_response_0000000000000000000|");
     uint8 public constant VERSION = 1;
+
+    // TODO: Consider changing these to an enum.
     uint8 public constant QT_ETH_CALL = 1;
     uint8 public constant QT_ETH_CALL_BY_TIMESTAMP = 2;
     uint8 public constant QT_ETH_CALL_WITH_FINALITY = 3;
     uint8 public constant QT_SOL_ACCOUNT = 4;
-    uint8 public constant QT_MAX = 5; // Keep this last
+    uint8 public constant QT_SOL_PDA = 5;
+    uint8 public constant QT_MAX = 6; // Keep this last
 
     constructor(address _wormhole) {
         if (_wormhole == address(0)) {
@@ -207,7 +238,7 @@ abstract contract QueryResponse {
             }
             
             if (r.responses[idx].queryType < QT_ETH_CALL || r.responses[idx].queryType >= QT_MAX) {
-                revert UnsupportedQueryType();
+                revert UnsupportedQueryType(r.responses[idx].queryType);
             }
 
             (len, reqIdx) = response.asUint32Unchecked(reqIdx);
@@ -231,7 +262,7 @@ abstract contract QueryResponse {
     /// @dev parseEthCallQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallQueryResponse memory r) {
         if (pcr.queryType != QT_ETH_CALL) {
-                revert UnsupportedQueryType();
+                revert WrongQueryType(pcr.queryType, QT_ETH_CALL);
         }
 
         uint reqIdx;
@@ -280,7 +311,7 @@ abstract contract QueryResponse {
     /// @dev parseEthCallByTimestampQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallByTimestampQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallByTimestampQueryResponse memory r) {
         if (pcr.queryType != QT_ETH_CALL_BY_TIMESTAMP) {
-                revert UnsupportedQueryType();
+                revert WrongQueryType(pcr.queryType, QT_ETH_CALL_BY_TIMESTAMP);
         }
 
         uint reqIdx;
@@ -334,7 +365,7 @@ abstract contract QueryResponse {
     /// @dev parseEthCallWithFinalityQueryResponse parses a ParsedPerChainQueryResponse for an ETH call per-chain query.
     function parseEthCallWithFinalityQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (EthCallWithFinalityQueryResponse memory r) {
         if (pcr.queryType != QT_ETH_CALL_WITH_FINALITY) {
-                revert UnsupportedQueryType();
+                revert WrongQueryType(pcr.queryType, QT_ETH_CALL_WITH_FINALITY);
         }
 
         uint reqIdx;
@@ -384,7 +415,7 @@ abstract contract QueryResponse {
     /// @dev parseSolanaAccountQueryResponse parses a ParsedPerChainQueryResponse for a Solana Account per-chain query.
     function parseSolanaAccountQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaAccountQueryResponse memory r) {
         if (pcr.queryType != QT_SOL_ACCOUNT) {
-            revert UnsupportedQueryType();
+            revert WrongQueryType(pcr.queryType, QT_SOL_ACCOUNT);
         }
 
         uint reqIdx;
@@ -423,6 +454,71 @@ abstract contract QueryResponse {
 
             (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
+
+            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
+            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
+
+            unchecked { ++idx; }
+        }
+
+        checkLength(pcr.request, reqIdx);
+        checkLength(pcr.response, respIdx);
+    }
+
+    /// @dev parseSolanaPdaQueryResponse parses a ParsedPerChainQueryResponse for a Solana Pda per-chain query.
+    function parseSolanaPdaQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaPdaQueryResponse memory r) {
+        if (pcr.queryType != QT_SOL_PDA) {
+            revert WrongQueryType(pcr.queryType, QT_SOL_PDA);
+        }
+
+        uint reqIdx;
+        uint respIdx;
+        uint32 len;
+
+        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
+        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
+        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
+        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
+        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
+
+        uint8 numPdas;
+        (numPdas, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_Pdas
+
+        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
+        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
+        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
+
+        uint8 respNumResults;
+        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
+        if (respNumResults != numPdas) {
+                revert UnexpectedNumberOfResults();
+        }
+
+        r.results = new SolanaPdaResult[](numPdas);
+
+        // Walk through the call data and results in lock step.
+        for (uint idx; idx < numPdas;) {
+            (r.results[idx].programId, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request programId
+
+            uint8 numSeeds; // Request number of seeds
+            (numSeeds, reqIdx) = pcr.request.asUint8Unchecked(reqIdx);
+            r.results[idx].seeds = new bytes[](numSeeds);
+            for (uint idx2; idx2 < numSeeds;) {
+                uint32 seedLen;
+                (seedLen, reqIdx) = pcr.request.asUint32Unchecked(reqIdx);
+                (r.results[idx].seeds[idx2], reqIdx) = pcr.request.sliceUnchecked(reqIdx, seedLen);
+                unchecked { ++idx2; }
+            }
+
+            (r.results[idx].account, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response account
+            (r.results[idx].bump, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response bump
+
+            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
+            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
+
+            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnckecked(respIdx); // Response executable
+
+            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
 
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);

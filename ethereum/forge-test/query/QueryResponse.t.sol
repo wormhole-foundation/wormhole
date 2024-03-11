@@ -31,16 +31,27 @@ contract TestQueryResponse is Test {
     bytes perChainResponses = hex"000501000000b90000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a";
     bytes perChainResponsesInner = hex"00000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd";
 
-    bytes solanaSignature = hex"acb1d93cdfe60f9776e3e05d7fafaf9d83a1d14db70317230f6b0b6f3a60708a1a64dddac02d3843f4c516f2509b89454a2e73c360fea47beee1c1a091ff9f3201";
-    uint32 solanaQueryRequestLen = 0x00000073;
-    uint8 solanaQueryRequestVersion = 0x01;
-    uint32 solanaQueryRequestNonce = 0x0000002a;
-    uint8 solanaNumPerChainQueries = 0x01;
-    bytes solanaPerChainQueries = hex"000104000000660000000966696e616c697a656400000000000000000000000000000000000000000000000002165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7";
-    bytes solanaPerChainQueriesInner = hex"0000000966696e616c697a656400000000000000000000000000000000000000000000000002165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7";
-    uint8 solanaNumPerChainResponses = 0x01;
-    bytes solanaPerChainResponses = hex"010001040000013f000000000000d85f00060f3e9915ddc03a8de2b1de609020bb0a0dcee594a8c06801619cf9ea2a498b9d910f9a25772b020000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000";
-    bytes solanaPerChainResponsesInner = hex"000000000000d85f00060f3e9915ddc03a8de2b1de609020bb0a0dcee594a8c06801619cf9ea2a498b9d910f9a25772b020000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000";
+    bytes solanaAccountSignature = hex"acb1d93cdfe60f9776e3e05d7fafaf9d83a1d14db70317230f6b0b6f3a60708a1a64dddac02d3843f4c516f2509b89454a2e73c360fea47beee1c1a091ff9f3201";
+    uint32 solanaAccountQueryRequestLen = 0x00000073;
+    uint8 solanaAccountQueryRequestVersion = 0x01;
+    uint32 solanaAccountQueryRequestNonce = 0x0000002a;
+    uint8 solanaAccountNumPerChainQueries = 0x01;
+    bytes solanaAccountPerChainQueries = hex"000104000000660000000966696e616c697a656400000000000000000000000000000000000000000000000002165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7";
+    bytes solanaAccountPerChainQueriesInner = hex"0000000966696e616c697a656400000000000000000000000000000000000000000000000002165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa3019c006c48c8cbf33849cb07a3f936159cc523f9591cb1999abd45890ec5fee9b7";
+    uint8 solanaAccountNumPerChainResponses = 0x01;
+    bytes solanaAccountPerChainResponses = hex"010001040000013f000000000000d85f00060f3e9915ddc03a8de2b1de609020bb0a0dcee594a8c06801619cf9ea2a498b9d910f9a25772b020000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000";
+    bytes solanaAccountPerChainResponsesInner = hex"000000000000d85f00060f3e9915ddc03a8de2b1de609020bb0a0dcee594a8c06801619cf9ea2a498b9d910f9a25772b020000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a09010000000000000000000000000000000000000000000000000000000000000000000000000000000000164d6000000000000000000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90000005201000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000";
+
+    bytes solanaPdaSignature = hex"0c8418d81c00aad6283ba3eb30e141ccdd9296e013ca44e5cc713418921253004b93107ba0d858a548ce989e2bca4132e4c2f9a57a9892e3a87a8304cdb36d8f00";
+    uint32 solanaPdaQueryRequestLen = 0x0000006b;
+    uint8 solanaPdaQueryRequestVersion = 0x01;
+    uint32 solanaPdaQueryRequestNonce = 0x0000002b;
+    uint8 solanaPdaNumPerChainQueries = 0x01;
+    bytes solanaPdaPerChainQueries = hex"010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000";
+    bytes solanaPdaPerChainQueriesInner = hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000";
+    uint8 solanaPdaNumPerChainResponses = 0x01;
+    bytes solanaPdaPerChainResponses = hex"0001050000009b00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65";
+    bytes solanaPdaPerChainResponsesInner = hex"00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65";
 
     uint8 sigGuardianIndex = 0;
 
@@ -191,7 +202,7 @@ contract TestQueryResponse is Test {
             response: hex"0000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 2, queryResponse.QT_ETH_CALL()));
         queryResponse.parseEthCallQueryResponse(r);
     }
 
@@ -262,7 +273,7 @@ contract TestQueryResponse is Test {
             response: hex"0000000000004271ec70d2f70cf1933770ae760050a75334ce650aa091665ee43a6ed488cd154b0800000003f4810cc000000000000042720b1608c2cddfd9d7fb4ec94f79ec1389e2410e611a2c2bbde94e9ad37519ebbb00000003f4904f0002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_ETH_CALL_BY_TIMESTAMP()));
         queryResponse.parseEthCallByTimestampQueryResponse(r);
     }
 
@@ -301,14 +312,14 @@ contract TestQueryResponse is Test {
             response: hex"00000000000060299eb9c56ffdae81214867ed217f5ab37e295c196b4f04b23a795d3e4aea6ff3d700000005bb1bd58002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_ETH_CALL_WITH_FINALITY()));
         queryResponse.parseEthCallWithFinalityQueryResponse(r);
     }
 
     // Start of Solana Stuff ///////////////////////////////////////////////////////////////////////////
 
     function test_verifyQueryResponseSignaturesForSolana() public view {
-        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, solanaSignature, solanaQueryRequestVersion, solanaQueryRequestNonce, solanaNumPerChainQueries, solanaPerChainQueries, solanaNumPerChainResponses, solanaPerChainResponses);
+        bytes memory resp = concatenateQueryResponseBytesOffChain(version, senderChainId, solanaAccountSignature, solanaAccountQueryRequestVersion, solanaAccountQueryRequestNonce, solanaAccountNumPerChainQueries, solanaAccountPerChainQueries, solanaAccountNumPerChainResponses, solanaAccountPerChainResponses);
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
@@ -321,8 +332,8 @@ contract TestQueryResponse is Test {
         ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
             chainId: 1,
             queryType: 4,
-            request: solanaPerChainQueriesInner,
-            response: solanaPerChainResponsesInner
+            request: solanaAccountPerChainQueriesInner,
+            response: solanaAccountPerChainResponsesInner
             });
 
         SolanaAccountQueryResponse memory sar = queryResponse.parseSolanaAccountQueryResponse(r);
@@ -356,11 +367,11 @@ contract TestQueryResponse is Test {
         ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
             chainId: 2,
             queryType: 1,
-            request: solanaPerChainQueriesInner,
-            response: solanaPerChainResponsesInner
+            request: solanaAccountPerChainQueriesInner,
+            response: solanaAccountPerChainResponsesInner
             });
 
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_SOL_ACCOUNT()));
         queryResponse.parseSolanaAccountQueryResponse(r);
     }
 
@@ -371,7 +382,7 @@ contract TestQueryResponse is Test {
             chainId: 1,
             queryType: 4,
             request: requestWithOnlyOneAccount,
-            response: solanaPerChainResponsesInner
+            response: solanaAccountPerChainResponsesInner
             });
 
         vm.expectRevert(UnexpectedNumberOfResults.selector);
@@ -385,7 +396,7 @@ contract TestQueryResponse is Test {
             chainId: 1,
             queryType: 4,
             request: requestWithExtraBytes,
-            response: solanaPerChainResponsesInner
+            response: solanaAccountPerChainResponsesInner
             });
 
         vm.expectRevert(abi.encodeWithSelector(InvalidPayloadLength.selector, 106, 102));
@@ -398,12 +409,101 @@ contract TestQueryResponse is Test {
         ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
             chainId: 1,
             queryType: 4,
-            request: solanaPerChainQueriesInner,
+            request: solanaAccountPerChainQueriesInner,
             response: responseWithExtraBytes
             });
 
         vm.expectRevert(abi.encodeWithSelector(InvalidPayloadLength.selector, 323, 319));
         queryResponse.parseSolanaAccountQueryResponse(r);
+    }
+
+    function test_parseSolanaPdaQueryResponse() public {
+        // Take the data extracted by the previous test and break it down even further.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 1,
+            queryType: 5,
+            request: solanaPdaPerChainQueriesInner,
+            response: solanaPdaPerChainResponsesInner
+            });
+
+        SolanaPdaQueryResponse memory sar = queryResponse.parseSolanaPdaQueryResponse(r);
+
+        assertEq(sar.requestCommitment, "finalized");
+        assertEq(sar.requestMinContextSlot, 2303);
+        assertEq(sar.requestDataSliceOffset, 12);
+        assertEq(sar.requestDataSliceLength, 20);
+        assertEq(sar.slotNumber, 2303);
+        assertEq(sar.blockTime, 0x0006115e3f6d7540);
+        assertEq(sar.blockHash, hex"e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b");
+        assertEq(sar.results.length, 1);
+
+        assertEq(sar.results[0].programId, hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa");
+        assertEq(sar.results[0].seeds.length, 2);
+        assertEq(sar.results[0].seeds[0], hex"477561726469616e536574");
+        assertEq(sar.results[0].seeds[1], hex"00000000");
+
+        assertEq(sar.results[0].account, hex"4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e");
+        assertEq(sar.results[0].bump, 253);
+        assertEq(sar.results[0].lamports, 0x116ac0);
+        assertEq(sar.results[0].rentEpoch, 0);
+        assertEq(sar.results[0].executable, false);
+        assertEq(sar.results[0].owner, hex"02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa");
+        assertEq(sar.results[0].data, hex"57cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65");
+    }
+    
+    function test_parseSolanaPdaQueryResponseRevertWrongQueryType() public {
+        // Pass an ETH per chain response into the Solana parser.
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 2,
+            queryType: 1,
+            request: solanaPdaPerChainQueriesInner,
+            response: solanaPdaPerChainResponsesInner
+            });
+
+        vm.expectRevert(abi.encodeWithSelector(WrongQueryType.selector, 1, queryResponse.QT_SOL_PDA()));
+        queryResponse.parseSolanaPdaQueryResponse(r);
+    }
+
+    function test_parseSolanaPdaQueryResponseRevertUnexpectedNumberOfResults() public {
+        // Only one Pda on the request but two in the response.
+        bytes memory requestWithTwoPdas = hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e536574000000040000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000";
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 1,
+            queryType: 5,
+            request: requestWithTwoPdas,
+            response: solanaPdaPerChainResponsesInner
+            });
+
+        vm.expectRevert(UnexpectedNumberOfResults.selector);
+        queryResponse.parseSolanaPdaQueryResponse(r);
+    }
+
+    function test_parseSolanaPdaQueryResponseExtraRequestBytesRevertInvalidPayloadLength() public {
+        // Extra bytes at the end of the request.
+        bytes memory requestWithExtraBytes = hex"0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000DEADBEEF";
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 1,
+            queryType: 5,
+            request: requestWithExtraBytes,
+            response: solanaPdaPerChainResponsesInner
+            });
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidPayloadLength.selector, 98, 94));
+        queryResponse.parseSolanaPdaQueryResponse(r);
+    }
+
+    function test_parseSolanaPdaQueryResponseExtraResponseBytesRevertInvalidPayloadLength() public {
+        // Extra bytes at the end of the response.
+        bytes memory responseWithExtraBytes = hex"00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65DEADBEEF";
+        ParsedPerChainQueryResponse memory r = ParsedPerChainQueryResponse({
+            chainId: 1,
+            queryType: 5,
+            request: solanaPdaPerChainQueriesInner,
+            response: responseWithExtraBytes
+            });
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidPayloadLength.selector, 159, 155));
+        queryResponse.parseSolanaPdaQueryResponse(r);
     }
 
     /***********************************
@@ -542,7 +642,7 @@ contract TestQueryResponse is Test {
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = getSignature(resp);
         IWormhole.Signature[] memory signatures = new IWormhole.Signature[](1);
         signatures[0] = IWormhole.Signature({r: sigR, s: sigS, v: sigV, guardianIndex: sigGuardianIndex});
-        vm.expectRevert(UnsupportedQueryType.selector);
+        vm.expectRevert(abi.encodeWithSelector(UnsupportedQueryType.selector, _requestQueryType));
         queryResponse.parseAndVerifyQueryResponse(resp, signatures);
     }
 
