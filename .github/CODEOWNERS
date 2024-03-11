@@ -28,7 +28,7 @@
 /sdk/ @bruce-riley @evan-gray @kev1n-peters @SEJeff
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
-/sdk/js-query/ @evan-gray @kev1n-peters
+/sdk/js-query/ @evan-gray @kev1n-peters @bruce-riley
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters @barnjamin
 /sdk/rust/ @a5-pickle
