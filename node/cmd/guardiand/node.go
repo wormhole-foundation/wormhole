@@ -692,8 +692,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
 	}
 
-	// Mantle should not be allowed in mainnet until its finality policy is understood and implemented in the watcher.
-	// Note that as of 11/9/2023 Mantle does not support querying for `finalized` or `safe`, just `latest`, so we will need to implement a finalizer.
 	if *mantleRPC != "" && !*testnetMode && !*unsafeDevMode {
 		logger.Fatal("mantle is currently only supported in devnet and testnet")
 	}

@@ -563,9 +563,9 @@ const TESTNET = {
     nft_bridge: "0x47B9a1406BEe29a3001BFEB7e45aE45fFFB40c18",
   },
   mantle: {
-    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
-    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
-    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+    core: "0x376428e7f26D5867e69201b275553C45B09EE090",
+    token_bridge: "0x75Bfa155a9D7A3714b0861c8a8aF0C4633c45b5D",
+    nft_bridge: "0xD7D732C8Bf5eBF620EA55b5828eae20418eEF083",
   },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",

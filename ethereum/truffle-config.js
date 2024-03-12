@@ -417,10 +417,11 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://rpc.testnet.mantle.xyz"
+          "https://rpc.sepolia.mantle.xyz"
         );
       },
-      network_id: 5001,
+      network_id: 5003,
+      gasPrice: 2520000000,
     },
     rootstock: {
       provider: () => {
