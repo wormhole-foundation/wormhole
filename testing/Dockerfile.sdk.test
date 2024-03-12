@@ -1,7 +1,7 @@
 FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
 
 RUN apt-get update && apt-get -y install \
-  git python3 make curl netcat
+  git python3 make curl netcat vim
 
 RUN npm i typescript -g
 RUN curl -L https://foundry.paradigm.xyz | bash 
