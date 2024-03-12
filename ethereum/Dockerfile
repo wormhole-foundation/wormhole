@@ -6,7 +6,7 @@ FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d7
 # RUN apk add git python make build-base
 # RUN apk update && apk add bash
 RUN apt-get update && apt-get -y install \
-  git python make curl netcat
+  git python make curl netcat vim
 
 RUN npm i typescript -g
 RUN curl -L https://foundry.paradigm.xyz | bash 
