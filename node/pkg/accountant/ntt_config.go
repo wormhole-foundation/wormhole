@@ -24,11 +24,11 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 		directEmitterConfig = emitterConfig{}
 	} else if env == common.TestNet {
 		directEmitterConfig = emitterConfig{
-			{chainId: vaa.ChainIDSolana, addr: "7c88a56dba2ca6b48372ec1094e367d12a3188d5571345392d8e411fa38d762a"},
-			{chainId: vaa.ChainIDSepolia, addr: "0000000000000000000000008da66cbf57de8482d239e7ac60f24bbbc1af9e8e"},
-			{chainId: vaa.ChainIDArbitrumSepolia, addr: "0000000000000000000000000e15979a7a1efaef20312ca45a59eb141bf7e340"},
-			{chainId: vaa.ChainIDBaseSepolia, addr: "00000000000000000000000030BF30344dB294164B2D05633339117F8ADA0153"},
-			{chainId: vaa.ChainIDOptimismSepolia, addr: "000000000000000000000000c3132b3502778ecb51ecb2f316a7b18285d84079"},
+			{chainId: vaa.ChainIDSolana, addr: "7e6436b671cce379a1fa9833783e28b36d39a00e2cdc6bfeab5d2d836eb61c7f"},
+			{chainId: vaa.ChainIDSepolia, addr: "0000000000000000000000001fdc902e30b188fd2ba976b421cb179943f57896"},
+			{chainId: vaa.ChainIDArbitrumSepolia, addr: "0000000000000000000000000e24d17d7467467b39bf64a9dff88776bd6c74d7"},
+			{chainId: vaa.ChainIDBaseSepolia, addr: "0000000000000000000000001e072169541f1171e427aa44b5fd8924bee71b0e"},
+			{chainId: vaa.ChainIDOptimismSepolia, addr: "00000000000000000000000041265eb2863bf0238081f6aeefef73549c82c3dd"},
 		}
 		arEmitterConfig = sdk.KnownTestnetAutomaticRelayerEmitters
 	} else {
