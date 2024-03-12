@@ -23,7 +23,13 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 	if env == common.MainNet {
 		directEmitterConfig = emitterConfig{}
 	} else if env == common.TestNet {
-		directEmitterConfig = emitterConfig{}
+		directEmitterConfig = emitterConfig{
+			{chainId: vaa.ChainIDSolana, addr: "7c88a56dba2ca6b48372ec1094e367d12a3188d5571345392d8e411fa38d762a"},
+			{chainId: vaa.ChainIDSepolia, addr: "0000000000000000000000008da66cbf57de8482d239e7ac60f24bbbc1af9e8e"},
+			{chainId: vaa.ChainIDArbitrumSepolia, addr: "0000000000000000000000000e15979a7a1efaef20312ca45a59eb141bf7e340"},
+			{chainId: vaa.ChainIDBaseSepolia, addr: "00000000000000000000000030BF30344dB294164B2D05633339117F8ADA0153"},
+			{chainId: vaa.ChainIDOptimismSepolia, addr: "000000000000000000000000c3132b3502778ecb51ecb2f316a7b18285d84079"},
+		}
 		arEmitterConfig = sdk.KnownTestnetAutomaticRelayerEmitters
 	} else {
 		// Every other environment uses the devnet ones.
