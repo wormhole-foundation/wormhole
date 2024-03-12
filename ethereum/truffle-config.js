@@ -85,6 +85,15 @@ module.exports = {
       },
       network_id: "80001",
     },
+    polygon_sepolia_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc-amoy.polygon.technology/"
+        );
+      },
+      network_id: "80002",
+    },
     avalanche: {
       provider: () => {
         return new HDWalletProvider(

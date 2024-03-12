@@ -121,6 +121,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},
 		{"BaseSepolia", vaa.ChainIDBaseSepolia},
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
+		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
 	}
 
 	if len(only) > 0 {
