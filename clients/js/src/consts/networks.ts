@@ -233,6 +233,26 @@ const MAINNET = {
     key: undefined,
     chain_id: undefined,
   },
+  polygon_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  stargaze: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  seda: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  dymension: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
 };
 
 const TESTNET = {
@@ -434,9 +454,9 @@ const TESTNET = {
     chain_id: 534353,
   },
   mantle: {
-    rpc: "https://rpc.ankr.com/mantle_testnet",
+    rpc: "https://mantle-sepolia.drpc.org",
     key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 5001,
+    chain_id: 5003,
   },
   arbitrum_sepolia: {
     rpc: "https://arbitrum-sepolia.publicnode.com",
@@ -452,6 +472,26 @@ const TESTNET = {
     rpc: "https://rpc.ankr.com/optimism_sepolia",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155420,
+  },
+  polygon_sepolia: {
+    rpc: "https://rpc-amoy.polygon.technology/",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 80002,
+  },
+  stargaze: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  seda: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  dymension: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
   },
 };
 
@@ -645,6 +685,26 @@ const DEVNET = {
     chain_id: undefined,
   },
   optimism_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  polygon_sepolia: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  stargaze: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  seda: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  dymension: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,

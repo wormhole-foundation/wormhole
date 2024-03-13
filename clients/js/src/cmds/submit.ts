@@ -194,6 +194,12 @@ async function executeSubmit(
     throw Error("neutron is not supported yet");
   } else if (chain === "celestia") {
     throw Error("celestia is not supported yet");
+  } else if (chain === "stargaze") {
+    throw Error("stargaze is not supported yet");
+  } else if (chain === "seda") {
+    throw Error("seda is not supported yet");
+  } else if (chain === "dymension") {
+    throw Error("dymension is not supported yet");
   } else if (chain === "rootstock") {
     throw Error("rootstock is not supported yet");
   } else {
