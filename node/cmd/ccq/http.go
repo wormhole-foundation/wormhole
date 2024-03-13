@@ -112,7 +112,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	if status, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest); err != nil {
+	status, queryReq, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest)
+	if err != nil {
 		s.logger.Error("failed to validate request", zap.String("userId", permEntry.userName), zap.String("requestId", hex.EncodeToString(signedQueryRequest.Signature)), zap.Int("status", status), zap.Error(err))
 		http.Error(w, err.Error(), status)
 		// Error specific metric has already been pegged.
@@ -138,7 +139,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pendingResponse := NewPendingResponse(signedQueryRequest, permEntry.userName)
+	pendingResponse := NewPendingResponse(signedQueryRequest, permEntry.userName, queryReq)
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
 		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
