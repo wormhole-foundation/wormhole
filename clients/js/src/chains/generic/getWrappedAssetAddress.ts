@@ -76,6 +76,7 @@ export const getWrappedAssetAddress = async (
     case "arbitrum_sepolia":
     case "base_sepolia":
     case "optimism_sepolia":
+    case "polygon_sepolia":
     case "holesky": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetEth(
@@ -168,6 +169,9 @@ export const getWrappedAssetAddress = async (
     case "neutron":
     case "celestia":
     case "rootstock":
+    case "stargaze":
+    case "seda":
+    case "dymension":
       throw new Error(`${chainName} not supported`);
     default:
       impossible(chainName);

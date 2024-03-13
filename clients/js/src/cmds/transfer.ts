@@ -148,6 +148,12 @@ export const handler = async (
     throw Error("neutron is not supported yet");
   } else if (srcChain === "celestia") {
     throw Error("celestia is not supported yet");
+  } else if (srcChain === "stargaze") {
+    throw Error("stargaze is not supported yet");
+  } else if (srcChain === "seda") {
+    throw Error("seda is not supported yet");
+  } else if (srcChain === "dymension") {
+    throw Error("dymension is not supported yet");
   } else if (srcChain === "rootstock") {
     throw Error("rootstock is not supported yet");
   } else {

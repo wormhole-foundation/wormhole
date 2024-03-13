@@ -256,8 +256,9 @@ Options:
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-               "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
+      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
+                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+                               "optimism_sepolia", "holesky", "polygon_sepolia"]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -a, --contract-address  Contract to submit VAA to (override config)   [string]
@@ -313,16 +314,18 @@ Options:
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-               "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
+      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
+                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+                               "optimism_sepolia", "holesky", "polygon_sepolia"]
       --dst-chain   destination chain
            [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-               "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
+      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
+                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+                               "optimism_sepolia", "holesky", "polygon_sepolia"]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
       --amount      token amount                             [string] [required]
@@ -355,8 +358,9 @@ Positionals:
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
      "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-               "cosmoshub", "evmos", "kujira", "neutron", "celestia", "sepolia",
-              "arbitrum_sepolia", "base_sepolia", "optimism_sepolia", "holesky"]
+      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
+                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+                               "optimism_sepolia", "holesky", "polygon_sepolia"]
   tx       Source transaction hash                                      [string]
 
 Options:
