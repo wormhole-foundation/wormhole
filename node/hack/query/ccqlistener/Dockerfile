@@ -24,8 +24,8 @@ ARG GO_BUILD_ARGS=-race
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   export CGO_ENABLED=1 && \
-  cd node/hack/query/mainnet_test && \
-  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /mainnet_test mainnet.go && \
+  cd node/hack/query/ccqlistener && \
+  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /ccqlistener mainnet.go && \
   go get github.com/CosmWasm/wasmvm@v1.1.1 && \
   cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/libwasmvm.x86_64.so /usr/lib/
 
@@ -43,6 +43,6 @@ COPY --from=build /usr/lib/libwasmvm.x86_64.so /usr/lib/
 COPY --from=build /bin/bash /bin/dash /bin/sh /bin/
 
 # finally copy the guardian executable
-COPY --from=build /mainnet_test .
+COPY --from=build /ccqlistener .
 
-CMD ["/mainnet_test", "--configDir /app/cfg"]
+CMD ["/ccqlistener", "--configDir /app/cfg"]
