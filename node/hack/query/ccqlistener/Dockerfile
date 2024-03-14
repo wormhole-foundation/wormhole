@@ -2,13 +2,6 @@
 FROM --platform=linux/amd64 docker.io/golang:1.20.10-bullseye@sha256:082569b3303b164cc4a7c88ac59b19b69c1a5d662041ac0dca046ac239632442 AS build
 # libwasmvm.so is not compatible with arm
 
-# Support additional root CAs
-COPY node/go.mod cert.pem* /certs/
-# Debian
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-# git
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
 WORKDIR /app
 
 COPY node/tools tools
@@ -25,7 +18,7 @@ ARG GO_BUILD_ARGS=-race
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   export CGO_ENABLED=1 && \
   cd node/hack/query/ccqlistener && \
-  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /ccqlistener mainnet.go && \
+  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /ccqlistener ccqlistener.go && \
   go get github.com/CosmWasm/wasmvm@v1.1.1 && \
   cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/libwasmvm.x86_64.so /usr/lib/
 
