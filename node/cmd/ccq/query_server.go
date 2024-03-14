@@ -171,7 +171,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	defer cancel()
 
 	// Run p2p
-	pendingResponses := NewPendingResponses()
+	pendingResponses := NewPendingResponses(logger)
 	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))

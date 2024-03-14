@@ -52,12 +52,12 @@ func FetchCurrentGuardianSet(rpcUrl, coreAddr string) (*common.GuardianSet, erro
 }
 
 // validateRequest verifies that this API key is allowed to do all of the calls in this request. In the case of an error, it returns the HTTP status.
-func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) (int, error) {
+func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissions, signerKey *ecdsa.PrivateKey, apiKey string, qr *gossipv1.SignedQueryRequest) (int, *query.QueryRequest, error) {
 	permsForUser, exists := perms.GetUserEntry(apiKey)
 	if !exists {
 		logger.Debug("invalid api key", zap.String("apiKey", apiKey))
 		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
-		return http.StatusForbidden, fmt.Errorf("invalid api key")
+		return http.StatusForbidden, nil, fmt.Errorf("invalid api key")
 	}
 
 	// TODO: Should we verify the signatures?
@@ -70,7 +70,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 				zap.Bool("signerKeyConfigured", signerKey != nil),
 			)
 			invalidQueryRequestReceived.WithLabelValues("request_not_signed").Inc()
-			return http.StatusBadRequest, fmt.Errorf("request not signed")
+			return http.StatusBadRequest, nil, fmt.Errorf("request not signed")
 		}
 
 		// Sign the request using our key.
@@ -80,7 +80,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 		if err != nil {
 			logger.Debug("failed to sign request", zap.String("userName", permsForUser.userName), zap.Error(err))
 			invalidQueryRequestReceived.WithLabelValues("failed_to_sign_request").Inc()
-			return http.StatusInternalServerError, fmt.Errorf("failed to sign request: %w", err)
+			return http.StatusInternalServerError, nil, fmt.Errorf("failed to sign request: %w", err)
 		}
 	}
 
@@ -89,14 +89,14 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 	if err != nil {
 		logger.Debug("failed to unmarshal request", zap.String("userName", permsForUser.userName), zap.Error(err))
 		invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
-		return http.StatusBadRequest, fmt.Errorf("failed to unmarshal request: %w", err)
+		return http.StatusBadRequest, nil, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Make sure the overall query request is sane.
 	if err := queryRequest.Validate(); err != nil {
 		logger.Debug("failed to validate request", zap.String("userName", permsForUser.userName), zap.Error(err))
 		invalidQueryRequestReceived.WithLabelValues("failed_to_validate_request").Inc()
-		return http.StatusBadRequest, fmt.Errorf("failed to validate request: %w", err)
+		return http.StatusBadRequest, nil, fmt.Errorf("failed to validate request: %w", err)
 	}
 
 	// Make sure they are allowed to make all of the calls that they are asking for.
@@ -117,17 +117,17 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 		default:
 			logger.Debug("unsupported query type", zap.String("userName", permsForUser.userName), zap.Any("type", pcq.Query))
 			invalidQueryRequestReceived.WithLabelValues("unsupported_query_type").Inc()
-			return http.StatusBadRequest, fmt.Errorf("unsupported query type")
+			return http.StatusBadRequest, nil, fmt.Errorf("unsupported query type")
 		}
 
 		if err != nil {
 			// Metric is pegged below.
-			return status, err
+			return status, nil, err
 		}
 	}
 
 	logger.Debug("submitting query request", zap.String("userName", permsForUser.userName))
-	return http.StatusOK, nil
+	return http.StatusOK, &queryRequest, nil
 }
 
 // validateCallData performs verification on all of the call data objects in a query.

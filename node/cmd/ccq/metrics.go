@@ -1,8 +1,11 @@
 package ccq
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	dto "github.com/prometheus/client_model/go"
 )
 
 var (
@@ -108,4 +111,25 @@ var (
 			Name: "ccq_server_total_number_of_successful_reconnects",
 			Help: "Total number of successful reconnects to bootstrap peers",
 		})
+
+	currentNumConcurrentQueriesByChain = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "ccq_server_current_num_concurrent_queries_by_chain",
+			Help: "Gauge showing the current number of concurrent query requests by chain",
+		}, []string{"chain_name"})
+
+	maxConcurrentQueriesByChain = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "ccq_server_max_concurrent_queries_by_chain",
+			Help: "Gauge showing the maximum concurrent query requests by chain",
+		}, []string{"chain_name"})
 )
+
+// getGaugeValue returns the current value of a metric.
+func getGaugeValue(gauge prometheus.Gauge) (float64, error) {
+	metric := &dto.Metric{}
+	if err := gauge.Write(metric); err != nil {
+		return 0, fmt.Errorf("failed to read metric value: %w", err)
+	}
+	return metric.GetGauge().GetValue(), nil
+}
