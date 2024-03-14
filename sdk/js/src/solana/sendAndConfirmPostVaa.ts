@@ -20,6 +20,10 @@ import {
 } from "./wormhole";
 import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../vaa/wormhole";
 
+/**
+ * @deprecated Please use {@link postVaa} instead, which allows
+ * retries and commitment to be configured in {@link ConfirmOptions}.
+ */
 export async function postVaaWithRetry(
   connection: Connection,
   signTransaction: SignTransaction,
@@ -40,22 +44,32 @@ export async function postVaaWithRetry(
 
   const postVaaTransaction = unsignedTransactions.pop()!;
 
-  const responses = await sendAndConfirmTransactionsWithRetry(
-    connection,
-    modifySignTransaction(signTransaction, ...signers),
-    payer.toString(),
-    unsignedTransactions,
-    maxRetries
-  );
-  //While the signature_set is used to create the final instruction, it doesn't need to sign it.
-  responses.push(
-    ...(await sendAndConfirmTransactionsWithRetry(
+  const options: ConfirmOptions = {
+    commitment,
+    maxRetries,
+  };
+
+  const responses: TransactionSignatureAndResponse[] = [];
+  for (const transaction of unsignedTransactions) {
+    const response = await signSendAndConfirmTransaction(
       connection,
+      payer,
+      modifySignTransaction(signTransaction, ...signers),
+      transaction,
+      options
+    );
+    responses.push(response);
+  }
+
+  // While the signature_set is used to create the final instruction, it doesn't need to sign it.
+  responses.push(
+    await signSendAndConfirmTransaction(
+      connection,
+      payer,
       signTransaction,
-      payer.toString(),
-      [postVaaTransaction],
-      maxRetries
-    ))
+      postVaaTransaction,
+      options
+    )
   );
   return responses;
 }
