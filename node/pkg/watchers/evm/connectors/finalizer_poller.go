@@ -80,7 +80,7 @@ func (b *FinalizerPollConnector) runFromSupervisor(ctx context.Context) error {
 }
 
 func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) error {
-	prevLatest, err := getLatestBlock(ctx, logger, b.Connector)
+	prevLatest, err := GetLatestBlock(ctx, logger, b.Connector)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) er
 // pollBlock poll for the latest block, compares them to the last one, and publishes any new ones.
 // In the case of an error, it returns the last block that were passed in, otherwise it returns the new block.
 func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
-	newLatest, err = getLatestBlock(ctx, logger, b.Connector)
+	newLatest, err = GetLatestBlock(ctx, logger, b.Connector)
 	if err != nil {
 		err = fmt.Errorf("failed to get latest block: %w", err)
 		newLatest = prevLatest
@@ -135,7 +135,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevLatest.Number.Uint64() + 1; blockNum < newBlockNum; blockNum++ {
-			block, err = getBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Latest)
+			block, err = GetBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Latest)
 			if err != nil {
 				err = fmt.Errorf("failed to get gap block: %w", err)
 				newLatest = prevLatest
@@ -159,7 +159,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevFinalized.Number.Uint64() + 1; blockNum <= newBlockNum; blockNum++ {
-			block, err = getBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Finalized)
+			block, err = GetBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Finalized)
 			if err != nil {
 				err = fmt.Errorf("failed to get gap block: %w", err)
 				newLatest = prevLatest
@@ -188,19 +188,19 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 	return
 }
 
-func getLatestBlock(ctx context.Context, logger *zap.Logger, conn Connector) (*NewBlock, error) {
-	return getBlockByFinality(ctx, logger, conn, Latest)
+func GetLatestBlock(ctx context.Context, logger *zap.Logger, conn Connector) (*NewBlock, error) {
+	return GetBlockByFinality(ctx, logger, conn, Latest)
 }
 
-func getBlockByFinality(ctx context.Context, logger *zap.Logger, conn Connector, blockFinality FinalityLevel) (*NewBlock, error) {
-	return getBlock(ctx, logger, conn, blockFinality.String(), blockFinality)
+func GetBlockByFinality(ctx context.Context, logger *zap.Logger, conn Connector, blockFinality FinalityLevel) (*NewBlock, error) {
+	return GetBlock(ctx, logger, conn, blockFinality.String(), blockFinality)
 }
 
-func getBlockByNumberUint64(ctx context.Context, logger *zap.Logger, conn Connector, blockNum uint64, blockFinality FinalityLevel) (*NewBlock, error) {
-	return getBlock(ctx, logger, conn, "0x"+fmt.Sprintf("%x", blockNum), blockFinality)
+func GetBlockByNumberUint64(ctx context.Context, logger *zap.Logger, conn Connector, blockNum uint64, blockFinality FinalityLevel) (*NewBlock, error) {
+	return GetBlock(ctx, logger, conn, "0x"+fmt.Sprintf("%x", blockNum), blockFinality)
 }
 
-func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, str string, blockFinality FinalityLevel) (*NewBlock, error) {
+func GetBlock(ctx context.Context, logger *zap.Logger, conn Connector, str string, blockFinality FinalityLevel) (*NewBlock, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
