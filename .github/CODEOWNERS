@@ -52,11 +52,11 @@
 
 ## Entrypoint / RPC
 
-/node/cmd/ @bruce-riley @panoel @kev1n-peters @evan-gray
+/node/cmd/ @bruce-riley @panoel @evan-gray
 
 ## DB
 
-/node/pkg/db/ @bruce-riley @kev1n-peters @panoel
+/node/pkg/db/ @bruce-riley @panoel
 
 ## Accountant
 
@@ -68,11 +68,11 @@
 
 ## Gateway Relayer
 
-/node/pkg/gwrelayer/ @bruce-riley @evan-gray @kev1n-peters @panoel
+/node/pkg/gwrelayer/ @bruce-riley @evan-gray @panoel
 
 ## P2P
 
-/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @panoel
+/node/pkg/p2p/ @bruce-riley @evan-gray @panoel
 
 ## Consensus / Processor
 
@@ -80,7 +80,7 @@
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @bruce-riley @kev1n-peters @panoel
+/node/pkg/publicrpc/ @bruce-riley @panoel
 
 ## Supervisor Framework
 
@@ -88,11 +88,11 @@
 
 ## Watchers
 
-/node/pkg/watchers @evan-gray @bruce-riley @panoel @kev1n-peters
+/node/pkg/watchers @evan-gray @bruce-riley @panoel
 
 ## Hacks / Tools
 
-/node/hack/ @bruce-riley @panoel @kev1n-peters @evan-gray
+/node/hack/ @bruce-riley @panoel @evan-gray
 
 ## Documentation
 
