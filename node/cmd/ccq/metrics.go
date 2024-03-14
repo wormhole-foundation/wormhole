@@ -112,6 +112,12 @@ var (
 			Help: "Total number of successful reconnects to bootstrap peers",
 		})
 
+	currentNumConcurrentQueriesByChain = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "ccq_server_current_num_concurrent_queries_by_chain",
+			Help: "Gauge showing the current number of concurrent query requests by chain",
+		}, []string{"chain_name"})
+
 	maxConcurrentQueriesByChain = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "ccq_server_max_concurrent_queries_by_chain",

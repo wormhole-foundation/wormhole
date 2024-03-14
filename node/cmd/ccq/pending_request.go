@@ -92,6 +92,7 @@ func (p *PendingResponses) updateMetricsAlreadyLocked() {
 	}
 
 	for chainId, count := range counts {
+		currentNumConcurrentQueriesByChain.WithLabelValues(chainId.String()).Set(count)
 		currVal, err := getGaugeValue(maxConcurrentQueriesByChain.WithLabelValues(chainId.String()))
 		if err != nil {
 			p.logger.Error("failed to read current value of max concurrent queries metric", zap.String("chainId", chainId.String()), zap.Error(err))
