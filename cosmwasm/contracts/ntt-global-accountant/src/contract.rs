@@ -209,9 +209,9 @@ fn handle_observation(
         )
         .map_err(|_| ContractError::MissingDestinationPeerRegistration(o.emitter_chain.into()))?;
     if destination_peer != sender {
-        // SECURITY defense-in-depth:
-        // should never get here due to strict registration ordering restrictions
-        // the lookups above would have failed instead
+        // SECURITY:
+        // ensure that both peers are cross-registered
+        // this prevents a rogue transceiver from registering with and altering the balance of an existing network
         bail!("peers are not cross-registered")
     }
 
@@ -517,9 +517,9 @@ fn handle_ntt_vaa(
             .load(deps.storage, (destination_chain, source_peer, source_chain))
             .map_err(|_| ContractError::MissingDestinationPeerRegistration(source_chain.into()))?;
         if destination_peer != sender {
-            // SECURITY defense-in-depth:
-            // should never get here due to strict registration ordering restrictions
-            // the lookups above would have failed instead
+            // SECURITY:
+            // ensure that both peers are cross-registered
+            // this prevents a rogue transceiver from registering with and altering the balance of an existing network
             bail!("peers are not cross-registered")
         }
 
