@@ -17,6 +17,7 @@ import (
 
 const CCQ_MAX_BATCH_SIZE = int64(1000)
 const CCQ_TIMESTAMP_RANGE_IN_SECONDS = uint64(30 * 60)
+const CCQ_BACKFILL_DELAY = 100 * time.Millisecond
 
 type (
 	// ccqBackfillRequest represents a request to backfill the cache. It is the payload on the request channel.
@@ -78,14 +79,14 @@ func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to look up latest block: %w", err)
 	}
-	latestBlockNum := int64(latestBlock.Number.Uint64())
+	latestBlockNum := latestBlock.Number.Int64()
 	w.ccqLogger.Info("looked up latest block", zap.Int64("latestBlockNum", latestBlockNum), zap.Uint64("timestamp", latestBlock.Time))
 
 	var blocks Blocks
 	if w.ccqBatchSize == 0 {
 		// Determine the max supported batch size and get the first batch which will start with the latest block and go backwards.
 		var err error
-		w.ccqBatchSize, blocks, err = ccqBackFillDetermineMaxBatchSize(ctx, w.ccqLogger, w.ethConn, latestBlockNum, 100*time.Millisecond)
+		w.ccqBatchSize, blocks, err = ccqBackFillDetermineMaxBatchSize(ctx, w.ccqLogger, w.ethConn, latestBlockNum, CCQ_BACKFILL_DELAY)
 		if err != nil {
 			return fmt.Errorf("failed to determine max batch size: %w", err)
 		}
