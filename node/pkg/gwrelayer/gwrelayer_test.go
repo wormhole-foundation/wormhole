@@ -3,7 +3,6 @@ package gwrelayer
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -110,9 +110,8 @@ func Test_shouldPublishToTokenBridge(t *testing.T) {
 		})
 	}
 
-	addr, err := sdktypes.Bech32ifyAddressBytes("wormhole", decodeBytes("aeb534c45c3049d380b9d9b966f9895f53abd4301bfaff407fa09dea8ae7a924"))
+	_, err = sdktypes.Bech32ifyAddressBytes("wormhole", decodeBytes("aeb534c45c3049d380b9d9b966f9895f53abd4301bfaff407fa09dea8ae7a924"))
 	require.NoError(t, err)
-	fmt.Println(addr)
 }
 
 func decodeBytes(s string) []byte {
@@ -129,4 +128,14 @@ func addr(str string) vaa.Address {
 		panic("failed to convert address")
 	}
 	return a
+}
+
+func Test_verifyDevnetTokenBridgeAddress(t *testing.T) {
+	tokenBridgeAddressInTilt := "wormhole1eyfccmjm6732k7wp4p6gdjwhxjwsvje44j0hfx8nkgrm8fs7vqfssvpdkx" //nolint:gosec
+	targetAddress, err := convertBech32AddressToWormhole(tokenBridgeAddressInTilt)
+	require.NoError(t, err)
+
+	expectedAddress, exists := sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDWormchain]
+	require.True(t, exists)
+	assert.True(t, bytes.Equal(expectedAddress[:], targetAddress[:]))
 }

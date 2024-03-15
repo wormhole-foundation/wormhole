@@ -301,14 +301,14 @@ def build_node_yaml():
                     "http://wormchain:1317",
 
                     "--gatewayRelayerContract",
-                    "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+                    "wormhole1wn625s4jcmvk0szpl85rj5azkfc6suyvf75q6vrddscjdphtve8sca0pvl",
                     "--gatewayRelayerKeyPath",
                     "/tmp/mounted-keys/wormchain/gwrelayerKey",
                     "--gatewayRelayerKeyPassPhrase",
                     "test0000",
 
                     "--gatewayContract",
-                    "wormhole17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgshdnj3k",
+                    "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
                     "--gatewayWS",
                     "ws://wormchain:26657/websocket",
                     "--gatewayLCD",
