@@ -61,6 +61,7 @@ if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
  *      h. Ensure a token sent to a destination chain without a known transceiver is rejected
  *      i. Ensure a token sent to a destination chain without a matching transceiver is rejected
  *      j. Ensure spoofed tokens for more than the outstanding amount rejects successfully
+ *      k. Ensure a rogue endpoint cannot complete a transfer
  *   4. Relayers
  *      a. Ensure a relayer registration is saved
  *      b. Ensure a valid NTT transfer works
@@ -111,6 +112,7 @@ const HUB_CHAIN = 2;
 const HUB_TRANSCEIVER = `0000000000000000000000000000000000000000000000000000000000000042`;
 const SPOKE_CHAIN_A = 4;
 const SPOKE_TRANSCEIVER_A = `0000000000000000000000000000000000000000000000000000000000000043`;
+const ROGUE_TRANSCEIVER_A = `ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff43`;
 const SPOKE_CHAIN_B = 5;
 const SPOKE_TRANSCEIVER_B = `0000000000000000000000000000000000000000000000000000000000000044`;
 const FAUX_HUB_CHAIN = 420;
@@ -674,6 +676,28 @@ describe("NTT Global Accountant Tests", () => {
       expect(result.rawLog).toMatch(
         "insufficient balance in source account: Overflow: Cannot Sub"
       );
+    });
+    test("k. Ensure a rogue endpoint cannot complete a transfer", async () => {
+      {
+        // set faux spoke registration to legit hub but not vice-versa
+        {
+          const vaa = makeVAA(
+            SPOKE_CHAIN_A,
+            ROGUE_TRANSCEIVER_A,
+            `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
+          );
+          const result = await submitVAA(vaa);
+          expect(result.code).toEqual(0);
+        }
+      }
+      const vaa = makeVAA(
+        SPOKE_CHAIN_A,
+        ROGUE_TRANSCEIVER_A,
+        mockTransferPayload(8, 1, HUB_CHAIN)
+      );
+      const result = await submitVAA(vaa);
+      expect(result.code).toEqual(5);
+      expect(result.rawLog).toMatch("peers are not cross-registered");
     });
   });
   describe("4. Relayers", () => {
