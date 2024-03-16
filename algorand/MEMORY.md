@@ -135,7 +135,7 @@ pushint 6 // appl
 assert
 ```
 
-The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made avaiable by the AVM runtime.
+The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made available by the AVM runtime.
 `pushint` pushes an integer to the stack, here the number 6, which corresponds to application call. `==` pops the top two elements from the stack and pushes 1 if they are equal, or 0 if they are not. Finally, `assert` pops the top of the stack, and reverts the transaction if it’s 0 (or if the stack is empty).
 
 Application calls are one of the built-in transaction types defined by Algorand, another one is Payment. We require that this one is an application call, because of the next check, opting in:

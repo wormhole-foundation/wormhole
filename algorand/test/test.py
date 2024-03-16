@@ -652,7 +652,7 @@ class AlgoTest(PortalCore):
 
                 new_signature_amount = random.randint(int(len(gt.guardianKeys)*2/3)+1, current_signatures_amount)
 
-                # construct a list of every siganture with its index
+                # construct a list of every signature with its index
                 signatures = vaa[signatures_offset:rest_offset]
                 signatures = [signatures[i:i+66] for i in range(0, len(signatures), 66)]
                 assert len(signatures) == current_signatures_amount
