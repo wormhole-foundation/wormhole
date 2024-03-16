@@ -12,9 +12,6 @@ spec:
     - name: prometheus
       port: 9184
       targetPort: prometheus
-    - name: faucet
-      port: 5003
-      targetPort: faucet
   selector:
     app: sui
 ---
@@ -52,9 +49,6 @@ spec:
             - containerPort: 9184
               name: prometheus
               protocol: TCP
-            - containerPort: 5003
-              name: faucet
-              protocol: TCP
           readinessProbe:
             tcpSocket:
               port: 9000
@@ -66,6 +60,7 @@ spec:
               "cd /tmp && ./scripts/wait_for_devnet.sh && worm sui setup-devnet && touch success && sleep infinity",
             ]
           readinessProbe:
+            initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 300
             exec:

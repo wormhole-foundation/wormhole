@@ -77,8 +77,8 @@ module token_bridge::wrapped_asset {
         assert!(token_chain != chain_id(), E_SUI_CHAIN);
 
         // Set metadata.
-        coin::update_name(&mut treasury_cap, coin_meta, name);
-        coin::update_symbol(&mut treasury_cap, coin_meta, string_utils::to_ascii(&symbol));
+        coin::update_name(&treasury_cap, coin_meta, name);
+        coin::update_symbol(&treasury_cap, coin_meta, string_utils::to_ascii(&symbol));
 
         let decimals = cap_decimals(native_decimals);
 
@@ -149,8 +149,8 @@ module token_bridge::wrapped_asset {
 
         // Finally only update the name and symbol.
         self.info.symbol = symbol;
-        coin::update_name(&mut self.treasury_cap, coin_meta, name);
-        coin::update_symbol(&mut self.treasury_cap, coin_meta, string_utils::to_ascii(&symbol));
+        coin::update_name(&self.treasury_cap, coin_meta, name);
+        coin::update_symbol(&self.treasury_cap, coin_meta, string_utils::to_ascii(&symbol));
     }
 
     #[test_only]
