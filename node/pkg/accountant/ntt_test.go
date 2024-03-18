@@ -165,6 +165,43 @@ func TestNttParseArPayloadReallyTooShort(t *testing.T) {
 	require.False(t, success)
 }
 
+func TestNttParseArPayloadTooLong(t *testing.T) {
+	badArPayload := goodArPayload + "00" // Tack one extra byte on the end.
+	payload, err := hex.DecodeString(badArPayload)
+	require.NoError(t, err)
+
+	success, _, _ := nttParseArPayload(payload)
+	require.False(t, success)
+}
+
+func TestNttParseArPayloadBadMessageKeyArray(t *testing.T) {
+	// The standard good payload has no message keys, so the last byte is zero. Trim that off and add some message keys.
+	badArPayload := goodArPayload[0:len(goodArPayload)-2] +
+		"03" + // Three message keys
+		"01" + "000000000000000000000000000000000000000000000000000000000000000000000000000000000000" + // Valid VAA_KEY_TYPE
+		"03" + "00000002" + "abcd" + // Valid some other type
+		"04" + "00000004" + "dead" // Some other type that is too short
+
+	payload, err := hex.DecodeString(badArPayload)
+	require.NoError(t, err)
+
+	success, _, _ := nttParseArPayload(payload)
+	require.False(t, success)
+}
+
+func TestNttParseArPayloadBadVaaKeyMessageKey(t *testing.T) {
+	// The standard good payload has no message keys, so the last byte is zero. Trim that off and add some message keys.
+	badArPayload := goodArPayload[0:len(goodArPayload)-2] +
+		"01" + // Three message keys
+		"01" + "0000000000000000000000000000000000000000000000000000000000000000000000000000000000" // Invalid VAA_KEY_TYPE that's one byte too short
+
+	payload, err := hex.DecodeString(badArPayload)
+	require.NoError(t, err)
+
+	success, _, _ := nttParseArPayload(payload)
+	require.False(t, success)
+}
+
 func TestNttParseArMsgSuccess(t *testing.T) {
 	arEmitterAddr, err := vaa.StringToAddress("0000000000000000000000007b1bd7a6b4e61c2a123ac6bc2cbfc614437d0470")
 	require.NoError(t, err)

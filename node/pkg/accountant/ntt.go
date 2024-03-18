@@ -116,84 +116,123 @@ func nttIsMsgArNTT(msg *common.MessagePublication, arEmitters validEmitters, ntt
 }
 
 const PAYLOAD_ID_DELIVERY_INSTRUCTION = uint8(1)
+const VAA_KEY_TYPE = 1
+const VAA_KEY_TYPE_LENGTH = 2 + 32 + 8
 
-// nttParseArPayload extracts the sender address from an AR payload. This is based on the following implementation:
+// nttParseArPayload extracts the sender address and contained payload from an AR payload. This is based on the following implementation:
 // https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol#L70-L97
+// Note that this function doesn't return an error if the payload format is not what we are looking for. It just verifies that it is a valid
+// AR "delivery instruction". As far as we are concerned, anything else could be a valid message, just not what we are looking for, so we don't
+// want to flag it as an error. If the payload is a delivery instruction, we confirm that it is what we are expecting.
 func nttParseArPayload(msgPayload []byte) (bool, [32]byte, []byte) {
-	var senderAddress [32]byte
+	var nullAddress [32]byte
 	reader := bytes.NewReader(msgPayload[:])
 
 	var deliveryInstruction uint8
 	if err := binary.Read(reader, binary.BigEndian, &deliveryInstruction); err != nil {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	if deliveryInstruction != PAYLOAD_ID_DELIVERY_INSTRUCTION {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var targetChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &targetChain); err != nil {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var targetAddress [32]byte
 	if n, err := reader.Read(targetAddress[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var payloadLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &payloadLen); err != nil {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	payload := make([]byte, payloadLen)
 	if n, err := reader.Read(payload[:]); err != nil || n != int(payloadLen) {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var requestedReceiverValue [32]byte
 	if n, err := reader.Read(requestedReceiverValue[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var extraReceiverValue [32]byte
 	if n, err := reader.Read(extraReceiverValue[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var encodedExecutionInfoLen uint32
 	if err := binary.Read(reader, binary.BigEndian, &encodedExecutionInfoLen); err != nil {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	encodedExecutionInfo := make([]byte, encodedExecutionInfoLen)
 	if n, err := reader.Read(encodedExecutionInfo[:]); err != nil || n != int(encodedExecutionInfoLen) {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var refundChain uint16
 	if err := binary.Read(reader, binary.BigEndian, &refundChain); err != nil {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var refundAddress [32]byte
 	if n, err := reader.Read(refundAddress[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var refundDeliveryProvider [32]byte
 	if n, err := reader.Read(refundDeliveryProvider[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
 	var sourceDeliveryProvider [32]byte
 	if n, err := reader.Read(sourceDeliveryProvider[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
 	}
 
+	var senderAddress [32]byte
 	if n, err := reader.Read(senderAddress[:]); err != nil || n != 32 {
-		return false, senderAddress, nil
+		return false, nullAddress, nil
+	}
+
+	// SECURITY: Defense in depth: Parse the remainder of the payload to make sure it is what we expect.
+
+	var numMsgKeys uint8
+	if err := binary.Read(reader, binary.BigEndian, &numMsgKeys); err != nil {
+		return false, nullAddress, nil
+	}
+
+	for count := 0; count < int(numMsgKeys); count++ {
+		var keyType uint8
+		if err := binary.Read(reader, binary.BigEndian, &keyType); err != nil {
+			return false, nullAddress, nil
+		}
+		if keyType == VAA_KEY_TYPE {
+			var key [VAA_KEY_TYPE_LENGTH]byte
+			if n, err := reader.Read(key[:]); err != nil || n != VAA_KEY_TYPE_LENGTH {
+				return false, nullAddress, nil
+			}
+		} else {
+			var encodedLen uint32
+			if err := binary.Read(reader, binary.BigEndian, &encodedLen); err != nil {
+				return false, nullAddress, nil
+			}
+			encodedKey := make([]byte, encodedLen)
+			if n, err := reader.Read(encodedKey[:]); err != nil || n != int(encodedLen) {
+				return false, nullAddress, nil
+			}
+		}
+	}
+
+	if reader.Len() != 0 {
+		return false, nullAddress, nil
 	}
 
 	return true, senderAddress, payload
