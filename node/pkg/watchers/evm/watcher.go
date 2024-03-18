@@ -129,6 +129,7 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
+		ccqConfig          query.PerChainConfig
 		ccqMaxBlockNumber  *big.Int
 		ccqTimestampCache  *BlocksByTimestamp
 		ccqBackfillChannel chan *ccqBackfillRequest
@@ -179,6 +180,7 @@ func NewEthWatcher(
 		queryResponseC:     queryResponseC,
 		pending:            map[pendingKey]*pendingMessage{},
 		unsafeDevMode:      unsafeDevMode,
+		ccqConfig:          query.GetPerChainConfig(chainID),
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
 		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
@@ -258,7 +260,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	}
 
-	if query.SupportsTimestampCaching(w.chainID) {
+	if w.ccqConfig.TimestampCacheSupported {
 		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 	}
 
@@ -421,20 +423,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	if w.ccqTimestampCache != nil && w.ccqBackfillCache {
-		w.ccqBackfillStart(ctx, errC)
-	}
-
-	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case queryRequest := <-w.queryReqC:
-				w.ccqHandleQuery(ctx, queryRequest)
-			}
-		}
-	})
+	w.ccqStart(ctx, errC)
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
 		for {

@@ -87,7 +87,46 @@ type (
 		channel        chan *PerChainQueryInternal
 		lastUpdateTime time.Time
 	}
+
+	PerChainConfig struct {
+		TimestampCacheSupported bool
+		NumWorkers              int
+	}
 )
+
+var perChainConfig = map[vaa.ChainID]PerChainConfig{
+	vaa.ChainIDSolana:          {NumWorkers: 10, TimestampCacheSupported: false},
+	vaa.ChainIDEthereum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBSC:             {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygon:         {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDAvalanche:       {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOasis:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAurora:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDFantom:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKarura:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAcala:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKlaytn:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDCelo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMoonbeam:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDOptimism:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBase:            {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDScroll:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMantle:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDSepolia:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDHolesky:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrumSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBaseSepolia:     {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOptimismSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygonSepolia:  {NumWorkers: 1, TimestampCacheSupported: true},
+}
+
+func GetPerChainConfig(chainID vaa.ChainID) PerChainConfig {
+	if pcc, exists := perChainConfig[chainID]; exists {
+		return pcc
+	}
+	return PerChainConfig{}
+}
 
 // Start initializes the query handler and starts the runnable.
 func (qh *QueryHandler) Start(ctx context.Context) error {
@@ -450,15 +489,4 @@ func (pq *pendingQuery) numPendingRequests() int {
 	}
 
 	return numPending
-}
-
-func SupportsTimestampCaching(chainID vaa.ChainID) bool {
-	/*
-		- P1: Ethereum, Base, Optimism
-		- P1.5: Arbitrum, Polygon, Avalanche
-		- P2: BNB Chain, Moonbeam
-		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
-	*/
-
-	return true
 }

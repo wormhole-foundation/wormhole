@@ -8,6 +8,7 @@ import {
 } from "@jest/globals";
 import Web3, { ETH_DATA_FORMAT } from "web3";
 import axios from "axios";
+import { AxiosResponse } from "axios";
 import {
   ChainQueryType,
   EthCallData,
@@ -828,5 +829,71 @@ describe("eth call", () => {
         );
       });
     expect(err).toBe(true);
+  });
+  test("concurrent queries", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const decimalsCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "decimals",
+      "uint8"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      decimalsCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    let nonce = 1;
+    let promises: Promise<AxiosResponse<any, any>>[] = [];
+    for (let count = 0; count < 20; count++) {
+      nonce += 1;
+      const request = new QueryRequest(nonce, [ethQuery]);
+      const serialized = request.serialize();
+      const digest = QueryRequest.digest(ENV, serialized);
+      const signature = sign(PRIVATE_KEY, digest);
+      const response = axios.put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      );
+      promises.push(response);
+    }
+
+    const responses = await Promise.all(promises);
+
+    expect(responses.length).toEqual(promises.length);
+    for (let idx = 0; idx < responses.length; idx++) {
+      const response = responses[idx];
+      expect(response.status).toBe(200);
+
+      const queryResponse = QueryResponse.from(response.data.bytes);
+      expect(queryResponse.version).toEqual(1);
+      expect(queryResponse.requestChainId).toEqual(0);
+      expect(queryResponse.request.version).toEqual(1);
+      expect(queryResponse.request.requests.length).toEqual(1);
+      expect(queryResponse.request.requests[0].chainId).toEqual(2);
+      expect(queryResponse.request.requests[0].query.type()).toEqual(
+        ChainQueryType.EthCall
+      );
+
+      const ecr = queryResponse.responses[0].response as EthCallQueryResponse;
+      expect(ecr.blockNumber).toEqual(BigInt(blockNumber));
+      expect(ecr.blockHash).toEqual(
+        (await web3.eth.getBlock(BigInt(blockNumber))).hash
+      );
+      expect(ecr.results.length).toEqual(2);
+      expect(ecr.results[0]).toEqual(
+        // Name
+        "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000"
+      );
+      expect(ecr.results[1]).toEqual(
+        // Decimals
+        "0x0000000000000000000000000000000000000000000000000000000000000012"
+      );
+    }
   });
 });
