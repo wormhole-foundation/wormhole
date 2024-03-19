@@ -1,5 +1,5 @@
 [package]
-name = "wormhole-sdk"
+name = "wormhole-vaas-serde"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -15,6 +15,7 @@ schemars = ["dep:schemars"]
 default = ["schemars"]
 
 [dependencies]
+wormhole-supported-chains.workspace = true
 serde_wormhole.workspace = true
 
 anyhow.workspace = true

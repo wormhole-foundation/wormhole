@@ -284,7 +284,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-sdk"
+name = "wormhole-supported-chains"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "wormhole-vaas-serde"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -295,4 +303,5 @@ dependencies = [
  "sha3",
  "thiserror",
  "wormhole-raw-serde",
+ "wormhole-supported-chains",
 ]
