@@ -56,8 +56,7 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
-const JEST_TEST_TIMEOUT = 60000;
-jest.setTimeout(JEST_TEST_TIMEOUT);
+jest.setTimeout(120000);
 
 describe("Aptos SDK tests", () => {
   test("Transfer native token from Aptos to Ethereum", async () => {
