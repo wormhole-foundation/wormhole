@@ -947,11 +947,11 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "serde_wormhole",
  "thiserror",
  "tinyvec",
  "wormhole-bindings",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -1035,11 +1035,11 @@ dependencies = [
  "prost 0.11.9",
  "serde",
  "serde-json-wasm 0.5.1",
- "serde_wormhole",
  "token-bridge-cosmwasm",
  "wormhole-bindings",
  "wormhole-cosmwasm",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -1279,12 +1279,12 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "serde_wormhole",
  "thiserror",
  "tinyvec",
  "wormhole-bindings",
  "wormhole-io",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -1758,17 +1758,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_wormhole"
-version = "0.1.0"
-dependencies = [
- "base64",
- "itoa",
- "serde",
- "serde_bytes",
- "thiserror",
 ]
 
 [[package]]
@@ -2599,10 +2588,10 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.13.4",
  "semver",
- "serde_wormhole",
  "thiserror",
  "wormhole-bindings",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -2616,8 +2605,8 @@ dependencies = [
  "k256",
  "schemars",
  "serde",
- "serde_wormhole",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -2647,10 +2636,10 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde_wormhole",
  "thiserror",
  "wormhole-cosmwasm",
- "wormhole-sdk",
+ "wormhole-raw-serde",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
@@ -2660,16 +2649,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b021a14ea7bcef9517ed9f81d4466c4a663dd90e726c5724707a976fa83ad8f3"
 
 [[package]]
-name = "wormhole-sdk"
+name = "wormhole-raw-serde"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "itoa",
+ "serde",
+ "serde_bytes",
+ "thiserror",
+]
+
+[[package]]
+name = "wormhole-supported-chains"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "wormhole-vaas-serde"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bstr",
  "schemars",
  "serde",
- "serde_wormhole",
  "sha3 0.10.7",
  "thiserror",
+ "wormhole-raw-serde",
+ "wormhole-supported-chains",
 ]
 
 [[package]]
