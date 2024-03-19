@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "./core",
-    "./serde_wormhole",
+    "raw-serde",
+    "core",
 ]
 resolver = "2"
 
@@ -18,8 +18,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.dependencies.serde_wormhole]
+package = "wormhole-raw-serde"
 version = "0.1.0"
-path = "./serde_wormhole"
+path = "raw-serde"
 
 [workspace.dependencies]
 anyhow = "1"
