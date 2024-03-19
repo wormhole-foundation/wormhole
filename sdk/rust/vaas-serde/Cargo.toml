@@ -1,5 +1,6 @@
 [package]
 name = "wormhole-vaas-serde"
+description = "Serde Support for Wormhole VAAs"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

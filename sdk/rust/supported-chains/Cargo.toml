@@ -1,5 +1,6 @@
 [package]
 name = "wormhole-supported-chains"
+description = "Wormhole Supported Chain IDs and Names"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
