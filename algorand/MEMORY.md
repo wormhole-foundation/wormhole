@@ -137,7 +137,7 @@ pushint 6 // appl
 ==
 assert
 ```
-<!-- cspell:disable -->
+<!-- cspell:enable -->
 
 The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made available by the AVM runtime.
 `pushint` pushes an integer to the stack, here the number 6, which corresponds to application call. `==` pops the top two elements from the stack and pushes 1 if they are equal, or 0 if they are not. Finally, `assert` pops the top of the stack, and reverts the transaction if it’s 0 (or if the stack is empty).
@@ -183,7 +183,7 @@ Approve()
 
 [/algorand/TmplSig.py#L152](https://github.com/wormhole-foundation/wormhole/blob/0af600ddde4f507b30ea043de66033d7383f53af/algorand/TmplSig.py#L152)
 
-To summarize, this is how allocation works: a special program opts in to the wormhole contract, thereby allowing wormhole to write memory into the program’s account, then transfers ownership of the account to wormhole. Since the address of this account is derived from the program’s bytecode, the addresses are reconstructable deterministically, and a given account with such an address cannot have been created any other way than by executing that program with the expected arguments.
+To summarize, this is how allocation works: a special program opts in to the wormhole contract, thereby allowing wormhole to write memory into the program’s account, then transfers ownership of the account to wormhole. Since the address of this account is derived from the program’s bytecode, the addresses are reconstructible deterministically, and a given account with such an address cannot have been created any other way than by executing that program with the expected arguments.
 
 <a id="orgf176818"></a>
 
@@ -197,6 +197,7 @@ Instead, we turn to programmatically patching the generated binary. The LogicSig
 
 The constructor of the `TmplSig` class starts by initializing the following data structure:
 
+<!-- cspell:disable -->
 ```python
         self.map = {"name":"lsig.teal","version":6,"source":"","bytecode":"BiABAYEASIAASDEQgQYSRDEZIhJEMRiBABJEMSCAABJEMQGBABJEMQkyAxJEMRUyAxJEIg==",
                     "template_labels":{
@@ -207,6 +208,7 @@ The constructor of the `TmplSig` class starts by initializing the following data
                     },
         }
 ```
+<!-- cspell:enable -->
 
 [/algorand/TmplSig.py#L39-L47](https://github.com/wormhole-foundation/wormhole/blob/0af600ddde4f507b30ea043de66033d7383f53af/algorand/TmplSig.py#L39-L47)
 
