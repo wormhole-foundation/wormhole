@@ -1,5 +1,6 @@
 ## Addresses
 
+<!--  spell-checker: disable -->
 | Label              |  Network  |                                                                                               Address | Note                                                                                                                                                                |
 | ------------------ | :-------: | ----------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Test Wallet        |    ETH    |                                                            0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1 | Key: `0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d` Mnemonic `myth like bonus scare over problem client lizard pioneer submit female collect` |
@@ -29,6 +30,7 @@
 | Bridge Core        |  Terra2   |                                      terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au |                                                                                                                                                                     |
 | Token Bridge       |  Terra2   |                                      terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6 |                                                                                                                                                                     |
 | Governance Emitter | Universal | 0x0000000000000000000000000000000000000000000000000000000000000004 / 11111111111111111111111111111115 | Emitter Chain: 0x01                                                                                                                                                 |
+<!--  spell-checker: enable -->
 
 ### Terra
 
@@ -38,19 +40,19 @@ The terra testnet can be used just like a normal localterra network (can be sele
 
 The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses and mnemonics:
 
-DEV7AREMQSPWWDDFFJ3A5OIMMDCZN4YT5U2MQBN76Y4J5ERQQ3MWPIHUYA 800M ALGO
+DEV7AREMQSPWWDDFFJ3A5OIMMDCZN4YT5U2MQBN76Y4J5ERQQ3MWPIHUYA 800M ALGO <!-- cspell:disable-line -->
 provide warfare better filter glory civil help jacket alpha penalty van fiber code upgrade web more curve sauce merit bike satoshi blame orphan absorb modify
 
-DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII
+DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII <!-- cspell:disable-line -->
 album neglect very nasty input trick annual arctic spray task candy unfold letter drill glove sword flock omit dial rather session mesh slow abandon slab
 
-DEV3AURNEWR5TRFXIOBP2VTCTZIS52Q3XJHNJ57M4IZLMNZ5ABQ6M7AL6E
+DEV3AURNEWR5TRFXIOBP2VTCTZIS52Q3XJHNJ57M4IZLMNZ5ABQ6M7AL6E <!-- cspell:disable-line -->
 blue spring teach silent cheap grace desk crack agree leave tray lady chair reopen midnight lottery glove congress lounge arrow fine junior mirror above purchase
 
-DEVKKFRWGS4EX2GP5PLMFOXAH5TBBSWFD6G2D564FHVDXH55QSPXJKAHIU
+DEVKKFRWGS4EX2GP5PLMFOXAH5TBBSWFD6G2D564FHVDXH55QSPXJKAHIU <!-- cspell:disable-line -->
 front rifle urge write push dynamic oil vital section blast protect suffer shoulder base address teach sight trap trial august mechanic border leaf absorb attract
 
-DEVKPY5JA6IJED3KBS7Z6J2ZXAUVWIJLABNAYVVLOXXIVSBH32FA2Z4BWY
+DEVKPY5JA6IJED3KBS7Z6J2ZXAUVWIJLABNAYVVLOXXIVSBH32FA2Z4BWY <!-- cspell:disable-line -->
 fat pet option agree father glue range ancient curtain pottery search raven club save crane sting gift seven butter decline image toward kidney above balance
 
 ### devnet guardian addresses
