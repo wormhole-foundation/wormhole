@@ -335,7 +335,3 @@ single entity having full control over the contracts, the contracts need to be
 their own signing authority. For details on how this is implemented, see
 [deployer.move](./deployer/sources/deployer.move) and
 [contract_upgrade.move](./wormhole/sources/contract_upgrade.move).
-
-## Newtypes
-
-TODO

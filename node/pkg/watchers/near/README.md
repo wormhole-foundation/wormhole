@@ -52,7 +52,7 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 * tx_hash: Transaction hash
 * error_type (enum)
 	* invalid_hash: Program encountered a hash that is not well-formed, i.e. not 32 bytes long.
-	* nearapi_inconsistent: NEAR RPC returned data that doesn't make sense.
+	* nearapi_inconsistent: NEAR RPC returned data that doesn't make sense.<!-- cspell:disable-line -->
 	* malformed_wormhole_event: The wormhole log emission is malformed. This should never happen. If it does, that'd be indicative of a big problem.
 	* startup_fail: Something went wrong during watcher startup.
 

@@ -101,9 +101,7 @@ mlock
 moby
 moonscan
 moretags
-nearapi
 Neodyme
-Newtypes
 nhooyr
 Obsv
 obsv
