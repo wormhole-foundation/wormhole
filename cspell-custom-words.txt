@@ -44,7 +44,6 @@ denoms
 devnet
 Dymension
 dymension
-EMMITTER
 ethcrypto
 ethersproject
 ETHRPC
