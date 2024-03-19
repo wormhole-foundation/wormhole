@@ -141,6 +141,8 @@ authority, so these don't have to go through governance.
 
 For example, to migrate the token bridge to 59614, run in `tools/`:
 
+<!-- cspell:disable -->
 ``` sh
 node migrate_testnet.js --code_id 59614 --contract terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a --mnemonic "..."
 ```
+<!-- cspell:enable -->
