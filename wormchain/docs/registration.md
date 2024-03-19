@@ -2,9 +2,11 @@
 
 The wormhole (core module) address is:
 
+<!-- cspell:disable -->
 ```
 wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl
 ```
+<!-- cspell:enable -->
 
 This is deterministically generated from the module.
 

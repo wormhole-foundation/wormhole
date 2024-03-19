@@ -64,7 +64,7 @@ in the new guardian set are already registered.
 
 At present, Guardian Set upgrade VAAs are signed by the Guardians off-chain. This can stay off-chain for as long as needed, but should eventually be moved on-chain.
 
-## TODO Bootstraping the PoA Network
+## TODO Bootstrapping the PoA Network
 
 At time of writing, the Guardian Network is currently at Guardian Set 2, but will possibly be at set 3 or 4 by the time of launch.
 
