@@ -82,6 +82,7 @@ The Run function is what is called by the guardian to start this watcher. It sho
 
 The following is an outline in go. Notice that each go routine is encapsulated by RunWithScissors(). What this function does is wrap the go routine to make sure that any panic or error gets reported to an error channel. Other go routines use this as a mechanism to determine degraded performance of the watcher and exit.
 
+<!-- cspell:disable -->
 ```go
 func (e *Watcher) Run(ctx context.Context) error {
   // Setup a logger
@@ -178,6 +179,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	} // end select
 } // end Run()
 ```
+<!-- cspell:enable -->
 
 ### Other thoughts / directions:
 
