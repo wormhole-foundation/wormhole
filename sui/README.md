@@ -23,8 +23,15 @@ Make sure your Cargo version is at least 1.65.0 and then follow the steps below:
 
 Install the `Sui` CLI. This tool is used to compile the contracts and run the tests.
 
+using brew:
+```
+brew install sui
+```
+
+using cargo:
+
 ```sh
-cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 09b2081498366df936abae26eea4b2d5cafb2788 sui sui-faucet
+cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 4e759d9b48 sui sui-faucet
 ```
 
 Some useful Sui CLI commands are
