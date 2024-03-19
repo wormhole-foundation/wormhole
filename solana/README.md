@@ -77,22 +77,27 @@ Now that you have deployed one or more contracts on-chain, you can verify the on
 For each contract you wish to verify on-chain, you will need the following elements:
 
 - Path to the contracts bytecode (eg. `artifacts-testnet/bridge.so`)
+<!-- cspell:disable-next-line -->
 - Solana account address for the relevant contract (eg. `9GRbmSbdrWGNf9z27YrhPbWnL7zZ3doeQAq2LrkmCB4Y`)
 - A network to verify on (`mainnet`, `testnet`, or `devnet`)
 
 Below is how to verify all three contracts on testnet:
 
+<!-- cspell:disable -->
 ```console
 wormhole/solana $ verify -n testnet artifacts-testnet/bridge.so NEW_BRIDGE_ACCOUNT_ADDRESS
 wormhole/solana $ verify -n testnet artifacts-testnet/token_bridge.so NEW_TOKEN_BRIDGE_ACCOUNT_ADDRESS
 wormhole/solana $ verify -n testnet artifacts-testnet/nft_bridge.so NEW_NFT_BRIDGE_ACCOUNT_ADDRESS
 ```
 Example: `verify -n testnet artifacts-testnet/bridge.so 9GRbmSbdrWGNf9z27YrhPbWnL7zZ3doeQAq2LrkmCB4Y`
+<!-- cspell:enable -->
 
 Again, if you have the NETWORK environment variable set, then the `-n` flag is optional:
+<!-- cspell:disable -->
 ```console
 verify artifacts-testnet/bridge.so 9GRbmSbdrWGNf9z27YrhPbWnL7zZ3doeQAq2LrkmCB4Y
 ```
+<!-- cspell:enable -->
 
 For each contract, you should expect a `Successfully verified` output message.  If all contracts can be successfully verified, you can engage in Wormhole protocol governance to obtain an authorized VAA for the contract upgrade(s).
 
