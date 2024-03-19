@@ -31,7 +31,7 @@ put into dev/node.yaml
 
 Install the algorand requirements
 
-  python3 -m pip  install  -r requirements.txt 
+  python3 -m pip  install  -r requirements.txt
 
 install docker-compile
 
@@ -42,6 +42,7 @@ bring up the dev sandbox
   ./sandbox down; ./sandbox clean
 
 
+<!-- cspell:disable -->
 [jsiegel@gusc1a-ossdev-jsl1 ~/.../algorand/_sandbox]{master} git diff
 diff --git a/images/indexer/start.sh b/images/indexer/start.sh
 index 9e224c2..f1714ea 100755
@@ -311,3 +312,4 @@ python3 test.py
 echo "bring the sandbox down"
 cd ..
 ./sandbox down
+<!-- cspell:enable -->

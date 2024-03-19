@@ -41,6 +41,7 @@ if __name__ == '__main__':
 
 If we run this program, it will generate a file called `sig.tmpl.teal` based on whatever `get_sig_tmpl()` returns from the `TmplSig` class. The first few lines of `sig.tmpl.teal` look like this:
 
+<!-- cspell:disable -->
 ```
 #pragma version 6
 intcblock 1
@@ -79,6 +80,7 @@ assert
 intc_0 // 1
 return
 ```
+<!-- cspell:enable -->
 
 We’ll examine this file more carefully soon. For now, the key takeaway is that it contains TEAL bytecode, which is a stack-based programming language. What’s curious is that right at the beginning, we push `TMPL_ADDR_IDX` and `TMPL_EMITTER_ID`, only to immediately pop them from the stack, which seems redundant. Indeed, as we will see, these four lines of code are here just for the sake of being here, and we don’t actually expect them to do anything useful. This will make more sense soon.
 
@@ -115,7 +117,7 @@ Here are the two pop statements we looked at in the TEAL code. The pyTEAL compil
 
 `Tmpl.Int("TMPL_ADDR_IDX")` and `Tmpl.Bytes("TMPL_EMITTER_ID")` are _template variables_. Normally, they can be thought of as variables in a TEAL program that get replaced at compile time by the compiler, sort of like CPP macros. In fact, this already hints at how the LogicSig is going to be used: these variables will be programmatically replaced (albeit not just at compile time, but more on that later) with distinct values to generate distinct LogicSigs, with deterministic addresses. The wormhole contract will then be able to use the memory of the associated accounts of these LogicSigs. To see how, we’ll first go through what the LogicSig does in the first place.
 
-When using a LogicSig to sign a transaction (like in our case), the LogicSig program can query information about the transaction from the Algorand runtime. If the LogicSig doesn't revert, then the transaction will be executed on-chain. It is the LogicSig’s responsibility to decide whether it wants to approve this transaction, so it will perform a number of checks to ensure the transaction does what’s expected. Importantly, anyone can pass in their own transactions and use the LogicSig to sign it, so forgetting a check here could result in hijacking the LogicSig’s associated account. That's because (by default), transactions that are signed (that is, approved) by the LogicSig can acces the LogicSig’s account. In fact, that's what LogicSigs were designed for in the first place: to implement arbitrary logic for deciding who can spend money out of some account.
+When using a LogicSig to sign a transaction (like in our case), the LogicSig program can query information about the transaction from the Algorand runtime. If the LogicSig doesn't revert, then the transaction will be executed on-chain. It is the LogicSig’s responsibility to decide whether it wants to approve this transaction, so it will perform a number of checks to ensure the transaction does what’s expected. Importantly, anyone can pass in their own transactions and use the LogicSig to sign it, so forgetting a check here could result in hijacking the LogicSig’s associated account. That's because (by default), transactions that are signed (that is, approved) by the LogicSig can access the LogicSig’s account. In fact, that's what LogicSigs were designed for in the first place: to implement arbitrary logic for deciding who can spend money out of some account.
 
 The first instruction after the two `Pop`s above is
 
@@ -128,14 +130,16 @@ The first instruction after the two `Pop`s above is
 Which asserts that the transaction being signed is an application call.
 Note that `==` here is an overloaded operator, and it doesn’t compare two python values. Instead, it generates a piece of pyTEAL abstract syntax that represents an equality operation. In TEAL’s concrete syntax, this looks like:
 
+<!-- cspell:disable -->
 ```
 txn TypeEnum
 pushint 6 // appl
 ==
 assert
 ```
+<!-- cspell:disable -->
 
-The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made avaiable by the AVM runtime.
+The `txn` opcode pushes a transaction field variable to the stack, in this case its type, which is made available by the AVM runtime.
 `pushint` pushes an integer to the stack, here the number 6, which corresponds to application call. `==` pops the top two elements from the stack and pushes 1 if they are equal, or 0 if they are not. Finally, `assert` pops the top of the stack, and reverts the transaction if it’s 0 (or if the stack is empty).
 
 Application calls are one of the built-in transaction types defined by Algorand, another one is Payment. We require that this one is an application call, because of the next check, opting in:
@@ -217,6 +221,7 @@ To see what the layout looks like, let’s decode the first few bytes of the byt
 
 and the first few lines of the TEAL code as a reminder:
 
+<!-- cspell:enable -->
 ```
 #pragma version 6
 intcblock 1
@@ -225,6 +230,7 @@ pop
 pushbytes TMPL_EMITTER_ID // TMPL_EMITTER_ID
 pop
 ```
+<!-- cspell:disable -->
 
 The first byte (`0x06`) is the version identifier. This matches `#pragma version 6` in the TEAL file. `0x20` is the `intcblock` instruction. It takes a byte that represents how many ints are stored (1 here) in this section, and then a list of ints (here, it’s just 1). `0x81` is the `pushint` instruction, and here we push `0x0`. This means that that this program was compiled with the template variables filled with zeros. This 0 is at offset 5 in the bytecode, which agrees with the `'position': 5'` field of the above data structure for `TMPL_ADDR_IDX`. The `0x48` opcode next is the pop instruction. Next, `0x80` is a `pushbytes` instruction, which first takes the a varint for the length of the byte array, then the byte array. Here, since the length is 0, there are no bytes following, instead `0x48` pops immediately. This byte array is at position 8, which corresponds to `TMPL_EMITTER_ID` above.
 
@@ -234,6 +240,7 @@ The first byte (`0x06`) is the version identifier. This matches `#pragma version
 
 The python code that constructs the bytecode is defined as
 
+<!-- cspell:disable -->
 ```python
     def populate(self, values: Dict[str, Union[str, int]]) -> LogicSigAccount:
         """populate uses the map to fill in the variable of the bytecode and returns a logic sig with the populated bytecode"""
@@ -261,6 +268,7 @@ The python code that constructs the bytecode is defined as
         # Create a new LogicSigAccount given the populated bytecode,
         return LogicSigAccount(bytes(contract))
 ```
+<!-- cspell:enable -->
 
 [/algorand/TmplSig.py#L58-L85](https://github.com/wormhole-foundation/wormhole/blob/0af600ddde4f507b30ea043de66033d7383f53af/algorand/TmplSig.py#L58-L85)
 
