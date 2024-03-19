@@ -52,7 +52,6 @@ forgeable
 FQTs
 frontends
 funder
-gitub
 gogoproto
 goimports
 gossipv
