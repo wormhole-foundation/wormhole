@@ -221,7 +221,7 @@ To see what the layout looks like, let’s decode the first few bytes of the byt
 
 and the first few lines of the TEAL code as a reminder:
 
-<!-- cspell:enable -->
+<!-- cspell:disable -->
 ```
 #pragma version 6
 intcblock 1
@@ -230,7 +230,7 @@ pop
 pushbytes TMPL_EMITTER_ID // TMPL_EMITTER_ID
 pop
 ```
-<!-- cspell:disable -->
+<!-- cspell:enable -->
 
 The first byte (`0x06`) is the version identifier. This matches `#pragma version 6` in the TEAL file. `0x20` is the `intcblock` instruction. It takes a byte that represents how many ints are stored (1 here) in this section, and then a list of ints (here, it’s just 1). `0x81` is the `pushint` instruction, and here we push `0x0`. This means that that this program was compiled with the template variables filled with zeros. This 0 is at offset 5 in the bytecode, which agrees with the `'position': 5'` field of the above data structure for `TMPL_ADDR_IDX`. The `0x48` opcode next is the pop instruction. Next, `0x80` is a `pushbytes` instruction, which first takes the a varint for the length of the byte array, then the byte array. Here, since the length is 0, there are no bytes following, instead `0x48` pops immediately. This byte array is at position 8, which corresponds to `TMPL_EMITTER_ID` above.
 
