@@ -28,8 +28,8 @@ mod serde_array;
 pub mod token;
 pub mod vaa;
 
-pub use wormhole_supported_chains::Chain;
 pub use vaa::Vaa;
+pub use wormhole_supported_chains::Chain;
 
 /// The `GOVERNANCE_EMITTER` is a special address Wormhole guardians trust to observe governance
 /// actions from. The value is "0000000000000000000000000000000000000000000000000000000000000004".
