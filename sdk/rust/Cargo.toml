@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "core",
-    "serde_wormhole",
+    "./core",
+    "./serde_wormhole",
 ]
 resolver = "2"
 
@@ -16,6 +16,10 @@ repository = "https://github.com/wormhole-foundation/wormhole"
 [workspace.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[workspace.dependencies.serde_wormhole]
+version = "0.1.0"
+path = "./serde_wormhole"
 
 [workspace.dependencies]
 anyhow = "1"
