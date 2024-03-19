@@ -1,10 +1,34 @@
 [workspace]
 members = [
-    "core/",
+    "core",
     "serde_wormhole",
 ]
+resolver = "2"
 
-[profile.release]
-opt-level = 3
-lto = "thin"
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Wormhole Contributors"]
+license = "Apache-2.0"
+homepage = "https://github.com/wormhole-foundation/wormhole"
+repository = "https://github.com/wormhole-foundation/wormhole"
 
+[workspace.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "1"
+
+bstr = { version = "1", features = ["serde"] }
+schemars = "0.8.8"
+
+serde = { version = "1", default-features = false }
+serde_bytes = "0.11.5"
+serde_json = "1"
+serde_repr = "0.1.7"
+
+sha3 = "0.10.4"
+base64 = "0.13"
+itoa = "1.0.1"
