@@ -271,3 +271,24 @@ func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 	isNTT, _ := nttIsMsgArNTT(msg, arEmitters, nttEmitters)
 	assert.False(t, isNTT)
 }
+
+func TestNttVerifyMainnetEmitters(t *testing.T) {
+	directEmitters, arEmitters, err := nttGetEmitters(common.MainNet)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(directEmitters)) // TODO: Change this when we add a mainnet emitter!
+	assert.NotEqual(t, 0, len(arEmitters))
+}
+
+func TestNttVerifyTestnetEmitters(t *testing.T) {
+	directEmitters, arEmitters, err := nttGetEmitters(common.TestNet)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, len(directEmitters))
+	assert.NotEqual(t, 0, len(arEmitters))
+}
+
+func TestNttVerifyDevnetEmitters(t *testing.T) {
+	directEmitters, arEmitters, err := nttGetEmitters(common.UnsafeDevNet)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, len(directEmitters))
+	assert.NotEqual(t, 0, len(arEmitters))
+}
