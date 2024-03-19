@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -20,28 +19,13 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 )
 
-// ccqStart starts up CCQ query processing using the configured number of worker routines.
+// ccqStart starts up CCQ query processing.
 func (w *Watcher) ccqStart(ctx context.Context, errC chan error) {
 	if w.ccqTimestampCache != nil && w.ccqBackfillCache {
 		w.ccqBackfillStart(ctx, errC)
 	}
 
-	for count := 0; count < w.ccqConfig.NumWorkers; count++ {
-		workerId := count
-		common.RunWithScissors(ctx, errC, fmt.Sprintf("evm_fetch_query_req_%d", workerId), func(ctx context.Context) error {
-			w.ccqLogger.Debug("CONCURRENT: starting worker", zap.Int("worker", workerId))
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case queryRequest := <-w.queryReqC:
-					w.ccqLogger.Debug("CONCURRENT: processing query request", zap.Int("worker", workerId))
-					w.ccqHandleQuery(ctx, queryRequest)
-					w.ccqLogger.Debug("CONCURRENT: finished processing query request", zap.Int("worker", workerId))
-				}
-			}
-		})
-	}
+	query.StartWorkers(ctx, w.ccqLogger, errC, w, w.queryReqC, w.ccqConfig, w.chainID.String())
 }
 
 // ccqSendQueryResponse sends a response back to the query handler. In the case of an error, the response parameter may be nil.
@@ -55,8 +39,8 @@ func (w *Watcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status 
 	}
 }
 
-// ccqHandleQuery is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
-func (w *Watcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
+// QueryHandler is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
+func (w *Watcher) QueryHandler(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
 
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.

@@ -11,7 +11,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -30,27 +29,9 @@ const (
 	CCQ_FAST_RETRY_INTERVAL = 200 * time.Millisecond
 )
 
-// ccqStart starts up CCQ query processing using the configured number of worker routines.
-func (w *SolanaWatcher) ccqStart(ctx context.Context, logger *zap.Logger) {
-	w.ccqLogger = logger.With(zap.String("component", "ccqsol"))
-	w.ccqConfig = query.GetPerChainConfig(w.chainID)
-
-	for count := 0; count < w.ccqConfig.NumWorkers; count++ {
-		workerId := count
-		common.RunWithScissors(ctx, w.errC, fmt.Sprintf("solana_fetch_query_req_%d", workerId), func(ctx context.Context) error {
-			w.ccqLogger.Debug("CONCURRENT: starting worker", zap.Int("worker", workerId))
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case queryRequest := <-w.queryReqC:
-					w.ccqLogger.Debug("CONCURRENT: processing query request", zap.Int("worker", workerId))
-					w.ccqHandleQuery(ctx, queryRequest)
-					w.ccqLogger.Debug("CONCURRENT: finished processing query request", zap.Int("worker", workerId))
-				}
-			}
-		})
-	}
+// ccqStart starts up CCQ query processing.
+func (w *SolanaWatcher) ccqStart(ctx context.Context) {
+	query.StartWorkers(ctx, w.ccqLogger, w.errC, w, w.queryReqC, w.ccqConfig, w.chainID.String())
 }
 
 // ccqSendQueryResponse sends a response back to the query handler.
@@ -69,8 +50,8 @@ func (w *SolanaWatcher) ccqSendErrorResponse(req *query.PerChainQueryInternal, s
 	w.ccqSendQueryResponse(queryResponse)
 }
 
-// ccqHandleQuery is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
-func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
+// QueryHandler is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
+func (w *SolanaWatcher) QueryHandler(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.
 	if queryRequest.Request.ChainId != w.chainID {

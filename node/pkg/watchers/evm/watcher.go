@@ -190,6 +190,7 @@ func NewEthWatcher(
 func (w *Watcher) Run(parentCtx context.Context) error {
 	var err error
 	logger := supervisor.Logger(parentCtx)
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "evm"),
@@ -199,8 +200,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("chainID", w.chainID.String()),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
-
-	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
@@ -423,7 +422,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	w.ccqStart(ctx, errC)
+	if w.ccqConfig.QueriesSupported() {
+		w.ccqStart(ctx, errC)
+	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
 		for {

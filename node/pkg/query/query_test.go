@@ -810,3 +810,11 @@ func TestPublishRetrySucceeds(t *testing.T) {
 	assert.Equal(t, 1, md.getRequestsPerChain(vaa.ChainIDPolygon))
 	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
 }
+
+func TestPerChainConfigValid(t *testing.T) {
+	for chainID, config := range perChainConfig {
+		if config.NumWorkers <= 0 {
+			assert.Equal(t, "", fmt.Sprintf(`perChainConfig for "%s" has an invalid NumWorkers: %d`, chainID.String(), config.NumWorkers))
+		}
+	}
+}
