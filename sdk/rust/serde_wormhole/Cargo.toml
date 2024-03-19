@@ -1,6 +1,6 @@
 [package]
-name = "wormhole-raw-serde"
-description = "Raw Serde Wormhole Data Format"
+name = "serde_wormhole"
+description = "Serde data format for VAA payloads"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

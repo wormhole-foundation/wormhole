@@ -212,6 +212,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_wormhole"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "itoa",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "serde_repr",
+ "thiserror",
+]
+
+[[package]]
 name = "sha3"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -271,19 +284,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "wormhole-raw-serde"
-version = "0.1.0"
-dependencies = [
- "base64",
- "itoa",
- "serde",
- "serde_bytes",
- "serde_json",
- "serde_repr",
- "thiserror",
-]
-
-[[package]]
 name = "wormhole-supported-chains"
 version = "0.1.0"
 dependencies = [
@@ -300,8 +300,8 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serde_wormhole",
  "sha3",
  "thiserror",
- "wormhole-raw-serde",
  "wormhole-supported-chains",
 ]

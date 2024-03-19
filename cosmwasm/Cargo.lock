@@ -947,10 +947,10 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
+ "serde_wormhole",
  "thiserror",
  "tinyvec",
  "wormhole-bindings",
- "wormhole-raw-serde",
  "wormhole-vaas-serde",
 ]
 
@@ -1035,10 +1035,10 @@ dependencies = [
  "prost 0.11.9",
  "serde",
  "serde-json-wasm 0.5.1",
+ "serde_wormhole",
  "token-bridge-cosmwasm",
  "wormhole-bindings",
  "wormhole-cosmwasm",
- "wormhole-raw-serde",
  "wormhole-vaas-serde",
 ]
 
@@ -1279,11 +1279,11 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
+ "serde_wormhole",
  "thiserror",
  "tinyvec",
  "wormhole-bindings",
  "wormhole-io",
- "wormhole-raw-serde",
  "wormhole-vaas-serde",
 ]
 
@@ -1758,6 +1758,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_wormhole"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "itoa",
+ "serde",
+ "serde_bytes",
+ "thiserror",
 ]
 
 [[package]]
@@ -2588,9 +2599,9 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.13.4",
  "semver",
+ "serde_wormhole",
  "thiserror",
  "wormhole-bindings",
- "wormhole-raw-serde",
  "wormhole-vaas-serde",
 ]
 
@@ -2605,7 +2616,7 @@ dependencies = [
  "k256",
  "schemars",
  "serde",
- "wormhole-raw-serde",
+ "serde_wormhole",
  "wormhole-vaas-serde",
 ]
 
@@ -2636,9 +2647,9 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
+ "serde_wormhole",
  "thiserror",
  "wormhole-cosmwasm",
- "wormhole-raw-serde",
  "wormhole-vaas-serde",
 ]
 
@@ -2647,17 +2658,6 @@ name = "wormhole-io"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b021a14ea7bcef9517ed9f81d4466c4a663dd90e726c5724707a976fa83ad8f3"
-
-[[package]]
-name = "wormhole-raw-serde"
-version = "0.1.0"
-dependencies = [
- "base64",
- "itoa",
- "serde",
- "serde_bytes",
- "thiserror",
-]
 
 [[package]]
 name = "wormhole-supported-chains"
@@ -2675,9 +2675,9 @@ dependencies = [
  "bstr",
  "schemars",
  "serde",
+ "serde_wormhole",
  "sha3 0.10.7",
  "thiserror",
- "wormhole-raw-serde",
  "wormhole-supported-chains",
 ]
 

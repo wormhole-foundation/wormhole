@@ -1,7 +1,7 @@
 [workspace]
 members = [
+    "serde_wormhole",
     "supported-chains",
-    "raw-serde",
     "vaas-serde",
 ]
 resolver = "2"
@@ -23,9 +23,8 @@ version = "0.1.0"
 path = "supported-chains"
 
 [workspace.dependencies.serde_wormhole]
-package = "wormhole-raw-serde"
 version = "0.1.0"
-path = "raw-serde"
+path = "serde_wormhole"
 
 [workspace.dependencies]
 anyhow = "1"

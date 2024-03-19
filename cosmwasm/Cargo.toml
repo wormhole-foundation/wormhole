@@ -32,9 +32,8 @@ incremental = false
 overflow-checks = true
 
 [workspace.dependencies.serde_wormhole]
-package = "wormhole-raw-serde"
 version = "0.1.0"
-path = "../sdk/rust/raw-serde"
+path = "../sdk/rust/serde_wormhole"
 
 [workspace.dependencies.wormhole-sdk]
 package = "wormhole-vaas-serde"
