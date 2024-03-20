@@ -311,9 +311,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				tx := eth_common.BytesToHash(r.TxHash)
-				logger.Info("received observation request",
-					zap.String("eth_network", w.networkName),
-					zap.String("tx_hash", tx.Hex()))
+				logger.Info("received observation request", zap.String("tx_hash", tx.Hex()))
 
 				// SECURITY: Load the block number before requesting the transaction to avoid a
 				// race condition where requesting the tx succeeds and is then dropped due to a fork,
@@ -330,9 +328,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				cancel()
 
 				if err != nil {
-					logger.Error("failed to process observation request",
-						zap.Error(err), zap.String("eth_network", w.networkName),
-						zap.String("tx_hash", tx.Hex()))
+					logger.Error("failed to process observation request", zap.String("tx_hash", tx.Hex()), zap.Error(err))
 					continue
 				}
 
@@ -345,7 +341,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
-							zap.String("eth_network", w.networkName),
 						)
 						w.msgC <- msg
 						continue
@@ -353,8 +348,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe {
 						if safeBlockNumberU == 0 {
-							logger.Error("no safe block number available, ignoring observation request",
-								zap.String("eth_network", w.networkName))
+							logger.Error("no safe block number available, ignoring observation request")
 							continue
 						}
 
@@ -365,7 +359,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Uint64("sequence", msg.Sequence),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
-								zap.String("eth_network", w.networkName),
 							)
 							w.msgC <- msg
 						} else {
@@ -375,7 +368,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Uint64("sequence", msg.Sequence),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
-								zap.String("eth_network", w.networkName),
 							)
 						}
 
@@ -383,8 +375,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					if blockNumberU == 0 {
-						logger.Error("no block number available, ignoring observation request",
-							zap.String("eth_network", w.networkName))
+						logger.Error("no block number available, ignoring observation request")
 						continue
 					}
 
@@ -404,7 +395,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
-							zap.String("eth_network", w.networkName),
 						)
 						w.msgC <- msg
 					} else {
@@ -414,7 +404,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
-							zap.String("eth_network", w.networkName),
 						)
 					}
 				}
@@ -479,11 +468,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case ev := <-headSink:
 				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
 				if ev == nil {
-					logger.Error("new header event is nil", zap.String("eth_network", w.networkName))
+					logger.Error("new header event is nil")
 					continue
 				}
 				if ev.Number == nil {
-					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName), zap.Stringer("finality", ev.Finality))
+					logger.Error("new header block number is nil", zap.Stringer("finality", ev.Finality))
 					continue
 				}
 
@@ -494,7 +483,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					zap.Uint64("block_time", ev.Time),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Stringer("finality", ev.Finality),
-					zap.String("eth_network", w.networkName))
+				)
 				readiness.SetReady(w.readinessSync)
 
 				blockNumberU := ev.Number.Uint64()
@@ -538,7 +527,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
-							zap.String("eth_network", w.networkName),
 						)
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 						delete(w.pending, key)
@@ -568,7 +556,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", w.networkName),
 								zap.Error(err))
 							delete(w.pending, key)
 							ethMessagesOrphaned.WithLabelValues(w.networkName, "not_found").Inc()
@@ -587,7 +574,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", w.networkName),
 								zap.Error(err))
 							delete(w.pending, key)
 							ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
@@ -604,7 +590,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", w.networkName),
 								zap.Error(err))
 							continue
 						}
@@ -621,7 +606,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", w.networkName))
+							)
 							delete(w.pending, key)
 							ethMessagesOrphaned.WithLabelValues(w.networkName, "blockhash_mismatch").Inc()
 							continue
@@ -635,7 +620,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockhash", currentHash),
-							zap.String("eth_network", w.networkName))
+						)
 						delete(w.pending, key)
 						w.msgC <- pLock.message
 						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
@@ -648,7 +633,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					zap.Stringer("finality", ev.Finality),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),
-					zap.String("eth_network", w.networkName))
+				)
 			}
 		}
 	})
@@ -687,9 +672,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 		return nil
 	}
 
-	logger.Info("updated guardian set found",
-		zap.Any("value", gs), zap.Uint32("index", idx),
-		zap.String("eth_network", w.networkName))
+	logger.Info("updated guardian set found", zap.Any("value", gs), zap.Uint32("index", idx))
 
 	w.currentGuardianSet = &idx
 
@@ -843,7 +826,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.Uint64("Sequence", ev.Sequence),
 			zap.Uint32("Nonce", ev.Nonce),
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-			zap.String("eth_network", w.networkName))
+		)
 
 		w.msgC <- message
 		ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
@@ -858,7 +841,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 		zap.Uint64("Sequence", ev.Sequence),
 		zap.Uint32("Nonce", ev.Nonce),
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-		zap.String("eth_network", w.networkName))
+	)
 
 	key := pendingKey{
 		TxHash:         message.TxHash,
@@ -890,7 +873,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 		zap.Uint64("Sequence", ev.Sequence),
 		zap.Uint32("Nonce", ev.Nonce),
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-		zap.String("eth_network", w.networkName))
+	)
 
 	const RetryInterval = 5 * time.Second
 	const MaxRetries = 3
@@ -915,7 +898,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.Stringer("startTime", start),
 					zap.Int("retries", retries),
-					zap.String("eth_network", w.networkName))
+				)
 
 				w.postMessage(logger, ev, blockTime)
 				return
@@ -937,7 +920,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.Stringer("startTime", start),
 					zap.Int("retries", retries),
-					zap.String("eth_network", w.networkName))
+				)
 
 				return
 			}

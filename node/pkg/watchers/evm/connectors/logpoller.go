@@ -23,6 +23,7 @@ import (
 // finalized message log events.
 type LogPollConnector struct {
 	Connector
+	logger      *zap.Logger
 	client      *ethClient.Client
 	messageFeed ethEvent.Feed
 	errFeed     ethEvent.Feed
@@ -30,8 +31,12 @@ type LogPollConnector struct {
 	prevBlockNum *big.Int
 }
 
-func NewLogPollConnector(ctx context.Context, baseConnector Connector, client *ethClient.Client) (*LogPollConnector, error) {
-	connector := &LogPollConnector{Connector: baseConnector, client: client}
+func NewLogPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, client *ethClient.Client) (*LogPollConnector, error) {
+	connector := &LogPollConnector{
+		Connector: baseConnector,
+		logger:    logger,
+		client:    client,
+	}
 	// The supervisor will keep the poller running
 	err := supervisor.Run(ctx, "logPoller", common.WrapWithScissors(connector.run, "logPoller"))
 	if err != nil {
@@ -41,8 +46,6 @@ func NewLogPollConnector(ctx context.Context, baseConnector Connector, client *e
 }
 
 func (l *LogPollConnector) run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx).With(zap.String("eth_network", l.Connector.NetworkName()))
-
 	blockChan := make(chan *NewBlock)
 	errC := make(chan error)
 
@@ -62,7 +65,7 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 		case err := <-errC:
 			return err
 		case block := <-blockChan:
-			if err := l.processBlock(ctx, logger, block); err != nil {
+			if err := l.processBlock(ctx, block); err != nil {
 				l.errFeed.Send(err.Error())
 			}
 		}
@@ -103,7 +106,7 @@ var (
 	logsLogMessageTopic = ethCommon.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
-func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger, block *NewBlock) error {
+func (l *LogPollConnector) processBlock(ctx context.Context, block *NewBlock) error {
 	if l.prevBlockNum == nil {
 		l.prevBlockNum = new(big.Int).Set(block.Number)
 	} else {
@@ -122,7 +125,7 @@ func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger,
 	defer cancel()
 	logs, err := l.client.FilterLogs(tCtx, filter)
 	if err != nil {
-		logger.Error("GetLogsQuery: query of eth_getLogs failed",
+		l.logger.Error("GetLogsQuery: query of eth_getLogs failed",
 			zap.Stringer("FromBlock", filter.FromBlock),
 			zap.Stringer("ToBlock", filter.ToBlock),
 			zap.Error(err),
@@ -141,7 +144,7 @@ func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger,
 		}
 		ev, err := l.ParseLogMessagePublished(log)
 		if err != nil {
-			logger.Error("GetLogsQuery: failed to parse log entry",
+			l.logger.Error("GetLogsQuery: failed to parse log entry",
 				zap.Stringer("FromBlock", filter.FromBlock),
 				zap.Stringer("ToBlock", filter.ToBlock),
 				zap.Error(err),
