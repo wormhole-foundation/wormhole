@@ -77,11 +77,11 @@ func (b *FinalizerPollConnector) SubscribeForBlocks(ctx context.Context, errC ch
 
 func (b *FinalizerPollConnector) runFromSupervisor(ctx context.Context) error {
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
-	return b.run(ctx, b.logger)
+	return b.run(ctx)
 }
 
-func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) error {
-	prevLatest, err := GetLatestBlock(ctx, logger, b.Connector)
+func (b *FinalizerPollConnector) run(ctx context.Context) error {
+	prevLatest, err := GetLatestBlock(ctx, b.logger, b.Connector)
 	if err != nil {
 		return err
 	}
@@ -102,10 +102,10 @@ func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) er
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			prevLatest, prevFinalized, err = b.pollBlock(ctx, logger, prevLatest, prevFinalized)
+			prevLatest, prevFinalized, err = b.pollBlock(ctx, b.logger, prevLatest, prevFinalized)
 			if err != nil {
 				errCount++
-				logger.Error("polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
+				b.logger.Error("polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 				if errCount > 3 {
 					b.errFeed.Send(fmt.Sprint("polling encountered an error: ", err))
 					errCount = 0

@@ -206,6 +206,7 @@ func TestBlockPoller(t *testing.T) {
 
 	poller := &FinalizerPollConnector{
 		Connector: &baseConnector,
+		logger:    logger,
 		Delay:     1 * time.Millisecond,
 		finalizer: finalizer,
 	}
@@ -227,7 +228,7 @@ func TestBlockPoller(t *testing.T) {
 		mutex.Lock()
 		pollerStatus = pollerRunning
 		mutex.Unlock()
-		err := poller.run(ctx, logger)
+		err := poller.run(ctx)
 		require.NoError(t, err)
 		mutex.Lock()
 		pollerStatus = pollerExited
