@@ -7,14 +7,14 @@ This readme describes the steps for building, verifying, and deploying Terra2 sm
 ## Verify Tilt
 
 Before building Terra contracts, ensure that the specific commit you will be
-building from passes in tilt. This that ensures basic functionality of the
+building from passes in tilt. This ensures the basic functionality of the
 Terra smart contracts that you are about to build and deploy.
 
 ## Build Contracts
 
 The following command can be used to build Terra2 contracts via Docker.
 
-Build Target Options: [`mainnet`|`testnet`|`devnet`|
+Build Target Options: [`mainnet`|`testnet`|`devnet`]
 
 These network names correspond to the naming convention used by wormhole
 elsewhere. This means that `mainnet` corresponds to Terra `mainnet`,

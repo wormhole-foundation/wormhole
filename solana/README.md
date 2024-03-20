@@ -6,14 +6,14 @@ This readme describes the steps for building, verifying, and deploying Solana sm
 
 ## Verify Tilt
 
-Before building Solana contracts, ensure that the specific commit you will be building from passes in tilt.  This that ensures basic functionality of the Solana smart contracts that you are about to build and deploy.
+Before building Solana contracts, ensure that the specific commit you will be building from passes in tilt.  This ensures the basic functionality of the Solana smart contracts that you are about to build and deploy.
 
 
 ## Build Contracts
 
 The following command can be used to build contracts for Solana contracts via Docker.
 
-Build Target Options: [`mainnet`|`testnet`|`devnet`|
+Build Target Options: [`mainnet`|`testnet`|`devnet`]
 
 These network names correspond to the naming convention used by wormhole
 elsewhere. This means that `mainnet` corresponds to Solana `mainnet-beta`,

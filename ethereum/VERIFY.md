@@ -7,8 +7,8 @@ that's actually deployed. This enables the explorer to properly parse the
 transaction payloads according to the contract ABI.
 
 This document outlines the process of verification. In general, you will need an
-API key for the relevant explorer (this can be obtained by creating an account),
-and also know which address the contract code lives. The API key is expected to
+API key for the relevant explorer (this can be obtained by creating an account)
+and to know at which address the contract code lives. The API key is expected to
 be set in the `ETHERSCAN_KEY` environment variable for all APIs (not just
 etherscan, bit of a misnomer).
 

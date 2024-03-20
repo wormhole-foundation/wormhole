@@ -75,7 +75,7 @@ strongly align with the Solana ecosystem - large token holders, ecosystem projec
 would risk damage to their reputation, token values, and ecosystem growth by attacking the network or neglecting their
 duties.
 
-We assume that at the present time, such incentive alignment is easy to bootstrap and get right than a separate chain,
+We assume that, at the present time, such incentive alignment is easier to bootstrap and get right than a separate chain,
 which requires carefully-designed token economy and slashing criteria. In particular, it attracts operators who care
 about the ecosystem beyond short-term validation rewards, resulting in a high-quality, resilient guardian set.
 
@@ -120,7 +120,7 @@ known for its robustness - and go-ethereum, both of which have been exhaustively
 
 ## Safe handling of crashes in the Solana eBPF VM
 
-Due to the instruction count limitations in the Solana runtime, the Solana contracts makes liberal use of unsafe blocks
+Due to the instruction count limitations in the Solana runtime, the Solana contracts make liberal use of unsafe blocks
 to serialize and deserialize data without incurring the overhead of a memory-safe approach.
 
 This follows current best practices for Solana contract development. It assumes that invalid operations or out-of-bounds
