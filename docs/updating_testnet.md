@@ -47,9 +47,11 @@ cd cosmwasm
 node deployment/terra2/tools/deploy_single.js --network testnet --artifact artifacts/cw_token_bridge.wasm --mnemonic "<testnetDeployerSeedPhrase>"
 ```
 2. The admin of the Terra2 token bridge in testnet has not been transferred to the contract itself, so you cannot use the standard contract upgrade VAA to complete the upgrade. Instead, do the following:
+<!-- cspell:disable -->
 ```bash
 node deployment/terra2/tools/migrate_testnet.js --network testnet --code_id <codeIdFromDeploy> --contract terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk --mnemonic "<testnetDeployerSeedPhrase>"
 ```
+<!-- cspell:enable -->
 
 ### Resetting the Registration on XPLA
 1. Deploy the new code to XPLA by doing the following. This should give you the `code_id`.

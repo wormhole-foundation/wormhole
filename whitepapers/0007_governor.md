@@ -8,7 +8,7 @@ Limit the impact of certain exploits by giving Guardians the option to delay Wor
 
 ## Background
 
-A single integrity failure of the core messaging bridge can have disastrous consequences for users of token bridges built ontop of Wormhole, if no additional safety mitigations are in place. For example, on Feb 2, 2022 [a vulnerability in the Solana core smart contract was exploited](https://wormholecrypto.medium.com/wormhole-incident-report-02-02-22-ad9b8f21eec6) to maliciously mint wETH on Solana and it was subsequently bridged back to Ethereum.
+A single integrity failure of the core messaging bridge can have disastrous consequences for users of token bridges built on top of Wormhole, if no additional safety mitigations are in place. For example, on Feb 2, 2022 [a vulnerability in the Solana core smart contract was exploited](https://wormholecrypto.medium.com/wormhole-incident-report-02-02-22-ad9b8f21eec6) to maliciously mint wETH on Solana and it was subsequently bridged back to Ethereum.
 
 There are multiple potential failure modes of the bridge:
 * In scope of the Wormhole security program:

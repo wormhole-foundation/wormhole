@@ -308,6 +308,19 @@ jobs:
           docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
           git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
 
+  spellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned version of the v6 tag, which is a lightweight and hence mutable tag
+      - uses: streetsidesoftware/cspell-action@214db1e3138f326d33b7a6a51c92852e89ab0618
+        with:
+          # For now, only lint markdown files
+          files: '**/*.md'
+          inline: warning
+          # Only check files in the PR or push
+          incremental_files_only: true
+
   # Run Go tests
   node-tests:
     # The tests are slow enough that we want to run it on the self-hosted runner

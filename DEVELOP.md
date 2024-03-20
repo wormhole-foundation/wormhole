@@ -140,10 +140,12 @@ To re-generate these files run `rm -rf node/pkg/proto && docker build --target g
 
 ### Call gRPC services
 
+<!-- cspell:disable-next-line -->
     tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
 
 With parameters (using proto json encoding):
 
+<!-- cspell:disable-next-line -->
     tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) \
         -d '{"filters": [{"emitter_filter": {"emitter_address": "574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d", "chain_id": "CHAIN_ID_SOLANA"}}]}' \
         -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
@@ -152,10 +154,12 @@ With parameters (using proto json encoding):
 
 To Solana:
 
+<!-- cspell:disable-next-line -->
     kubectl exec solana-devnet-0 -c setup -- client post-message Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
 
 To Solana as CPI instruction:
 
+<!-- cspell:disable-next-line -->
     kubectl exec solana-devnet-0 -c setup -- client post-message --proxy CP1co2QMMoDPbsmV7PGcUTLFwyhgCgTXt25gLQ5LewE1 Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
 
 ### Observation Requests

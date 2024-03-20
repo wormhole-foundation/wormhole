@@ -50,8 +50,8 @@ to identify collections (only 20 bytes of which are used on EVM chains, for the
 contract address) and another 32 bytes to identify the token within the
 collection. Neither of these fields are sufficient to pack the necessary
 information on Aptos, since the creator address itself is already 32 bytes, and
-the collection name can be an arbitary string up to 128 bytes. Token names can
-also be arbitary 128 byte strings.
+the collection name can be an arbitrary string up to 128 bytes. Token names can
+also be arbitrary 128 byte strings.
 
 Thus, we store 32 byte hashes of these two fields respectively. The exact
 details of how the hashes are computed are defined in

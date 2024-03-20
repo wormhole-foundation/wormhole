@@ -198,7 +198,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 tmpl_sig.get_bytecode_chunk(0),
                 encode_uvarint(acct_seq_start, Bytes("")),
 
-                # EMMITTER_ID
+                # EMITTER_ID
                 tmpl_sig.get_bytecode_chunk(1),
                 encode_uvarint(Len(emitter), Bytes("")),
                 emitter,

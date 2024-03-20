@@ -1,5 +1,6 @@
 # first build the image
 
+<!-- cspell:disable-next-line -->
 DOCKER_BUILDKIT=1 docker build -f Dockerfile.base -t near .
 
 # tag the image with the appropriate version
