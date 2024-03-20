@@ -67,6 +67,7 @@ type (
 		// Outbound query responses to query requests
 		queryResponseC chan<- *query.PerChainQueryResponseInternal
 
+		ccqConfig query.PerChainConfig
 		ccqLogger *zap.Logger
 	}
 
@@ -228,6 +229,7 @@ func NewSolanaWatcher(
 		networkName:    chainID.String(),
 		queryReqC:      queryReqC,
 		queryResponseC: queryResponseC,
+		ccqConfig:      query.GetPerChainConfig(chainID),
 	}
 }
 
@@ -306,6 +308,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+	s.ccqLogger = logger.With(zap.String("component", "ccqsol"))
 
 	wsUrl := ""
 	if s.wsUrl != nil {
@@ -413,18 +416,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		}
 	})
 
-	if s.commitment == rpc.CommitmentType("finalized") {
-		s.ccqLogger = logger.With(zap.String("component", "ccqsol"))
-		common.RunWithScissors(ctx, s.errC, "solana_fetch_query_req", func(ctx context.Context) error {
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case queryRequest := <-s.queryReqC:
-					s.ccqHandleQuery(ctx, queryRequest)
-				}
-			}
-		})
+	if s.commitment == rpc.CommitmentType("finalized") && s.ccqConfig.QueriesSupported() {
+		s.ccqStart(ctx)
 	}
 
 	select {

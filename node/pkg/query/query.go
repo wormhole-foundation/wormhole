@@ -56,6 +56,11 @@ func NewQueryHandler(
 }
 
 type (
+	// Watcher is the interface that any watcher that supports cross chain queries must implement.
+	Watcher interface {
+		QueryHandler(ctx context.Context, queryRequest *PerChainQueryInternal)
+	}
+
 	// QueryHandler defines the cross chain query handler.
 	QueryHandler struct {
 		logger               *zap.Logger
@@ -87,7 +92,55 @@ type (
 		channel        chan *PerChainQueryInternal
 		lastUpdateTime time.Time
 	}
+
+	PerChainConfig struct {
+		TimestampCacheSupported bool
+		NumWorkers              int
+	}
 )
+
+// perChainConfig provides static config info for each chain. If a chain is not listed here, then it does not support queries.
+// Every chain listed here must have at least one worker specified.
+var perChainConfig = map[vaa.ChainID]PerChainConfig{
+	vaa.ChainIDSolana:          {NumWorkers: 10, TimestampCacheSupported: false},
+	vaa.ChainIDEthereum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBSC:             {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygon:         {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDAvalanche:       {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOasis:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAurora:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDFantom:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKarura:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAcala:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKlaytn:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDCelo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMoonbeam:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDOptimism:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBase:            {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDScroll:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMantle:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDSepolia:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDHolesky:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrumSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBaseSepolia:     {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOptimismSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygonSepolia:  {NumWorkers: 1, TimestampCacheSupported: true},
+}
+
+// GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,
+// which is not an error. It just means that queries are not supported for that chain.
+func GetPerChainConfig(chainID vaa.ChainID) PerChainConfig {
+	if pcc, exists := perChainConfig[chainID]; exists {
+		return pcc
+	}
+	return PerChainConfig{}
+}
+
+// QueriesSupported can be used by the watcher to determine if queries are supported for the chain.
+func (config PerChainConfig) QueriesSupported() bool {
+	return config.NumWorkers > 0
+}
 
 // Start initializes the query handler and starts the runnable.
 func (qh *QueryHandler) Start(ctx context.Context) error {
@@ -130,40 +183,15 @@ func handleQueryRequestsImpl(
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
 
-	// CCQ is currently only supported on EVM and Solana.
-	supportedChains := map[vaa.ChainID]struct{}{
-		vaa.ChainIDSolana:          {},
-		vaa.ChainIDEthereum:        {},
-		vaa.ChainIDBSC:             {},
-		vaa.ChainIDPolygon:         {},
-		vaa.ChainIDAvalanche:       {},
-		vaa.ChainIDOasis:           {},
-		vaa.ChainIDAurora:          {},
-		vaa.ChainIDFantom:          {},
-		vaa.ChainIDKarura:          {},
-		vaa.ChainIDAcala:           {},
-		vaa.ChainIDKlaytn:          {},
-		vaa.ChainIDCelo:            {},
-		vaa.ChainIDMoonbeam:        {},
-		vaa.ChainIDArbitrum:        {},
-		vaa.ChainIDOptimism:        {},
-		vaa.ChainIDBase:            {},
-		vaa.ChainIDScroll:          {},
-		vaa.ChainIDMantle:          {},
-		vaa.ChainIDSepolia:         {},
-		vaa.ChainIDHolesky:         {},
-		vaa.ChainIDArbitrumSepolia: {},
-		vaa.ChainIDBaseSepolia:     {},
-		vaa.ChainIDOptimismSepolia: {},
-		vaa.ChainIDPolygonSepolia:  {},
-	}
-
-	// But we don't want to allow CCQ if the chain is not enabled.
-	for chainID := range supportedChains {
-		if _, exists := chainQueryReqC[chainID]; !exists {
-			delete(supportedChains, chainID)
-		} else {
-			logger.Info("queries supported on chain", zap.Stringer("chainID", chainID))
+	// Create the set of chains for which CCQ is actually enabled. Those are the ones in the config for which we actually have a watcher enabled.
+	supportedChains := make(map[vaa.ChainID]struct{})
+	for chainID, config := range perChainConfig {
+		if _, exists := chainQueryReqC[chainID]; exists {
+			if config.NumWorkers <= 0 {
+				panic(fmt.Sprintf(`invalid per chain config entry for "%s", no workers specified`, chainID.String()))
+			}
+			logger.Info("queries supported on chain", zap.Stringer("chainID", chainID), zap.Int("numWorkers", config.NumWorkers))
+			supportedChains[chainID] = struct{}{}
 
 			// Make sure we have a metric for every enabled chain, so we can see which ones are actually enabled.
 			totalRequestsByChain.WithLabelValues(chainID.String()).Add(0)
@@ -452,13 +480,30 @@ func (pq *pendingQuery) numPendingRequests() int {
 	return numPending
 }
 
-func SupportsTimestampCaching(chainID vaa.ChainID) bool {
-	/*
-		- P1: Ethereum, Base, Optimism
-		- P1.5: Arbitrum, Polygon, Avalanche
-		- P2: BNB Chain, Moonbeam
-		- P3: Acala, Celo, Fantom, Karura, Klaytn, Oasis
-	*/
-
-	return true
+// StartWorkers is used by the watchers to start the query handler worker routines.
+func StartWorkers(
+	ctx context.Context,
+	logger *zap.Logger,
+	errC chan error,
+	w Watcher,
+	queryReqC <-chan *PerChainQueryInternal,
+	config PerChainConfig,
+	tag string,
+) {
+	for count := 0; count < config.NumWorkers; count++ {
+		workerId := count
+		common.RunWithScissors(ctx, errC, fmt.Sprintf("%s_fetch_query_req", tag), func(ctx context.Context) error {
+			logger.Debug("CONCURRENT: starting worker", zap.Int("worker", workerId))
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case queryRequest := <-queryReqC:
+					logger.Debug("CONCURRENT: processing query request", zap.Int("worker", workerId))
+					w.QueryHandler(ctx, queryRequest)
+					logger.Debug("CONCURRENT: finished processing query request", zap.Int("worker", workerId))
+				}
+			}
+		})
+	}
 }

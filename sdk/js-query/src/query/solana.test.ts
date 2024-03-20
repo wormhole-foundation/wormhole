@@ -8,6 +8,7 @@ import {
 } from "@jest/globals";
 import Web3, { ETH_DATA_FORMAT } from "web3";
 import axios from "axios";
+import { AxiosResponse } from "axios";
 import base58 from "bs58";
 import {
   ChainQueryType,
@@ -437,5 +438,71 @@ describe("solana", () => {
     expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
       "57cd18b7f8a4d91a2da9ab4af05d0fbe"
     );
+  });
+  test("concurrent queries", async () => {
+    const solAccountReq = new SolanaAccountQueryRequest("finalized", ACCOUNTS);
+    const query = new PerChainQueryRequest(1, solAccountReq);
+    let nonce = 42;
+    let promises: Promise<AxiosResponse<any, any>>[] = [];
+    for (let count = 0; count < 20; count++) {
+      nonce += 1;
+      const request = new QueryRequest(nonce, [query]);
+      const serialized = request.serialize();
+      const digest = QueryRequest.digest(ENV, serialized);
+      const signature = sign(PRIVATE_KEY, digest);
+      const response = axios.put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": "my_secret_key" } }
+      );
+      promises.push(response);
+    }
+
+    const responses = await Promise.all(promises);
+
+    expect(responses.length).toEqual(promises.length);
+    for (let idx = 0; idx < responses.length; idx++) {
+      const response = responses[idx];
+      expect(response.status).toBe(200);
+
+      const queryResponse = QueryResponse.from(response.data.bytes);
+      expect(queryResponse.version).toEqual(1);
+      expect(queryResponse.requestChainId).toEqual(0);
+      expect(queryResponse.request.version).toEqual(1);
+      expect(queryResponse.request.requests.length).toEqual(1);
+      expect(queryResponse.request.requests[0].chainId).toEqual(1);
+      expect(queryResponse.request.requests[0].query.type()).toEqual(
+        ChainQueryType.SolanaAccount
+      );
+
+      const sar = queryResponse.responses[0]
+        .response as SolanaAccountQueryResponse;
+      expect(Number(sar.slotNumber)).not.toEqual(0);
+      expect(Number(sar.blockTime)).not.toEqual(0);
+      expect(sar.results.length).toEqual(2);
+
+      expect(Number(sar.results[0].lamports)).toEqual(1461600);
+      expect(Number(sar.results[0].rentEpoch)).toEqual(0);
+      expect(sar.results[0].executable).toEqual(false);
+      expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+      );
+      expect(Buffer.from(sar.results[0].data).toString("hex")).toEqual(
+        "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d0000e8890423c78a0901000000000000000000000000000000000000000000000000000000000000000000000000"
+      );
+
+      expect(Number(sar.results[1].lamports)).toEqual(1461600);
+      expect(Number(sar.results[1].rentEpoch)).toEqual(0);
+      expect(sar.results[1].executable).toEqual(false);
+      expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+      );
+      expect(Buffer.from(sar.results[1].data).toString("hex")).toEqual(
+        "01000000574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d01000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000"
+      );
+    }
   });
 });

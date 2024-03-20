@@ -29,6 +29,11 @@ const (
 	CCQ_FAST_RETRY_INTERVAL = 200 * time.Millisecond
 )
 
+// ccqStart starts up CCQ query processing.
+func (w *SolanaWatcher) ccqStart(ctx context.Context) {
+	query.StartWorkers(ctx, w.ccqLogger, w.errC, w, w.queryReqC, w.ccqConfig, w.chainID.String())
+}
+
 // ccqSendQueryResponse sends a response back to the query handler.
 func (w *SolanaWatcher) ccqSendQueryResponse(queryResponse *query.PerChainQueryResponseInternal) {
 	select {
@@ -45,8 +50,8 @@ func (w *SolanaWatcher) ccqSendErrorResponse(req *query.PerChainQueryInternal, s
 	w.ccqSendQueryResponse(queryResponse)
 }
 
-// ccqHandleQuery is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
-func (w *SolanaWatcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
+// QueryHandler is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
+func (w *SolanaWatcher) QueryHandler(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.
 	if queryRequest.Request.ChainId != w.chainID {

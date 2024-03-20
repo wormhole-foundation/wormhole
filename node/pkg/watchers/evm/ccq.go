@@ -19,6 +19,15 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 )
 
+// ccqStart starts up CCQ query processing.
+func (w *Watcher) ccqStart(ctx context.Context, errC chan error) {
+	if w.ccqTimestampCache != nil && w.ccqBackfillCache {
+		w.ccqBackfillStart(ctx, errC)
+	}
+
+	query.StartWorkers(ctx, w.ccqLogger, errC, w, w.queryReqC, w.ccqConfig, w.chainID.String())
+}
+
 // ccqSendQueryResponse sends a response back to the query handler. In the case of an error, the response parameter may be nil.
 func (w *Watcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status query.QueryStatus, response query.ChainSpecificResponse) {
 	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, response)
@@ -30,8 +39,8 @@ func (w *Watcher) ccqSendQueryResponse(req *query.PerChainQueryInternal, status 
 	}
 }
 
-// ccqHandleQuery is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
-func (w *Watcher) ccqHandleQuery(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
+// QueryHandler is the top-level query handler. It breaks out the requests based on the type and calls the appropriate handler.
+func (w *Watcher) QueryHandler(ctx context.Context, queryRequest *query.PerChainQueryInternal) {
 
 	// This can't happen unless there is a programming error - the caller
 	// is expected to send us only requests for our chainID.

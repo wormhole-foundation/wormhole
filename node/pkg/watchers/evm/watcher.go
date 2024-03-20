@@ -129,6 +129,7 @@ type (
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
 
+		ccqConfig          query.PerChainConfig
 		ccqMaxBlockNumber  *big.Int
 		ccqTimestampCache  *BlocksByTimestamp
 		ccqBackfillChannel chan *ccqBackfillRequest
@@ -179,6 +180,7 @@ func NewEthWatcher(
 		queryResponseC:     queryResponseC,
 		pending:            map[pendingKey]*pendingMessage{},
 		unsafeDevMode:      unsafeDevMode,
+		ccqConfig:          query.GetPerChainConfig(chainID),
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
 		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
@@ -188,6 +190,7 @@ func NewEthWatcher(
 func (w *Watcher) Run(parentCtx context.Context) error {
 	var err error
 	logger := supervisor.Logger(parentCtx)
+	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "evm"),
@@ -197,8 +200,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("chainID", w.chainID.String()),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
-
-	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
@@ -258,7 +259,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	}
 
-	if query.SupportsTimestampCaching(w.chainID) {
+	if w.ccqConfig.TimestampCacheSupported {
 		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
 	}
 
@@ -421,20 +422,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	if w.ccqTimestampCache != nil && w.ccqBackfillCache {
-		w.ccqBackfillStart(ctx, errC)
+	if w.ccqConfig.QueriesSupported() {
+		w.ccqStart(ctx, errC)
 	}
-
-	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case queryRequest := <-w.queryReqC:
-				w.ccqHandleQuery(ctx, queryRequest)
-			}
-		}
-	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
 		for {
