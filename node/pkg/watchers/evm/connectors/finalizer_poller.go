@@ -102,7 +102,7 @@ func (b *FinalizerPollConnector) run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			prevLatest, prevFinalized, err = b.pollBlock(ctx, b.logger, prevLatest, prevFinalized)
+			prevLatest, prevFinalized, err = b.pollBlock(ctx, prevLatest, prevFinalized)
 			if err != nil {
 				errCount++
 				b.logger.Error("polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
@@ -121,8 +121,8 @@ func (b *FinalizerPollConnector) run(ctx context.Context) error {
 
 // pollBlock poll for the latest block, compares them to the last one, and publishes any new ones.
 // In the case of an error, it returns the last block that were passed in, otherwise it returns the new block.
-func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logger, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
-	newLatest, err = GetLatestBlock(ctx, logger, b.Connector)
+func (b *FinalizerPollConnector) pollBlock(ctx context.Context, prevLatest *NewBlock, prevFinalized *NewBlock) (newLatest *NewBlock, newFinalized *NewBlock, err error) {
+	newLatest, err = GetLatestBlock(ctx, b.logger, b.Connector)
 	if err != nil {
 		err = fmt.Errorf("failed to get latest block: %w", err)
 		newLatest = prevLatest
@@ -136,7 +136,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevLatest.Number.Uint64() + 1; blockNum < newBlockNum; blockNum++ {
-			block, err = GetBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Latest)
+			block, err = GetBlockByNumberUint64(ctx, b.logger, b.Connector, blockNum, Latest)
 			if err != nil {
 				err = fmt.Errorf("failed to get gap block: %w", err)
 				newLatest = prevLatest
@@ -149,7 +149,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 
 		b.blockFeed.Send(newLatest)
 	} else if newLatest.Number.Cmp(prevLatest.Number) < 0 {
-		logger.Debug("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
+		b.logger.Debug("latest block number went backwards, ignoring it", zap.Any("newLatest", newLatest), zap.Any("prevLatest", prevLatest))
 		newLatest = prevLatest
 	}
 
@@ -160,7 +160,7 @@ func (b *FinalizerPollConnector) pollBlock(ctx context.Context, logger *zap.Logg
 		// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 		newBlockNum := newLatest.Number.Uint64()
 		for blockNum := prevFinalized.Number.Uint64() + 1; blockNum <= newBlockNum; blockNum++ {
-			block, err = GetBlockByNumberUint64(ctx, logger, b.Connector, blockNum, Finalized)
+			block, err = GetBlockByNumberUint64(ctx, b.logger, b.Connector, blockNum, Finalized)
 			if err != nil {
 				err = fmt.Errorf("failed to get gap block: %w", err)
 				newLatest = prevLatest
