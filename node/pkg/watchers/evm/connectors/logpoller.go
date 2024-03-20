@@ -65,7 +65,7 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 		case err := <-errC:
 			return err
 		case block := <-blockChan:
-			if err := l.processBlock(ctx, l.logger, block); err != nil {
+			if err := l.processBlock(ctx, block); err != nil {
 				l.errFeed.Send(err.Error())
 			}
 		}
@@ -106,7 +106,7 @@ var (
 	logsLogMessageTopic = ethCommon.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
-func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger, block *NewBlock) error {
+func (l *LogPollConnector) processBlock(ctx context.Context, block *NewBlock) error {
 	if l.prevBlockNum == nil {
 		l.prevBlockNum = new(big.Int).Set(block.Number)
 	} else {
@@ -125,7 +125,7 @@ func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger,
 	defer cancel()
 	logs, err := l.client.FilterLogs(tCtx, filter)
 	if err != nil {
-		logger.Error("GetLogsQuery: query of eth_getLogs failed",
+		l.logger.Error("GetLogsQuery: query of eth_getLogs failed",
 			zap.Stringer("FromBlock", filter.FromBlock),
 			zap.Stringer("ToBlock", filter.ToBlock),
 			zap.Error(err),
@@ -144,7 +144,7 @@ func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger,
 		}
 		ev, err := l.ParseLogMessagePublished(log)
 		if err != nil {
-			logger.Error("GetLogsQuery: failed to parse log entry",
+			l.logger.Error("GetLogsQuery: failed to parse log entry",
 				zap.Stringer("FromBlock", filter.FromBlock),
 				zap.Stringer("ToBlock", filter.ToBlock),
 				zap.Error(err),
