@@ -233,9 +233,9 @@ var (
 )
 
 func init() {
-	p2pNetworkID = NodeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
+	p2pNetworkID = NodeCmd.Flags().String("network", "", "P2P network identifier (optional, overrides default for environment)")
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
-	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -407,7 +407,7 @@ func init() {
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
-	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (comma-separated)")
+	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
 	ccqBackfillCache = NodeCmd.Flags().Bool("ccqBackfillCache", true, "Should EVM chains backfill CCQ timestamp cache on startup")
 
@@ -469,6 +469,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	// Determine execution mode
+	var env common.Environment
+	if *unsafeDevMode {
+		env = common.UnsafeDevNet
+	} else if *testnetMode {
+		env = common.TestNet
+	} else {
+		env = common.MainNet
+	}
+
 	if *unsafeDevMode {
 		fmt.Print(devwarning)
 	}
@@ -514,6 +524,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger = logger.Named(*nodeName)
 	}
 
+	if *unsafeDevMode && *testnetMode {
+		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
+	}
+
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
 
@@ -525,8 +539,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		// Use the first guardian node as bootstrap
-		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
-		*ccqP2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *ccqP2pPort, g0key.String())
+		if *p2pBootstrap == "" {
+			*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
+		}
+		if *ccqP2pBootstrap == "" {
+			*ccqP2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *ccqP2pPort, g0key.String())
+		}
+		if *p2pNetworkID == "" {
+			*p2pNetworkID = p2p.GetNetworkId(env)
+		}
 
 		// Deterministic ganache ETH devnet address.
 		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
@@ -552,6 +573,30 @@ func runNode(cmd *cobra.Command, args []string) {
 		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
 		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
 		*polygonSepoliaContract = unsafeDevModeEvmContractAddress(*polygonSepoliaContract)
+	} else { // Mainnet or Testnet.
+		// If the network parameters are not specified, use the defaults. Log a warning if they are specified since we want to discourage this.
+		// Note that we don't want to prevent it, to allow for network upgrade testing.
+		if *p2pNetworkID == "" {
+			*p2pNetworkID = p2p.GetNetworkId(env)
+		} else {
+			logger.Warn("overriding default p2p network ID", zap.String("p2pNetworkID", *p2pNetworkID))
+		}
+		if *p2pBootstrap == "" {
+			*p2pBootstrap, err = p2p.GetBootstrapPeers(env)
+			if err != nil {
+				logger.Fatal("failed to determine p2p bootstrap peers", zap.String("env", string(env)), zap.Error(err))
+			}
+		} else {
+			logger.Warn("overriding default p2p bootstrap peers", zap.String("p2pBootstrap", *p2pBootstrap))
+		}
+		if *ccqP2pBootstrap == "" {
+			*ccqP2pBootstrap, err = p2p.GetCcqBootstrapPeers(env)
+			if err != nil {
+				logger.Fatal("failed to determine ccq bootstrap peers", zap.String("env", string(env)), zap.Error(err))
+			}
+		} else {
+			logger.Warn("overriding default ccq bootstrap peers", zap.String("ccqP2pBootstrap", *ccqP2pBootstrap))
+		}
 	}
 
 	// Verify flags
@@ -829,21 +874,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
-	}
-
-	// Determine execution mode
-	// TODO: refactor usage of these variables elsewhere. *unsafeDevMode and *testnetMode should not be accessed directly.
-	var env common.Environment
-	if *unsafeDevMode {
-		env = common.UnsafeDevNet
-	} else if *testnetMode {
-		env = common.TestNet
-	} else {
-		env = common.MainNet
-	}
-
-	if *unsafeDevMode && *testnetMode {
-		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
 	}
 
 	// Complain about Infura on mainnet.

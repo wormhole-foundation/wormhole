@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -50,10 +51,10 @@ var (
 const DEV_NETWORK_ID = "/wormhole/dev"
 
 func init() {
-	envStr = QueryServerCmd.Flags().String("env", "", "environment (dev, test, prod)")
-	p2pNetworkID = QueryServerCmd.Flags().String("network", DEV_NETWORK_ID, "P2P network identifier")
+	envStr = QueryServerCmd.Flags().String("env", "", "environment (devnet, testnet, mainnet)")
+	p2pNetworkID = QueryServerCmd.Flags().String("network", "", "P2P network identifier (optional, overrides default for environment)")
 	p2pPort = QueryServerCmd.Flags().Uint("port", 8995, "P2P UDP listener port")
-	p2pBootstrap = QueryServerCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pBootstrap = QueryServerCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for testnet or mainnet, overrides default, required for devnet)")
 	nodeKeyPath = QueryServerCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 	signerKeyPath = QueryServerCmd.Flags().String("signerKey", "", "Path to key used to sign unsigned queries")
 	listenAddr = QueryServerCmd.Flags().String("listenAddr", "[::]:6069", "Listen address for query server (disabled if blank)")
@@ -82,7 +83,6 @@ var QueryServerCmd = &cobra.Command{
 
 func runQueryServer(cmd *cobra.Command, args []string) {
 	common.SetRestrictiveUmask()
-	networkID := *p2pNetworkID + "/ccq"
 
 	// Setup logging
 	lvl, err := ipfslog.LevelFromString(*logLevel)
@@ -93,6 +93,35 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	logger := ipfslog.Logger("query-server").Desugar()
 	ipfslog.SetAllLoggers(lvl)
+
+	env, err := common.ParseEnvironment(*envStr)
+	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
+		if *envStr == "" {
+			logger.Fatal("Please specify --env")
+		}
+		logger.Fatal("Invalid value for --env, must be dev, test or prod", zap.String("val", *envStr))
+	}
+
+	if *p2pNetworkID == "" {
+		*p2pNetworkID = p2p.GetNetworkId(env)
+	} else if env != common.UnsafeDevNet {
+		logger.Warn("overriding default p2p network ID", zap.String("p2pNetworkID", *p2pNetworkID))
+	}
+
+	if *p2pNetworkID == DEV_NETWORK_ID && env != common.UnsafeDevNet {
+		logger.Fatal("May not set --network to dev unless --env is also dev", zap.String("network", *p2pNetworkID), zap.String("env", *envStr))
+	}
+
+	networkID := *p2pNetworkID + "/ccq"
+
+	if *p2pBootstrap == "" {
+		*p2pBootstrap, err = p2p.GetCcqBootstrapPeers(env)
+		if err != nil {
+			logger.Fatal("failed to determine the bootstrap peers from the environment", zap.String("env", string(env)), zap.Error(err))
+		}
+	} else if env != common.UnsafeDevNet {
+		logger.Warn("overriding default p2p bootstrap peers", zap.String("p2pBootstrap", *p2pBootstrap))
+	}
 
 	if *telemetryLokiURL != "" {
 		logger.Info("Using Loki telemetry logger")
@@ -112,18 +141,6 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 		defer tm.Close()
 		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
-	}
-
-	env, err := common.ParseEnvironment(*envStr)
-	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
-		if *envStr == "" {
-			logger.Fatal("Please specify --env")
-		}
-		logger.Fatal("Invalid value for --env, must be dev, test or prod", zap.String("val", *envStr))
-	}
-
-	if *p2pNetworkID == DEV_NETWORK_ID && env != common.UnsafeDevNet {
-		logger.Fatal("May not set --network to dev unless --env is also dev", zap.String("network", *p2pNetworkID), zap.String("env", *envStr))
 	}
 
 	// Verify flags

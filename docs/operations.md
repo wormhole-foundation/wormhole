@@ -53,6 +53,7 @@ If you use the same RPC node for Wormhole v1, you also need the following additi
 `getProgramAccount` queries:
 
 <!-- cspell:disable -->
+
 ```
 [... see above for other required parameters ...]
 
@@ -60,6 +61,7 @@ If you use the same RPC node for Wormhole v1, you also need the following additi
 --account-index-include-key WormT3McKhFJ2RkiGpdw9GKvNCrB2aB54gb2uV9MfQC   # for mainnet
 --account-index-include-key 5gQf5AUhAgWYgUCt9ouShm9H7dzzXUsLdssYwe5krKhg  # for testnet
 ```
+
 <!-- cspell:enable -->
 
 Alternatively, if you want to run a general-purpose RPC node with indexes for all programs instead of only Wormhole,
@@ -72,10 +74,12 @@ leave out the filtering:
 On mainnet, we strongly recommend blacklisting KIN and the token program to speed up catchup:
 
 <!-- cspell:disable -->
+
 ```
 --account-index-exclude-key kinXdEcpDQeHPEuQnqmUgtYykqKGVFq6CeVX5iAHJq6  # Mainnet only
 --account-index-exclude-key TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA  # Mainnet only
 ```
+
 <!-- cspell:enable -->
 
 Note that these indexes require extra disk space and may slow down catchup. The first startup after
@@ -261,27 +265,12 @@ may include support for remote signing.
 
 ## Bootstrap Peers
 
-The following bootstrap peers are available in each environment.
+The list of supported bootstrap peers is defined in `node/pkg/p2p/network_consts.go`. That file also provides golang functions
+for obtaining the network parameters (network ID and bootstrap peers) based on the environment (mainnet or testnet).
 
-### Mainnet
-
-<!-- cspell:disable -->
-```bash
---bootstrap "/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8999/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8999/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1"
-
---ccqP2pBootstrap "/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8996/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8996/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8996/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1"
-```
-<!-- cspell:enable -->
-
-### Testnet
-
-<!-- cspell:disable -->
-```bash
---bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
-
---ccqP2pBootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8996/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8996/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8996/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
-```
-<!-- cspell:enable -->
+The common Wormhole applications (guardiand, spy and query proxy server) use those functions, so it is not necessary to specify
+the actual bootstrap parameters in their configs. Developers of any new applications are strongly urged to do the same, and not
+proliferate lists of bootstrap peers which might change over time.
 
 ## Run the Guardian Spy
 
@@ -290,27 +279,31 @@ The spy connects to the wormhole guardian peer to peer network and listens for n
 Start the spy against the testnet wormhole guardian:
 
 <!-- cspell:disable -->
+
 ```bash
 docker run \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
     ghcr.io/wormhole-foundation/guardiand:latest \
-spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
+    spy --nodeKey /node.key --spyRPC "[::]:7073" --env testnet
 ```
+
 <!-- cspell:enable -->
 
 To run the spy against mainnet:
 
 <!-- cspell:disable -->
+
 ```bash
 docker run \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
     ghcr.io/wormhole-foundation/guardiand:latest \
-spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8999/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8999/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1
+    spy --nodeKey /node.key --spyRPC "[::]:7073" --env mainnet
 ```
+
 <!-- cspell:enable -->
 
 ## Guardian Configurations
@@ -326,12 +319,14 @@ Configuration files, environment variables and flags are all supported.
 **Example**:
 
 <!-- cspell:disable -->
+
 ```yaml
 ethRPC: "ws://eth-devnet:8545"
 ethContract: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 solanaRPC: "http://solana-devnet:8899"
 solanaContract: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 ```
+
 <!-- cspell:enable -->
 
 ### Environment Variables
