@@ -22,18 +22,20 @@ type PollFinalizer interface {
 // FinalizerPollConnector polls for new blocks. It takes a finalizer which will be used to determine when a block is finalized.
 type FinalizerPollConnector struct {
 	Connector
+	logger    *zap.Logger
 	Delay     time.Duration
 	finalizer PollFinalizer
 	blockFeed ethEvent.Feed
 	errFeed   ethEvent.Feed
 }
 
-func NewFinalizerPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration) (*FinalizerPollConnector, error) {
+func NewFinalizerPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, finalizer PollFinalizer, delay time.Duration) (*FinalizerPollConnector, error) {
 	if finalizer == nil {
 		panic("finalizer must not be nil")
 	}
 	connector := &FinalizerPollConnector{
 		Connector: baseConnector,
+		logger:    logger,
 		Delay:     delay,
 		finalizer: finalizer,
 	}
@@ -74,9 +76,8 @@ func (b *FinalizerPollConnector) SubscribeForBlocks(ctx context.Context, errC ch
 }
 
 func (b *FinalizerPollConnector) runFromSupervisor(ctx context.Context) error {
-	logger := supervisor.Logger(ctx).With(zap.String("eth_network", b.Connector.NetworkName()))
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
-	return b.run(ctx, logger)
+	return b.run(ctx, b.logger)
 }
 
 func (b *FinalizerPollConnector) run(ctx context.Context, logger *zap.Logger) error {

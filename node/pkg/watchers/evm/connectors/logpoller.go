@@ -23,6 +23,7 @@ import (
 // finalized message log events.
 type LogPollConnector struct {
 	Connector
+	logger      *zap.Logger
 	client      *ethClient.Client
 	messageFeed ethEvent.Feed
 	errFeed     ethEvent.Feed
@@ -30,8 +31,12 @@ type LogPollConnector struct {
 	prevBlockNum *big.Int
 }
 
-func NewLogPollConnector(ctx context.Context, baseConnector Connector, client *ethClient.Client) (*LogPollConnector, error) {
-	connector := &LogPollConnector{Connector: baseConnector, client: client}
+func NewLogPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, client *ethClient.Client) (*LogPollConnector, error) {
+	connector := &LogPollConnector{
+		Connector: baseConnector,
+		logger:    logger,
+		client:    client,
+	}
 	// The supervisor will keep the poller running
 	err := supervisor.Run(ctx, "logPoller", common.WrapWithScissors(connector.run, "logPoller"))
 	if err != nil {
@@ -41,8 +46,6 @@ func NewLogPollConnector(ctx context.Context, baseConnector Connector, client *e
 }
 
 func (l *LogPollConnector) run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx).With(zap.String("eth_network", l.Connector.NetworkName()))
-
 	blockChan := make(chan *NewBlock)
 	errC := make(chan error)
 
@@ -62,7 +65,7 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 		case err := <-errC:
 			return err
 		case block := <-blockChan:
-			if err := l.processBlock(ctx, logger, block); err != nil {
+			if err := l.processBlock(ctx, l.logger, block); err != nil {
 				l.errFeed.Send(err.Error())
 			}
 		}

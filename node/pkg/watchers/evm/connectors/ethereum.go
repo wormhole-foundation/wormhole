@@ -51,7 +51,7 @@ func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, a
 	return &EthereumBaseConnector{
 		networkName: networkName,
 		address:     address,
-		logger:      logger.With(zap.String("eth_network", networkName)),
+		logger:      logger,
 		client:      client,
 		filterer:    filterer,
 		caller:      caller,

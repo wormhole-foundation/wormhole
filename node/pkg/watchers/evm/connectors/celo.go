@@ -56,7 +56,7 @@ func NewCeloConnector(ctx context.Context, networkName, rawUrl string, address e
 	return &CeloConnector{
 		networkName: networkName,
 		address:     address,
-		logger:      logger.With(zap.String("eth_network", networkName)),
+		logger:      logger,
 		client:      client,
 		rawClient:   rawClient,
 		filterer:    filterer,
