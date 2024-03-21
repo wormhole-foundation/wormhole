@@ -14,12 +14,16 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
 import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
+export function keyPairToImplicitAccount(keyPair: KeyPair): string {
+  return Buffer.from(keyPair.getPublicKey().data).toString("hex");
+}
+
 export const execute_near = async (
   payload: Payload,
   vaa: string,
   network: Network
 ): Promise<void> => {
-  const { rpc, key, networkId, deployerAccount } = NETWORKS[network].near;
+  const { rpc, key, networkId } = NETWORKS[network].near;
   if (!key) {
     throw Error(`No ${network} key defined for NEAR`);
   }
@@ -113,8 +117,10 @@ export const execute_near = async (
       impossible(payload);
   }
 
+  const keyPair = KeyPair.fromString(key);
+  const deployerAccount = keyPairToImplicitAccount(keyPair);
   const keyStore = new InMemoryKeyStore();
-  keyStore.setKey(networkId, deployerAccount, KeyPair.fromString(key));
+  keyStore.setKey(networkId, deployerAccount, keyPair);
   const near = await connect({
     keyStore,
     networkId,
@@ -159,7 +165,7 @@ export async function transferNear(
   network: Network,
   rpc: string
 ) {
-  const { key, networkId, deployerAccount } = NETWORKS[network].near;
+  const { key, networkId } = NETWORKS[network].near;
   if (!key) {
     throw Error(`No ${network} key defined for NEAR`);
   }
@@ -170,8 +176,10 @@ export async function transferNear(
   if (token_bridge === undefined) {
     throw Error(`Unknown token bridge contract on ${network} for NEAR`);
   }
+  const keyPair = KeyPair.fromString(key);
+  const deployerAccount = keyPairToImplicitAccount(keyPair);
   const keyStore = new InMemoryKeyStore();
-  keyStore.setKey(networkId, deployerAccount, KeyPair.fromString(key));
+  keyStore.setKey(networkId, deployerAccount, keyPair);
   const near = await connect({
     keyStore,
     networkId,

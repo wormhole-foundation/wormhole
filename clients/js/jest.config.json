@@ -1,0 +1,12 @@
+{
+  "moduleNameMapper": {
+    "^@certusone/(.*)/lib/esm/(.*)$": "@certusone/$1/lib/cjs/$2"
+  },
+  "transform": {
+    "^.+\\.(t|j)sx?$": "ts-jest"
+  },
+  "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+  "testPathIgnorePatterns": ["__tests__/utils"],
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+  "testTimeout": 60000
+}
