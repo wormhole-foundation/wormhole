@@ -92,7 +92,6 @@ const MAINNET = {
     rpc: "https://rpc.mainnet.near.org",
     key: getEnvVar("NEAR_KEY"),
     networkId: "mainnet",
-    deployerAccount: getEnvVar("NEAR_IMPLICIT_ACCOUNT_ID"),
   },
   injective: {
     rpc: "http://sentry0.injective.network:26657",
@@ -331,7 +330,6 @@ const TESTNET = {
     rpc: "https://rpc.testnet.near.org",
     key: getEnvVar("NEAR_KEY_TESTNET"),
     networkId: "testnet",
-    deployerAccount: "wormhole.testnet",
   },
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
@@ -560,7 +558,6 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
     networkId: "sandbox",
-    deployerAccount: "test.near",
   },
   injective: {
     rpc: undefined,
