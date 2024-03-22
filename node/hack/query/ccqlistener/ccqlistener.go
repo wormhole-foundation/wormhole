@@ -1,10 +1,10 @@
 // This tool can be used to verify that a guardian is properly receiving CCQ queries and publishing responses.
 
 // This tool can be used to passively listen for query responses from any guardian:
-//    go run ccqlistener.go --listenOnly
+//    go run ccqlistener.go --env mainnet --listenOnly
 //
 // Or it can be used to passively listen for query responses from a particular guardian:
-//    go run ccqlistener.go --listenOnly --targetPeerId <yourGuardianP2pPeerId>
+//    go run ccqlistener.go --env mainnet --listenOnly --targetPeerId <yourGuardianP2pPeerId>
 //
 // This should work both in mainnet and testnet because there are routine monitoring queries running every few minutes.
 // Note that you may need to wait 15 minutes or more to see something. Look for message saying "query response received".
@@ -32,7 +32,7 @@
 //
 // To run the tool as a docker image, you can do something like this:
 // - wormhole$ docker build --target build -f node/hack/query/ccqlistener/Dockerfile -t ccqlistener .
-// - wormhole$ docker run -v /ccqlistener/cfg:/app/cfg ccqlistener /ccqlistener --configDir /app/cfg
+// - wormhole$ docker run -v /ccqlistener/cfg:/app/cfg ccqlistener /ccqlistener --env mainnet --configDir /app/cfg
 // Where /ccqlistener is a directory containing these files:
 // - ccqlistener.nodeKey
 // - ccqlistener.signerKey
@@ -68,11 +68,10 @@ import (
 )
 
 var (
-	p2pNetworkID = flag.String("network", "/wormhole/mainnet/2", "P2P network identifier")
-	p2pPort      = flag.Int("port", 8998, "P2P UDP listener port")
-	p2pBootstrap = flag.String("bootstrap",
-		"/dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8996/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7,/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8996/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8996/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8996/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1",
-		"P2P bootstrap peers (comma-separated)")
+	envStr        = flag.String("env", "", `environment (may be "testnet" or "mainnet", required unless "--bootstrap" is specified)`)
+	p2pNetworkID  = flag.String("network", "", "P2P network identifier (optional, overrides default, required for devnet)")
+	p2pPort       = flag.Int("port", 8998, "P2P UDP listener port")
+	p2pBootstrap  = flag.String("bootstrap", "", "P2P bootstrap peers (optional, overrides default)")
 	nodeKeyPath   = flag.String("nodeKey", "ccqlistener.nodeKey", "Path to node key (will be generated if it doesn't exist)")
 	signerKeyPath = flag.String("signerKey", "ccqlistener.signerKey", "Path to key used to sign unsigned queries")
 	configDir     = flag.String("configDir", ".", "Directory where nodeKey and signerKey are loaded from (default is .)")
@@ -91,6 +90,30 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger, _ := zap.NewDevelopment()
+
+	if *envStr != "" {
+		// If they specify --env then use the defaults for the network parameters and don't allow them to override them.
+		if *p2pNetworkID != "" || *p2pBootstrap != "" {
+			logger.Fatal(`If "--env" is specified, "--network" and "--bootstrap" may not be specified`)
+		}
+		env, err := common.ParseEnvironment(*envStr)
+		if err != nil || (env != common.MainNet && env != common.TestNet) {
+			logger.Fatal(`Invalid value for "--env", should be "mainnet" or "testnet"`)
+		}
+		*p2pNetworkID = p2p.GetNetworkId(env)
+		*p2pBootstrap, err = p2p.GetCcqBootstrapPeers(env)
+		if err != nil {
+			logger.Fatal("failed to determine p2p bootstrap peers", zap.String("env", string(env)), zap.Error(err))
+		}
+	} else {
+		// If they don't specify --env, then --network and --bootstrap are required.
+		if *p2pNetworkID == "" {
+			logger.Fatal(`If "--env" is not specified, "--network" must be specified`)
+		}
+		if *p2pBootstrap == "" {
+			logger.Fatal(`If "--env" is not specified, "--bootstrap" must be specified`)
+		}
+	}
 
 	nodeKey := *configDir + "/" + *nodeKeyPath
 
