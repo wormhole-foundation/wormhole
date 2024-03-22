@@ -99,7 +99,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if *envStr == "" {
 			logger.Fatal("Please specify --env")
 		}
-		logger.Fatal("Invalid value for --env, must be dev, test or prod", zap.String("val", *envStr))
+		logger.Fatal("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
 	}
 
 	if *p2pNetworkID == "" {
