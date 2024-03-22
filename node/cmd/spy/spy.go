@@ -30,6 +30,7 @@ import (
 var (
 	rootCtx       context.Context
 	rootCtxCancel context.CancelFunc
+	vaaVerifier   *VaaVerifier
 )
 
 var (
@@ -48,6 +49,9 @@ var (
 	spyRPC *string
 
 	sendTimeout *time.Duration
+
+	ethRPC      *string
+	ethContract *string
 )
 
 func init() {
@@ -65,6 +69,9 @@ func init() {
 	spyRPC = SpyCmd.Flags().String("spyRPC", "", "Listen address for gRPC interface")
 
 	sendTimeout = SpyCmd.Flags().Duration("sendTimeout", 5*time.Second, "Timeout for sending a message to a subscriber")
+
+	ethRPC = SpyCmd.Flags().String("ethRPC", "", "Ethereum RPC for verifying VAAs (optional)")
+	ethContract = SpyCmd.Flags().String("ethContract", "", "Ethereum core bridge address for verifying VAAs (required if ethRPC is specified)")
 }
 
 // SpyCmd represents the node command
@@ -304,6 +311,18 @@ func runSpy(cmd *cobra.Command, args []string) {
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState(nil)
 
+	// VAA verifier (optional)
+	errC := make(chan error)
+	if *ethRPC != "" {
+		if *ethContract == "" {
+			logger.Fatal(`If "--ethRPC" is specified, "--ethContract" must also be specified`)
+		}
+		vaaVerifier = NewVaaVerifier(rootCtx, logger, *ethRPC, *ethContract)
+		if err := vaaVerifier.Start(errC); err != nil {
+			logger.Fatal("failed to start VAA verifier", zap.Error(err))
+		}
+	}
+
 	// RPC server
 	s := newSpyServer(logger)
 	rpcSvc, _, err := spyServerRunnable(s, logger, *spyRPC)
@@ -343,9 +362,19 @@ func runSpy(cmd *cobra.Command, args []string) {
 			case v := <-signedInC:
 				logger.Info("Received signed VAA",
 					zap.Any("vaa", v.Vaa))
+				if vaaVerifier != nil {
+					valid, reason, err := vaaVerifier.VerifyVAA(v.Vaa)
+					if err != nil || !valid {
+						logger.Error("Failed to verify VAA, dropping it", zap.Error(err), zap.String("reason", reason), zap.Any("vaa", v.Vaa))
+						continue
+					}
+				}
 				if err := s.PublishSignedVAA(v.Vaa); err != nil {
 					logger.Error("failed to publish signed VAA", zap.Error(err))
 				}
+			case err := <-errC:
+				logger.Fatal("encountered a fatal error", zap.Error(err))
+				return
 			}
 		}
 	}()
