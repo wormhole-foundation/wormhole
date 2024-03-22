@@ -33,6 +33,8 @@ var (
 )
 
 var (
+	envStr *string
+
 	p2pNetworkID *string
 	p2pPort      *uint
 	p2pBootstrap *string
@@ -49,9 +51,10 @@ var (
 )
 
 func init() {
-	p2pNetworkID = SpyCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
+	envStr = SpyCmd.Flags().String("env", "", `environment (may be "testnet" or "mainnet", required unless "--bootstrap" is specified)`)
+	p2pNetworkID = SpyCmd.Flags().String("network", "", "P2P network identifier (optional for testnet or mainnet, overrides default, required for devnet)")
 	p2pPort = SpyCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
-	p2pBootstrap = SpyCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pBootstrap = SpyCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for testnet or mainnet, overrides default, required for devnet)")
 
 	statusAddr = SpyCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -236,6 +239,30 @@ func runSpy(cmd *cobra.Command, args []string) {
 	logger := ipfslog.Logger("wormhole-spy").Desugar()
 
 	ipfslog.SetAllLoggers(lvl)
+
+	if *envStr != "" {
+		// If they specify --env then use the defaults for the network parameters and don't allow them to override them.
+		if *p2pNetworkID != "" || *p2pBootstrap != "" {
+			logger.Fatal(`If "--env" is specified, "--network" and "--bootstrap" may not be specified`)
+		}
+		env, err := common.ParseEnvironment(*envStr)
+		if err != nil || (env != common.MainNet && env != common.TestNet) {
+			logger.Fatal(`Invalid value for "--env", should be "mainnet" or "testnet"`)
+		}
+		*p2pNetworkID = p2p.GetNetworkId(env)
+		*p2pBootstrap, err = p2p.GetBootstrapPeers(env)
+		if err != nil {
+			logger.Fatal("failed to determine p2p bootstrap peers", zap.String("env", string(env)), zap.Error(err))
+		}
+	} else {
+		// If they don't specify --env, then --network and --bootstrap are required.
+		if *p2pNetworkID == "" {
+			logger.Fatal(`If "--env" is not specified, "--network" must be specified`)
+		}
+		if *p2pBootstrap == "" {
+			logger.Fatal(`If "--env" is not specified, "--bootstrap" must be specified`)
+		}
+	}
 
 	// Status server
 	if *statusAddr != "" {
