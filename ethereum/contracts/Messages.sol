@@ -6,17 +6,56 @@ pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
 import "./Structs.sol";
-import "./libraries/external/BytesLib.sol";
+import "./libraries/relayer/BytesParsing.sol";
 
 
 contract Messages is Getters {
-    using BytesLib for bytes;
+    using BytesParsing for bytes;
+
+    function parseAndVerifyVMOptimized(
+        bytes calldata encodedVM,
+        bytes calldata guardianSet,
+        uint32 guardianSetIndex
+    ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
+        // Verify that the specified guardian set is a valid.
+        require(
+            getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet),
+            "invalid guardian set"
+        );
+
+        vm = parseVM(encodedVM);
+
+        // Verify that the VM is signed with the same guardian set that was specified.
+        require(vm.guardianSetIndex == guardianSetIndex, "mismatched guardian set index");
+
+        (valid, reason) = verifyVMInternal(vm, parseGuardianSet(guardianSet), false);
+    }
+
+    function parseGuardianSet(bytes calldata guardianSetData) public pure returns (Structs.GuardianSet memory guardianSet) {
+        // Fetch the guardian set length.
+        uint256 endGuardianKeyIndex = guardianSetData.length - 4;
+        uint256 guardianCount = endGuardianKeyIndex / 20;
+
+        guardianSet = Structs.GuardianSet({
+            keys : new address[](guardianCount),
+            expirationTime : 0
+        });
+        (guardianSet.expirationTime, ) = guardianSetData.asUint32Unchecked(endGuardianKeyIndex);
+
+        uint256 offset = 0;
+        for(uint256 i = 0; i < guardianCount;) {
+            (guardianSet.keys[i], offset) = guardianSetData.asAddressUnchecked(offset);
+            unchecked {
+                ++i;
+            }
+        }
+    }
 
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
         /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
-        (valid, reason) = verifyVMInternal(vm, false);
+        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), false);
     }
 
    /**
@@ -28,7 +67,7 @@ contract Messages is Getters {
     *  - it aims to verify the hash field provided against the contents of the vm
     */
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
-        (valid, reason) = verifyVMInternal(vm, true);    
+        (valid, reason) = verifyVMInternal(vm, getGuardianSet(vm.guardianSetIndex), true);
     }
 
     /**
@@ -37,10 +76,7 @@ contract Messages is Getters {
     * in the case that the vm is securely parsed and the hash field can be trusted, checkHash can be set to false
     * as the check would be redundant
     */
-    function verifyVMInternal(Structs.VM memory vm, bool checkHash) internal view returns (bool valid, string memory reason) {
-        /// @dev Obtain the current guardianSet for the guardianSetIndex provided
-        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
-
+    function verifyVMInternal(Structs.VM memory vm, Structs.GuardianSet memory guardianSet, bool checkHash) internal view returns (bool valid, string memory reason) {
         /**
          * Verify that the hash field in the vm matches with the hash of the contents of the vm if checkHash is set
          * WARNING: This hash check is critical to ensure that the vm.hash provided matches with the hash of the body.
@@ -65,6 +101,8 @@ contract Messages is Getters {
             }
         }
 
+        uint256 guardianCount = guardianSet.keys.length;
+
        /**
         * @dev Checks whether the guardianSet has zero keys
         * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
@@ -72,7 +110,7 @@ contract Messages is Getters {
         * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
         * signature verification.
         */
-        if(guardianSet.keys.length == 0){
+        if(guardianCount == 0){
             return (false, "invalid guardian set");
         }
 
@@ -87,7 +125,7 @@ contract Messages is Getters {
         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
-        if (vm.signatures.length < quorum(guardianSet.keys.length)){
+        if (vm.signatures.length < quorum(guardianCount)){
             return (false, "no quorum");
         }
 
@@ -110,8 +148,9 @@ contract Messages is Getters {
      */
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
         uint8 lastIndex = 0;
+        uint256 sigCount = signatures.length;
         uint256 guardianCount = guardianSet.keys.length;
-        for (uint i = 0; i < signatures.length; i++) {
+        for (uint i = 0; i < sigCount;) {
             Structs.Signature memory sig = signatures[i];
             address signatory = ecrecover(hash, sig.v, sig.r, sig.s);
             // ecrecover returns 0 for invalid signatures. We explicitly require valid signatures to avoid unexpected
@@ -134,6 +173,8 @@ contract Messages is Getters {
             if(signatory != guardianSet.keys[sig.guardianIndex]){
                 return (false, "VM signature invalid");
             }
+
+            unchecked { ++i; }
         }
 
         /// If we are here, we've validated that the provided signatures are valid for the provided guardianSet
@@ -144,67 +185,58 @@ contract Messages is Getters {
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
      */
-    function parseVM(bytes memory encodedVM) public pure virtual returns (Structs.VM memory vm) {
-        uint index = 0;
+    function parseVM(bytes memory encodedVM) public view virtual returns (Structs.VM memory vm) {
+        uint256 offset = 0;
 
-        vm.version = encodedVM.toUint8(index);
-        index += 1;
-        // SECURITY: Note that currently the VM.version is not part of the hash 
-        // and for reasons described below it cannot be made part of the hash. 
-        // This means that this field's integrity is not protected and cannot be trusted. 
-        // This is not a problem today since there is only one accepted version, but it 
-        // could be a problem if we wanted to allow other versions in the future. 
-        require(vm.version == 1, "VM version incompatible"); 
+        // SECURITY: Note that currently the VM.version is not part of the hash
+        // and for reasons described below it cannot be made part of the hash.
+        // This means that this field's integrity is not protected and cannot be trusted.
+        // This is not a problem today since there is only one accepted version, but it
+        // could be a problem if we wanted to allow other versions in the future.
+        (vm.version, offset) = encodedVM.asUint8Unchecked(offset);
+        require(vm.version == 1, "invalid payload id");
 
-        vm.guardianSetIndex = encodedVM.toUint32(index);
-        index += 4;
+        // Guardian set index.
+        (vm.guardianSetIndex, offset) = encodedVM.asUint32Unchecked(offset);
 
-        // Parse Signatures
-        uint256 signersLen = encodedVM.toUint8(index);
-        index += 1;
+        // Parse sigs.
+        uint256 signersLen;
+        (signersLen, offset) = encodedVM.asUint8Unchecked(offset);
+
         vm.signatures = new Structs.Signature[](signersLen);
-        for (uint i = 0; i < signersLen; i++) {
-            vm.signatures[i].guardianIndex = encodedVM.toUint8(index);
-            index += 1;
+        for (uint i = 0; i < signersLen;) {
+            (vm.signatures[i].guardianIndex, offset) = encodedVM.asUint8Unchecked(offset);
+            (vm.signatures[i].r, offset) = encodedVM.asBytes32Unchecked(offset);
+            (vm.signatures[i].s, offset) = encodedVM.asBytes32Unchecked(offset);
+            (vm.signatures[i].v, offset) = encodedVM.asUint8Unchecked(offset);
 
-            vm.signatures[i].r = encodedVM.toBytes32(index);
-            index += 32;
-            vm.signatures[i].s = encodedVM.toBytes32(index);
-            index += 32;
-            vm.signatures[i].v = encodedVM.toUint8(index) + 27;
-            index += 1;
+            unchecked {
+                vm.signatures[i].v += 27;
+                ++i;
+            }
         }
 
         /*
         Hash the body
 
-        SECURITY: Do not change the way the hash of a VM is computed! 
-        Changing it could result into two different hashes for the same observation. 
+        SECURITY: Do not change the way the hash of a VM is computed!
+        Changing it could result into two different hashes for the same observation.
         But xDapps rely on the hash of an observation for replay protection.
         */
-        bytes memory body = encodedVM.slice(index, encodedVM.length - index);
+        bytes memory body;
+        (body, ) = encodedVM.sliceUnchecked(offset, encodedVM.length - offset);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
         // Parse the body
-        vm.timestamp = encodedVM.toUint32(index);
-        index += 4;
+        (vm.timestamp, offset) = encodedVM.asUint32Unchecked(offset);
+        (vm.nonce, offset) = encodedVM.asUint32Unchecked(offset);
+        (vm.emitterChainId, offset) = encodedVM.asUint16Unchecked(offset);
+        (vm.emitterAddress, offset) = encodedVM.asBytes32Unchecked(offset);
+        (vm.sequence, offset) = encodedVM.asUint64Unchecked(offset);
+        (vm.consistencyLevel, offset) = encodedVM.asUint8Unchecked(offset);
+        (vm.payload, offset) = encodedVM.sliceUnchecked(offset, encodedVM.length - offset);
 
-        vm.nonce = encodedVM.toUint32(index);
-        index += 4;
-
-        vm.emitterChainId = encodedVM.toUint16(index);
-        index += 2;
-
-        vm.emitterAddress = encodedVM.toBytes32(index);
-        index += 32;
-
-        vm.sequence = encodedVM.toUint64(index);
-        index += 8;
-
-        vm.consistencyLevel = encodedVM.toUint8(index);
-        index += 1;
-
-        vm.payload = encodedVM.slice(index, encodedVM.length - index);
+        require(encodedVM.length == offset, "invalid payload length");
     }
 
     /**
