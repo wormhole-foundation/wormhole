@@ -17,7 +17,7 @@
   "dependencies": {
     "algosdk": "^1.13.1",
     "varint": "^6.0.0",
-    "web3-utils": "^1.7.5"
+    "web3-utils": "^4.2.1"
   },
   "devDependencies": {
     "@certusone/wormhole-sdk": "^0.4.5",
