@@ -312,14 +312,13 @@ func runSpy(cmd *cobra.Command, args []string) {
 	gst := common.NewGuardianSetState(nil)
 
 	// VAA verifier (optional)
-	errC := make(chan error)
 	if *ethRPC != "" {
 		if *ethContract == "" {
 			logger.Fatal(`If "--ethRPC" is specified, "--ethContract" must also be specified`)
 		}
-		vaaVerifier = NewVaaVerifier(rootCtx, logger, *ethRPC, *ethContract)
-		if err := vaaVerifier.Start(errC); err != nil {
-			logger.Fatal("failed to start VAA verifier", zap.Error(err))
+		vaaVerifier = NewVaaVerifier(logger, *ethRPC, *ethContract)
+		if err := vaaVerifier.GetInitialGuardianSet(); err != nil {
+			logger.Fatal(`Failed to read initial guardian set for VAA verification`, zap.Error(err))
 		}
 	}
 
@@ -363,18 +362,18 @@ func runSpy(cmd *cobra.Command, args []string) {
 				logger.Info("Received signed VAA",
 					zap.Any("vaa", v.Vaa))
 				if vaaVerifier != nil {
-					valid, reason, err := vaaVerifier.VerifyVAA(v.Vaa)
-					if err != nil || !valid {
-						logger.Error("Failed to verify VAA, dropping it", zap.Error(err), zap.String("reason", reason), zap.Any("vaa", v.Vaa))
+					valid, err := vaaVerifier.VerifySignatures(v.Vaa)
+					if err != nil {
+						logger.Error("Failed to verify VAA, dropping it", zap.Error(err), zap.Any("vaa", v.Vaa))
+						continue
+					} else if !valid {
+						logger.Error("VAA signature verification failed, dropping VAA", zap.Any("vaa", v.Vaa))
 						continue
 					}
 				}
 				if err := s.PublishSignedVAA(v.Vaa); err != nil {
 					logger.Error("failed to publish signed VAA", zap.Error(err))
 				}
-			case err := <-errC:
-				logger.Fatal("encountered a fatal error", zap.Error(err))
-				return
 			}
 		}
 	}()

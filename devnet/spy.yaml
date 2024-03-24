@@ -48,6 +48,10 @@ spec:
             # Hardcoded devnet bootstrap (generated from deterministic key in guardiand)
             - --bootstrap
             - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
+            - --ethRPC
+            - http://eth-devnet:8545
+            - --ethContract
+            - "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
             - --logLevel=warn
           ports:
             - containerPort: 7072
