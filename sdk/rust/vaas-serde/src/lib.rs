@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 pub mod accountant;
 pub mod accountant_modification;
 mod arraystring;
-mod chain;
 pub mod core;
 pub mod ibc_receiver;
 pub mod ibc_translator;
@@ -29,7 +28,8 @@ mod serde_array;
 pub mod token;
 pub mod vaa;
 
-pub use {chain::Chain, vaa::Vaa};
+pub use vaa::Vaa;
+pub use wormhole_supported_chains::Chain;
 
 /// The `GOVERNANCE_EMITTER` is a special address Wormhole guardians trust to observe governance
 /// actions from. The value is "0000000000000000000000000000000000000000000000000000000000000004".

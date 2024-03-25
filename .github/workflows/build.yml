@@ -348,9 +348,13 @@ jobs:
     strategy:
       matrix:
         manifest:
-          - cosmwasm/Cargo.toml
-          - terra/Cargo.toml
-          - sdk/rust/Cargo.toml
+          - path: cosmwasm/Cargo.toml
+            args: "--workspace --locked"
+          - path: terra/Cargo.toml
+            args: "--workspace --locked"
+          - path: sdk/rust/Cargo.toml
+            args: "--all-features --all-targets"
+    name: rust-lint-and-tests (${{ matrix.manifest.path }})
     steps:
       - name: Check out source
         uses: actions/checkout@v3
@@ -364,7 +368,7 @@ jobs:
       - name: Create cache key
         id: cachekey
         env:
-          MANIFEST: ${{ matrix.manifest }}
+          MANIFEST: ${{ matrix.manifest.path }}
         run: |
           LOCKFILE="$(dirname "${MANIFEST}")/Cargo.lock"
           NAME="${MANIFEST%%/*}"
@@ -378,20 +382,16 @@ jobs:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-build-${{ steps.cachekey.outputs.name }}-${{ steps.cachekey.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-build-${{ matrix.manifest }}-
+            ${{ runner.os }}-build-${{ matrix.manifest.path }}-
 
       - name: Run `rustfmt`
-        env:
-          MANIFEST: ${{ matrix.manifest }}
-        # In its infinite wisdom, `cargo fmt --all` will also format path-based dependencies so
-        # instead we have to manually format each ".rs" file.
-        run: find "$(dirname "${MANIFEST}")" -name '*.rs' -exec rustfmt --check {} +
+        run: cd $(dirname ${{ matrix.manifest.path }}) && cargo fmt --check
 
       - name: Run `cargo clippy`
-        run: cargo clippy --workspace --tests --locked --manifest-path ${{ matrix.manifest }}
+        run: cargo clippy ${{ matrix.manifest.args }} --tests --manifest-path ${{ matrix.manifest.path }}
 
       - name: Run unit tests
-        run: cargo test --workspace --locked --manifest-path ${{ matrix.manifest }}
+        run: cargo test ${{ matrix.manifest.args }} --manifest-path ${{ matrix.manifest.path }}
 
   docker:
     runs-on: ubuntu-latest

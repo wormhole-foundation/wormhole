@@ -1,0 +1,30 @@
+[package]
+name = "wormhole-vaas-serde"
+description = "Serde Support for Wormhole VAAs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lib]
+name = "wormhole_sdk"
+
+[features]
+schemars = ["dep:schemars"]
+default = ["schemars"]
+
+[dependencies]
+wormhole-supported-chains.workspace = true
+serde_wormhole.workspace = true
+
+anyhow.workspace = true
+bstr.workspace = true
+schemars = { workspace = true, optional = true }
+serde = { workspace = true, features = ["alloc", "derive"] }
+sha3.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

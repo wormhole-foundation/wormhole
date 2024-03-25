@@ -1,0 +1,13 @@
+[package]
+name = "wormhole-supported-chains"
+description = "Wormhole Supported Chain IDs and Names"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true

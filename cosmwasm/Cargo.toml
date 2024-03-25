@@ -31,16 +31,23 @@ panic = 'abort'
 incremental = false
 overflow-checks = true
 
+[workspace.dependencies.serde_wormhole]
+version = "0.1.0"
+path = "../sdk/rust/serde_wormhole"
+
+[workspace.dependencies.wormhole-sdk]
+package = "wormhole-vaas-serde"
+version = "0.1.0"
+path = "../sdk/rust/vaas-serde"
+
 [patch.crates-io]
 accountant = { path = "packages/accountant" }
 cw_transcode = { path = "packages/cw_transcode" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
-serde_wormhole = { path = "../sdk/rust/serde_wormhole" }
 token-bridge-cosmwasm = { path = "contracts/token-bridge" }
 global-accountant = { path = "contracts/global-accountant" }
 ntt-global-accountant = { path = "contracts/ntt-global-accountant" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-cosmwasm = { path = "contracts/wormhole" }
-wormhole-sdk = { path = "../sdk/rust/core" }
 wormchain-ibc-receiver = { path = "contracts/wormchain-ibc-receiver" }
 wormhole-ibc = { path = "contracts/wormhole-ibc" }
