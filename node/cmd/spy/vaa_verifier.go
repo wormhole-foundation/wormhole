@@ -80,18 +80,13 @@ func (v *VaaVerifier) GetInitialGuardianSet() error {
 
 // VerifySignatures verifies that the signature on a VAA is valid, based on the guardian set contained in the VAA.
 // If the guardian set is not currently in our map, it queries that guardian set and adds it.
-func (v *VaaVerifier) VerifySignatures(vaaBytes []byte) (bool, error) {
-	vv, err := vaa.Unmarshal(vaaBytes)
-	if err != nil {
-		v.logger.Error("failed to unmarshal VAA", zap.Error(err), zap.Any("vaa", vaaBytes))
-		return false, err
-	}
-
+func (v *VaaVerifier) VerifySignatures(vv *vaa.VAA) (bool, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	gs, exists := v.guardianSets[vv.GuardianSetIndex]
 	if !exists {
+		var err error
 		gs, err = v.fetchGuardianSet(vv.GuardianSetIndex)
 		if err != nil {
 			return false, fmt.Errorf("failed to fetch guardian set for index %d: %w", vv.GuardianSetIndex, err)
