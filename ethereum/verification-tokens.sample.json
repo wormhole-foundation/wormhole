@@ -1,0 +1,16 @@
+[
+  {"chainId": 2, "etherscan": "eth token", "blockscout":{"mainnet": "eth token 2", "testnet": "eth token 3"}},
+  {"chainId": 4, "etherscan": "bsc token"},
+  {"chainId": 5, "etherscan": "polygon token"},
+  {"chainId": 6, "etherscan": "avalanche token"},
+  {"chainId": 10, "etherscan": "fantom token"},
+  {"chainId": 14, "etherscan": "celo token"},
+  {"chainId": 16, "etherscan": "moonbeam token"},
+  {"chainId": 23, "etherscan": "arbitrum token"},
+  {"chainId": 24, "etherscan": "optimism token", "blockscout": {"mainnet": "optimism token 2"}},
+  {"chainId": 30, "etherscan": "base token", "blockscout": {"mainnet": "base token 2"}},
+  {"chainId": 10002, "etherscan": "eth token"},
+  {"chainId": 10003, "etherscan": "arbitrum token"},
+  {"chainId": 10004, "etherscan": "base token"},
+  {"chainId": 10005, "etherscan": "optimism token"}
+]

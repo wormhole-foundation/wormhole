@@ -1,0 +1,234 @@
+{
+  "description": "This file contains the addresses for the contracts on each chain. If useLastRun is true, this file will be ignored, and the addresses will be taken from the lastrun.json of the deployment scripts.",
+  "useLastRun": false,
+  "deliveryProviders": [
+    {
+      "chainId": 2,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 4,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 5,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 6,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 10,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 13,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 14,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 16,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 23,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 24,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 30,
+      "address": "0x70B4a48f482956983D8C69D3aE18Fe229888638D"
+    }
+  ],
+  "wormholeRelayers": [
+    {
+      "chainId": 2,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 4,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 5,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 6,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 10,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 13,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 14,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 16,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 23,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 24,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 30,
+      "address": "0x706F82e9bb5b0813501714Ab5974216704980e31"
+    }
+  ],
+  "mockIntegrations": [
+    {
+      "chainId": 2,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 4,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 5,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 6,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 10,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 13,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 14,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 16,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 23,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 24,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 30,
+      "address": "0x9aF36616cb3B7D3317bB93c9b29Fd76bf7264772"
+    }
+  ],
+  "create2Factories": [
+    {
+      "chainId": 2,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 4,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 5,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 6,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 10,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 13,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 14,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 16,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 23,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 24,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 30,
+      "address": "0x51fEBFE97190a9825E98E04AF8Df60e269912Dd8"
+    }
+  ],
+  "wormholeRelayerImplementations": [
+    {
+      "chainId": 2,
+      "address": "0x90995DBd1aae85872451b50A569dE947D34ac4ee"
+    },
+    {
+      "chainId": 4,
+      "address": "0xb6134890a64E9FFC54Ecc2702BdF41DeEdd4999C"
+    },
+    {
+      "chainId": 5,
+      "address": "0xE4451E8479115CeA6B785bf71C1CD4ADa963991c"
+    },
+    {
+      "chainId": 6,
+      "address": "0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD"
+    },
+    {
+      "chainId": 10,
+      "address": "0x1a8dD0FA61990Db5aef353DC122bc17Ac4F10358"
+    },
+    {
+      "chainId": 13,
+      "address": "0x60e36e6b28c18f47d0195ae2d28da1d03f96a16d"
+    },
+    {
+      "chainId": 14,
+      "address": "0x60e36E6B28c18F47d0195Ae2d28da1d03F96A16D"
+    },
+    {
+      "chainId": 16,
+      "address": "0x1a8dD0FA61990Db5aef353DC122bc17Ac4F10358"
+    },
+    {
+      "chainId": 23,
+      "address": "0x27C472d1DB89aFd6F41A61EEc0F4db996800f8cD"
+    },
+    {
+      "chainId": 24,
+      "address": "0x1EfA946b0Ac2e3357a38124Fd1bAa7139048d689"
+    },
+    {
+      "chainId": 30,
+      "address": "0x231Ca706096427Bd674bFaec28B34d8fCa26E2A1"
+    }
+  ]
+}
