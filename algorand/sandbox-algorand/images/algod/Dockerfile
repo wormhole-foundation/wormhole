@@ -1,5 +1,6 @@
-ARG GO_VERSION=1.18.2
-FROM golang:$GO_VERSION@sha256:04fab5aaf4fc18c40379924674491d988af3d9e97487472e674d0b5fd837dfac as algorand-algod
+ARG GO_IMAGE_VERSION=1.21.1-bullseye
+ARG GO_IMAGE_DIGEST=18f57bdd1d188ade1226471393b5c3ced4639c6c772fd94853ea7abd9eb158f7
+FROM docker.io/golang:${GO_IMAGE_VERSION}@sha256:${GO_IMAGE_DIGEST} AS algorand-algod
 
 ARG CHANNEL=master
 ARG URL="https://github.com/algorand/go-algorand"

@@ -1,5 +1,6 @@
-ARG GO_VERSION=1.18.2
-FROM golang:$GO_VERSION-alpine@sha256:4795c5d21f01e0777707ada02408debe77fe31848be97cf9fa8a1462da78d949
+ARG GO_IMAGE_VERSION=1.21.1-alpine
+ARG GO_IMAGE_DIGEST=1c9cc949513477766da12bfa80541c4f24957323b0ee00630a6ff4ccf334b75b
+FROM docker.io/golang:${GO_IMAGE_VERSION}@sha256:${GO_IMAGE_DIGEST}
 
 # Environment variables used by install.sh
 ARG URL=https://github.com/algorand/indexer

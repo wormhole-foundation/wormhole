@@ -1,4 +1,6 @@
-FROM --platform=linux/amd64 docker.io/golang:1.20.10-bullseye@sha256:082569b3303b164cc4a7c88ac59b19b69c1a5d662041ac0dca046ac239632442 AS build
+ARG GO_IMAGE_VERSION=1.21.1-bullseye
+ARG GO_IMAGE_DIGEST=18f57bdd1d188ade1226471393b5c3ced4639c6c772fd94853ea7abd9eb158f7
+FROM --platform=linux/amd64 docker.io/golang:${GO_IMAGE_VERSION}@sha256:${GO_IMAGE_DIGEST} AS build
 
 WORKDIR /root/core
 
