@@ -120,8 +120,8 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	// Cross Chain Query Handler channels
 	g.chainQueryReqC = make(map[vaa.ChainID]chan *query.PerChainQueryInternal)
 	g.signedQueryReqC = makeChannelPair[*gossipv1.SignedQueryRequest](query.SignedQueryRequestChannelSize)
-	g.queryResponseC = makeChannelPair[*query.PerChainQueryResponseInternal](0)
-	g.queryResponsePublicationC = makeChannelPair[*query.QueryResponsePublication](0)
+	g.queryResponseC = makeChannelPair[*query.PerChainQueryResponseInternal](query.QueryResponseBufferSize)
+	g.queryResponsePublicationC = makeChannelPair[*query.QueryResponsePublication](query.QueryResponsePublicationChannelSize)
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)
