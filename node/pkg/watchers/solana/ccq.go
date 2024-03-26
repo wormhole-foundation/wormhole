@@ -93,6 +93,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	requestId string,
 	isRetry bool,
 	publisher ccqCustomPublisher,
+	numFastRetries int,
 ) {
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -123,7 +124,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	// Read the accounts.
 	info, err := w.getMultipleAccountsWithOpts(rCtx, accounts, &params)
 	if err != nil {
-		if w.ccqCheckForMinSlotContext(ctx, queryRequest, req, requestId, err, giveUpTime, !isRetry, tag, publisher) {
+		if w.ccqCheckForMinSlotContext(ctx, queryRequest, req, requestId, err, giveUpTime, !isRetry, tag, publisher, numFastRetries) {
 			// Return without posting a response because a go routine was created to handle it.
 			return
 		}
@@ -216,6 +217,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 		zap.Uint64("blockTime", uint64(*block.BlockTime)),
 		zap.String("blockHash", hex.EncodeToString(block.Blockhash[:])),
 		zap.Uint64("blockHeight", *block.BlockHeight),
+		zap.Int("numFastRetries", numFastRetries),
 	)
 
 	// Publish the response using the custom publisher.
@@ -236,6 +238,7 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(
 	log bool,
 	tag string,
 	publisher ccqCustomPublisher,
+	numFastRetries int,
 ) bool {
 	if req.MinContextSlot == 0 {
 		return false
@@ -274,7 +277,7 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(
 	}
 
 	// Kick off the retry after a short delay.
-	go w.ccqSleepAndRetryAccountQuery(ctx, queryRequest, req, requestId, currentSlot, currentSlotFromError, giveUpTime, log, tag, publisher)
+	go w.ccqSleepAndRetryAccountQuery(ctx, queryRequest, req, requestId, currentSlot, currentSlotFromError, giveUpTime, log, tag, publisher, numFastRetries)
 	return true
 }
 
@@ -290,6 +293,7 @@ func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(
 	log bool,
 	tag string,
 	publisher ccqCustomPublisher,
+	numFastRetries int,
 ) {
 	if log {
 		w.ccqLogger.Info("minimum context slot has not been reached, will retry shortly",
@@ -307,7 +311,7 @@ func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(
 		w.ccqLogger.Info("initiating fast retry", zap.String("requestId", requestId))
 	}
 
-	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, tag, requestId, true, publisher)
+	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, tag, requestId, true, publisher, numFastRetries+1)
 }
 
 // ccqIsMinContextSlotError parses an error to see if it is "Minimum context slot has not been reached". If it is, it returns the slot number
@@ -365,7 +369,7 @@ func (w *SolanaWatcher) ccqHandleSolanaAccountQueryRequest(ctx context.Context, 
 	)
 
 	publisher := ccqSolanaAccountPublisher{w}
-	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, "sol_account", requestId, false, publisher)
+	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, req, giveUpTime, "sol_account", requestId, false, publisher, 0)
 }
 
 // ccqSolanaAccountPublisher is the publisher for the sol_account query. All it has to do is forward the response passed in to the watcher, as is.
@@ -427,7 +431,7 @@ func (w *SolanaWatcher) ccqHandleSolanaPdaQueryRequest(ctx context.Context, quer
 	}
 
 	// Execute the standard sol_account query passing in the publisher to publish a sol_pda response.
-	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, acctReq, giveUpTime, "sol_pda", requestId, false, publisher)
+	w.ccqBaseHandleSolanaAccountQueryRequest(ctx, queryRequest, acctReq, giveUpTime, "sol_pda", requestId, false, publisher, 0)
 }
 
 // ccqPdaPublisher is a custom publisher that publishes a sol_pda response.

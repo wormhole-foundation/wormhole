@@ -115,7 +115,7 @@ func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 		}
 
 		if len(newBlocks) == 0 {
-			w.ccqLogger.Error("failed to read any more blocks, giving up on the backfill")
+			w.ccqLogger.Warn("failed to read any more blocks, giving up on the backfill")
 			break
 		}
 

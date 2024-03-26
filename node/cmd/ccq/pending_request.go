@@ -57,7 +57,7 @@ func (p *PendingResponses) Add(r *PendingResponse) bool {
 		return false
 	}
 	p.pendingResponses[signature] = r
-	p.updateMetricsAlreadyLocked()
+	p.updateMetricsAlreadyLocked(nil)
 	return true
 }
 
@@ -75,6 +75,7 @@ func (p *PendingResponses) Remove(r *PendingResponse) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.pendingResponses, signature)
+	p.updateMetricsAlreadyLocked(r)
 }
 
 func (p *PendingResponses) NumPending() int {
@@ -83,8 +84,14 @@ func (p *PendingResponses) NumPending() int {
 	return len(p.pendingResponses)
 }
 
-func (p *PendingResponses) updateMetricsAlreadyLocked() {
+func (p *PendingResponses) updateMetricsAlreadyLocked(reqRemoved *PendingResponse) {
 	counts := make(map[vaa.ChainID]float64)
+	if reqRemoved != nil {
+		// We may have removed the last request for a chain. Make sure we always update that chain.
+		for _, pcr := range reqRemoved.queryRequest.PerChainQueries {
+			counts[pcr.ChainId] = 0
+		}
+	}
 	for _, pr := range p.pendingResponses {
 		for _, pcr := range pr.queryRequest.PerChainQueries {
 			counts[pcr.ChainId] = counts[pcr.ChainId] + 1

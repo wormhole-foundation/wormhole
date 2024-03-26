@@ -29,10 +29,16 @@ const (
 	AuditInterval = time.Second
 
 	// SignedQueryRequestChannelSize is the buffer size of the incoming query request channel.
-	SignedQueryRequestChannelSize = 50
+	SignedQueryRequestChannelSize = 500
 
 	// QueryRequestBufferSize is the buffer size of the per-network query request channel.
-	QueryRequestBufferSize = 25
+	QueryRequestBufferSize = 250
+
+	// QueryResponseBufferSize is the buffer size of the single query response channel from the watchers.
+	QueryResponseBufferSize = 500
+
+	// QueryResponsePublicationChannelSize is the buffer size of the single query response channel back to the P2P publisher.
+	QueryResponsePublicationChannelSize = 500
 )
 
 func NewQueryHandler(

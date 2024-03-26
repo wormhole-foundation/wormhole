@@ -355,7 +355,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 			// aggregate per-chain msgC into msgC.
 			// SECURITY defense-in-depth: This way we enforce that a watcher must set the msg.EmitterChain to its chainId, which makes the code easier to audit
 			for _, chainId := range vaa.GetAllNetworkIDs() {
-				chainQueryResponseC[chainId] = make(chan *query.PerChainQueryResponseInternal)
+				chainQueryResponseC[chainId] = make(chan *query.PerChainQueryResponseInternal, query.QueryResponseBufferSize)
 				go func(c <-chan *query.PerChainQueryResponseInternal, chainId vaa.ChainID) {
 					for {
 						select {
