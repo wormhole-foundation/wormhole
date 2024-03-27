@@ -56,7 +56,7 @@ pub struct TransferNative<'b> {
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
 
-    pub mint: Mut<Data<'b, SplMint, { AccountState::Initialized }>>,
+    pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
     /// SPL Metadata for the associated Mint
     pub spl_metadata: SplTokenMeta<'b>,
 

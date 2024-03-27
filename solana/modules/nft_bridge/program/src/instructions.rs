@@ -354,7 +354,7 @@ pub fn transfer_native(
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(config_key, false),
             AccountMeta::new(from, false),
-            AccountMeta::new(mint, false),
+            AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(spl_metadata, false),
             AccountMeta::new(custody_key, false),
             AccountMeta::new_readonly(authority_signer_key, false),

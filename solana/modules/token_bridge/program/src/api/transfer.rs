@@ -59,7 +59,7 @@ pub struct TransferNative<'b> {
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
 
-    pub mint: Mut<Data<'b, SplMint, { AccountState::Initialized }>>,
+    pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
 
     pub custody: Mut<CustodyAccount<'b, { AccountState::MaybeInitialized }>>,
 
@@ -174,7 +174,7 @@ pub fn verify_and_execute_native_transfers(
     derivation_data: &CustodyAccountDerivationData,
     payer: &Mut<Signer<AccountInfo>>,
     from: &Mut<Data<SplAccount, { AccountState::Initialized }>>,
-    mint: &Mut<Data<SplMint, { AccountState::Initialized }>>,
+    mint: &Data<SplMint, { AccountState::Initialized }>,
     custody: &Mut<CustodyAccount<{ AccountState::MaybeInitialized }>>,
     authority_signer: &AuthoritySigner,
     custody_signer: &CustodySigner,
