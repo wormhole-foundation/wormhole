@@ -126,6 +126,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDBase:            {NumWorkers: 5, TimestampCacheSupported: true},
 	vaa.ChainIDScroll:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMantle:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBlast:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSepolia:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDHolesky:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDArbitrumSepolia: {NumWorkers: 1, TimestampCacheSupported: true},

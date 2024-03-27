@@ -33,6 +33,7 @@ export const CHAINS = {
   rootstock: 33,
   scroll: 34,
   mantle: 35,
+  blast: 36,
   wormchain: 3104,
   cosmoshub: 4000,
   evmos: 4001,
@@ -78,6 +79,7 @@ export const EVMChainNames = [
   "rootstock",
   "scroll",
   "mantle",
+  "blast",
   "sepolia",
   "arbitrum_sepolia",
   "base_sepolia",
@@ -302,6 +304,11 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   mantle: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  blast: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -567,6 +574,11 @@ const TESTNET = {
     token_bridge: "0x75Bfa155a9D7A3714b0861c8a8aF0C4633c45b5D",
     nft_bridge: "0xD7D732C8Bf5eBF620EA55b5828eae20418eEF083",
   },
+  blast: {
+    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    token_bridge: "0x76d093BbaE4529a342080546cAFEec4AcbA59EC6",
+    nft_bridge: "0xc8941d483c45eF8FB72E4d1F9dDE089C95fF8171",
+  },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
     token_bridge:
@@ -821,6 +833,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  blast: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
     token_bridge:
@@ -971,6 +988,7 @@ export const CHAIN_ID_SEI = CHAINS["sei"];
 export const CHAIN_ID_ROOTSTOCK = CHAINS["rootstock"];
 export const CHAIN_ID_SCROLL = CHAINS["scroll"];
 export const CHAIN_ID_MANTLE = CHAINS["mantle"];
+export const CHAIN_ID_BLAST = CHAINS["blast"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
 export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];
