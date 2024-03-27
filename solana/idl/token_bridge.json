@@ -402,7 +402,7 @@
                 },
                 {
                     "name": "mint",
-                    "isMut": true,
+                    "isMut": false,
                     "isSigner": false
                 },
                 {
@@ -833,7 +833,7 @@
                 },
                 {
                     "name": "mint",
-                    "isMut": true,
+                    "isMut": false,
                     "isSigner": false
                 },
                 {

@@ -128,7 +128,7 @@ pub struct TransferNativeWithPayload<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-    pub mint: Mut<Data<'b, SplMint, { AccountState::Initialized }>>,
+    pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
     pub custody: Mut<CustodyAccount<'b, { AccountState::MaybeInitialized }>>,
 
     // This could allow someone to race someone else's tx if they do the approval in a separate tx.
