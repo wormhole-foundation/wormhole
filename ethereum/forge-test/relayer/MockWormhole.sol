@@ -223,6 +223,13 @@ contract MockWormhole is IWormhole {
         revert("unsupported verifySignatures in wormhole mock");
     }
 
+    function verifyCurrentQuorum(
+        bytes32, /*hash*/
+        Signature[] memory /*signatures*/
+    ) external pure returns (bool /*valid*/, string memory /*reason*/) {
+        revert("unsupported verifyCurrentQuorum in wormhole mock");
+    }
+
     function parseContractUpgrade(bytes memory /*encodedUpgrade*/ )
         external
         pure
