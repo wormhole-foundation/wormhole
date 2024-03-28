@@ -10,4 +10,4 @@ FOUNDRY_PROFILE=deploy forge build
 
 # To deploy the contracts, set up the .env file and do:
 # MNEMONIC=<redacted> ./forge-scripts/deployCoreBridge.sh
-# MNEMONIC=<redacted> ./forge-scripts/deployTokenBridge.sh
+# MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./forge-scripts/deployTokenBridge.sh
