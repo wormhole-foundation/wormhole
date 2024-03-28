@@ -198,6 +198,24 @@ func ConnectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 }
 
 func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstrapPeers string, components *Components, priv crypto.PrivKey) (host.Host, error) {
+
+	// if an override of the advertised gossip addresses is requested
+	// check & render address once for use in the AddrsFactory below
+	var gossipAdvertiseAddress multiaddr.Multiaddr
+	if components.GossipAdvertiseAddress != "" {
+		gossipAdvertiseAddress, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
+		if err != nil {
+			// If the multiaddr is specified incorrectly, blow up
+			logger.Fatal("error with the specified gossip address",
+				zap.String("GossipAdvertiseAddress", components.GossipAdvertiseAddress),
+				zap.Error(err),
+			)
+		}
+		logger.Info("Overriding the advertised p2p address",
+			zap.String("GossipAdvertiseAddress", gossipAdvertiseAddress.String()),
+		)
+	}
+
 	h, err := libp2p.New(
 		// Use the keypair we generated
 		libp2p.Identity(priv),
@@ -209,20 +227,11 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 
 		// Takes the multiaddrs we are listening on and returns the multiaddrs to advertise to the network to
 		// connect to. Allows overriding the announce address for nodes running behind a NAT or in kubernetes
+		// This function gets called by the libp2p background() process regularly to check for address changes
+		// that are then announced to the rest of the network.
 		libp2p.AddrsFactory(func(addrs []multiaddr.Multiaddr) []multiaddr.Multiaddr {
-			if components.GossipAdvertiseAddress != "" {
-				addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
-				if err != nil {
-					// If the multiaddr is specified incorrectly, blow up
-					logger.Fatal("error with the specified gossip address",
-						zap.String("GossipAdvertiseAddress", components.GossipAdvertiseAddress),
-						zap.Error(err),
-					)
-				}
-				logger.Info("Overriding the advertised p2p address",
-					zap.String("GossipAdvertiseAddress", addr.String()),
-				)
-				return []multiaddr.Multiaddr{addr}
+			if gossipAdvertiseAddress != nil {
+				return []multiaddr.Multiaddr{gossipAdvertiseAddress}
 			}
 			return addrs
 		}),
