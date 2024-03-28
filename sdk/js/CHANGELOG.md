@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.14
+
+Blast Sepolia support
+
 ## 0.10.13
 
 Mantle Sepolia support

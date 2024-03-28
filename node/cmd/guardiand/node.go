@@ -176,6 +176,9 @@ var (
 	mantleRPC      *string
 	mantleContract *string
 
+	blastRPC      *string
+	blastContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -362,6 +365,9 @@ func init() {
 
 	mantleRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
+
+	blastRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "blastRPC", "Blast RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	blastContract = NodeCmd.Flags().String("blastContract", "", "Blast contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -569,6 +575,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*holeskyContract = unsafeDevModeEvmContractAddress(*holeskyContract)
 		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
+		*blastContract = unsafeDevModeEvmContractAddress(*blastContract)
 		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
 		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
 		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
@@ -745,6 +752,14 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*mantleRPC == "") != (*mantleContract == "") {
 		logger.Fatal("Both --mantleContract and --mantleRPC must be set together or both unset")
+	}
+
+	if *blastRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("blast is currently only supported in devnet and testnet")
+	}
+
+	if (*blastRPC == "") != (*blastContract == "") {
+		logger.Fatal("Both --blastContract and --blastRPC must be set together or both unset")
 	}
 
 	if *gatewayWS != "" {
@@ -974,6 +989,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["mantleRPC"] = *mantleRPC
+	rpcMap["blastRPC"] = *blastRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["oasisRPC"] = *oasisRPC
@@ -1406,6 +1422,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDMantle,
 			Rpc:              *mantleRPC,
 			Contract:         *mantleContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(blastRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "blast",
+			ChainID:          vaa.ChainIDBlast,
+			Rpc:              *blastRPC,
+			Contract:         *blastContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

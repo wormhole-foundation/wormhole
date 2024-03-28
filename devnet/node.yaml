@@ -114,6 +114,8 @@ spec:
             - ws://eth-devnet:8545
             - --mantleRPC
             - ws://eth-devnet:8545
+            - --blastRPC
+            - ws://eth-devnet:8545
             - --sepoliaRPC
             - ws://eth-devnet:8545
             - --holeskyRPC
