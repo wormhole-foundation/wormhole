@@ -28,4 +28,9 @@ multiline_func_header = "params_first"
 [profile.production]
 via_ir = true
 
+[profile.deploy]
+solc_version = "0.8.4"
+via_ir = false
+evm_version = "istanbul"
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
