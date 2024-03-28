@@ -567,17 +567,17 @@ const TESTNET = {
   scroll: {
     core: "0x055F47F1250012C6B20c436570a76e52c17Af2D5",
     token_bridge: "0x22427d90B7dA3fA4642F7025A854c7254E4e45BF",
-    nft_bridge: "0x47B9a1406BEe29a3001BFEB7e45aE45fFFB40c18",
+    nft_bridge: undefined,
   },
   mantle: {
     core: "0x376428e7f26D5867e69201b275553C45B09EE090",
     token_bridge: "0x75Bfa155a9D7A3714b0861c8a8aF0C4633c45b5D",
-    nft_bridge: "0xD7D732C8Bf5eBF620EA55b5828eae20418eEF083",
+    nft_bridge: undefined,
   },
   blast: {
-    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
-    token_bridge: "0x76d093BbaE4529a342080546cAFEec4AcbA59EC6",
-    nft_bridge: "0xc8941d483c45eF8FB72E4d1F9dDE089C95fF8171",
+    core: "0x473e002D7add6fB67a4964F13bFd61280Ca46886",
+    token_bridge: "0x430855B4D43b8AEB9D2B9869B74d58dda79C0dB2",
+    nft_bridge: undefined,
   },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
