@@ -74,7 +74,7 @@ contract("Wormhole", function () {
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testSigner3 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
     const testChainId = "2";
-    const testEvmChainId = "1";
+    const testEvmChainId = "1337";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
