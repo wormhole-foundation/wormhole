@@ -423,6 +423,17 @@ module.exports = {
       network_id: 5003,
       gasPrice: 2520000000,
     },
+    blast_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://blast-sepolia.drpc.org"
+          // "https://sepolia.blast.io" // This didn't work.
+        );
+      },
+      network_id: 168587773,
+      gasPrice: 2500000000,
+    },
     rootstock: {
       provider: () => {
         return new HDWalletProvider(
