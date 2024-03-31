@@ -29,7 +29,7 @@
     "ts-node": "^10.8.1",
     "web3": "^4.0.1",
     "web3-eth-abi": "^1.7.3",
-    "web3-utils": "^1.7.3"
+    "web3-utils": "^4.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.14.0",
