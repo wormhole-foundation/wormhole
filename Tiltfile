@@ -522,7 +522,7 @@ if generic_relayer:
     docker_build(
         ref = "relayer-engine",
         context = ".",
-        only = ["./relayer/generic_relayer", "./ethereum/ts-scripts/relayer/config"],
+        only = ["./relayer/generic_relayer", "./ethereum-relayer/ts-scripts/relayer/config"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
         build_args = {"dev": str(not ci)}
     )
