@@ -1,5 +1,5 @@
 {
-  "name": "@wormhole-foundation/contracts-ethereum",
+  "name": "@wormhole-foundation/contracts-ethereum-relayer",
   "version": "0.0.1",
   "description": "",
   "main": "networks.js",
@@ -19,8 +19,7 @@
   "scripts": {
     "build:core": "truffle compile",
     "build:forge": "if [ \"$DEV\" = \"True\" ]; then forge build; else forge build --via-ir; fi",
-    "build": "npm run build:core && npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types",
-    "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
+    "build": "npm run build:core && npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"",
     "test": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test --compile-none",
     "migrate": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4 --compile-none",
     "deploy-bridge-implementation-only": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 6 --to 6 --compile-none",
@@ -31,10 +30,8 @@
     "verify": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify $npm_config_module@$npm_config_contract_address --network $npm_config_network",
     "verify-token": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify BridgeToken@$npm_config_contract_address --forceConstructorArgs string:$npm_config_constructor_args --network $npm_config_network",
     "abigen": "truffle run abigen",
-    "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
-    "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "typecheck": "tsc --noEmit --skipLibCheck"
-    },
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
