@@ -2,6 +2,7 @@
 
 ## 0.10.14
 
+Support for move of relayer ethereum contracts
 Blast Sepolia support
 
 ## 0.10.13

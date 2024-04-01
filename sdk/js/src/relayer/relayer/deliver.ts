@@ -1,5 +1,5 @@
 import { BigNumber, ethers, ContractReceipt } from "ethers";
-import { IWormholeRelayer__factory } from "../../ethers-contracts";
+import { IWormholeRelayer__factory } from "../../ethers-relayer-contracts";
 import {
   ChainName,
   toChainName,

@@ -44,6 +44,7 @@ import {
   TokenTransferParsed,
 } from "./deliver";
 import { ERC20__factory } from "../../ethers-contracts";
+import { IWormholeRelayer__factory } from "../../ethers-relayer-contracts";
 
 export type InfoRequestParams = {
   environment?: Network;
@@ -79,11 +80,10 @@ export async function getPriceAndRefundInfo(
   const wormholeRelayerAddress =
     optionalParams?.wormholeRelayerAddress ||
     getWormholeRelayerAddress(sourceChain, environment);
-  const sourceWormholeRelayer =
-    ethers_contracts.IWormholeRelayer__factory.connect(
-      wormholeRelayerAddress,
-      sourceChainProvider
-    );
+  const sourceWormholeRelayer = IWormholeRelayer__factory.connect(
+    wormholeRelayerAddress,
+    sourceChainProvider
+  );
   const deliveryProviderAddress =
     optionalParams?.deliveryProviderAddress ||
     (await sourceWormholeRelayer.getDefaultDeliveryProvider());

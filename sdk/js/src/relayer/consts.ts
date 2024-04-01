@@ -3,7 +3,7 @@ import { ChainName, Network } from "../";
 import {
   WormholeRelayer,
   WormholeRelayer__factory,
-} from "../ethers-contracts/";
+} from "../ethers-relayer-contracts/";
 
 type AddressInfo = {
   wormholeRelayerAddress?: string;
