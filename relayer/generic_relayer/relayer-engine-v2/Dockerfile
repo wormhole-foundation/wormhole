@@ -19,7 +19,7 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-COPY --chown=node:node ./ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
+COPY --chown=node:node ./ethereum-relayer/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
 
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
