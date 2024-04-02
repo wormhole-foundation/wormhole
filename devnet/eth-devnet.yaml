@@ -34,6 +34,7 @@ spec:
         - name: ganache
           image: eth-node
           command:
+            - cd ethereum &&
             - npx
             - ganache-cli
             - --logging.quiet
@@ -57,7 +58,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run deploy-relayers-evm1 && nc -lkn 2000"
+            - "cd ethereum && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && cd ../ethereum-relayer && npm run deploy-relayers-evm1 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
@@ -69,6 +70,6 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npx truffle exec mine.js"
+            - "cd ethereum && npx truffle exec mine.js"
 ---
 

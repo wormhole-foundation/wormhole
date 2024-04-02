@@ -458,11 +458,12 @@ if solana or pythnet:
 
 docker_build(
     ref = "eth-node",
-    context = "./ethereum",
+    context = ".",
+    only = ["./ethereum", "./ethereum-relayer"],
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./node_modules"],
+    ignore = ["./ethereum/node_modules","./ethereum-relayer/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
 
     # sync external scripts for incremental development
