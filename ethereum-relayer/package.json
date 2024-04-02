@@ -1,5 +1,5 @@
 {
-  "name": "@wormhole-foundation/contracts-ethereum",
+  "name": "@wormhole-foundation/contracts-ethereum-relayer",
   "version": "0.0.1",
   "description": "",
   "main": "networks.js",
