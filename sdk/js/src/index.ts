@@ -7,6 +7,7 @@ export * from "./vaa";
 
 export * as cosmos from "./cosmos";
 export * as ethers_contracts from "./ethers-contracts";
+export * as ethers_relayer_contracts from "./ethers-relayer-contracts";
 export * as solana from "./solana";
 export * as terra from "./terra";
 export * as rpc from "./rpc";
