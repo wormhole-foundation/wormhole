@@ -139,15 +139,16 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 	defer cancel()
 
 	// Throttle the queries to the CoinGecko API. We query for 200 tokens at a time, so this throttling would
-	// allow us to query up to 18,000 tokens in a 15 minute window (the query interval). Currently there are
+	// allow us to query up to 12,000 tokens in a 15 minute window (the query interval). Currently there are
 	// between 1000 and 2000 tokens.
-	throttle := make(chan time.Time, 1)
+	throttle := make(chan int, 1)
 	go func() {
-		ticker := time.NewTicker(time.Duration(10) * time.Second)
+		ticker := time.NewTicker(time.Duration(15) * time.Second)
 		defer ticker.Stop()
-		for t := range ticker.C {
+		for {
 			select {
-			case throttle <- t:
+			case <-ticker.C:
+				throttle <- 1
 			case <-ctx.Done():
 				return
 			}
