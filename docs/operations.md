@@ -107,7 +107,7 @@ frequency). Light clients have much lower hardware requirements.
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
 guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.19.0
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.21.8
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
