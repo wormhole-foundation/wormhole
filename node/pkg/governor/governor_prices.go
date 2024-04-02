@@ -135,6 +135,9 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 	params := url.Values{}
 	params.Add("bust", strconv.Itoa(int(time.Now().Unix()))+strconv.Itoa(rand.Int())) // #nosec G404
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Throttle the queries to the CoinGecko API. We query for 200 tokens at a time, so this throttling would
 	// allow us to query up to 18,000 tokens in a 15 minute window (the query interval). Currently there are
 	// between 1000 and 2000 tokens.
