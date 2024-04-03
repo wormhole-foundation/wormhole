@@ -74,6 +74,5 @@ ENV DEV=$dev
 COPY --chown=node:node relayer/ethereum .
 RUN make build
 
-WORKDIR /home/node/app
 ARG num_guardians
 ENV NUM_GUARDIANS=$num_guardians

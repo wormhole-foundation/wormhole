@@ -58,7 +58,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "cd ethereum && sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1337/EVM_CHAIN_ID=1397/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && cd ../relayer/ethereum && sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1337/EVM_CHAIN_ID=1397/g' .env && npm run deploy-relayers-evm2 && nc -lkn 2000"
+            - "cd ../../ethereum && sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1337/EVM_CHAIN_ID=1397/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && cd ../relayer/ethereum && sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1337/EVM_CHAIN_ID=1397/g' .env && npm run deploy-relayers-evm2 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
@@ -70,4 +70,4 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "cd ethereum && npx truffle exec mine.js"
+            - "cd ../../ethereum && npx truffle exec mine.js"
