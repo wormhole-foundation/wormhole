@@ -223,7 +223,7 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 		}
 
 		var n big.Int
-		m := &result.result
+		m := &results[idx].result
 		if m.Number == nil {
 			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
 		} else {
@@ -275,14 +275,14 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 	}
 
 	ret := make(Blocks, numBlocks)
-	for idx, result := range results {
-		if result.err != nil {
-			logger.Error("failed to get block", zap.Int("idx", idx), zap.Stringer("finality", finality), zap.Error(result.err))
+	for idx := range results {
+		if results[idx].err != nil {
+			logger.Error("failed to get block", zap.Int("idx", idx), zap.Stringer("finality", finality), zap.Error(results[idx].err))
 			return nil, err
 		}
 
 		var n big.Int
-		m := &result.result
+		m := &results[idx].result
 		if m.Number == nil {
 			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality))
 		} else {

@@ -107,7 +107,7 @@ func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b
 		return err
 	}
 
-	for _, entry := range b {
+	for i, entry := range b {
 		if entry.Method != "eth_getBlockByNumber" {
 			panic("method not implemented by mockConnectorForBatchPoller")
 		}
@@ -125,7 +125,7 @@ func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b
 			e.blockNumbers = e.blockNumbers[1:]
 		}
 		str := fmt.Sprintf(`{"author":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","baseFeePerGas":"0x3b9aca00","difficulty":"0x0","extraData":"0x","gasLimit":"0xe4e1c0","gasUsed":"0x0","hash":"0xfc8b62a31110121c57cfcccfaf2b147cc2c13b6d01bde4737846cefd29f045cf","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x24c275f0719fdaec6356c4eb9f39ecb9c4d37ce1","nonce":"0x0000000000000000","number":"0x%x","parentHash":"0x09d6d33a658b712f41db7fb9f775f94911ae0132123116aa4f8cf3da9f774e89","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x201","stateRoot":"0x0409ed10e03fd49424ae1489c6fbc6ff1897f45d0e214655ebdb8df94eedc3c0","timestamp":"0x6373ec24","totalDifficulty":"0x0","transactions":[],"transactionsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","uncles":[]}`, blockNumber)
-		err = json.Unmarshal([]byte(str), &entry.Result)
+		err = json.Unmarshal([]byte(str), &b[i].Result)
 		if entry.Args[0] == "latest" {
 			e.prevLatest = blockNumber
 		} else if entry.Args[0] == "safe" {
