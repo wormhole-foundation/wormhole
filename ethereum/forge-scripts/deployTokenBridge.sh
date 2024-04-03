@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./forge-scripts/deployTokenBridge.sh
+
 . .env
 
 [[ -z $INIT_EVM_CHAIN_ID ]] && { echo "Missing INIT_EVM_CHAIN_ID"; exit 1; }
@@ -19,9 +21,7 @@ forge script ./forge-scripts/DeployTokenBridge.s.sol:DeployTokenBridge \
 	--sig "run(uint16,uint16,bytes32,address,uint8,uint256,address)" $BRIDGE_INIT_CHAIN_ID $BRIDGE_INIT_GOV_CHAIN_ID $BRIDGE_INIT_GOV_CONTRACT $BRIDGE_INIT_WETH $BRIDGE_INIT_FINALITY $INIT_EVM_CHAIN_ID $WORMHOLE_ADDRESS \
 	--rpc-url "$RPC_URL" \
 	--private-key "$MNEMONIC" \
-	--verifier-url 'https://api.routescan.io/v2/network/testnet/evm/${INIT_EVM_CHAIN_ID}/etherscan' \
-	--etherscan-api-key "verifyContract" \
-	--broadcast
+	--broadcast ${FORGE_ARGS}
 
 returnInfo=$(cat ./broadcast/DeployTokenBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'

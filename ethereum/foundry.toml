@@ -1,5 +1,5 @@
 [profile.default]
-solc_version = "0.8.19"
+solc_version = "0.8.4"
 optimizer = true
 optimizer_runs = 200
 via_ir = false
@@ -7,7 +7,7 @@ src = "contracts"
 # We put the tests into the forge-test directory (instead of test) so that
 # truffle doesn't try to build them
 test = "forge-test"
-evm_version = "london"
+evm_version = "istanbul"
 
 out = 'build-forge'
 libs = ['lib', 'node_modules']
@@ -23,14 +23,5 @@ remappings = [
 line_length = 100
 multiline_func_header = "params_first"
 # wrap_comments = true
-
-
-[profile.production]
-via_ir = true
-
-[profile.deploy]
-solc_version = "0.8.4"
-via_ir = false
-evm_version = "istanbul"
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

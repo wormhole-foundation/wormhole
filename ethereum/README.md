@@ -13,7 +13,62 @@ wrapped non-ETH assets that are currently held on ETH.
 To build the contracts:
 `make build`
 
-### Deploying
+### Deploying using Forge
+
+#### Create the ENV file
+
+Before you can deploy the contracts, you need to create a file in `ethereum/env` with a name like `.env.blast` for mainnet
+or `.env.blast.testnet` for testnet. Substitute the appropriate chain name (as it will be in the worm client) and use the
+mentioned one as an example.
+
+#### Create a symbolic link
+
+```shell
+ethereum$ ln -s env/.env.blast.testnet .env
+```
+
+#### Deploy the Core contract
+
+```shell
+ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployCoreBridge.sh
+```
+
+#### Deploy the TokenBridge contract
+
+```shell
+ethereum$ MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./forge-scripts/deployTokenBridge.sh
+```
+
+#### Deploy the Core Shutdown contract
+
+```shell
+ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployCoreShutdown.sh
+```
+
+#### Deploy the TokenBridge Shutdown contract
+
+```shell
+ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployTokenBridgeShutdown.sh
+```
+
+#### Generate Flattened Source
+
+To generated the flattened source files to verify the contracts using the explorer UI
+
+```shell
+ethereum$ ./forge-scripts/flatten.sh
+```
+
+This will put the flattened files in `ethereum/flattened`.
+
+#### Upgrade the Core or TokenBridge Implementation
+
+```shell
+ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet Core blast
+ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet TokenBridge blast
+```
+
+### Deploying using Truffle (deprecated)
 
 To deploy the bridge on Ethereum you first need to compile all smart contracts:
 `npx truffle compile`
@@ -52,12 +107,11 @@ chain address of the recipient, `target_chain` is the id of the chain to transfe
 `lockETH(bytes32 recipient, uint8 target_chain)` is a convenience function to wrap the Ether sent with the function call
 and transfer it as described in `lockAssets`.
 
-
 ### Forge
 
 Some tests and scripts use [Foundry](https://getfoundry.sh/). It can be installed via the official installer, or by running
 
-``` sh
+```sh
 wormhole/ethereum $ ../scripts/install-foundry
 ```
 

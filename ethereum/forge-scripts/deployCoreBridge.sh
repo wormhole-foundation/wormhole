@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# MNEMONIC=<redacted> ./forge-scripts/deployCoreBridge.sh
+
 . .env
 
 [[ -z $INIT_SIGNERS ]] && { echo "Missing INIT_SIGNERS"; exit 1; }
@@ -15,9 +17,7 @@ forge script ./forge-scripts/DeployCore.s.sol:DeployCore \
 	--sig "run(address[],uint16,uint16,bytes32,uint256)" $INIT_SIGNERS $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $INIT_EVM_CHAIN_ID \
 	--rpc-url "$RPC_URL" \
 	--private-key "$MNEMONIC" \
-	--verifier-url 'https://api.routescan.io/v2/network/testnet/evm/${INIT_EVM_CHAIN_ID}/etherscan' \
-	--etherscan-api-key "verifyContract" \
-	--broadcast
+	--broadcast ${FORGE_ARGS}
 
 returnInfo=$(cat ./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'
