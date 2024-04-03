@@ -17,10 +17,10 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   npm ci --prefix ethereum
 COPY ethereum ./ethereum
 
-COPY ethereum-relayer/package.json ethereum-relayer/package-lock.json ./ethereum-relayer/
+COPY relayer/ethereum/package.json relayer/ethereum/package-lock.json ./relayer/ethereum/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-  npm ci --prefix ethereum-relayer
-COPY ethereum-relayer ./ethereum-relayer
+  npm ci --prefix relayer/ethereum
+COPY relayer/ethereum ./relayer/ethereum
 
 COPY solana/idl ./solana/idl/
 

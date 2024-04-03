@@ -459,11 +459,11 @@ if solana or pythnet:
 docker_build(
     ref = "eth-node",
     context = ".",
-    only = ["./ethereum", "./ethereum-relayer"],
+    only = ["./ethereum", "./relayer/ethereum"],
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./ethereum/node_modules","./ethereum-relayer/node_modules"],
+    ignore = ["./ethereum/node_modules","./relayer/ethereum/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
 
     # sync external scripts for incremental development
@@ -523,7 +523,7 @@ if generic_relayer:
     docker_build(
         ref = "relayer-engine",
         context = ".",
-        only = ["./relayer/generic_relayer", "./ethereum-relayer/ts-scripts/relayer/config"],
+        only = ["./relayer/generic_relayer", "./relayer/ethereum/ts-scripts/relayer/config"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
         build_args = {"dev": str(not ci)}
     )

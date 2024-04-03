@@ -11,7 +11,7 @@
   "sideEffects": false,
   "repository": "https://github.com/certusone/wormhole/tree/main/sdk/js",
   "scripts": {
-    "build-contracts": "cd ../../ethereum && make forge_dependencies && npm run build && cd ../ethereum-relayer && make forge_dependencies && npm run build && cd ../sdk/js && node scripts/copyContracts.js",
+    "build-contracts": "cd ../../ethereum && make forge_dependencies && npm run build && cd ../relayer/ethereum && make forge_dependencies && npm run build && cd ../../sdk/js && node scripts/copyContracts.js",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-idl": "node scripts/compileAnchorIdls.js",
     "build-deps": "npm run build-abis && npm run build-contracts && npm run build-idl",
