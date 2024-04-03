@@ -15,7 +15,10 @@ func TestTokenListSize(t *testing.T) {
 	// We should have a sensible number of tokens
 	// These numbers shouldn't have to change frequently
 	assert.Greater(t, len(tokenConfigEntries), 1000)
-	assert.Less(t, len(tokenConfigEntries), 2000)
+	// We throttle CoinGecko queries so we can query up to 12,000 tokens
+	// in a 15 minute window. This test is an early warning for updating
+	// the CoinGecko query mechanism.
+	assert.Less(t, len(tokenConfigEntries), 10000)
 }
 
 func TestTokenListAddressSize(t *testing.T) {
