@@ -7,7 +7,7 @@
 # Any actual go package dependency updates should be manually done for
 # correctness and safety. Always verify any major dependency updates.
 
-DOCKER=${DOCKER:-podman}
+DOCKER=${DOCKER:-docker}
 
 # Update the github actions to use the updated version of go
 update_github_actions() {
@@ -68,7 +68,11 @@ update_our_dockerfiles() {
             continue
         fi
 
-        # Flag ordering here is important to work correctly on macOS with crappy bsd sed and on Linux with more sensible gnu sed
+        # Flag ordering here is important to work correctly on macOS
+        # with crappy bsd sed and on Linux with more sensible gnu sed.
+        #
+        # Also:
+        #    https://xkcd.com/208/
         sed -E -i -e '/docker\.io\/golang:/s/(:)[0-9]*\.[0-9]*\.([0-9]|[0-9a-zA-Z-])*(@)sha256:[0-9a-zA-Z-]*( (AS|as)*.*$)?/\1'"$version"'\3'"$digest"'\4/g' "$dockerfile"
         # shellcheck disable=SC2181
         if [[ $? -ne 0 ]]; then
