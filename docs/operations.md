@@ -157,7 +157,8 @@ We strongly recommend a separate user and systemd services for the Wormhole serv
 See the separate [wormhole-networks](https://github.com/wormhole-foundation/wormhole-networks) repository for examples
 on how to set up the guardiand unit for a specific network.
 
-You need to open port 8999/udp in your firewall for the P2P network. Nothing else has to be exposed externally.
+You need to open port 8999/udp in your firewall for the P2P network and 8996/udp for
+[cross chain queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally.
 
 journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
 
@@ -168,6 +169,10 @@ Kubernetes deployment is fully supported.
 Refer to [devnet/](../devnet) for example k8s deployments as a starting point for your own production deployment. You'll
 have to build your own containers. Unless you already run Kubernetes in production, we strongly recommend a traditional
 deployment on a dedicated instance - it's easier to understand and troubleshoot.
+
+When running in kubernetes, or behind any kind of NAT, pass `--gossipAdvertiseAddress=external.ip.address` to the
+guardiand node process to ensure the external address is advertized in p2p. If this is not done, reobservation
+requests and [ccq](https://wormhole.com/queries) will not function as intended.
 
 ### Monitoring
 
