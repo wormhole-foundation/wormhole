@@ -260,7 +260,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	if w.ccqConfig.TimestampCacheSupported {
-		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, w.unsafeDevMode)
 	}
 
 	errC := make(chan error)
@@ -702,7 +702,6 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	finalized := false
 	safe := false
 	if w.unsafeDevMode {
-		// Devnet supports finalized and safe (although they returns the same value as latest).
 		finalized = true
 		safe = true
 	} else if w.chainID == vaa.ChainIDAcala ||

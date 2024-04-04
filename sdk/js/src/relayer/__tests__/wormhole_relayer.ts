@@ -1,34 +1,33 @@
+import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, test } from "@jest/globals";
 import { ContractReceipt, ethers } from "ethers";
 import {
-  getNetwork,
-  isCI,
-  waitForRelay,
-  PRIVATE_KEY,
-  getGuardianRPC,
-  GUARDIAN_KEYS,
-  GUARDIAN_SET_INDEX,
-  GOVERNANCE_EMITTER_ADDRESS,
-  getArbitraryBytes32,
-} from "./utils/utils";
-import { getAddressInfo } from "../consts";
-import { getDefaultProvider } from "../relayer/helpers";
-import {
-  relayer,
-  ethers_contracts,
-  ethers_relayer_contracts,
-  tryNativeToUint8Array,
-  ChainId,
   CHAINS,
   CONTRACTS,
+  ChainId,
   ChainName,
   Network,
+  ethers_relayer_contracts,
+  relayer,
+  tryNativeToUint8Array,
 } from "../../../";
 import { GovernanceEmitter, MockGuardians } from "../../../src/mock";
 import { Implementation__factory } from "../../ethers-contracts";
+import { getAddressInfo } from "../consts";
 import { manualDelivery } from "../relayer";
-import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+import { getDefaultProvider } from "../relayer/helpers";
 import { packEVMExecutionInfoV1 } from "../structs";
+import {
+  GOVERNANCE_EMITTER_ADDRESS,
+  GUARDIAN_KEYS,
+  GUARDIAN_SET_INDEX,
+  PRIVATE_KEY,
+  getArbitraryBytes32,
+  getGuardianRPC,
+  getNetwork,
+  isCI,
+  waitForRelay,
+} from "./utils/utils";
 
 const network: Network = getNetwork();
 const ci: boolean = isCI();
@@ -42,7 +41,7 @@ const testIfNotDevnet = () => (network != "DEVNET" ? test : test.skip);
 type TestChain = {
   chainId: ChainId;
   name: ChainName;
-  provider: ethers.providers.Provider;
+  provider: ethers.providers.StaticJsonRpcProvider;
   wallet: ethers.Wallet;
   wormholeRelayerAddress: string;
   mockIntegrationAddress: string;
@@ -160,7 +159,7 @@ const testSend = async (
     notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
     optionalParams
   );
-  console.log(`Quoted gas delivery fee: ${value}`);
+  !ci && console.log(`Quoted gas delivery fee: ${value}`);
   const tx = await source.mockIntegration.sendMessage(
     payload,
     sendToSourceChain ? source.chainId : target.chainId,
@@ -168,9 +167,9 @@ const testSend = async (
     0,
     { value, gasLimit: REASONABLE_GAS_LIMIT }
   );
-  console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
+  !ci && console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
   await tx.wait();
-  console.log("Message confirmed!");
+  !ci && console.log("Message confirmed!");
 
   return tx.wait();
 };
@@ -178,20 +177,20 @@ const testSend = async (
 describe("Wormhole Relayer Tests", () => {
   test("Executes a Delivery Success", async () => {
     const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+    !ci && console.log(`Sent message: ${arbitraryPayload}`);
 
     const rx = await testSend(arbitraryPayload);
 
     await waitForRelay();
 
-    console.log("Checking if message was relayed");
+    !ci && console.log("Checking if message was relayed");
     const message = await target.mockIntegration.getMessage();
     expect(message).toBe(arbitraryPayload);
   });
 
   test("Executes a Delivery Success With Additional VAAs", async () => {
     const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+    !ci && console.log(`Sent message: ${arbitraryPayload}`);
 
     const wormhole = Implementation__factory.connect(
       CONTRACTS[network][sourceChain].core || "",
@@ -207,7 +206,7 @@ describe("Wormhole Relayer Tests", () => {
       REASONABLE_GAS_LIMIT * 2,
       optionalParams
     );
-    console.log(`Quoted gas delivery fee: ${value}`);
+    !ci && console.log(`Quoted gas delivery fee: ${value}`);
 
     const tx = await source.mockIntegration.sendMessageWithAdditionalVaas(
       [],
@@ -224,13 +223,13 @@ describe("Wormhole Relayer Tests", () => {
       { value }
     );
 
-    console.log(`Sent tx hash: ${tx.hash}`);
+    !ci && console.log(`Sent tx hash: ${tx.hash}`);
 
     const rx = await tx.wait();
 
     await waitForRelay();
 
-    console.log("Checking if message was relayed");
+    !ci && console.log("Checking if message was relayed");
     const message = (await target.mockIntegration.getDeliveryData())
       .additionalVaas[0];
     const parsedMessage = await wormhole.parseVM(message);
@@ -241,7 +240,7 @@ describe("Wormhole Relayer Tests", () => {
     "Executes a Delivery Success with manual delivery",
     async () => {
       const arbitraryPayload = getArbitraryBytes32();
-      console.log(`Sent message: ${arbitraryPayload}`);
+      !ci && console.log(`Sent message: ${arbitraryPayload}`);
 
       const deliverySeq = await Implementation__factory.connect(
         CONTRACTS[network][sourceChain].core || "",
@@ -286,7 +285,10 @@ describe("Wormhole Relayer Tests", () => {
         }
       );
 
-      console.log(`Price: ${priceInfo.quote} of ${priceInfo.targetChain} wei`);
+      !ci &&
+        console.log(
+          `Price: ${priceInfo.quote} of ${priceInfo.targetChain} wei`
+        );
 
       const deliveryRx = await manualDelivery(
         sourceChain,
@@ -310,9 +312,9 @@ describe("Wormhole Relayer Tests", () => {
         },
         target.wallet
       );
-      console.log("Manual delivery tx hash", deliveryRx.txHash);
+      !ci && console.log("Manual delivery tx hash", deliveryRx.txHash);
 
-      console.log("Checking if message was relayed");
+      !ci && console.log("Checking if message was relayed");
       const message = await target.mockIntegration.getMessage();
       expect(message).toBe(arbitraryPayload);
     }
@@ -330,14 +332,14 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Executes a delivery with a Cross Chain Refund", async () => {
     const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+    !ci && console.log(`Sent message: ${arbitraryPayload}`);
     const value = await relayer.getPrice(
       sourceChain,
       targetChain,
       REASONABLE_GAS_LIMIT,
       optionalParams
     );
-    console.log(`Quoted gas delivery fee: ${value}`);
+    !ci && console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await source.wallet.getBalance();
 
     const tx = await relayer.sendToEvm(
@@ -350,10 +352,12 @@ describe("Wormhole Relayer Tests", () => {
       { value, gasLimit: REASONABLE_GAS_LIMIT },
       optionalParams
     );
-    console.log("Sent delivery request!");
+    !ci && console.log("Sent delivery request!");
     await tx.wait();
-    console.log("Message confirmed!");
+    !ci && console.log("Message confirmed!");
     const endingBalance = await source.wallet.getBalance();
+
+    await source.provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
 
     await waitForRelay();
 
@@ -362,30 +366,34 @@ describe("Wormhole Relayer Tests", () => {
       ...optionalParams,
     })) as relayer.DeliveryInfo;
 
+    await target.provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
+
     await waitForRelay();
 
     const newEndingBalance = await source.wallet.getBalance();
 
-    console.log(`Quoted gas delivery fee: ${value}`);
-    console.log(
-      `Cost (including gas) ${startingBalance.sub(endingBalance).toString()}`
-    );
+    !ci && console.log(`Quoted gas delivery fee: ${value}`);
+    !ci &&
+      console.log(
+        `Cost (including gas) ${startingBalance.sub(endingBalance).toString()}`
+      );
     const refund = newEndingBalance.sub(endingBalance);
-    console.log(`Refund: ${refund.toString()}`);
-    console.log(
-      `As a percentage of original value: ${newEndingBalance
-        .sub(endingBalance)
-        .mul(100)
-        .div(value)
-        .toString()}%`
-    );
-    console.log("Confirming refund is nonzero");
+    !ci && console.log(`Refund: ${refund.toString()}`);
+    !ci &&
+      console.log(
+        `As a percentage of original value: ${newEndingBalance
+          .sub(endingBalance)
+          .mul(100)
+          .div(value)
+          .toString()}%`
+      );
+    !ci && console.log("Confirming refund is nonzero");
     expect(refund.gt(0)).toBe(true);
   });
 
   test("Executes a Receiver Failure", async () => {
     const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+    !ci && console.log(`Sent message: ${arbitraryPayload}`);
 
     const rx = await testSend(arbitraryPayload, false, true);
 
@@ -397,7 +405,7 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Executes a receiver failure and then redelivery through SDK", async () => {
     const arbitraryPayload = getArbitraryBytes32();
-    console.log(`Sent message: ${arbitraryPayload}`);
+    !ci && console.log(`Sent message: ${arbitraryPayload}`);
 
     const rx = await testSend(arbitraryPayload, false, true);
 
@@ -419,7 +427,7 @@ describe("Wormhole Relayer Tests", () => {
       { wormholeRelayerAddresses, ...optionalParams }
     )) as relayer.DeliveryInfo;
 
-    console.log("Redelivering message");
+    !ci && console.log("Redelivering message");
     const redeliveryReceipt = await relayer.resend(
       source.wallet,
       sourceChain,
@@ -444,13 +452,13 @@ describe("Wormhole Relayer Tests", () => {
       { wormholeRelayerAddress: source.wormholeRelayerAddress }
     );
 
-    console.log("redelivery tx:", redeliveryReceipt.hash);
+    !ci && console.log("redelivery tx:", redeliveryReceipt.hash);
 
     await redeliveryReceipt.wait();
 
     await waitForRelay();
 
-    console.log("Checking if message was relayed after redelivery");
+    !ci && console.log("Checking if message was relayed after redelivery");
     const message2 = await target.mockIntegration.getMessage();
     expect(message2).toBe(arbitraryPayload);
 
@@ -464,9 +472,10 @@ describe("Wormhole Relayer Tests", () => {
 
     const currentAddress =
       await source.wormholeRelayer.getRegisteredWormholeRelayerContract(chain);
-    console.log(
-      `For Chain ${source.chainId}, registered chain ${chain} address: ${currentAddress}`
-    );
+    !ci &&
+      console.log(
+        `For Chain ${source.chainId}, registered chain ${chain} address: ${currentAddress}`
+      );
 
     const expectedNewRegisteredAddress =
       "0x0000000000000000000000001234567890123456789012345678901234567892";
@@ -501,9 +510,10 @@ describe("Wormhole Relayer Tests", () => {
     async () => {
       const currentAddress =
         await source.wormholeRelayer.getDefaultDeliveryProvider();
-      console.log(
-        `For Chain ${source.chainId}, default relay provider: ${currentAddress}`
-      );
+      !ci &&
+        console.log(
+          `For Chain ${source.chainId}, default relay provider: ${currentAddress}`
+        );
 
       const expectedNewDefaultDeliveryProvider =
         "0x1234567890123456789012345678901234567892";
@@ -567,9 +577,10 @@ describe("Wormhole Relayer Tests", () => {
         IMPLEMENTATION_STORAGE_SLOT
       );
 
-    console.log(
-      `Current Implementation address: ${await getImplementationAddress()}`
-    );
+    !ci &&
+      console.log(
+        `Current Implementation address: ${await getImplementationAddress()}`
+      );
 
     const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
 
@@ -579,10 +590,11 @@ describe("Wormhole Relayer Tests", () => {
         .then((x) => x.deployed())
     ).address;
 
-    console.log(`Deployed!`);
-    console.log(
-      `New core relayer implementation: ${newWormholeRelayerImplementationAddress}`
-    );
+    !ci && console.log(`Deployed!`);
+    !ci &&
+      console.log(
+        `New core relayer implementation: ${newWormholeRelayerImplementationAddress}`
+      );
 
     const timestamp = (await source.wallet.provider.getBlock("latest"))
       .timestamp;
@@ -598,6 +610,7 @@ describe("Wormhole Relayer Tests", () => {
     );
 
     let tx = await source.wormholeRelayer.submitContractUpgrade(firstSignedVaa);
+    await tx.wait();
 
     expect(
       ethers.utils.getAddress((await getImplementationAddress()).substring(26))
@@ -613,7 +626,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
       environment,
     });
-    console.log(info.stringified);
+    !ci && console.log(info.stringified);
   });
 
   testIfNotDevnet()("Tests custom manual delivery", async () => {
@@ -626,7 +639,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = await relayer.getWormholeRelayerInfo(mySourceChain, txHash, {
       environment,
     });
-    console.log(info.stringified);
+    !ci && console.log(info.stringified);
 
     const priceInfo = await manualDelivery(
       mySourceChain,
@@ -634,7 +647,7 @@ describe("Wormhole Relayer Tests", () => {
       { environment },
       true
     );
-    console.log(`Price info: ${JSON.stringify(priceInfo)}`);
+    !ci && console.log(`Price info: ${JSON.stringify(priceInfo)}`);
 
     const signer = new ethers.Wallet(
       PRIVATE_KEY,
@@ -643,17 +656,19 @@ describe("Wormhole Relayer Tests", () => {
         : getDefaultProvider(environment, priceInfo.targetChain)
     );
 
-    console.log(
-      `Price: ${ethers.utils.formatEther(priceInfo.quote)} of ${
-        priceInfo.targetChain
-      } currency`
-    );
+    !ci &&
+      console.log(
+        `Price: ${ethers.utils.formatEther(priceInfo.quote)} of ${
+          priceInfo.targetChain
+        } currency`
+      );
     const balance = await signer.getBalance();
-    console.log(
-      `My balance: ${ethers.utils.formatEther(balance)} of ${
-        priceInfo.targetChain
-      } currency`
-    );
+    !ci &&
+      console.log(
+        `My balance: ${ethers.utils.formatEther(balance)} of ${
+          priceInfo.targetChain
+        } currency`
+      );
 
     const deliveryRx = await manualDelivery(
       mySourceChain,
@@ -663,7 +678,7 @@ describe("Wormhole Relayer Tests", () => {
       undefined,
       signer
     );
-    console.log("Manual delivery tx hash", deliveryRx.txHash);
+    !ci && console.log("Manual delivery tx hash", deliveryRx.txHash);
   });
 });
 

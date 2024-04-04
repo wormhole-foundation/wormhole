@@ -3,20 +3,21 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { describe, expect, jest, test } from "@jest/globals";
 import algosdk, {
   Account,
+  OnApplicationComplete,
   decodeAddress,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
-  OnApplicationComplete,
   waitForConfirmation,
 } from "algosdk";
 import { BigNumber, ethers, utils } from "ethers";
 import {
-  approveEth,
-  attestFromAlgorand,
-  attestFromEth,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_ETH,
   CONTRACTS,
+  WormholeWrappedInfo,
+  approveEth,
+  attestFromAlgorand,
+  attestFromEth,
   createWrappedOnAlgorand,
   createWrappedOnEth,
   getEmitterAddressAlgorand,
@@ -36,9 +37,7 @@ import {
   transferFromEth,
   uint8ArrayToHex,
   updateWrappedOnEth,
-  WormholeWrappedInfo,
 } from "../..";
-import { TokenImplementation__factory } from "../../ethers-contracts";
 import { _parseVAAAlgorand } from "../../algorand";
 import {
   createAsset,
@@ -49,6 +48,7 @@ import {
   getTempAccounts,
   signSendAndConfirmAlgorand,
 } from "../../algorand/__tests__/testHelpers";
+import { TokenImplementation__factory } from "../../ethers-contracts";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
 import { safeBigIntToNumber } from "../../utils/bigint";
 import {
@@ -60,8 +60,6 @@ import {
 
 const CORE_ID = BigInt(1004);
 const TOKEN_BRIDGE_ID = BigInt(1006);
-
-jest.setTimeout(120000);
 
 describe("Algorand tests", () => {
   test("Algorand transfer native ALGO to Eth and back again", (done) => {
@@ -115,7 +113,7 @@ describe("Algorand tests", () => {
           { transport: NodeHttpTransport() }
         );
         const pvaa = _parseVAAAlgorand(vaaBytes);
-        const provider = new ethers.providers.WebSocketProvider(
+        const provider = new ethers.providers.JsonRpcProvider(
           ETH_NODE_URL
         ) as any;
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
@@ -262,6 +260,7 @@ describe("Algorand tests", () => {
         const emitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
 
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
@@ -297,8 +296,6 @@ describe("Algorand tests", () => {
         if (!secondFinalAlgoBal) {
           throw new Error("secondFinalAlgoBal is undefined");
         }
-
-        provider.destroy();
       } catch (e) {
         console.error("Algorand ALGO transfer error:", e);
         done("Algorand ALGO transfer error");
@@ -358,7 +355,7 @@ describe("Algorand tests", () => {
           attestSn,
           { transport: NodeHttpTransport() }
         );
-        const provider = new ethers.providers.WebSocketProvider(
+        const provider = new ethers.providers.JsonRpcProvider(
           ETH_NODE_URL
         ) as any;
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
@@ -501,6 +498,7 @@ describe("Algorand tests", () => {
         const emitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
 
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
@@ -537,7 +535,6 @@ describe("Algorand tests", () => {
           throw new Error("secondFinalAlgoBal is undefined");
         }
         expect(secondFinalAlgoBal - finalAlgoBal).toBe(parseInt(Amount) * 100);
-        provider.destroy();
       } catch (e) {
         console.error("Algorand chuckNorium transfer error:", e);
         done("Algorand chuckNorium transfer error");
@@ -559,7 +556,7 @@ describe("Algorand tests", () => {
         const algoWallet: Account = tempAccts[0];
         const Amount = "10";
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
         // attest the test token
         const attestReceipt = await attestFromEth(
@@ -575,6 +572,7 @@ describe("Algorand tests", () => {
         const emitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: attestSignedVaa } = await getSignedVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
@@ -651,6 +649,7 @@ describe("Algorand tests", () => {
           receipt,
           CONTRACTS.DEVNET.ethereum.core
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: transferSignedVaa } = await getSignedVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
@@ -776,7 +775,6 @@ describe("Algorand tests", () => {
         );
         expect(info.chainId).toBe(CHAIN_ID_ETH);
         expect(info.isWrapped).toBe(true);
-        provider.destroy();
       } catch (e) {
         console.error("Eth <=> Algorand error:", e);
         done("Eth <=> Algorand error");
@@ -809,7 +807,7 @@ describe("Algorand tests", () => {
         // ETH setup to transfer LUNA to Algorand
 
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
         // attest the test token
         const receipt = await attestFromEth(
@@ -825,6 +823,7 @@ describe("Algorand tests", () => {
         const emitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
@@ -880,6 +879,7 @@ describe("Algorand tests", () => {
         const ethEmitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: firstHalfVaa } = await getSignedVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
@@ -925,6 +925,7 @@ describe("Algorand tests", () => {
           secondHalfReceipt,
           CONTRACTS.DEVNET.ethereum.core
         );
+        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: secondHalfVaa } = await getSignedVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
@@ -952,7 +953,6 @@ describe("Algorand tests", () => {
             secondHalfVaa
           )
         ).toBe(true);
-        provider.destroy();
       } catch (e) {
         console.error("new test error:", e);
         done("new test error");

@@ -10,12 +10,12 @@ import {
 } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import {
-  approveEth,
-  attestFromEth,
-  attestFromTerra,
   CHAIN_ID_ETH,
   CHAIN_ID_TERRA,
   CONTRACTS,
+  approveEth,
+  attestFromEth,
+  attestFromTerra,
   createWrappedOnEth,
   createWrappedOnTerra,
   getEmitterAddressEth,
@@ -52,8 +52,6 @@ import {
   queryBalanceOnTerra,
   waitForTerraExecution,
 } from "./utils/helpers";
-
-jest.setTimeout(120000);
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -106,7 +104,7 @@ describe("Terra Classic Integration Tests", () => {
             });
             await broadcastAndWait(lcd, tx);
           }
-          const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
           // attempt to transfer more than we've deposited
           const transfer = new MsgExecuteContract(
@@ -186,7 +184,6 @@ describe("Terra Classic Integration Tests", () => {
             fee: feeEstimate,
           });
           await broadcastAndWait(lcd, tx);
-          provider.destroy();
           done();
         } catch (e) {
           console.error(e);
@@ -202,7 +199,7 @@ describe("Terra Classic Integration Tests", () => {
       (async () => {
         try {
           // create a signer for Eth
-          const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
           // attest the test token
           const receipt = await attestFromEth(
@@ -218,6 +215,7 @@ describe("Terra Classic Integration Tests", () => {
           const emitterAddress = getEmitterAddressEth(
             CONTRACTS.DEVNET.ethereum.token_bridge
           );
+          await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -265,7 +263,6 @@ describe("Terra Classic Integration Tests", () => {
           } catch (e) {
             // this could fail because the token is already attested (in an unclean env)
           }
-          provider.destroy();
           done();
         } catch (e) {
           console.error(e);
@@ -293,7 +290,7 @@ describe("Terra Classic Integration Tests", () => {
       (async () => {
         try {
           // create a signer for Eth
-          const provider = new ethers.providers.WebSocketProvider(
+          const provider = new ethers.providers.JsonRpcProvider(
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -381,6 +378,7 @@ describe("Terra Classic Integration Tests", () => {
           const emitterAddress = getEmitterAddressEth(
             CONTRACTS.DEVNET.ethereum.token_bridge
           );
+          await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -451,7 +449,6 @@ describe("Terra Classic Integration Tests", () => {
             tokenDefinition.decimals
           );
           // let finalCW20BalOnTerra: number = parseInt(balAmount);
-          provider.destroy();
           done();
         } catch (e) {
           console.error(e);
@@ -516,7 +513,7 @@ describe("Terra Classic Integration Tests", () => {
             sequence,
             emitterAddress
           );
-          const provider = new ethers.providers.WebSocketProvider(
+          const provider = new ethers.providers.JsonRpcProvider(
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -538,7 +535,6 @@ describe("Terra Classic Integration Tests", () => {
             );
             success = true;
           }
-          provider.destroy();
         } catch (e) {
           console.error("Attestation failure: ", e);
         }
@@ -567,7 +563,7 @@ describe("Terra Classic Integration Tests", () => {
           // const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
 
           // Get initial balance of wrapped luna on Eth
-          const provider = new ethers.providers.WebSocketProvider(
+          const provider = new ethers.providers.JsonRpcProvider(
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -678,7 +674,6 @@ describe("Terra Classic Integration Tests", () => {
           expect(initialLunaBalOnEthInt + 1e6 === lunaBalOnEthAfterInt).toBe(
             true
           );
-          provider.destroy();
         } catch (e) {
           console.error("Terra to Ethereum failure: ", e);
           done("Terra to Ethereum Failure");
@@ -701,7 +696,7 @@ describe("Terra Classic Integration Tests", () => {
           });
           const Asset: string = "uluna";
           const initialTerraBalance: number = await queryBalanceOnTerra(Asset);
-          const provider = new ethers.providers.WebSocketProvider(
+          const provider = new ethers.providers.JsonRpcProvider(
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -755,7 +750,7 @@ describe("Terra Classic Integration Tests", () => {
           const emitterAddress = getEmitterAddressEth(
             CONTRACTS.DEVNET.ethereum.token_bridge
           );
-
+          await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -813,7 +808,6 @@ describe("Terra Classic Integration Tests", () => {
             true
           );
           // const uusdBal = await queryBalanceOnTerra("uusd");
-          provider.destroy();
         } catch (e) {
           console.error("Transfer back failure: ", e);
           done("Transfer back Failure");
@@ -890,7 +884,7 @@ describe("Terra Classic Integration Tests", () => {
             sequence,
             emitterAddress
           );
-          const provider = new ethers.providers.WebSocketProvider(
+          const provider = new ethers.providers.JsonRpcProvider(
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
@@ -1070,7 +1064,7 @@ describe("Terra Classic Integration Tests", () => {
           emitterAddress = getEmitterAddressEth(
             CONTRACTS.DEVNET.ethereum.token_bridge
           );
-
+          await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -1132,7 +1126,6 @@ describe("Terra Classic Integration Tests", () => {
           finalCW20BalOnTerra = parseInt(amount);
           expect(finalCW20BalOnTerra - initialCW20BalOnTerra === 1).toBe(true);
           // Done checking wallet balances
-          provider.destroy();
         } catch (e) {
           console.error("CW20 Transfer failure: ", e);
           done("CW20 Transfer Failure");

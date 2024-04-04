@@ -10,13 +10,13 @@ import {
 import { ethers } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import {
-  approveEth,
   APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS,
-  attestFromAptos,
-  attestFromEth,
   CHAIN_ID_APTOS,
   CHAIN_ID_ETH,
   CONTRACTS,
+  approveEth,
+  attestFromAptos,
+  attestFromEth,
   createWrappedOnAptos,
   createWrappedOnEth,
   createWrappedTypeOnAptos,
@@ -55,8 +55,6 @@ import {
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
-
-jest.setTimeout(120000);
 
 describe("Aptos SDK tests", () => {
   test("Transfer native token from Aptos to Ethereum", async () => {
@@ -99,7 +97,7 @@ describe("Aptos SDK tests", () => {
     expect(attestVAA).toBeTruthy();
 
     // setup ethereum
-    const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+    const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
     const recipient = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const recipientAddress = await recipient.getAddress();
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
@@ -196,13 +194,10 @@ describe("Aptos SDK tests", () => {
     expect(
       balanceAfterTransferEth.sub(balanceBeforeTransferEth).toNumber()
     ).toEqual(10_000_000);
-
-    // clean up
-    provider.destroy();
   });
   test("Transfer native ERC-20 from Ethereum to Aptos", async () => {
     // setup ethereum
-    const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+    const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
     const sender = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
     const ethCoreBridge = CONTRACTS.DEVNET.ethereum.core;
@@ -218,6 +213,7 @@ describe("Aptos SDK tests", () => {
     let sequence = parseSequenceFromLogEth(attestReceipt, ethCoreBridge);
     expect(sequence).toBeTruthy();
 
+    await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
     const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ETH,
@@ -322,6 +318,7 @@ describe("Aptos SDK tests", () => {
     sequence = parseSequenceFromLogEth(transferReceipt, ethCoreBridge);
     expect(sequence).toBeTruthy();
 
+    await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
     const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ETH,
@@ -367,9 +364,6 @@ describe("Aptos SDK tests", () => {
     expect(
       balanceBeforeTransferEth.sub(balanceAfterTransferEth).toString()
     ).toEqual(amount.toString());
-
-    // clean up
-    provider.destroy();
   });
   test("Transfer native token with payload from Aptos to Ethereum", async () => {
     const APTOS_TOKEN_BRIDGE = CONTRACTS.DEVNET.aptos.token_bridge;
@@ -411,7 +405,7 @@ describe("Aptos SDK tests", () => {
     expect(attestVAA).toBeTruthy();
 
     // setup ethereum
-    const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+    const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
     const recipient = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const recipientAddress = await recipient.getAddress();
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
@@ -513,9 +507,6 @@ describe("Aptos SDK tests", () => {
     expect(
       balanceAfterTransferEth.sub(balanceBeforeTransferEth).toNumber()
     ).toEqual(10_000_000);
-
-    // clean up
-    provider.destroy();
   });
 });
 

@@ -5,8 +5,8 @@
   "main": "deploy_wormchain.ts",
   "scripts": {
     "deploy-wormchain": "ts-node deploy_wormchain.ts",
-    "test-accountant": "jest test_accountant.ts --verbose",
-    "test-ntt-accountant": "jest test_ntt_accountant.ts --verbose",
+    "test-accountant": "jest test_accountant.ts --verbose --setupFiles ./ci-config.js",
+    "test-ntt-accountant": "jest test_ntt_accountant.ts --verbose --setupFiles ./ci-config.js",
     "test-wormchain": "ts-node test_wormchain.ts",
     "deploy-and-test": "npm run deploy-wormchain && npm run test-wormchain"
   },

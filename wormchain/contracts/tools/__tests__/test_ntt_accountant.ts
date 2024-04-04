@@ -1506,7 +1506,7 @@ describe("NTT Global Accountant Tests", () => {
         `0x${mockTransferPayload(8, 10, SPOKE_CHAIN_A)}`,
         0,
         { value },
-        relayerOptionalParameters
+        { ...relayerOptionalParameters, consistencyLevel: 200 }
       );
       const receipt = await tx.wait();
       // get the sequence from the logs (needed to fetch the vaa)

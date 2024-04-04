@@ -4,7 +4,9 @@ import { Connection, PublicKey } from "@solana/web3.js";
 const ci = !!process.env.CI;
 
 // see devnet.md
-export const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
+export const ETH_NODE_URL = ci
+  ? "http://eth-devnet:8545"
+  : "http://localhost:8545";
 export const ETH_PRIVATE_KEY =
   "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; // account 1
 export const ETH_PRIVATE_KEY8 =

@@ -37,7 +37,7 @@ Launch the devnet:
 
     tilt up
 
-By default this runs a network consisting of one guardian, two ganache (Eth) chains, a Solana test validator, an Algorand sandbox, and LocalTerra for both Terra Classic and Terra 2. If you want to work on non-consensus parts of the code, running with a single guardian is easiest since you won't have to wait for k8s to restart all pods. See the usage guide below for arguments to customize the tilt network.
+By default this runs a network consisting of one guardian, two anvil (Eth) chains, a Solana test validator, an Algorand sandbox, and LocalTerra for both Terra Classic and Terra 2. If you want to work on non-consensus parts of the code, running with a single guardian is easiest since you won't have to wait for k8s to restart all pods. See the usage guide below for arguments to customize the tilt network.
 
 ## Usage
 
@@ -140,27 +140,39 @@ To re-generate these files run `rm -rf node/pkg/proto && docker build --target g
 
 ### Call gRPC services
 
-<!-- cspell:disable-next-line -->
+<!-- cspell:disable -->
+
     tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
+
+<!-- cspell:enable -->
 
 With parameters (using proto json encoding):
 
-<!-- cspell:disable-next-line -->
+<!-- cspell:disable -->
+
     tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) \
         -d '{"filters": [{"emitter_filter": {"emitter_address": "574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d", "chain_id": "CHAIN_ID_SOLANA"}}]}' \
         -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
+
+<!-- cspell:enable -->
 
 ### Post messages
 
 To Solana:
 
-<!-- cspell:disable-next-line -->
+<!-- cspell:disable -->
+
     kubectl exec solana-devnet-0 -c setup -- client post-message Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
+
+<!-- cspell:enable -->
 
 To Solana as CPI instruction:
 
-<!-- cspell:disable-next-line -->
+<!-- cspell:disable -->
+
     kubectl exec solana-devnet-0 -c setup -- client post-message --proxy CP1co2QMMoDPbsmV7PGcUTLFwyhgCgTXt25gLQ5LewE1 Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
+
+<!-- cspell:enable -->
 
 ### Observation Requests
 

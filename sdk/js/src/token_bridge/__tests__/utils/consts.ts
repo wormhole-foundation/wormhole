@@ -1,10 +1,9 @@
-import { describe, expect, it } from "@jest/globals";
-import { Connection, PublicKey } from "@solana/web3.js";
-
 const ci = !!process.env.CI;
 
 // see devnet.md
-export const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
+export const ETH_NODE_URL = ci
+  ? "http://eth-devnet:8545"
+  : "http://localhost:8545";
 export const ETH_PRIVATE_KEY =
   "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"; // account 0
 // account 1 used by NFT tests
