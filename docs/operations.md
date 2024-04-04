@@ -281,8 +281,9 @@ may include support for remote signing.
 
 ## Bootstrap Peers
 
-The list of supported bootstrap peers is defined in `node/pkg/p2p/network_consts.go`. That file also provides golang functions
-for obtaining the network parameters (network ID and bootstrap peers) based on the environment (mainnet or testnet).
+The list of supported bootstrap peers is defined in [node/pkg/p2p/network_consts.go](../node/pkg/p2p/network_consts.go).
+That file also provides golang functions for obtaining the network parameters (network ID and bootstrap peers) based on
+the environment (mainnet or testnet).
 
 The common Wormhole applications (guardiand, spy and query proxy server) use those functions, so it is not necessary to specify
 the actual bootstrap parameters in their configs. Developers of any new applications are strongly urged to do the same, and not
