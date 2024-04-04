@@ -2,10 +2,9 @@ import { formatUnits, parseUnits } from "@ethersproject/units";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
 } from "@solana/spl-token";
 import {
   Connection,
@@ -15,10 +14,11 @@ import {
 } from "@solana/web3.js";
 import { ethers } from "ethers";
 import {
-  attestFromSolana,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CONTRACTS,
+  WSOL_ADDRESS,
+  attestFromSolana,
   createWrappedOnEth,
   getEmitterAddressSolana,
   getForeignAssetEth,
@@ -30,7 +30,6 @@ import {
   transferNativeSol,
   tryNativeToHexString,
   tryNativeToUint8Array,
-  WSOL_ADDRESS,
 } from "../..";
 import { TokenImplementation__factory } from "../../ethers-contracts";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
@@ -42,8 +41,6 @@ import {
   TEST_SOLANA_TOKEN,
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
-
-jest.setTimeout(120000);
 
 describe("Solana to Ethereum", () => {
   test("Attest Solana SPL to Ethereum", (done) => {
@@ -89,7 +86,7 @@ describe("Solana to Ethereum", () => {
           }
         );
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
         try {
           await createWrappedOnEth(
@@ -100,7 +97,6 @@ describe("Solana to Ethereum", () => {
         } catch (e) {
           // this could fail because the token is already attested (in an unclean env)
         }
-        provider.destroy();
         done();
       } catch (e) {
         console.error(e);
@@ -111,7 +107,7 @@ describe("Solana to Ethereum", () => {
     })();
   });
   test("Solana SPL is attested on Ethereum", async () => {
-    const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+    const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
     const address = getForeignAssetEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
       provider,
@@ -120,13 +116,12 @@ describe("Solana to Ethereum", () => {
     );
     expect(address).toBeTruthy();
     expect(address).not.toBe(ethers.constants.AddressZero);
-    provider.destroy();
   });
   test("Send Solana SPL to Ethereum", (done) => {
     (async () => {
       try {
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
         const targetAddress = await signer.getAddress();
         // create a keypair for Solana
@@ -267,7 +262,6 @@ describe("Solana to Ethereum", () => {
             parseInt(initialBalOnEthFormatted) ===
             1
         ).toBe(true);
-        provider.destroy();
         done();
       } catch (e) {
         console.error(e);
@@ -318,7 +312,7 @@ describe("Solana to Ethereum", () => {
           }
         );
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
         try {
           await createWrappedOnEth(
@@ -329,7 +323,6 @@ describe("Solana to Ethereum", () => {
         } catch (e) {
           // this could fail because the token is already attested (in an unclean env)
         }
-        provider.destroy();
         done();
       } catch (e) {
         console.error(e);
@@ -343,7 +336,7 @@ describe("Solana to Ethereum", () => {
     (async () => {
       try {
         // create a signer for Eth
-        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
         const targetAddress = await signer.getAddress();
         // create a keypair for Solana
@@ -443,7 +436,6 @@ describe("Solana to Ethereum", () => {
             parseInt(initialBalOnEthFormatted) ===
             1
         ).toBe(true);
-        provider.destroy();
         done();
       } catch (e) {
         console.error(e);

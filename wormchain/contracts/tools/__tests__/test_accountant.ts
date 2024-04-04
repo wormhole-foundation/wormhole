@@ -52,8 +52,8 @@ const ci = !!process.env.CI;
 const GUARDIAN_HOST = ci ? "guardian" : "localhost";
 const GUARDIAN_RPCS = [`http://${GUARDIAN_HOST}:7071`];
 const GUARDIAN_METRICS = `http://${GUARDIAN_HOST}:6060/metrics`;
-const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
-const BSC_NODE_URL = ci ? "ws://eth-devnet2:8545" : "ws://localhost:8546";
+const ETH_NODE_URL = ci ? "http://eth-devnet:8545" : "http://localhost:8545";
+const BSC_NODE_URL = ci ? "http://eth-devnet2:8545" : "http://localhost:8546";
 const ETH_PRIVATE_KEY9 =
   "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773";
 const ETH_GA_TEST_TOKEN =
@@ -70,25 +70,23 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-let ethProvider: ethers.providers.WebSocketProvider;
+let ethProvider: ethers.providers.JsonRpcProvider;
 let ethSigner: ethers.Wallet;
-let bscProvider: ethers.providers.WebSocketProvider;
+let bscProvider: ethers.providers.JsonRpcProvider;
 let bscSigner: ethers.Wallet;
 let cosmWasmClient: CosmWasmClient;
 
 beforeAll(async () => {
   // create a signer for Eth
-  ethProvider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+  ethProvider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
   ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY9, ethProvider);
   // create a signer for BSC
-  bscProvider = new ethers.providers.WebSocketProvider(BSC_NODE_URL);
+  bscProvider = new ethers.providers.JsonRpcProvider(BSC_NODE_URL);
   bscSigner = new ethers.Wallet(ETH_PRIVATE_KEY9, bscProvider);
   cosmWasmClient = await CosmWasmClient.connect(TENDERMINT_URL);
 });
 
 afterAll(async () => {
-  await ethProvider.destroy();
-  await bscProvider.destroy();
   cosmWasmClient.disconnect();
 });
 
@@ -165,9 +163,8 @@ describe("Global Accountant Tests", () => {
         tryNativeToUint8Array(ETH_GA_TEST_TOKEN, CHAIN_ID_ETH)
       );
       if (attestedAddress && attestedAddress !== ethers.constants.AddressZero) {
-        console.log("already attested");
+        // already attested
       } else {
-        console.log("attesting...");
         // attest the test token
         const receipt = await attestFromEth(
           CONTRACTS.DEVNET.ethereum.token_bridge,
@@ -182,7 +179,7 @@ describe("Global Accountant Tests", () => {
         const emitterAddress = getEmitterAddressEth(
           CONTRACTS.DEVNET.ethereum.token_bridge
         );
-        console.log(`fetching vaa ${sequence}...`);
+        await ethProvider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
         // poll until the guardian(s) witness and sign the vaa
         const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
           GUARDIAN_RPCS,
@@ -193,7 +190,6 @@ describe("Global Accountant Tests", () => {
             transport: NodeHttpTransport(),
           }
         );
-        console.log("creating...");
         await createWrappedOnEth(
           CONTRACTS.DEVNET.bsc.token_bridge,
           bscSigner,
@@ -225,7 +221,6 @@ describe("Global Accountant Tests", () => {
       );
       const amount = parseUnits("1", DECIMALS);
       // approve the bridge to spend tokens
-      console.log("approving...");
       await approveEth(
         CONTRACTS.DEVNET.ethereum.token_bridge,
         ETH_GA_TEST_TOKEN,
@@ -233,7 +228,6 @@ describe("Global Accountant Tests", () => {
         amount
       );
       // transfer tokens out
-      console.log("transferring...");
       const receipt = await transferFromEth(
         CONTRACTS.DEVNET.ethereum.token_bridge,
         ethSigner,
@@ -250,7 +244,7 @@ describe("Global Accountant Tests", () => {
       const emitterAddress = getEmitterAddressEth(
         CONTRACTS.DEVNET.ethereum.token_bridge
       );
-      console.log(`fetching vaa ${sequence}...`);
+      await ethProvider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
       // poll until the guardian(s) witness and sign the vaa
       const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -261,18 +255,12 @@ describe("Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         }
       );
-      console.log("redeeming...");
       await redeemOnEth(
         CONTRACTS.DEVNET.bsc.token_bridge,
         bscSigner,
         signedVAA
       );
       const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "approved b/a:",
-        beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved,
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      );
       if (
         afterMetrics.global_accountant_events_received <=
           beforeMetrics.global_accountant_events_received ||
@@ -333,7 +321,6 @@ describe("Global Accountant Tests", () => {
       );
       const amount = parseUnits("1", DECIMALS);
       // approve the bridge to spend tokens
-      console.log("approving...");
       await approveEth(
         CONTRACTS.DEVNET.bsc.token_bridge,
         attestedAddress,
@@ -341,7 +328,6 @@ describe("Global Accountant Tests", () => {
         amount
       );
       // transfer tokens out
-      console.log("transferring...");
       const receipt = await transferFromEth(
         CONTRACTS.DEVNET.bsc.token_bridge,
         bscSigner,
@@ -358,7 +344,7 @@ describe("Global Accountant Tests", () => {
       const emitterAddress = getEmitterAddressEth(
         CONTRACTS.DEVNET.bsc.token_bridge
       );
-      console.log(`fetching vaa ${sequence}...`);
+      await bscProvider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
       // poll until the guardian(s) witness and sign the vaa
       const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -369,18 +355,12 @@ describe("Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         }
       );
-      console.log("redeeming...");
       await redeemOnEth(
         CONTRACTS.DEVNET.ethereum.token_bridge,
         ethSigner,
         signedVAA
       );
       const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "approved b/a:",
-        beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved,
-        afterMetrics.global_accountant_transfer_vaas_submitted_and_approved
-      );
       if (
         afterMetrics.global_accountant_events_received <=
           beforeMetrics.global_accountant_events_received ||
@@ -428,7 +408,6 @@ describe("Global Accountant Tests", () => {
     // STEP 3a - redeem spoofed tokens
     //
     {
-      console.log("redeeming spoofed tokens");
       let vaa: VAA<TokenBridgeTransfer> = {
         version: 1,
         guardianSetIndex: 0,
@@ -471,7 +450,6 @@ describe("Global Accountant Tests", () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const amount = parseUnits("9000", DECIMALS);
       // approve the bridge to spend tokens
-      console.log("approving...");
       await approveEth(
         CONTRACTS.DEVNET.bsc.token_bridge,
         attestedAddress,
@@ -479,7 +457,6 @@ describe("Global Accountant Tests", () => {
         amount
       );
       // transfer tokens out
-      console.log("transferring...");
       const receipt = await transferFromEth(
         CONTRACTS.DEVNET.bsc.token_bridge,
         bscSigner,
@@ -492,14 +469,9 @@ describe("Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
-      console.log("waiting 30s to fetch metrics...");
+      await bscProvider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
       await sleep(30 * 1000); // give the guardian a few seconds to pick up the transfers and attempt to submit them
       const afterMetrics = await fetchGlobalAccountantMetrics();
-      console.log(
-        "balance errors b/a:",
-        beforeMetrics.global_accountant_total_balance_errors,
-        afterMetrics.global_accountant_total_balance_errors
-      );
       if (
         afterMetrics.global_accountant_error_events_received <=
           beforeMetrics.global_accountant_error_events_received ||
@@ -529,6 +501,5 @@ describe("Global Accountant Tests", () => {
         ).rejects.toThrow();
       }
     }
-    console.log("success!");
   });
 });

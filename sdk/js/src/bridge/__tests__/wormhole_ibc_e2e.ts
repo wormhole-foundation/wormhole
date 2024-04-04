@@ -16,7 +16,7 @@ import {
   getSignedVAABySequence,
   waitForTerraExecution,
 } from "../../token_bridge/__tests__/utils/helpers";
-import { CHAIN_ID_SEI, CHAIN_ID_TERRA2 } from "../../utils/consts";
+import { CHAIN_ID_SEI } from "../../utils/consts";
 
 const TERRA2_PRIVATE_KEY_4 =
   "bounce success option birth apple portion aunt rural episode solution hockey pencil lend session cause hedgehog slender journey system canvas decorate razor catch empty";
@@ -58,7 +58,6 @@ const terraBroadcastTxAndGetSignedVaa = async (
   if (!txSequence) {
     throw new Error("tx sequence not found");
   }
-  console.log(`${CHAIN_ID_SEI}/${emitter}/${txSequence}`);
   return await getSignedVAABySequence(CHAIN_ID_SEI, txSequence, emitter);
 };
 
@@ -79,6 +78,5 @@ describe("IBC Watcher Integration Tests", () => {
       terraWallet,
       await getEmitterAddressTerra(terraWalletAddress)
     );
-    console.log(postedVaa);
   });
 });

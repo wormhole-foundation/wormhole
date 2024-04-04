@@ -1,34 +1,26 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  jest,
-  test,
-} from "@jest/globals";
+import { beforeAll, describe, expect, jest, test } from "@jest/globals";
+import axios, { AxiosResponse } from "axios";
 import Web3, { ETH_DATA_FORMAT } from "web3";
-import axios from "axios";
-import { AxiosResponse } from "axios";
 import {
   ChainQueryType,
+  EthCallByTimestampQueryRequest,
+  EthCallByTimestampQueryResponse,
   EthCallData,
   EthCallQueryRequest,
-  EthCallByTimestampQueryRequest,
+  EthCallQueryResponse,
   EthCallWithFinalityQueryRequest,
+  EthCallWithFinalityQueryResponse,
   PerChainQueryRequest,
   QueryRequest,
-  sign,
   QueryResponse,
-  EthCallQueryResponse,
-  EthCallByTimestampQueryResponse,
-  EthCallWithFinalityQueryResponse,
+  sign,
 } from "..";
 
 jest.setTimeout(125000);
 
 const CI = process.env.CI;
 const ENV = "DEVNET";
-const ETH_NODE_URL = CI ? "ws://eth-devnet:8545" : "ws://localhost:8545";
+const ETH_NODE_URL = CI ? "http://eth-devnet:8545" : "http://localhost:8545";
 
 const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
 const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
@@ -42,10 +34,6 @@ let web3: Web3;
 
 beforeAll(() => {
   web3 = new Web3(ETH_NODE_URL);
-});
-
-afterAll(() => {
-  web3.provider?.disconnect();
 });
 
 function createTestEthCallData(
@@ -162,7 +150,7 @@ describe("eth call", () => {
     );
 
     const ecr = queryResponse.responses[0].response as EthCallQueryResponse;
-    expect(ecr.blockNumber).toEqual(BigInt(blockNumber));
+    expect(ecr.blockNumber.toString()).toEqual(BigInt(blockNumber).toString());
     expect(ecr.blockHash).toEqual(
       (await web3.eth.getBlock(BigInt(blockNumber))).hash
     );
@@ -176,8 +164,7 @@ describe("eth call", () => {
       "0x0000000000000000000000000000000000000000000000000000000000000012"
     );
   });
-  // TODO: This test works in Goerli testnet but not devnet. Try it again after PR #3395 lands.
-  test.skip("get block by hash should work", async () => {
+  test("get block by hash should work", async () => {
     const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
     const decimalsCallData = createTestEthCallData(
       WETH_ADDRESS,
@@ -461,11 +448,15 @@ describe("eth call", () => {
 
     const ecr = queryResponse.responses[0]
       .response as EthCallByTimestampQueryResponse;
-    expect(ecr.targetBlockNumber).toEqual(BigInt(targetBlockNumber));
+    expect(ecr.targetBlockNumber.toString()).toEqual(
+      BigInt(targetBlockNumber).toString()
+    );
     expect(ecr.targetBlockHash).toEqual(
       (await web3.eth.getBlock(BigInt(targetBlockNumber))).hash
     );
-    expect(ecr.followingBlockNumber).toEqual(BigInt(followingBlockNumber));
+    expect(ecr.followingBlockNumber.toString()).toEqual(
+      BigInt(followingBlockNumber).toString()
+    );
     expect(ecr.followingBlockHash).toEqual(
       (await web3.eth.getBlock(BigInt(followingBlockNumber))).hash
     );
@@ -523,11 +514,15 @@ describe("eth call", () => {
 
     const ecr = queryResponse.responses[0]
       .response as EthCallByTimestampQueryResponse;
-    expect(ecr.targetBlockNumber).toEqual(BigInt(targetBlockNumber));
+    expect(ecr.targetBlockNumber.toString()).toEqual(
+      BigInt(targetBlockNumber).toString()
+    );
     expect(ecr.targetBlockHash).toEqual(
       (await web3.eth.getBlock(BigInt(targetBlockNumber))).hash
     );
-    expect(ecr.followingBlockNumber).toEqual(BigInt(followingBlockNumber));
+    expect(ecr.followingBlockNumber.toString()).toEqual(
+      BigInt(followingBlockNumber).toString()
+    );
     expect(ecr.followingBlockHash).toEqual(
       (await web3.eth.getBlock(BigInt(followingBlockNumber))).hash
     );
@@ -703,9 +698,9 @@ describe("eth call", () => {
       "decimals",
       "uint8"
     );
-    // Jump into the future a bit so the watcher has to wait for finality.
-    const blockNumber =
-      Number(await web3.eth.getBlockNumber(ETH_DATA_FORMAT)) + 10;
+    const blockNumber = Number(
+      (await web3.eth.getBlock("finalized", false, ETH_DATA_FORMAT)).number
+    );
     const ethCall = new EthCallWithFinalityQueryRequest(
       blockNumber.toString(16),
       "finalized",
@@ -740,7 +735,7 @@ describe("eth call", () => {
 
     const ecr = queryResponse.responses[0]
       .response as EthCallWithFinalityQueryResponse;
-    expect(ecr.blockNumber).toEqual(BigInt(blockNumber));
+    expect(ecr.blockNumber.toString()).toEqual(BigInt(blockNumber).toString());
     expect(ecr.blockHash).toEqual(
       (await web3.eth.getBlock(BigInt(blockNumber))).hash
     );
@@ -881,7 +876,9 @@ describe("eth call", () => {
       );
 
       const ecr = queryResponse.responses[0].response as EthCallQueryResponse;
-      expect(ecr.blockNumber).toEqual(BigInt(blockNumber));
+      expect(ecr.blockNumber.toString()).toEqual(
+        BigInt(blockNumber).toString()
+      );
       expect(ecr.blockHash).toEqual(
         (await web3.eth.getBlock(BigInt(blockNumber))).hash
       );

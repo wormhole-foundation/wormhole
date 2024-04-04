@@ -24,7 +24,7 @@ func cacheIsValid(t *testing.T, bts *BlocksByTimestamp) bool {
 }
 
 func TestBlocksByTimestamp_TestCacheIsValid(t *testing.T) {
-	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS, false)
 
 	// Empty cache is valid.
 	assert.True(t, cacheIsValid(t, bts))
@@ -61,7 +61,7 @@ func TestBlocksByTimestamp_TestCacheIsValid(t *testing.T) {
 
 func TestBlocksByTimestamp_AddLatest(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS, false)
 
 	bts.AddLatest(logger, 1698621628, 420)
 	bts.AddLatest(logger, 1698621628, 421)
@@ -89,7 +89,7 @@ func TestBlocksByTimestamp_AddLatest(t *testing.T) {
 
 func TestBlocksByTimestamp_AddLatestRollbackEverything(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS, false)
 
 	bts.AddLatest(logger, 1698621628, 420)
 	require.Equal(t, 1, len(bts.cache))
@@ -138,7 +138,7 @@ func TestBlocksByTimestamp_AddLatestRollbackEverything(t *testing.T) {
 
 func TestBlocksByTimestamp_AddLatestShouldTrimTheCache(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(5)
+	bts := NewBlocksByTimestamp(5, false)
 
 	bts.AddLatest(logger, 1698621628, 420)
 	bts.AddLatest(logger, 1698621628, 421)
@@ -161,7 +161,7 @@ func TestBlocksByTimestamp_AddLatestShouldTrimTheCache(t *testing.T) {
 
 func TestBlocksByTimestamp_AddBatch(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS, false)
 
 	// First create a cache with some gaps in it.
 	bts.AddLatest(logger, 1698621628, 420)
@@ -192,7 +192,7 @@ func TestBlocksByTimestamp_AddBatch(t *testing.T) {
 
 func TestBlocksByTimestamp_AddBatchShouldTrim(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(8)
+	bts := NewBlocksByTimestamp(8, false)
 
 	// First create a cache with some gaps in it.
 	bts.AddLatest(logger, 1698621628, 420)
@@ -249,7 +249,7 @@ func TestBlocksByTimestamp_SearchForTimestamp(t *testing.T) {
 
 func TestBlocksByTimestamp_LookUp(t *testing.T) {
 	logger := zap.NewNop()
-	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS)
+	bts := NewBlocksByTimestamp(BTS_MAX_BLOCKS, false)
 
 	// Empty cache.
 	prev, next, found := bts.LookUp(1698621627)

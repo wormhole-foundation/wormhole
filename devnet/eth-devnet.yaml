@@ -31,19 +31,16 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: ganache
+        - name: anvil
           image: eth-node
           command:
-            - npx
-            - ganache-cli
-            - --logging.quiet
-            - --wallet.defaultBalance=10000
-            - --wallet.deterministic
-            - --chain.time="1970-01-01T00:00:00+00:00"
+            - anvil
+            - --silent
+            - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
+            - --block-time=1
             - --host=0.0.0.0
-            - --wallet.totalAccounts=13
-            - --chain.chainId=1337
-            - --chain.asyncRequestProcessing=false
+            - --accounts=13
+            - --chain-id=1337
           ports:
             - containerPort: 8545
               name: rpc
@@ -64,11 +61,5 @@ spec:
             initialDelaySeconds: 90
             tcpSocket:
               port: 2000
-        - name: mine
-          image: eth-node
-          command:
-            - /bin/sh
-            - -c
-            - "cd ../../ethereum && npx truffle exec mine.js"
 ---
 
