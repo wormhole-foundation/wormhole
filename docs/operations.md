@@ -282,6 +282,7 @@ Start the spy against the testnet wormhole guardian:
 
 ```bash
 docker run \
+    --pull=always \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
@@ -297,6 +298,7 @@ To run the spy against mainnet:
 
 ```bash
 docker run \
+    --pull=always \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
