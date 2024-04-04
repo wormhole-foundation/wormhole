@@ -18,9 +18,7 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 
 - **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
   pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
-  on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
-  to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
-  you set up a load balancer pointing to a set of nodes.
+  on how to run a full node.
 
 - **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
   roughly requires twice as many compute resources.
