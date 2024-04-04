@@ -228,6 +228,17 @@ It is safe to expose the publicWeb port on signing nodes. For better resiliency 
 future guardiand releases will include listen-only mode such that multiple guardiand instances without guardian keys
 can be operated behind a load balancer.
 
+## Enabling Telemetry
+
+Optionally, the guardian can send telemetry to [grafana cloud logs](https://grafana.com/products/cloud/logs/) aka "loki".
+To enable this functionality, add the following flag:
+
+```bash
+--telemetryLokiURL=$PER_GUARDIAN_LOKI_URL_WITH_TOKEN
+```
+
+New guardians should talk to the wormhole foundation to get a loki url.
+
 ### Binding to privileged ports
 
 If you want to bind `--publicWeb` to a port <1024, you need to assign the CAP_NET_BIND_SERVICE capability.
