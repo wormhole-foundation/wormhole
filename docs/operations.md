@@ -177,6 +177,9 @@ requests and [ccq](https://wormhole.com/queries) will not function as intended.
 Wormhole exposes a status server for readiness and metrics. By default, it listens on port 6060 on localhost.
 You can use a command line argument to expose it publicly: `--statusAddr=[::]:6060`.
 
+**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
+not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+
 #### `/readyz`
 
 This endpoint returns a 200 OK status code once the Wormhole node is ready to serve requests. A node is
@@ -196,8 +199,53 @@ alerting will be documented here.
 
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
+#### Wormhole Dashboard
+
+There is a [dashboard](https://wormhole-foundation.github.io/wormhole-dashboard) which shows the overall health of the
+network and has metrics on individual guardians.
+
 **NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
 not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+
+#### Wormhole Fly Healthcheck
+
+In the [wormhole-dashboard](https://github.com/wormhole-foundation/wormhole-dashboard) repository, there is a small
+[healthcheck application](https://github.com/wormhole-foundation/wormhole-dashboard/tree/main/fly/cmd/healthcheck)
+which verifies that the guardian is gossiping out heartbeats, is submitting chain observations, and has a working
+heartbeats api available. This is a very good way to verify a specific guardian is functioning as intended.
+
+You can clone the repo and run the check against the [MCF Guardian](https://github.com/wormhole-foundation/wormhole-networks/blob/649dcc48f29d462fe6cb0062cb6530021d36a417/mainnetv2/guardianset/v3.prototxt#L58):
+
+```shell
+git clone https://github.com/wormhole-foundation/wormhole-dashboard
+cd wormhole-dashboard/fly/cmd/healthcheck
+
+# Run the fly
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --url https://wormhole-v2-mainnet-api.mcf.rocks
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 44 observations received
+✅ /v1/heartbeats
+```
+
+If the guardian public rpc is not exposed, the `--url` flag can be omitted:
+
+```shell
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 41 observations received
+ℹ️  --url not defined, skipping web checks
+```
+
+The bootstrap nodes and network defaults to mainnet and the values can be found in the [network constants](../node/pkg/p2p/network_consts.go).
+
+It can also be used to test a specific bootstrap node/s:
+
+```shell
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap /dns4/wormhole.mcf.rocks/udp/8999/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 44 observations received
+ℹ️  --url not defined, skipping web checks
+```
 
 ## Running a public API endpoint
 
