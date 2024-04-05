@@ -100,6 +100,24 @@ since only very few nodes support the light client protocol.
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
 
+### EVM node requirements
+
+Some non-ethereum EVM compatible blockchains need to run in archive mode for [queries](https://wormhole.com/queries)
+to function correctly. By default in geth, [historical state is only kept in memory for the previous 128 blocks](https://github.com/ethereum/go-ethereum/blob/4458905f261d5d9ba5fda3d664f9bb80346ab404/core/state/statedb.go#L1259-L1265).
+After 128 blocks, older states are garbage collected. Many of these chains are forks of geth that maintain this
+historical limitation.
+
+* Arbitrum
+* Base
+* Optimism
+
+Newer execution clients such as [reth](https://github.com/paradigmxyz/reth) lack this limitation and are worth
+investigating once they are stable.
+
+Additionally, if there is ever a scenario where the network fails to come to consensus on an EVM compatible chain due to
+a hard fork or some unforseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
+the transactions can be reobserved.
+
 ## Building guardiand
 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
