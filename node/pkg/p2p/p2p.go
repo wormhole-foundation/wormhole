@@ -803,6 +803,15 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *commo
 		return nil, fmt.Errorf("GuardianAddr in heartbeat does not match signerAddr")
 	}
 
+	// Don't accept replayed heartbeats from other peers
+	signedPeer, err := peer.IDFromBytes(h.P2PNodeId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode peer ID from bytes: %w", err)
+	}
+	if signedPeer != from {
+		return nil, fmt.Errorf("guardian signed peer does not match sending peer")
+	}
+
 	// Store verified heartbeat in global guardian set state.
 	if err := gst.SetHeartbeat(signerAddr, from, &h); err != nil {
 		return nil, fmt.Errorf("failed to store in guardian set state: %w", err)
