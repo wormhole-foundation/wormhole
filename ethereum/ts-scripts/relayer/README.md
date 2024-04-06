@@ -21,7 +21,7 @@ All files in the coreRelayer, deliveryProvider, and MockIntegration directories 
 The target environment must be passed in as an environment variable. So, for example, you can run the DeliveryProvider deployment script by running:
 
 ```
-ENV=tilt ts-node ./ts-scripts/relayer/deliveryProvider/deployDeliveryProvider.ts
+ENV=tilt tsx ./ts-scripts/relayer/deliveryProvider/deployDeliveryProvider.ts
 ```
 
 ## Chaining multiple scripts
@@ -31,7 +31,7 @@ Scripts are meant to be run individually or successively. Scripts which deploy c
 If "useLastRun" is set to true in the contracts.json configuration file, the lastrun files from the deployment scripts will be used, rather than the deployed addresses of the contracts.json file. This allows you to easily run things like
 
 ```
-ENV=tilt ts-node ./ts-scripts/relayer/deliveryProvider/upgradeDeliveryProvider.ts && ts-node ./ts-scripts/relayer/mockIntegration/messageTest.ts
+ENV=tilt tsx ./ts-scripts/relayer/deliveryProvider/upgradeDeliveryProvider.ts && tsx ./ts-scripts/relayer/mockIntegration/messageTest.ts
 ```
 
 The ./shell directory contains shell scripts which combine commonly chained actions together.

@@ -1,0 +1,243 @@
+{
+  "pricingInfo": [
+    {
+      "chainId": 2,
+      "updatePriceGas": "45000000000",
+      "updatePriceNative": "2288380000"
+    },
+    {
+      "chainId": 4,
+      "updatePriceGas": "3000000000",
+      "updatePriceNative": "300730000"
+    },
+    {
+      "chainId": 5,
+      "updatePriceGas": "250000000000",
+      "updatePriceNative": "789900"
+    },
+    {
+      "chainId": 6,
+      "updatePriceGas": "30000000000",
+      "updatePriceNative": "34410000"
+    },
+    {
+      "chainId": 10,
+      "updatePriceGas": "30000000000",
+      "updatePriceNative": "357400"
+    },
+    {
+      "chainId": 13,
+      "updatePriceGas": "45000000000",
+      "updatePriceNative": "193100"
+    },
+    {
+      "chainId": 14,
+      "updatePriceGas": "10000000000",
+      "updatePriceNative": "677600"
+    },
+    {
+      "chainId": 16,
+      "updatePriceGas": "1000000000000",
+      "updatePriceNative": "666400"
+    },
+    {
+      "chainId": 23,
+      "updatePriceGas": "1200000",
+      "updatePriceNative": "2288380000"
+    },
+    {
+      "chainId": 24,
+      "updatePriceGas": "1200000",
+      "updatePriceNative": "2288380000"
+    },
+    {
+      "chainId": 30,
+      "updatePriceGas": "1200000",
+      "updatePriceNative": "2288380000"
+    }
+  ],
+  "deliveryGasOverheads": [
+    {
+      "chainId": 2,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 4,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 5,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 6,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 10,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 13,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 14,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 16,
+      "updateGasOverhead": "500000"
+    },
+    {
+      "chainId": 23,
+      "updateGasOverhead": "1130684516"
+    },
+    {
+      "chainId": 24,
+      "updateGasOverhead": "1507579355"
+    },
+    {
+      "chainId": 30,
+      "updateGasOverhead": "1507579355"
+    }
+  ],
+  "maximumBudgets": [
+    {
+      "chainId": 2,
+      "updateMaximumBudget": "225000000000000000"
+    },
+    {
+      "chainId": 4,
+      "updateMaximumBudget": "665048382269810000"
+    },
+    {
+      "chainId": 5,
+      "updateMaximumBudget": "253196607165464000000"
+    },
+    {
+      "chainId": 6,
+      "updateMaximumBudget": "5812263876780010000"
+    },
+    {
+      "chainId": 10,
+      "updateMaximumBudget": "559597090095132000000"
+    },
+    {
+      "chainId": 13,
+      "updateMaximumBudget": "1035732780942520000000"
+    },
+    {
+      "chainId": 14,
+      "updateMaximumBudget": "295159386068477000000"
+    },
+    {
+      "chainId": 16,
+      "updateMaximumBudget": "300120048019208000000"
+    },
+    {
+      "chainId": 23,
+      "updateMaximumBudget": "87398071998531700"
+    },
+    {
+      "chainId": 24,
+      "updateMaximumBudget": "87398071998531700"
+    },
+    {
+      "chainId": 30,
+      "updateMaximumBudget": "87398071998531700"
+    }
+  ],
+  "rewardAddresses": [
+    {
+      "chainId": 2,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 4,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 5,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 6,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 10,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 13,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 14,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 16,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 23,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 24,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 30,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    }
+  ],
+  "supportedChains": [
+    {
+      "chainId": 2,
+      "isSupported": true
+    },
+    {
+      "chainId": 4,
+      "isSupported": true
+    },
+    {
+      "chainId": 5,
+      "isSupported": true
+    },
+    {
+      "chainId": 6,
+      "isSupported": true
+    },
+    {
+      "chainId": 10,
+      "isSupported": true
+    },
+    {
+      "chainId": 13,
+      "isSupported": true
+    },
+    {
+      "chainId": 14,
+      "isSupported": true
+    },
+    {
+      "chainId": 16,
+      "isSupported": true
+    },
+    {
+      "chainId": 23,
+      "isSupported": true
+    },
+    {
+      "chainId": 24,
+      "isSupported": true
+    },
+    {
+      "chainId": 30,
+      "isSupported": true
+    }
+  ]
+}

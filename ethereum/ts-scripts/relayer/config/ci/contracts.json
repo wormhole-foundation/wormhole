@@ -14,11 +14,11 @@
   "wormholeRelayers": [
     {
       "chainId": 2,
-      "address": "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+      "address": "0xCe8bEC59f8B828cFd8E33E86976c779AC9Df18C0"
     },
     {
       "chainId": 4,
-      "address": "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+      "address": "0xCe8bEC59f8B828cFd8E33E86976c779AC9Df18C0"
     }
   ],
   "mockIntegrations": [
