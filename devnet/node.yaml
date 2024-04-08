@@ -116,6 +116,10 @@ spec:
             - ws://eth-devnet:8545
             - --blastRPC
             - ws://eth-devnet:8545
+            - --xlayerRPC
+            - ws://eth-devnet:8545
+            - --lineaRPC
+            - ws://eth-devnet:8545
             - --sepoliaRPC
             - ws://eth-devnet:8545
             - --holeskyRPC

@@ -179,6 +179,12 @@ var (
 	blastRPC      *string
 	blastContract *string
 
+	xlayerRPC      *string
+	xlayerContract *string
+
+	lineaRPC      *string
+	lineaContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -371,6 +377,12 @@ func init() {
 
 	blastRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "blastRPC", "Blast RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	blastContract = NodeCmd.Flags().String("blastContract", "", "Blast contract address")
+
+	xlayerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xlayerRPC", "XLayer RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	xlayerContract = NodeCmd.Flags().String("xlayerContract", "", "XLayer contract address")
+
+	lineaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	lineaContract = NodeCmd.Flags().String("lineaContract", "", "Linea contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -580,6 +592,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
 		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
 		*blastContract = unsafeDevModeEvmContractAddress(*blastContract)
+		*xlayerContract = unsafeDevModeEvmContractAddress(*xlayerContract)
+		*lineaContract = unsafeDevModeEvmContractAddress(*lineaContract)
 		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
 		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
 		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
@@ -764,6 +778,22 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*blastRPC == "") != (*blastContract == "") {
 		logger.Fatal("Both --blastContract and --blastRPC must be set together or both unset")
+	}
+
+	if *xlayerRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("xlayer is currently only supported in devnet and testnet")
+	}
+
+	if (*xlayerRPC == "") != (*xlayerContract == "") {
+		logger.Fatal("Both --xlayerContract and --xlayerRPC must be set together or both unset")
+	}
+
+	if *lineaRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("linea is currently only supported in devnet and testnet")
+	}
+
+	if (*lineaRPC == "") != (*lineaContract == "") {
+		logger.Fatal("Both --lineaContract and --lineaRPC must be set together or both unset")
 	}
 
 	if *gatewayWS != "" {
@@ -981,6 +1011,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["auroraRPC"] = *auroraRPC
 	rpcMap["avalancheRPC"] = *avalancheRPC
 	rpcMap["baseRPC"] = *baseRPC
+	rpcMap["blastRPC"] = *blastRPC
 	rpcMap["bscRPC"] = *bscRPC
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["ethRPC"] = *ethRPC
@@ -992,8 +1023,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["injectiveWS"] = *injectiveWS
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
+	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["mantleRPC"] = *mantleRPC
-	rpcMap["blastRPC"] = *blastRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["oasisRPC"] = *oasisRPC
@@ -1020,6 +1051,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["gatewayWS"] = *gatewayWS
 	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["wormchainURL"] = *wormchainURL
+	rpcMap["xlayerRPC"] = *xlayerRPC
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
 
@@ -1438,6 +1470,30 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDBlast,
 			Rpc:              *blastRPC,
 			Contract:         *blastContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(xlayerRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "xlayer",
+			ChainID:          vaa.ChainIDXLayer,
+			Rpc:              *xlayerRPC,
+			Contract:         *xlayerContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(lineaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "linea",
+			ChainID:          vaa.ChainIDLinea,
+			Rpc:              *lineaRPC,
+			Contract:         *lineaContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

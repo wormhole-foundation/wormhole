@@ -4,6 +4,8 @@
 
 Support for move of relayer ethereum contracts
 Blast Sepolia support
+XLayer Sepolia support
+Linea Sepolia support
 
 ## 0.10.13
 

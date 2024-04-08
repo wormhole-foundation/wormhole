@@ -699,6 +699,7 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
 // to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
+	// TODO: Need to handle finality for Linea before it can be deployed in Mainnet.
 	finalized := false
 	safe := false
 	if w.unsafeDevMode {
@@ -718,7 +719,8 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDHolesky ||
 		w.chainID == vaa.ChainIDArbitrumSepolia ||
 		w.chainID == vaa.ChainIDBaseSepolia ||
-		w.chainID == vaa.ChainIDOptimismSepolia {
+		w.chainID == vaa.ChainIDOptimismSepolia ||
+		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
 	} else if w.chainID == vaa.ChainIDScroll {

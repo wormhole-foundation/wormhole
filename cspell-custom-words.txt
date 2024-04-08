@@ -94,6 +94,7 @@ Kujira
 lamports
 lastrun
 libp
+Linea
 localterra
 lockfiles
 merkle
@@ -141,6 +142,7 @@ rustup
 satoshi
 secp
 seda
+Sepolia
 serde
 setcap
 solana
