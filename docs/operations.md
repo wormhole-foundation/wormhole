@@ -118,6 +118,19 @@ Additionally, if there is ever a scenario where the network fails to come to con
 a hard fork or some unforseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
 the transactions can be reobserved.
 
+## Cosmos / IBC Connected nodes
+
+All modern cosmos integrations happen by wormhole observing IBC transctions on gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For cosmos based chains that were added before this functionality, a full node is still necessary.
+
+The following cosmos based nodes were added prior to  gateway and guardians need to run full nodes:
+
+* Injective
+* Terra
+* Terra Classic
+* XPLA
+
+**NOTE**: All guardians must run validators for wormchain, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
+
 ## Building guardiand
 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
