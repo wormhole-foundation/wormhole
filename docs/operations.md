@@ -99,6 +99,47 @@ Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full
 
 Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
 
+
+### Wormchain requirements
+
+All guardians must run validators for wormchain, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
+
+The ``--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
+in the app.toml.
+
+Example port setup:
+
+<!-- cspell:disable -->
+
+config.toml:
+
+```toml
+[rpc]
+laddr = "tcp://0.0.0.0:26657"
+grpc_laddr = ""
+pprof_laddr = "localhost:6060"
+
+[p2p]
+laddr = "tcp://0.0.0.0:26656"
+external_address = ""
+```
+
+app.toml:
+
+```toml
+[grpc]
+address = "0.0.0.0:9090"
+
+[grpc-web]
+address = "0.0.0.0:9091"
+```
+
+<!-- cspell:enable -->
+
+For signing, consider setting up a remote threshold signer such as
+[horcrux](https://github.com/strangelove-ventures/horcrux) and adopting the sentry node architecture with sentry nodes
+in front of your wormchain validator.
+
 ### EVM node requirements
 
 Some non-ethereum EVM compatible blockchains need to run in archive mode for [queries](https://wormhole.com/queries)
@@ -117,9 +158,9 @@ Additionally, if there is ever a scenario where the network fails to come to con
 a hard fork or some unforseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
 the transactions can be reobserved.
 
-## Cosmos / IBC Connected nodes
+### Cosmos / IBC Connected nodes
 
-All modern cosmos integrations happen by wormhole observing IBC transctions on gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For cosmos based chains that were added before this functionality, a full node is still necessary.
+All modern cosmos integrations happen by wormhole observing IBC transactions on gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For cosmos based chains that were added before this functionality, a full node is still necessary.
 
 The following cosmos based nodes were added prior to  gateway and guardians need to run full nodes:
 
@@ -128,7 +169,7 @@ The following cosmos based nodes were added prior to  gateway and guardians need
 * Terra Classic
 * XPLA
 
-**NOTE**: All guardians must run validators for wormchain, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
+**NOTE**: All guardians must run validators for wormchain.
 
 ## Building guardiand
 
