@@ -1,27 +1,12 @@
-# Running a Wormhole node
+# Running a Wormhole Guardian Node
 
 ![](images/nodearchitecture.svg)
 
 ## Connected chains
 
-In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to:
-
-- **Solana**. There is no light client for Solana yet, so you'll have to run a full solana-validator node. It does not
-  have to actually be a validator - you can run solana-validator in non-validating mode if you are not a validator.
-
-  Refer to the [Solana documentation](https://docs.solana.com/running-validator) on how to run a validator. The validator
-  requirements as stated in their docs are excessive - for the current iteration for mainnet-beta, the "low end" config
-  with no GPU is perfectly adequate, and will have enough spare capacity.
-  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding validator ops.
-
-- **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
-
-- **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
-  pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
-  on how to run a full node.
-
-- **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
-  roughly requires twice as many compute resources.
+In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to except
+for newer IBC connected chains that integrate through wormhole gateway. Please refer to the [constants reference](https://docs.wormhole.com/wormhole/reference/constants)
+for all chains wormhole connects to.
 
 **Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
 you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
@@ -30,6 +15,12 @@ We strongly recommend running your own full nodes for both testnet and mainnet (
 so you can test changes for your mainnet full nodes and gain operational experience.
 
 ### Solana node requirements
+
+Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an rpc
+(full) node.  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
+operations.
+
+The `#rpc-server-operators` channel is especially useful for setting up Solana rpc nodes.
 
 Your Solana RPC node needs the following parameters enabled:
 
@@ -99,6 +90,14 @@ since only very few nodes support the light client protocol.
 
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
+
+
+### Terra
+Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full-terra-node/set-up-production/) on how to run a full node.
+
+#### Terra Classic
+
+Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
 
 ### EVM node requirements
 
