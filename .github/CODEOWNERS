@@ -9,10 +9,7 @@
 /bitcoin/ @evan-gray
 /cosmwasm/ @nik-suri @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @gator-boi @kcsongor
-/ethereum/contracts/relayer @nonergodic @gator-boi
-/ethereum/contracts/interfaces/relayer @nonergodic @gator-boi
-/ethereum/forge-test/relayer @nonergodic @gator-boi
-/ethereum/ts-scripts/relayer @nonergodic @gator-boi
+/relayer/ethereum @nonergodic @gator-boi
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi

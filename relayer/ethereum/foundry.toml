@@ -1,0 +1,30 @@
+[profile.default]
+solc_version = "0.8.19"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+src = "contracts"
+# We put the tests into the forge-test directory (instead of test) so that
+# truffle doesn't try to build them
+test = "forge-test"
+evm_version = "london"
+
+out = 'build-forge'
+libs = ['lib', 'node_modules']
+remappings = [
+    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@solidity-parser/=node_modules/@solidity-parser/',
+    'ds-test/=lib/forge-std/lib/ds-test/src/',
+    'forge-std/=lib/forge-std/src/',
+]
+
+[fmt]
+line_length = 100
+multiline_func_header = "params_first"
+# wrap_comments = true
+
+
+[profile.production]
+via_ir = true
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config

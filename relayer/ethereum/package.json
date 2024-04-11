@@ -1,0 +1,38 @@
+{
+  "name": "@wormhole-foundation/contracts-ethereum-relayer",
+  "version": "0.0.1",
+  "description": "",
+  "main": "networks.js",
+  "devDependencies": {
+    "@chainsafe/truffle-plugin-abigen": "0.0.1",
+    "@openzeppelin/cli": "^2.8.2",
+    "@openzeppelin/contracts": "^4.3.1",
+    "@truffle/hdwallet-provider": "^1.7.0",
+    "chai": "^4.3.7",
+    "mocha": "^8.4.0",
+    "truffle": "5.8.4",
+    "truffle-flattener": "^1.6.0",
+    "truffle-plugin-verify": "^0.5.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
+  },
+  "scripts": {
+    "build:forge": "if [ \"$DEV\" = \"True\" ]; then forge build; else forge build --via-ir; fi",
+    "build": "npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types",
+    "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
+    "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "typecheck": "tsc --noEmit --skipLibCheck"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.11",
+    "@typechain/ethers-v5": "^10.2.0",
+    "dotenv": "^10.0.0",
+    "elliptic": "^6.5.2",
+    "jsonfile": "^4.0.0",
+    "truffle-hdwallet-provider-klaytn": "^1.4.2",
+    "typechain": "^8.1.1"
+  }
+}

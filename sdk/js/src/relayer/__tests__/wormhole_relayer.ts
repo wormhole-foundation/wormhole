@@ -16,6 +16,7 @@ import { getDefaultProvider } from "../relayer/helpers";
 import {
   relayer,
   ethers_contracts,
+  ethers_relayer_contracts,
   tryNativeToUint8Array,
   ChainId,
   CHAINS,
@@ -45,8 +46,8 @@ type TestChain = {
   wallet: ethers.Wallet;
   wormholeRelayerAddress: string;
   mockIntegrationAddress: string;
-  wormholeRelayer: ethers_contracts.WormholeRelayer;
-  mockIntegration: ethers_contracts.MockRelayerIntegration;
+  wormholeRelayer: ethers_relayer_contracts.WormholeRelayer;
+  mockIntegration: ethers_relayer_contracts.MockRelayerIntegration;
 };
 
 const createTestChain = (name: ChainName) => {
@@ -69,12 +70,13 @@ const createTestChain = (name: ChainName) => {
   if (!addressInfo.mockIntegrationAddress)
     throw Error(`No mock relayer integration address for ${name}`);
   const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-  const wormholeRelayer = ethers_contracts.WormholeRelayer__factory.connect(
-    addressInfo.wormholeRelayerAddress,
-    wallet
-  );
+  const wormholeRelayer =
+    ethers_relayer_contracts.WormholeRelayer__factory.connect(
+      addressInfo.wormholeRelayerAddress,
+      wallet
+    );
   const mockIntegration =
-    ethers_contracts.MockRelayerIntegration__factory.connect(
+    ethers_relayer_contracts.MockRelayerIntegration__factory.connect(
       addressInfo.mockIntegrationAddress,
       wallet
     );
@@ -572,7 +574,7 @@ describe("Wormhole Relayer Tests", () => {
     const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
 
     const newWormholeRelayerImplementationAddress = (
-      await new ethers_contracts.WormholeRelayer__factory(source.wallet)
+      await new ethers_relayer_contracts.WormholeRelayer__factory(source.wallet)
         .deploy(wormholeAddress)
         .then((x) => x.deployed())
     ).address;

@@ -1,6 +1,7 @@
 import { ethers, BigNumber } from "ethers";
 import { ethers_contracts } from "../..";
-import { VaaKeyStruct } from "../../ethers-contracts/MockRelayerIntegration";
+import { VaaKeyStruct } from "../../ethers-relayer-contracts/MockRelayerIntegration";
+import { IWormholeRelayer__factory } from "../../ethers-relayer-contracts";
 import {
   ChainId,
   ChainName,
@@ -46,11 +47,10 @@ export async function sendToEvm(
   const wormholeRelayerAddress =
     sendOptionalParams?.wormholeRelayerAddress ||
     getWormholeRelayerAddress(sourceChain, environment);
-  const sourceWormholeRelayer =
-    ethers_contracts.IWormholeRelayer__factory.connect(
-      wormholeRelayerAddress,
-      signer
-    );
+  const sourceWormholeRelayer = IWormholeRelayer__factory.connect(
+    wormholeRelayerAddress,
+    signer
+  );
 
   const refundLocationExists =
     sendOptionalParams?.refundChainId !== undefined &&

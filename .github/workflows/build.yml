@@ -73,6 +73,17 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd ethereum && make test-push0 && make test
 
+  relayer-ethereum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - run: cd relayer/ethereum && make test-push0 && make test
+
   ethereum-upgrade:
     runs-on: ubuntu-latest
     steps:
@@ -316,7 +327,7 @@ jobs:
       - uses: streetsidesoftware/cspell-action@214db1e3138f326d33b7a6a51c92852e89ab0618
         with:
           # For now, only lint markdown files
-          files: '**/*.md'
+          files: "**/*.md"
           inline: warning
           # Only check files in the PR or push
           incremental_files_only: true

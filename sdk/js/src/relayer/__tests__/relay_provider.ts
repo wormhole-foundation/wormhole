@@ -7,7 +7,7 @@ import {
   test,
 } from "@jest/globals";
 import { ethers } from "ethers";
-import { DeliveryProvider__factory } from "../../ethers-contracts";
+import { DeliveryProvider__factory } from "../../ethers-relayer-contracts";
 import { getAddressInfo } from "../consts";
 import { getDefaultProvider } from "../relayer/helpers";
 import { CHAINS, ChainId, ChainName, Network } from "../../../";

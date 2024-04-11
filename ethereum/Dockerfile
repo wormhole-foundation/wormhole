@@ -26,11 +26,11 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-WORKDIR /home/node/app
+WORKDIR /home/node/app/ethereum
 
 # Only invalidate the npm install step if package.json changed
-COPY --chown=node:node package.json .
-COPY --chown=node:node package-lock.json .
+COPY --chown=node:node ethereum/package.json .
+COPY --chown=node:node ethereum/package-lock.json .
 COPY --from=const-export --chown=node:node .env.0x .env
 
 
@@ -49,7 +49,29 @@ RUN rm -rf node_modules && mv node_modules_cache node_modules
 ARG dev
 ENV DEV=$dev
 
-COPY --chown=node:node . .
+COPY --chown=node:node ethereum .
+RUN make build
+
+### RELAYER ###
+
+WORKDIR /home/node/app/relayer/ethereum
+
+COPY --chown=node:node relayer/ethereum/package.json .
+COPY --chown=node:node relayer/ethereum/package-lock.json .
+COPY --from=const-export --chown=node:node .env.0x .env
+
+
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+  --mount=type=cache,uid=1000,gid=1000,target=node_modules \
+  npm ci && \                                                 
+  cp -R node_modules node_modules_cache
+  
+RUN rm -rf node_modules && mv node_modules_cache node_modules
+
+ARG dev
+ENV DEV=$dev
+
+COPY --chown=node:node relayer/ethereum .
 RUN make build
 
 ARG num_guardians

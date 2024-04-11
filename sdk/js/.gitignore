@@ -25,6 +25,7 @@ yarn-error.log*
 # ethereum contracts
 /contracts
 /src/ethers-contracts
+/src/ethers-relayer-contracts
 
 # tsproto output
 /src/proto
