@@ -14,6 +14,7 @@ backdoors
 bech
 Bech
 behaviour
+Berachain
 bigset
 Bigtable
 borsh

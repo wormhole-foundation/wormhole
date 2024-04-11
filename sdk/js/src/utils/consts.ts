@@ -36,6 +36,7 @@ export const CHAINS = {
   blast: 36,
   xlayer: 37,
   linea: 38,
+  berachain: 39,
   wormchain: 3104,
   cosmoshub: 4000,
   evmos: 4001,
@@ -84,6 +85,7 @@ export const EVMChainNames = [
   "blast",
   "xlayer",
   "linea",
+  "berachain",
   "sepolia",
   "arbitrum_sepolia",
   "base_sepolia",
@@ -323,6 +325,11 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   linea: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  berachain: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -603,6 +610,11 @@ const TESTNET = {
     token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
     nft_bridge: undefined,
   },
+  berachain: {
+    core: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd",
+    token_bridge: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a",
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
     token_bridge:
@@ -872,6 +884,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  berachain: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
     token_bridge:
@@ -1025,6 +1042,7 @@ export const CHAIN_ID_MANTLE = CHAINS["mantle"];
 export const CHAIN_ID_BLAST = CHAINS["blast"];
 export const CHAIN_ID_XLAYER = CHAINS["xlayer"];
 export const CHAIN_ID_LINEA = CHAINS["linea"];
+export const CHAIN_ID_BERACHAIN = CHAINS["berachain"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
 export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];

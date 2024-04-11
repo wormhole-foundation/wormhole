@@ -185,6 +185,9 @@ var (
 	lineaRPC      *string
 	lineaContract *string
 
+	berachainRPC      *string
+	berachainContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -383,6 +386,9 @@ func init() {
 
 	lineaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	lineaContract = NodeCmd.Flags().String("lineaContract", "", "Linea contract address")
+
+	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -594,6 +600,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*blastContract = unsafeDevModeEvmContractAddress(*blastContract)
 		*xlayerContract = unsafeDevModeEvmContractAddress(*xlayerContract)
 		*lineaContract = unsafeDevModeEvmContractAddress(*lineaContract)
+		*berachainContract = unsafeDevModeEvmContractAddress(*berachainContract)
 		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
 		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
 		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
@@ -794,6 +801,14 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*lineaRPC == "") != (*lineaContract == "") {
 		logger.Fatal("Both --lineaContract and --lineaRPC must be set together or both unset")
+	}
+
+	if *berachainRPC != "" && !*testnetMode && !*unsafeDevMode {
+		logger.Fatal("berachain is currently only supported in devnet and testnet")
+	}
+
+	if (*berachainRPC == "") != (*berachainContract == "") {
+		logger.Fatal("Both --berachainContract and --berachainRPC must be set together or both unset")
 	}
 
 	if *gatewayWS != "" {
@@ -1011,6 +1026,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["auroraRPC"] = *auroraRPC
 	rpcMap["avalancheRPC"] = *avalancheRPC
 	rpcMap["baseRPC"] = *baseRPC
+	rpcMap["berachainRPC"] = *berachainRPC
 	rpcMap["blastRPC"] = *blastRPC
 	rpcMap["bscRPC"] = *bscRPC
 	rpcMap["celoRPC"] = *celoRPC
@@ -1494,6 +1510,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDLinea,
 			Rpc:              *lineaRPC,
 			Contract:         *lineaContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(berachainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "berachain",
+			ChainID:          vaa.ChainIDBerachain,
+			Rpc:              *berachainRPC,
+			Contract:         *berachainContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

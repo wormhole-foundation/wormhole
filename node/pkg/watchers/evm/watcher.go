@@ -731,6 +731,9 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
 		finalized = true
+	} else if w.chainID == vaa.ChainIDBerachain {
+		// Berachain supports instant finality: https://docs.berachain.com/faq/
+		return false, false, nil
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
