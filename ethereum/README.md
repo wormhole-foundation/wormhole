@@ -68,6 +68,12 @@ ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet Core blast
 ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet TokenBridge blast
 ```
 
+#### Registering Other Chains on a New TokenBridge
+
+```shell
+ethereum$ MNEMONIC= ./forge-scripts/registerAllChainsOnTokenBridge.sh.sh testnet blast
+```
+
 ### Deploying using Truffle (deprecated)
 
 To deploy the bridge on Ethereum you first need to compile all smart contracts:
