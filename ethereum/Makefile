@@ -49,11 +49,7 @@ build: forge_dependencies node_modules ${SOURCE_FILES}
 	
 
 flattened/%.sol: contracts/%.sol node_modules
-	@mkdir -p $(dir $@)
-    # We remove the license (SPDX) lines and ABIEncoderV2 lines because they
-    # break compilation in the flattened file if there are multiple conflicting
-    # declarations.
-	npx truffle-flattener $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
+	./forge-scripts/flatten.sh
 
 .PHONY: flattened
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
