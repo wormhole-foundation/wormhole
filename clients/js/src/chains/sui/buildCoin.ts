@@ -54,7 +54,7 @@ const setupCoin = (
   decimals: number
 ): void => {
   // Check to see if the given version string is valid. We don't include the
-  // end boundary in the regex to accomodate versions such as V__0_1_0_patch,
+  // end boundary in the regex to accommodate versions such as V__0_1_0_patch,
   // in the off chance we need such a naming scheme.
   if (!/^V__[0-9]+_[0-9]+_[0-9]+/.test(version)) {
     throw new Error(`Invalid version ${version}`);
