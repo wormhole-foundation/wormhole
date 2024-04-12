@@ -29,6 +29,12 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 			{chainId: vaa.ChainIDArbitrumSepolia, addr: "0000000000000000000000000e24d17d7467467b39bf64a9dff88776bd6c74d7"},
 			{chainId: vaa.ChainIDBaseSepolia, addr: "0000000000000000000000001e072169541f1171e427aa44b5fd8924bee71b0e"},
 			{chainId: vaa.ChainIDOptimismSepolia, addr: "00000000000000000000000041265eb2863bf0238081f6aeefef73549c82c3dd"},
+			// V1 Testnet Deployment Emitters
+			{chainId: vaa.ChainIDSolana, addr: "cf5f3614e2cd9b374558f35c7618b25f0d306d5e749b7d29cc030a1a15686238"},
+			{chainId: vaa.ChainIDSepolia, addr: "000000000000000000000000649fF7B32C2DE771043ea105c4aAb2D724497238"},
+			{chainId: vaa.ChainIDArbitrumSepolia, addr: "000000000000000000000000fA42603152E4f133F5F3DA610CDa91dF5821d8bc"},
+			{chainId: vaa.ChainIDBaseSepolia, addr: "000000000000000000000000eCF0496DE01e9Aa4ADB50ae56dB550f52003bdB7"},
+			{chainId: vaa.ChainIDOptimismSepolia, addr: "000000000000000000000000149987472333cD48ac6D28293A338a1EEa6Be7EE"},
 		}
 		arEmitterConfig = sdk.KnownTestnetAutomaticRelayerEmitters
 	} else {
