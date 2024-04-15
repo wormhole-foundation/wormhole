@@ -719,41 +719,59 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	finalized := false
 	safe := false
+
+	// Tilt supports polling for both finalized and safe.
 	if w.unsafeDevMode {
 		finalized = true
 		safe = true
+
+		// The following chains support polling for both finalized and safe.
 	} else if w.chainID == vaa.ChainIDAcala ||
 		w.chainID == vaa.ChainIDArbitrum ||
+		w.chainID == vaa.ChainIDArbitrumSepolia ||
 		w.chainID == vaa.ChainIDBase ||
+		w.chainID == vaa.ChainIDBaseSepolia ||
 		w.chainID == vaa.ChainIDBlast ||
 		w.chainID == vaa.ChainIDBSC ||
 		w.chainID == vaa.ChainIDEthereum ||
+		w.chainID == vaa.ChainIDHolesky ||
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMantle ||
 		w.chainID == vaa.ChainIDMoonbeam ||
 		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDSepolia ||
-		w.chainID == vaa.ChainIDHolesky ||
-		w.chainID == vaa.ChainIDArbitrumSepolia ||
-		w.chainID == vaa.ChainIDBaseSepolia ||
 		w.chainID == vaa.ChainIDOptimismSepolia ||
+		w.chainID == vaa.ChainIDSepolia ||
 		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
-	} else if w.chainID == vaa.ChainIDScroll {
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-		finalized = true
-	} else if w.chainID == vaa.ChainIDPolygon ||
-		w.chainID == vaa.ChainIDPolygonSepolia {
+
+		// The following chains have their own specialized finalizers.
+	} else if w.chainID == vaa.ChainIDCelo ||
+		w.chainID == vaa.ChainIDLinea {
+		return false, false, nil
+
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
+	} else if w.chainID == vaa.ChainIDPolygon ||
+		w.chainID == vaa.ChainIDPolygonSepolia {
 		finalized = true
-	} else if w.chainID == vaa.ChainIDLinea {
-		// Linea has its own special poller.
+
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDScroll {
+		finalized = true
+
+		// The following chains support instant finality.
+	} else if w.chainID == vaa.ChainIDAvalanche ||
+		w.chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
+		w.chainID == vaa.ChainIDOasis ||
+		w.chainID == vaa.ChainIDAurora ||
+		w.chainID == vaa.ChainIDFantom ||
+		w.chainID == vaa.ChainIDKlaytn {
 		return false, false, nil
-	} else if w.chainID == vaa.ChainIDBerachain {
-		// Berachain supports instant finality: https://docs.berachain.com/faq/
-		return false, false, nil
+
+		// Anything else is undefined / not supported.
+	} else {
+		return false, false, fmt.Errorf("unsupported chain: %s", w.chainID.String())
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
