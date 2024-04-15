@@ -615,29 +615,6 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Error(err),
 					)
 					delete(gov.msgsSeen, pe.hash) // Rest of the clean up happens below.
-
-				// If we get here, publish it and remove it from the pending list.
-				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
-
-				if countsTowardsTransfers {
-					xfer := db.Transfer{
-						Timestamp:      now,
-						Value:          value,
-						OriginChain:    pe.token.token.chain,
-						OriginAddress:  pe.token.token.addr,
-						EmitterChain:   pe.dbData.Msg.EmitterChain,
-						EmitterAddress: pe.dbData.Msg.EmitterAddress,
-						MsgID:          pe.dbData.Msg.MessageIDString(),
-						Hash:           pe.hash,
-					}
-
-					if err := gov.db.StoreTransfer(&xfer); err != nil {
-						gov.msgsToPublish = msgsToPublish
-						return nil, err
-					}
-
-					ce.transfers = append(ce.transfers, &xfer)
-					gov.msgsSeen[pe.hash] = transferComplete
 				} else {
 					// If we get here, publish it and remove it from the pending list.
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
