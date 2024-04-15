@@ -1,0 +1,125 @@
+---
+protocol-key-pair:
+  value: CyNkjqNVr3HrHTH7f/NLs7u5lUHJzuPAw0PqMTD2y2s=
+worker-key-pair:
+  value: AOuUqLZBJxwz++dkJA9sY0wvTykcCC6jSS3Jqz77IlRI
+account-key-pair:
+  value: AEUws4dzsXHsai5hVbK1O8jWOpPAJjtzdJl32Vxvoj83
+network-key-pair:
+  value: ADGySwzr54kpKui4vTatL4CtV4/1ffyyHuZ6CMyzZPGI
+db-path: /root/.sui/sui_config/authorities_db/b3fd5efb5c87
+network-address: /ip4/127.0.0.1/tcp/39101/http
+json-rpc-address: "127.0.0.1:38815"
+enable-experimental-rest-api: true
+metrics-address: "127.0.0.1:32833"
+admin-interface-port: 39835
+consensus-config:
+  address: /ip4/127.0.0.1/tcp/43831/http
+  db-path: /root/.sui/sui_config/consensus_db/b3fd5efb5c87
+  internal-worker-address: ~
+  max-pending-transactions: ~
+  max-submit-position: ~
+  submit-delay-step-override-millis: ~
+  narwhal-config:
+    header_num_of_batches_threshold: 32
+    max_header_num_of_batches: 1000
+    max_header_delay: 1000ms
+    min_header_delay: 500ms
+    gc_depth: 50
+    sync_retry_delay: 5000ms
+    sync_retry_nodes: 3
+    batch_size: 5000000
+    max_batch_delay: 100ms
+    max_concurrent_requests: 500000
+    prometheus_metrics:
+      socket_addr: /ip4/127.0.0.1/tcp/40195/http
+    network_admin_server:
+      primary_network_admin_server_port: 45269
+      worker_network_admin_server_base_port: 39967
+    anemo:
+      send_certificate_rate_limit: ~
+      report_batch_rate_limit: ~
+      request_batches_rate_limit: ~
+enable-event-processing: false
+enable-index-processing: true
+grpc-load-shed: ~
+grpc-concurrency-limit: 20000000000
+p2p-config:
+  listen-address: "127.0.0.1:36503"
+  external-address: /ip4/127.0.0.1/udp/36503
+  state-sync:
+    checkpoint-content-timeout-ms: 10000
+genesis:
+  genesis-file-location: /root/.sui/sui_config/genesis.blob
+authority-store-pruning-config:
+  num-latest-epoch-dbs-to-retain: 3
+  epoch-db-pruning-period-secs: 3600
+  num-epochs-to-retain: 0
+  max-checkpoints-in-batch: 10
+  max-transactions-in-batch: 1000
+end-of-epoch-broadcast-channel-capacity: 128
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 200
+  local-execution-timeout-sec: 30
+db-checkpoint-config:
+  perform-db-checkpoints-at-epoch-end: false
+indirect-objects-threshold: 18446744073709551615
+expensive-safety-check-config:
+  enable-epoch-sui-conservation-check: false
+  enable-deep-per-tx-sui-conservation-check: false
+  force-disable-epoch-sui-conservation-check: false
+  enable-state-consistency-check: false
+  force-disable-state-consistency-check: false
+  enable-secondary-index-checks: false
+transaction-deny-config:
+  package-publish-disabled: false
+  package-upgrade-disabled: false
+  shared-object-disabled: false
+  user-transaction-disabled: false
+  receiving-objects-disabled: false
+  zklogin-sig-disabled: false
+  zklogin-disabled-providers: []
+certificate-deny-config: {}
+state-debug-dump-config: {}
+state-archive-write-config:
+  concurrency: 0
+  use-for-pruning-watermark: false
+state-archive-read-config: []
+state-snapshot-write-config:
+  concurrency: 0
+indexer-max-subscriptions: ~
+transaction-kv-store-read-config:
+  base-url: ""
+jwk-fetch-interval-seconds: 3600
+zklogin-oauth-providers:
+  Mainnet:
+    - Facebook
+    - Google
+    - Twitch
+  Testnet:
+    - Facebook
+    - Google
+    - Twitch
+  Unknown:
+    - Apple
+    - Facebook
+    - Google
+    - Kakao
+    - Slack
+    - Twitch
+authority-overload-config:
+  max-txn-age-in-queue:
+    secs: 1
+    nanos: 0
+  overload-monitor-interval:
+    secs: 10
+    nanos: 0
+  execution-queue-latency-soft-limit:
+    secs: 1
+    nanos: 0
+  execution-queue-latency-hard-limit:
+    secs: 10
+    nanos: 0
+  max-load-shedding-percentage: 95
+  min-load-shedding-percentage-above-hard-limit: 50
+  safe-transaction-ready-rate: 100

@@ -45,6 +45,7 @@ module token_bridge::complete_transfer_with_payload {
     /// `EmitterCap` address does not agree with encoded redeemer.
     const E_INVALID_REDEEMER: u64 = 0;
 
+    #[allow(lint(coin_field))]
     /// This type is only generated from `authorize_transfer` and can only be
     /// redeemed using `redeem_coin`. Integrators are expected to implement
     /// `redeem_coin` within their contracts and call `authorize_transfer` in a
