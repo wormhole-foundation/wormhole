@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.15
+
+Add Provenance to cosmwasm chains
+
 ## 0.10.14
 
 Support for move of relayer ethereum contracts

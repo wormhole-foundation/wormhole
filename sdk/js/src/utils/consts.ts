@@ -46,6 +46,7 @@ export const CHAINS = {
   stargaze: 4005,
   seda: 4006,
   dymension: 4007,
+  provenance: 4008,
   sepolia: 10002,
   arbitrum_sepolia: 10003,
   base_sepolia: 10004,
@@ -118,6 +119,7 @@ export const CosmWasmChainNames = [
   "stargaze",
   "seda",
   "dymension",
+  "provenance",
 ] as const;
 export type CosmWasmChainName = typeof CosmWasmChainNames[number];
 
@@ -416,6 +418,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  provenance: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 const TESTNET = {
@@ -687,6 +694,11 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   dymension: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  provenance: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -965,6 +977,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  provenance: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
 };
 
 /**
@@ -1053,6 +1070,7 @@ export const CHAIN_ID_CELESTIA = CHAINS["celestia"];
 export const CHAIN_ID_STARGAZE = CHAINS["stargaze"];
 export const CHAIN_ID_SEDA = CHAINS["seda"];
 export const CHAIN_ID_DYMENSION = CHAINS["dymension"];
+export const CHAIN_ID_PROVENANCE = CHAINS["provenance"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 export const CHAIN_ID_ARBITRUM_SEPOLIA = CHAINS["arbitrum_sepolia"];
 export const CHAIN_ID_BASE_SEPOLIA = CHAINS["base_sepolia"];
