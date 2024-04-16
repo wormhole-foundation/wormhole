@@ -1,4 +1,7 @@
-import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/esm/sui";
+import {
+  getWrappedCoinType,
+  uint8ArrayToBCS,
+} from "@certusone/wormhole-sdk/lib/esm/sui";
 import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
@@ -52,14 +55,36 @@ export const submit = async (
         case "ContractUpgrade":
           throw new Error("ContractUpgrade not supported on Sui");
         case "GuardianSetUpgrade": {
-          console.log("Submitting new guardian set");
           const tx = new TransactionBlock();
-          setMaxGasBudgetDevnet(network, tx);
-          tx.moveCall({
-            target: `${corePackageId}::wormhole::update_guardian_set`,
+          const [verifiedVaa] = tx.moveCall({
+            target: `${corePackageId}::vaa::parse_and_verify`,
             arguments: [
               tx.object(coreObjectId),
-              tx.pure([...vaa]),
+              tx.pure(uint8ArrayToBCS(vaa)),
+              tx.object(SUI_CLOCK_OBJECT_ID),
+            ],
+          });
+
+          const [decreeTicket] = tx.moveCall({
+            target: `${corePackageId}::update_guardian_set::authorize_governance`,
+            arguments: [tx.object(coreObjectId)],
+          });
+
+          const [decreeReceipt] = tx.moveCall({
+            target: `${corePackageId}::governance_message::verify_vaa`,
+            arguments: [tx.object(coreObjectId), verifiedVaa, decreeTicket],
+            typeArguments: [
+              `${corePackageId}::update_guardian_set::GovernanceWitness`,
+            ],
+          });
+
+          console.log("Submitting new guardian set");
+          setMaxGasBudgetDevnet(network, tx);
+          tx.moveCall({
+            target: `${corePackageId}::update_guardian_set::update_guardian_set`,
+            arguments: [
+              tx.object(coreObjectId),
+              decreeReceipt,
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
