@@ -40,6 +40,7 @@ import {
   CHAIN_ID_STARGAZE,
   CHAIN_ID_SEDA,
   CHAIN_ID_DYMENSION,
+  CHAIN_ID_PROVENANCE,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -144,6 +145,8 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Seda not supported yet.");
   } else if (chainId === CHAIN_ID_DYMENSION) {
     throw Error("uint8ArrayToNative: Dymension not supported yet.");
+  } else if (chainId === CHAIN_ID_PROVENANCE) {
+    throw Error("uint8ArrayToNative: Provenance not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -297,6 +300,8 @@ export const tryNativeToHexString = (
     throw Error("nativeToHexString: Seda not supported yet.");
   } else if (chainId === CHAIN_ID_DYMENSION) {
     throw Error("nativeToHexString: Dymension not supported yet.");
+  } else if (chainId === CHAIN_ID_PROVENANCE) {
+    throw Error("nativeToHexString: Provenance not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     if (!isValidSuiType(address) && isValidSuiAddress(address)) {
       return uint8ArrayToHex(

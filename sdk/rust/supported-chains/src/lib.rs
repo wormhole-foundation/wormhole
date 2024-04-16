@@ -54,6 +54,7 @@ pub enum Chain {
     Stargaze,
     Seda,
     Dymension,
+    Provenance,
     Sepolia,
 
     // Allow arbitrary u16s to support future chains.
@@ -106,6 +107,7 @@ impl From<u16> for Chain {
             4005 => Chain::Stargaze,
             4006 => Chain::Seda,
             4007 => Chain::Dymension,
+            4008 => Chain::Provenance,
             10002 => Chain::Sepolia,
             c => Chain::Unknown(c),
         }
@@ -158,6 +160,7 @@ impl From<Chain> for u16 {
             Chain::Stargaze => 4005,
             Chain::Seda => 4006,
             Chain::Dymension => 4007,
+            Chain::Provenance => 4008,
             Chain::Sepolia => 10002,
             Chain::Unknown(c) => c,
         }
@@ -211,6 +214,7 @@ impl fmt::Display for Chain {
             Self::Stargaze => f.write_str("Stargaze"),
             Self::Seda => f.write_str("Seda"),
             Self::Dymension => f.write_str("Dymension"),
+            Self::Provenance => f.write_str("Provenance"),
             Self::Unknown(v) => write!(f, "Unknown({v})"),
         }
     }
@@ -269,6 +273,7 @@ impl FromStr for Chain {
             "Stargaze" | "stargaze" | "STARGAZE" => Ok(Chain::Stargaze),
             "Seda" | "seda" | "SEDA" => Ok(Chain::Seda),
             "Dymension" | "dymension" | "DYMENSION" => Ok(Chain::Dymension),
+            "Provenance" | "provenance" | "PROVENANCE" => Ok(Chain::Provenance),
             _ => {
                 let mut parts = s.split(&['(', ')']);
                 let _ = parts
