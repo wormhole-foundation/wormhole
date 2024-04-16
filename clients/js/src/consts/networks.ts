@@ -21,7 +21,7 @@ const MAINNET = {
     key: undefined,
   },
   solana: {
-    rpc: "https://api.mainnet-beta.solana.com",
+    rpc: "https://wormhole-solana-rpc.rpcpool.com/9a9ec394-b2fb-4c73-a3bf-7e26d237fedc",
     key: getEnvVar("SOLANA_KEY"),
   },
   terra: {
