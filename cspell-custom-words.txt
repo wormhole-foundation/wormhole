@@ -14,6 +14,7 @@ backdoors
 bech
 Bech
 behaviour
+Berachain
 bigset
 Bigtable
 borsh
@@ -94,6 +95,7 @@ Kujira
 lamports
 lastrun
 libp
+Linea
 localterra
 lockfiles
 merkle
@@ -141,6 +143,7 @@ rustup
 satoshi
 secp
 seda
+Sepolia
 serde
 setcap
 solana
