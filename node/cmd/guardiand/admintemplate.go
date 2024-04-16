@@ -68,7 +68,7 @@ func init() {
 	moduleFlagSet := pflag.NewFlagSet("module", pflag.ExitOnError)
 	module = moduleFlagSet.String("module", "", "Module name")
 
-	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 3, "Default current guardian set index")
+	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 4, "Default current guardian set index")
 
 	setUpdateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
 	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
