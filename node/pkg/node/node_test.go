@@ -69,6 +69,8 @@ const guardianSetIndex = 5 // index of the active guardian set (can be anything,
 
 var TEST_ID_CTR atomic.Uint32
 
+var logger *zap.Logger
+
 func getTestId() uint {
 	return uint(TEST_ID_CTR.Add(1))
 }
@@ -145,10 +147,9 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		// Create a sub-context with cancel function that we can pass to G.run.
 		ctx, ctxCancel := context.WithCancel(ctx)
 		defer ctxCancel()
-		logger := supervisor.Logger(ctx)
 
 		// setup db
-		db := db.OpenDb(logger, nil)
+		db := db.OpenDb(nil, nil)
 		defer db.Close()
 		gs[mockGuardianIndex].db = db
 
@@ -511,8 +512,11 @@ func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr str
 }
 
 func TestMain(m *testing.M) {
+	logger, _ = zap.NewDevelopment()
 	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
-	os.Exit(m.Run())
+	retVal := m.Run()
+	logger.Info("test exiting", zap.Int("retVal", retVal))
+	os.Exit(retVal)
 }
 
 func createGovernanceMsgAndVaa(t testing.TB) (*common.MessagePublication, *nodev1.GovernanceMessage) {
@@ -648,8 +652,6 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 	zapLogger, zapObserver, _ := setupLogsCapture(t)
 
 	supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
-		logger := supervisor.Logger(ctx)
-
 		// create the Guardian Set
 		gs := newMockGuardianSet(t, testId, numGuardians)
 
@@ -950,7 +952,6 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 			// Create a sub-context with cancel function that we can pass to G.run.
 			ctx, ctxCancel := context.WithCancel(ctx)
 			defer ctxCancel()
-			logger := supervisor.Logger(ctx)
 
 			if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
 				panic(err)
@@ -1161,8 +1162,6 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 		zapLogger, zapObserver, setupLogsCapture := setupLogsCapture(t)
 
 		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
-			logger := supervisor.Logger(ctx)
-
 			// create the Guardian Set
 			gs := newMockGuardianSet(t, testId, numGuardians)
 

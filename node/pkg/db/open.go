@@ -43,7 +43,9 @@ func OpenDb(logger *zap.Logger, dataDir *string) *Database {
 		options = badger.DefaultOptions("").WithInMemory(true)
 	}
 
-	options = options.WithLogger(badgerZapLogger{logger})
+	if logger != nil {
+		options = options.WithLogger(badgerZapLogger{logger})
+	}
 
 	db, err := badger.Open(options)
 	if err != nil {
