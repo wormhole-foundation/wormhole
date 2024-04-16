@@ -841,7 +841,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 	<-rootCtx.Done()
 	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
 	zapLogger.Info("Test root context cancelled, waiting 10ms for everything to shut down properly...")
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 }
 
 type testCaseGuardianConfig struct {
