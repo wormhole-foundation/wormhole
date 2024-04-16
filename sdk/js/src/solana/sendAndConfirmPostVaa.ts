@@ -1,5 +1,6 @@
 import {
   Commitment,
+  ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
   Keypair,
@@ -42,7 +43,7 @@ export async function postVaaWithRetry(
       commitment
     );
 
-  const postVaaTransaction = unsignedTransactions.pop()!;
+  const postVaaTransaction = unsignedTransactions.pop()!.add(ComputeBudgetProgram.setComputeUnitPrice({microLamports: 100_000}));
 
   const options: ConfirmOptions = {
     commitment,
@@ -55,7 +56,7 @@ export async function postVaaWithRetry(
       connection,
       payer,
       modifySignTransaction(signTransaction, ...signers),
-      transaction,
+      transaction.add(ComputeBudgetProgram.setComputeUnitPrice({microLamports: 100_000})),
       options
     );
     responses.push(response);

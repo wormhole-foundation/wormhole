@@ -214,7 +214,7 @@ export async function execute_solana(
   );
 
   // Then do the actual thing
-  const transaction = new web3s.Transaction().add(ix);
+  const transaction = new web3s.Transaction().add(ix).add(web3s.ComputeBudgetProgram.setComputeUnitPrice({microLamports: 100_000}));
 
   const signature = await web3s.sendAndConfirmTransaction(
     connection,
