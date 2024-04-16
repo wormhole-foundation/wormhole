@@ -21,7 +21,13 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 	var directEmitterConfig emitterConfig
 	arEmitterConfig := sdk.KnownAutomaticRelayerEmitters
 	if env == common.MainNet {
-		directEmitterConfig = emitterConfig{}
+		directEmitterConfig = emitterConfig{
+			{chainId: vaa.ChainIDSolana, addr: "cf5f3614e2cd9b374558f35c7618b25f0d306d5e749b7d29cc030a1a15686238"},
+			{chainId: vaa.ChainIDEthereum, addr: "000000000000000000000000Db55492d7190D1baE8ACbE03911C4E3E7426870c"},
+			{chainId: vaa.ChainIDArbitrum, addr: "000000000000000000000000D1a8AB69e00266e8B791a15BC47514153A5045a6"},
+			{chainId: vaa.ChainIDOptimism, addr: "0000000000000000000000009bD8b7b527CA4e6738cBDaBdF51C22466756073d"},
+			{chainId: vaa.ChainIDBase, addr: "000000000000000000000000D1a8AB69e00266e8B791a15BC47514153A5045a6"},
+		}
 	} else if env == common.TestNet {
 		directEmitterConfig = emitterConfig{
 			{chainId: vaa.ChainIDSolana, addr: "7e6436b671cce379a1fa9833783e28b36d39a00e2cdc6bfeab5d2d836eb61c7f"},
