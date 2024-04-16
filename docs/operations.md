@@ -100,7 +100,7 @@ Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full
 Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
 
 
-### Wormchain requirements
+### Wormchain
 
 All guardians must run validators for wormchain, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
 
@@ -139,6 +139,63 @@ address = "0.0.0.0:9091"
 For signing, consider setting up a remote threshold signer such as
 [horcrux](https://github.com/strangelove-ventures/horcrux) and adopting the sentry node architecture with sentry nodes
 in front of your wormchain validator.
+
+#### Wormchain Useful Commands
+
+Check latest guardian set:
+
+<!-- cspell:disable -->
+
+```shell
+$ wormchaind query wormhole latest-guardian-set-index
+latestGuardianSetIndex: 4
+```
+
+<!-- cspell:enable -->
+
+Upgrade the guardian set (with a valid governance vaa):
+
+<!-- cspell:disable -->
+
+```shell
+wormchaind tx wormhole execute-governance-vaa <guardian_set_upgrade_VAA_in_hex_format>
+```
+
+<!-- cspell:disable -->
+
+View Validator Information:
+
+<!-- cspell:disable -->
+
+```shell
+$ wormchaind q staking validators
+... snip ...
+- commission:
+    commission_rates:
+      max_change_rate: "0.020000000000000000"
+      max_rate: "0.200000000000000000"
+      rate: "0.000000000000000000"
+    update_time: "2024-04-16T19:13:45.210176030Z"
+  consensus_pubkey:
+    '@type': /cosmos.crypto.ed25519.PubKey
+    key: T+hsVX52EarrsL+mOwv3mL0byWa2EctsG6XmikUMFiQ=
+  delegator_shares: "0.000000000000000000"
+  description:
+    details: ""
+    identity: 11A4103C4BCBD2B4
+    moniker: RockawayX
+    security_contact: ""
+    website: https://rockawayx.com/infrastructure
+  jailed: false
+  min_self_delegation: "0"
+  operator_address: wormholevaloper1thl5syhmscgnj7whdyrydw3w6vy80044278fxp
+  status: BOND_STATUS_BONDED
+  tokens: "0"
+  unbonding_height: "0"
+  unbonding_time: "1970-01-01T00:00:00Z"
+```
+
+<!-- cspell:enable -->
 
 ### EVM node requirements
 
