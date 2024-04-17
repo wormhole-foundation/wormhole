@@ -207,6 +207,8 @@ func (c ChainID) String() string {
 		return "linea"
 	case ChainIDBerachain:
 		return "berachain"
+	case ChainIDSeiEVM:
+		return "seievm"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -322,6 +324,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBerachain, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
+	case "seievm":
+		return ChainIDSeiEVM, nil
 	case "evmos":
 		return ChainIDEvmos, nil
 	case "kujira":
@@ -487,6 +491,8 @@ const (
 	ChainIDLinea ChainID = 38
 	// ChainIDBerachain is the ChainID of Berachain
 	ChainIDBerachain ChainID = 39
+	// ChainIDSeiEVM is the ChainID of SeiEVM
+	ChainIDSeiEVM ChainID = 40
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
