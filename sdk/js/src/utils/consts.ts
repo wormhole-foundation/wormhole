@@ -339,7 +339,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   seievm: {
-    core: undefined,
+    core: "0x07782FCe991dAb4DE7a3124032E534A0D059B4d8",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
