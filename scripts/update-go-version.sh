@@ -8,9 +8,11 @@
 # correctness and safety. Always verify any major dependency updates.
 
 DOCKER=${DOCKER:-docker}
+DOCKER_IMAGE_DEBIAN_DISTRO=bullseye
+REPO_ROOT_DIR=$(dirname "$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )")
 
 # Update the github actions to use the updated version of go
-update_github_actions() {
+function update_github_actions() {
     local version=$1
     local directory=.github/workflows
     # Don't cd in and then cd out
@@ -24,7 +26,7 @@ update_github_actions() {
 }
 
 # Update the documentation on versions of go to use
-update_developer_docs() {
+function update_developer_docs() {
     local version=$1
     local documents="DEVELOP.md docs/operations.md"
     echo "Updating developer docs: $documents"
@@ -33,7 +35,12 @@ update_developer_docs() {
     return $?
 }
 
-get_docker_image_digest() {
+# Determine the digest from an image name and tag. This makes builds more
+# repeatable as docker tags are mutable and can be changed.
+#
+# See also: scripts/check-docker-pin.sh
+#
+function get_docker_image_digest() {
     local version="$1"
     local image="${2:-docker.io/golang}"
 
@@ -52,7 +59,7 @@ get_docker_image_digest() {
 # Keep go in Dockerfiles for wormhole specific stuff up to date with the latest go
 # It is often impossible to update third party Dockerfiles due to the necessity of
 # actual code changes to build with newer versions of go or go.mod dependency sad.
-update_our_dockerfiles() {
+function update_our_dockerfiles() {
     local version=$1
     local image=docker.io/golang
 
@@ -88,6 +95,15 @@ update_our_dockerfiles() {
     done
 }
 
+function update_go_mod() {
+    local version=$1
+    (
+        cd "${REPO_ROOT_DIR}/node" || exit 1
+        go mod edit -go "$version" -toolchain "go${version}"
+    )
+    return $?
+}
+
 function main() {
     local version=$1
     if [ -z "$version" ]; then
@@ -106,7 +122,11 @@ function main() {
         echo "ERROR: Problem updating developer docs" >&2
             exit 1
     fi
-    if ! update_our_dockerfiles "${version}-bullseye"; then
+    if ! update_our_dockerfiles "${version}-${DOCKER_IMAGE_DEBIAN_DISTRO}"; then
+        echo "ERROR: Problem updating dockerfiles" >&2
+        exit 1
+    fi
+    if ! update_go_mod "${version}"; then
         echo "ERROR: Problem updating dockerfiles" >&2
         exit 1
     fi
