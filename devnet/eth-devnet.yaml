@@ -54,7 +54,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "cd ../../ethereum && CHAIN_ID=2 NETWORK=devnet ./forge-scripts/devnetInitialization.sh && cd ../relayer/ethereum && npm run deploy-relayers-evm1 && nc -lkn 2000"
+            - "cd ../../ethereum && CHAIN_ID=2 NETWORK=devnet ./sh/devnetInitialization.sh && cd ../relayer/ethereum && npm run deploy-relayers-evm1 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300

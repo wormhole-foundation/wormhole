@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./forge-scripts/deployNFTBridge.sh
+# MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./sh/deployNFTBridge.sh
 
 . .env
 

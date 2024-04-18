@@ -1,4 +1,6 @@
-# Source the prompt_functions.sh file
+#!/bin/bash
+
+# MNEMONIC=<redacted> ./sh/registerChainsNFTBridge.sh
 
 . .env
 

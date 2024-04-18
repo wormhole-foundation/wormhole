@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MNEMONIC=<redacted> ./forge-scripts/deployTokenBridgeShutdown.sh
+# MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 
 . .env
 

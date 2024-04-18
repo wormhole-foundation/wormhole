@@ -49,7 +49,7 @@ build: forge_dependencies node_modules ${SOURCE_FILES}
 	
 
 flattened/%.sol: contracts/%.sol node_modules
-	./forge-scripts/flatten.sh
+	./sh/flatten.sh
 
 .PHONY: flattened
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))

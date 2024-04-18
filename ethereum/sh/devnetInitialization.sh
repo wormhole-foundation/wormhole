@@ -27,31 +27,31 @@ NETWORK='devnet'
 
 npm run build:forge
 
-NUM_RUNS=2 source ./forge-scripts/deployDummyContract.sh
+NUM_RUNS=2 source ./sh/deployDummyContract.sh
 
 echo "Deploying WORMHOLE_CORE"
-source ./forge-scripts/deployCoreBridge.sh
+source ./sh/deployCoreBridge.sh
 returnInfo=$(cat ./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 WORMHOLE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "WORMHOLE_ADDRESS: ${WORMHOLE_ADDRESS}"
 
-NUM_RUNS=1 source ./forge-scripts/deployDummyContract.sh
+NUM_RUNS=1 source ./sh/deployDummyContract.sh
 
 echo "Deploying TOKEN_BRIDGE"
-source ./forge-scripts/deployTokenBridge.sh
+source ./sh/deployTokenBridge.sh
 returnInfo=$(cat ./broadcast/DeployTokenBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 TOKEN_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "TOKEN_BRIDGE_ADDRESS: $TOKEN_BRIDGE_ADDRESS"
 
-NUM_RUNS=1 source ./forge-scripts/deployDummyContract.sh
+NUM_RUNS=1 source ./sh/deployDummyContract.sh
 
 echo "Deploying NFT_BRIDGE"
-source ./forge-scripts/deployNFTBridge.sh
+source ./sh/deployNFTBridge.sh
 returnInfo=$(cat ./broadcast/DeployNFTBridge.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 NFT_BRIDGE_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "NFT_BRIDGE_ADDRESS: $NFT_BRIDGE_ADDRESS"
 
-NUM_RUNS=17 source ./forge-scripts/deployDummyContract.sh
+NUM_RUNS=17 source ./sh/deployDummyContract.sh
 
 echo "Deploying test tokens"
 forge script ./forge-scripts/DeployTestToken.s.sol:DeployTestToken --rpc-url $RPC_URL --private-key $MNEMONIC --broadcast
@@ -75,10 +75,10 @@ NFT_BRIDGE_REGISTRATION_VAAS="[$(IFS=','; echo "${nft_bridge_registration_vaas_a
 
 echo "Registering chains on token bridge"
 echo "TOKEN_BRIDGE_REGISTRATION_VAAS: $TOKEN_BRIDGE_REGISTRATION_VAAS"
-source "./forge-scripts/registerChainsTokenBridge.sh"
+source "./sh/registerChainsTokenBridge.sh"
 echo "Done registering chains on token bridge"
 
 echo "Registering chains on nft bridge"
 echo "NFT_BRIDGE_REGISTRATION_VAAS: $NFT_BRIDGE_REGISTRATION_VAAS"
-source "./forge-scripts/registerChainsNFTBridge.sh"
+source "./sh/registerChainsNFTBridge.sh"
 echo "Done registering chains on nft bridge"

@@ -6,7 +6,7 @@
 # find a VAA for that chain in the CSV file (as a sanity check). Please be sure to generate
 # the registation VAA for this chain and add it to the file before running this script.
 
-# MNEMONIC=<redacted> ./forge-scripts/registerAllChainsOnTokenBridge.sh testnet blast
+# MNEMONIC=<redacted> ./sh/registerAllChainsOnTokenBridge.sh testnet blast
 
 if [ $# != 2 ]; then
 	echo "Usage: $0 testnet blast" >&2
