@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -81,6 +82,14 @@ type (
 		signatures observationMap
 	}
 )
+
+func (s *state) MessageID() string {
+	if s.ourObservation != nil {
+		return s.ourObservation.MessageID()
+	}
+
+	return hex.EncodeToString(s.txHash)
+}
 
 type PythNetVaaEntry struct {
 	v          *vaa.VAA

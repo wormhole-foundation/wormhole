@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -39,8 +40,7 @@ var (
 func (p *Processor) handleMessage(k *common.MessagePublication) {
 	if p.gs == nil {
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
-			zap.Stringer("emitter_chain", k.EmitterChain),
-			zap.Stringer("emitter_address", k.EmitterAddress),
+			zap.String("message_id", k.MessageIDString()),
 			zap.Uint32("nonce", k.Nonce),
 			zap.Stringer("txhash", k.TxHash),
 			zap.Time("timestamp", k.Timestamp),
@@ -48,13 +48,14 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		return
 	}
 
-	p.logger.Debug("message publication confirmed",
-		zap.Stringer("emitter_chain", k.EmitterChain),
-		zap.Stringer("emitter_address", k.EmitterAddress),
-		zap.Uint32("nonce", k.Nonce),
-		zap.Stringer("txhash", k.TxHash),
-		zap.Time("timestamp", k.Timestamp),
-	)
+	if p.logger.Core().Enabled(zapcore.DebugLevel) {
+		p.logger.Debug("message publication confirmed",
+			zap.String("message_id", k.MessageIDString()),
+			zap.Uint32("nonce", k.Nonce),
+			zap.Stringer("txhash", k.TxHash),
+			zap.Time("timestamp", k.Timestamp),
+		)
+	}
 
 	messagesObservedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String(),
@@ -89,21 +90,18 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		panic(err)
 	}
 
-	p.logger.Debug("observed and signed confirmed message publication",
-		zap.Stringer("source_chain", k.EmitterChain),
-		zap.Stringer("txhash", k.TxHash),
-		zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
-		zap.String("digest", hex.EncodeToString(digest.Bytes())),
-		zap.Uint32("nonce", k.Nonce),
-		zap.Uint64("sequence", k.Sequence),
-		zap.Stringer("emitter_chain", k.EmitterChain),
-		zap.Stringer("emitter_address", k.EmitterAddress),
-		zap.String("emitter_address_b58", base58.Encode(k.EmitterAddress.Bytes())),
-		zap.Uint8("consistency_level", k.ConsistencyLevel),
-		zap.String("message_id", v.MessageID()),
-		zap.String("signature", hex.EncodeToString(s)),
-		zap.Bool("isReobservation", k.IsReobservation),
-	)
+	if p.logger.Core().Enabled(zapcore.DebugLevel) {
+		p.logger.Debug("observed and signed confirmed message publication",
+			zap.String("message_id", k.MessageIDString()),
+			zap.Stringer("txhash", k.TxHash),
+			zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
+			zap.String("digest", hex.EncodeToString(digest.Bytes())),
+			zap.Uint32("nonce", k.Nonce),
+			zap.Uint8("consistency_level", k.ConsistencyLevel),
+			zap.String("signature", hex.EncodeToString(s)),
+			zap.Bool("isReobservation", k.IsReobservation),
+		)
+	}
 
 	messagesSignedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String()}).Add(1)

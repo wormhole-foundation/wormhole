@@ -590,16 +590,19 @@ func Run(
 			}
 
 			if envelope.GetFrom() == h.ID() {
-				logger.Debug("received message from ourselves, ignoring",
-					zap.Any("payload", msg.Message))
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("received message from ourselves, ignoring", zap.Any("payload", msg.Message))
+				}
 				p2pMessagesReceived.WithLabelValues("loopback").Inc()
 				continue
 			}
 
-			logger.Debug("received message",
-				zap.Any("payload", msg.Message),
-				zap.Binary("raw", envelope.Data),
-				zap.String("from", envelope.GetFrom().String()))
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("received message",
+					zap.Any("payload", msg.Message),
+					zap.Binary("raw", envelope.Data),
+					zap.String("from", envelope.GetFrom().String()))
+			}
 
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedHeartbeat:
@@ -659,9 +662,9 @@ func Run(
 								}
 							}
 						} else {
-							logger.Debug("p2p_node_id_not_in_heartbeat",
-								zap.Error(err),
-								zap.Any("payload", heartbeat.NodeName))
+							if logger.Level().Enabled(zapcore.DebugLevel) {
+								logger.Debug("p2p_node_id_not_in_heartbeat", zap.Error(err), zap.Any("payload", heartbeat.NodeName))
+							}
 						}
 					}()
 				}
@@ -693,24 +696,26 @@ func Run(
 				s := m.SignedObservationRequest
 				gs := gst.Get()
 				if gs == nil {
-					logger.Debug("dropping SignedObservationRequest - no guardian set",
-						zap.Any("value", s),
-						zap.String("from", envelope.GetFrom().String()))
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+					}
 					break
 				}
 				r, err := processSignedObservationRequest(s, gs)
 				if err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-					logger.Debug("invalid signed observation request received",
-						zap.Error(err),
-						zap.Any("payload", msg.Message),
-						zap.Any("value", s),
-						zap.Binary("raw", envelope.Data),
-						zap.String("from", envelope.GetFrom().String()))
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("invalid signed observation request received",
+							zap.Error(err),
+							zap.Any("payload", msg.Message),
+							zap.Any("value", s),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
 				} else {
-					logger.Debug("valid signed observation request received",
-						zap.Any("value", r),
-						zap.String("from", envelope.GetFrom().String()))
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
+					}
 
 					select {
 					case obsvReqC <- r:

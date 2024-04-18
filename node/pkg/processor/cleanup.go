@@ -15,6 +15,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -86,7 +87,11 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					//
 					// This is a rare case, and we can safely expire the state, since we
 					// have a quorum VAA.
-					p.logger.Info("Expiring late VAA", zap.String("digest", hash), zap.Duration("delta", delta))
+					p.logger.Info("Expiring late VAA",
+						zap.String("message_id", ourVaa.VAA.MessageID()),
+						zap.String("digest", hash),
+						zap.Duration("delta", delta),
+					)
 					aggregationStateLate.Inc()
 					delete(p.state.signatures, hash)
 					continue
@@ -118,14 +123,17 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				chain = s.ourObservation.GetEmitterChain()
 			}
 
-			p.logger.Debug("observation considered settled",
-				zap.String("digest", hash),
-				zap.Duration("delta", delta),
-				zap.Int("have_sigs", hasSigs),
-				zap.Int("required_sigs", wantSigs),
-				zap.Bool("quorum", quorum),
-				zap.Stringer("emitter_chain", chain),
-			)
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("observation considered settled",
+					zap.String("message_id", s.MessageID()),
+					zap.String("digest", hash),
+					zap.Duration("delta", delta),
+					zap.Int("have_sigs", hasSigs),
+					zap.Int("required_sigs", wantSigs),
+					zap.Bool("quorum", quorum),
+					zap.Stringer("emitter_chain", chain),
+				)
+			}
 
 			for _, k := range gs.Keys {
 				if _, ok := s.signatures[k]; ok {
@@ -139,12 +147,23 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// observation that come in. Therefore, keep it for a reasonable amount of time.
 			// If a very late observation arrives after cleanup, a nil aggregation state will be created
 			// and then expired after a while (as noted in observation.go, this can be abused by a byzantine guardian).
-			p.logger.Debug("expiring submitted observation", zap.String("digest", hash), zap.Duration("delta", delta))
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("expiring submitted observation",
+					zap.String("message_id", s.MessageID()),
+					zap.String("digest", hash),
+					zap.Duration("delta", delta),
+				)
+			}
 			delete(p.state.signatures, hash)
 			aggregationStateExpiration.Inc()
 		case !s.submitted && ((s.ourMsg != nil && delta > retryLimitOurs) || (s.ourMsg == nil && delta > retryLimitNotOurs)):
 			// Clearly, this horse is dead and continued beatings won't bring it closer to quorum.
-			p.logger.Info("expiring unsubmitted observation after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta), zap.Bool("weObserved", s.ourMsg != nil))
+			p.logger.Info("expiring unsubmitted observation after exhausting retries",
+				zap.String("message_id", s.MessageID()),
+				zap.String("digest", hash),
+				zap.Duration("delta", delta),
+				zap.Bool("weObserved", s.ourMsg != nil),
+			)
 			delete(p.state.signatures, hash)
 			aggregationStateTimeout.Inc()
 		case !s.submitted && delta >= FirstRetryMinWait && time.Since(s.nextRetry) >= 0:
@@ -157,7 +176,11 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			if s.ourMsg != nil {
 				// Unreliable observations cannot be resubmitted and can be considered failed after 5 minutes
 				if !s.ourObservation.IsReliable() {
-					p.logger.Info("expiring unsubmitted unreliable observation", zap.String("digest", hash), zap.Duration("delta", delta))
+					p.logger.Info("expiring unsubmitted unreliable observation",
+						zap.String("message_id", s.MessageID()),
+						zap.String("digest", hash),
+						zap.Duration("delta", delta),
+					)
 					delete(p.state.signatures, hash)
 					aggregationStateTimeout.Inc()
 					break
@@ -165,20 +188,35 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 
 				// Reobservation requests should not be resubmitted but we will keep waiting for more observations.
 				if s.ourObservation.IsReobservation() {
-					p.logger.Debug("not submitting reobservation request for reobservation", zap.String("digest", hash), zap.Duration("delta", delta))
+					if p.logger.Level().Enabled(zapcore.DebugLevel) {
+						p.logger.Debug("not submitting reobservation request for reobservation",
+							zap.String("message_id", s.MessageID()),
+							zap.String("digest", hash),
+							zap.Duration("delta", delta),
+						)
+					}
 					break
 				}
 
 				// If we have already stored this VAA, there is no reason for us to request reobservation.
 				alreadyInDB, err := p.signedVaaAlreadyInDB(hash, s)
 				if err != nil {
-					p.logger.Error("failed to check if observation is already in DB, requesting reobservation", zap.String("hash", hash), zap.Error(err))
+					p.logger.Error("failed to check if observation is already in DB, requesting reobservation",
+						zap.String("message_id", s.MessageID()),
+						zap.String("hash", hash),
+						zap.Error(err))
 				}
 
 				if alreadyInDB {
-					p.logger.Debug("observation already in DB, not requesting reobservation", zap.String("digest", hash))
+					if p.logger.Level().Enabled(zapcore.DebugLevel) {
+						p.logger.Debug("observation already in DB, not requesting reobservation",
+							zap.String("message_id", s.MessageID()),
+							zap.String("digest", hash),
+						)
+					}
 				} else {
 					p.logger.Info("resubmitting observation",
+						zap.String("message_id", s.MessageID()),
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.String("firstObserved", s.firstObserved.String()),
@@ -188,7 +226,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						TxHash:  s.txHash,
 					}
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
-						p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
+						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.MessageID()), zap.Error(err))
 					}
 					p.gossipSendC <- s.ourMsg
 					s.retryCtr++
@@ -202,13 +240,16 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				hasSigs := len(s.signatures)
 				wantSigs := vaa.CalculateQuorum(len(p.gs.Keys))
 
-				p.logger.Debug("expiring unsubmitted nil observation",
-					zap.String("digest", hash),
-					zap.Duration("delta", delta),
-					zap.Int("have_sigs", hasSigs),
-					zap.Int("required_sigs", wantSigs),
-					zap.Bool("quorum", hasSigs >= wantSigs),
-				)
+				if p.logger.Level().Enabled(zapcore.DebugLevel) {
+					p.logger.Debug("expiring unsubmitted nil observation",
+						zap.String("message_id", s.MessageID()),
+						zap.String("digest", hash),
+						zap.Duration("delta", delta),
+						zap.Int("have_sigs", hasSigs),
+						zap.Int("required_sigs", wantSigs),
+						zap.Bool("quorum", hasSigs >= wantSigs),
+					)
+				}
 				delete(p.state.signatures, hash)
 				aggregationStateUnobserved.Inc()
 			}
@@ -239,7 +280,12 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 	vb, err := p.db.GetSignedVAABytes(*vaaID)
 	if err != nil {
 		if err == db.ErrVAANotFound {
-			p.logger.Debug("VAA not in DB", zap.String("digest", hash), zap.String("message_id", s.ourObservation.MessageID()))
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("VAA not in DB",
+					zap.String("message_id", s.ourObservation.MessageID()),
+					zap.String("digest", hash),
+				)
+			}
 			return false, nil
 		} else {
 			return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
@@ -253,7 +299,12 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 
 	oldHash := hex.EncodeToString(v.SigningDigest().Bytes())
 	if hash != oldHash {
-		p.logger.Debug("VAA already in DB but hash is different", zap.String("old_hash", oldHash), zap.String("new_hash", hash))
+		if p.logger.Core().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("VAA already in DB but hash is different",
+				zap.String("message_id", s.ourObservation.MessageID()),
+				zap.String("old_hash", oldHash),
+				zap.String("new_hash", hash))
+		}
 		return false, fmt.Errorf("hash mismatch in_db: %s, new: %s", oldHash, hash)
 	}
 
