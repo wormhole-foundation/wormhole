@@ -1,8 +1,8 @@
 module github.com/certusone/wormhole/node
 
-go 1.21
+go 1.21.9
 
-toolchain go1.21.8
+toolchain go1.21.9
 
 require (
 	github.com/celo-org/celo-blockchain v1.5.5
