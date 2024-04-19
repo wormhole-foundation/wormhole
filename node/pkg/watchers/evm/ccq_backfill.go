@@ -207,12 +207,12 @@ func ccqBackFillDetermineMaxBatchSize(ctx context.Context, logger *zap.Logger, c
 
 	// Save the blocks we just retrieved to be used as our starting cache.
 	blocks := Blocks{}
-	for _, result := range results {
-		if result.err != nil {
-			return 0, nil, fmt.Errorf("failed to get block: %w", result.err)
+	for i := range results {
+		if results[i].err != nil {
+			return 0, nil, fmt.Errorf("failed to get block: %w", results[i].err)
 		}
 
-		m := &result.result
+		m := &results[i].result
 
 		if m.Number != 0 {
 			blocks = append(blocks, Block{
@@ -262,12 +262,12 @@ func (w *Watcher) ccqBackfillGetBlocks(ctx context.Context, initialBlockNum int6
 	}
 
 	blocks := Blocks{}
-	for _, result := range results {
-		if result.err != nil {
+	for i := range results {
+		if results[i].err != nil {
 			return nil, fmt.Errorf("failed to get block: %w", err)
 		}
 
-		m := &result.result
+		m := &results[i].result
 
 		if m.Number != 0 {
 			blocks = append(blocks, Block{

@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.10"
+          go-version: "1.21.9"
       - run: make node
 
   algorand:
@@ -286,7 +286,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.10"
+          go-version: "1.21.9"
       - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
@@ -303,15 +303,15 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.10"
+          go-version: "1.21.9"
       - name: Install formatter
         run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.57.2
       - name: Run linters
-        run: make generate && ./scripts/lint.sh -g lint
+        run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches
         run: |
           rm -rf node/pkg/proto
@@ -345,7 +345,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.20.10"
+          go-version: "1.21.9"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
         run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...

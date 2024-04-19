@@ -22,3 +22,9 @@ linters:
     # - unconvert # disable because extra conversion typically don't hurt but can make code more clear
     - unparam
     - prealloc
+issues:
+  exclude-rules:
+    - path: pkg/supervisor/supervisor_testhelpers.go
+      text: "^func.*supervisor.*(waitSettle|waitSettleError).*$"
+      linters:
+        - unused
