@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#MNEMONIC= ./forge-scripts/upgrade.sh testnet Core blast
+#MNEMONIC= ./sh/upgrade.sh testnet Core blast
 
 set -euo pipefail
 

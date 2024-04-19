@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MNEMONIC=<redacted> ./forge-scripts/deployCoreBridge.sh
+# MNEMONIC=<redacted> ./sh/deployCoreBridge.sh
 
 . .env
 

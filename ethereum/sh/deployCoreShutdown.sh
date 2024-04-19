@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MNEMONIC=<redacted> ./forge-scripts/deployCoreShutdown.sh
+# MNEMONIC=<redacted> ./sh/deployCoreShutdown.sh
 
 . .env
 

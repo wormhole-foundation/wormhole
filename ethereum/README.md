@@ -30,25 +30,25 @@ ethereum$ ln -s env/.env.blast.testnet .env
 #### Deploy the Core contract
 
 ```shell
-ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployCoreBridge.sh
+ethereum$ MNEMONIC=<redacted> ./sh/deployCoreBridge.sh
 ```
 
 #### Deploy the TokenBridge contract
 
 ```shell
-ethereum$ MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./forge-scripts/deployTokenBridge.sh
+ethereum$ MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./sh/deployTokenBridge.sh
 ```
 
 #### Deploy the Core Shutdown contract
 
 ```shell
-ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployCoreShutdown.sh
+ethereum$ MNEMONIC=<redacted> ./sh/deployCoreShutdown.sh
 ```
 
 #### Deploy the TokenBridge Shutdown contract
 
 ```shell
-ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployTokenBridgeShutdown.sh
+ethereum$ MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 ```
 
 #### Generate Flattened Source
@@ -56,7 +56,7 @@ ethereum$ MNEMONIC=<redacted> ./forge-scripts/deployTokenBridgeShutdown.sh
 To generated the flattened source files to verify the contracts using the explorer UI
 
 ```shell
-ethereum$ ./forge-scripts/flatten.sh
+ethereum$ ./sh/flatten.sh
 ```
 
 This will put the flattened files in `ethereum/flattened`.
@@ -64,14 +64,14 @@ This will put the flattened files in `ethereum/flattened`.
 #### Upgrade the Core or TokenBridge Implementation
 
 ```shell
-ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet Core blast
-ethereum$ MNEMONIC= ./forge-scripts/upgrade.sh testnet TokenBridge blast
+ethereum$ MNEMONIC= ./sh/upgrade.sh testnet Core blast
+ethereum$ MNEMONIC= ./sh/upgrade.sh testnet TokenBridge blast
 ```
 
 #### Registering Other Chains on a New TokenBridge
 
 ```shell
-ethereum$ MNEMONIC= ./forge-scripts/registerAllChainsOnTokenBridge.sh.sh testnet blast
+ethereum$ MNEMONIC= ./sh/registerAllChainsOnTokenBridge.sh.sh testnet blast
 ```
 
 ### Deploying using Truffle (deprecated)
