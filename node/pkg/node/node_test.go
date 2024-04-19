@@ -840,12 +840,12 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 	<-rootCtx.Done()
 	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+
 	// There are some things that happen outside of the supervisor context and are a bit racey when the root context
 	// is shutdown. Namely some pkg/db bits, metrics sinks, and p2p logging. This gives them time to shutdown so the
 	// tests are happy.
-	wait := 50
-	zapLogger.Info("Test root context cancelled, waiting %dms for everything to shut down properly...", wait)
-	time.Sleep(time.Millisecond * wait)
+	zapLogger.Info("Test root context cancelled, waiting for everything to shut down properly...")
+	time.Sleep(time.Millisecond * 50)
 }
 
 type testCaseGuardianConfig struct {
