@@ -49,7 +49,7 @@ function get_docker_image_digest() {
     local digest=$($DOCKER pull "${image}:${version}" | awk '/^Digest:/{print $NF}')
 
     if [[ ${PIPESTATUS[0]} -ne 0 || -z "$digest" ]]; then
-        echo "ERROR: could not determine digest for ${image}:${version} container image" >&2
+        echo "WARNING: could not determine digest for ${image}:${version} container image" >&2
         return 1
     fi
 
@@ -68,6 +68,10 @@ function update_our_dockerfiles() {
 
     # shellcheck disable=SC2155
     local digest=$(get_docker_image_digest "$version" "docker.io/golang")
+    if [[ $? -ne 0 ]] || [[ -z "$digest" ]]; then
+        echo "WARNING: Problem getting docker image digest" >&2
+        return 1
+    fi
 
     for dockerfile in "${wormhole_dockerfiles[@]}"; do
         if grep -qEi 'FROM.*go.*alpine' "$dockerfile"; then
@@ -100,6 +104,8 @@ function update_go_mod() {
     (
         cd "${REPO_ROOT_DIR}/node" || exit 1
         go mod edit -go "$version" -toolchain "go${version}"
+	# This is mandatory after go mod edit or it refuses to build
+	go mod tidy
     )
     return $?
 }
