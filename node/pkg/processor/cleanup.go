@@ -125,7 +125,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("observation considered settled",
-					zap.String("message_id", s.MessageID()),
+					zap.String("message_id", s.LoggingID()),
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 					zap.Int("have_sigs", hasSigs),
@@ -149,7 +149,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// and then expired after a while (as noted in observation.go, this can be abused by a byzantine guardian).
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("expiring submitted observation",
-					zap.String("message_id", s.MessageID()),
+					zap.String("message_id", s.LoggingID()),
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 				)
@@ -159,7 +159,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 		case !s.submitted && ((s.ourMsg != nil && delta > retryLimitOurs) || (s.ourMsg == nil && delta > retryLimitNotOurs)):
 			// Clearly, this horse is dead and continued beatings won't bring it closer to quorum.
 			p.logger.Info("expiring unsubmitted observation after exhausting retries",
-				zap.String("message_id", s.MessageID()),
+				zap.String("message_id", s.LoggingID()),
 				zap.String("digest", hash),
 				zap.Duration("delta", delta),
 				zap.Bool("weObserved", s.ourMsg != nil),
@@ -177,7 +177,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				// Unreliable observations cannot be resubmitted and can be considered failed after 5 minutes
 				if !s.ourObservation.IsReliable() {
 					p.logger.Info("expiring unsubmitted unreliable observation",
-						zap.String("message_id", s.MessageID()),
+						zap.String("message_id", s.LoggingID()),
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 					)
@@ -190,7 +190,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				if s.ourObservation.IsReobservation() {
 					if p.logger.Level().Enabled(zapcore.DebugLevel) {
 						p.logger.Debug("not submitting reobservation request for reobservation",
-							zap.String("message_id", s.MessageID()),
+							zap.String("message_id", s.LoggingID()),
 							zap.String("digest", hash),
 							zap.Duration("delta", delta),
 						)
@@ -202,7 +202,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				alreadyInDB, err := p.signedVaaAlreadyInDB(hash, s)
 				if err != nil {
 					p.logger.Error("failed to check if observation is already in DB, requesting reobservation",
-						zap.String("message_id", s.MessageID()),
+						zap.String("message_id", s.LoggingID()),
 						zap.String("hash", hash),
 						zap.Error(err))
 				}
@@ -210,13 +210,13 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				if alreadyInDB {
 					if p.logger.Level().Enabled(zapcore.DebugLevel) {
 						p.logger.Debug("observation already in DB, not requesting reobservation",
-							zap.String("message_id", s.MessageID()),
+							zap.String("message_id", s.LoggingID()),
 							zap.String("digest", hash),
 						)
 					}
 				} else {
 					p.logger.Info("resubmitting observation",
-						zap.String("message_id", s.MessageID()),
+						zap.String("message_id", s.LoggingID()),
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.String("firstObserved", s.firstObserved.String()),
@@ -226,7 +226,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						TxHash:  s.txHash,
 					}
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
-						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.MessageID()), zap.Error(err))
+						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
 					p.gossipSendC <- s.ourMsg
 					s.retryCtr++
@@ -242,7 +242,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 
 				if p.logger.Level().Enabled(zapcore.DebugLevel) {
 					p.logger.Debug("expiring unsubmitted nil observation",
-						zap.String("message_id", s.MessageID()),
+						zap.String("message_id", s.LoggingID()),
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.Int("have_sigs", hasSigs),

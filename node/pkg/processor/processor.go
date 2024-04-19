@@ -83,7 +83,9 @@ type (
 	}
 )
 
-func (s *state) MessageID() string {
+// LoggingID can be used to identify a state object in a log message. Note that it should not
+// be used to uniquely identify an observation. It is only meant for logging purposes.
+func (s *state) LoggingID() string {
 	if s.ourObservation != nil {
 		return s.ourObservation.MessageID()
 	}
