@@ -90,12 +90,12 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("received observation",
+			zap.String("message_id", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
-			zap.String("message_id", m.MessageId),
 		)
 	}
 
@@ -106,6 +106,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
 	if err != nil {
 		p.logger.Warn("failed to verify signature on observation",
+			zap.String("messageId", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
@@ -120,6 +121,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 	if their_addr != signer_pk {
 		p.logger.Info("invalid observation - address does not match pubkey",
+			zap.String("messageId", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
@@ -155,6 +157,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	// May as well not have received it/been offline - drop it and wait for the guardian set.
 	if gs == nil {
 		p.logger.Warn("dropping observations since we haven't initialized our guardian set yet",
+			zap.String("messageId", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("their_addr", their_addr.Hex()),
 		)
@@ -166,12 +169,15 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	// who have the outdated guardian set, we'll just wait for the message to be retransmitted eventually.
 	_, ok := gs.KeyIndex(their_addr)
 	if !ok {
-		p.logger.Debug("received observation by unknown guardian - is our guardian set outdated?",
-			zap.String("digest", hash),
-			zap.String("their_addr", their_addr.Hex()),
-			zap.Uint32("index", gs.Index),
-			//zap.Any("keys", gs.KeysAsHexStrings()),
-		)
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("received observation by unknown guardian - is our guardian set outdated?",
+				zap.String("messageId", m.MessageId),
+				zap.String("digest", hash),
+				zap.String("their_addr", their_addr.Hex()),
+				zap.Uint32("index", gs.Index),
+				//zap.Any("keys", gs.KeysAsHexStrings()),
+			)
+		}
 		observationsFailedTotal.WithLabelValues("unknown_guardian").Inc()
 		return
 	}
@@ -219,10 +225,12 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		// We will later check for quorum again after assembling the VAA for a particular guardian set.
 		if len(s.signatures) < quorum {
 			// no quorum yet, we're done here
-			p.logger.Debug("quorum not yet met",
-				zap.String("digest", hash),
-				zap.String("messageId", m.MessageId),
-			)
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("quorum not yet met",
+					zap.String("messageId", m.MessageId),
+					zap.String("digest", hash),
+				)
+			}
 			return
 		}
 
@@ -232,6 +240,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("aggregation state for observation", // 1.3M out of 3M info messages / hour / guardian
+				zap.String("messageId", m.MessageId),
 				zap.String("digest", hash),
 				zap.Any("set", gs.KeysAsHexStrings()),
 				zap.Uint32("index", gs.Index),
@@ -246,12 +255,20 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			// we have reached quorum *with the active guardian set*
 			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
 		} else {
-			p.logger.Debug("quorum not met or already submitted, doing nothing", // 1.2M out of 3M info messages / hour / guardian
-				zap.String("digest", hash))
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("quorum not met or already submitted, doing nothing", // 1.2M out of 3M info messages / hour / guardian
+					zap.String("messageId", m.MessageId),
+					zap.String("digest", hash),
+				)
+			}
 		}
 	} else {
-		p.logger.Debug("we have not yet seen this observation - temporarily storing signature", // 175K out of 3M info messages / hour / guardian
-			zap.String("digest", hash))
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("we have not yet seen this observation - temporarily storing signature", // 175K out of 3M info messages / hour / guardian
+				zap.String("messageId", m.MessageId),
+				zap.String("digest", hash),
+			)
+		}
 
 	}
 
@@ -270,7 +287,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	if p.haveSignedVAA(*db.VaaIDFromVAA(v)) {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
-				zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+				zap.String("message_id", v.MessageID()),
 			)
 		}
 		return
@@ -278,6 +295,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 
 	if p.gs == nil {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet",
+			zap.String("message_id", v.MessageID()),
 			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
 			zap.Any("message", m),
 		)
@@ -287,6 +305,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	// Check if guardianSet doesn't have any keys
 	if len(p.gs.Keys) == 0 {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we have a guardian set without keys",
+			zap.String("message_id", v.MessageID()),
 			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
 			zap.Any("message", m),
 		)
@@ -294,7 +313,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 
 	if err := v.Verify(p.gs.Keys); err != nil {
-		p.logger.Warn("dropping SignedVAAWithQuorum message because it failed verification: " + err.Error())
+		// We format the error as part of the message so the tests can check for it.
+		p.logger.Warn("dropping SignedVAAWithQuorum message because it failed verification: "+err.Error(), zap.String("message_id", v.MessageID()))
 		return
 	}
 
@@ -306,14 +326,18 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	// Store signed VAA in database.
 	if p.logger.Level().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("storing inbound signed VAA with quorum",
+			zap.String("message_id", v.MessageID()),
 			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
 			zap.Any("vaa", v),
 			zap.String("bytes", hex.EncodeToString(m.Vaa)),
-			zap.String("message_id", v.MessageID()))
+		)
 	}
 
 	if err := p.storeSignedVAA(v); err != nil {
-		p.logger.Error("failed to store signed VAA", zap.Error(err))
+		p.logger.Error("failed to store signed VAA",
+			zap.String("message_id", v.MessageID()),
+			zap.Error(err),
+		)
 		return
 	}
 }

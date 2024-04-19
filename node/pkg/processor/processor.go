@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -81,6 +82,16 @@ type (
 		signatures observationMap
 	}
 )
+
+// LoggingID can be used to identify a state object in a log message. Note that it should not
+// be used to uniquely identify an observation. It is only meant for logging purposes.
+func (s *state) LoggingID() string {
+	if s.ourObservation != nil {
+		return s.ourObservation.MessageID()
+	}
+
+	return hex.EncodeToString(s.txHash)
+}
 
 type PythNetVaaEntry struct {
 	v          *vaa.VAA
