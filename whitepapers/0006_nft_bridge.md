@@ -130,7 +130,7 @@ NewContract [32]uint8
 ## Caveats
 
 ### Transfer completion
-A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
+A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
 
 If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
 1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.

@@ -73,7 +73,7 @@ class AlgoTests {
 
         console.log("seq = ", seq);
 
-        console.log("XXX upgrading the the guardian set using untrusted account...", seq)
+        console.log("XXX upgrading the guardian set using untrusted account...", seq)
         let upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, seq, seq, guardianKeys)
         console.log(upgradeVAA)
         console.log(parseVAA(hexStringToUint8Array(upgradeVAA))) 

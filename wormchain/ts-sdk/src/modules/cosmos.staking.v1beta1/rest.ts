@@ -547,7 +547,7 @@ export interface V1Beta1QueryDelegatorUnbondingDelegationsResponse {
 Query/DelegatorValidator RPC method.
 */
 export interface V1Beta1QueryDelegatorValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: Stakingv1Beta1Validator;
 }
 
@@ -556,7 +556,7 @@ export interface V1Beta1QueryDelegatorValidatorResponse {
 Query/DelegatorValidators RPC method.
 */
 export interface V1Beta1QueryDelegatorValidatorsResponse {
-  /** validators defines the the validators' info of a delegator. */
+  /** validators defines the validators' info of a delegator. */
   validators?: Stakingv1Beta1Validator[];
 
   /** pagination defines the pagination in the response. */
@@ -616,7 +616,7 @@ export interface V1Beta1QueryValidatorDelegationsResponse {
 }
 
 export interface V1Beta1QueryValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: Stakingv1Beta1Validator;
 }
 

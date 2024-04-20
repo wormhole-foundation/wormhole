@@ -560,7 +560,7 @@ class AlgoTest(PortalCore):
         bal = self.getBalances(client, player.getAddress())
         pprint.pprint(bal)
 
-        print("upgrading the the guardian set using untrusted account...")
+        print("upgrading the guardian set using untrusted account...")
         upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, 2, seq, seq))
         vaaLogs.append(["guardianUpgrade", upgradeVAA.hex()])
         self.submitVAA(upgradeVAA, client, player, self.coreid)
