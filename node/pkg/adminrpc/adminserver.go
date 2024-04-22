@@ -604,6 +604,9 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base58 governance contract address: %w", err)
 	}
+	if len(address) != 32 {
+		return nil, errors.New("invalid governance contract address length (expected 32 bytes)")
+	}
 
 	var governanceContract [32]byte
 	copy(governanceContract[:], address)
