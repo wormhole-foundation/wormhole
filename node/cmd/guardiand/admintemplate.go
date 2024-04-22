@@ -60,6 +60,11 @@ var ibcUpdateChannelChainChainId *string
 var recoverChainIdEvmChainId *string
 var recoverChainIdNewChainId *string
 
+var governanceContractAddress *string
+var governanceTargetAddress *string
+var governanceTargetChain *string
+var governanceCallData *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -171,6 +176,16 @@ func init() {
 	AdminClientRecoverChainIdCmd.Flags().AddFlagSet(recoverChainIdFlagSet)
 	AdminClientRecoverChainIdCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientRecoverChainIdCmd)
+
+	// flags for general-purpose governance call command
+	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
+	governanceContractAddress = generalPurposeGovernanceFlagSet.String("governance-contract", "", "Governance contract address")
+	governanceTargetAddress = generalPurposeGovernanceFlagSet.String("target-address", "", "Address of the governed contract")
+	governanceCallData = generalPurposeGovernanceFlagSet.String("call-data", "", "calldata")
+	governanceTargetChain = generalPurposeGovernanceFlagSet.String("chain-id", "", "Chain ID")
+	// evm call command
+	AdminClientGeneralPurposeGovernanceEvmCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceEvmCallCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -290,6 +305,12 @@ var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
 	Use:   "wormhole-relayer-set-default-delivery-provider",
 	Short: "Generate a 'set default delivery provider' template for specified chain and address",
 	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
+}
+
+var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
+	Use:   "governance-evm-call",
+	Short: "Generate a 'general purpose evm governance call' template for specified chain and address",
+	Run:   runGeneralPurposeGovernanceEvmCallTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -919,6 +940,57 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
 						ChainId:                           uint32(chainID),
 						NewDefaultDeliveryProviderAddress: address,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []string) {
+	if *governanceTargetAddress == "" {
+		log.Fatal("--target-address must be specified")
+	}
+	if !common.IsHexAddress(*governanceTargetAddress) {
+		log.Fatal("invalid target address")
+	}
+	governanceTargetAddress := common.HexToAddress(*governanceTargetAddress).Hex()
+	if *governanceCallData == "" {
+		log.Fatal("--call-data must be specified")
+	}
+	if *governanceContractAddress == "" {
+		log.Fatal("--governance-contract must be specified")
+	}
+	if !common.IsHexAddress(*governanceContractAddress) {
+		log.Fatal("invalid governance contract address")
+	}
+	governanceContractAddress := common.HexToAddress(*governanceContractAddress).Hex()
+	if *governanceTargetChain == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainID, err := parseChainID(*governanceTargetChain)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_EvmCall{
+					EvmCall: &nodev1.EvmCall{
+						ChainId:            uint32(chainID),
+						GovernanceContract: governanceContractAddress,
+						TargetContract:     governanceTargetAddress,
+						AbiEncodedCall:     *governanceCallData,
 					},
 				},
 			},
