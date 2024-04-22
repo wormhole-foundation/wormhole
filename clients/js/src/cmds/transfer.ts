@@ -154,6 +154,8 @@ export const handler = async (
     throw Error("seda is not supported yet");
   } else if (srcChain === "dymension") {
     throw Error("dymension is not supported yet");
+  } else if (srcChain === "provenance") {
+    throw Error("provenance is not supported yet");
   } else if (srcChain === "rootstock") {
     throw Error("rootstock is not supported yet");
   } else {

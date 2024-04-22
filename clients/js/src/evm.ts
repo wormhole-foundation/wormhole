@@ -3,8 +3,8 @@ import {
   BridgeImplementation__factory,
   Implementation__factory,
   NFTBridgeImplementation__factory,
-  WormholeRelayer__factory,
 } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
+import { WormholeRelayer__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-relayer-contracts";
 import { getWormholeRelayerAddress } from "@certusone/wormhole-sdk/lib/esm/relayer";
 import {
   CHAINS,

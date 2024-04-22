@@ -7,6 +7,7 @@ Algorand
 algosdk
 alist
 Aptos
+arbitrum
 authorisation
 authorise
 authorised
@@ -25,6 +26,7 @@ callstack
 CCTP
 celestia
 Celestia
+celo
 certusone
 Chainlink
 Coinspect
@@ -143,6 +145,7 @@ rustup
 satoshi
 secp
 seda
+seievm
 Sepolia
 serde
 setcap
@@ -192,6 +195,7 @@ wormchaind
 Wormholescan
 wormscan
 wormscanurl
+xlayer
 xpla
 XPLA
 Zellic
