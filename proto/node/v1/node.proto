@@ -120,6 +120,7 @@ message GovernanceMessage {
 
     // Generic governance
     EvmCall evm_call = 28;
+    SolanaCall solana_call = 29;
   }
 }
 
@@ -433,4 +434,16 @@ message EvmCall {
   string target_contract = 3;
 
   string abi_encoded_call = 4;
+}
+
+// SolanaCall represents a generic Solana call that can be executed by the generalized governance contract.
+message SolanaCall {
+  // ID of the chain where the action should be executed (uint16).
+  uint32 chain_id = 1;
+
+  // Address of the governance contract (solana address)
+  string governance_contract = 2;
+
+  // Address of the governed contract (eth address starting with 0x)
+  string encoded_instruction = 3;
 }

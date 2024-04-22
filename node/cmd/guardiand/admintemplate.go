@@ -186,6 +186,9 @@ func init() {
 	// evm call command
 	AdminClientGeneralPurposeGovernanceEvmCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceEvmCallCmd)
+	// solana call command
+	AdminClientGeneralPurposeGovernanceSolanaCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -311,6 +314,12 @@ var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
 	Use:   "governance-evm-call",
 	Short: "Generate a 'general purpose evm governance call' template for specified chain and address",
 	Run:   runGeneralPurposeGovernanceEvmCallTemplate,
+}
+
+var AdminClientGeneralPurposeGovernanceSolanaCallCmd = &cobra.Command{
+	Use:   "governance-solana-call",
+	Short: "Generate a 'general purpose solana governance call' template for specified chain and address",
+	Run:   runGeneralPurposeGovernanceSolanaCallTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -991,6 +1000,49 @@ func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []strin
 						GovernanceContract: governanceContractAddress,
 						TargetContract:     governanceTargetAddress,
 						AbiEncodedCall:     *governanceCallData,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []string) {
+	if *governanceCallData == "" {
+		log.Fatal("--call-data must be specified")
+	}
+	if *governanceContractAddress == "" {
+		log.Fatal("--governance-contract must be specified")
+	}
+	_, err := base58.Decode(*governanceContractAddress)
+	if err != nil {
+		log.Fatal("invalid base58 governance contract address")
+	}
+	if *governanceTargetChain == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainID, err := parseChainID(*governanceTargetChain)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_SolanaCall{
+					SolanaCall: &nodev1.SolanaCall{
+						ChainId:            uint32(chainID),
+						GovernanceContract: *governanceContractAddress,
+						EncodedInstruction: *governanceCallData,
 					},
 				},
 			},

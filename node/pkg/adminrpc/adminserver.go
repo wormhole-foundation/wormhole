@@ -599,6 +599,30 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 	return v, nil
 }
 
+func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	address, err := base58.Decode(solanaCall.GovernanceContract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base58 governance contract address: %w", err)
+	}
+
+	var governanceContract [32]byte
+	copy(governanceContract[:], address)
+
+	instruction, err := hex.DecodeString(solanaCall.EncodedInstruction)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode instruction: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyGeneralPurposeGovernanceSolana{
+			ChainID:            vaa.ChainID(solanaCall.ChainId),
+			GovernanceContract: governanceContract,
+			Instruction:        instruction,
+		}.Serialize())
+
+	return v, nil
+}
+
 func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
 	var (
 		v   *vaa.VAA
@@ -644,6 +668,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = wormholeRelayerSetDefaultDeliveryProvider(payload.WormholeRelayerSetDefaultDeliveryProvider, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_EvmCall:
 		v, err = evmCallToVaa(payload.EvmCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_SolanaCall:
+		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}
