@@ -62,6 +62,11 @@ export const getOriginalAsset = async (
     // case "rootstock":
     case "scroll":
     case "mantle":
+    case "blast":
+    case "xlayer":
+    case "linea":
+    case "berachain":
+    case "seievm":
     case "sepolia":
     case "arbitrum_sepolia":
     case "base_sepolia":
@@ -125,6 +130,7 @@ export const getOriginalAsset = async (
     case "stargaze":
     case "seda":
     case "dymension":
+    case "provenance":
     case "rootstock":
       throw new Error(`${chainName} not supported`);
     default:

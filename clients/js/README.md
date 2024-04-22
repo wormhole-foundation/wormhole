@@ -253,9 +253,10 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-     "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
-                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
+    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
+               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
+                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
                                "optimism_sepolia", "holesky", "polygon_sepolia"]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
@@ -311,18 +312,20 @@ Options:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-     "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
-                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
+    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
+               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
+                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
                                "optimism_sepolia", "holesky", "polygon_sepolia"]
       --dst-chain   destination chain
            [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-     "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
-                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
+    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
+               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
+                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
                                "optimism_sepolia", "holesky", "polygon_sepolia"]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
@@ -355,9 +358,10 @@ Positionals:
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-     "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "wormchain",
-      "cosmoshub", "evmos", "kujira", "neutron", "celestia", "stargaze", "seda",
-                     "dymension", "sepolia", "arbitrum_sepolia", "base_sepolia",
+         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
+    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
+               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
+                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
                                "optimism_sepolia", "holesky", "polygon_sepolia"]
   tx       Source transaction hash                                      [string]
 

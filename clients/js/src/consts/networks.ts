@@ -171,6 +171,41 @@ const MAINNET = {
     key: getEnvVar("ETH_KEY"),
     chain_id: 30,
   },
+  scroll: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  mantle: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  blast: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  xlayer: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  linea: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  berachain: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  seievm: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
   sepolia: {
     rpc: undefined,
     key: undefined,
@@ -206,16 +241,6 @@ const MAINNET = {
     key: undefined,
     chain_id: undefined,
   },
-  scroll: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
-  },
-  mantle: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
-  },
   arbitrum_sepolia: {
     rpc: undefined,
     key: undefined,
@@ -247,6 +272,11 @@ const MAINNET = {
     chain_id: undefined,
   },
   dymension: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  provenance: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,
@@ -362,6 +392,41 @@ const TESTNET = {
     rpc: "https://rpc.atlantic-2.seinetwork.io",
     key: getEnvVar("SEI_KEY_TESTNET"),
   },
+  scroll: {
+    rpc: "https://rpc.ankr.com/scroll_sepolia_testnet",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 534353,
+  },
+  mantle: {
+    rpc: "https://mantle-sepolia.drpc.org",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 5003,
+  },
+  blast: {
+    rpc: "https://blast-sepolia.drpc.org",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 168587773,
+  },
+  xlayer: {
+    rpc: "https://testrpc.xlayer.tech/",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 195,
+  },
+  linea: {
+    rpc: "https://rpc.sepolia.linea.build",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 59141,
+  },
+  berachain: {
+    rpc: "https://artio.rpc.berachain.com/",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 80085,
+  },
+  seievm: {
+    rpc: "https://evm-rpc-arctic-1.sei-apis.com/",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 713715,
+  },
   sepolia: {
     rpc: "https://rpc.ankr.com/eth_sepolia",
     key: getEnvVar("ETH_KEY_TESTNET"),
@@ -445,16 +510,6 @@ const TESTNET = {
     key: undefined,
     chain_id: undefined,
   },
-  scroll: {
-    rpc: "https://rpc.ankr.com/scroll_sepolia_testnet",
-    key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 534353,
-  },
-  mantle: {
-    rpc: "https://mantle-sepolia.drpc.org",
-    key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 5003,
-  },
   arbitrum_sepolia: {
     rpc: "https://arbitrum-sepolia.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
@@ -486,6 +541,11 @@ const TESTNET = {
     chain_id: undefined,
   },
   dymension: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  provenance: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,
@@ -584,6 +644,41 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  scroll: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  mantle: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  blast: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  xlayer: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  linea: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  berachain: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  seievm: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
   sepolia: {
     rpc: undefined,
     key: undefined,
@@ -660,16 +755,6 @@ const DEVNET = {
     key: undefined,
     chain_id: undefined,
   },
-  scroll: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
-  },
-  mantle: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
-  },
   arbitrum_sepolia: {
     rpc: undefined,
     key: undefined,
@@ -701,6 +786,11 @@ const DEVNET = {
     chain_id: undefined,
   },
   dymension: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  provenance: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,
