@@ -55,6 +55,13 @@ var WormholeRelayerModule = [32]byte{
 }
 var WormholeRelayerModuleStr = string(WormholeRelayerModule[:])
 
+var GeneralPurposeGovernanceModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47, 0x65, 0x6E, 0x65, 0x72, 0x61, 0x6C,
+	0x50, 0x75, 0x72, 0x70, 0x6F, 0x73, 0x65, 0x47, 0x6F, 0x76, 0x65, 0x72, 0x6E, 0x61, 0x6E,
+	0x63, 0x65,
+}
+var GeneralPurposeGovernanceModuleStr = string(GeneralPurposeGovernanceModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -215,6 +222,14 @@ type (
 	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
 		ChainID                           ChainID
 		NewDefaultDeliveryProviderAddress Address
+	}
+
+	// BodyGeneralPurposeGovernanceEvm is a general purpose governance message for EVM chains
+	BodyGeneralPurposeGovernanceEvm struct {
+		ChainID            ChainID
+		GovernanceContract Address
+		TargetContract     Address
+		Payload            []byte
 	}
 )
 
@@ -400,6 +415,16 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+}
+
+func (r BodyGeneralPurposeGovernanceEvm) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.GovernanceContract[:])
+	payload.Write(r.TargetContract[:])
+	// write payload len as uint16
+	MustWrite(payload, binary.BigEndian, uint16(len(r.Payload)))
+	payload.Write(r.Payload)
+	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GovernanceAction(1), r.ChainID, payload.Bytes())
 }
 
 func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) []byte {

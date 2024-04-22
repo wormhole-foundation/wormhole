@@ -577,6 +577,28 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 	return v, nil
 }
 
+func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	var governanceContract [32]byte
+	copy(governanceContract[:], ethcommon.HexToAddress(evmCall.GovernanceContract).Bytes())
+	var targetContract [32]byte
+	copy(targetContract[:], ethcommon.HexToAddress(evmCall.TargetContract).Bytes())
+
+	payload, err := hex.DecodeString(evmCall.AbiEncodedCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode ABI encoded call: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyGeneralPurposeGovernanceEvm{
+			ChainID:            vaa.ChainID(evmCall.ChainId),
+			GovernanceContract: governanceContract,
+			TargetContract:     targetContract,
+			Payload:            payload,
+		}.Serialize())
+
+	return v, nil
+}
+
 func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
 	var (
 		v   *vaa.VAA
@@ -620,6 +642,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = ibcUpdateChannelChain(payload.IbcUpdateChannelChain, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider:
 		v, err = wormholeRelayerSetDefaultDeliveryProvider(payload.WormholeRelayerSetDefaultDeliveryProvider, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_EvmCall:
+		v, err = evmCallToVaa(payload.EvmCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}

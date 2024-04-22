@@ -40,7 +40,7 @@ service NodePrivilegedService {
 
   // ChainGovernorReleasePendingVAA release a VAA from the chain governor pending list, publishing it immediately.
   rpc ChainGovernorReleasePendingVAA (ChainGovernorReleasePendingVAARequest) returns (ChainGovernorReleasePendingVAAResponse);
-  
+
   // ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
   rpc ChainGovernorResetReleaseTimer (ChainGovernorResetReleaseTimerRequest) returns (ChainGovernorResetReleaseTimerResponse);
 
@@ -51,10 +51,10 @@ service NodePrivilegedService {
   rpc SignExistingVAA (SignExistingVAARequest) returns (SignExistingVAAResponse);
 
   // DumpRPCs returns the RPCs being used by the guardian
-  rpc DumpRPCs (DumpRPCsRequest) returns (DumpRPCsResponse);  
+  rpc DumpRPCs (DumpRPCsRequest) returns (DumpRPCsResponse);
 
   // GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
-  rpc GetAndObserveMissingVAAs (GetAndObserveMissingVAAsRequest) returns (GetAndObserveMissingVAAsResponse);  
+  rpc GetAndObserveMissingVAAs (GetAndObserveMissingVAAsRequest) returns (GetAndObserveMissingVAAsResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -85,7 +85,7 @@ message GovernanceMessage {
     GuardianSetUpdate guardian_set = 10;
     ContractUpgrade contract_upgrade = 11;
 
-    // Token bridge, NFT module, and Wormhole Relayer module (for the first two) 
+    // Token bridge, NFT module, and Wormhole Relayer module (for the first two)
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
@@ -117,6 +117,9 @@ message GovernanceMessage {
     IbcUpdateChannelChain ibc_update_channel_chain = 21;
     // Wormhole Relayer module
     WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 22;
+
+    // Generic governance
+    EvmCall evm_call = 28;
   }
 }
 
@@ -191,7 +194,7 @@ message AccountantModifyBalance {
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
 message ContractUpgrade {
-  // ID of the chain where the Wormhole contract should be updated (uint8).
+  // ID of the chain where the Wormhole contract should be updated (uint16).
   uint32 chain_id = 1;
 
   // Hex-encoded address (without leading 0x) address of the new program/contract.
@@ -416,4 +419,18 @@ message GetAndObserveMissingVAAsRequest {
 
 message GetAndObserveMissingVAAsResponse {
   string response =1;
+}
+
+// EvmCall represents a generic EVM call that can be executed by the generalized governance contract.
+message EvmCall {
+  // ID of the chain where the action should be executed (uint16).
+  uint32 chain_id = 1;
+
+  // Address of the governance contract (eth address starting with 0x)
+  string governance_contract = 2;
+
+  // Address of the governed contract (eth address starting with 0x)
+  string target_contract = 3;
+
+  string abi_encoded_call = 4;
 }
