@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -136,6 +137,10 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
+
+		// These parameters are currently only used for Linea and should be set via SetLineaParams()
+		lineaRollUpUrl      string
+		lineaRollUpContract string
 	}
 
 	pendingKey struct {
@@ -241,6 +246,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDLinea {
+		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewLineaConnector(ctx, logger, baseConnector, w.lineaRollUpUrl, w.lineaRollUpContract)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to create Linea poller: %w", err)
 		}
 	} else {
 		// Everything else is instant finality.
@@ -699,41 +717,61 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
 // to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
-	// TODO: Need to handle finality for Linea before it can be deployed in Mainnet.
 	finalized := false
 	safe := false
+
+	// Tilt supports polling for both finalized and safe.
 	if w.unsafeDevMode {
 		finalized = true
 		safe = true
+
+		// The following chains support polling for both finalized and safe.
 	} else if w.chainID == vaa.ChainIDAcala ||
 		w.chainID == vaa.ChainIDArbitrum ||
+		w.chainID == vaa.ChainIDArbitrumSepolia ||
 		w.chainID == vaa.ChainIDBase ||
+		w.chainID == vaa.ChainIDBaseSepolia ||
 		w.chainID == vaa.ChainIDBlast ||
 		w.chainID == vaa.ChainIDBSC ||
 		w.chainID == vaa.ChainIDEthereum ||
+		w.chainID == vaa.ChainIDHolesky ||
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMantle ||
 		w.chainID == vaa.ChainIDMoonbeam ||
 		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDSepolia ||
-		w.chainID == vaa.ChainIDHolesky ||
-		w.chainID == vaa.ChainIDArbitrumSepolia ||
-		w.chainID == vaa.ChainIDBaseSepolia ||
 		w.chainID == vaa.ChainIDOptimismSepolia ||
+		w.chainID == vaa.ChainIDSepolia ||
 		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
-	} else if w.chainID == vaa.ChainIDScroll {
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-		finalized = true
-	} else if w.chainID == vaa.ChainIDPolygon ||
-		w.chainID == vaa.ChainIDPolygonSepolia {
+
+		// The following chains have their own specialized finalizers.
+	} else if w.chainID == vaa.ChainIDCelo ||
+		w.chainID == vaa.ChainIDLinea {
+		return false, false, nil
+
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
+	} else if w.chainID == vaa.ChainIDPolygon ||
+		w.chainID == vaa.ChainIDPolygonSepolia {
 		finalized = true
-	} else if w.chainID == vaa.ChainIDBerachain {
-		// Berachain supports instant finality: https://docs.berachain.com/faq/
+
+		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDScroll {
+		finalized = true
+
+		// The following chains support instant finality.
+	} else if w.chainID == vaa.ChainIDAvalanche ||
+		w.chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
+		w.chainID == vaa.ChainIDOasis ||
+		w.chainID == vaa.ChainIDAurora ||
+		w.chainID == vaa.ChainIDFantom ||
+		w.chainID == vaa.ChainIDKlaytn {
 		return false, false, nil
+
+		// Anything else is undefined / not supported.
+	} else {
+		return false, false, fmt.Errorf("unsupported chain: %s", w.chainID.String())
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
@@ -934,4 +972,23 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
 	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
+}
+
+// SetLineaParams is used to enable polling on Linea using the roll up contract on Ethereum.
+func (w *Watcher) SetLineaParams(lineaRollUpUrl string, lineaRollUpContract string) error {
+	if w.chainID != vaa.ChainIDLinea {
+		return errors.New("function only allowed for Linea")
+	}
+	if w.unsafeDevMode && lineaRollUpUrl == "" && lineaRollUpContract == "" {
+		return nil
+	}
+	if lineaRollUpUrl == "" {
+		return fmt.Errorf("lineaRollUpUrl must be set")
+	}
+	if lineaRollUpContract == "" {
+		return fmt.Errorf("lineaRollUpContract must be set")
+	}
+	w.lineaRollUpUrl = lineaRollUpUrl
+	w.lineaRollUpContract = lineaRollUpContract
+	return nil
 }

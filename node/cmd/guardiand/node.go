@@ -182,8 +182,10 @@ var (
 	xlayerRPC      *string
 	xlayerContract *string
 
-	lineaRPC      *string
-	lineaContract *string
+	lineaRPC            *string
+	lineaContract       *string
+	lineaRollUpUrl      *string
+	lineaRollUpContract *string
 
 	berachainRPC      *string
 	berachainContract *string
@@ -386,6 +388,8 @@ func init() {
 
 	lineaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	lineaContract = NodeCmd.Flags().String("lineaContract", "", "Linea contract address")
+	lineaRollUpUrl = NodeCmd.Flags().String("lineaRollUpUrl", "", "Linea roll up URL")
+	lineaRollUpContract = NodeCmd.Flags().String("lineaRollUpContract", "", "Linea roll up contract address")
 
 	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
@@ -801,6 +805,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if (*lineaRPC == "") != (*lineaContract == "") {
 		logger.Fatal("Both --lineaContract and --lineaRPC must be set together or both unset")
+	}
+	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && !*unsafeDevMode {
+		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
 	}
 
 	if *berachainRPC != "" && !*testnetMode && !*unsafeDevMode {
@@ -1506,11 +1513,13 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(lineaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "linea",
-			ChainID:          vaa.ChainIDLinea,
-			Rpc:              *lineaRPC,
-			Contract:         *lineaContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:           "linea",
+			ChainID:             vaa.ChainIDLinea,
+			Rpc:                 *lineaRPC,
+			Contract:            *lineaContract,
+			CcqBackfillCache:    *ccqBackfillCache,
+			LineaRollUpUrl:      *lineaRollUpUrl,
+			LineaRollUpContract: *lineaRollUpContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
