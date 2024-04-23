@@ -174,13 +174,17 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 	emitterAddress := vaa.Address{}
 	copy(emitterAddress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyTokenBridgeRegisterChain{
-			Module:         req.Module,
-			ChainID:        vaa.ChainID(req.ChainId),
-			EmitterAddress: emitterAddress,
-		}.Serialize())
+	body, err := vaa.BodyTokenBridgeRegisterChain{
+		Module:         req.Module,
+		ChainID:        vaa.ChainID(req.ChainId),
+		EmitterAddress: emitterAddress,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -203,13 +207,17 @@ func recoverChainId(req *nodev1.RecoverChainId, timestamp time.Time, guardianSet
 		return nil, errors.New("invalid new_chain_id")
 	}
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyRecoverChainId{
-			Module:     req.Module,
-			EvmChainID: evm_chain_id,
-			NewChainID: vaa.ChainID(req.NewChainId),
-		}.Serialize())
+	body, err := vaa.BodyRecoverChainId{
+		Module:     req.Module,
+		EvmChainID: evm_chain_id,
+		NewChainID: vaa.ChainID(req.NewChainId),
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -254,20 +262,24 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 	tokenAdress := vaa.Address{}
 	copy(tokenAdress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyAccountantModifyBalance{
-			Module:        req.Module,
-			TargetChainID: vaa.ChainID(req.TargetChainId),
+	body, err := vaa.BodyAccountantModifyBalance{
+		Module:        req.Module,
+		TargetChainID: vaa.ChainID(req.TargetChainId),
 
-			Sequence:     req.Sequence,
-			ChainId:      vaa.ChainID(req.ChainId),
-			TokenChain:   vaa.ChainID(req.TokenChain),
-			TokenAddress: tokenAdress,
-			Kind:         uint8(req.Kind),
-			Amount:       amount,
-			Reason:       req.Reason,
-		}.Serialize())
+		Sequence:     req.Sequence,
+		ChainId:      vaa.ChainID(req.ChainId),
+		TokenChain:   vaa.ChainID(req.TokenChain),
+		TokenAddress: tokenAdress,
+		Kind:         uint8(req.Kind),
+		Amount:       amount,
+		Reason:       req.Reason,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -290,13 +302,17 @@ func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp tim
 	newContract := vaa.Address{}
 	copy(newContract[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyTokenBridgeUpgradeContract{
-			Module:        req.Module,
-			TargetChainID: vaa.ChainID(req.TargetChainId),
-			NewContract:   newContract,
-		}.Serialize())
+	body, err := vaa.BodyTokenBridgeUpgradeContract{
+		Module:        req.Module,
+		TargetChainID: vaa.ChainID(req.TargetChainId),
+		NewContract:   newContract,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -316,11 +332,15 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 	wasmHash := [32]byte{}
 	copy(wasmHash[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormchainStoreCode{
-			WasmHash: wasmHash,
-		}.Serialize())
+	body, err := vaa.BodyWormchainStoreCode{
+		WasmHash: wasmHash,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -329,11 +349,15 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
 	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormchainInstantiateContract{
-			InstantiationParamsHash: instantiationParams_hash,
-		}.Serialize())
+	body, err := vaa.BodyWormchainInstantiateContract{
+		InstantiationParamsHash: instantiationParams_hash,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -341,11 +365,15 @@ func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, time
 func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
 	instantiationParams_hash := vaa.CreateMigrateCosmwasmContractHash(req.CodeId, req.Contract, []byte(req.InstantiationMsg))
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormchainMigrateContract{
-			MigrationParamsHash: instantiationParams_hash,
-		}.Serialize())
+	body, err := vaa.BodyWormchainMigrateContract{
+		MigrationParamsHash: instantiationParams_hash,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -373,11 +401,16 @@ func wormchainWasmInstantiateAllowlist(
 	var decodedAddr32 [32]byte
 	copy(decodedAddr32[:], decodedAddr)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainWasmAllowlistInstantiate{
+	body, err := vaa.BodyWormchainWasmAllowlistInstantiate{
 		ContractAddr: decodedAddr32,
 		CodeId:       req.CodeId,
-	}.Serialize(action))
+	}.Serialize(action)
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -388,11 +421,17 @@ func gatewayScheduleUpgrade(
 	nonce uint32,
 	sequence uint64,
 ) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyGatewayScheduleUpgrade{
+
+	body, err := vaa.BodyGatewayScheduleUpgrade{
 		Name:   req.Name,
 		Height: req.Height,
-	}.Serialize())
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -402,10 +441,14 @@ func gatewayCancelUpgrade(
 	nonce uint32,
 	sequence uint64,
 ) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain),
-	)
 
+	body, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -424,10 +467,15 @@ func gatewayIbcComposabilityMwSetContract(
 	var decodedAddr32 [32]byte
 	copy(decodedAddr32[:], decodedAddr)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyGatewayIbcComposabilityMwContract{
+	body, err := vaa.BodyGatewayIbcComposabilityMwContract{
 		ContractAddr: decodedAddr32,
-	}.Serialize())
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -440,12 +488,17 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 	if req.Finality > math.MaxUint8 {
 		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
 	}
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyCircleIntegrationUpdateWormholeFinality{
-			TargetChainID: vaa.ChainID(req.TargetChainId),
-			Finality:      uint8(req.Finality),
-		}.Serialize())
 
+	body, err := vaa.BodyCircleIntegrationUpdateWormholeFinality{
+		TargetChainID: vaa.ChainID(req.TargetChainId),
+		Finality:      uint8(req.Finality),
+	}.Serialize()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -470,14 +523,18 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 	foreignEmitterAddress := vaa.Address{}
 	copy(foreignEmitterAddress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
-			TargetChainID:         vaa.ChainID(req.TargetChainId),
-			ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
-			ForeignEmitterAddress: foreignEmitterAddress,
-			CircleDomain:          req.CircleDomain,
-		}.Serialize())
+	body, err := vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
+		TargetChainID:         vaa.ChainID(req.TargetChainId),
+		ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
+		ForeignEmitterAddress: foreignEmitterAddress,
+		CircleDomain:          req.CircleDomain,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -499,12 +556,16 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	newImplementationAddress := vaa.Address{}
 	copy(newImplementationAddress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyCircleIntegrationUpgradeContractImplementation{
-			TargetChainID:            vaa.ChainID(req.TargetChainId),
-			NewImplementationAddress: newImplementationAddress,
-		}.Serialize())
+	body, err := vaa.BodyCircleIntegrationUpgradeContractImplementation{
+		TargetChainID:            vaa.ChainID(req.TargetChainId),
+		NewImplementationAddress: newImplementationAddress,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -527,7 +588,10 @@ func ibcUpdateChannelChain(
 	if len(req.ChannelId) > 64 {
 		return nil, fmt.Errorf("invalid channel ID length, must be <= 64")
 	}
-	channelId := vaa.LeftPadIbcChannelId(req.ChannelId)
+	channelId, err := vaa.LeftPadIbcChannelId(req.ChannelId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to left pad channel id: %w", err)
+	}
 
 	var module string
 	if req.Module == nodev1.IbcUpdateChannelChainModule_IBC_UPDATE_CHANNEL_CHAIN_MODULE_RECEIVER {
@@ -538,14 +602,17 @@ func ibcUpdateChannelChain(
 		return nil, fmt.Errorf("unrecognized ibc update channel chain module")
 	}
 
-	// create governance VAA
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyIbcUpdateChannelChain{
-			TargetChainId: vaa.ChainID(req.TargetChainId),
-			ChannelId:     channelId,
-			ChainId:       vaa.ChainID(req.ChainId),
-		}.Serialize(module))
+	body, err := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: vaa.ChainID(req.TargetChainId),
+		ChannelId:     channelId,
+		ChainId:       vaa.ChainID(req.ChainId),
+	}.Serialize(module)
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -568,12 +635,16 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 	NewDefaultDeliveryProviderAddress := vaa.Address{}
 	copy(NewDefaultDeliveryProviderAddress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
-			ChainID:                           vaa.ChainID(req.ChainId),
-			NewDefaultDeliveryProviderAddress: NewDefaultDeliveryProviderAddress,
-		}.Serialize())
+	body, err := vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
+		ChainID:                           vaa.ChainID(req.ChainId),
+		NewDefaultDeliveryProviderAddress: NewDefaultDeliveryProviderAddress,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -598,7 +669,6 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 	}
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
-
 	return v, nil
 }
 
@@ -619,13 +689,17 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 		return nil, fmt.Errorf("failed to decode instruction: %w", err)
 	}
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyGeneralPurposeGovernanceSolana{
-			ChainID:            vaa.ChainID(solanaCall.ChainId),
-			GovernanceContract: governanceContract,
-			Instruction:        instruction,
-		}.Serialize())
+	body, err := vaa.BodyGeneralPurposeGovernanceSolana{
+		ChainID:            vaa.ChainID(solanaCall.ChainId),
+		GovernanceContract: governanceContract,
+		Instruction:        instruction,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -677,7 +751,7 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 	case *nodev1.GovernanceMessage_SolanaCall:
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
-		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+		err = fmt.Errorf("unsupported VAA type: %T", payload)
 	}
 
 	return v, err

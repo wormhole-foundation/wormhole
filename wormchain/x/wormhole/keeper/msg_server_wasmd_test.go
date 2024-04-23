@@ -501,7 +501,9 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 		Reason:        "test modify",
 	}
 	ts := time.Date(2012, 12, 12, 12, 12, 12, 12, time.UTC)
-	modify_vaa := vaa.CreateGovernanceVAA(ts, 1, 1, tb.set.Index, modify_msg.Serialize())
+	modify_buf, err := modify_msg.Serialize()
+	require.NoError(t, err)
+	modify_vaa := vaa.CreateGovernanceVAA(ts, 1, 1, tb.set.Index, modify_buf)
 	*modify_vaa = signVaa(*modify_vaa, tb.privateKeys)
 	vBz, err := modify_vaa.Marshal()
 	require.NoError(t, err)

@@ -3,6 +3,7 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 
@@ -282,7 +283,7 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 	return buf.Bytes()
 }
 
-func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
+func (r BodyTokenBridgeRegisterChain) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.ChainID)
 	payload.Write(r.EmitterAddress[:])
@@ -290,13 +291,16 @@ func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(r.Module, ActionRegisterChain, 0, payload.Bytes())
 }
 
-func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
+func (r BodyTokenBridgeUpgradeContract) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
 }
 
-func (r BodyRecoverChainId) Serialize() []byte {
+func (r BodyRecoverChainId) Serialize() ([]byte, error) {
 	// Module
-	buf := LeftPadBytes(r.Module, 32)
+	buf, err := LeftPadBytes(r.Module, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to left pad module: %w", err)
+	}
 	// Action
 	var action GovernanceAction
 	if r.Module == "Core" {
@@ -309,10 +313,10 @@ func (r BodyRecoverChainId) Serialize() []byte {
 	MustWrite(buf, binary.BigEndian, r.EvmChainID.Bytes32())
 	// NewChainID
 	MustWrite(buf, binary.BigEndian, r.NewChainID)
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
-func (r BodyAccountantModifyBalance) Serialize() []byte {
+func (r BodyAccountantModifyBalance) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.Sequence)
 	MustWrite(payload, binary.BigEndian, r.ChainId)
@@ -335,28 +339,28 @@ func (r BodyAccountantModifyBalance) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(r.Module, ActionModifyBalance, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyWormchainStoreCode) Serialize() []byte {
+func (r BodyWormchainStoreCode) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionStoreCode, ChainIDWormchain, r.WasmHash[:])
 }
 
-func (r BodyWormchainInstantiateContract) Serialize() []byte {
+func (r BodyWormchainInstantiateContract) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionInstantiateContract, ChainIDWormchain, r.InstantiationParamsHash[:])
 }
 
-func (r BodyWormchainMigrateContract) Serialize() []byte {
+func (r BodyWormchainMigrateContract) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
-func (r BodyWormchainWasmAllowlistInstantiate) Serialize(action GovernanceAction) []byte {
+func (r BodyWormchainWasmAllowlistInstantiate) Serialize(action GovernanceAction) ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
 	MustWrite(payload, binary.BigEndian, r.CodeId)
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, action, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
+func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) error {
 	if len(bz) != 40 {
-		panic("incorrect payload length")
+		return fmt.Errorf("incorrect payload length, should be 40, is %d", len(bz))
 	}
 
 	var contractAddr [32]byte
@@ -366,26 +370,28 @@ func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 
 	r.ContractAddr = contractAddr
 	r.CodeId = codeId
+	return nil
 }
 
-func (r BodyGatewayIbcComposabilityMwContract) Serialize() []byte {
+func (r BodyGatewayIbcComposabilityMwContract) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionSetIbcComposabilityMwContract, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyGatewayIbcComposabilityMwContract) Deserialize(bz []byte) {
+func (r *BodyGatewayIbcComposabilityMwContract) Deserialize(bz []byte) error {
 	if len(bz) != 32 {
-		panic("incorrect payload length")
+		return fmt.Errorf("incorrect payload length, should be 32, is %d", len(bz))
 	}
 
 	var contractAddr [32]byte
 	copy(contractAddr[:], bz[0:32])
 
 	r.ContractAddr = contractAddr
+	return nil
 }
 
-func (r BodyGatewayScheduleUpgrade) Serialize() []byte {
+func (r BodyGatewayScheduleUpgrade) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write([]byte(r.Name))
 	MustWrite(payload, binary.BigEndian, r.Height)
@@ -397,11 +403,11 @@ func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) {
 	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
 }
 
-func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
+func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})
 }
 
-func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
+func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.ForeignEmitterChainId)
 	payload.Write(r.ForeignEmitterAddress[:])
@@ -409,15 +415,15 @@ func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
+func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewImplementationAddress[:])
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyIbcUpdateChannelChain) Serialize(module string) []byte {
+func (r BodyIbcUpdateChannelChain) Serialize(module string) ([]byte, error) {
 	if module != IbcReceiverModuleStr && module != IbcTranslatorModuleStr {
-		panic("module for BodyIbcUpdateChannelChain must be either IbcReceiver or IbcTranslator")
+		return nil, errors.New("module for BodyIbcUpdateChannelChain must be either IbcReceiver or IbcTranslator")
 	}
 
 	payload := &bytes.Buffer{}
@@ -426,7 +432,7 @@ func (r BodyIbcUpdateChannelChain) Serialize(module string) []byte {
 	return serializeBridgeGovernanceVaa(module, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
 }
 
-func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
+func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
@@ -443,10 +449,10 @@ func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
 	}
 	MustWrite(payload, binary.BigEndian, uint16(len(r.Payload)))
 	payload.Write(r.Payload)
-	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceEvmAction, r.ChainID, payload.Bytes()), nil
+	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceEvmAction, r.ChainID, payload.Bytes())
 }
 
-func (r BodyGeneralPurposeGovernanceSolana) Serialize() []byte {
+func (r BodyGeneralPurposeGovernanceSolana) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.GovernanceContract[:])
 	// NOTE: unlike in EVM, we don't write the payload length here, because we're using
@@ -457,12 +463,15 @@ func (r BodyGeneralPurposeGovernanceSolana) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSolanaAction, r.ChainID, payload.Bytes())
 }
 
-func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) []byte {
+func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) ([]byte, error) {
 	return serializeBridgeGovernanceVaa(module, actionId, chainId, []byte{})
 }
 
-func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
-	buf := LeftPadBytes(module, 32)
+func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) ([]byte, error) {
+	buf, err := LeftPadBytes(module, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to left pad module: %w", err)
+	}
 	// Write action ID
 	MustWrite(buf, binary.BigEndian, actionId)
 	// Write target chain
@@ -470,24 +479,27 @@ func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chai
 	// Write emitter address of chain to be registered
 	buf.Write(payload[:])
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
-func LeftPadIbcChannelId(channelId string) [64]byte {
-	channelIdBuf := LeftPadBytes(channelId, 64)
+func LeftPadIbcChannelId(channelId string) ([64]byte, error) {
+	channelIdBuf, err := LeftPadBytes(channelId, 64)
+	if err != nil {
+		return [64]byte{}, fmt.Errorf("failed to left pad module: %w", err)
+	}
 	var channelIdIdLeftPadded [64]byte
 	copy(channelIdIdLeftPadded[:], channelIdBuf.Bytes())
-	return channelIdIdLeftPadded
+	return channelIdIdLeftPadded, nil
 }
 
 // Prepends 0x00 bytes to the payload buffer, up to a size of `length`
-func LeftPadBytes(payload string, length int) *bytes.Buffer {
+func LeftPadBytes(payload string, length int) (*bytes.Buffer, error) {
 	if length < 0 {
-		panic("cannot prepend bytes to a negative length buffer")
+		return nil, errors.New("cannot prepend bytes to a negative length buffer")
 	}
 
 	if len(payload) > length {
-		panic(fmt.Sprintf("payload longer than %d bytes", length))
+		return nil, fmt.Errorf(fmt.Sprintf("payload longer than %d bytes", length))
 	}
 
 	buf := &bytes.Buffer{}
@@ -500,5 +512,5 @@ func LeftPadBytes(payload string, length int) *bytes.Buffer {
 	// add the payload slice
 	buf.Write([]byte(payload))
 
-	return buf
+	return buf, nil
 }
