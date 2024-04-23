@@ -91,7 +91,8 @@ func TestBodyRegisterChain_Serialize(t *testing.T) {
 		EmitterAddress: Address{1, 2, 3, 4},
 	}
 
-	data := msg.Serialize()
+	data, err := msg.Serialize()
+	require.NoError(t, err)
 	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000000001000000080102030400000000000000000000000000000000000000000000000000000000", hex.EncodeToString(data))
 }
 
