@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 )
 
@@ -118,7 +118,7 @@ type (
 
 	// BodyGuardianSetUpdate is a governance message to set a new guardian set
 	BodyGuardianSetUpdate struct {
-		Keys     []common.Address
+		Keys     []ethcommon.Address
 		NewIndex uint32
 	}
 
@@ -228,8 +228,8 @@ type (
 	// BodyGeneralPurposeGovernanceEvm is a general purpose governance message for EVM chains
 	BodyGeneralPurposeGovernanceEvm struct {
 		ChainID            ChainID
-		GovernanceContract Address
-		TargetContract     Address
+		GovernanceContract ethcommon.Address
+		TargetContract     ethcommon.Address
 		Payload            []byte
 	}
 
@@ -428,34 +428,18 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
-func allZero(b []byte) bool {
-	for _, v := range b {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func (r BodyGeneralPurposeGovernanceEvm) Serialize() []byte {
+func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
-	if !allZero(r.GovernanceContract[0:12]) {
-		panic("governance contract address must be 0-padded")
-	}
+	payload.Write(r.GovernanceContract[:])
+	payload.Write(r.TargetContract[:])
 
-	if !allZero(r.TargetContract[0:12]) {
-		panic("target contract address must be 0-padded")
-	}
-
-	payload.Write(r.GovernanceContract[12:])
-	payload.Write(r.TargetContract[12:])
 	// write payload len as uint16
 	if len(r.Payload) > math.MaxUint16 {
-		panic("payload too long")
+		return nil, fmt.Errorf("payload too long; expected at most %d bytes", math.MaxUint16)
 	}
 	MustWrite(payload, binary.BigEndian, uint16(len(r.Payload)))
 	payload.Write(r.Payload)
-	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GovernanceAction(1), r.ChainID, payload.Bytes())
+	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GovernanceAction(1), r.ChainID, payload.Bytes()), nil
 }
 
 func (r BodyGeneralPurposeGovernanceSolana) Serialize() []byte {

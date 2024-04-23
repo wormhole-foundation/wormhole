@@ -578,23 +578,26 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 }
 
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	var governanceContract [32]byte
-	copy(governanceContract[:], ethcommon.HexToAddress(evmCall.GovernanceContract).Bytes())
-	var targetContract [32]byte
-	copy(targetContract[:], ethcommon.HexToAddress(evmCall.TargetContract).Bytes())
+	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
+	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
 
 	payload, err := hex.DecodeString(evmCall.AbiEncodedCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ABI encoded call: %w", err)
 	}
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyGeneralPurposeGovernanceEvm{
-			ChainID:            vaa.ChainID(evmCall.ChainId),
-			GovernanceContract: governanceContract,
-			TargetContract:     targetContract,
-			Payload:            payload,
-		}.Serialize())
+	body, err := vaa.BodyGeneralPurposeGovernanceEvm{
+		ChainID:            vaa.ChainID(evmCall.ChainId),
+		GovernanceContract: governanceContract,
+		TargetContract:     targetContract,
+		Payload:            payload,
+	}.Serialize()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 
 	return v, nil
 }

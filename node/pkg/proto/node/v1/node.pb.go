@@ -2922,6 +2922,7 @@ type EvmCall struct {
 	GovernanceContract string `protobuf:"bytes,2,opt,name=governance_contract,json=governanceContract,proto3" json:"governance_contract,omitempty"`
 	// Address of the governed contract (eth address starting with 0x)
 	TargetContract string `protobuf:"bytes,3,opt,name=target_contract,json=targetContract,proto3" json:"target_contract,omitempty"`
+	// ABI-encoded calldata to be passed on to the governed contract (hex encoded)
 	AbiEncodedCall string `protobuf:"bytes,4,opt,name=abi_encoded_call,json=abiEncodedCall,proto3" json:"abi_encoded_call,omitempty"`
 }
 
@@ -2995,7 +2996,7 @@ type SolanaCall struct {
 	ChainId uint32 `protobuf:"varint,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	// Address of the governance contract (solana address)
 	GovernanceContract string `protobuf:"bytes,2,opt,name=governance_contract,json=governanceContract,proto3" json:"governance_contract,omitempty"`
-	// Address of the governed contract (eth address starting with 0x)
+	// Encoded instruction data to be passed on to the governed contract (hex encoded)
 	EncodedInstruction string `protobuf:"bytes,3,opt,name=encoded_instruction,json=encodedInstruction,proto3" json:"encoded_instruction,omitempty"`
 }
 

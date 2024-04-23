@@ -433,6 +433,7 @@ message EvmCall {
   // Address of the governed contract (eth address starting with 0x)
   string target_contract = 3;
 
+  // ABI-encoded calldata to be passed on to the governed contract (hex encoded)
   string abi_encoded_call = 4;
 }
 
@@ -444,6 +445,6 @@ message SolanaCall {
   // Address of the governance contract (solana address)
   string governance_contract = 2;
 
-  // Address of the governed contract (eth address starting with 0x)
+  // Encoded instruction data to be passed on to the governed contract (hex encoded)
   string encoded_instruction = 3;
 }
