@@ -23,6 +23,7 @@ bscscan
 BUILDKIT
 bytecodes
 callstack
+ccqlistener
 CCTP
 celestia
 Celestia
@@ -68,6 +69,7 @@ Healthcheck
 hexdump
 holesky
 Holesky
+horcrux
 ICCO
 incentivized
 incentivizing
@@ -142,6 +144,7 @@ readyz
 regen
 reinit
 reobservation
+reobserved
 repoint
 rustup
 satoshi

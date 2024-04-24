@@ -212,7 +212,7 @@ Newer execution clients such as [reth](https://github.com/paradigmxyz/reth) lack
 investigating once they are stable.
 
 Additionally, if there is ever a scenario where the network fails to come to consensus on an EVM compatible chain due to
-a hard fork or some unforseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
+a hard fork or some unforeseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
 the transactions can be reobserved.
 
 ### Cosmos / IBC Connected nodes
@@ -378,6 +378,8 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 
 [NTT](https://github.com/wormhole-foundation/example-native-token-transfers) is an exciting feature of wormhole that builds upon the core bridge to allow mint/burn style transfers. Ensuring it runs correctly requires integrating it with the NTT Accountant. To enable this feature, create a **new** wormchain key. Do not reuse an existing global accountant key and add the following parameters:
 
+<!-- cspell:disable -->
+
 ```shell
 # You may already have these.
 --wormchainURL URL_TO_YOUR_WORMCHAIN_NODE
@@ -390,11 +392,15 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 --accountantNttKeyPassPhrase YOUR_NTT_ACCOUNTANT_KEY_PASS_PHRASE
 ```
 
+<!-- cspell:enable -->
+
 Please remember to allowlist the new NTT Accountant key for use with Wormchain! For instructions on how to do that, speak with someone from the Wormhole Foundation.
 
 ## Cross Chain Queries
 
 [CCQ](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0013_ccq.md) also known as [Wormhole Queries](https://wormhole.com/queries) is a feature to allow pulling attestations in a cross chain manner. To run ccq, a few additional flags need to be enabled on the guardian node:
+
+<!-- cspell:disable -->
 
 ```shell
 --ccqEnabled=true \
@@ -402,6 +408,8 @@ Please remember to allowlist the new NTT Accountant key for use with Wormchain! 
 --ccqAllowedPeers="[ALLOWED,PEERS,GO,HERE]" \
 --ccqAllowedRequesters="[ALLOWED,REQUESTORS,GO,HERE" \
 ```
+
+<!-- cspell:enable -->
 
 To test query functionality, follow the instructions in [node/hack/query/ccqlistener/ccqlistener.go](../node/hack/query/ccqlistener/ccqlistener.go).
 
