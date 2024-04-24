@@ -493,7 +493,7 @@ mod tests {
         validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
-        // Since we transfered within the same chain, the balance should be 0.
+        // Since we transferred within the same chain, the balance should be 0.
         let src = account::Key::new(
             tx.key.emitter_chain(),
             tx.data.token_chain,

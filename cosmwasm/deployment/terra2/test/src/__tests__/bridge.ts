@@ -109,7 +109,7 @@ const TO_TB_17_VAA =
     > should mint bridged assets wrappers on transfer from another chain and handle fees correctly
     > should handle additional data on token bridge transfer with payload in single transaction when feeRecipient == transferRecipient
     > should not allow a redemption from msg.sender other than 'to' on token bridge transfer with payload
-    > should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender recieves fee
+    > should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender receives fee
     > should burn bridged assets wrappers on transfer to another chain
     > should handle ETH deposits correctly (uluna)
     > should handle ETH withdrawals and fees correctly (uluna)

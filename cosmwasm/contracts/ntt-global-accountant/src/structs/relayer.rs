@@ -11,8 +11,8 @@ pub struct DeliveryInstruction {
     pub target_chain: u16,
     pub target_address: [u8; 32],
     pub payload: Vec<u8>,
-    pub requested_reciever_value: [u8; 32],
-    pub extra_reciever_value: [u8; 32],
+    pub requested_receiver_value: [u8; 32],
+    pub extra_receiver_value: [u8; 32],
     pub encoded_execution_info: Vec<u8>,
     pub refund_chain_id: u16,
     pub refund_address: [u8; 32],
@@ -50,11 +50,11 @@ impl DeliveryInstruction {
         let mut payload = vec![0u8; payload_len.try_into().unwrap()];
         rdr.read_exact(&mut payload)?;
 
-        let mut requested_reciever_value = [0u8; 32];
-        rdr.read_exact(&mut requested_reciever_value)?;
+        let mut requested_receiver_value = [0u8; 32];
+        rdr.read_exact(&mut requested_receiver_value)?;
 
-        let mut extra_reciever_value = [0u8; 32];
-        rdr.read_exact(&mut extra_reciever_value)?;
+        let mut extra_receiver_value = [0u8; 32];
+        rdr.read_exact(&mut extra_receiver_value)?;
 
         let encoded_execution_info_len = rdr.read_u32::<BigEndian>()?;
         let mut encoded_execution_info = vec![0u8; encoded_execution_info_len.try_into().unwrap()];
@@ -92,8 +92,8 @@ impl DeliveryInstruction {
             target_chain,
             target_address,
             payload,
-            requested_reciever_value,
-            extra_reciever_value,
+            requested_receiver_value,
+            extra_receiver_value,
             encoded_execution_info,
             refund_chain_id,
             refund_address,
@@ -206,12 +206,12 @@ mod test {
                     0xc6, 0xcf, 0xc0, 0x7a, 0x7d, 0x38, 0x75, 0x62, 0x80, 0xa1, 0x0e, 0x29, 0x5a,
                     0xd7, 0x27, 0x12,
                 ],
-                requested_reciever_value: [
+                requested_receiver_value: [
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 ],
-                extra_reciever_value: [
+                extra_receiver_value: [
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

@@ -162,7 +162,7 @@ pub fn ibc_packet_ack(
     ))
 }
 
-/// 6. Timing out a packet. Called when the packet was not recieved on the other chain before the timeout.
+/// 6. Timing out a packet. Called when the packet was not received on the other chain before the timeout.
 /// Never should be called as this contract never sends packets
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_timeout(

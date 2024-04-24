@@ -93,7 +93,7 @@ pub fn ibc_packet_ack(
     Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_ack"))
 }
 
-/// 6. Timing out a packet. Called when the packet was not recieved on the other chain before the timeout.
+/// 6. Timing out a packet. Called when the packet was not received on the other chain before the timeout.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_timeout(
     _deps: DepsMut,
