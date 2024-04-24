@@ -249,7 +249,7 @@ type (
 	}
 )
 
-func (b BodyContractUpgrade) Serialize() []byte {
+func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Module
@@ -261,10 +261,10 @@ func (b BodyContractUpgrade) Serialize() []byte {
 
 	buf.Write(b.NewContract[:])
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
-func (b BodyGuardianSetUpdate) Serialize() []byte {
+func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Module
@@ -280,7 +280,7 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 		buf.Write(k[:])
 	}
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func (r BodyTokenBridgeRegisterChain) Serialize() ([]byte, error) {
@@ -398,9 +398,10 @@ func (r BodyGatewayScheduleUpgrade) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) {
+func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) error {
 	r.Name = string(bz[0 : len(bz)-8])
 	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
+	return nil
 }
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() ([]byte, error) {
