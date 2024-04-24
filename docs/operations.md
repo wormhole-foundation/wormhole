@@ -102,7 +102,7 @@ Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs
 
 ### Wormchain
 
-All guardians must run validators for wormchain, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
+All guardians **must run validators for wormchain**, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
 
 The ``--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
 in the app.toml.
@@ -239,7 +239,6 @@ First, check out the version of the Wormhole repo that you want to deploy:
 
 ```bash
 git clone https://github.com/wormhole-foundation/wormhole && cd wormhole
-git checkout v2.0.x
 ```
 
 Then, compile the release binary as an unprivileged build user:
@@ -284,7 +283,7 @@ See the separate [wormhole-networks](https://github.com/wormhole-foundation/worm
 on how to set up the guardiand unit for a specific network.
 
 You need to open port 8999/udp in your firewall for the P2P network and 8996/udp for
-[cross chain queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally.
+[cross chain queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you don't run public rpc.
 
 journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
 
@@ -374,6 +373,24 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 ✅ 44 observations received
 ℹ️  --url not defined, skipping web checks
 ```
+
+## Native Token Transfers
+
+[NTT](https://github.com/wormhole-foundation/example-native-token-transfers) is an exciting feature of wormhole that builds upon the core bridge to allow mint/burn style transfers. Ensuring it runs correctly requires integrating it with the NTT Accountant. To enable this feature, create a **new** wormchain key. Do not reuse an existing global accountant key and add the following parameters:
+
+```shell
+# You may already have these.
+--wormchainURL URL_TO_YOUR_WORMCHAIN_NODE
+--accountantWS HTTP_URL_OF_YOUR_WORMCHAIN_NODE
+
+# This is the mainnet contract.
+--accountantNttContract wormhole1mc23vtzxh46e63vq22e8cnv23an06akvkqws04kghkrxrauzpgwq2hmwm7
+
+--accountantNttKeyPath PATH_TO_YOUR_NTT_ACCOUNTANT_KEY_FILE
+--accountantNttKeyPassPhrase YOUR_NTT_ACCOUNTANT_KEY_PASS_PHRASE
+```
+
+Please remember to allowlist the new NTT Accountant key for use with Wormchain! For instructions on how to do that, speak with someone from the Wormhole Foundation.
 
 ## Running a public API endpoint
 
