@@ -392,6 +392,19 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 
 Please remember to allowlist the new NTT Accountant key for use with Wormchain! For instructions on how to do that, speak with someone from the Wormhole Foundation.
 
+## Cross Chain Queries
+
+[CCQ](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0013_ccq.md) also known as [Wormhole Queries](https://wormhole.com/queries) is a feature to allow pulling attestations in a cross chain manner. To run ccq, a few additional flags need to be enabled on the guardian node:
+
+```shell
+--ccqEnabled=true \
+--ccqP2pPort 8996 \
+--ccqAllowedPeers="[ALLOWED,PEERS,GO,HERE]" \
+--ccqAllowedRequesters="[ALLOWED,REQUESTORS,GO,HERE" \
+```
+
+To test query functionality, follow the instructions in [node/hack/query/ccqlistener/ccqlistener.go](../node/hack/query/ccqlistener/ccqlistener.go).
+
 ## Running a public API endpoint
 
 Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).
