@@ -118,12 +118,16 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, timestamp time.T
 		addrs[i] = ethAddr
 	}
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyGuardianSetUpdate{
-			Keys:     addrs,
-			NewIndex: guardianSetIndex + 1,
-		}.Serialize())
+	body, err := vaa.BodyGuardianSetUpdate{
+		Keys:     addrs,
+		NewIndex: guardianSetIndex + 1,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 
@@ -146,12 +150,16 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, timestamp time.Time,
 	newContractAddress := vaa.Address{}
 	copy(newContractAddress[:], b)
 
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyContractUpgrade{
-			ChainID:     vaa.ChainID(req.ChainId),
-			NewContract: newContractAddress,
-		}.Serialize())
+	body, err := vaa.BodyContractUpgrade{
+		ChainID:     vaa.ChainID(req.ChainId),
+		NewContract: newContractAddress,
+	}.Serialize()
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
 	return v, nil
 }
 

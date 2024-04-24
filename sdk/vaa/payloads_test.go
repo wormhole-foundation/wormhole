@@ -56,7 +56,8 @@ func TestBodyTokenBridgeUpgradeContract(t *testing.T) {
 func TestBodyContractUpgradeSerialize(t *testing.T) {
 	bodyContractUpgrade := BodyContractUpgrade{ChainID: 1, NewContract: addr}
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650100010000000000000000000000000000000000000000000000000000000000000004"
-	serializedBodyContractUpgrade := bodyContractUpgrade.Serialize()
+	serializedBodyContractUpgrade, err := bodyContractUpgrade.Serialize()
+	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyContractUpgrade))
 }
 
@@ -67,7 +68,8 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 	}
 	bodyGuardianSetUpdate := BodyGuardianSetUpdate{Keys: keys, NewIndex: uint32(1)}
 	expected := "00000000000000000000000000000000000000000000000000000000436f726502000000000001025aaeb6053f3e94c9b9a09f33669435e7ef1beaed5aaeb6053f3e94c9b9a09f33669435e7ef1beaee"
-	serializedBodyGuardianSetUpdate := bodyGuardianSetUpdate.Serialize()
+	serializedBodyGuardianSetUpdate, err := bodyGuardianSetUpdate.Serialize()
+	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyGuardianSetUpdate))
 }
 
