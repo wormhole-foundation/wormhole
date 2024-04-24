@@ -717,7 +717,7 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal("--contract-address must be specified.")
 	}
 	if *wormchainMigrateContractInstantiationMsg == "" {
-		log.Fatal("--instantiate-msg must be specified.")
+		log.Fatal("--instantiation-msg must be specified.")
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{

@@ -2,6 +2,7 @@
 package adminrpc
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"testing"
@@ -17,9 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 type mockEVMConnector struct {
@@ -269,4 +272,48 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	require.NoError(t, err)
 	v2 := generateMockVAA(1, append(gsKeys, s.gk))
 	require.Equal(t, v2, res.Vaa)
+}
+
+const govGuardianSetIndex = uint32(4)
+
+var govTimestamp = time.Now()
+
+const govEmitterChain = vaa.ChainIDSolana
+
+var govEmitterAddr vaa.Address = [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+// verifyGovernanceVAA verifies the VAA fields of a generated governance VAA. Note that it doesn't verify the payload because that is
+// already verified in `sdk/vaa/payload_test` and we don't want to duplicate all those arrays.
+func verifyGovernanceVAA(t *testing.T, v *vaa.VAA, expectedSeqNo uint64, expectedNonce uint32) {
+	t.Helper()
+	require.NotNil(t, v)
+	assert.Equal(t, uint8(vaa.SupportedVAAVersion), v.Version)
+	assert.Equal(t, govGuardianSetIndex, v.GuardianSetIndex)
+	assert.Nil(t, v.Signatures)
+	assert.Equal(t, govTimestamp, v.Timestamp)
+	assert.Equal(t, expectedNonce, v.Nonce)
+	assert.Equal(t, expectedSeqNo, v.Sequence)
+	assert.Equal(t, uint8(32), v.ConsistencyLevel)
+	assert.Equal(t, govEmitterChain, v.EmitterChain)
+	assert.True(t, bytes.Equal(govEmitterAddr[:], v.EmitterAddress[:]))
+}
+
+// Test_adminCommands executes all of the tests in prototext_test.go, unmarshaling the prototext and feeding it into `GovMsgToVaa`.
+func Test_adminCommands(t *testing.T) {
+	for _, tst := range adminCommandTest {
+		t.Run(tst.label, func(t *testing.T) {
+			var msg nodev1.InjectGovernanceVAARequest
+			err := prototext.Unmarshal([]byte(tst.prototext), &msg)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(msg.Messages))
+			govMsg := msg.Messages[0]
+			vaa, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
+			if tst.errText == "" {
+				require.NoError(t, err)
+				verifyGovernanceVAA(t, vaa, govMsg.Sequence, govMsg.Nonce)
+			} else {
+				require.ErrorContains(t, err, tst.errText)
+			}
+		})
+	}
 }
