@@ -44,6 +44,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[Jan 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-ottersec-terra.pdf)**: _Terra Classic Contract Upgrades_
 - **[Feb 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-09-cyfrin-wormhole-evm-cctp-v2-1.pdf)**: _CCTP EVM Contracts_
 - **[Mar 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-11-cyfrin-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
+- **[Mar 2024 - Cantina](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-cantina-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
 - **[Mar 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-03-28-ottersec-solana-ntt.pdf)**: _NTT Solana Contracts_
 - **[Mar 2024 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-12-neodyme-solana-ntt.pdf)**: _NTT Solana Contracts_
 
