@@ -352,7 +352,7 @@ var adminCommandTest = []adminCommandTestEntry{
 				}`,
 	},
 
-	// TODO: There is no admin template command for AccountantModifyBalance. Issue #3902.
+	// build/bin/guardiand template accountant-modify-balance --target-chain-id 3104 --sequence 3 --chain-id 1 --token-chain-id 2 --token-address 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 --action 1 --amount 12000000000000 --reason "fix bad value"
 	{
 		label:   "AccountantModifyBalance success",
 		errText: "",
@@ -368,7 +368,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -389,7 +389,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -410,7 +410,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 65536
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -431,7 +431,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 65536
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -452,7 +452,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "Hello, World!"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -473,7 +473,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "0000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "fix bad value"
 					}
@@ -494,7 +494,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
 						reason: "reason is too long!!!!!!!!!!!!!!!"
 					}
@@ -515,7 +515,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "Hello, World!"
 						reason: "fix bad value"
 					}
@@ -536,7 +536,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						chain_id: 1
 						token_chain: 2
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-						kind: 1
+						kind:  MODIFICATION_KIND_ADD
 						amount: "115792089237316195423570985008687907853269984665640564039457584007913129639936"
 						reason: "fix bad value"
 					}

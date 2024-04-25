@@ -10,6 +10,7 @@ import (
 
 	"github.com/btcsuite/btcutil/bech32"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
 	"github.com/tendermint/tendermint/libs/rand"
@@ -59,6 +60,16 @@ var ibcUpdateChannelChainChainId *string
 
 var recoverChainIdEvmChainId *string
 var recoverChainIdNewChainId *string
+
+var accountantModifyBalanceModule *string
+var accountantModifyBalanceTargetChainId *string
+var accountantModifyBalanceSequence *string
+var accountantModifyBalanceChainId *string
+var accountantModifyBalanceTokenChainId *string
+var accountantModifyBalanceTokenAddress *string
+var accountantModifyBalanceKind *string
+var accountantModifyBalanceAmount *string
+var accountantModifyBalanceReason *string
 
 var governanceContractAddress *string
 var governanceTargetAddress *string
@@ -177,6 +188,21 @@ func init() {
 	AdminClientRecoverChainIdCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientRecoverChainIdCmd)
 
+	// flags for the accountant-modify-balance command
+	accountantModifyBalanceFlagSet := pflag.NewFlagSet("accountant-modify-balance", pflag.ExitOnError)
+	accountantModifyBalanceModule = accountantModifyBalanceFlagSet.String("module", "GlobalAccountant", "Module identifier of the accountant")
+	accountantModifyBalanceTargetChainId = accountantModifyBalanceFlagSet.String("target-chain-id", "", "ID of the chain to receive this modify")
+	accountantModifyBalanceSequence = accountantModifyBalanceFlagSet.String("sequence", "", "The sequence number of this modification.  Each modification must be uniquely identifiable just by its sequence number")
+	accountantModifyBalanceChainId = accountantModifyBalanceFlagSet.String("chain-id", "", "Chain ID of the account to be modified")
+	accountantModifyBalanceTokenChainId = accountantModifyBalanceFlagSet.String("token-chain-id", "", "Chain ID of the native chain for the token")
+	accountantModifyBalanceTokenAddress = accountantModifyBalanceFlagSet.String("token-address", "", "Address of the token on its native chain, hex string encoded")
+	accountantModifyBalanceKind = accountantModifyBalanceFlagSet.String("action", "", "Kind of modification to be made (1 = add, 2 = sub)")
+	accountantModifyBalanceAmount = accountantModifyBalanceFlagSet.String("amount", "", `Amount to be modified (decimal formatted string indicating the"raw" amount, not adjusted by the decimals of the token`)
+	accountantModifyBalanceReason = accountantModifyBalanceFlagSet.String("reason", "", "human-readable reason for the modification")
+	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(accountantModifyBalanceFlagSet)
+	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(moduleFlagSet)
+	TemplateCmd.AddCommand(AdminClientAccountantModifyBalanceCmd)
+
 	// flags for general-purpose governance call command
 	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
 	governanceContractAddress = generalPurposeGovernanceFlagSet.String("governance-contract", "", "Governance contract address")
@@ -224,6 +250,12 @@ var AdminClientRecoverChainIdCmd = &cobra.Command{
 	Use:   "recover-chain-id",
 	Short: "Generate an empty recover chain id template at specified path",
 	Run:   runRecoverChainIdTemplate,
+}
+
+var AdminClientAccountantModifyBalanceCmd = &cobra.Command{
+	Use:   "accountant-modify-balance",
+	Short: "Generate an empty accountant modify balance template at specified path",
+	Run:   runAccountantModifyBalanceTemplate,
 }
 
 var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
@@ -482,6 +514,103 @@ func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
 						Module:     *module,
 						EvmChainId: *recoverChainIdEvmChainId,
 						NewChainId: uint32(newChainID),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
+	if *accountantModifyBalanceModule == "" {
+		log.Fatal("--module must be specified.")
+	}
+	if *accountantModifyBalanceTargetChainId == "" {
+		log.Fatal("--target-chain-id must be specified.")
+	}
+	targetChainID, err := parseChainID(*accountantModifyBalanceTargetChainId)
+	if err != nil {
+		log.Fatal("failed to parse target chain id: ", err)
+	}
+	if *accountantModifyBalanceSequence == "" {
+		log.Fatal("--sequence must be specified")
+	}
+	sequence, err := strconv.ParseUint(*accountantModifyBalanceSequence, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse sequence as uint64: ", err)
+	}
+	if *accountantModifyBalanceChainId == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*accountantModifyBalanceChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+	if *accountantModifyBalanceTokenChainId == "" {
+		log.Fatal("--token-chain-id must be specified.")
+	}
+	tokenChainID, err := parseChainID(*accountantModifyBalanceTokenChainId)
+	if err != nil {
+		log.Fatal("failed to parse token chain id: ", err)
+	}
+	if *accountantModifyBalanceTokenAddress == "" {
+		log.Fatal("--token-address must be specified.")
+	}
+	tokenAddress, err := parseAddress(*accountantModifyBalanceTokenAddress)
+	if err != nil {
+		log.Fatal("failed to parse token address: ", err)
+	}
+	if *accountantModifyBalanceKind == "" {
+		log.Fatal("--action must be specified")
+	}
+	action, err := strconv.ParseUint(*accountantModifyBalanceKind, 10, 8)
+	if err != nil {
+		log.Fatal("failed to parse modification action as uint64: ", err)
+	}
+	if action != uint64(nodev1.ModificationKind_MODIFICATION_KIND_ADD) && action != uint64(nodev1.ModificationKind_MODIFICATION_KIND_SUBTRACT) {
+		log.Fatal("invalid modification action, must be 1 (add) or 2 (subtract)")
+	}
+	if *accountantModifyBalanceAmount == "" {
+		log.Fatal("--amount must be specified.")
+	}
+	amount_big := big.NewInt(0)
+	amount_big, ok := amount_big.SetString(*accountantModifyBalanceAmount, 10)
+	if !ok {
+		log.Fatal("failed to parse amount")
+	}
+	_, overflow := uint256.FromBig(amount_big)
+	if overflow {
+		log.Fatal("amount overflowed uint256")
+	}
+	if *accountantModifyBalanceReason == "" {
+		log.Fatal("--reason must be specified.")
+	}
+	if len(*accountantModifyBalanceReason) > 32 {
+		log.Fatal("reason is too long, can be at most 32 bytes")
+	}
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_AccountantModifyBalance{
+					AccountantModifyBalance: &nodev1.AccountantModifyBalance{
+						Module:        *accountantModifyBalanceModule,
+						TargetChainId: uint32(targetChainID),
+						Sequence:      uint64(sequence),
+						ChainId:       uint32(chainID),
+						TokenChain:    uint32(tokenChainID),
+						TokenAddress:  tokenAddress,
+						Kind:          nodev1.ModificationKind(action),
+						Amount:        *accountantModifyBalanceAmount,
+						Reason:        *accountantModifyBalanceReason,
 					},
 				},
 			},
@@ -1098,9 +1227,9 @@ func parseChainID(name string) (vaa.ChainID, error) {
 	}
 
 	// parse as uint32
-	i, err := strconv.ParseUint(name, 10, 32)
+	i, err := strconv.ParseUint(name, 10, 16)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse as name or uint32: %v", err)
+		return 0, fmt.Errorf("failed to parse as name or uint16: %v", err)
 	}
 
 	return vaa.ChainID(i), nil
