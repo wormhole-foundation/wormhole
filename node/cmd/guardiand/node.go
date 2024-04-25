@@ -1003,7 +1003,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		if idx != 0 {
 			// try to connect to guardian-0
 			for {
+				// tilt uses this hostname format
 				_, err := net.LookupIP("guardian-0.guardian")
+				if err == nil {
+					break
+				}
+				// load tests use this hostname format
+				_, err = net.LookupIP("guardian-0")
 				if err == nil {
 					break
 				}
