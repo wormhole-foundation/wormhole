@@ -404,7 +404,6 @@ Please remember to allowlist the new NTT Accountant key for use with Wormchain! 
 
 ```shell
 --ccqEnabled=true \
---ccqP2pPort 8996 \
 --ccqAllowedPeers="[ALLOWED,PEERS,GO,HERE]" \
 --ccqAllowedRequesters="[ALLOWED,REQUESTORS,GO,HERE" \
 ```
