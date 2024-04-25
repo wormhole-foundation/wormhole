@@ -1151,6 +1151,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	var accountantWormchainConn, accountantNttWormchainConn *wormconn.ClientConn
 	if *accountantContract != "" {
+		if *wormchainURL == "" {
+			logger.Fatal("if accountantContract is specified, wormchainURL is required", zap.String("component", "gacct"))
+		}
+
 		if *accountantKeyPath == "" {
 			logger.Fatal("if accountantContract is specified, accountantKeyPath is required", zap.String("component", "gacct"))
 		}
@@ -1183,6 +1187,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// If the NTT accountant is enabled, create a wormchain connection for it.
 	if *accountantNttContract != "" {
+		if *wormchainURL == "" {
+			logger.Fatal("if accountantNttContract is specified, wormchainURL is required", zap.String("component", "gacct"))
+		}
+
 		if *accountantNttKeyPath == "" {
 			logger.Fatal("if accountantNttContract is specified, accountantNttKeyPath is required", zap.String("component", "gacct"))
 		}

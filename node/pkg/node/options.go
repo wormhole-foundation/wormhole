@@ -147,7 +147,7 @@ func GuardianOptionAccountant(
 			}
 
 			if websocket == "" {
-				return errors.New("if accountantContract is specified, accountantWS is required")
+				return errors.New("if either accountantContract or accountantNttContract is specified, accountantWS is required")
 			}
 			if contract != "" {
 				if wormchainConn == nil {
