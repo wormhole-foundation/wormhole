@@ -1003,11 +1003,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		if idx != 0 {
 			// try to connect to guardian-0
 			for {
-				_, err := net.LookupIP("guardian-0.guardian")
+				_, err := net.LookupIP("guardian-0")
 				if err == nil {
 					break
 				}
-				logger.Info("Error resolving guardian-0.guardian. Trying again...")
+				logger.Info("Error resolving guardian-0. Trying again...")
 				time.Sleep(time.Second)
 			}
 			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
