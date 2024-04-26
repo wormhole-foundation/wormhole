@@ -23,7 +23,7 @@ interface EmitterRegistration {
 async function run() {
   console.log(`Start! ${processName}`);
 
-  const emitters: EmitterRegistration[] = allChains.map((chain) => ({
+  const emitters = allChains.map((chain) => ({
     chainId: chain.chainId,
     addr: "0x" + tryNativeToHexString(getMockIntegrationAddress(chain), "ethereum"),
   })) satisfies XAddressStruct[];

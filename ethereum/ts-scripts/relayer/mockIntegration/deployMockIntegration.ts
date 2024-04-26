@@ -7,11 +7,16 @@ import {
   getChain,
   getSigner,
 } from "../helpers/env";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
+import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { deployMockIntegration, buildOverrides } from "../helpers/deployments";
 import { wait } from "../helpers/utils";
 import { XAddressStruct } from "../../../ethers-contracts/MockRelayerIntegration";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
+
+interface EmitterRegistration {
+  chainId: number;
+  addr: string;
+}
 
 const processName = "deployMockIntegration";
 init();
@@ -79,13 +84,24 @@ async function run() {
         throw new Error(`Mock integration emitter registration failed for chain ${chainId}, tx id ${receipt.transactionHash}`);
       }
     }
+
+    return { chainId, updateEmitters };
   }));
 
   for (const task of registerTasks) {
     if (task.status === "rejected") {
       // These get discarded and need to be retried later with a separate invocation.
       console.log(task.reason?.stack || task.reason);
+    } else {
+      printUpdate(task.value.updateEmitters, task.value.chainId);
     }
+  }
+}
+
+function printUpdate(emitters: EmitterRegistration[], chainId: ChainId) {
+  console.log(`MockIntegration emitters registered for chain ${chainId}:`);
+  for (const emitter of emitters) {
+    console.log(`  Target chain ${emitter.chainId}: ${emitter.addr}`);
   }
 }
 
