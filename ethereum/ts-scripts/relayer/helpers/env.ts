@@ -217,6 +217,36 @@ export function loadDeliveryProviders(): Deployment[] {
   return contracts.deliveryProviders;
 }
 
+export function loadDeliveryProviderSetups(): Deployment[] {
+  const contracts = readContracts();
+  if (contracts.useLastRun) {
+    const lastRun = loadLastRun(
+      "deployDeliveryProvider",
+      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
+    );
+    if (lastRun !== undefined) {
+      return mergeContractAddresses(contracts.deliveryProviderSetups, lastRun.deliveryProviderSetups);
+    }
+  }
+
+  return contracts.deliveryProviders;
+}
+
+export function loadDeliveryProviderImplementations(): Deployment[] {
+  const contracts = readContracts();
+  if (contracts.useLastRun) {
+    const lastRun = loadLastRun(
+      "deployDeliveryProvider",
+      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
+    );
+    if (lastRun !== undefined) {
+      return mergeContractAddresses(contracts.deliveryProviderImplementations, lastRun.deliveryProviderImplementations);
+    }
+  }
+
+  return contracts.deliveryProviders;
+}
+
 export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contracts = readContracts();
   // TODO: do we really want this dev flag?

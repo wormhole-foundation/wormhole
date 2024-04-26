@@ -1,9 +1,10 @@
 import { readFileSync, writeFileSync } from "fs";
 import {
   init,
-  updateContractAddress,
   Deployment,
   loadDeliveryProviders,
+  loadDeliveryProviderImplementations,
+  loadDeliveryProviderSetups,
   loadWormholeRelayers,
   loadMockIntegrations,
   loadCreate2Factories,
@@ -14,6 +15,8 @@ const env = init();
 
 interface ContractsJson {
   deliveryProviders: Deployment[];
+  deliveryProviderImplementations: Deployment[];
+  deliveryProviderSetups: Deployment[];
   wormholeRelayers: Deployment[];
   mockIntegrations: Deployment[];
   create2Factories: Deployment[];
@@ -29,6 +32,8 @@ async function main() {
   contracts.wormholeRelayers = loadWormholeRelayers(false);
   contracts.wormholeRelayerImplementations = loadWormholeRelayerImplementations();
   contracts.deliveryProviders = loadDeliveryProviders();
+  contracts.deliveryProviderImplementations = loadDeliveryProviderImplementations();
+  contracts.deliveryProviderSetups = loadDeliveryProviderSetups();
   contracts.mockIntegrations = loadMockIntegrations();
 
   const newStr = JSON.stringify(contracts, undefined, 2);

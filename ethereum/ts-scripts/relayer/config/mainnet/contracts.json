@@ -47,6 +47,98 @@
       "address": "0x70B4a48f482956983D8C69D3aE18Fe229888638D"
     }
   ],
+  "deliveryProviderImplementations": [
+    {
+      "chainId": 2,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 4,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 5,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 6,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 10,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 13,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 14,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 16,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 23,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 24,
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c"
+    },
+    {
+      "chainId": 30,
+      "address": "0x68b7Cd0d27a6F04b2F65e11DD06182EFb255c9f0"
+    }
+  ],
+  "deliveryProviderSetups": [
+    {
+      "chainId": 2,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 4,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 5,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 6,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 10,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 13,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 14,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 16,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 23,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 24,
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5"
+    },
+    {
+      "chainId": 30,
+      "address": "0x2B1502Ffe717817A0A101a687286bE294fe495f7"
+    }
+  ],
   "wormholeRelayers": [
     {
       "chainId": 2,
