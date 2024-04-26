@@ -74,9 +74,6 @@ var (
 	polygonRPC      *string
 	polygonContract *string
 
-	auroraRPC      *string
-	auroraContract *string
-
 	fantomRPC      *string
 	fantomContract *string
 
@@ -280,9 +277,6 @@ func init() {
 
 	oasisRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "oasisRPC", "Oasis RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
-
-	auroraRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "auroraRPC", "Aurora Websocket RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	auroraContract = NodeCmd.Flags().String("auroraContract", "", "Aurora contract address")
 
 	fantomRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "fantomRPC", "Fantom Websocket RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	fantomContract = NodeCmd.Flags().String("fantomContract", "", "Fantom contract address")
@@ -580,35 +574,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *p2pNetworkID == "" {
 			*p2pNetworkID = p2p.GetNetworkId(env)
 		}
-
-		// Deterministic ganache ETH devnet address.
-		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
-		*bscContract = unsafeDevModeEvmContractAddress(*bscContract)
-		*polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
-		*avalancheContract = unsafeDevModeEvmContractAddress(*avalancheContract)
-		*oasisContract = unsafeDevModeEvmContractAddress(*oasisContract)
-		*auroraContract = unsafeDevModeEvmContractAddress(*auroraContract)
-		*fantomContract = unsafeDevModeEvmContractAddress(*fantomContract)
-		*karuraContract = unsafeDevModeEvmContractAddress(*karuraContract)
-		*acalaContract = unsafeDevModeEvmContractAddress(*acalaContract)
-		*klaytnContract = unsafeDevModeEvmContractAddress(*klaytnContract)
-		*celoContract = unsafeDevModeEvmContractAddress(*celoContract)
-		*moonbeamContract = unsafeDevModeEvmContractAddress(*moonbeamContract)
-		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
-		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
-		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
-		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
-		*holeskyContract = unsafeDevModeEvmContractAddress(*holeskyContract)
-		*scrollContract = unsafeDevModeEvmContractAddress(*scrollContract)
-		*mantleContract = unsafeDevModeEvmContractAddress(*mantleContract)
-		*blastContract = unsafeDevModeEvmContractAddress(*blastContract)
-		*xlayerContract = unsafeDevModeEvmContractAddress(*xlayerContract)
-		*lineaContract = unsafeDevModeEvmContractAddress(*lineaContract)
-		*berachainContract = unsafeDevModeEvmContractAddress(*berachainContract)
-		*arbitrumSepoliaContract = unsafeDevModeEvmContractAddress(*arbitrumSepoliaContract)
-		*baseSepoliaContract = unsafeDevModeEvmContractAddress(*baseSepoliaContract)
-		*optimismSepoliaContract = unsafeDevModeEvmContractAddress(*optimismSepoliaContract)
-		*polygonSepoliaContract = unsafeDevModeEvmContractAddress(*polygonSepoliaContract)
 	} else { // Mainnet or Testnet.
 		// If the network parameters are not specified, use the defaults. Log a warning if they are specified since we want to discourage this.
 		// Note that we don't want to prevent it, to allow for network upgrade testing.
@@ -655,84 +620,53 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *dataDir == "" {
 		logger.Fatal("Please specify --dataDir")
 	}
+
+	// Ethereum is required since we use it to get the guardian set. The rest of the EVMs are optional.
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
 	}
-	if *ethContract == "" {
-		logger.Fatal("Please specify --ethContract")
+
+	// Validate the args for all the EVM chains. The last flag indicates if the chain is allowed in mainnet.
+	*ethContract = checkEvmArgs(logger, *ethRPC, *ethContract, "eth", true)
+	*bscContract = checkEvmArgs(logger, *bscRPC, *bscContract, "bsc", true)
+	*polygonContract = checkEvmArgs(logger, *polygonRPC, *polygonContract, "polygon", true)
+	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, "avalanche", true)
+	*oasisContract = checkEvmArgs(logger, *oasisRPC, *oasisContract, "oasis", true)
+	*fantomContract = checkEvmArgs(logger, *fantomRPC, *fantomContract, "fantom", true)
+	*karuraContract = checkEvmArgs(logger, *karuraRPC, *karuraContract, "karura", true)
+	*acalaContract = checkEvmArgs(logger, *acalaRPC, *acalaContract, "acala", true)
+	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, "klaytn", true)
+	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, "celo", true)
+	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, "moonbeam", true)
+	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, "arbitrum", true)
+	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, "optimism", true)
+	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, "base", true)
+	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, "scroll", true)
+	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, "mantle", false)
+	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", false)
+	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", false)
+	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
+
+	// These chains will only ever be testnet / devnet.
+	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
+	*arbitrumSepoliaContract = checkEvmArgs(logger, *arbitrumSepoliaRPC, *arbitrumSepoliaContract, "arbitrumSepolia", false)
+	*baseSepoliaContract = checkEvmArgs(logger, *baseSepoliaRPC, *baseSepoliaContract, "baseSepolia", false)
+	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, "optimismSepolia", false)
+	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, "holesky", false)
+	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, "polygonSepolia", false)
+
+	// Linea requires a couple of additional parameters.
+	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", false)
+	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && !*unsafeDevMode {
+		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
 	}
-	if *bscRPC == "" {
-		logger.Fatal("Please specify --bscRPC")
-	}
-	if *bscContract == "" {
-		logger.Fatal("Please specify --bscContract")
-	}
-	if *polygonRPC == "" {
-		logger.Fatal("Please specify --polygonRPC")
-	}
-	if *polygonContract == "" {
-		logger.Fatal("Please specify --polygonContract")
-	}
-	if *avalancheRPC == "" {
-		logger.Fatal("Please specify --avalancheRPC")
-	}
-	if *oasisRPC == "" {
-		logger.Fatal("Please specify --oasisRPC")
-	}
-	if *fantomRPC == "" {
-		logger.Fatal("Please specify --fantomRPC")
-	}
-	if *fantomContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --fantomContract")
-	}
-	if *auroraRPC == "" {
-		logger.Fatal("Please specify --auroraRPC")
-	}
-	if *auroraContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --auroraContract")
-	}
-	if *karuraRPC == "" {
-		logger.Fatal("Please specify --karuraRPC")
-	}
-	if *karuraContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --karuraContract")
-	}
-	if *acalaRPC == "" {
-		logger.Fatal("Please specify --acalaRPC")
-	}
-	if *acalaContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --acalaContract")
-	}
-	if *klaytnRPC == "" {
-		logger.Fatal("Please specify --klaytnRPC")
-	}
-	if *klaytnContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --klaytnContract")
-	}
-	if *celoRPC == "" {
-		logger.Fatal("Please specify --celoRPC")
-	}
-	if *celoContract == "" && !*unsafeDevMode {
-		logger.Fatal("Please specify --celoContract")
-	}
+
 	if *nearRPC != "" {
 		if *nearContract == "" {
 			logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
 		}
 	} else if *nearContract != "" {
 		logger.Fatal("If --nearRPC is not specified, then --nearContract must not be specified")
-	}
-	if *moonbeamRPC == "" {
-		logger.Fatal("Please specify --moonbeamRPC")
-	}
-	if *moonbeamContract == "" {
-		logger.Fatal("Please specify --moonbeamContract")
-	}
-	if *arbitrumRPC == "" {
-		logger.Fatal("Please specify --arbitrumRPC")
-	}
-	if *arbitrumContract == "" {
-		logger.Fatal("Please specify --arbitrumContract")
 	}
 	if *xplaWS != "" {
 		if *xplaLCD == "" || *xplaContract == "" {
@@ -757,105 +691,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("If --suiRPC is specified, then --suiMoveEventType must be specified")
 		}
 	}
-
-	if (*optimismRPC == "") != (*optimismContract == "") {
-		logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
-	}
-
-	if (*baseRPC == "") != (*baseContract == "") {
-		logger.Fatal("Both --baseContract and --baseRPC must be set together or both unset")
-	}
-
-	if (*scrollRPC == "") != (*scrollContract == "") {
-		logger.Fatal("Both --scrollContract and --scrollRPC must be set together or both unset")
-	}
-
-	if *mantleRPC != "" && !*testnetMode && !*unsafeDevMode {
-		logger.Fatal("mantle is currently only supported in devnet and testnet")
-	}
-
-	if (*mantleRPC == "") != (*mantleContract == "") {
-		logger.Fatal("Both --mantleContract and --mantleRPC must be set together or both unset")
-	}
-
-	if (*blastRPC == "") != (*blastContract == "") {
-		logger.Fatal("Both --blastContract and --blastRPC must be set together or both unset")
-	}
-
-	if *xlayerRPC != "" && !*testnetMode && !*unsafeDevMode {
-		logger.Fatal("xlayer is currently only supported in devnet and testnet")
-	}
-
-	if (*xlayerRPC == "") != (*xlayerContract == "") {
-		logger.Fatal("Both --xlayerContract and --xlayerRPC must be set together or both unset")
-	}
-
-	if *lineaRPC != "" && !*testnetMode && !*unsafeDevMode {
-		logger.Fatal("linea is currently only supported in devnet and testnet")
-	}
-
-	if (*lineaRPC == "") != (*lineaContract == "") {
-		logger.Fatal("Both --lineaContract and --lineaRPC must be set together or both unset")
-	}
-	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && !*unsafeDevMode {
-		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
-	}
-
-	if *berachainRPC != "" && !*testnetMode && !*unsafeDevMode {
-		logger.Fatal("berachain is currently only supported in devnet and testnet")
-	}
-
-	if (*berachainRPC == "") != (*berachainContract == "") {
-		logger.Fatal("Both --berachainContract and --berachainRPC must be set together or both unset")
-	}
-
 	if *gatewayWS != "" {
 		if *gatewayLCD == "" || *gatewayContract == "" {
 			logger.Fatal("If --gatewayWS is specified, then --gatewayLCD and --gatewayContract must be specified")
 		}
 	} else if *gatewayLCD != "" || *gatewayContract != "" {
 		logger.Fatal("If --gatewayWS is not specified, then --gatewayLCD and --gatewayContract must not be specified")
-	}
-
-	// These chains are only allowed in devnet and testnet.
-	if *testnetMode || *unsafeDevMode {
-		if (*sepoliaRPC == "") != (*sepoliaContract == "") {
-			logger.Fatal("Both --sepoliaRPC and --sepoliaContract must be set together or both unset")
-		}
-		if (*holeskyRPC == "") != (*holeskyContract == "") {
-			logger.Fatal("Both --holeskyRPC and --holeskyContract must be set together or both unset")
-		}
-		if (*arbitrumSepoliaRPC == "") != (*arbitrumSepoliaContract == "") {
-			logger.Fatal("Both --arbitrumSepoliaRPC and --arbitrumSepoliaContract must be set together or both unset")
-		}
-		if (*baseSepoliaRPC == "") != (*baseSepoliaContract == "") {
-			logger.Fatal("Both --baseSepoliaRPC and --baseSepoliaContract must be set together or both unset")
-		}
-		if (*optimismSepoliaRPC == "") != (*optimismSepoliaContract == "") {
-			logger.Fatal("Both --optimismSepoliaRPC and --optimismSepoliaContract must be set together or both unset")
-		}
-		if (*polygonSepoliaRPC == "") != (*polygonSepoliaContract == "") {
-			logger.Fatal("Both --polygonSepoliaRPC and --polygonSepoliaContract must be set together or both unset")
-		}
-	} else {
-		if *sepoliaRPC != "" || *sepoliaContract != "" {
-			logger.Fatal("Please do not specify --sepoliaRPC or --sepoliaContract")
-		}
-		if *holeskyRPC != "" || *holeskyContract != "" {
-			logger.Fatal("Please do not specify --holeskyRPC or --holeskyContract")
-		}
-		if *arbitrumSepoliaRPC != "" || *arbitrumSepoliaContract != "" {
-			logger.Fatal("Please do not specify --arbitrumSepoliaRPC or --arbitrumSepoliaContract")
-		}
-		if *baseSepoliaRPC != "" || *baseSepoliaContract != "" {
-			logger.Fatal("Please do not specify --baseSepoliaRPC or --baseSepoliaContract")
-		}
-		if *optimismSepoliaRPC != "" || *optimismSepoliaContract != "" {
-			logger.Fatal("Please do not specify --optimismSepoliaRPC or --optimismSepoliaContract")
-		}
-		if *polygonSepoliaRPC != "" || *polygonSepoliaContract != "" {
-			logger.Fatal("Please do not specify --polygonSepoliaRPC or --polygonSepoliaContract")
-		}
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -876,14 +717,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Solana, Terra Classic, Terra 2, and Algorand are optional in devnet
 	if !*unsafeDevMode {
-
 		if *solanaContract == "" {
 			logger.Fatal("Please specify --solanaContract")
 		}
 		if *solanaRPC == "" {
 			logger.Fatal("Please specify --solanaRPC")
 		}
-
 		if *terraWS == "" {
 			logger.Fatal("Please specify --terraWS")
 		}
@@ -893,7 +732,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terraContract == "" {
 			logger.Fatal("Please specify --terraContract")
 		}
-
 		if *terra2WS == "" {
 			logger.Fatal("Please specify --terra2WS")
 		}
@@ -903,7 +741,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terra2Contract == "" {
 			logger.Fatal("Please specify --terra2Contract")
 		}
-
 		if *algorandIndexerRPC == "" {
 			logger.Fatal("Please specify --algorandIndexerRPC")
 		}
@@ -916,7 +753,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *algorandAppID == 0 {
 			logger.Fatal("Please specify --algorandAppID")
 		}
-
 		if *pythnetContract == "" {
 			logger.Fatal("Please specify --pythnetContract")
 		}
@@ -926,7 +762,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *pythnetWS == "" {
 			logger.Fatal("Please specify --pythnetWS")
 		}
-
 		if *injectiveWS == "" {
 			logger.Fatal("Please specify --injectiveWS")
 		}
@@ -1027,7 +862,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
 	rpcMap["aptosRPC"] = *aptosRPC
 	rpcMap["arbitrumRPC"] = *arbitrumRPC
-	rpcMap["auroraRPC"] = *auroraRPC
 	rpcMap["avalancheRPC"] = *avalancheRPC
 	rpcMap["baseRPC"] = *baseRPC
 	rpcMap["berachainRPC"] = *berachainRPC
@@ -1341,18 +1175,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDOasis,
 			Rpc:              *oasisRPC,
 			Contract:         *oasisContract,
-			CcqBackfillCache: *ccqBackfillCache,
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(auroraRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:        "aurora",
-			ChainID:          vaa.ChainIDAurora,
-			Rpc:              *auroraRPC,
-			Contract:         *auroraContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
@@ -1818,10 +1640,32 @@ func shouldStart(rpc *string) bool {
 	return *rpc != "" && *rpc != "none"
 }
 
-func unsafeDevModeEvmContractAddress(contractAddr string) string {
-	if contractAddr != "" {
-		return contractAddr
+// checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
+// If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
+func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel string, mainnetSupported bool) string {
+	if !*unsafeDevMode {
+		// In mainnet / testnet, if either parameter is specified, they must both be specified.
+		if (rpc == "") != (contractAddr == "") {
+			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set together or both unset", chainLabel, chainLabel))
+		}
+	} else {
+		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
+		if rpc == "" {
+			if contractAddr != "" {
+				logger.Fatal(fmt.Sprintf("If --%sRPC is not set, --%sContract must not be set", chainLabel, chainLabel))
+			}
+		} else {
+			if contractAddr == "" {
+				contractAddr = devnet.GanacheWormholeContractAddress.Hex()
+			}
+		}
 	}
+	if contractAddr != "" && !mainnetSupported && mainnetMode() {
+		logger.Fatal(fmt.Sprintf("Chain %s not supported in mainnet", chainLabel))
+	}
+	return contractAddr
+}
 
-	return devnet.GanacheWormholeContractAddress.Hex()
+func mainnetMode() bool {
+	return (!*unsafeDevMode && !*testnetMode)
 }
