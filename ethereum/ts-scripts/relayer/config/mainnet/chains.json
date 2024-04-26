@@ -78,6 +78,20 @@
       "chainId": 30,
       "rpc": "https://base.llamarpc.com",
       "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+    },
+    {
+      "description": "Scroll",
+      "evmNetworkId": 534352,
+      "chainId": 34,
+      "rpc": "https://rpc.ankr.com/scroll",
+      "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+    },
+    {
+      "description": "Blast",
+      "evmNetworkId": 81457,
+      "chainId": 36,
+      "rpc": "https://rpc.ankr.com/blast",
+      "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
     }
   ]
 }
