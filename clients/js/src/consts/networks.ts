@@ -172,9 +172,9 @@ const MAINNET = {
     chain_id: 30,
   },
   scroll: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://rpc.ankr.com/scroll",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 534352,
   },
   mantle: {
     rpc: undefined,
@@ -182,9 +182,9 @@ const MAINNET = {
     chain_id: undefined,
   },
   blast: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://rpc.ankr.com/blast",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 81457,
   },
   xlayer: {
     rpc: undefined,

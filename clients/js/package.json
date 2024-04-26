@@ -1,6 +1,6 @@
 {
   "name": "@wormhole-foundation/wormhole-cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "sideEffects": [
     "src/side-effects.ts"
   ],
@@ -30,7 +30,7 @@
   ],
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
-    "@certusone/wormhole-sdk": "^0.10.14",
+    "@certusone/wormhole-sdk": "^0.10.15",
     "@cosmjs/encoding": "^0.26.2",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@injectivelabs/networks": "^1.10.7",
