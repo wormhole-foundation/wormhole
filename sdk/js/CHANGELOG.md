@@ -3,6 +3,8 @@
 ## 0.10.15
 
 Add Provenance to cosmwasm chains
+Add Scroll mainnet support
+Add Blast mainnet support
 
 ## 0.10.14
 
