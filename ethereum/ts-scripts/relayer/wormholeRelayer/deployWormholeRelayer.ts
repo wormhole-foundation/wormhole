@@ -1,15 +1,14 @@
+import { inspect } from "util";
 import {
   deployWormholeRelayerImplementation,
   deployWormholeRelayerProxy,
 } from "../helpers/deployments";
 import {
   init,
-  writeOutputFiles,
+  saveDeployments,
   getDeliveryProviderAddress,
   Deployment,
   getOperationDescriptor,
-  loadWormholeRelayerImplementations,
-  loadWormholeRelayers,
 } from "../helpers/env";
 
 const processName = "deployWormholeRelayer";
@@ -25,33 +24,44 @@ async function run() {
   console.log("Start! " + processName);
 
   const deployments: WormholeRelayerDeployment = {
-    wormholeRelayerImplementations: loadWormholeRelayerImplementations().filter(isSupportedChain) || [],
-    wormholeRelayers: loadWormholeRelayers(false).filter(isSupportedChain) || [],
+    wormholeRelayerImplementations: [],
+    wormholeRelayers: [],
   };
 
-  for (const chain of operation.operatingChains) {
-    console.log(`Deploying for chain ${chain.chainId}...`);
-    const relayerImplementation = await deployWormholeRelayerImplementation(
-      chain,
-    );
-    const coreRelayerProxy = await deployWormholeRelayerProxy(
-      chain,
-      relayerImplementation.address,
-      getDeliveryProviderAddress(chain),
-    );
+  const tasks = await Promise.allSettled(
+    operation.operatingChains.map(async (chain) => {
+      console.log(`Deploying for chain ${chain.chainId}...`);
+      const wormholeRelayerImplementation =
+        await deployWormholeRelayerImplementation(chain);
+      const wormholeRelayer = await deployWormholeRelayerProxy(
+        chain,
+        wormholeRelayerImplementation.address,
+        getDeliveryProviderAddress(chain),
+      );
 
-    deployments.wormholeRelayerImplementations.push(relayerImplementation);
-    deployments.wormholeRelayers.push(coreRelayerProxy);
+      return {
+        wormholeRelayerImplementation,
+        wormholeRelayer,
+      };
+    }),
+  );
+
+  for (const task of tasks) {
+    if (task.status === "rejected") {
+      // TODO: add chain as context
+      // These get discarded and need to be retried later with a separate invocation.
+      console.log(
+        `Deployment failed: ${task.reason?.stack || inspect(task.reason)}`,
+      );
+    } else {
+      deployments.wormholeRelayerImplementations.push(
+        task.value.wormholeRelayerImplementation,
+      );
+      deployments.wormholeRelayers.push(task.value.wormholeRelayer);
+    }
   }
 
-  writeOutputFiles(deployments, processName);
-}
-
-function isSupportedChain(deploy: Deployment): boolean {
-  const item = operation.supportedChains.find((chain) => {
-    return deploy.chainId === chain.chainId;
-  });
-  return item !== undefined;
+  saveDeployments(deployments, processName);
 }
 
 run().then(() => console.log("Done! " + processName));

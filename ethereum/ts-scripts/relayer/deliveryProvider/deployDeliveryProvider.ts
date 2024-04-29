@@ -1,3 +1,4 @@
+import { inspect } from "util";
 import {
   deployDeliveryProviderImplementation,
   deployDeliveryProviderProxy,
@@ -7,10 +8,7 @@ import {
   Deployment,
   getOperationDescriptor,
   init,
-  writeOutputFiles,
-  loadDeliveryProviderImplementations,
-  loadDeliveryProviderSetups,
-  loadDeliveryProviders,
+  saveDeployments,
 } from "../helpers/env";
 
 const processName = "deployDeliveryProvider";
@@ -27,38 +25,48 @@ async function run() {
   console.log(`Start ${processName}!`);
 
   const deployments: DeliveryProviderDeployment = {
-    deliveryProviderImplementations: loadDeliveryProviderImplementations().filter(isSupportedChain),
-    deliveryProviderSetups: loadDeliveryProviderSetups().filter(isSupportedChain),
-    deliveryProviders: loadDeliveryProviders().filter(isSupportedChain),
+    deliveryProviderImplementations: [],
+    deliveryProviderSetups: [],
+    deliveryProviders: [],
   };
 
-  for (const chain of operation.operatingChains) {
-    console.log(`Deploying for chain ${chain.chainId}...`);
-    const deliveryProviderImplementation =
-      await deployDeliveryProviderImplementation(chain);
-    const deliveryProviderSetup = await deployDeliveryProviderSetup(chain);
-    const deliveryProviderProxy = await deployDeliveryProviderProxy(
-      chain,
-      deliveryProviderSetup.address,
-      deliveryProviderImplementation.address,
-    );
+  const tasks = await Promise.allSettled(
+    operation.operatingChains.map(async (chain) => {
+      console.log(`Deploying for chain ${chain.chainId}...`);
+      const deliveryProviderImplementation =
+        await deployDeliveryProviderImplementation(chain);
+      const deliveryProviderSetup = await deployDeliveryProviderSetup(chain);
+      const deliveryProvider = await deployDeliveryProviderProxy(
+        chain,
+        deliveryProviderSetup.address,
+        deliveryProviderImplementation.address,
+      );
 
-    deployments.deliveryProviderImplementations.push(
-      deliveryProviderImplementation,
-    );
-    deployments.deliveryProviderSetups.push(deliveryProviderSetup);
-    deployments.deliveryProviders.push(deliveryProviderProxy);
-    console.log("");
+      return {
+        deliveryProviderImplementation,
+        deliveryProviderSetup,
+        deliveryProvider,
+      };
+    }),
+  );
+
+  for (const task of tasks) {
+    if (task.status === "rejected") {
+      // TODO: add chain as context
+      // These get discarded and need to be retried later with a separate invocation.
+      console.log(
+        `Deployment failed: ${task.reason?.stack || inspect(task.reason)}`,
+      );
+    } else {
+      deployments.deliveryProviderImplementations.push(
+        task.value.deliveryProviderImplementation,
+      );
+      deployments.deliveryProviderSetups.push(task.value.deliveryProviderSetup);
+      deployments.deliveryProviders.push(task.value.deliveryProvider);
+    }
   }
 
-  writeOutputFiles(deployments, processName);
-}
-
-function isSupportedChain(deploy: Deployment): boolean {
-  const item = operation.supportedChains.find((chain) => {
-    return deploy.chainId === chain.chainId;
-  });
-  return item !== undefined;
+  saveDeployments(deployments, processName);
 }
 
 run().then(() => console.log("Done!"));

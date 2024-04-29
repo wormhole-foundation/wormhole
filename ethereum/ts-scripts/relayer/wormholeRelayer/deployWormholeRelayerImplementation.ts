@@ -3,7 +3,7 @@ import {
 } from "../helpers/deployments";
 import {
   init,
-  writeOutputFiles,
+  saveDeployments,
   getOperatingChains,
   Deployment,
 } from "../helpers/env";
@@ -38,7 +38,7 @@ async function run() {
     }
   }
 
-  writeOutputFiles(output, processName);
+  saveDeployments(output, processName);
 }
 
 run().then(() => console.log("Done! " + processName));

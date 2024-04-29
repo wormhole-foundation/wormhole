@@ -14,6 +14,22 @@ import {
   Create2Factory__factory,
 } from "../../../ethers-contracts";
 
+export interface ContractsJson {
+  /**
+   * DeliveryProvider upgradeable proxies.
+   */
+  deliveryProviders: Deployment[];
+  deliveryProviderImplementations: Deployment[];
+  deliveryProviderSetups: Deployment[];
+  /**
+   * WormholeRelayer upgradeable proxies.
+   */
+  wormholeRelayers: Deployment[];
+  mockIntegrations: Deployment[];
+  create2Factories: Deployment[];
+  wormholeRelayerImplementations: Deployment[];
+}
+
 export type ChainInfo = {
   evmNetworkId: number;
   chainId: ChainId;
@@ -204,45 +220,18 @@ export function loadGuardianSetIndex(): number {
 
 export function loadDeliveryProviders(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployDeliveryProvider",
-      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.deliveryProviders, lastRun.deliveryProviders);
-    }
-  }
 
   return contracts.deliveryProviders;
 }
 
 export function loadDeliveryProviderSetups(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployDeliveryProvider",
-      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.deliveryProviderSetups, lastRun.deliveryProviderSetups);
-    }
-  }
 
   return contracts.deliveryProviders;
 }
 
 export function loadDeliveryProviderImplementations(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployDeliveryProvider",
-      `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.deliveryProviderImplementations, lastRun.deliveryProviderImplementations);
-    }
-  }
 
   return contracts.deliveryProviders;
 }
@@ -250,31 +239,15 @@ export function loadDeliveryProviderImplementations(): Deployment[] {
 export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contracts = readContracts();
   // TODO: do we really want this dev flag?
-  const wormholeRelayers = dev ? contracts.wormholeRelayersDev : contracts.wormholeRelayers;
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployWormholeRelayer",
-      `Failed to open last run file for WormholeRelayer proxy contracts. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(wormholeRelayers, lastRun.wormholeRelayers);
-    }
-  }
+  const wormholeRelayers = dev
+    ? contracts.wormholeRelayersDev
+    : contracts.wormholeRelayers;
 
   return wormholeRelayers;
 }
 
 export function loadMockIntegrations(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployMockIntegration",
-      `Failed to open last run file for MockIntegration contracts. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.mockIntegrations, lastRun.mockIntegrations);
-    }
-  }
 
   return contracts.mockIntegrations;
 }
@@ -282,30 +255,11 @@ export function loadMockIntegrations(): Deployment[] {
 export function loadWormholeRelayerImplementations(): Deployment[] {
   const contracts = readContracts();
 
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployWormholeRelayerImplementation",
-      `Failed to open last run file for WormholeRelayer implementations. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.wormholeRelayerImplementations, lastRun.wormholeRelayerImplementations);
-    }
-  }
-
   return contracts.wormholeRelayerImplementations;
 }
 
 export function loadCreate2Factories(): Deployment[] {
   const contracts = readContracts();
-  if (contracts.useLastRun) {
-    const lastRun = loadLastRun(
-      "deployCreate2Factory",
-      `Failed to open last run file for create2 factories. Using only the addresses provided in contracts.json`
-    );
-    if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.create2Factories, lastRun.create2Factories);
-    }
-  }
 
   return contracts.create2Factories;
 }
@@ -342,42 +296,6 @@ export function loadGuardianKeys(): string[] {
   }
 
   return output;
-}
-
-export function writeOutputFiles(output: unknown, processName: string) {
-  fs.mkdirSync(`./ts-scripts/relayer/output/${env}/${processName}`, {
-    recursive: true,
-  });
-  fs.writeFileSync(
-    `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
-    JSON.stringify(output),
-    { flag: "w" },
-  );
-  fs.writeFileSync(
-    `./ts-scripts/relayer/output/${env}/${processName}/${Date.now()}.json`,
-    JSON.stringify(output),
-    { flag: "w" },
-  );
-}
-
-export function loadLastRun(processName: string, errorMessage?: string): any {
-  try {
-    return JSON.parse(
-      fs.readFileSync(
-        `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
-        "utf8",
-      ),
-    );
-  } catch (error: unknown) {
-    if (error instanceof Error && (error as any).code === "ENOENT") {
-      if (errorMessage !== undefined) {
-        console.error(errorMessage);
-      }
-      return undefined;
-    } else {
-      throw error;
-    }
-  }
 }
 
 export async function getSigner(chain: ChainInfo): Promise<ethers.Signer> {
@@ -454,7 +372,6 @@ export async function getWormholeRelayerAddress(
 export async function getWormholeRelayerImplementationAddress(
   chain: ChainInfo,
 ): Promise<string> {
-
   const thisChainsRelayer = loadWormholeRelayerImplementations().find(
     (x) => x.chainId == chain.chainId,
   )?.address;
@@ -524,7 +441,10 @@ export const getCreate2Factory = async (
     await getSigner(chain),
   );
 
-export function updateContractAddress(arr: Deployment[], newAddress: Deployment) {
+export function updateContractAddress(
+  arr: Deployment[],
+  newAddress: Deployment,
+) {
   const idx = arr.findIndex((a) => a.chainId === newAddress.chainId);
   if (idx === -1) {
     arr.push(newAddress);
@@ -533,10 +453,72 @@ export function updateContractAddress(arr: Deployment[], newAddress: Deployment)
   }
 }
 
-export function mergeContractAddresses(arr: Deployment[], newAddresses: Deployment[]): Deployment[] {
+export function mergeContractAddresses(
+  arr: Deployment[],
+  newAddresses: Deployment[],
+): Deployment[] {
   const newArray = [...arr];
   for (const newAddress of newAddresses) {
     updateContractAddress(newArray, newAddress);
   }
   return newArray;
+}
+
+export function writeOutputFiles(
+  output: unknown,
+  processName: string,
+) {
+  fs.mkdirSync(`./ts-scripts/relayer/output/${env}/${processName}`, {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
+    JSON.stringify(output),
+    { flag: "w" },
+  );
+  fs.writeFileSync(
+    `./ts-scripts/relayer/output/${env}/${processName}/${Date.now()}.json`,
+    JSON.stringify(output),
+    { flag: "w" },
+  );
+}
+
+/**
+ * Saves deployments using the (contract, chain id) tuple as a key.
+ * Overwrites old deployments are any for that particular contract and chain id.
+ */
+export function saveDeployments(
+  newContracts: Partial<ContractsJson>,
+  processName: string,
+) {
+  writeOutputFiles(newContracts, processName);
+  syncContractsJson(newContracts);
+}
+
+function syncContractsJson(newContracts: Partial<ContractsJson>) {
+  const path = `./ts-scripts/relayer/config/${env}/contracts.json`;
+  const contractsFile = fs.readFileSync(path, "utf8");
+  const contracts: ContractsJson = JSON.parse(contractsFile);
+  console.log(`Old:\n${contractsFile}`);
+  // This reads the contracts file over and over many times.
+  // TODO: Read once and load all addresses from there.
+  contracts.create2Factories = loadCreate2Factories();
+  contracts.wormholeRelayers = loadWormholeRelayers(false);
+  contracts.wormholeRelayerImplementations = loadWormholeRelayerImplementations();
+  contracts.deliveryProviders = loadDeliveryProviders();
+  contracts.deliveryProviderImplementations = loadDeliveryProviderImplementations();
+  contracts.deliveryProviderSetups = loadDeliveryProviderSetups();
+  contracts.mockIntegrations = loadMockIntegrations();
+
+  for (const [key, newDeployments] of Object.entries(newContracts)) {
+    const savedDeployments = contracts[key as keyof typeof contracts];
+    contracts[key as keyof typeof contracts] = mergeContractAddresses(
+      savedDeployments,
+      newDeployments,
+    );
+  }
+
+  const newStr = JSON.stringify(contracts, undefined, 2);
+  console.log(`New:\n${newStr}`);
+  fs.writeFileSync(path, newStr);
 }

@@ -6,7 +6,7 @@ import {
   init,
   ChainInfo,
   getWormholeRelayer,
-  writeOutputFiles,
+  saveDeployments,
   getOperatingChains,
   Deployment,
 } from "../helpers/env";
@@ -43,7 +43,7 @@ async function run() {
     }
   }
 
-  writeOutputFiles(output, processName);
+  saveDeployments(output, processName);
 }
 
 async function upgradeWormholeRelayer(

@@ -1,6 +1,6 @@
 import {
   init,
-  writeOutputFiles,
+  saveDeployments,
   ChainInfo,
   Deployment,
   getDeliveryProvider,
@@ -43,7 +43,7 @@ async function run() {
     }
   }
 
-  writeOutputFiles(output, processName);
+  saveDeployments(output, processName);
 }
 
 async function upgradeDeliveryProvider(

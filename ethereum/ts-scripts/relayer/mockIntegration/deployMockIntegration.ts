@@ -1,22 +1,16 @@
+import { inspect } from "util";
 import {
   init,
-  writeOutputFiles,
+  saveDeployments,
   Deployment,
   getOperationDescriptor,
   loadMockIntegrations,
   getChain,
-  getSigner,
 } from "../helpers/env";
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
-import { deployMockIntegration, buildOverrides } from "../helpers/deployments";
-import { wait } from "../helpers/utils";
+import { tryNativeToHexString } from "@certusone/wormhole-sdk";
+import { deployMockIntegration } from "../helpers/deployments";
 import { XAddressStruct } from "../../../ethers-contracts/MockRelayerIntegration";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
-
-interface EmitterRegistration {
-  chainId: number;
-  addr: string;
-}
+import { printRegistration, registerMockIntegration } from "./mockIntegrationDeploy";
 
 const processName = "deployMockIntegration";
 init();
@@ -29,87 +23,52 @@ interface MockIntegrationDeployment {
 async function run() {
   console.log("Start!");
 
-  const oldDeployments = loadMockIntegrations().filter(isSupportedChain);
   const newDeployments: Deployment[] = [];
 
   // TODO: deploy only on chains missing deployment
-  const deploymentTasks = await Promise.allSettled(operation.operatingChains.map(async (chain) => {
-    return deployMockIntegration(chain);
-  }));
+  const deploymentTasks = await Promise.allSettled(
+    operation.operatingChains.map(async (chain) => {
+      return deployMockIntegration(chain);
+    }),
+  );
 
   for (const task of deploymentTasks) {
     if (task.status === "rejected") {
+      // TODO: add chain as context
       // These get discarded and need to be retried later with a separate invocation.
-      console.log(task.reason?.stack || task.reason);
+      console.log(
+        `Deployment failed: ${task.reason?.stack || inspect(task.reason)}`,
+      );
     } else {
       newDeployments.push(task.value);
     }
   }
 
   const output = {
-    mockIntegrations: oldDeployments.concat(newDeployments),
+    mockIntegrations: newDeployments,
   } satisfies MockIntegrationDeployment;
-  writeOutputFiles(output, processName);
+  saveDeployments(output, processName);
 
-  const emitters = output.mockIntegrations.map(({address, chainId}) => ({
+  const emitters = loadMockIntegrations().map(({ address, chainId }) => ({
     chainId,
     addr: "0x" + tryNativeToHexString(address, "ethereum"),
   })) satisfies XAddressStruct[];
 
-  const registerTasks = await Promise.allSettled(output.mockIntegrations.map(async ({chainId, address}) => {
-    console.log(`Registering emitters for chainId ${chainId}`);
-    const chain = getChain(chainId);
-
-    // Loading this way would necessitate having last run enabled and we don't want that.
-    // const mockIntegration = await getMockIntegration(chain);
-    const signer = await getSigner(chain);
-    const mockIntegration = MockRelayerIntegration__factory.connect(address, signer);
-
-    const updateEmitters: typeof emitters = [];
-    for (const emitter of emitters) {
-      const currentEmitter = await mockIntegration.getRegisteredContract(emitter.chainId);
-      if (currentEmitter.toLowerCase() !== emitter.addr.toLowerCase()) {
-        updateEmitters.push(emitter);
-      }
-    }
-
-    if (updateEmitters.length > 0) {
-      const overrides = await buildOverrides(
-        () => mockIntegration.estimateGas.registerEmitters(emitters),
-        chain,
-      );
-      const receipt = await mockIntegration.registerEmitters(emitters, overrides).then(wait);
-
-      if (receipt.status !== 1) {
-        throw new Error(`Mock integration emitter registration failed for chain ${chainId}, tx id ${receipt.transactionHash}`);
-      }
-    }
-
-    return { chainId, updateEmitters };
-  }));
+  const registerTasks = await Promise.allSettled(
+    output.mockIntegrations.map(async ({ chainId }) => {
+      const chain = getChain(chainId);
+      return registerMockIntegration(chain, emitters);
+    }),
+  );
 
   for (const task of registerTasks) {
     if (task.status === "rejected") {
       // These get discarded and need to be retried later with a separate invocation.
-      console.log(task.reason?.stack || task.reason);
+      console.log(task.reason?.stack || inspect(task.reason));
     } else {
-      printUpdate(task.value.updateEmitters, task.value.chainId);
+      printRegistration(task.value.updateEmitters, task.value.chain);
     }
   }
-}
-
-function printUpdate(emitters: EmitterRegistration[], chainId: ChainId) {
-  console.log(`MockIntegration emitters registered for chain ${chainId}:`);
-  for (const emitter of emitters) {
-    console.log(`  Target chain ${emitter.chainId}: ${emitter.addr}`);
-  }
-}
-
-function isSupportedChain(deploy: Deployment): boolean {
-  const item = operation.supportedChains.find((chain) => {
-    return deploy.chainId === chain.chainId;
-  });
-  return item !== undefined;
 }
 
 run().then(() => console.log("Done!"));
