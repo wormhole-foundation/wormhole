@@ -7,7 +7,7 @@ upgrade_policy = "compatible"
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "6f83bc6d02207298b2dee91133d75538789bf582" }
 
 [dev-addresses]
-wrapped_coin = "0x0"
+wrapped_coin = "0xBEEF"
 
 [addresses]
 wrapped_coin = "_"
