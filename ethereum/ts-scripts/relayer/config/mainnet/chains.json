@@ -20,7 +20,7 @@
       "description": "Polygon",
       "evmNetworkId": 137,
       "chainId": 5,
-      "rpc": "https://polygon.llamarpc.com",
+      "rpc": "https://rpc-mainnet.maticvigil.com",
       "wormholeAddress": "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
     },
     {
@@ -62,7 +62,7 @@
       "description": "Arbitrum",
       "evmNetworkId": 42161,
       "chainId": 23,
-      "rpc": "https://rpc.arb1.arbitrum.gateway.fm",
+      "rpc": "https://arbitrum-one-rpc.publicnode.com",
       "wormholeAddress": "0xa5f208e072434bC67592E4C49C1B991BA79BCA46"
     },
     {
