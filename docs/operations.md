@@ -218,7 +218,7 @@ Additionally, if there is ever a scenario where the network fails to come to con
 a hard fork or some unforeseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
 the transactions can be reobserved.
 
-### Cosmos / IBC Connected nodes
+### Cosmos / IBC connected nodes
 
 All modern Cosmos integrations happen by Wormhole observing IBC transactions on Gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For Cosmos based chains that were added before this functionality, a full node is still necessary.
 
