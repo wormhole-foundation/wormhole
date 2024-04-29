@@ -5,10 +5,10 @@
 ## Connected chains
 
 In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to except
-for newer IBC connected chains that integrate through wormhole gateway. Please refer to the [constants reference](https://docs.wormhole.com/wormhole/reference/constants)
-for all chains wormhole connects to.
+for newer IBC connected chains that integrate through Wormhole Gateway. Please refer to the [constants reference](https://docs.wormhole.com/wormhole/reference/constants)
+for all chains that Wormhole connects to.
 
-**Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
+**Do NOT use third-party GRPC service providers** for any of the chains! You'd fully trust them, and they could lie to
 you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
 
 We strongly recommend running your own full nodes for both testnet and mainnet (where applicable)
@@ -16,11 +16,11 @@ so you can test changes for your mainnet full nodes and gain operational experie
 
 ### Solana node requirements
 
-Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an rpc
+Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an RPC
 (full) node.  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
 operations.
 
-The `#rpc-server-operators` channel is especially useful for setting up Solana rpc nodes.
+The `#rpc-server-operators` channel is especially useful for setting up Solana RPC nodes.
 
 Your Solana RPC node needs the following parameters enabled:
 
@@ -93,6 +93,9 @@ frequency). Light clients have much lower hardware requirements.
 
 
 ### Terra
+
+Terra is also sometimes referred to as Terra 2, but the correct name is just simply "Terra". The previous version was renamed to "Terra Classic".
+
 Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full-terra-node/set-up-production/) on how to run a full node.
 
 #### Terra Classic
@@ -142,7 +145,7 @@ in front of your wormchain validator.
 
 #### Wormchain Useful Commands
 
-Check latest guardian set:
+Check the latest guardian set:
 
 <!-- cspell:disable -->
 
@@ -161,9 +164,9 @@ Upgrade the guardian set (with a valid governance vaa):
 wormchaind tx wormhole execute-governance-vaa <guardian_set_upgrade_VAA_in_hex_format>
 ```
 
-<!-- cspell:disable -->
+<!-- cspell:enable -->
 
-View Validator Information:
+View Validator information:
 
 <!-- cspell:disable -->
 
@@ -199,7 +202,7 @@ $ wormchaind q staking validators
 
 ### EVM node requirements
 
-Some non-ethereum EVM compatible blockchains need to run in archive mode for [queries](https://wormhole.com/queries)
+Some non-Ethereum EVM compatible blockchains need to run in archive mode for [Queries](https://wormhole.com/queries)
 to function correctly. By default in geth, [historical state is only kept in memory for the previous 128 blocks](https://github.com/ethereum/go-ethereum/blob/4458905f261d5d9ba5fda3d664f9bb80346ab404/core/state/statedb.go#L1259-L1265).
 After 128 blocks, older states are garbage collected. Many of these chains are forks of geth that maintain this
 historical limitation.
@@ -217,9 +220,9 @@ the transactions can be reobserved.
 
 ### Cosmos / IBC Connected nodes
 
-All modern cosmos integrations happen by wormhole observing IBC transactions on gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For cosmos based chains that were added before this functionality, a full node is still necessary.
+All modern Cosmos integrations happen by Wormhole observing IBC transactions on Gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For Cosmos based chains that were added before this functionality, a full node is still necessary.
 
-The following cosmos based nodes were added prior to  gateway and guardians need to run full nodes:
+The following Cosmos based nodes were added prior to Gateway and guardians need to run full nodes:
 
 * Injective
 * Terra
@@ -283,7 +286,7 @@ See the separate [wormhole-networks](https://github.com/wormhole-foundation/worm
 on how to set up the guardiand unit for a specific network.
 
 You need to open port 8999/udp in your firewall for the P2P network and 8996/udp for
-[cross chain queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you don't run public rpc.
+[Cross Chain Queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you don't run public RPC.
 
 journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
 
@@ -297,7 +300,7 @@ deployment on a dedicated instance - it's easier to understand and troubleshoot.
 
 When running in kubernetes, or behind any kind of NAT, pass `--gossipAdvertiseAddress=external.ip.address` to the
 guardiand node process to ensure the external address is advertized in p2p. If this is not done, reobservation
-requests and [ccq](https://wormhole.com/queries) will not function as intended.
+requests and [CCQ](https://wormhole.com/queries) will not function as intended.
 
 ### Monitoring
 
@@ -339,7 +342,7 @@ not considered a stable API. Log messages may be added, modified or removed with
 In the [wormhole-dashboard](https://github.com/wormhole-foundation/wormhole-dashboard) repository, there is a small
 [healthcheck application](https://github.com/wormhole-foundation/wormhole-dashboard/tree/main/fly/cmd/healthcheck)
 which verifies that the guardian is gossiping out heartbeats, is submitting chain observations, and has a working
-heartbeats api available. This is a very good way to verify a specific guardian is functioning as intended.
+heartbeats API available. This is a very good way to verify a specific guardian is functioning as intended.
 
 You can clone the repo and run the check against the [MCF Guardian](https://github.com/wormhole-foundation/wormhole-networks/blob/649dcc48f29d462fe6cb0062cb6530021d36a417/mainnetv2/guardianset/v3.prototxt#L58):
 
@@ -354,7 +357,7 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --url https
 ✅ /v1/heartbeats
 ```
 
-If the guardian public rpc is not exposed, the `--url` flag can be omitted:
+If the guardian public RPC is not exposed, the `--url` flag can be omitted:
 
 ```shell
 $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811
@@ -396,7 +399,7 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 
 Please remember to allowlist the new NTT Accountant key for use with Wormchain! For instructions on how to do that, speak with someone from the Wormhole Foundation.
 
-## Cross Chain Queries
+## Cross-Chain Queries
 
 [CCQ](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0013_ccq.md) also known as [Wormhole Queries](https://wormhole.com/queries) is a feature to allow pulling attestations in a cross chain manner. To run ccq, a few additional flags need to be enabled on the guardian node:
 
@@ -441,14 +444,14 @@ can be operated behind a load balancer.
 
 ## Enabling Telemetry
 
-Optionally, the guardian can send telemetry to [grafana cloud logs](https://grafana.com/products/cloud/logs/) aka "loki".
+Optionally, the guardian can send telemetry to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki".
 To enable this functionality, add the following flag:
 
 ```bash
 --telemetryLokiURL=$PER_GUARDIAN_LOKI_URL_WITH_TOKEN
 ```
 
-New guardians should talk to the wormhole foundation to get a loki url.
+New guardians should talk to the Wormhole Foundation to get a Loki url.
 
 ### Binding to privileged ports
 
