@@ -34,17 +34,6 @@ async function main() {
   console.log("");
   console.log("Networks checked");
   console.log("");
-
-  if (process.argv.find((arg) => arg == "--set-last-run")) {
-    const path = `./ts-scripts/relayer/config/${env}/contracts.json`;
-    const contractsFile = readFileSync(path);
-    if (!contractsFile) {
-      throw Error("Failed to find contracts file for this process!");
-    }
-    const contracts = JSON.parse(contractsFile.toString());
-    contracts.useLastRun = true;
-    writeFileSync(path, JSON.stringify(contracts, undefined, 2));
-  }
 }
 
 main().catch((e) => {
