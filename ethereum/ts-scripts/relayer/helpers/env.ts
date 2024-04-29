@@ -496,6 +496,11 @@ export function saveDeployments(
 }
 
 function syncContractsJson(newContracts: Partial<ContractsJson>) {
+  if (Object.values(newContracts).every((deployments) => deployments.length === 0)) {
+    console.log("No changes to deployments.");
+    return;
+  }
+
   const path = `./ts-scripts/relayer/config/${env}/contracts.json`;
   const contractsFile = fs.readFileSync(path, "utf8");
   const contracts: ContractsJson = JSON.parse(contractsFile);
