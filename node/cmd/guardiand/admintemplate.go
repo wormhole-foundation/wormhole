@@ -67,7 +67,7 @@ var accountantModifyBalanceSequence *string
 var accountantModifyBalanceChainId *string
 var accountantModifyBalanceTokenChainId *string
 var accountantModifyBalanceTokenAddress *string
-var accountantModifyBalanceKind *string
+var accountantModifyBalanceAction *string
 var accountantModifyBalanceAmount *string
 var accountantModifyBalanceReason *string
 
@@ -196,7 +196,7 @@ func init() {
 	accountantModifyBalanceChainId = accountantModifyBalanceFlagSet.String("chain-id", "", "Chain ID of the account to be modified")
 	accountantModifyBalanceTokenChainId = accountantModifyBalanceFlagSet.String("token-chain-id", "", "Chain ID of the native chain for the token")
 	accountantModifyBalanceTokenAddress = accountantModifyBalanceFlagSet.String("token-address", "", "Address of the token on its native chain, hex string encoded")
-	accountantModifyBalanceKind = accountantModifyBalanceFlagSet.String("action", "", "Kind of modification to be made (1 = add, 2 = sub)")
+	accountantModifyBalanceAction = accountantModifyBalanceFlagSet.String("action", "", "Kind of modification to be made (1 = add, 2 = sub)")
 	accountantModifyBalanceAmount = accountantModifyBalanceFlagSet.String("amount", "", `Amount to be modified (decimal formatted string indicating the"raw" amount, not adjusted by the decimals of the token`)
 	accountantModifyBalanceReason = accountantModifyBalanceFlagSet.String("reason", "", "human-readable reason for the modification")
 	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(accountantModifyBalanceFlagSet)
@@ -566,12 +566,12 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal("failed to parse token address: ", err)
 	}
-	if *accountantModifyBalanceKind == "" {
+	if *accountantModifyBalanceAction == "" {
 		log.Fatal("--action must be specified")
 	}
-	action, err := strconv.ParseUint(*accountantModifyBalanceKind, 10, 8)
+	action, err := strconv.ParseUint(*accountantModifyBalanceAction, 10, 8)
 	if err != nil {
-		log.Fatal("failed to parse modification action as uint64: ", err)
+		log.Fatal("failed to parse modification action as uint8: ", err)
 	}
 	if action != uint64(nodev1.ModificationKind_MODIFICATION_KIND_ADD) && action != uint64(nodev1.ModificationKind_MODIFICATION_KIND_SUBTRACT) {
 		log.Fatal("invalid modification action, must be 1 (add) or 2 (subtract)")
@@ -591,8 +591,8 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 	if *accountantModifyBalanceReason == "" {
 		log.Fatal("--reason must be specified.")
 	}
-	if len(*accountantModifyBalanceReason) > 32 {
-		log.Fatal("reason is too long, can be at most 32 bytes")
+	if len(*accountantModifyBalanceReason) > vaa.AccountantModifyBalanceReasonLength {
+		log.Fatalf("reason is too long, can be at most %d bytes", vaa.AccountantModifyBalanceReasonLength)
 	}
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),

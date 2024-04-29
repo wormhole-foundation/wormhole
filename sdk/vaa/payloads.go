@@ -316,6 +316,8 @@ func (r BodyRecoverChainId) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+const AccountantModifyBalanceReasonLength = 32
+
 func (r BodyAccountantModifyBalance) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.Sequence)
@@ -327,7 +329,7 @@ func (r BodyAccountantModifyBalance) Serialize() ([]byte, error) {
 	amount_bytes := r.Amount.Bytes32()
 	payload.Write(amount_bytes[:])
 
-	reason := make([]byte, 32)
+	reason := make([]byte, AccountantModifyBalanceReasonLength)
 
 	// truncate or pad "reason"
 	count := copy(reason, r.Reason)

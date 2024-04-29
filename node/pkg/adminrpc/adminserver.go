@@ -251,8 +251,8 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 		return nil, errors.New("invalid new token address (expected 32 bytes)")
 	}
 
-	if len(req.Reason) > 32 {
-		return nil, errors.New("the reason should not be larger than 32 bytes")
+	if len(req.Reason) > vaa.AccountantModifyBalanceReasonLength {
+		return nil, fmt.Errorf("the reason should not be larger than %d bytes", vaa.AccountantModifyBalanceReasonLength)
 	}
 
 	amount_big := big.NewInt(0)
