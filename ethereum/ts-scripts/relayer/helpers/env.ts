@@ -88,7 +88,7 @@ export function readChains() {
   return JSON.parse(chainFile);
 }
 
-export function readContracts() {
+export function readContracts(): ContractsJson {
   const filepath = `./ts-scripts/relayer/config/${env}/contracts.json`;
   const contractsFile = fs.readFileSync(filepath, "utf8");
   if (!contractsFile) {
@@ -220,47 +220,36 @@ export function loadGuardianSetIndex(): number {
 
 export function loadDeliveryProviders(): Deployment[] {
   const contracts = readContracts();
-
   return contracts.deliveryProviders;
 }
 
 export function loadDeliveryProviderSetups(): Deployment[] {
   const contracts = readContracts();
-
-  return contracts.deliveryProviders;
+  return contracts.deliveryProviderSetups;
 }
 
 export function loadDeliveryProviderImplementations(): Deployment[] {
   const contracts = readContracts();
-
-  return contracts.deliveryProviders;
+  return contracts.deliveryProviderImplementations;
 }
 
-export function loadWormholeRelayers(dev: boolean): Deployment[] {
+export function loadWormholeRelayers(): Deployment[] {
   const contracts = readContracts();
-  // TODO: do we really want this dev flag?
-  const wormholeRelayers = dev
-    ? contracts.wormholeRelayersDev
-    : contracts.wormholeRelayers;
-
-  return wormholeRelayers;
+  return contracts.wormholeRelayers;
 }
 
 export function loadMockIntegrations(): Deployment[] {
   const contracts = readContracts();
-
   return contracts.mockIntegrations;
 }
 
 export function loadWormholeRelayerImplementations(): Deployment[] {
   const contracts = readContracts();
-
   return contracts.wormholeRelayerImplementations;
 }
 
 export function loadCreate2Factories(): Deployment[] {
   const contracts = readContracts();
-
   return contracts.create2Factories;
 }
 
@@ -353,10 +342,7 @@ export async function getDeliveryProvider(
 export async function getWormholeRelayerAddress(
   chain: ChainInfo,
 ): Promise<string> {
-  // See if we are in dev mode (i.e. forge contracts compiled without via-ir)
-  const dev = get_env_var("DEV") == "True" ? true : false;
-
-  const thisChainsRelayer = loadWormholeRelayers(dev).find(
+  const thisChainsRelayer = loadWormholeRelayers().find(
     (x) => x.chainId == chain.chainId,
   )?.address;
   if (thisChainsRelayer) {
@@ -508,7 +494,7 @@ function syncContractsJson(newContracts: Partial<ContractsJson>) {
   // This reads the contracts file over and over many times.
   // TODO: Read once and load all addresses from there.
   contracts.create2Factories = loadCreate2Factories();
-  contracts.wormholeRelayers = loadWormholeRelayers(false);
+  contracts.wormholeRelayers = loadWormholeRelayers();
   contracts.wormholeRelayerImplementations = loadWormholeRelayerImplementations();
   contracts.deliveryProviders = loadDeliveryProviders();
   contracts.deliveryProviderImplementations = loadDeliveryProviderImplementations();
