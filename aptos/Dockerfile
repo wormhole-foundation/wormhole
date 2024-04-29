@@ -1,6 +1,6 @@
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/aptos:2.0.3@sha256:1e79c5a615b10073a780122abfaaf9b90735912df560b4e7b6a056fe45816392 as aptos
+FROM ghcr.io/wormhole-foundation/aptos:3.1.0@sha256:_ as aptos
 
 # Install nodejs
 # todo(aki): move this into base image?

@@ -8,7 +8,7 @@ RUN git clone https://github.com/aptos-labs/aptos-core.git
 WORKDIR /tmp/aptos-core
 
 # Build aptos 2.0.3
-RUN git reset --hard eb0144a39ada521d8dee01c9dbd601853d383fb3
+RUN git reset --hard 6f83bc6d02207298b2dee91133d75538789bf582
 RUN cargo build -p aptos --profile cli
 
 FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c as export-stage
