@@ -354,7 +354,7 @@ var adminCommandTest = []adminCommandTestEntry{
 
 	// build/bin/guardiand template accountant-modify-balance --target-chain-id 3104 --sequence 3 --chain-id 1 --token-chain-id 2 --token-address 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 --action 1 --amount 12000000000000 --reason "fix bad value"
 	{
-		label:   "AccountantModifyBalance success",
+		label:   "AccountantModifyBalance add success",
 		errText: "",
 		prototext: `
 				current_set_index: 4
@@ -370,6 +370,27 @@ var adminCommandTest = []adminCommandTestEntry{
 						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 						kind:  MODIFICATION_KIND_ADD
 						amount: "12000000000000"
+						reason: "fix bad value"
+					}
+				}`,
+	},
+	{
+		label:   "AccountantModifyBalance subtract success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 315027427769585223
+					nonce: 2920957782
+					accountant_modify_balance: {
+						module:  "GlobalAccountant"
+						target_chain_id: 3104
+						sequence: 3
+						chain_id: 1
+						token_chain: 2
+						token_address: "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+						kind:  MODIFICATION_KIND_SUBTRACT
+						amount: "12000000000"
 						reason: "fix bad value"
 					}
 				}`,

@@ -191,7 +191,7 @@ func init() {
 	// flags for the accountant-modify-balance command
 	accountantModifyBalanceFlagSet := pflag.NewFlagSet("accountant-modify-balance", pflag.ExitOnError)
 	accountantModifyBalanceModule = accountantModifyBalanceFlagSet.String("module", "GlobalAccountant", "Module identifier of the accountant")
-	accountantModifyBalanceTargetChainId = accountantModifyBalanceFlagSet.String("target-chain-id", "", "ID of the chain to receive this modify")
+	accountantModifyBalanceTargetChainId = accountantModifyBalanceFlagSet.String("target-chain-id", "", "ID of the chain to receive this modification")
 	accountantModifyBalanceSequence = accountantModifyBalanceFlagSet.String("sequence", "", "The sequence number of this modification.  Each modification must be uniquely identifiable just by its sequence number")
 	accountantModifyBalanceChainId = accountantModifyBalanceFlagSet.String("chain-id", "", "Chain ID of the account to be modified")
 	accountantModifyBalanceTokenChainId = accountantModifyBalanceFlagSet.String("token-chain-id", "", "Chain ID of the native chain for the token")
@@ -380,7 +380,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -413,7 +413,7 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -446,7 +446,7 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -480,7 +480,7 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -522,7 +522,7 @@ func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -619,7 +619,7 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -658,7 +658,7 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -713,7 +713,7 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -752,7 +752,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -790,7 +790,7 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -829,7 +829,7 @@ func runWormchainInstantiateContractTemplate(cmd *cobra.Command, args []string) 
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -868,7 +868,7 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -912,7 +912,7 @@ func runWormchainWasmInstantiateAllowlistTemplate(action nodev1.WormchainWasmIns
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -949,7 +949,7 @@ func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -968,7 +968,7 @@ func runGatewayCancelUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -995,7 +995,7 @@ func runGatewayIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args []
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -1052,7 +1052,7 @@ func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule)
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 
@@ -1086,7 +1086,7 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -1137,7 +1137,7 @@ func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []strin
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -1180,7 +1180,7 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 
 	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
 }
@@ -1226,7 +1226,7 @@ func parseChainID(name string) (vaa.ChainID, error) {
 		return s, nil
 	}
 
-	// parse as uint32
+	// parse as uint16
 	i, err := strconv.ParseUint(name, 10, 16)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse as name or uint16: %v", err)
