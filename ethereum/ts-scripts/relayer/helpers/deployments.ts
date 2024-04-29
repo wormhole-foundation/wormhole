@@ -14,6 +14,7 @@ import {
   getWormholeRelayerAddress,
   getCreate2Factory,
   env,
+  getChain,
 } from "./env";
 import { ethers } from "ethers";
 import { wait } from "./utils";
@@ -108,6 +109,8 @@ export async function deployMockIntegration(
   return { address: receipt.contractAddress, chainId: chain.chainId };
 }
 
+let ethC2Promise: Promise<string>;
+
 /**
  * Deploys `Create2Factory` with the old (account, nonce) tuple hashing creation mechanism.
  * To achieve same address multichain deployments, ensure that the
@@ -120,6 +123,56 @@ export async function deployCreate2Factory(
 
   const signer = await getSigner(chain);
   const factory = new Create2Factory__factory(signer);
+
+  const signerAddress = await signer.getAddress();
+  if (env === "mainnet" && signerAddress.toLowerCase() === "0x5623bdf52b51085c807a5dc39152eed05825f5fd") {
+    console.log("doing the comparison here");
+    // Here we check that the bytecode matches against Ethereum.
+    if (ethC2Promise === undefined) {
+      // we assign the promise immediately to avoid race conditions
+      ethC2Promise = (async () => {
+        const ethChain = getChain(2);
+        const ethFactory = await getCreate2Factory(ethChain);
+        return ethFactory.provider.getCode(ethFactory.address);
+      })();
+    }
+
+    const ethCreate2FactoryCodeStr = strip0x(await ethC2Promise);
+    // Note that we're looking up the deployed bytecode within the "init" bytecode,
+    // i.e. bytecode that contains both the constructor and the object to be deployed.
+
+    // The create 2 factory contract has these immutables (taken from the compiler output for Create2Factory):
+    // "immutableReferences": {
+    //   "20558": [
+    //     {
+    //       "start": 704,
+    //       "length": 32
+    //     },
+    //     {
+    //       "start": 1007,
+    //       "length": 32
+    //     }
+    //   ],
+    //   "20560": [
+    //     {
+    //       "start": 1134,
+    //       "length": 32
+    //     }
+    //   ]
+    // }
+    // These are set as soon as the constructor executes and they only depend on the account where the constructor executes, since it has no constructor parameters.
+    // Thus, we'll just zero out these locations in the ethereum bytecode so that we can look up the deployed bytecode within the deployable bytecode that we are about to use.
+    const ethCreate2FactoryCode = Buffer.from(ethCreate2FactoryCodeStr, "hex");
+    const zeroWord = Buffer.alloc(32, 0);
+    ethCreate2FactoryCode.set(zeroWord, 704);
+    ethCreate2FactoryCode.set(zeroWord, 1007);
+    ethCreate2FactoryCode.set(zeroWord, 1134);
+    const comparableEthCode = ethCreate2FactoryCode.toString("hex");
+
+    if (!factory.bytecode.includes(comparableEthCode)) {
+      throw new Error("Factory contract bytecode doesn't match the factory deployed in Ethereum. Aborting deployment.");
+    }
+  }
 
   const overrides = await buildOverridesDeploy(factory, chain, []);
   const contract = await factory.deploy(overrides).then(deployed);
@@ -279,4 +332,8 @@ export async function buildOverrides(
     overrides.maxPriorityFeePerGas = ethers.utils.parseUnits("0.001", "gwei");
   }
   return overrides;
+}
+
+function strip0x(str: string) {
+  return str.startsWith("0x") ? str.substring(2) : str;
 }
