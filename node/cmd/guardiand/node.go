@@ -621,7 +621,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --dataDir")
 	}
 
-	// Ethereum is required since we use it to get the guardian set. The rest of the EVMs are optional.
+	// Ethereum is required since we use it to get the guardian set. All other chains are optional.
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
 	}
@@ -661,42 +661,56 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
 	}
 
-	if *nearRPC != "" {
-		if *nearContract == "" {
-			logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
-		}
-	} else if *nearContract != "" {
-		logger.Fatal("If --nearRPC is not specified, then --nearContract must not be specified")
+	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
+		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
 	}
-	if *xplaWS != "" {
-		if *xplaLCD == "" || *xplaContract == "" {
-			logger.Fatal("If --xplaWS is specified, then --xplaLCD and --xplaContract must be specified")
-		}
-	} else if *xplaLCD != "" || *xplaContract != "" {
-		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
+
+	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
+		logger.Fatal("Either --pythnetContract, --pythnetRPC and --pythnetWS must all be set or all unset")
 	}
-	if *aptosRPC != "" {
-		if *aptosAccount == "" {
-			logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
-		}
-		if *aptosHandle == "" {
-			logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
-		}
+
+	if !argsConsistent([]string{*terraContract, *terraWS, *terraLCD}) {
+		logger.Fatal("Either --terraContract, --terraWS and --terraLCD must all be set or all unset")
 	}
-	if *suiRPC != "" {
-		if *suiWS == "" {
-			logger.Fatal("If --suiRPC is specified, then --suiWS must be specified")
-		}
-		if *suiMoveEventType == "" {
-			logger.Fatal("If --suiRPC is specified, then --suiMoveEventType must be specified")
-		}
+
+	if !argsConsistent([]string{*terra2Contract, *terra2WS, *terra2LCD}) {
+		logger.Fatal("Either --terra2Contract, --terra2WS and --terra2LCD must all be set or all unset")
 	}
-	if *gatewayWS != "" {
-		if *gatewayLCD == "" || *gatewayContract == "" {
-			logger.Fatal("If --gatewayWS is specified, then --gatewayLCD and --gatewayContract must be specified")
+
+	if !argsConsistent([]string{*injectiveContract, *injectiveWS, *injectiveLCD}) {
+		logger.Fatal("Either --injectiveContract, --injectiveWS and --injectiveLCD must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*algorandIndexerRPC, *algorandAlgodRPC, *algorandAlgodToken}) {
+		logger.Fatal("Either --algorandIndexerRPC, --algorandAlgodRPC and --algorandAlgodToken must all be set or all unset")
+	}
+
+	if *algorandIndexerRPC != "" {
+		if *algorandAppID == 0 {
+			logger.Fatal("If --algorandIndexerRPC is set, --algorandAppID must be set")
 		}
-	} else if *gatewayLCD != "" || *gatewayContract != "" {
-		logger.Fatal("If --gatewayWS is not specified, then --gatewayLCD and --gatewayContract must not be specified")
+	} else if *algorandAppID != 0 {
+		logger.Fatal("If --algorandIndexerRPC is not set, --algorandAppID may not be set")
+	}
+
+	if !argsConsistent([]string{*nearContract, *nearRPC}) {
+		logger.Fatal("Both --nearContract and --nearRPC must be set or both unset")
+	}
+
+	if !argsConsistent([]string{*xplaContract, *xplaWS, *xplaLCD}) {
+		logger.Fatal("Either --xplaContract, --xplaWS and --xplaLCD must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*aptosAccount, *aptosRPC, *aptosHandle}) {
+		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*suiRPC, *suiWS, *suiMoveEventType}) {
+		logger.Fatal("Either --suiRPC, --suiWS and --suiMoveEventType must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
+		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -713,64 +727,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
-	}
-
-	// Solana, Terra Classic, Terra 2, and Algorand are optional in devnet
-	if !*unsafeDevMode {
-		if *solanaContract == "" {
-			logger.Fatal("Please specify --solanaContract")
-		}
-		if *solanaRPC == "" {
-			logger.Fatal("Please specify --solanaRPC")
-		}
-		if *terraWS == "" {
-			logger.Fatal("Please specify --terraWS")
-		}
-		if *terraLCD == "" {
-			logger.Fatal("Please specify --terraLCD")
-		}
-		if *terraContract == "" {
-			logger.Fatal("Please specify --terraContract")
-		}
-		if *terra2WS == "" {
-			logger.Fatal("Please specify --terra2WS")
-		}
-		if *terra2LCD == "" {
-			logger.Fatal("Please specify --terra2LCD")
-		}
-		if *terra2Contract == "" {
-			logger.Fatal("Please specify --terra2Contract")
-		}
-		if *algorandIndexerRPC == "" {
-			logger.Fatal("Please specify --algorandIndexerRPC")
-		}
-		if *algorandAlgodRPC == "" {
-			logger.Fatal("Please specify --algorandAlgodRPC")
-		}
-		if *algorandAlgodToken == "" {
-			logger.Fatal("Please specify --algorandAlgodToken")
-		}
-		if *algorandAppID == 0 {
-			logger.Fatal("Please specify --algorandAppID")
-		}
-		if *pythnetContract == "" {
-			logger.Fatal("Please specify --pythnetContract")
-		}
-		if *pythnetRPC == "" {
-			logger.Fatal("Please specify --pythnetRPC")
-		}
-		if *pythnetWS == "" {
-			logger.Fatal("Please specify --pythnetWS")
-		}
-		if *injectiveWS == "" {
-			logger.Fatal("Please specify --injectiveWS")
-		}
-		if *injectiveLCD == "" {
-			logger.Fatal("Please specify --injectiveLCD")
-		}
-		if *injectiveContract == "" {
-			logger.Fatal("Please specify --injectiveContract")
-		}
 	}
 
 	// Complain about Infura on mainnet.
@@ -1646,7 +1602,7 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel strin
 	if !*unsafeDevMode {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
 		if (rpc == "") != (contractAddr == "") {
-			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set together or both unset", chainLabel, chainLabel))
+			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set or both unset", chainLabel, chainLabel))
 		}
 	} else {
 		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
@@ -1668,4 +1624,21 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel strin
 
 func mainnetMode() bool {
 	return (!*unsafeDevMode && !*testnetMode)
+}
+
+// argsConsistent verifies that the arguments in the array are all set or all unset.
+// Note that it doesn't validate the values, just whether they are blank or not.
+func argsConsistent(args []string) bool {
+	if len(args) < 2 {
+		panic("argsConsistent expects at least two args")
+	}
+
+	shouldBeUnset := args[0] == ""
+	for idx := 1; idx < len(args); idx++ {
+		if shouldBeUnset != (args[idx] == "") {
+			return false
+		}
+	}
+
+	return true
 }
