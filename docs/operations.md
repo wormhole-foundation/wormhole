@@ -286,7 +286,7 @@ See the separate [wormhole-networks](https://github.com/wormhole-foundation/worm
 on how to set up the guardiand unit for a specific network.
 
 You need to open port 8999/udp in your firewall for the P2P network and 8996/udp for
-[Cross Chain Queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you don't run public RPC.
+[Cross Chain Queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you do not run a public RPC.
 
 journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
 
