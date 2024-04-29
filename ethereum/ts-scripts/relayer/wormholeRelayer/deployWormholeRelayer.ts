@@ -8,7 +8,8 @@ import {
   getDeliveryProviderAddress,
   Deployment,
   getOperationDescriptor,
-  loadLastRun,
+  loadWormholeRelayerImplementations,
+  loadWormholeRelayers,
 } from "../helpers/env";
 
 const processName = "deployWormholeRelayer";
@@ -17,17 +18,15 @@ const operation = getOperationDescriptor();
 
 interface WormholeRelayerDeployment {
   wormholeRelayerImplementations: Deployment[];
-  wormholeRelayerProxies: Deployment[];
+  wormholeRelayers: Deployment[];
 }
 
 async function run() {
   console.log("Start! " + processName);
 
-  const lastRun: WormholeRelayerDeployment | undefined =
-    loadLastRun(processName);
   const deployments: WormholeRelayerDeployment = {
-    wormholeRelayerImplementations: lastRun?.wormholeRelayerImplementations?.filter(isSupportedChain) || [],
-    wormholeRelayerProxies: lastRun?.wormholeRelayerProxies?.filter(isSupportedChain) || [],
+    wormholeRelayerImplementations: loadWormholeRelayerImplementations().filter(isSupportedChain) || [],
+    wormholeRelayers: loadWormholeRelayers(false).filter(isSupportedChain) || [],
   };
 
   for (const chain of operation.operatingChains) {
@@ -42,7 +41,7 @@ async function run() {
     );
 
     deployments.wormholeRelayerImplementations.push(relayerImplementation);
-    deployments.wormholeRelayerProxies.push(coreRelayerProxy);
+    deployments.wormholeRelayers.push(coreRelayerProxy);
   }
 
   writeOutputFiles(deployments, processName);

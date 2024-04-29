@@ -210,7 +210,7 @@ export function loadDeliveryProviders(): Deployment[] {
       `Failed to open last run file for DeliveryProvider contracts. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return mergeContractAddresses(contracts.deliveryProviders, lastRun.deliveryProviderProxies);
+      return mergeContractAddresses(contracts.deliveryProviders, lastRun.deliveryProviders);
     }
   }
 
@@ -257,7 +257,7 @@ export function loadWormholeRelayers(dev: boolean): Deployment[] {
       `Failed to open last run file for WormholeRelayer proxy contracts. Using only the addresses provided in contracts.json`
     );
     if (lastRun !== undefined) {
-      return mergeContractAddresses(wormholeRelayers, lastRun.wormholeRelayerProxies);
+      return mergeContractAddresses(wormholeRelayers, lastRun.wormholeRelayers);
     }
   }
 

@@ -8,7 +8,9 @@ import {
   getOperationDescriptor,
   init,
   writeOutputFiles,
-  loadLastRun,
+  loadDeliveryProviderImplementations,
+  loadDeliveryProviderSetups,
+  loadDeliveryProviders,
 } from "../helpers/env";
 
 const processName = "deployDeliveryProvider";
@@ -18,21 +20,16 @@ const operation = getOperationDescriptor();
 interface DeliveryProviderDeployment {
   deliveryProviderImplementations: Deployment[];
   deliveryProviderSetups: Deployment[];
-  deliveryProviderProxies: Deployment[];
+  deliveryProviders: Deployment[];
 }
 
 async function run() {
   console.log(`Start ${processName}!`);
 
-  const lastRun: DeliveryProviderDeployment | undefined =
-    loadLastRun(processName);
   const deployments: DeliveryProviderDeployment = {
-    deliveryProviderImplementations:
-      lastRun?.deliveryProviderImplementations?.filter(isSupportedChain) || [],
-    deliveryProviderSetups:
-      lastRun?.deliveryProviderSetups?.filter(isSupportedChain) || [],
-    deliveryProviderProxies:
-      lastRun?.deliveryProviderProxies?.filter(isSupportedChain) || [],
+    deliveryProviderImplementations: loadDeliveryProviderImplementations().filter(isSupportedChain),
+    deliveryProviderSetups: loadDeliveryProviderSetups().filter(isSupportedChain),
+    deliveryProviders: loadDeliveryProviders().filter(isSupportedChain),
   };
 
   for (const chain of operation.operatingChains) {
@@ -50,7 +47,7 @@ async function run() {
       deliveryProviderImplementation,
     );
     deployments.deliveryProviderSetups.push(deliveryProviderSetup);
-    deployments.deliveryProviderProxies.push(deliveryProviderProxy);
+    deployments.deliveryProviders.push(deliveryProviderProxy);
     console.log("");
   }
 
