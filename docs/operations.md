@@ -8,7 +8,7 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 for newer IBC connected chains that integrate through Wormhole Gateway. Please refer to the [constants reference](https://docs.wormhole.com/wormhole/reference/constants)
 for all chains that Wormhole connects to.
 
-**Do NOT use third-party GRPC service providers** for any of the chains! You'd fully trust them, and they could lie to
+**Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
 you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
 
 We strongly recommend running your own full nodes for both testnet and mainnet (where applicable)
