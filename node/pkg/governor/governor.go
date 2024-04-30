@@ -94,7 +94,7 @@ type (
 		dbData db.PendingTransfer // This info gets persisted in the DB.
 	}
 
-	// Use in flow cancel calculations. Wraps a database Transfer. Also contains a signed amount field in order to
+	// Used in flow cancel calculations. Wraps a database Transfer. Also contains a signed amount field in order to
 	// hold negative values. This field will be used in flow cancel calculations to reduce the Governor usage for a
 	// supported token.
 	transfer struct {
@@ -182,7 +182,6 @@ type ChainGovernor struct {
 	logger *zap.Logger
 	mutex  sync.Mutex
 	tokens map[tokenKey]*tokenEntry // protected by `mutex`
-	// flowCancelTokens      map[tokenKey]*tokenEntry
 	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
 	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
 	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
