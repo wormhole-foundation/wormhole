@@ -2176,3 +2176,54 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 	_, exists = gov.msgsSeen[gov.HashFromMsg(&msg2)]
 	assert.False(t, exists)
 }
+
+func TestCheckedAddUint64HappyPath(t *testing.T) {
+	// Return error on overflow
+	x := uint64(1000)
+	y := uint64(337)
+	sum, err := CheckedAddUint64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(1337), sum)
+}
+
+func TestCheckedAddInt64HappyPath(t *testing.T) {
+	// Return error on overflow
+	x := int64(1000)
+	y := int64(337)
+	sum, err := CheckedAddInt64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1337), sum)
+
+	x = 100
+	y = -1000
+	sum, err = CheckedAddInt64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, int64(-900), sum)
+
+	x = -100
+	y = -1000
+	sum, err = CheckedAddInt64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, int64(-1100), sum)
+}
+
+func TestCheckedAddUint64ReturnsErrorOnOverflow(t *testing.T) {
+	// Return error on overflow
+	sum, err := CheckedAddUint64(math.MaxUint64, 1)
+	require.Error(t, err)
+	assert.Equal(t, uint64(0), sum)
+}
+
+func TestCheckedAddInt64ReturnsErrorOnOverflow(t *testing.T) {
+	// Return error on overflow
+	sum, err := CheckedAddInt64(math.MaxInt64, 1)
+	require.Error(t, err)
+	assert.Equal(t, int64(0), sum)
+}
+
+func TestCheckedAddInt64ReturnsErrorOnUnderflow(t *testing.T) {
+	// Return error on underflow
+	sum, err := CheckedAddInt64(math.MinInt64, -1)
+	require.Error(t, err)
+	assert.Equal(t, int64(0), sum)
+}
