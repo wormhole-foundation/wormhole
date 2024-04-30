@@ -275,6 +275,14 @@
     {
       "chainId": 30,
       "address": "0x51fEBFE97190a9825E98E04AF8Df60e269912Dd8"
+    },
+    {
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F",
+      "chainId": 34
+    },
+    {
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F",
+      "chainId": 36
     }
   ],
   "wormholeRelayerImplementations": [
