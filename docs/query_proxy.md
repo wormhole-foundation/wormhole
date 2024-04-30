@@ -8,7 +8,7 @@ verifies quorum and forwards the response to the client.
 ## Building the Proxy Server
 
 The proxy server runs as another instance of the `guardiand` process, similar to the spy. It is built exactly
-the same as the spy, and requires the same dependencies. Please see the [Operations Guide](operations.md) for
+the same as the spy, and requires the same dependencies. Please see the [Operations Guide](operations.md#building-guardiand) for
 details on how to build `guardiand`.
 
 ## Deploying the Proxy Server
@@ -28,21 +28,19 @@ which will change as the requirements of integrators change.
 
 The following is a sample command line for running the proxy server in mainnet.
 
-```code
-
-build/bin/guardiand query-server \
+```shell
+wormhole $build/bin/guardiand query-server \
       --env "mainnet" \
       --nodeKey /home/ccq/data/ccq_server.nodeKey \
       --permFile "/home/ccq/data/ccq_server.perms.json" \
       --signerKey "/home/ccq/data/ccq_server.signerKey" \
-      --listenAddr "[::]:80" \
+      --listenAddr "[::]:8080" \
       --ethRPC https://eth.drpc.org \
       --ethContract "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B" \
       --logLevel=info \
       --telemetryLokiURL $LOKI_URL \
       --telemetryNodeName "Mainnet CCQ server 1" \
       --promRemoteURL $PROM_URL
-
 ```
 
 - The `env` can be mainnet, testnet or devnet.
@@ -55,6 +53,7 @@ build/bin/guardiand query-server \
 - The `listenAddr` specifies the port on which the proxy listens for REST requests.
 - The `ethRPC` and `ethContract` are used to read the wormhole guardian set on start up. The address
   above is for mainnet. If you are running in testnet, you should point to Holesky and use `0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a`.
+  (You can confirm these addresses [here](https://docs.wormhole.com/wormhole/reference/constants#contract-addresses).)
   Note that using a public endpoint should be fine, since the proxy only does a single read of the guardian set.
 - The `telemetryLokiURL`, `telemetryNodeName` and `promRemoteURL` are used for telemetry purposes and
   the values will be provided by Wormhole Foundation personnel if appropriate.
@@ -64,14 +63,13 @@ build/bin/guardiand query-server \
 Do the following to create the signing key file. Note that the `block-type` must exactly match what is specified below,
 but the `desc` can be anything you want.
 
-```code
-
+```shell
 wormhole$ build/bin/guardiand keygen --desc "Your CCQ proxy server" --block-type "CCQ SERVER SIGNING KEY" /home/ccq/data/ccq_server.signerKey
 ```
 
 ### Guardian Support for a New Proxy Server
 
-The Queries P2P network is privileged. The guardians will ignore P2P traffic from sources that are not in their configuration.
+The Queries P2P network is permissioned. The guardians will ignore P2P traffic from sources that are not in their configuration.
 Additionally, they will only honor query requests signed using a key in their configured list. Before you can begin publishing
 requests from your proxy, you must get a quorum (preferably all) of the guardians to add your values for the following to their
 configurations:
@@ -90,8 +88,7 @@ sets of requests they are allowed to make.
 
 The simplest file would look something like this
 
-```code
-
+```json
 {
   "permissions": [
     {
@@ -110,7 +107,6 @@ The simplest file would look something like this
       ]
     }
 }
-
 ```
 
 This creates a single user called "Monitor", who will use the specified API key (more on API keys below).
@@ -185,11 +181,11 @@ which will cause the proxy server to periodically check its connectivity to the 
 If the proxy server determines that a request is invalid, it does the following:
 
 - Logs an error message using the user name (not the API Key).
-- Pegs the appropriate Prometheus metric.
+- Increments the appropriate Prometheus metric.
 - Sends a failure response to the user.
 
 Note that if the proxy server thinks a request is valid, but the guardians do not, the guardians silently drop the request, so it will look
-like a timeout. This is to avoid a denial of service attack on the guardians. This can happen if the proxy server is not properly provisioned
+like a timeout. This is to avoid a denial of service attack on the guardians. This can happen if the proxy server is not properly permissioned
 on the guardians.
 
 ### Logging Request Detail.
@@ -197,7 +193,7 @@ on the guardians.
 If a given integrator is reporting problems with their queries, you may find it useful to add the following to their permissions config
 (at the same level as the API Key, etc).
 
-```code
+```json
 "logResponses": true,
 ```
 
