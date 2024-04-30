@@ -421,10 +421,11 @@ export function getCreate2FactoryAddress(chain: ChainInfo): string {
 
 export const getCreate2Factory = async (
   chain: ChainInfo,
+  signerOrProvider?: ethers.Signer | ethers.providers.StaticJsonRpcProvider
 ): Promise<Create2Factory> =>
   Create2Factory__factory.connect(
     getCreate2FactoryAddress(chain),
-    await getSigner(chain),
+    signerOrProvider ?? await getSigner(chain),
   );
 
 export function updateContractAddress(

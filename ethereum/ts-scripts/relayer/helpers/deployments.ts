@@ -15,6 +15,7 @@ import {
   getCreate2Factory,
   env,
   getChain,
+  getProvider,
 } from "./env";
 import { ethers } from "ethers";
 import { wait } from "./utils";
@@ -125,14 +126,15 @@ export async function deployCreate2Factory(
   const factory = new Create2Factory__factory(signer);
 
   const signerAddress = await signer.getAddress();
-  if (env === "mainnet" && signerAddress.toLowerCase() === "0x5623bdf52b51085c807a5dc39152eed05825f5fd") {
-    console.log("doing the comparison here");
+  const ethChain = getChain(2);
+  const ethChainProvider = getProvider(ethChain);
+  const ethNetwork = await ethChainProvider.getNetwork();
+  if (ethNetwork.chainId === 1 && signerAddress.toLowerCase() === "0x5623bdf52b51085c807a5dc39152eed05825f5fd") {
     // Here we check that the bytecode matches against Ethereum.
     if (ethC2Promise === undefined) {
       // we assign the promise immediately to avoid race conditions
       ethC2Promise = (async () => {
-        const ethChain = getChain(2);
-        const ethFactory = await getCreate2Factory(ethChain);
+        const ethFactory = await getCreate2Factory(ethChain, ethChainProvider);
         return ethFactory.provider.getCode(ethFactory.address);
       })();
     }
@@ -160,7 +162,8 @@ export async function deployCreate2Factory(
     //     }
     //   ]
     // }
-    // These are set as soon as the constructor executes and they only depend on the account where the constructor executes, since it has no constructor parameters.
+    // These are set as soon as the constructor executes and they only depend on the account where the constructor executes.
+    // The constructor has no parameters.
     // Thus, we'll just zero out these locations in the ethereum bytecode so that we can look up the deployed bytecode within the deployable bytecode that we are about to use.
     const ethCreate2FactoryCode = Buffer.from(ethCreate2FactoryCodeStr, "hex");
     const zeroWord = Buffer.alloc(32, 0);
