@@ -1767,7 +1767,8 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, 4, len(pendings))
 
 	for _, p := range xfers {
-		gov.reloadTransfer(p)
+		err := gov.reloadTransfer(p)
+		require.NoError(t, err)
 	}
 
 	for _, p := range pendings {

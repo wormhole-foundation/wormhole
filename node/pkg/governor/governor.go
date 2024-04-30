@@ -204,7 +204,6 @@ func NewChainGovernor(
 		db:     db,
 		logger: logger.With(zap.String("component", "cgov")),
 		tokens: make(map[tokenKey]*tokenEntry),
-		// flowCancelTokens:    make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
 		msgsSeen:            make(map[string]bool),
