@@ -397,7 +397,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer = &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	dbTransfer = &db.Transfer{Value: 225000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -406,7 +406,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
-	assert.Equal(t, uint64(125000), uint64(sum))
+	assert.Equal(t, uint64(225000), uint64(sum))
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
@@ -430,7 +430,7 @@ func TestTrimSeveralTransfers(t *testing.T) {
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer2 := &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	dbTransfer2 := &db.Transfer{Value: 135000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -438,21 +438,21 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	// But the next three should not.
 	transferTime3, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer3 := &db.Transfer{Value: 125000, Timestamp: transferTime3}
+	dbTransfer3 := &db.Transfer{Value: 145000, Timestamp: transferTime3}
 	transfer3, err := newTransferFromDbTransfer(dbTransfer3)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer3)
 
 	transferTime4, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer4 := &db.Transfer{Value: 125000, Timestamp: transferTime4}
+	dbTransfer4 := &db.Transfer{Value: 155000, Timestamp: transferTime4}
 	transfer4, err := newTransferFromDbTransfer(dbTransfer4)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer4)
 
 	transferTime5, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer5 := &db.Transfer{Value: 125000, Timestamp: transferTime5}
+	dbTransfer5 := &db.Transfer{Value: 165000, Timestamp: transferTime5}
 	transfer5, err := newTransferFromDbTransfer(dbTransfer5)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer5)
@@ -462,7 +462,7 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
-	assert.Equal(t, uint64(375000), uint64(sum))
+	assert.Equal(t, uint64(465000), uint64(sum))
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
