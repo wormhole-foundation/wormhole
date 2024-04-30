@@ -117,7 +117,7 @@ type (
 	}
 )
 
-// newTransferFromDbTransfer function    Perform a bounds check on dbTransfer.Value to ensure it can fit into int64. 
+// newTransferFromDbTransfer function    Perform a bounds check on dbTransfer.Value to ensure it can fit into int64.
 // This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
 func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
@@ -178,10 +178,10 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db     db.GovernorDB // protected by `mutex`
-	logger *zap.Logger
-	mutex  sync.Mutex
-	tokens map[tokenKey]*tokenEntry // protected by `mutex`
+	db                    db.GovernorDB // protected by `mutex`
+	logger                *zap.Logger
+	mutex                 sync.Mutex
+	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
 	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
 	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
 	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
@@ -936,4 +936,3 @@ func CheckedAddInt64(x int64, y int64) (int64, error) {
 	}
 	return x + y, nil
 }
-

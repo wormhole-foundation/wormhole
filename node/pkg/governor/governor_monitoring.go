@@ -241,7 +241,6 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-
 // sumValue function    Sums the value of all `transfers`. See also `TrimAndSumValue`.
 func sumValue(transfers []transfer, startTime time.Time) uint64 {
 	if len(transfers) == 0 {

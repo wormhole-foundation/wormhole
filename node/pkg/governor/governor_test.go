@@ -245,7 +245,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedNumTransfers, len(transfers))
 
-	// Calculate Governor Usage for emitter, including flow cancelling. 
+	// Calculate Governor Usage for emitter, including flow cancelling.
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	difference := uint64(25000) // emitterTransferValue - flowCancelTransferValue
