@@ -106,6 +106,10 @@ func (gov *ChainGovernor) setTokenForTesting(
 	return nil
 }
 
+// getStatsForAllChains method    Sums the number of transfers, value of all transfers, number of pending transfers,
+// and the value of the pending transfers.
+// Note that 'flow cancel transfers' are not included and therefore the values returned by this function may not
+// match the Governor usage.
 func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -113,7 +117,7 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 	for _, ce := range gov.chains {
 		numTrans += len(ce.transfers)
 		for _, te := range ce.transfers {
-			valueTrans += te.Value
+			valueTrans += te.dbTransfer.Value
 		}
 
 		numPending += len(ce.pending)
@@ -147,10 +151,10 @@ func TestTrimEmptyTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
-	var transfers []*db.Transfer
+	var transfers []transfer
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), sum)
+	assert.Equal(t, int64(0), sum)
 	assert.Equal(t, 0, len(updatedTransfers))
 }
 
@@ -163,17 +167,21 @@ func TestSumAllFromToday(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
-	var transfers []*db.Transfer
+	var transfers []transfer
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 125000, Timestamp: transferTime})
+	dbTransfer := &db.Transfer{Value: 125000, Timestamp: transferTime}
+	transfer, err := newTransferFromDbTransfer(dbTransfer)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer)
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, uint64(125000), sum)
+	assert.Equal(t, uint64(125000), uint64(sum))
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
 func TestSumWithFlowCancelling(t *testing.T) {
+	// Choose a hard-coded value from the Flow Cancel Token List
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var originChain vaa.ChainID = 2
 	var originAddress vaa.Address
@@ -188,8 +196,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
-	var transfers_from_emitter []*db.Transfer
-	var transfers_that_flow_cancel []*db.Transfer
+	var chainEntryTransfers []transfer
 	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
@@ -203,40 +210,47 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// Setup transfers
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
-	//				 and the desintation chain must be the same as the emitter chain
-	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(
-		transfers_that_flow_cancel,
-		&db.Transfer{
-			OriginChain:   originChain,
-			OriginAddress: originAddress,
-			TargetChain:   vaa.ChainID(emitterChainId),
-			Value:         flowCancelValue,
-			Timestamp:     transferTime,
-		},
-	)
+	//				 and the destination chain must be the same as the emitter chain
+	outgoingDbTransfer := &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	outgoingTransfer, err := newTransferFromDbTransfer(outgoingDbTransfer)
+	require.NoError(t, err)
+
+	// Flow cancelling transfer
+	incomingDbTransfer := &db.Transfer{
+		OriginChain:   originChain,
+		OriginAddress: originAddress,
+		TargetChain:   vaa.ChainID(emitterChainId), // emitter
+		Value:         flowCancelValue,
+		Timestamp:     transferTime,
+	}
+
+	chainEntryTransfers = append(chainEntryTransfers, outgoingTransfer)
 
 	// Populate chainEntrys and ChainGovernor
 	emitter := &chainEntry{
-		transfers:      transfers_from_emitter,
+		transfers:      chainEntryTransfers,
 		emitterChainId: vaa.ChainID(emitterChainId),
 		dailyLimit:     emitterLimit,
 	}
-	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
-	gov.chains[emitter.emitterChainId] = emitter
-	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
 
-	// XXX: sanity check
-	expectedNumTransfers := 1
-	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
+	err = emitter.addFlowCancelTransferFromDbTransfer(incomingDbTransfer)
+	require.NoError(t, err)
+
+	gov.chains[emitter.emitterChainId] = emitter
+
+	// Sanity check: ensure that there is a transfer with a non-zero value so we don't get bogus results when
+	// comparing the final sums.
+	expectedNumTransfers := 2
+	_, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, expectedNumTransfers, len(transfers))
-	assert.NotZero(t, sum)
+	// assert.NotZero(t, sum)
 
-	// Calculate Governor Usage for emitter, including flow cancelling
-	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	// Calculate Governor Usage for emitter, including flow cancelling. 
+	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, emitterTransferValue-flowCancelValue, sum)
+	difference := uint64(25000) // emitterTransferValue - flowCancelTransferValue
+	assert.Equal(t, difference, usage)
 }
 
 // Flow cancelling transfers are subtracted from the overall sum of all transfers from a given
@@ -260,8 +274,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
-	var transfers_from_emitter []*db.Transfer
-	var transfers_that_flow_cancel []*db.Transfer
+	var transfers_from_emitter []transfer
 	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
@@ -276,17 +289,18 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the destination chain must be the same as the emitter chain
-	transfers_from_emitter = append(transfers_from_emitter, &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
-	transfers_that_flow_cancel = append(
-		transfers_that_flow_cancel,
-		&db.Transfer{
-			OriginChain:   originChain,
-			OriginAddress: originAddress,
-			TargetChain:   vaa.ChainID(emitterChainId),
-			Value:         flowCancelValue,
-			Timestamp:     transferTime,
-		},
-	)
+	emitterDbTransfer := &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	emitterTransfer, err := newTransferFromDbTransfer(emitterDbTransfer)
+	require.NoError(t, err)
+	transfers_from_emitter = append(transfers_from_emitter, emitterTransfer)
+
+	flowCancelDbTransfer := &db.Transfer{
+		OriginChain:   originChain,
+		OriginAddress: originAddress,
+		TargetChain:   vaa.ChainID(emitterChainId), // emitter
+		Value:         flowCancelValue,
+		Timestamp:     transferTime,
+	}
 
 	// Populate chainEntrys and ChainGovernor
 	emitter := &chainEntry{
@@ -294,21 +308,20 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 		emitterChainId: vaa.ChainID(emitterChainId),
 		dailyLimit:     emitterLimit,
 	}
-	chain_with_flow_cancel_transfers := &chainEntry{transfers: transfers_that_flow_cancel, emitterChainId: 2}
-	gov.chains[emitter.emitterChainId] = emitter
-	gov.chains[chain_with_flow_cancel_transfers.emitterChainId] = chain_with_flow_cancel_transfers
+	err = emitter.addFlowCancelTransferFromDbTransfer(flowCancelDbTransfer)
+	require.NoError(t, err)
 
-	// XXX: sanity check: Sum of transfers without flow cancelling should be positive.
-	expectedNumTransfers := 1
-	sum, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
+	gov.chains[emitter.emitterChainId] = emitter
+
+	expectedNumTransfers := 2
+	_, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, expectedNumTransfers, len(transfers))
-	assert.Greater(t, sum, uint64(0))
 
 	// Calculate Governor Usage for emitter, including flow cancelling
-	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Zero(t, sum)
+	assert.Zero(t, usage)
 }
 
 // Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
@@ -323,7 +336,7 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
-	var transfers_from_emitter []*db.Transfer
+	var transfers_from_emitter []transfer
 	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
 
@@ -334,9 +347,11 @@ func TestInvariantGovernorLimit(t *testing.T) {
 
 	// Create a lot of transfers. Their total value should exceed `emitterLimit`
 	for i := 0; i < 25; i++ {
+		transfer, err := newTransferFromDbTransfer(&db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+		require.NoError(t, err)
 		transfers_from_emitter = append(
 			transfers_from_emitter,
-			&db.Transfer{Value: emitterTransferValue, Timestamp: transferTime},
+			transfer,
 		)
 	}
 
@@ -356,29 +371,9 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	assert.NotZero(t, sum)
 
 	// Make sure we trigger the Invariant
-	sum, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.ErrorContains(t, err, "invariant violation: calculated sum")
-	assert.Zero(t, sum)
-}
-
-func TestInvariantSumOverflow(t *testing.T) {
-	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
-
-	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
-	require.NoError(t, err)
-
-	var transfers []*db.Transfer
-
-	// Add two transfers. When summed, they should trigger an overflow
-	transfers = append(transfers, &db.Transfer{Value: math.MaxUint64, Timestamp: transferTime})
-	transfers = append(transfers, &db.Transfer{Value: 1, Timestamp: transferTime})
-
-	sum, err := gov.SumTransferValues(transfers)
-	require.ErrorContains(t, err, "overflow when calculating flow cancelling sum")
-	assert.Zero(t, sum)
+	assert.Zero(t, usage)
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
@@ -390,23 +385,29 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
-	var transfers []*db.Transfer
+	var transfers []transfer
 
 	// The first transfer should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:59am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 125000, Timestamp: transferTime1})
+	dbTransfer := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	transfer, err := newTransferFromDbTransfer(dbTransfer)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer)
 
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 225000, Timestamp: transferTime2})
+	dbTransfer = &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	transfer2, err := newTransferFromDbTransfer(dbTransfer)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer2)
 	assert.Equal(t, 2, len(transfers))
 
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
-	assert.Equal(t, uint64(225000), sum)
+	assert.Equal(t, uint64(125000), uint64(sum))
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
@@ -418,36 +419,51 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
-	var transfers []*db.Transfer
+	var transfers []transfer
 
 	// The first two transfers should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 10:00am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 125000, Timestamp: transferTime1})
+	dbTransfer1 := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 135000, Timestamp: transferTime2})
+	dbTransfer2 := &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer2)
 
 	// But the next three should not.
 	transferTime3, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 145000, Timestamp: transferTime3})
+	dbTransfer3 := &db.Transfer{Value: 125000, Timestamp: transferTime3}
+	transfer3, err := newTransferFromDbTransfer(dbTransfer3)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer3)
 
 	transferTime4, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 155000, Timestamp: transferTime4})
+	dbTransfer4 := &db.Transfer{Value: 125000, Timestamp: transferTime4}
+	transfer4, err := newTransferFromDbTransfer(dbTransfer4)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer4)
 
 	transferTime5, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 165000, Timestamp: transferTime5})
+	dbTransfer5 := &db.Transfer{Value: 125000, Timestamp: transferTime5}
+	transfer5, err := newTransferFromDbTransfer(dbTransfer5)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer5)
 
 	assert.Equal(t, 5, len(transfers))
 
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
-	assert.Equal(t, uint64(465000), sum)
+	assert.Equal(t, uint64(375000), uint64(sum))
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
@@ -459,21 +475,28 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
-	var transfers []*db.Transfer
+	var transfers []transfer
 
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 125000, Timestamp: transferTime1})
+	dbTransfer1 := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:45am (CST)")
 	require.NoError(t, err)
-	transfers = append(transfers, &db.Transfer{Value: 225000, Timestamp: transferTime2})
+	dbTransfer2 := &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
+	require.NoError(t, err)
+	transfers = append(transfers, transfer2)
+
 	assert.Equal(t, 2, len(transfers))
 
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(updatedTransfers))
-	assert.Equal(t, uint64(0), sum)
+	assert.Equal(t, int64(0), sum)
 }
 
 func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {

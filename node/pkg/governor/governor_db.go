@@ -44,7 +44,10 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 		for _, xfer := range xfers {
 			if startTime.Before(xfer.Timestamp) {
-				gov.reloadTransfer(xfer)
+				err := gov.reloadTransfer(xfer)
+				if err != nil {
+					return err
+				}
 			} else {
 				if err := gov.db.DeleteTransfer(xfer); err != nil {
 					return err
@@ -156,7 +159,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
-func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
+func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	ce, exists := gov.chains[xfer.EmitterChain]
 	if !exists {
 		gov.logger.Error("reloaded transfer for unsupported chain, dropping it",
@@ -166,7 +169,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("EmitterAddress", xfer.EmitterAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	if xfer.EmitterAddress != ce.emitterAddr {
@@ -177,7 +180,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	tk := tokenKey{chain: xfer.OriginChain, addr: xfer.OriginAddress}
@@ -190,7 +193,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	if _, alreadyExists := gov.msgsSeen[xfer.Hash]; alreadyExists {
@@ -202,7 +205,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.String("MsgID", xfer.MsgID),
 			zap.String("Hash", xfer.Hash),
 		)
-		return
+		return nil
 	}
 
 	if xfer.Hash != "" {
@@ -226,5 +229,10 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 		)
 	}
 
-	ce.transfers = append(ce.transfers, xfer)
+	transfer, err := newTransferFromDbTransfer(xfer)
+	if err != nil {
+		return err
+	}
+	ce.transfers = append(ce.transfers, transfer)
+	return nil
 }

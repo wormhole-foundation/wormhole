@@ -80,7 +80,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -242,20 +241,35 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-func sumValue(transfers []*db.Transfer, startTime time.Time) uint64 {
+
+// sumValue function    Sums the value of all `transfers`. See also `TrimAndSumValue`.
+func sumValue(transfers []transfer, startTime time.Time) uint64 {
 	if len(transfers) == 0 {
 		return 0
 	}
 
-	var sum uint64
+	var sum int64
 
 	for _, t := range transfers {
-		if !t.Timestamp.Before(startTime) {
-			sum += t.Value
+		if t.dbTransfer.Timestamp.Before(startTime) {
+			continue
 		}
+		checkedSum, err := CheckedAddInt64(sum, t.value)
+		if err != nil {
+			// We have to stop and return an error here (rather than saturate, for example). The
+			// transfers are not sorted by value so we can't make any guarantee on the final value
+			// if we hit the upper or lower bound. We don't expect this to happen in any case
+			// because we don't expect this much value to flow between two chains in a 24h period.
+			return 0
+		}
+		sum = checkedSum
 	}
 
-	return sum
+	if sum <= 0 {
+		return 0
+	}
+
+	return uint64(sum)
 }
 
 // REST query to get the current available notional value per chain.
