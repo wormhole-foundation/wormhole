@@ -226,7 +226,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 
 	chainEntryTransfers = append(chainEntryTransfers, outgoingTransfer)
 
-	// Populate chainEntrys and ChainGovernor
+	// Populate chainEntry and ChainGovernor
 	emitter := &chainEntry{
 		transfers:      chainEntryTransfers,
 		emitterChainId: vaa.ChainID(emitterChainId),
@@ -238,8 +238,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 
 	gov.chains[emitter.emitterChainId] = emitter
 
-	// Sanity check: ensure that there is a transfer with a non-zero value so we don't get bogus results when
-	// comparing the final sums.
+	// Sanity check: ensure that there are transfers in the chainEntry
 	expectedNumTransfers := 2
 	_, transfers, err := gov.TrimAndSumValue(emitter.transfers, now)
 	require.NoError(t, err)
@@ -318,6 +317,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	assert.Equal(t, expectedNumTransfers, len(transfers))
 
 	// Calculate Governor Usage for emitter, including flow cancelling
+	// Should be zero when flow cancel transfer values exceed emitted transfer values.
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Zero(t, usage)
@@ -2179,33 +2179,63 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 }
 
 func TestCheckedAddUint64HappyPath(t *testing.T) {
-	// Return error on overflow
+	// Both non-zero
 	x := uint64(1000)
 	y := uint64(337)
 	sum, err := CheckedAddUint64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1337), sum)
+
+	// x is zero
+	x = 0
+	y = 2000
+	sum, err = CheckedAddUint64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2000), sum)
+
+	// y is zero
+	x = 3000
+	y = 0
+	sum, err = CheckedAddUint64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(3000), sum)
 }
 
 func TestCheckedAddInt64HappyPath(t *testing.T) {
-	// Return error on overflow
+	// Two positive numbers
 	x := int64(1000)
 	y := int64(337)
 	sum, err := CheckedAddInt64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1337), sum)
 
+	// One positive, one negative
 	x = 100
 	y = -1000
 	sum, err = CheckedAddInt64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, int64(-900), sum)
 
+	// Both negative
 	x = -100
 	y = -1000
 	sum, err = CheckedAddInt64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, int64(-1100), sum)
+
+	// x is zero
+	x = 0
+	y = 2000
+	sum, err = CheckedAddInt64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2000), sum)
+
+	// y is zero
+	x = 3000
+	y = 0
+	sum, err = CheckedAddInt64(x, y)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3000), sum)
 }
 
 func TestCheckedAddUint64ReturnsErrorOnOverflow(t *testing.T) {
