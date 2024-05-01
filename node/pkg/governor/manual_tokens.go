@@ -46,5 +46,10 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 34, addr: "000000000000000000000000f610a9dfb7c89644979b4a0f27063e9e7d7cda32", symbol: "WSTETH", coinGeckoId: "bridged-wrapped-lido-staked-ether-scroll", decimals: 18, price: 3659.28},
 		{chain: 34, addr: "000000000000000000000000cA77eB3fEFe3725Dc33bccB54eDEFc3D9f764f97", symbol: "DAI", coinGeckoId: "dai", decimals: 18, price: 1.00},
 		{chain: 34, addr: "00000000000000000000000053878B874283351D26d206FA512aEcE1Bef6C0dD", symbol: "RETH", coinGeckoId: "rocket-pool-eth", decimals: 18, price: 3475.55},
+		// X LAYER (top 4 tokens as of Wed  1 May 2024: https://www.okx.com/explorer/xlayer/token-list)
+		{chain: 36, addr: "0000000000000000000000001e4a5963abfd975d8c9021ce480b42188849d41d", symbol: "USDT", coinGeckoId: "", decimals: 6, price: 0.9992},
+		{chain: 36, addr: "00000000000000000000000074b7f16337b8972027f6196a17a631ac6de26d22", symbol: "USDC", coinGeckoId: "", decimals: 6, price: 1.0003},
+		{chain: 36, addr: "000000000000000000000000ea034fb02eb1808c2cc3adbc15f447b93cbe08e1", symbol: "WBTC", coinGeckoId: "", decimals: 8, price: 57029},
+		{chain: 36, addr: "000000000000000000000000c5015b9d9161dca7e18e32f6f25c4ad850731fd4", symbol: "DAI", coinGeckoId: "", decimals: 18, price: 1.0006},
 	}
 }
