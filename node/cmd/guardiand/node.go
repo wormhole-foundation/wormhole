@@ -244,6 +244,9 @@ var (
 
 	// This is the externally reachable address advertised over gossip for guardian p2p and ccq p2p.
 	gossipAdvertiseAddress *string
+
+	// env is the mode we are running in, Mainnet, Testnet or UnsafeDevnet.
+	env common.Environment
 )
 
 func init() {
@@ -490,13 +493,11 @@ func initConfig(cmd *cobra.Command, args []string) error {
 }
 
 func runNode(cmd *cobra.Command, args []string) {
-	if Build == "dev" && !*unsafeDevMode {
-		fmt.Println("This is a development build. --unsafeDevMode must be enabled.")
-		os.Exit(1)
+	if *unsafeDevMode && *testnetMode {
+		fmt.Println("Cannot be in unsafeDevMode and testnetMode at the same time.")
 	}
 
 	// Determine execution mode
-	var env common.Environment
 	if *unsafeDevMode {
 		env = common.UnsafeDevNet
 	} else if *testnetMode {
@@ -505,11 +506,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		env = common.MainNet
 	}
 
-	if *unsafeDevMode {
+	if Build == "dev" && env != common.UnsafeDevNet {
+		fmt.Println("This is a development build. --unsafeDevMode must be enabled.")
+		os.Exit(1)
+	}
+
+	if env == common.UnsafeDevNet {
 		fmt.Print(devwarning)
 	}
 
-	if *testnetMode || *unsafeDevMode {
+	if env != common.MainNet {
 		fmt.Println("Not locking in memory.")
 	} else {
 		common.LockMemory()
@@ -518,7 +524,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	common.SetRestrictiveUmask()
 
 	// Refuse to run as root in production mode.
-	if !*unsafeDevMode && os.Geteuid() == 0 {
+	if env != common.UnsafeDevNet && os.Geteuid() == 0 {
 		fmt.Println("can't run as uid 0")
 		os.Exit(1)
 	}
@@ -537,7 +543,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		zapcore.AddSync(zapcore.Lock(os.Stderr)),
 		zap.NewAtomicLevelAt(zapcore.Level(lvl))))
 
-	if *unsafeDevMode {
+	if env == common.UnsafeDevNet {
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
 		hostname, err := os.Hostname()
@@ -550,15 +556,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger = logger.Named(*nodeName)
 	}
 
-	if *unsafeDevMode && *testnetMode {
-		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
-	}
-
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
-	if *unsafeDevMode {
+	if env == common.UnsafeDevNet {
 		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
 		if err != nil {
 			panic(err)
@@ -602,7 +604,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Verify flags
 
-	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
+	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify --nodeKey")
 	}
 	if *guardianKeyPath == "" {
@@ -657,7 +659,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Linea requires a couple of additional parameters.
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", false)
-	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && !*unsafeDevMode {
+	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && env != common.UnsafeDevNet {
 		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
 	}
 
@@ -753,7 +755,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
-	if *unsafeDevMode {
+	if env == common.UnsafeDevNet {
 		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
 		if err != nil {
 			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
@@ -765,7 +767,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	defer db.Close()
 
 	// Guardian key
-	gk, err := common.LoadGuardianKey(*guardianKeyPath, *unsafeDevMode)
+	gk, err := common.LoadGuardianKey(*guardianKeyPath, env == common.UnsafeDevNet)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -775,7 +777,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
-	if *unsafeDevMode {
+	if env == common.UnsafeDevNet {
 		idx, err := devnet.GetDevnetIndex()
 		if err != nil {
 			logger.Fatal("Failed to parse hostname - are we running in devnet?")
@@ -887,7 +889,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	var hasTelemetryCredential bool = usingLoki
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
-	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
+	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && hasTelemetryCredential)) {
 		if !hasTelemetryCredential {
 			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
@@ -932,7 +934,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ipfslog.SetPrimaryCore(logger.Core())
 
 	wormchainId := "wormchain"
-	if *testnetMode {
+	if env == common.TestNet {
 		wormchainId = "wormchain-testnet-0"
 	}
 
@@ -951,7 +953,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		keyPathName := *accountantKeyPath
-		if *unsafeDevMode {
+		if env == common.UnsafeDevNet {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
 				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
@@ -987,7 +989,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		keyPathName := *accountantNttKeyPath
-		if *unsafeDevMode {
+		if env == common.UnsafeDevNet {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
 				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gacct"))
@@ -1022,7 +1024,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		wormchainKeyPathName := *gatewayRelayerKeyPath
-		if *unsafeDevMode {
+		if env == common.UnsafeDevNet {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
 				logger.Fatal("failed to get devnet index", zap.Error(err), zap.String("component", "gwrelayer"))
@@ -1466,7 +1468,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
-	if *testnetMode || *unsafeDevMode {
+	if env == common.TestNet || env == common.UnsafeDevNet {
 		if shouldStart(sepoliaRPC) {
 			wc := &evm.WatcherConfig{
 				NetworkID:        "sepolia",
@@ -1599,7 +1601,7 @@ func shouldStart(rpc *string) bool {
 // checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
 // If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
 func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel string, mainnetSupported bool) string {
-	if !*unsafeDevMode {
+	if env != common.UnsafeDevNet {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
 		if (rpc == "") != (contractAddr == "") {
 			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set or both unset", chainLabel, chainLabel))
@@ -1616,14 +1618,10 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel strin
 			}
 		}
 	}
-	if contractAddr != "" && !mainnetSupported && mainnetMode() {
+	if contractAddr != "" && !mainnetSupported && env == common.MainNet {
 		logger.Fatal(fmt.Sprintf("Chain %s not supported in mainnet", chainLabel))
 	}
 	return contractAddr
-}
-
-func mainnetMode() bool {
-	return (!*unsafeDevMode && !*testnetMode)
 }
 
 // argsConsistent verifies that the arguments in the array are all set or all unset.
