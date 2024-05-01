@@ -208,6 +208,8 @@ def build_node_yaml():
                 container["command"] += [
                     "--solanaRPC",
                     "http://solana-devnet:8899",
+                    "--solanaContract",
+                    "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
                 ]
 
             if pythnet:
