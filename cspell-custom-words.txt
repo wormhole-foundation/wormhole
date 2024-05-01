@@ -120,6 +120,7 @@ optin
 Optin
 parachain
 pdas
+permissioned
 permissionless
 permissionlessly
 Polkachu
