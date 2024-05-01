@@ -1,29 +1,12 @@
-# Running a Wormhole node
+# Running a Wormhole Guardian Node
 
 ![](images/nodearchitecture.svg)
 
 ## Connected chains
 
-In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to:
-
-- **Solana**. There is no light client for Solana yet, so you'll have to run a full solana-validator node. It does not
-  have to actually be a validator - you can run solana-validator in non-validating mode if you are not a validator.
-
-  Refer to the [Solana documentation](https://docs.solana.com/running-validator) on how to run a validator. The validator
-  requirements as stated in their docs are excessive - for the current iteration for mainnet-beta, the "low end" config
-  with no GPU is perfectly adequate, and will have enough spare capacity.
-  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding validator ops.
-
-- **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
-
-- **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
-  pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
-  on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
-  to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
-  you set up a load balancer pointing to a set of nodes.
-
-- **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
-  roughly requires twice as many compute resources.
+In addition to Wormhole itself, you need to run your own verifying node for every chain that Wormhole connects to except
+for newer IBC connected chains that integrate through Wormhole Gateway. Please refer to the [constants reference](https://docs.wormhole.com/wormhole/reference/constants)
+for all chains that Wormhole connects to.
 
 **Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
 you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
@@ -32,6 +15,12 @@ We strongly recommend running your own full nodes for both testnet and mainnet (
 so you can test changes for your mainnet full nodes and gain operational experience.
 
 ### Solana node requirements
+
+Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an RPC
+(full) node.  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
+operations.
+
+The `#rpc-server-operators` channel is especially useful for setting up Solana RPC nodes.
 
 Your Solana RPC node needs the following parameters enabled:
 
@@ -102,6 +91,146 @@ since only very few nodes support the light client protocol.
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
 
+
+### Terra
+
+Terra is also sometimes referred to as Terra 2, but the correct name is just simply "Terra". The previous version was renamed to "Terra Classic".
+
+Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full-terra-node/set-up-production/) on how to run a full node.
+
+#### Terra Classic
+
+Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
+
+
+### Wormchain
+
+All guardians **must run validators for wormchain**, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
+
+The ``--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
+in the app.toml.
+
+Example port setup:
+
+<!-- cspell:disable -->
+
+config.toml:
+
+```toml
+[rpc]
+laddr = "tcp://0.0.0.0:26657"
+grpc_laddr = ""
+pprof_laddr = "localhost:6060"
+
+[p2p]
+laddr = "tcp://0.0.0.0:26656"
+external_address = ""
+```
+
+app.toml:
+
+```toml
+[grpc]
+address = "0.0.0.0:9090"
+
+[grpc-web]
+address = "0.0.0.0:9091"
+```
+
+<!-- cspell:enable -->
+
+For signing, consider setting up a remote threshold signer such as
+[horcrux](https://github.com/strangelove-ventures/horcrux) and adopting the sentry node architecture with sentry nodes
+in front of your wormchain validator.
+
+#### Wormchain Useful Commands
+
+Check the latest guardian set:
+
+<!-- cspell:disable -->
+
+```shell
+$ wormchaind query wormhole latest-guardian-set-index
+latestGuardianSetIndex: 4
+```
+
+<!-- cspell:enable -->
+
+Upgrade the guardian set (with a valid governance vaa):
+
+<!-- cspell:disable -->
+
+```shell
+wormchaind tx wormhole execute-governance-vaa <guardian_set_upgrade_VAA_in_hex_format>
+```
+
+<!-- cspell:enable -->
+
+View Validator information:
+
+<!-- cspell:disable -->
+
+```shell
+$ wormchaind q staking validators
+... snip ...
+- commission:
+    commission_rates:
+      max_change_rate: "0.020000000000000000"
+      max_rate: "0.200000000000000000"
+      rate: "0.000000000000000000"
+    update_time: "2024-04-16T19:13:45.210176030Z"
+  consensus_pubkey:
+    '@type': /cosmos.crypto.ed25519.PubKey
+    key: T+hsVX52EarrsL+mOwv3mL0byWa2EctsG6XmikUMFiQ=
+  delegator_shares: "0.000000000000000000"
+  description:
+    details: ""
+    identity: 11A4103C4BCBD2B4
+    moniker: RockawayX
+    security_contact: ""
+    website: https://rockawayx.com/infrastructure
+  jailed: false
+  min_self_delegation: "0"
+  operator_address: wormholevaloper1thl5syhmscgnj7whdyrydw3w6vy80044278fxp
+  status: BOND_STATUS_BONDED
+  tokens: "0"
+  unbonding_height: "0"
+  unbonding_time: "1970-01-01T00:00:00Z"
+```
+
+<!-- cspell:enable -->
+
+### EVM node requirements
+
+Some non-Ethereum EVM compatible blockchains need to run in archive mode for [Queries](https://wormhole.com/queries)
+to function correctly. By default in geth, [historical state is only kept in memory for the previous 128 blocks](https://github.com/ethereum/go-ethereum/blob/4458905f261d5d9ba5fda3d664f9bb80346ab404/core/state/statedb.go#L1259-L1265).
+After 128 blocks, older states are garbage collected. Many of these chains are forks of geth that maintain this
+historical limitation.
+
+* Arbitrum
+* Base
+* Optimism
+
+Newer execution clients such as [reth](https://github.com/paradigmxyz/reth) lack this limitation and are worth
+investigating once they are stable.
+
+Additionally, if there is ever a scenario where the network fails to come to consensus on an EVM compatible chain due to
+a hard fork or some unforeseen scenario, it might be required to run archive nodes for those chains temporarily to ensure
+the transactions can be reobserved.
+
+### Cosmos / IBC connected nodes
+
+All modern Cosmos integrations happen by Wormhole observing IBC transactions on Gateway (wormchain). Guardian node operators do not need to run full nodes for these networks. For Cosmos based chains that were added before this functionality, a full node is still necessary.
+
+The following Cosmos based nodes were added prior to Gateway and guardians need to run full nodes:
+
+* Injective
+* Terra
+* Terra Classic
+* XPLA
+
+**NOTE**: All guardians must run validators for wormchain.
+
 ## Building guardiand
 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
@@ -113,7 +242,6 @@ First, check out the version of the Wormhole repo that you want to deploy:
 
 ```bash
 git clone https://github.com/wormhole-foundation/wormhole && cd wormhole
-git checkout v2.0.x
 ```
 
 Then, compile the release binary as an unprivileged build user:
@@ -157,7 +285,8 @@ We strongly recommend a separate user and systemd services for the Wormhole serv
 See the separate [wormhole-networks](https://github.com/wormhole-foundation/wormhole-networks) repository for examples
 on how to set up the guardiand unit for a specific network.
 
-You need to open port 8999/udp in your firewall for the P2P network. Nothing else has to be exposed externally.
+You need to open port 8999/udp in your firewall for the P2P network and 8996/udp for
+[Cross Chain Queries](../whitepapers/0013_ccq.md). Nothing else has to be exposed externally if you do not run a public RPC.
 
 journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
 
@@ -169,10 +298,17 @@ Refer to [devnet/](../devnet) for example k8s deployments as a starting point fo
 have to build your own containers. Unless you already run Kubernetes in production, we strongly recommend a traditional
 deployment on a dedicated instance - it's easier to understand and troubleshoot.
 
+When running in kubernetes, or behind any kind of NAT, pass `--gossipAdvertiseAddress=external.ip.address` to the
+guardiand node process to ensure the external address is advertized in p2p. If this is not done, reobservation
+requests and [CCQ](https://wormhole.com/queries) will not function as intended.
+
 ### Monitoring
 
 Wormhole exposes a status server for readiness and metrics. By default, it listens on port 6060 on localhost.
 You can use a command line argument to expose it publicly: `--statusAddr=[::]:6060`.
+
+**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
+not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
 
 #### `/readyz`
 
@@ -193,8 +329,91 @@ alerting will be documented here.
 
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
+#### Wormhole Dashboard
+
+There is a [dashboard](https://wormhole-foundation.github.io/wormhole-dashboard) which shows the overall health of the
+network and has metrics on individual guardians.
+
 **NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
 not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+
+#### Wormhole Fly Healthcheck
+
+In the [wormhole-dashboard](https://github.com/wormhole-foundation/wormhole-dashboard) repository, there is a small
+[healthcheck application](https://github.com/wormhole-foundation/wormhole-dashboard/tree/main/fly/cmd/healthcheck)
+which verifies that the guardian is gossiping out heartbeats, is submitting chain observations, and has a working
+heartbeats API available. This is a very good way to verify a specific guardian is functioning as intended.
+
+You can clone the repo and run the check against the [MCF Guardian](https://github.com/wormhole-foundation/wormhole-networks/blob/649dcc48f29d462fe6cb0062cb6530021d36a417/mainnetv2/guardianset/v3.prototxt#L58):
+
+```shell
+git clone https://github.com/wormhole-foundation/wormhole-dashboard
+cd wormhole-dashboard/fly/cmd/healthcheck
+
+# Run the fly
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --url https://wormhole-v2-mainnet-api.mcf.rocks
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 44 observations received
+✅ /v1/heartbeats
+```
+
+If the guardian public RPC is not exposed, the `--url` flag can be omitted:
+
+```shell
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 41 observations received
+ℹ️  --url not defined, skipping web checks
+```
+
+The bootstrap nodes and network defaults to mainnet and the values can be found in the [network constants](../node/pkg/p2p/network_consts.go).
+
+It can also be used to test a specific bootstrap node/s:
+
+```shell
+$ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap /dns4/wormhole.mcf.rocks/udp/8999/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU
+✅ guardian heartbeat received {12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU: [/ip4/185.188.42.109/udp/8999/quic-v1]}
+✅ 44 observations received
+ℹ️  --url not defined, skipping web checks
+```
+
+## Native Token Transfers
+
+[NTT](https://github.com/wormhole-foundation/example-native-token-transfers) is an exciting feature of wormhole that builds upon the core bridge to allow mint/burn style transfers. Ensuring it runs correctly requires integrating it with the NTT Accountant. To enable this feature, create a **new** wormchain key. Do not reuse an existing global accountant key and add the following parameters:
+
+<!-- cspell:disable -->
+
+```shell
+# You may already have these.
+--wormchainURL URL_TO_YOUR_WORMCHAIN_NODE
+--accountantWS HTTP_URL_OF_YOUR_WORMCHAIN_NODE
+
+# This is the mainnet contract.
+--accountantNttContract wormhole1mc23vtzxh46e63vq22e8cnv23an06akvkqws04kghkrxrauzpgwq2hmwm7
+
+--accountantNttKeyPath PATH_TO_YOUR_NTT_ACCOUNTANT_KEY_FILE
+--accountantNttKeyPassPhrase YOUR_NTT_ACCOUNTANT_KEY_PASS_PHRASE
+```
+
+<!-- cspell:enable -->
+
+Please remember to allowlist the new NTT Accountant key for use with Wormchain! For instructions on how to do that, speak with someone from the Wormhole Foundation.
+
+## Cross-Chain Queries
+
+[CCQ](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0013_ccq.md) also known as [Wormhole Queries](https://wormhole.com/queries) is a feature to allow pulling attestations in a cross chain manner. To run ccq, a few additional flags need to be enabled on the guardian node:
+
+<!-- cspell:disable -->
+
+```shell
+--ccqEnabled=true \
+--ccqAllowedPeers="[ALLOWED,PEERS,GO,HERE]" \
+--ccqAllowedRequesters="[ALLOWED,REQUESTORS,GO,HERE" \
+```
+
+<!-- cspell:enable -->
+
+To test query functionality, follow the instructions in [node/hack/query/ccqlistener/ccqlistener.go](../node/hack/query/ccqlistener/ccqlistener.go).
 
 ## Running a public API endpoint
 
@@ -222,6 +441,17 @@ Alternatively, you can use a managed reverse proxy like CloudFlare to terminate 
 It is safe to expose the publicWeb port on signing nodes. For better resiliency against denial of service attacks,
 future guardiand releases will include listen-only mode such that multiple guardiand instances without guardian keys
 can be operated behind a load balancer.
+
+## Enabling Telemetry
+
+Optionally, the guardian can send telemetry to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki".
+To enable this functionality, add the following flag:
+
+```bash
+--telemetryLokiURL=$PER_GUARDIAN_LOKI_URL_WITH_TOKEN
+```
+
+New guardians should talk to the Wormhole Foundation to get a Loki url.
 
 ### Binding to privileged ports
 
@@ -265,8 +495,9 @@ may include support for remote signing.
 
 ## Bootstrap Peers
 
-The list of supported bootstrap peers is defined in `node/pkg/p2p/network_consts.go`. That file also provides golang functions
-for obtaining the network parameters (network ID and bootstrap peers) based on the environment (mainnet or testnet).
+The list of supported bootstrap peers is defined in [node/pkg/p2p/network_consts.go](../node/pkg/p2p/network_consts.go).
+That file also provides golang functions for obtaining the network parameters (network ID and bootstrap peers) based on
+the environment (mainnet or testnet).
 
 The common Wormhole applications (guardiand, spy and query proxy server) use those functions, so it is not necessary to specify
 the actual bootstrap parameters in their configs. Developers of any new applications are strongly urged to do the same, and not
@@ -282,6 +513,7 @@ Start the spy against the testnet wormhole guardian:
 
 ```bash
 docker run \
+    --pull=always \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
@@ -297,6 +529,7 @@ To run the spy against mainnet:
 
 ```bash
 docker run \
+    --pull=always \
     --platform=linux/amd64 \
     -p 7073:7073 \
     --entrypoint /guardiand \
