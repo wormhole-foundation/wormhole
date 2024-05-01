@@ -201,9 +201,9 @@ func NewChainGovernor(
 	env common.Environment,
 ) *ChainGovernor {
 	return &ChainGovernor{
-		db:     db,
-		logger: logger.With(zap.String("component", "cgov")),
-		tokens: make(map[tokenKey]*tokenEntry),
+		db:                  db,
+		logger:              logger.With(zap.String("component", "cgov")),
+		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
 		msgsSeen:            make(map[string]bool),
