@@ -60,7 +60,8 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
     );
   }
 
-  const VAA_KEY_TYPE = 1 << 1;
+  const VAA_KEY_TYPE = 1 << 0;
+  // const CCTP_KEY_TYPE = 1 << 1;
   const coreConfig: DeliveryProviderStructs.CoreConfigStruct = {
     updateWormholeRelayer: false,
     updateRewardAddress: true,
