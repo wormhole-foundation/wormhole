@@ -58,6 +58,11 @@ wormhole $build/bin/guardiand query-server \
 - The `telemetryLokiURL`, `telemetryNodeName` and `promRemoteURL` are used for telemetry purposes and
   the values will be provided by Wormhole Foundation personnel if appropriate.
 
+Optional Parameters
+
+- The `gossipAdvertiseAddress` argument allows you to specify an external IP to advertize on P2P (use if behind a NAT or running in k8s).
+- The `monitorPeers` flag will cause the proxy server to periodically check its connectivity to the P2P bootstrap peers, and attempt to reconnect if necessary.
+
 #### Creating the Signing Key File
 
 Do the following to create the signing key file. Note that the `block-type` must exactly match what is specified below,

@@ -28,24 +28,25 @@ import (
 const CCQ_SERVER_SIGNING_KEY = "CCQ SERVER SIGNING KEY"
 
 var (
-	envStr            *string
-	p2pNetworkID      *string
-	p2pPort           *uint
-	p2pBootstrap      *string
-	listenAddr        *string
-	nodeKeyPath       *string
-	signerKeyPath     *string
-	permFile          *string
-	ethRPC            *string
-	ethContract       *string
-	logLevel          *string
-	telemetryLokiURL  *string
-	telemetryNodeName *string
-	statusAddr        *string
-	promRemoteURL     *string
-	shutdownDelay1    *uint
-	shutdownDelay2    *uint
-	monitorPeers      *bool
+	envStr                 *string
+	p2pNetworkID           *string
+	p2pPort                *uint
+	p2pBootstrap           *string
+	listenAddr             *string
+	nodeKeyPath            *string
+	signerKeyPath          *string
+	permFile               *string
+	ethRPC                 *string
+	ethContract            *string
+	logLevel               *string
+	telemetryLokiURL       *string
+	telemetryNodeName      *string
+	statusAddr             *string
+	promRemoteURL          *string
+	shutdownDelay1         *uint
+	shutdownDelay2         *uint
+	monitorPeers           *bool
+	gossipAdvertiseAddress *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -67,6 +68,7 @@ func init() {
 	statusAddr = QueryServerCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
+	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -189,7 +191,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses(logger)
-	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap)
+	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}

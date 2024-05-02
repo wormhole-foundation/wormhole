@@ -38,10 +38,24 @@ type P2PSub struct {
 	host       host.Host
 }
 
-func runP2P(ctx context.Context, priv crypto.PrivKey, port uint, networkID, bootstrapPeers, ethRpcUrl, ethCoreAddr string, pendingResponses *PendingResponses, logger *zap.Logger, monitorPeers bool, loggingMap *LoggingMap) (*P2PSub, error) {
+func runP2P(
+	ctx context.Context,
+	priv crypto.PrivKey,
+	port uint,
+	networkID string,
+	bootstrapPeers string,
+	ethRpcUrl string,
+	ethCoreAddr string,
+	pendingResponses *PendingResponses,
+	logger *zap.Logger,
+	monitorPeers bool,
+	loggingMap *LoggingMap,
+	gossipAdvertiseAddress string,
+) (*P2PSub, error) {
 	// p2p setup
 	components := p2p.DefaultComponents()
 	components.Port = port
+	components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
 	h, err := p2p.NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
