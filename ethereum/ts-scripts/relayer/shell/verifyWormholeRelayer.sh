@@ -63,14 +63,14 @@ for chain in $chain_ids
     # We print the compiler input to a file instead for manual verification
     if test $chain -eq 14
         forge verify-contract $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy --watch --constructor-args $init_contract_address --show-standard-json-input > WormholeRelayerProxy.compiler-input.json
-        forge verify-contract $implementation_address WormholeRelayer --watch --constructor-args $wormhole_address --show-standard-json-input > WormholeRelayerImplementation.compiler-input.json
+        forge verify-contract $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer --watch --constructor-args $wormhole_address --show-standard-json-input > WormholeRelayerImplementation.compiler-input.json
 
         echo "Please manually submit the compiler input files at celoscan.io"
         echo "- $implementation_address: WormholeRelayerImplementation.compiler-input.json"
         echo "- $proxy_address: WormholeRelayerProxy.compiler-input.json"
     else
         forge verify-contract $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy --watch --constructor-args $init_contract_address
-        forge verify-contract $implementation_address WormholeRelayer --watch --constructor-args $wormhole_address
+        forge verify-contract $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer --watch --constructor-args $wormhole_address
     end
 end
 
