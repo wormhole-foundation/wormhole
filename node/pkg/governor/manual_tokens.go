@@ -53,7 +53,5 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 37, addr: "00000000000000000000000074b7f16337b8972027f6196a17a631ac6de26d22", symbol: "USDC", coinGeckoId: "polygon-hermez-bridged-usdc-x-layer", decimals: 6, price: 0.9949},
 		{chain: 37, addr: "000000000000000000000000ea034fb02eb1808c2cc3adbc15f447b93cbe08e1", symbol: "WBTC", coinGeckoId: "polygon-hermez-bridged-wbtc-x-layer", decimals: 8, price: 57029},
 		{chain: 37, addr: "000000000000000000000000c5015b9d9161dca7e18e32f6f25c4ad850731fd4", symbol: "DAI", coinGeckoId: "polygon-hermez-bridged-dai-x-layer", decimals: 18, price: 1.0006},
-		{chain: 37, addr: "00000000000000000000000073644a48a4f540fa49a8b4d41dba2ded5df3912b", symbol: "MUKI", coinGeckoId: "", decimals: 18, price: 0.00002787}, // no coingecko entry. https://www.okx.com/explorer/xlayer/address/0x73644a48a4f540fa49a8b4d41dba2ded5df3912b
-		{chain: 37, addr: "00000000000000000000000054455532324468f5d60ebd6469f2bbd3dc47a7f8", symbol: "ABS", coinGeckoId: "", decimals: 18, price: 0.009466},    // no coingecko entry. https://www.okx.com/explorer/xlayer/address/0x54455532324468f5d60ebd6469f2bbd3dc47a7f8
 	}
 }
