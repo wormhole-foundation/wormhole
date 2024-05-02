@@ -32,6 +32,7 @@ async function run() {
     }),
   );
 
+  let failed = false;
   for (const task of deploymentTasks) {
     if (task.status === "rejected") {
       // TODO: add chain as context
@@ -39,6 +40,7 @@ async function run() {
       console.log(
         `Deployment failed: ${task.reason?.stack || inspect(task.reason)}`,
       );
+      failed = true;
     } else {
       newDeployments.push(task.value);
     }
@@ -65,9 +67,15 @@ async function run() {
     if (task.status === "rejected") {
       // These get discarded and need to be retried later with a separate invocation.
       console.log(task.reason?.stack || inspect(task.reason));
+      failed = true;
     } else {
       printRegistration(task.value.updateEmitters, task.value.chain);
     }
+  }
+
+  // We throw here to ensure non zero exit code and communicate failure to shell
+  if (failed) {
+    throw new Error("One or more errors happened during execution. See messages above.");
   }
 }
 
