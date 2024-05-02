@@ -51,13 +51,14 @@ async function run() {
   } satisfies MockIntegrationDeployment;
   saveDeployments(output, processName);
 
+  const mockIntegrations = loadMockIntegrations();
   const emitters = loadMockIntegrations().map(({ address, chainId }) => ({
     chainId,
     addr: "0x" + tryNativeToHexString(address, "ethereum"),
   })) satisfies XAddressStruct[];
 
   const registerTasks = await Promise.allSettled(
-    output.mockIntegrations.map(async ({ chainId }) => {
+    mockIntegrations.map(async ({ chainId }) => {
       const chain = getChain(chainId);
       return registerMockIntegration(chain, emitters);
     }),
