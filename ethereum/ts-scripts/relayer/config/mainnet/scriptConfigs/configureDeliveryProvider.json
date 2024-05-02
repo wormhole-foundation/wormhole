@@ -3,7 +3,7 @@
     {
       "chainId": 2,
       "updatePriceGas": "45000000000",
-      "updatePriceNative": "2288380000"
+      "updatePriceNative": "2985580000"
     },
     {
       "chainId": 4,
@@ -43,63 +43,81 @@
     {
       "chainId": 23,
       "updatePriceGas": "1200000",
-      "updatePriceNative": "2288380000"
+      "updatePriceNative": "2985580000"
     },
     {
       "chainId": 24,
       "updatePriceGas": "1200000",
-      "updatePriceNative": "2288380000"
+      "updatePriceNative": "2985580000"
     },
     {
       "chainId": 30,
       "updatePriceGas": "1200000",
-      "updatePriceNative": "2288380000"
+      "updatePriceNative": "2985580000"
+    },
+    {
+      "chainId": 34,
+      "updatePriceGas": "1200000",
+      "updatePriceNative": "2985580000"
+    },
+    {
+      "chainId": 36,
+      "updatePriceGas": "1200000",
+      "updatePriceNative": "2985580000"
     }
   ],
   "deliveryGasOverheads": [
     {
       "chainId": 2,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "280000"
     },
     {
       "chainId": 4,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 5,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 6,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 10,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 13,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 14,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 16,
-      "updateGasOverhead": "500000"
+      "updateGasOverhead": "320000"
     },
     {
       "chainId": 23,
-      "updateGasOverhead": "1130684516"
+      "updateGasOverhead": "558238824"
     },
     {
       "chainId": 24,
-      "updateGasOverhead": "1507579355"
+      "updateGasOverhead": "586150765"
     },
     {
       "chainId": 30,
-      "updateGasOverhead": "1507579355"
+      "updateGasOverhead": "781534353"
+    },
+    {
+      "chainId": 34,
+      "updateGasOverhead": "558238824"
+    },
+    {
+      "chainId": 36,
+      "updateGasOverhead": "558238824"
     }
   ],
   "maximumBudgets": [
@@ -146,6 +164,26 @@
     {
       "chainId": 30,
       "updateMaximumBudget": "87398071998531700"
+    },
+    {
+      "chainId": 34,
+      "updateMaximumBudget": "66988658820061800"
+    },
+    {
+      "chainId": 36,
+      "updateMaximumBudget": "66988658820061800"
+    }
+  ],
+  "conversionBuffers": [
+    {
+      "chainId": 34,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 36,
+      "buffer": 5,
+      "bufferDenominator": 100
     }
   ],
   "rewardAddresses": [
@@ -191,6 +229,14 @@
     },
     {
       "chainId": 30,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 34,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 36,
       "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
     }
   ],
@@ -238,6 +284,24 @@
     {
       "chainId": 30,
       "isSupported": true
+    },
+    {
+      "chainId": 34,
+      "isSupported": true
+    },
+    {
+      "chainId": 36,
+      "isSupported": true
+    }
+  ],
+  "supportedKeysByChain": [
+    {
+      "chainId": 34,
+      "supportedKeys": [1],
+    },
+    {
+      "chainId": 36,
+      "supportedKeys": [1],
     }
   ]
 }
