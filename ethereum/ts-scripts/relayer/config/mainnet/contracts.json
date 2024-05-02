@@ -44,6 +44,14 @@
     {
       "chainId": 30,
       "address": "0x70B4a48f482956983D8C69D3aE18Fe229888638D"
+    },
+    {
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5",
+      "chainId": 34
+    },
+    {
+      "address": "0xedd08D4363820603fb1B261F7667B8ee170c37a5",
+      "chainId": 36
     }
   ],
   "deliveryProviderImplementations": [
@@ -90,6 +98,14 @@
     {
       "chainId": 30,
       "address": "0x68b7Cd0d27a6F04b2F65e11DD06182EFb255c9f0"
+    },
+    {
+      "address": "0xe9918f582A972613aC5700d2346a97B8ebAd48a2",
+      "chainId": 34
+    },
+    {
+      "address": "0xe9918f582A972613aC5700d2346a97B8ebAd48a2",
+      "chainId": 36
     }
   ],
   "deliveryProviderSetups": [
@@ -136,6 +152,14 @@
     {
       "chainId": 30,
       "address": "0x2B1502Ffe717817A0A101a687286bE294fe495f7"
+    },
+    {
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c",
+      "chainId": 34
+    },
+    {
+      "address": "0x401d3A2ec0a071e2A8f8Fc9B4C69313C1a04540c",
+      "chainId": 36
     }
   ],
   "wormholeRelayers": [
@@ -182,6 +206,14 @@
     {
       "chainId": 30,
       "address": "0x706F82e9bb5b0813501714Ab5974216704980e31"
+    },
+    {
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+      "chainId": 34
+    },
+    {
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+      "chainId": 36
     }
   ],
   "mockIntegrations": [
@@ -228,6 +260,14 @@
     {
       "chainId": 30,
       "address": "0x9aF36616cb3B7D3317bB93c9b29Fd76bf7264772"
+    },
+    {
+      "address": "0xd816176149b2F2d7ec3eD47Ae705C145a03F7AB6",
+      "chainId": 34
+    },
+    {
+      "address": "0xd816176149b2F2d7ec3eD47Ae705C145a03F7AB6",
+      "chainId": 36
     }
   ],
   "create2Factories": [
@@ -328,6 +368,14 @@
     {
       "chainId": 30,
       "address": "0x231Ca706096427Bd674bFaec28B34d8fCa26E2A1"
+    },
+    {
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+      "chainId": 34
+    },
+    {
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+      "chainId": 36
     }
   ]
 }
