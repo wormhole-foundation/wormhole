@@ -11,7 +11,7 @@ argparse $options -- $argv
 
 if test -z $_flag_scan_tokens
     echo "--scan-tokens option is missing or invalid. Please specify a json file containing the token APIs for each block explorer."
-    echo 'JSON format: [{"chainId": <chain id>, "token": <token>}, ...]'
+    echo 'JSON format: [{"chainId": <chain id>, "etherscan": <token>}, ...]'
     exit 1
 end
 set scan_tokens_file $_flag_scan_tokens
