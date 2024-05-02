@@ -17,10 +17,9 @@ end
 set scan_tokens_file $_flag_scan_tokens
 
 set chains_file "ts-scripts/relayer/config/$ENV/chains.json"
-# TODO: add setup and implementation addresses to `contracts.json` to allow using it instead of lastrun.json
-set last_run_file "ts-scripts/relayer/output/$ENV/deployDeliveryProvider/lastrun.json"
-if not test -e $last_run_file
-    echo "$last_run_file does not exist. Delivery provider addresses are read from this file."
+set contracts_file "ts-scripts/relayer/config/$ENV/contracts.json"
+if not test -e $contracts_file
+    echo "$contracts_file does not exist. Delivery provider addresses are read from this file."
     exit 1
 end
 
@@ -33,9 +32,9 @@ for chain in $chain_ids
     end
 
     # We need addresses to be unquoted when passed to `cast` and `forge verify-contract`
-    set implementation_address (jq --raw-output ".deliveryProviderImplementations[] | select(.chainId == $chain) | .address" $last_run_file)
-    set setup_address (jq --raw-output ".deliveryProviderSetups[] | select(.chainId == $chain) | .address" $last_run_file)
-    set proxy_address (jq --raw-output ".deliveryProviderProxies[] | select(.chainId == $chain) | .address" $last_run_file)
+    set implementation_address (jq --raw-output ".deliveryProviderImplementations[] | select(.chainId == $chain) | .address" $contracts_file)
+    set setup_address (jq --raw-output ".deliveryProviderSetups[] | select(.chainId == $chain) | .address" $contracts_file)
+    set proxy_address (jq --raw-output ".deliveryProviders[] | select(.chainId == $chain) | .address" $contracts_file)
 
     # We need the token to be unquoted when passed to `forge verify-contract`
     set scan_token (jq --raw-output ".[] | select(.chainId == $chain) | .etherscan" $scan_tokens_file)
