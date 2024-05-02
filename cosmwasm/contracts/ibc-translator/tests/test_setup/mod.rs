@@ -238,17 +238,17 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         self.ibc = IbcQuerier::new(port_id, channels);
     }
 
-    pub fn update_wasm<WH: 'static>(&mut self, handler: WH)
+    pub fn update_wasm<WH>(&mut self, handler: WH)
     where
-        WH: Fn(&WasmQuery) -> QuerierResult,
+        WH: 'static + Fn(&WasmQuery) -> QuerierResult,
     {
         self.wasm.update_handler(handler)
     }
 
     #[allow(dead_code)]
-    pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
+    pub fn with_custom_handler<CH>(mut self, handler: CH) -> Self
     where
-        CH: Fn(&C) -> MockQuerierCustomHandlerResult,
+        CH: 'static + Fn(&C) -> MockQuerierCustomHandlerResult,
     {
         self.custom_handler = Box::from(handler);
         self
@@ -311,9 +311,9 @@ impl WasmQuerier {
         Self { handler }
     }
 
-    fn update_handler<WH: 'static>(&mut self, handler: WH)
+    fn update_handler<WH>(&mut self, handler: WH)
     where
-        WH: Fn(&WasmQuery) -> QuerierResult,
+        WH: 'static + Fn(&WasmQuery) -> QuerierResult,
     {
         self.handler = Box::from(handler)
     }
