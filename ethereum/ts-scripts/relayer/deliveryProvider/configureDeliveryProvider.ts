@@ -50,12 +50,20 @@ interface MaximumBudget {
 
 interface AssetConversionBuffer {
   chainId: ChainId;
-  buffer: bigint;
-  bufferDenominator: bigint;
+  buffer: number;
+  bufferDenominator: number;
 }
 
 interface SupportedKeys {
   chainId: ChainId;
+  /**
+   * List of bit indices for each key.
+   * Bit 0 is for Wormhole VAA key.
+   * Bit 1 is for CCTP message key.
+   * E.g. [0, 1] means "set Wormhole VAA and CCTP message supported flags"
+   * E.g. [0] means "set Wormhole VAA supported flag"
+   * Note that all supported keys must be set in this array since it overwrites the bitmap every time.
+   */
   supportedKeys: number[];
 }
 
@@ -193,17 +201,6 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
     );
   }
 
-  for (const conversionBuffer of config.conversionBuffers) {
-    console.log(
-      `Processing asset conversion buffer update for operating chain ${chain.chainId} and target chain ${conversionBuffer.chainId}`
-    );
-    await processConversionBufferUpdate(
-      updates,
-      deliveryProvider,
-      conversionBuffer
-    );
-  }
-
   for (const targetChain of allChains) {
     console.log(
       `Processing targetChainAddress update for operating chain ${chain.chainId} and target chain ${targetChain.chainId}`
@@ -230,7 +227,7 @@ async function updateDeliveryProviderConfiguration(config: Config, chain: ChainI
 
   for (const conversionBufferConfig of config.conversionBuffers) {
     console.log(
-      `Processing supported chain update for operating chain ${chain.chainId} and target chain ${conversionBufferConfig.chainId}`
+      `Processing asset conversion buffer update for operating chain ${chain.chainId} and target chain ${conversionBufferConfig.chainId}`
     );
 
     await processAssetConversionBufferUpdates(
@@ -332,21 +329,6 @@ async function processMaximumBudgetUpdate(
   }
 }
 
-async function processConversionBufferUpdate(
-  updates: UpdateStruct[],
-  deliveryProvider: DeliveryProvider,
-  { chainId, buffer, bufferDenominator }: AssetConversionBuffer
-) {
-  const currentBuffer = await deliveryProvider.assetConversionBuffer(chainId);
-
-  if (BigInt(currentBuffer.buffer) !== buffer || BigInt(currentBuffer.bufferDenominator) !== bufferDenominator) {
-    const update = getUpdateConfig(updates, chainId);
-    update.updateAssetConversionBuffer = true;
-    update.buffer = buffer;
-    update.bufferDenominator = bufferDenominator;
-  }
-}
-
 async function processTargetChainAddressUpdate(
   updates: UpdateStruct[],
   deliveryProvider: DeliveryProvider,
@@ -428,14 +410,14 @@ async function processAssetConversionBufferUpdates(
   conversionBufferConfig: AssetConversionBuffer,
 ) {
   const { chainId, buffer, bufferDenominator } = conversionBufferConfig;
-  const update = getUpdateConfig(updates, chainId);
 
   const { 
     buffer: currentBuffer,
     bufferDenominator: currentBufferDenominator
   } = await deliveryProvider.assetConversionBuffer(chainId);
 
-  if (buffer !== BigInt(currentBuffer) || bufferDenominator !== BigInt(currentBufferDenominator)) {
+  if (buffer !== currentBuffer || bufferDenominator !== currentBufferDenominator) {
+    const update = getUpdateConfig(updates, chainId);
     update.updateAssetConversionBuffer = true;
     update.buffer = buffer;
     update.bufferDenominator = bufferDenominator;
