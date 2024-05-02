@@ -136,7 +136,7 @@ pub fn convert_cw20_to_bank_and_send(
 
         let mut symbol = token_info.symbol;
         if symbol.is_empty() {
-            symbol = tf_scaled_denom.clone();
+            symbol.clone_from(&tf_scaled_denom);
         }
         let tf_description =
             token_info.name.clone() + ", " + symbol.as_str() + ", " + tokenfactory_denom.as_str();
