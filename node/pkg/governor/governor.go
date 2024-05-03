@@ -315,6 +315,13 @@ func (gov *ChainGovernor) initConfig() error {
 		// Only add flow cancelling for tokens that are already configured for rate-limiting.
 		if _, ok := gov.tokens[key]; ok {
 			gov.tokens[key].flowCancels = true
+		} else {
+			gov.logger.Debug("token present in flow cancel list but absent from main token list:",
+				zap.Stringer("chain", key.chain),
+				zap.Stringer("addr", key.addr),
+				zap.String("symbol", flowCancelConfigEntry.symbol),
+				zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
+			)
 		}
 	}
 
