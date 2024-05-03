@@ -264,6 +264,8 @@ func TestSumWithFlowCancelling(t *testing.T) {
 func TestFlowCancelCannotUnderflow(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
 
 	// Set-up asset to be used in the test
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
@@ -275,9 +277,6 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// Ensure asset is registered in the governor and can flow cancel
 	key := tokenKey{originChain, originAddress}
 	assert.True(t, gov.tokens[key].flowCancels)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
 
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
