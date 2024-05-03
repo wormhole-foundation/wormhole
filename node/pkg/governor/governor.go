@@ -127,6 +127,7 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 }
 
 // addFlowCancelTransfer method    Appends a transfer to a ChainEntry's transfers property.
+// SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
@@ -147,7 +148,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	if targetChain != ce.emitterChainId {
 		return fmt.Errorf("Flow cancel transfer TargetChain %s does not match this chainEntry %s", targetChain, ce.emitterChainId)
 	}
-	// TODO: Verify the asset?
+
 	ce.transfers = append(ce.transfers, transfer)
 	return nil
 }
@@ -568,6 +569,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	key := tokenKey{chain: msg.EmitterChain, addr: msg.EmitterAddress}
 	tokenEntry := gov.tokens[key]
 	if tokenEntry != nil {
+		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 		if tokenEntry.flowCancels {
 			destinationChainEntry := gov.chains[payload.TargetChain]
 			err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer)

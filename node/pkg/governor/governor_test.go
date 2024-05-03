@@ -181,17 +181,21 @@ func TestSumAllFromToday(t *testing.T) {
 }
 
 func TestSumWithFlowCancelling(t *testing.T) {
-	// Choose a hard-coded value from the Flow Cancel Token List
-	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
-	var originChain vaa.ChainID = 2
-	var originAddress vaa.Address
-	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
-	require.NoError(t, err)
-
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
+
+	// Choose a hard-coded value from the Flow Cancel Token List
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var originChain vaa.ChainID = 2
+	var originAddress vaa.Address
+	originAddress, err = vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	require.NoError(t, err)
+
+	// Ensure asset is registered in the governor and can flow cancel
+	key := tokenKey{originChain, originAddress}
+	assert.True(t, gov.tokens[key].flowCancels)
 
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
@@ -258,14 +262,20 @@ func TestSumWithFlowCancelling(t *testing.T) {
 // or a very large underflow result).
 // Also, the function should not return an error in this case.
 func TestFlowCancelCannotUnderflow(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	// Set-up asset to be used in the test
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var originChain vaa.ChainID = 2
 	var originAddress vaa.Address
-	originAddress, err := vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	originAddress, err = vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
 	require.NoError(t, err)
 
-	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
+	// Ensure asset is registered in the governor and can flow cancel
+	key := tokenKey{originChain, originAddress}
+	assert.True(t, gov.tokens[key].flowCancels)
+
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
