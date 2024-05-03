@@ -840,7 +840,8 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime
 // are earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
 // and returns the sum and the filtered transfers.
 // The `transfers` slice must be sorted by Timestamp. We expect this to be the case as transfers are added to the
-// Governor in chronological order as they arrive.
+// Governor in chronological order as they arrive. Note that `Timestamp` is created by the Governor; it is not read
+// from the actual on-chain transaction.
 func (gov *ChainGovernor) TrimAndSumValue(transfers []transfer, startTime time.Time) (int64, []transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
