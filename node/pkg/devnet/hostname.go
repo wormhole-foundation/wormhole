@@ -1,6 +1,7 @@
 package devnet
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -26,4 +27,17 @@ func GetDevnetIndex() (int, error) {
 	}
 
 	return i, nil
+}
+
+// GetFirstGuardianNameFromBootstrapPeers extracts the hostname of the first peer from the bootstrap peers string.
+func GetFirstGuardianNameFromBootstrapPeers(bootstrapPeers string) (string, error) {
+	peers := strings.Split(bootstrapPeers, ",")
+	if len(peers) == 0 {
+		return "", errors.New("failed to parse devnet bootstrap peers")
+	}
+	fields := strings.Split(peers[0], "/")
+	if len(fields) < 3 {
+		return "", errors.New("failed to parse devnet first bootstrap peer")
+	}
+	return fields[2], nil
 }
