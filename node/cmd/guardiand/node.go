@@ -785,19 +785,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
 
 		if idx != 0 {
+			firstGuardianName, err := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
+			if err != nil {
+				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(err))
+			}
 			// try to connect to guardian-0
 			for {
-				// tilt uses this hostname format
-				_, err := net.LookupIP("guardian-0.guardian")
+				_, err := net.LookupIP(firstGuardianName)
 				if err == nil {
 					break
 				}
-				// load tests use this hostname format
-				_, err = net.LookupIP("guardian-0")
-				if err == nil {
-					break
-				}
-				logger.Info("Error resolving guardian-0.guardian. Trying again...")
+				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))
 				time.Sleep(time.Second)
 			}
 			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
