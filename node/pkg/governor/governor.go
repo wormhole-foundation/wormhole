@@ -117,7 +117,7 @@ type (
 	}
 )
 
-// newTransferFromDbTransfer function    Perform a bounds check on dbTransfer.Value to ensure it can fit into int64.
+// newTransferFromDbTransfer performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
 // This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
 func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
@@ -126,7 +126,7 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 	return transfer{dbTransfer, int64(dbTransfer.Value)}, nil
 }
 
-// addFlowCancelTransfer method    Appends a transfer to a ChainEntry's transfers property.
+// addFlowCancelTransfer appends a transfer to a ChainEntry's transfers property.
 // SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
@@ -153,7 +153,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	return nil
 }
 
-// addFlowCancelTransferFromDbTransfer method    Helper method to convert a dbTransfer to a transfer and add it to the
+// addFlowCancelTransferFromDbTransfer converts a dbTransfer to a transfer and adds it to the
 // Chain Entry.
 // Validation of transfer data is performed by other methods: see addFlowCancelTransfer, newTransferFromDbTransfer.
 func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *db.Transfer) error {
@@ -168,7 +168,7 @@ func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *db.Transfe
 	return nil
 }
 
-// inverse method  Takes a transfer and returns a copy of that transfer with the
+// inverse takes a transfer and returns a copy of that transfer with the
 // additive inverse of its Value property (i.e. flip the sign).
 func (t *transfer) inverse() transfer {
 	return transfer{t.dbTransfer, -t.value}

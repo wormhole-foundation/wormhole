@@ -106,7 +106,7 @@ func (gov *ChainGovernor) setTokenForTesting(
 	return nil
 }
 
-// getStatsForAllChains method    Sums the number of transfers, value of all transfers, number of pending transfers,
+// getStatsForAllChains sums the number of transfers, value of all transfers, number of pending transfers,
 // and the value of the pending transfers.
 // Note that 'flow cancel transfers' are not included and therefore the values returned by this function may not
 // match the Governor usage.
