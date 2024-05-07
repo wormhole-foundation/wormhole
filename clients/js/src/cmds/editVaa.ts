@@ -264,7 +264,10 @@ const getSigsFromWormscanData = (
       }
     }
     if (gsi < 0) {
-      throw new Error("Failed to look up guardian address " + guardianAddr);
+      console.warn(
+        "Failed to look up guardian address " + guardianAddr + ". Skipping."
+      );
+      continue;
     }
     let sig: Signature = {
       guardianSetIndex: gsi,
