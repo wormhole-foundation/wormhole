@@ -153,7 +153,10 @@ func (ccq *ccqP2p) run(
 		if _, found := ccq.allowedPeers[msg.GetFrom().String()]; found {
 			return true
 		}
-		ccq.logger.Debug("Dropping message from unknown peer", zap.String("fromPeerID", from.String()), zap.String("msgPeerID", msg.ReceivedFrom.String()), zap.String("msgFrom", msg.GetFrom().String()))
+		ccq.logger.Debug("Dropping message from unknown peer",
+			zap.String("fromPeerID", from.String()),
+			zap.String("msgPeerID", msg.ReceivedFrom.String()),
+			zap.String("msgFrom", msg.GetFrom().String()))
 		return false
 	})
 	if err != nil {
@@ -261,7 +264,6 @@ func (ccq *ccqP2p) publisher(ctx context.Context, gk *ecdsa.PrivateKey, queryRes
 				panic(err)
 			}
 			err = ccq.th_resp.Publish(ctx, b)
-			ccqP2pMessagesSent.Inc()
 			if err != nil {
 				ccq.logger.Error("failed to publish query response",
 					zap.String("requestSignature", msg.Signature()),
@@ -270,6 +272,7 @@ func (ccq *ccqP2p) publisher(ctx context.Context, gk *ecdsa.PrivateKey, queryRes
 					zap.Error(err),
 				)
 			} else {
+				ccqP2pMessagesSent.Inc()
 				ccq.logger.Info("published signed query response", //TODO: Change to Debug
 					zap.String("requestSignature", msg.Signature()),
 					zap.Any("query_response", msg),
