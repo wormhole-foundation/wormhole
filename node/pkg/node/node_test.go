@@ -34,7 +34,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	libp2p_peer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +122,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			MockObservationC: make(chan *common.MessagePublication),
 			MockSetC:         make(chan *common.GuardianSet),
 			gk:               gk,
-			guardianAddr:     ethcrypto.PubkeyToAddress(gk.PublicKey),
+			guardianAddr:     eth_crypto.PubkeyToAddress(gk.PublicKey),
 			config:           createGuardianConfig(t, testId, uint(i)),
 		}
 	}
@@ -1015,7 +1014,7 @@ func (c fatalHook) OnWrite(ce *zapcore.CheckedEntry, fields []zapcore.Field) {
 func signingMsgs(n int) [][]byte {
 	msgs := make([][]byte, n)
 	for i := 0; i < len(msgs); i++ {
-		msgs[i] = ethcrypto.Keccak256Hash([]byte{byte(i)}).Bytes()
+		msgs[i] = eth_crypto.Keccak256Hash([]byte{byte(i)}).Bytes()
 	}
 	return msgs
 }
@@ -1039,7 +1038,7 @@ func signMsgsEth(pk *ecdsa.PrivateKey, msgs [][]byte) [][]byte {
 	signatures := make([][]byte, n)
 	// Ed25519.Sign
 	for i := 0; i < n; i++ {
-		sig, err := ethcrypto.Sign(msgs[i], pk)
+		sig, err := eth_crypto.Sign(msgs[i], pk)
 		if err != nil {
 			panic(err)
 		}
@@ -1111,9 +1110,9 @@ func BenchmarkCrypto(b *testing.B) {
 		})
 	})
 
-	b.Run("ethcrypto (secp256k1)", func(b *testing.B) {
+	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
 
-		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), 0)
+		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(eth_crypto.S256(), 0)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)
@@ -1128,7 +1127,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 			// Ed25519.Verify
 			for i := 0; i < b.N; i++ {
-				_, err := ethcrypto.Ecrecover(msgs[i], signatures[i])
+				_, err := eth_crypto.Ecrecover(msgs[i], signatures[i])
 				assert.NoError(b, err)
 			}
 		})

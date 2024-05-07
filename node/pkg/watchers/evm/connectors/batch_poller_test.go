@@ -17,7 +17,6 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
@@ -190,7 +189,7 @@ func (m mockSubscription) Err() <-chan error {
 	return m.errC
 }
 
-func (e *mockConnectorForBatchPoller) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+func (e *mockConnectorForBatchPoller) SubscribeNewHead(ctx context.Context, ch chan<- *ethTypes.Header) (ethereum.Subscription, error) {
 	e.headSink = ch
 	return mockSubscription{}, nil
 }
