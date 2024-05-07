@@ -3,6 +3,7 @@ import {
   ChainName,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { relayer } from "@certusone/wormhole-sdk";
 import yargs from "yargs";
 import { CONTRACTS } from "../../consts";
 import { assertNetwork } from "../../utils";
@@ -24,7 +25,7 @@ export const builder = (y: typeof yargs) =>
     } as const)
     .positional("module", {
       describe: "Module to query",
-      choices: ["Core", "NFTBridge", "TokenBridge"],
+      choices: ["Core", "NFTBridge", "TokenBridge", "WormholeRelayer"],
       demandOption: true,
     } as const);
 export const handler = async (
@@ -51,6 +52,9 @@ export const handler = async (
       break;
     case "TokenBridge":
       addr = CONTRACTS[network][chain].token_bridge;
+      break;
+    case "WormholeRelayer":
+      addr = relayer.RELAYER_CONTRACTS[network][chain]?.wormholeRelayerAddress;
       break;
     default:
       impossible(module);
