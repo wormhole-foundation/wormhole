@@ -13,7 +13,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestSignedHeartbeat(t *testing.T) {
@@ -31,7 +30,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	assert.NoError(t, err)
-	gAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+	gAddr := crypto.PubkeyToAddress(gk.PublicKey)
 	fromP2pId, err := peer.Decode("12D3KooWSgMXkhzTbKTeupHYmyG7sFJ5LpVreQcwVnX8RD7LBpy9")
 	assert.NoError(t, err)
 	p2pNodeId, err := fromP2pId.Marshal()
@@ -39,7 +38,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	gk2, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	assert.NoError(t, err)
-	gAddr2 := ethcrypto.PubkeyToAddress(gk2.PublicKey)
+	gAddr2 := crypto.PubkeyToAddress(gk2.PublicKey)
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
 	assert.NoError(t, err)
 	p2pNodeId2, err := fromP2pId2.Marshal()
@@ -96,7 +95,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	testFunc := func(t *testing.T, tc testCase) {
 
-		addr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+		addr := crypto.PubkeyToAddress(gk.PublicKey)
 
 		heartbeat := &gossipv1.Heartbeat{
 			NodeName:      "someNode",

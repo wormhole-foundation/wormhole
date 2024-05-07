@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	ethHexUtil "github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/rpc"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -148,7 +147,7 @@ func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 
 // ccqBackfillConn is defined to allow for testing of ccqBackFillDetermineMaxBatchSize without mocking a full ethereum connection.
 type ccqBackfillConn interface {
-	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
+	RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error
 }
 
 // ccqBackFillDetermineMaxBatchSize performs a series of batch queries, starting with a size of 1000 and stepping down by halves, and then back up until we circle in on the maximum batch size supported by the RPC.
