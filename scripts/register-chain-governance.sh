@@ -90,7 +90,7 @@ shift $((OPTIND - 1))
 [ -z "$module" ] && usage
 
 # Use the worm client to get the emitter address and wormhole chain ID.
-[ -z "$address" ] && address=`worm info contract --emitter mainnet $chain_name $module`
+[ -z "$address" ] && address=`worm info contract mainnet $chain_name $module`
 [ -z "$address" ] && usage
 
 chain=`worm info chain-id $chain_name`
