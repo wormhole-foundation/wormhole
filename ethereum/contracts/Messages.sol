@@ -192,7 +192,7 @@ contract Messages is Getters {
     /**
      * @dev verifyCurrentQuorum serves to validate arbitrary signatures and check quorum against the current guardianSet
      */
-    function verifyCurrentQuorum(bytes32 hash, Structs.Signature[] memory signatures) public view returns (bool valid, string memory response) {
+    function verifyCurrentQuorum(bytes32 hash, Structs.Signature[] memory signatures) public view returns (bool, string memory) {
         uint32 gsi = getCurrentGuardianSetIndex();
         Structs.GuardianSet memory guardianSet = getGuardianSet(gsi);
         uint256 guardianCount = guardianSet.keys.length;
