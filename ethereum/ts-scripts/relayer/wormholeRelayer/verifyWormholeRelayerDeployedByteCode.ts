@@ -15,6 +15,7 @@ import {
   getProvider,
   loadWormholeRelayerImplementations,
   ChainInfo,
+  getWormholeRelayer,
 } from "../helpers/env";
 
 const processName = "verifyWormholeRelayerDeployedByteCode";
@@ -29,11 +30,19 @@ const WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT =
 async function run() {
   console.log("Start! " + processName);
 
-  const implementationAddresses: Deployment[] =
+  const expectedImplementationAddresses: Deployment[] =
     loadWormholeRelayerImplementations();
 
+  // Taken from https://eips.ethereum.org/EIPS/eip-1967#logic-contract-address
+  // Also found in the reference implementation `ERC1967Upgrade` contract from openzeppelin contracts.
+  const implementationStorageSlot =
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+
   for (const chain of operation.operatingChains) {
-    const deployedImplementationAddress = implementationAddresses.find(
+    const provider = getProvider(chain);
+    const proxy = await getWormholeRelayer(chain, provider);
+
+    const deployedImplementationAddress = expectedImplementationAddresses.find(
       (deploy) => {
         return deploy.chainId === chain.chainId;
       },
@@ -46,11 +55,27 @@ async function run() {
       continue;
     }
 
+    const rawAddress = await provider.getStorageAt(
+      proxy.address,
+      implementationStorageSlot,
+    );
+    const actualAddress = decodeAddressFrom32ByteWord(rawAddress);
+
+    if (
+      actualAddress.toLowerCase() !==
+      deployedImplementationAddress.address.toLowerCase()
+    ) {
+      console.error(
+        `Implementation address in proxy does not match expected address.
+Actual address: ${actualAddress.toLowerCase()}
+Expected address: ${deployedImplementationAddress.address.toLowerCase()} ${chain.chainId}`,
+      );
+      continue;
+    }
+
     console.log(
       `Verifying bytecode deployed at ${deployedImplementationAddress.address} on chain ${chain.chainId}...`,
     );
-
-    const provider = getProvider(chain);
 
     let deployedBytecode: Buffer;
     try {
@@ -304,6 +329,31 @@ function toBufferOfLength(raw: string, length: number) {
 
   const padding = Buffer.alloc(length - buffer.length);
   return Buffer.concat([padding, buffer]);
+}
+
+function decodeAddressFrom32ByteWord(word: string) {
+  const buffer = Buffer.from(strip0x(word), "hex");
+
+  if (buffer.length !== 32) {
+    throw new Error(`Buffer is not word sized. Actual size: ${buffer.length}`);
+  }
+
+  const twelveZeroBytes = Buffer.alloc(12, 0);
+  if (
+    buffer.compare(
+      twelveZeroBytes,
+      0,
+      twelveZeroBytes.length,
+      0,
+      twelveZeroBytes.length,
+    ) !== 0
+  ) {
+    throw new Error(
+      `Could not decode word ${word} as an address. First twelve bytes are not zeroed out.`,
+    );
+  }
+
+  return `0x${buffer.subarray(twelveZeroBytes.length, buffer.length).toString("hex")}`;
 }
 
 function uint16To32BytesBuffer(num: number): Buffer {
