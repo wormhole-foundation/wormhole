@@ -1516,7 +1516,8 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	// But the big transaction should not affect the daily notional.
 	ce, exists := gov.chains[vaa.ChainIDEthereum]
 	require.Equal(t, true, exists)
-	valueTrans = sumValue(ce.transfers, now)
+	valueTrans, err = sumValue(ce.transfers, now)
+	require.NoError(t, err)
 	assert.Equal(t, uint64(0), valueTrans)
 }
 

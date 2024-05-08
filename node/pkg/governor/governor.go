@@ -121,7 +121,7 @@ type (
 // This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
 func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
-		return tx, fmt.Errorf("Value for db.Transfer exceeds MaxInt64: %d", dbTransfer.Value)
+		return tx, fmt.Errorf("value for db.Transfer exceeds MaxInt64: %d", dbTransfer.Value)
 	}
 	return transfer{dbTransfer, int64(dbTransfer.Value)}, nil
 }
@@ -136,17 +136,17 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
 	targetChain := transfer.dbTransfer.TargetChain
 	if value > 0 {
-		return fmt.Errorf("Flow cancel transfer Value must be negative. Value: %d", value)
+		return fmt.Errorf("flow cancel transfer Value must be negative. Value: %d", value)
 	}
 	if transfer.dbTransfer.Value > math.MaxInt64 {
-		return fmt.Errorf("Value for transfer.dbTransfer exceeds MaxInt64: %d", transfer.dbTransfer.Value)
+		return fmt.Errorf("value for transfer.dbTransfer exceeds MaxInt64: %d", transfer.dbTransfer.Value)
 	}
 	// Type conversion is safe here because of the MaxInt64 bounds check above
 	if value != -int64(transfer.dbTransfer.Value) {
-		return fmt.Errorf("Transfer is invalid: transfer.value %d must equal the inverse of transfer.dbTransfer.Value %d", value, transfer.dbTransfer.Value)
+		return fmt.Errorf("transfer is invalid: transfer.value %d must equal the inverse of transfer.dbTransfer.Value %d", value, transfer.dbTransfer.Value)
 	}
 	if targetChain != ce.emitterChainId {
-		return fmt.Errorf("Flow cancel transfer TargetChain %s does not match this chainEntry %s", targetChain, ce.emitterChainId)
+		return fmt.Errorf("flow cancel transfer TargetChain %s does not match this chainEntry %s", targetChain, ce.emitterChainId)
 	}
 
 	ce.transfers = append(ce.transfers, transfer)
@@ -389,11 +389,12 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 	return publish
 }
 
+// ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// Validation:
+// - ensure MessagePublication is not nil
+// - check that the MessagePublication is governed
+// - check that the message is not a duplicate of one we've seen before.
 func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
-	// Validation:
-	// - ensure MessagePublication is not nil
-	// - check that the MessagePublication is governed
-	// - check that the message is not a duplicate
 	if msg == nil {
 		return false, fmt.Errorf("msg is nil")
 	}
@@ -556,13 +557,13 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	// Update the chainEntries. For the emitter chain, add the transfer so that it can be factored into calculating
-	// the Usage of this chain the next time that the Governor processes a transfer.
+	// the usage of this chain the next time that the Governor processes a transfer.
 	// For the destination chain entry, add the inverse of this transfer.
 	// e.g. A transfer of USDC originally minted on Solana is sent from Ethereum to Sui.
-	// - This increases the Governor usage of Ethereum so we and to include its Value when summing the value for Ethereum
-	// - If the USDC version of Solana is flow cancelled, we also want to decrease the Value for Sui.
-	// - We do this by adding an 'inverse' transfer to Sui's chainEntry that contains a negative Value. This will cause
-	//	the summed Value of Sui to decrease.
+	// - This increases the Governor usage of Ethereum by the `transfer.Value` amount.
+	// - If the USDC version of Solana is flow cancelled, we also want to decrease the Governor usage for Sui.
+	// - We do this by adding an 'inverse' transfer to Sui's chainEntry that contains a negative `transfer.Value`.
+	// - This will cause the summed value of Sui to decrease.
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
 	// Add inverse transfer to destination chain entry if this asset can cancel flows.
@@ -571,10 +572,16 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	if tokenEntry != nil {
 		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 		if tokenEntry.flowCancels {
-			destinationChainEntry := gov.chains[payload.TargetChain]
-			err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer)
-			if err != nil {
-				return false, err
+			if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
+				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
+					return false, err
+				}
+			} else {
+				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+					zap.String("msgID", msg.MessageIDString()),
+					zap.String("hash", hash), zap.Error(err),
+					zap.Stringer("target chain", payload.TargetChain),
+				)
 			}
 		}
 	}
@@ -663,7 +670,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 			foundOne := false
 			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 			if err != nil {
-				gov.logger.Error("Error when attempting to trim and sum transfers", zap.Error(err))
+				gov.logger.Error("error when attempting to trim and sum transfers", zap.Error(err))
 				gov.msgsToPublish = msgsToPublish
 				return nil, err
 			}
@@ -868,7 +875,8 @@ func (gov *ChainGovernor) TrimAndSumValue(transfers []transfer, startTime time.T
 				// We have to stop and return an error here (rather than saturate, for example). The
 				// transfers are not sorted by value so we can't make any guarantee on the final value
 				// if we hit the upper or lower bound. We don't expect this to happen in any case
-				// because we don't expect this much value to flow between two chains in a 24h period.
+				// because we don't expect this number to ever overflow, as it would represent
+				// $184467440737095516.15 USD moving between two chains in a 24h period.
 				return 0, transfers, err
 			}
 			sum = checkedSum
@@ -901,7 +909,7 @@ func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
 	return hex.EncodeToString(digest.Bytes())
 }
 
-// Addition of two uint64 values with overflow checks
+// CheckedAddUint64 adds two uint64 values with overflow checks
 func CheckedAddUint64(x uint64, y uint64) (uint64, error) {
 	if x == 0 {
 		return y, nil
@@ -919,7 +927,7 @@ func CheckedAddUint64(x uint64, y uint64) (uint64, error) {
 	return sum, nil
 }
 
-// Addition of two int64 values with overflow checks
+// CheckedAddInt64 adds two uint64 values with overflow checks
 func CheckedAddInt64(x int64, y int64) (int64, error) {
 	if x == 0 {
 		return y, nil

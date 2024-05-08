@@ -95,14 +95,16 @@ import (
 )
 
 // Admin command to display status to the log.
-func (gov *ChainGovernor) Status() string {
+func (gov *ChainGovernor) Status() (resp string, err error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	var resp string
 	for _, ce := range gov.chains {
-		valueTrans := sumValue(ce.transfers, startTime)
+		valueTrans, err := sumValue(ce.transfers, startTime)
+		if err != nil {
+			return "", err
+		}
 		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
 		resp += s1 + "\n"
 		gov.logger.Info(s1)
@@ -117,7 +119,7 @@ func (gov *ChainGovernor) Status() string {
 		}
 	}
 
-	return resp
+	return resp, nil
 }
 
 // Admin command to reload the governor state from the database.
@@ -241,10 +243,10 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-// sumValue function sums the value of all `transfers`. See also `TrimAndSumValue`.
-func sumValue(transfers []transfer, startTime time.Time) uint64 {
+// sumValue sums the value of all `transfers`. See also `TrimAndSumValue`.
+func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
 	if len(transfers) == 0 {
-		return 0
+		return 0, nil
 	}
 
 	var sum int64
@@ -257,30 +259,31 @@ func sumValue(transfers []transfer, startTime time.Time) uint64 {
 		if err != nil {
 			// We have to stop and return an error here (rather than saturate, for example). The
 			// transfers are not sorted by value so we can't make any guarantee on the final value
-			// if we hit the upper or lower bound. We don't expect this to happen in any case
-			// because we don't expect this much value to flow between two chains in a 24h period.
-			return 0
+			// if we hit the upper or lower bound. We don't expect this to happen in any case.
+			return 0, err
 		}
 		sum = checkedSum
 	}
 
+	// Do not return negative values. Instead, saturate to zero.
 	if sum <= 0 {
-		return 0
+		return 0, nil
 	}
 
-	return uint64(sum)
+	return uint64(sum), nil
 }
 
 // REST query to get the current available notional value per chain.
-func (gov *ChainGovernor) GetAvailableNotionalByChain() []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry {
+func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, err error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	resp := make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
-
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	for _, ce := range gov.chains {
-		value := sumValue(ce.transfers, startTime)
+		value, err := sumValue(ce.transfers, startTime)
+		if err != nil {
+			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0), err
+		}
 		if value >= ce.dailyLimit {
 			value = 0
 		} else {
@@ -299,7 +302,7 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() []*publicrpcv1.GovernorG
 		return (resp[i].ChainId < resp[j].ChainId)
 	})
 
-	return resp
+	return resp, nil
 }
 
 // REST query to get the list of enqueued VAAs.
@@ -434,7 +437,12 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 
 		if exists {
 			enabled = "1"
-			value := sumValue(ce.transfers, startTime)
+			value, err := sumValue(ce.transfers, startTime)
+			if err != nil {
+				// Error can occur if the sum overflows. Return 0 in this case rather than stopping
+				// collection of metrics
+				value = 0
+			}
 			if value >= ce.dailyLimit {
 				value = 0
 			} else {
@@ -540,7 +548,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for _, ce := range gov.chains {
-		value := sumValue(ce.transfers, startTime)
+		value, err := sumValue(ce.transfers, startTime)
+		if err != nil {
+			// Error can occur if the sum overflows. Return 0 in this case rather than stopping
+			// collection of metrics
+			value = 0
+		}
 		if value >= ce.dailyLimit {
 			value = 0
 		} else {

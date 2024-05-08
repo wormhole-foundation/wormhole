@@ -44,8 +44,7 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 		for _, xfer := range xfers {
 			if startTime.Before(xfer.Timestamp) {
-				err := gov.reloadTransfer(xfer)
-				if err != nil {
+				if err := gov.reloadTransfer(xfer); err != nil {
 					return err
 				}
 			} else {
