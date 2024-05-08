@@ -6,10 +6,12 @@ pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
 import "./Structs.sol";
-import "./libraries/relayer/BytesParsing.sol";
+import "./libraries/external/BytesLib.sol";
+import "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 
 
 contract Messages is Getters {
+    using BytesLib for bytes;
     using BytesParsing for bytes;
 
     uint8 private constant ADDRESS_SIZE = 20; // in bytes
