@@ -6,10 +6,12 @@ pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
 import "./Structs.sol";
-import "./libraries/relayer/BytesParsing.sol";
+import "./libraries/external/BytesLib.sol";
+import "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 
 
 contract Messages is Getters {
+    using BytesLib for bytes;
     using BytesParsing for bytes;
 
     function parseAndVerifyVMOptimized(
@@ -141,7 +143,7 @@ contract Messages is Getters {
 
 
     /**
-     * @dev verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
+     * @dev verifySignatures serves to validate arbitrary signatures against an arbitrary guardianSet
      *  - it intentionally does not solve for expectations within guardianSet (you should use verifyVM if you need these protections)
      *  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
      *  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
@@ -178,6 +180,45 @@ contract Messages is Getters {
         }
 
         /// If we are here, we've validated that the provided signatures are valid for the provided guardianSet
+        return (true, "");
+    }
+
+    /**
+     * @dev verifyCurrentQuorum serves to validate arbitrary signatures and check quorum against the current guardianSet
+     */
+    function verifyCurrentQuorum(bytes32 hash, Structs.Signature[] memory signatures) public view returns (bool, string memory) {
+        uint32 gsi = getCurrentGuardianSetIndex();
+        Structs.GuardianSet memory guardianSet = getGuardianSet(gsi);
+        uint256 guardianCount = guardianSet.keys.length;
+
+       /**
+        * @dev Checks whether the guardianSet has zero keys
+        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
+        * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
+        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
+        * signature verification.
+        */
+        if(guardianCount == 0){
+            return (false, "invalid guardian set");
+        }
+
+       /**
+        * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
+        *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
+        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
+        *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
+        */
+        if (signatures.length < quorum(guardianCount)){
+            return (false, "no quorum");
+        }
+
+        /// @dev Verify the proposed vm.signatures against the guardianSet
+        (bool signaturesValid, string memory invalidReason) = verifySignatures(hash, signatures, guardianSet);
+        if(!signaturesValid){
+            return (false, invalidReason);
+        }
+
+        /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
         return (true, "");
     }
 

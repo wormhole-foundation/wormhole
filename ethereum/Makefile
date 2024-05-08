@@ -32,13 +32,16 @@ node_modules: package-lock.json
 # When adding a new dependency, make sure to specify the exact commit hash, and
 # the --no-git and --no-commit flags (see lib/forge-std below)
 .PHONY: forge_dependencies
-forge_dependencies: lib/forge-std lib/openzeppelin-contracts
+forge_dependencies: lib/forge-std lib/openzeppelin-contracts lib/wormhole-solidity-sdk
 
 lib/forge-std:
 	forge install foundry-rs/forge-std@v1.6.1 --no-git --no-commit
 
 lib/openzeppelin-contracts:
 	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
+
+lib/wormhole-solidity-sdk:
+	forge install wormhole-foundation/wormhole-solidity-sdk@b9e129e65d34827d92fceeed8c87d3ecdfc801d0 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
@@ -87,4 +90,4 @@ test-push0: dependencies
 	@if grep -qr --include \*.json PUSH0 ./build-forge; then echo "Contract uses PUSH0 instruction" 1>&2; exit 1; fi
 
 clean:
-	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
+	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts lib/wormhole-solidity-sdk
