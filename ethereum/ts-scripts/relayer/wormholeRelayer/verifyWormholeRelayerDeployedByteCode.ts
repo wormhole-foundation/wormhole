@@ -1,39 +1,54 @@
 import fs from "fs";
 import crypto from "crypto";
 import chalk from "chalk";
+import { inspect } from "util";
 
+import {
+  METADATA_LENGTH,
+  getMetadataSectionLength,
+  inferCompilerVersion,
+} from "../helpers/solcMetadata";
 import {
   init,
   Deployment,
   getOperationDescriptor,
   getProvider,
   loadWormholeRelayerImplementations,
-  ChainInfo
+  ChainInfo,
 } from "../helpers/env";
 
 const processName = "verifyWormholeRelayerDeployedByteCode";
 init();
 const operation = getOperationDescriptor();
 
-const WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT = "./build-forge/WormholeRelayer.sol/WormholeRelayer.json";
-const WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT = "./build-forge/WormholeRelayerBase.sol/WormholeRelayerBase.json";
+const WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT =
+  "./build-forge/WormholeRelayer.sol/WormholeRelayer.json";
+const WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT =
+  "./build-forge/WormholeRelayerBase.sol/WormholeRelayerBase.json";
 
 async function run() {
   console.log("Start! " + processName);
 
-  const implementationAddresses: Deployment[] = loadWormholeRelayerImplementations();
+  const implementationAddresses: Deployment[] =
+    loadWormholeRelayerImplementations();
 
   for (const chain of operation.operatingChains) {
-    const deployedImplementationAddress = implementationAddresses.find((deploy) => {
-      return deploy.chainId === chain.chainId;
-    });
-    
-    if (!deployedImplementationAddress) {
-      console.error("Failed to find implementation address for chain " + chain.chainId);
+    const deployedImplementationAddress = implementationAddresses.find(
+      (deploy) => {
+        return deploy.chainId === chain.chainId;
+      },
+    );
+
+    if (deployedImplementationAddress === undefined) {
+      console.error(
+        "Failed to find implementation address for chain " + chain.chainId,
+      );
       continue;
     }
-    
-    console.log(`Verifying bytecode deployed at ${deployedImplementationAddress.address} on chain ${chain.chainId}...`);
+
+    console.log(
+      `Verifying bytecode deployed at ${deployedImplementationAddress.address} on chain ${chain.chainId}...`,
+    );
 
     const provider = getProvider(chain);
 
@@ -41,50 +56,104 @@ async function run() {
     try {
       deployedBytecode = Buffer.from(
         strip0x(await provider.getCode(deployedImplementationAddress.address)),
-        "hex"
+        "hex",
       );
-    } catch (e) {
-      console.error(`Failed to retrieve deployed contract from chain scanner. Error: ${e}`);
+    } catch (error) {
+      console.error(
+        `Failed to retrieve deployed contract from chain scanner. Error: ${stringifyError(error)}`,
+      );
       continue;
     }
 
     let implementation: SolidityCompilerOutput;
     try {
-      implementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT, "utf8"));
-    } catch (e) {
-      console.error(`Failed to read WormholeRelayer contract data. Error: ${e}`);
+      implementation = JSON.parse(
+        fs.readFileSync(WORMHOLE_RELAYER_SOLIDITY_COMPILER_OUTPUT, "utf8"),
+      );
+    } catch (error) {
+      console.error(
+        `Failed to read WormholeRelayer contract data. Error: ${stringifyError(error)}`,
+      );
       continue;
     }
 
     let baseImplementation: SolidityCompilerOutput;
     try {
-      baseImplementation = JSON.parse(fs.readFileSync(WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT, "utf8"));
-    } catch (e) {
-      console.error(`Failed to read WormholeRelayerBase contract data. Error: ${e}`);
-      continue;
-    }
-
-    let expectedByteCode: Buffer;
-    try {
-      expectedByteCode = buildByteCode(chain, implementation, baseImplementation);
+      baseImplementation = JSON.parse(
+        fs.readFileSync(WORMHOLE_RELAYER_BASE_SOLIDITY_COMPILER_OUTPUT, "utf8"),
+      );
     } catch (error) {
-      console.error(`Failed to build bytecode for chain ${chain.chainId}. Error: ${error}`);
-      continue;
-    }
-
-    const deployedBytecodeHash = sha256sum(deployedBytecode);
-    const expectedByteCodeHash = sha256sum(expectedByteCode);
-
-    if (deployedBytecodeHash !== expectedByteCodeHash) {
       console.error(
-        chalk.red(
-          `Bytecode verification failed for chain ${chain.chainId}! Expected hash ${expectedByteCodeHash} but got ${deployedBytecodeHash}`
-        )
+        `Failed to read WormholeRelayerBase contract data. Error: ${stringifyError(error)}`,
       );
       continue;
     }
 
-    console.log(chalk.green(`Bytecode verified for chain ${chain.chainId} matches. Hash: ${deployedBytecodeHash}`));
+    let expectedBytecode: Buffer;
+    try {
+      expectedBytecode = buildByteCode(
+        chain,
+        implementation,
+        baseImplementation,
+      );
+    } catch (error) {
+      console.error(
+        `Failed to build bytecode for chain ${chain.chainId}. Error: ${stringifyError(error)}`,
+      );
+      continue;
+    }
+
+    const deployedCompilerVersion = inferCompilerVersion(deployedBytecode);
+    const expectedCompilerVersion = inferCompilerVersion(expectedBytecode);
+    if (deployedCompilerVersion !== expectedCompilerVersion) {
+      console.error(
+        chalk.red(
+          `Bytecode verification failed for chain ${chain.chainId}! Expected the compiler version ${expectedCompilerVersion} but got ${deployedCompilerVersion}`,
+        ),
+      );
+      continue;
+    }
+
+    // We'll ignore the metadata section in this comparison since it's immaterial to the semantics of the contract.
+    const deployedMetadataLength = getMetadataSectionLength(deployedBytecode);
+    const expectedMetadataLength = getMetadataSectionLength(expectedBytecode);
+
+    // We'll check that their sizes are the same because we don't expect variation in the metadata section format.
+    if (deployedMetadataLength !== expectedMetadataLength) {
+      console.error(
+        chalk.red(
+          `Bytecode verification failed for chain ${chain.chainId}! Expected the compiler version ${expectedCompilerVersion} but got ${deployedCompilerVersion}`,
+        ),
+      );
+      continue;
+    }
+
+    const deployedBytecodeTrimmed = deployedBytecode.subarray(
+      0,
+      deployedMetadataLength + METADATA_LENGTH,
+    );
+    const expectedBytecodeTrimmed = expectedBytecode.subarray(
+      0,
+      expectedMetadataLength + METADATA_LENGTH,
+    );
+
+    const deployedBytecodeHash = sha256sum(deployedBytecodeTrimmed);
+    const expectedBytecodeHash = sha256sum(expectedBytecodeTrimmed);
+
+    if (deployedBytecodeHash !== expectedBytecodeHash) {
+      console.error(
+        chalk.red(
+          `Bytecode verification failed for chain ${chain.chainId}! Expected hash ${expectedBytecodeHash} but got ${deployedBytecodeHash}`,
+        ),
+      );
+      continue;
+    }
+
+    console.log(
+      chalk.green(
+        `Bytecode verified for chain ${chain.chainId} matches. Hash: ${deployedBytecodeHash}`,
+      ),
+    );
   }
 }
 
@@ -108,26 +177,26 @@ interface SolidityCompilerOutput {
   };
   ast: {
     nodes: AstNode[];
-  }
+  };
 }
 
 const knownRefs = {
   // the wormhole core contract address on the respective chain
-  "wormhole_": (chain: ChainInfo, valueLength: number): Buffer => {
+  wormhole_: (chain: ChainInfo, valueLength: number): Buffer => {
     return toBufferOfLength(strip0x(chain.wormholeAddress), valueLength);
   },
   // the wormhole chain id of the respective chain
-  "chainId_": (chain: ChainInfo, valueLength: number): Buffer => {
+  chainId_: (chain: ChainInfo, valueLength: number): Buffer => {
     return uint16To32BytesBuffer(chain.chainId);
   },
-}
+};
 /**
  * The WormholeRelayer contract has two immutable references:
  * 1. the wormhole core contract address on the respective chain
  * 2. the wormhole chain id of the respective chain
- * 
- * The contract deployed bytecode will have this values replaced by the values for the respective chain.
- * 
+ *
+ * The contract deployed bytecode will have these values replaced by the values for the respective chain.
+ *
  * The definitions of the references are in the WormholeRelayerBase contract, that's why we need the compiler
  * output of both contracts to build the bytecode.
  * @param chain wormhole chain id of the chain to build the bytecode for
@@ -141,10 +210,13 @@ function buildByteCode(
   implementation: SolidityCompilerOutput,
   baseImplementation: SolidityCompilerOutput,
 ): Buffer {
+  let byteCodeWithImmutablesReplaced = Buffer.from(
+    strip0x(implementation.deployedBytecode.object),
+    "hex",
+  );
+  const immutableReferences =
+    implementation.deployedBytecode.immutableReferences;
 
-  let byteCodeWithImmutablesReplaced = Buffer.from(strip0x(implementation.deployedBytecode.object), "hex");
-  const immutableReferences = implementation.deployedBytecode.immutableReferences;
-  
   for (const [key, references] of Object.entries(immutableReferences)) {
     const ref = getAstNode(parseInt(key), baseImplementation.ast.nodes);
 
@@ -167,15 +239,15 @@ function buildByteCode(
     byteCodeWithImmutablesReplaced = replaceImmutableReferences(
       byteCodeWithImmutablesReplaced,
       references,
-      referenceValue
+      referenceValue,
     );
   }
 
   return byteCodeWithImmutablesReplaced;
 }
 
-function getAstNode(id: number, nodes: AstNode[]): AstNode|null {
-  let node: AstNode|null = null;
+function getAstNode(id: number, nodes: AstNode[]): AstNode | null {
+  let node: AstNode | null = null;
 
   for (const n of nodes) {
     if (n.id === id) {
@@ -195,17 +267,29 @@ function getAstNode(id: number, nodes: AstNode[]): AstNode|null {
 function replaceImmutableReferences(
   deployedBytecode: Buffer,
   immutableReferences: ImmutableReference[],
-  referenceValue: Buffer //32 bytes
+  referenceValue: Buffer, //32 bytes
 ): Buffer {
   const byteCodeWithImmutablesReplaced = Buffer.from(deployedBytecode);
   for (const ref of immutableReferences) {
     if (ref.length !== 32) {
       throw new Error("Only 32 byte words supported for immutable references.");
     }
-    byteCodeWithImmutablesReplaced.writeBigUInt64BE(referenceValue.readBigUInt64BE(0), ref.start);
-    byteCodeWithImmutablesReplaced.writeBigUInt64BE(referenceValue.readBigUInt64BE(8), ref.start + 8);
-    byteCodeWithImmutablesReplaced.writeBigUInt64BE(referenceValue.readBigUInt64BE(16), ref.start + 16);
-    byteCodeWithImmutablesReplaced.writeBigUInt64BE(referenceValue.readBigUInt64BE(24), ref.start + 24);
+    byteCodeWithImmutablesReplaced.writeBigUInt64BE(
+      referenceValue.readBigUInt64BE(0),
+      ref.start,
+    );
+    byteCodeWithImmutablesReplaced.writeBigUInt64BE(
+      referenceValue.readBigUInt64BE(8),
+      ref.start + 8,
+    );
+    byteCodeWithImmutablesReplaced.writeBigUInt64BE(
+      referenceValue.readBigUInt64BE(16),
+      ref.start + 16,
+    );
+    byteCodeWithImmutablesReplaced.writeBigUInt64BE(
+      referenceValue.readBigUInt64BE(24),
+      ref.start + 24,
+    );
   }
 
   return byteCodeWithImmutablesReplaced;
@@ -219,16 +303,14 @@ function toBufferOfLength(raw: string, length: number) {
   }
 
   const padding = Buffer.alloc(length - buffer.length);
-  const a = Buffer.concat([padding, buffer]);
-  
-  return a;
+  return Buffer.concat([padding, buffer]);
 }
 
 function uint16To32BytesBuffer(num: number): Buffer {
   const buff = Buffer.alloc(32);
   buff.writeUInt16BE(num, 30);
   return buff;
-};
+}
 
 function strip0x(str: string) {
   return str.startsWith("0x") ? str.substring(2) : str;
@@ -236,6 +318,14 @@ function strip0x(str: string) {
 
 function sha256sum(buff: Buffer) {
   return crypto.createHash("sha256").update(buff).digest("hex");
+}
+
+function stringifyError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return inspect(error);
 }
 
 run().then(() => console.log("Done! " + processName));
