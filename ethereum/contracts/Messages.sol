@@ -195,6 +195,7 @@ contract Messages is Getters {
     function verifyCurrentQuorum(bytes32 hash, Structs.Signature[] memory signatures) public view returns (bool valid, string memory response) {
         uint32 gsi = getCurrentGuardianSetIndex();
         Structs.GuardianSet memory guardianSet = getGuardianSet(gsi);
+        uint256 guardianCount = guardianSet.keys.length;
 
        /**
         * @dev Checks whether the guardianSet has zero keys
@@ -203,7 +204,7 @@ contract Messages is Getters {
         * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
         * signature verification.
         */
-        if(guardianSet.keys.length == 0){
+        if(guardianCount == 0){
             return (false, "invalid guardian set");
         }
 
@@ -213,7 +214,7 @@ contract Messages is Getters {
         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
-        if (signatures.length < quorum(guardianSet.keys.length)){
+        if (signatures.length < quorum(guardianCount)){
             return (false, "no quorum");
         }
 
