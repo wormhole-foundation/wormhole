@@ -23,7 +23,7 @@
   },
   "scripts": {
     "build:core": "truffle compile",
-    "build:forge": "if [ \"$DEV\" = \"True\" ]; then forge build; else FOUNDRY_PROFILE=production forge build; fi",
+    "build:forge": "if [ \"$DEV\" = \"True\" ]; then forge build; else FOUNDRY_PROFILE=production forge build --build-info; fi",
     "build": "npm run build:core && npm run build:forge && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types",
     "erase-types": "tsx ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
     "test": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test --compile-none",
@@ -46,6 +46,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.10.15",
     "@typechain/ethers-v5": "^10.2.0",
+    "cbor": "^9.0.2",
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "jsonfile": "^4.0.0",
