@@ -20,7 +20,7 @@
       "description": "Polygon",
       "evmNetworkId": 137,
       "chainId": 5,
-      "rpc": "https://rpc-mainnet.maticvigil.com",
+      "rpc": "https://rpc.ankr.com/polygon",
       "wormholeAddress": "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
     },
     {
