@@ -194,7 +194,7 @@ export const RPCS_BY_CHAIN: {
     near: "https://rpc.mainnet.near.org",
     xpla: "https://dimension-lcd.xpla.dev",
     sui: "https://fullnode.mainnet.sui.io:443",
-    terra2: "https://phoenix-lcd.terra.dev",
+    terra2: "https://lcd-terra.tfl.foundation",
     terra: "https://columbus-fcd.terra.dev",
     injective: "https://k8s.mainnet.lcd.injective.network",
     solana: "https://api.mainnet-beta.solana.com",
