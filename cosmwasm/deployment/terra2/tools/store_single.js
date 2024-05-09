@@ -30,7 +30,7 @@ const artifact = argv.artifact;
 const host =
   argv.network === "mainnet"
     ? {
-        URL: "https://phoenix-lcd.terra.dev",
+        URL: "https://lcd-terra.tfl.foundation",
         chainID: "phoenix-1",
         name: "mainnet",
       }
