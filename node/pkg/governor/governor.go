@@ -814,15 +814,12 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 
 // TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
-
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
 // The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
-//
 // As a side-effect, this function modifies the parameter `emitter`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
-//
 // SECURITY Invariant: The `sum` return value should never be less than 0
 // SECURITY Invariant: The `sum` return value should never exceed the "Governor limit" for the chain
 func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
