@@ -81,9 +81,9 @@ case "$network" in
         code_id_url="https://columbus-lcd.terra.dev/terra/wasm/v1beta1/contracts/"
         code_id_jq="jq '.contract_info.code_id' -r "
         ;;
-      terra2) url="https://phoenix-lcd.terra.dev/wasm/code/"
+      terra2) url="https://lcd-terra.tfl.foundation/wasm/code/"
         jq_cmd="jq '.result.data_hash' -r "
-        code_id_url="https://phoenix-lcd.terra.dev/wasm/contract/"
+        code_id_url="https://lcd-terra.tfl.foundation/wasm/contract/"
         code_id_jq="jq '.result.code_id' -r "
         ;;
       xpla) url="https://dimension-lcd.xpla.dev/cosmwasm/wasm/v1/code/"
