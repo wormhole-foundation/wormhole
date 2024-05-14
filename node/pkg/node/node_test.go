@@ -669,10 +669,10 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 		// Inform them of the Guardian Set
-		commonGuardianSet := common.GuardianSet{
-			Keys:  mockGuardianSetToGuardianAddrList(t, gs),
-			Index: guardianSetIndex,
-		}
+		commonGuardianSet := *common.NewGuardianSet(
+			mockGuardianSetToGuardianAddrList(t, gs),
+			guardianSetIndex,
+		)
 		for i, g := range gs {
 			logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
 			g.MockSetC <- &commonGuardianSet
@@ -1183,10 +1183,10 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 			// Inform them of the Guardian Set
-			commonGuardianSet := common.GuardianSet{
-				Keys:  mockGuardianSetToGuardianAddrList(t, gs),
-				Index: guardianSetIndex,
-			}
+			commonGuardianSet := *common.NewGuardianSet(
+				mockGuardianSetToGuardianAddrList(t, gs),
+				guardianSetIndex,
+			)
 			for i, g := range gs {
 				logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
 				g.MockSetC <- &commonGuardianSet
