@@ -17,10 +17,22 @@ import (
 )
 
 var (
-	observationsBroadcastTotal = promauto.NewCounter(
+	observationsBroadcast = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_observations_broadcast_total",
+			Name: "wormhole_observations_queued_for_broadcast",
 			Help: "Total number of signed observations queued for broadcast",
+		})
+
+	observationsPostedInternally = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_posted_internally",
+			Help: "Total number of our observations posted internally",
+		})
+
+	signedVAAsBroadcast = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_signed_vaas_queued_for_broadcast",
+			Help: "Total number of signed vaas queued for broadcast",
 		})
 )
 
@@ -45,9 +57,10 @@ func (p *Processor) broadcastSignature(
 		panic(err)
 	}
 
+	// Broadcast the observation.
 	p.gossipSendC <- msg
+	observationsBroadcast.Inc()
 
-	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
 
 	if p.state.signatures[hash] == nil {
@@ -75,7 +88,7 @@ func (p *Processor) broadcastSignature(
 		go func() { p.obsvC <- om }()
 	}
 
-	observationsBroadcastTotal.Inc()
+	observationsPostedInternally.Inc()
 }
 
 func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
@@ -93,7 +106,9 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 		panic(err)
 	}
 
+	// Broadcast the signed VAA.
 	p.gossipSendC <- msg
+	signedVAAsBroadcast.Inc()
 
 	if p.gatewayRelayer != nil {
 		p.gatewayRelayer.SubmitVAA(v)
