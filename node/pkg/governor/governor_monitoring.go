@@ -95,7 +95,7 @@ import (
 )
 
 // Admin command to display status to the log.
-func (gov *ChainGovernor) Status() (resp string, err error) {
+func (gov *ChainGovernor) Status() (resp string) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -103,7 +103,9 @@ func (gov *ChainGovernor) Status() (resp string, err error) {
 	for _, ce := range gov.chains {
 		valueTrans, err := sumValue(ce.transfers, startTime)
 		if err != nil {
-			return "", err
+			// Print an error to the logs. We don't want to actually return an error or otherwise stop
+			// execution in this case.
+			return fmt.Sprintf("chain: %v, dailyLimit: OVERFLOW. error: %s", ce.emitterChainId, err)
 		}
 		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
 		resp += s1 + "\n"
@@ -119,7 +121,7 @@ func (gov *ChainGovernor) Status() (resp string, err error) {
 		}
 	}
 
-	return resp, nil
+	return resp
 }
 
 // Admin command to reload the governor state from the database.
@@ -439,8 +441,8 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 			enabled = "1"
 			value, err := sumValue(ce.transfers, startTime)
 			if err != nil {
-				// Error can occur if the sum overflows. Return 0 in this case rather than stopping
-				// collection of metrics
+				// Error can occur if the sum overflows. Return 0 in this case rather than returning an
+				// error.
 				value = 0
 			}
 			if value >= ce.dailyLimit {
@@ -549,12 +551,11 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 	numEnqueued := 0
 	for _, ce := range gov.chains {
 		value, err := sumValue(ce.transfers, startTime)
-		if err != nil {
-			// Error can occur if the sum overflows. Return 0 in this case rather than stopping
-			// collection of metrics
-			value = 0
-		}
-		if value >= ce.dailyLimit {
+
+		if err != nil || value >= ce.dailyLimit {
+			// In case of error, set value to 0 rather than returning an error to the caller. An error
+			// here means sumValue has encountered an overflow and this should never happen. Even if it did
+			// we don't want to stop execution here.
 			value = 0
 		} else {
 			value = ce.dailyLimit - value
