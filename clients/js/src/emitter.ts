@@ -1,31 +1,29 @@
 import {
-  ChainId,
-  ChainName,
-  isCosmWasmChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-
-import {
   getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressNear,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
 } from "@certusone/wormhole-sdk/lib/esm/bridge/getEmitterAddress";
+import {
+  Chain,
+  ChainId,
+  chainToPlatform,
+  toChain,
+} from "@wormhole-foundation/sdk-base";
 
-export async function getEmitterAddress(
-  chain: ChainId | ChainName,
-  addr: string
-) {
-  if (chain === "solana" || chain === "pythnet") {
+export async function getEmitterAddress(chain: ChainId | Chain, addr: string) {
+  const localChain = toChain(chain);
+  if (localChain === "Solana" || localChain === "Pythnet") {
     // TODO: Create an isSolanaChain()
     addr = getEmitterAddressSolana(addr);
-  } else if (isCosmWasmChain(chain)) {
+  } else if (chainToPlatform(localChain) === "Cosmwasm") {
     addr = await getEmitterAddressTerra(addr);
-  } else if (chain === "algorand") {
+  } else if (localChain === "Algorand") {
     addr = getEmitterAddressAlgorand(BigInt(addr));
-  } else if (chain === "near") {
+  } else if (localChain === "Near") {
     addr = getEmitterAddressNear(addr);
-  } else if (chain === "aptos") {
+  } else if (localChain === "Aptos") {
     // TODO: There should be something in the SDK to do this.
     if (
       addr ===
@@ -42,7 +40,7 @@ export async function getEmitterAddress(
     } else {
       throw Error(`Unsupported Aptos address: ${addr}`);
     }
-  } else if (chain === "sui") {
+  } else if (localChain === "Sui") {
     // TODO: There should be something in the SDK to do this.
     if (
       addr ===

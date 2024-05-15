@@ -1,9 +1,6 @@
-import {
-  assertChain,
-  coalesceChainId,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { CHAIN_ID_OR_NAME_CHOICES } from "../../consts";
+import { assertChain, toChain } from "@wormhole-foundation/sdk-base";
 
 export const command = "chain-id <chain>";
 export const desc =
@@ -16,6 +13,6 @@ export const builder = (y: typeof yargs) => {
   } as const);
 };
 export const handler = (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
-  assertChain(argv.chain);
-  console.log(coalesceChainId(argv.chain));
+  assertChain(toChain(argv.chain));
+  console.log(toChain(argv.chain));
 };

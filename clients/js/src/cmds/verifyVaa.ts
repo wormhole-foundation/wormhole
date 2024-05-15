@@ -1,11 +1,11 @@
 // The verify-vaa command invokes the parseAndVerifyVM method on the core contract on Ethereum to verify the specified VAA.
 
 import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORKS, NETWORK_OPTIONS } from "../consts";
-import { assertNetwork } from "../utils";
+import { getNetwork } from "../utils";
+import { contracts } from "@wormhole-foundation/sdk";
 
 export const command = "verify-vaa";
 export const desc = "Verifies a VAA by querying the core contract on Ethereum";
@@ -21,17 +21,16 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
+  const network = getNetwork(argv.network);
 
   const buf = Buffer.from(String(argv.vaa), "hex");
-  const contract_address = CONTRACTS[network].ethereum.core;
+  const contract_address = contracts.coreBridge(network, "Ethereum");
   if (!contract_address) {
     throw Error(`Unknown core contract on ${network} for ethereum`);
   }
 
   const provider = new ethers.providers.JsonRpcProvider(
-    NETWORKS[network].ethereum.rpc
+    NETWORKS[network].Ethereum.rpc
   );
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.parseAndVerifyVM(buf);

@@ -1,10 +1,4 @@
 import {
-  CHAINS,
-  CONTRACTS,
-  ChainName,
-  TerraChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import {
   Coin,
   Fee,
   LCDClient,
@@ -15,24 +9,23 @@ import {
 import axios from "axios";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 import { transferFromTerra } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
 import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import { Chain, Network, contracts } from "@wormhole-foundation/sdk-base";
 
 export async function execute_terra(
   payload: Payload,
   vaa: Buffer,
   network: Network,
-  chain: TerraChainName
+  chain: "Terra" | "Terra2"
 ): Promise<void> {
   const { rpc, key, chain_id } = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   const terra = new LCDClient({
     URL: rpc,
     chainID: chain_id,
-    isClassic: chain === "terra",
+    isClassic: chain === "Terra",
   });
 
   const wallet = terra.wallet(
@@ -46,13 +39,14 @@ export async function execute_terra(
 
   switch (payload.module) {
     case "Core": {
-      if (!contracts.core) {
+      const coreContract = contracts.coreBridge(network, chain);
+      if (!coreContract) {
         throw new Error(
           `Core bridge address not defined for ${chain} ${network}`
         );
       }
 
-      target_contract = contracts.core;
+      target_contract = coreContract;
       // sigh...
       execute_msg = {
         submit_v_a_a: {
@@ -75,14 +69,15 @@ export async function execute_terra(
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
+      const nftContract = contracts.nftBridge.get(network, chain);
+      if (!nftContract) {
         // NOTE: this code can safely be removed once the terra NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
         throw new Error(`NFT bridge not supported yet for ${chain}`);
       }
 
-      target_contract = contracts.nft_bridge;
+      target_contract = nftContract;
       execute_msg = {
         submit_vaa: {
           data: fromUint8Array(vaa),
@@ -107,13 +102,14 @@ export async function execute_terra(
       break;
     }
     case "TokenBridge": {
-      if (!contracts.token_bridge) {
+      const tbContract = contracts.tokenBridge.get(network, chain);
+      if (!tbContract) {
         throw new Error(
           `Token bridge address not defined for ${chain} ${network}`
         );
       }
 
-      target_contract = contracts.token_bridge;
+      target_contract = tbContract;
       execute_msg = {
         submit_vaa: {
           data: fromUint8Array(vaa),
@@ -160,8 +156,8 @@ export async function execute_terra(
 }
 
 export async function transferTerra(
-  srcChain: TerraChainName,
-  dstChain: ChainName,
+  srcChain: "Terra" | "Terra2",
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -172,7 +168,7 @@ export async function transferTerra(
   if (!n.key) {
     throw Error(`No ${network} key defined for ${srcChain} (see networks.ts)`);
   }
-  const { token_bridge } = CONTRACTS[network][srcChain];
+  const token_bridge = contracts.tokenBridge.get(network, srcChain);
   if (!token_bridge) {
     throw Error(`Unknown token bridge contract on ${network} for ${srcChain}`);
   }
@@ -180,7 +176,7 @@ export async function transferTerra(
   const terra = new LCDClient({
     URL: rpc,
     chainID: n.chain_id,
-    isClassic: srcChain === "terra",
+    isClassic: srcChain === "Terra",
   });
 
   const wallet = terra.wallet(
@@ -242,20 +238,19 @@ async function signAndSendTx(
 
 export async function queryRegistrationsTerra(
   network: Network,
-  chain: TerraChainName,
+  chain: "Terra" | "Terra2",
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
   const n = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   let targetContract: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      targetContract = contracts.token_bridge;
+      targetContract = contracts.tokenBridge(network, chain);
       break;
     case "NFTBridge":
-      targetContract = contracts.nft_bridge;
+      targetContract = contracts.nftBridge.get(network, chain);
       break;
     default:
       throw new Error(`Invalid module: ${module}`);
@@ -276,7 +271,7 @@ export async function queryRegistrationsTerra(
   const client = new LCDClient({
     URL: n.rpc,
     chainID: n.chain_id,
-    isClassic: chain === "terra",
+    isClassic: chain === "Terra",
   });
 
   // Query the bridge registration for all the chains in parallel.

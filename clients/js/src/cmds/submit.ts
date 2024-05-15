@@ -1,31 +1,30 @@
-import {
-  assertChain,
-  ChainId,
-  ChainName,
-  CHAINS,
-  coalesceChainName,
-  Contracts,
-  CONTRACTS,
-  isEVMChain,
-  isTerraChain,
-  toChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { execute_algorand } from "../algorand";
 import { execute_aptos } from "../aptos";
 import { submit as submitSei } from "../chains/sei";
 import { submit as submitSui } from "../chains/sui";
-import { NETWORK_OPTIONS } from "../consts";
+import { CHAIN_NAME_CHOICES, NETWORK_OPTIONS } from "../consts";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
 import { execute_solana } from "../solana";
 import { execute_terra } from "../terra";
-import { assertNetwork } from "../utils";
 import { assertKnownPayload, impossible, parse, Payload, VAA } from "../vaa";
 import { execute_xpla } from "../xpla";
 import { NETWORKS } from "../consts";
-import { Network } from "../utils";
+import { getNetwork } from "../utils";
+import {
+  Chain,
+  Network,
+  PlatformToChains,
+  assertChain,
+  assertChainId,
+  chainToPlatform,
+  chains,
+  contracts,
+  toChain,
+  toChainId,
+} from "@wormhole-foundation/sdk";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
@@ -39,7 +38,7 @@ export const builder = (y: typeof yargs) =>
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      choices: Object.keys(CHAINS) as ChainName[],
+      choices: CHAIN_NAME_CHOICES,
       demandOption: false,
     } as const)
     .option("network", NETWORK_OPTIONS)
@@ -72,8 +71,7 @@ export const handler = async (
   assertKnownPayload(parsed_vaa);
   console.log(parsed_vaa.payload);
 
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
+  const network = getNetwork(argv.network);
 
   if (argv["all-chains"]) {
     if (argv.rpc) {
@@ -104,21 +102,21 @@ export const handler = async (
   // get VAA chain
   const vaa_chain_id =
     "chain" in parsed_vaa.payload ? parsed_vaa.payload.chain : 0;
-  assertChain(vaa_chain_id);
-  const vaa_chain = toChainName(vaa_chain_id);
+  assertChainId(vaa_chain_id);
+  const vaa_chain = toChain(vaa_chain_id);
 
   // get chain from command line arg
   const cli_chain = argv.chain;
 
-  let chain: ChainName;
+  let chain: Chain;
   if (cli_chain !== undefined) {
     assertChain(cli_chain);
-    if (vaa_chain !== "unset" && cli_chain !== vaa_chain) {
+    if (cli_chain !== vaa_chain) {
       throw Error(
         `Specified target chain (${cli_chain}) does not match VAA target chain (${vaa_chain})`
       );
     }
-    chain = coalesceChainName(cli_chain);
+    chain = toChain(cli_chain);
   } else {
     chain = vaa_chain;
   }
@@ -139,75 +137,59 @@ async function executeSubmit(
   parsedVaa: VAA<Payload>,
   buf: Buffer,
   network: Network,
-  chain: ChainName,
+  chain: Chain,
   rpc: string | undefined,
   contractAddress: string | undefined
 ) {
-  if (chain === "unset") {
-    throw Error(
-      "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
-    );
-  } else if (isEVMChain(chain)) {
+  if (chainToPlatform(chain) === "Evm") {
     await execute_evm(
       parsedVaa.payload,
       buf,
       network,
-      chain,
+      chain as PlatformToChains<"Evm">,
       contractAddress,
       rpc
     );
-  } else if (isTerraChain(chain)) {
+  } else if (chain === "Terra" || chain === "Terra2") {
     await execute_terra(parsedVaa.payload, buf, network, chain);
-  } else if (chain === "solana" || chain === "pythnet") {
+  } else if (chain === "Solana" || chain === "Pythnet") {
     await execute_solana(parsedVaa, buf, network, chain);
-  } else if (chain === "algorand") {
+  } else if (chain === "Algorand") {
     await execute_algorand(
       parsedVaa.payload,
       new Uint8Array(Buffer.from(vaaHex, "hex")),
       network
     );
-  } else if (chain === "near") {
+  } else if (chain === "Near") {
     await execute_near(parsedVaa.payload, vaaHex, network);
-  } else if (chain === "injective") {
+  } else if (chain === "Injective") {
     await execute_injective(parsedVaa.payload, buf, network);
-  } else if (chain === "xpla") {
+  } else if (chain === "Xpla") {
     await execute_xpla(parsedVaa.payload, buf, network);
-  } else if (chain === "sei") {
+  } else if (chain === "Sei") {
     await submitSei(parsedVaa.payload, buf, network, rpc);
-  } else if (chain === "osmosis") {
+  } else if (chain === "Osmosis") {
     throw Error("OSMOSIS is not supported yet");
-  } else if (chain === "sui") {
+  } else if (chain === "Sui") {
     await submitSui(parsedVaa.payload, buf, network, rpc);
-  } else if (chain === "aptos") {
+  } else if (chain === "Aptos") {
     await execute_aptos(parsedVaa.payload, buf, network, contractAddress, rpc);
-  } else if (chain === "wormchain") {
+  } else if (chain === "Wormchain") {
     throw Error("Wormchain is not supported yet");
-  } else if (chain === "btc") {
+  } else if (chain === "Btc") {
     throw Error("btc is not supported yet");
-  } else if (chain === "cosmoshub") {
+  } else if (chain === "Cosmoshub") {
     throw Error("Cosmoshub is not supported yet");
-  } else if (chain === "evmos") {
+  } else if (chain === "Evmos") {
     throw Error("Evmos is not supported yet");
-  } else if (chain === "kujira") {
+  } else if (chain === "Kujira") {
     throw Error("kujira is not supported yet");
-  } else if (chain === "neutron") {
+  } else if (chain === "Neutron") {
     throw Error("neutron is not supported yet");
-  } else if (chain === "celestia") {
+  } else if (chain === "Celestia") {
     throw Error("celestia is not supported yet");
-  } else if (chain === "stargaze") {
-    throw Error("stargaze is not supported yet");
-  } else if (chain === "seda") {
-    throw Error("seda is not supported yet");
-  } else if (chain === "dymension") {
-    throw Error("dymension is not supported yet");
-  } else if (chain === "provenance") {
-    throw Error("provenance is not supported yet");
-  } else if (chain === "rootstock") {
-    throw Error("rootstock is not supported yet");
   } else {
-    // If you get a type error here, hover over `chain`'s type and it tells you
-    // which cases are not handled
-    impossible(chain);
+    throw new Error(`Unsupported chain: ${chain}`);
   }
 }
 
@@ -217,24 +199,19 @@ async function submitToAll(
   buf: Buffer,
   network: Network
 ) {
-  let skip_chain: ChainName = "unset";
+  let skip_chain: Chain;
   if (parsedVaa.payload.type === "RegisterChain") {
-    skip_chain = toChainName(parsedVaa.payload.emitterChain as ChainId);
+    skip_chain = toChain(parsedVaa.payload.emitterChain);
   } else if (parsedVaa.payload.type === "AttestMeta") {
-    skip_chain = toChainName(parsedVaa.payload.tokenChain as ChainId);
+    skip_chain = toChain(parsedVaa.payload.tokenChain);
   } else {
     throw Error(
       `Invalid VAA payload type (${parsedVaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
     );
   }
 
-  for (const chainStr in CHAINS) {
-    let chain = chainStr as ChainName;
-    if (chain === "unset") {
-      continue;
-    }
+  for (const chain of chains) {
     const n = NETWORKS[network][chain];
-    const contracts: Contracts = CONTRACTS[network][chain];
     if (chain == skip_chain) {
       console.log(`Skipping ${chain} because it's the origin chain`);
       continue;
@@ -243,15 +220,11 @@ async function submitToAll(
       console.log(`Skipping ${chain} because the rpc is not defined`);
       continue;
     }
-    if (!contracts) {
-      console.log(
-        `Skipping ${chain} because the contract entry is not defined`
-      );
-      return true;
-    }
     if (
-      (parsedVaa.payload.module === "TokenBridge" && !contracts.token_bridge) ||
-      (parsedVaa.payload.module === "NFTBridge" && !contracts.nft_bridge)
+      (parsedVaa.payload.module === "TokenBridge" &&
+        !contracts.tokenBridge.get(network, chain)) ||
+      (parsedVaa.payload.module === "NFTBridge" &&
+        !contracts.nftBridge.get(network, chain))
     ) {
       console.log(`Skipping ${chain} because the contract is not defined`);
       continue;

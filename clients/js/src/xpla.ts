@@ -1,8 +1,4 @@
 import {
-  CONTRACTS,
-  ChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import {
   Coin,
   Fee,
   LCDClient,
@@ -12,18 +8,22 @@ import {
 } from "@xpla/xpla.js";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 import { transferFromXpla } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
 import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  Chain,
+  chainToChainId,
+  contracts,
+  Network,
+} from "@wormhole-foundation/sdk-base";
 
 export async function execute_xpla(
   payload: Payload,
   vaa: Buffer,
   network: Network
 ) {
-  const { rpc, key, chain_id } = NETWORKS[network].xpla;
-  const contracts = CONTRACTS[network].xpla;
+  const { rpc, key, chain_id } = NETWORKS[network].Xpla;
   if (!key) {
     throw Error(`No ${network} key defined for XPLA`);
   }
@@ -47,11 +47,12 @@ export async function execute_xpla(
   let execute_msg: object;
   switch (payload.module) {
     case "Core": {
-      if (!contracts.core) {
+      const coreContract = contracts.coreBridge.get(network, "Xpla");
+      if (!coreContract) {
         throw new Error(`Core bridge address not defined for XPLA ${network}`);
       }
 
-      target_contract = contracts.core;
+      target_contract = coreContract;
       execute_msg = {
         submit_v_a_a: {
           vaa: fromUint8Array(vaa),
@@ -73,14 +74,15 @@ export async function execute_xpla(
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
+      const nftContract = contracts.nftBridge.get(network, "Xpla");
+      if (!nftContract) {
         // NOTE: this code can safely be removed once the terra NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
         throw new Error("NFT bridge not supported yet for XPLA");
       }
 
-      target_contract = contracts.nft_bridge;
+      target_contract = nftContract;
       execute_msg = {
         submit_vaa: {
           data: fromUint8Array(vaa),
@@ -105,11 +107,12 @@ export async function execute_xpla(
       break;
     }
     case "TokenBridge": {
-      if (!contracts.token_bridge) {
+      const tbContract = contracts.tokenBridge.get(network, "Xpla");
+      if (!tbContract) {
         throw new Error(`Token bridge address not defined for XPLA ${network}`);
       }
 
-      target_contract = contracts.token_bridge;
+      target_contract = tbContract;
       execute_msg = {
         submit_vaa: {
           data: fromUint8Array(vaa),
@@ -156,18 +159,18 @@ export async function execute_xpla(
 }
 
 export async function transferXpla(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  const { key, chain_id } = NETWORKS[network].xpla;
+  const { key, chain_id } = NETWORKS[network].Xpla;
   if (!key) {
     throw Error(`No ${network} key defined for XPLA`);
   }
-  const { token_bridge } = CONTRACTS[network].xpla;
+  const token_bridge = contracts.tokenBridge.get(network, "Xpla");
   if (token_bridge == undefined) {
     throw Error(`Unknown token bridge contract on ${network} for XPLA`);
   }
@@ -185,8 +188,8 @@ export async function transferXpla(
     token_bridge,
     tokenAddress,
     amount,
-    dstChain,
-    tryNativeToUint8Array(dstAddress, dstChain)
+    chainToChainId(dstChain),
+    tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
   await signAndSendTx(client, wallet, msgs);
 }

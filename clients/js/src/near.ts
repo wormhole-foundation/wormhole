@@ -1,18 +1,21 @@
-import {
-  ChainName,
-  CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import BN from "bn.js";
 import { Account, connect, KeyPair } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
+import { Provider } from "near-api-js/lib/providers";
+import { CodeResult } from "near-api-js/lib/providers/provider";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
 import {
   transferNearFromNear,
   transferTokenFromNear,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
 import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  Chain,
+  chainToChainId,
+  contracts,
+  Network,
+} from "@wormhole-foundation/sdk-base";
 
 export function keyPairToImplicitAccount(keyPair: KeyPair): string {
   return Buffer.from(keyPair.getPublicKey().data).toString("hex");
@@ -23,7 +26,7 @@ export const execute_near = async (
   vaa: string,
   network: Network
 ): Promise<void> => {
-  const { rpc, key, networkId } = NETWORKS[network].near;
+  const { rpc, key, networkId } = NETWORKS[network].Near;
   if (!key) {
     throw Error(`No ${network} key defined for NEAR`);
   }
@@ -32,16 +35,15 @@ export const execute_near = async (
     throw Error(`No ${network} rpc defined for NEAR`);
   }
 
-  const contracts = CONTRACTS[network].near;
   let target_contract: string;
   let numSubmits = 1;
   switch (payload.module) {
     case "Core": {
-      if (!contracts.core) {
+      const coreContract = contracts.coreBridge(network, "Near");
+      if (!coreContract) {
         throw new Error(`Core bridge address not defined for NEAR ${network}`);
       }
-
-      target_contract = contracts.core;
+      target_contract = coreContract;
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -57,12 +59,13 @@ export const execute_near = async (
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
+      const nftContract = contracts.nftBridge.get(network, "Near");
+      if (!nftContract) {
         throw new Error(`NFT bridge address not defined for NEAR ${network}`);
       }
 
       numSubmits = 2;
-      target_contract = contracts.nft_bridge;
+      target_contract = nftContract;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -82,12 +85,13 @@ export const execute_near = async (
       break;
     }
     case "TokenBridge": {
-      if (!contracts.token_bridge) {
+      const tbContract = contracts.tokenBridge(network, "Near");
+      if (!tbContract) {
         throw new Error(`Token bridge address not defined for NEAR ${network}`);
       }
 
       numSubmits = 2;
-      target_contract = contracts.token_bridge;
+      target_contract = tbContract;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -158,18 +162,19 @@ export const execute_near = async (
 };
 
 export async function transferNear(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  const { key, networkId } = NETWORKS[network].near;
+  const { key, networkId } = NETWORKS[network].Near;
   if (!key) {
     throw Error(`No ${network} key defined for NEAR`);
   }
-  const { core, token_bridge } = CONTRACTS[network].near;
+  const core = contracts.coreBridge(network, "Near");
+  const token_bridge = contracts.tokenBridge(network, "Near");
   if (core === undefined) {
     throw Error(`Unknown core contract on ${network} for NEAR`);
   }
@@ -193,8 +198,8 @@ export async function transferNear(
       core,
       token_bridge,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, dstChain),
-      dstChain,
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
+      chainToChainId(dstChain),
       BigInt(0)
     );
     const result = await nearAccount.functionCall(msg);
@@ -207,8 +212,8 @@ export async function transferNear(
       token_bridge,
       tokenAddress,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, dstChain),
-      dstChain,
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
+      chainToChainId(dstChain),
       BigInt(0)
     );
     for (const msg of msgs) {
@@ -216,4 +221,41 @@ export async function transferNear(
       console.log(result.transaction.hash);
     }
   }
+}
+
+export async function hashLookup(
+  provider: Provider,
+  tokenBridge: string,
+  hash: string
+): Promise<{ found: boolean; value: string }> {
+  const [found, value] = await callFunctionNear(
+    provider,
+    tokenBridge,
+    "hash_lookup",
+    {
+      hash,
+    }
+  );
+  return {
+    found,
+    value,
+  };
+}
+
+export async function callFunctionNear(
+  provider: Provider,
+  accountId: string,
+  methodName: string,
+  args?: any
+) {
+  const response = await provider.query<CodeResult>({
+    request_type: "call_function",
+    account_id: accountId,
+    method_name: methodName,
+    args_base64: args
+      ? Buffer.from(JSON.stringify(args)).toString("base64")
+      : "",
+    finality: "final",
+  });
+  return JSON.parse(Buffer.from(response.result).toString());
 }

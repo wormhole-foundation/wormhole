@@ -1,8 +1,3 @@
-import {
-  ChainId,
-  ChainName,
-  coalesceChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { parseTokenBridgeRegisterChainVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
 import {
   JsonRpcProvider,
@@ -36,6 +31,7 @@ import {
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
 import { initExampleApp, initTokenBridge, initWormhole } from "./init";
+import { Chain, chainIdToChain, toChainId } from "@wormhole-foundation/sdk";
 
 export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
@@ -51,9 +47,9 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         })
         .option("rpc", RPC_OPTIONS),
     async (argv) => {
-      const network = "DEVNET";
+      const network = "Devnet";
       const privateKey = argv["private-key"];
-      const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
 
       // Deploy core bridge
       console.log("[1/4] Deploying core bridge...");
@@ -201,14 +197,14 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
       const tx = new TransactionBlock();
       setMaxGasBudgetDevnet("DEVNET", tx);
-      const registrations: { chain: ChainName; module: string }[] = [];
+      const registrations: { chain: Chain; module: string }[] = [];
       for (const key in process.env) {
         if (/^REGISTER_(.+)_TOKEN_BRIDGE_VAA$/.test(key)) {
           // Get VAA info
           const vaa = Buffer.from(String(process.env[key]), "hex");
           const { foreignChain, module } =
             parseTokenBridgeRegisterChainVaa(vaa);
-          const chain = coalesceChainName(foreignChain as ChainId);
+          const chain = chainIdToChain(toChainId(foreignChain));
           registrations.push({ chain, module });
 
           // Register

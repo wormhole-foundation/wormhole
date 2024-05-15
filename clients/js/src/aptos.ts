@@ -1,15 +1,8 @@
-import {
-  CONTRACTS,
-  ChainId,
-  ChainName,
-  assertChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { transferFromAptos } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
 import { AptosAccount, AptosClient, BCS, TxnBuilderTypes, Types } from "aptos";
 import { ethers } from "ethers";
 import { sha3_256 } from "js-sha3";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
 import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
@@ -17,6 +10,14 @@ import {
   generateSignAndSubmitEntryFunction,
   tryNativeToUint8Array,
 } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  Chain,
+  ChainId,
+  Network,
+  assertChainId,
+  contracts,
+  toChainId,
+} from "@wormhole-foundation/sdk-base";
 
 export async function execute_aptos(
   payload: Payload,
@@ -25,7 +26,7 @@ export async function execute_aptos(
   contract: string | undefined,
   rpc: string | undefined
 ) {
-  const chain = "aptos";
+  const chain: Chain = "Aptos";
 
   // turn VAA bytes into BCS format. That is, add a length prefix
   const serializer = new BCS.Serializer();
@@ -34,7 +35,7 @@ export async function execute_aptos(
 
   switch (payload.module) {
     case "Core": {
-      contract = contract ?? CONTRACTS[network][chain]["core"];
+      contract = contract ?? contracts.coreBridge(network, chain);
       if (contract === undefined) {
         throw Error("core bridge contract is undefined");
       }
@@ -71,7 +72,7 @@ export async function execute_aptos(
       break;
     }
     case "NFTBridge": {
-      contract = contract ?? CONTRACTS[network][chain]["nft_bridge"];
+      contract = contract ?? contracts.nftBridge(network, chain);
       if (contract === undefined) {
         throw Error("nft bridge contract is undefined");
       }
@@ -120,7 +121,7 @@ export async function execute_aptos(
       break;
     }
     case "TokenBridge": {
-      contract = contract ?? CONTRACTS[network][chain]["token_bridge"];
+      contract = contract ?? contracts.tokenBridge(network, chain);
       if (contract === undefined) {
         throw Error("token bridge contract is undefined");
       }
@@ -180,7 +181,7 @@ export async function execute_aptos(
           // offline:
           const tokenAddress = payload.tokenAddress;
           const tokenChain = payload.tokenChain;
-          assertChain(tokenChain);
+          assertChainId(tokenChain);
           let wrappedContract = deriveWrappedAssetAddress(
             hex(contract),
             tokenChain,
@@ -208,7 +209,7 @@ export async function execute_aptos(
           // TODO: only handles wrapped assets for now
           const tokenAddress = payload.tokenAddress;
           const tokenChain = payload.tokenChain;
-          assertChain(tokenChain);
+          assertChainId(tokenChain);
           let wrappedContract = deriveWrappedAssetAddress(
             hex(contract),
             tokenChain,
@@ -243,22 +244,22 @@ export async function execute_aptos(
 }
 
 export async function transferAptos(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  const { key } = NETWORKS[network].aptos;
+  const { key } = NETWORKS[network].Aptos;
   if (!key) {
     throw new Error("No key for aptos");
   }
-  rpc = rpc ?? NETWORKS[network].aptos.rpc;
+  rpc = rpc ?? NETWORKS[network].Aptos.rpc;
   if (!rpc) {
     throw new Error("No rpc for aptos");
   }
-  const { token_bridge } = CONTRACTS[network].aptos;
+  const token_bridge = contracts.tokenBridge(network, "Aptos");
   if (!token_bridge) {
     throw new Error("token bridge contract is undefined");
   }
@@ -268,8 +269,8 @@ export async function transferAptos(
     token_bridge,
     tokenAddress === "native" ? "0x1::aptos_coin::AptosCoin" : tokenAddress,
     amount,
-    dstChain,
-    tryNativeToUint8Array(dstAddress, dstChain)
+    toChainId(dstChain),
+    tryNativeToUint8Array(dstAddress, toChainId(dstChain))
   );
   const tx = (await generateSignAndSubmitEntryFunction(
     client,
@@ -321,14 +322,14 @@ export function deriveResourceAccount(
 }
 
 export async function callEntryFunc(
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   rpc: string | undefined,
   module: string,
   func: string,
   ty_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
   args: BCS.Seq<BCS.Bytes>
 ): Promise<string> {
-  let key: string | undefined = NETWORKS[network]["aptos"].key;
+  let key: string | undefined = NETWORKS[network]["Aptos"].key;
   if (key === undefined) {
     throw new Error("No key for aptos");
   }
@@ -338,7 +339,7 @@ export async function callEntryFunc(
   if (typeof rpc != "undefined") {
     client = new AptosClient(rpc);
   } else {
-    client = new AptosClient(NETWORKS[network]["aptos"].rpc);
+    client = new AptosClient(NETWORKS[network]["Aptos"].rpc);
   }
   const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
     client.getAccount(accountFrom.address()),
@@ -388,14 +389,14 @@ export async function queryRegistrationsAptos(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  const n = NETWORKS[network]["aptos"];
+  const n = NETWORKS[network]["Aptos"];
   const client = new AptosClient(n.rpc);
-  const contracts = CONTRACTS[network]["aptos"];
+  // const contracts = CONTRACTS[network]["aptos"];
   let stateObjectId: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      stateObjectId = contracts.token_bridge;
+      stateObjectId = contracts.tokenBridge(network, "Aptos");
       if (stateObjectId === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for Aptos`);
       }

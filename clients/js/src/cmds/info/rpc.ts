@@ -1,11 +1,7 @@
-import {
-  CHAINS,
-  ChainName,
-  assertChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { NETWORKS } from "../../consts";
-import { assertNetwork } from "../../utils";
+import { assertChain, chains } from "@wormhole-foundation/sdk-base";
+import { getNetwork } from "../../utils";
 
 export const command = "rpc <network> <chain>";
 export const desc = "Print RPC address";
@@ -18,14 +14,13 @@ export const builder = (y: typeof yargs) =>
     } as const)
     .positional("chain", {
       describe: "Chain to query",
-      choices: Object.keys(CHAINS) as ChainName[],
+      choices: chains,
       demandOption: true,
     } as const);
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
   assertChain(argv.chain);
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
+  const network = getNetwork(argv.network);
   console.log(NETWORKS[network][argv.chain].rpc);
 };

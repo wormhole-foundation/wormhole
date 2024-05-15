@@ -9,31 +9,32 @@ import {
   getForeignAssetXpla,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
 import { getForeignAssetInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils/array";
-import {
-  ChainId,
-  ChainName,
-  coalesceChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { CONTRACTS } from "../../consts";
-import { Network } from "../../utils";
 import { impossible } from "../../vaa";
 import { getForeignAssetSei } from "../sei/sdk";
 import { getProviderForChain } from "./provider";
+import {
+  Chain,
+  ChainId,
+  Network,
+  contracts,
+  toChain,
+  toChainId,
+} from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "../../array";
 
 export const getWrappedAssetAddress = async (
-  chain: ChainId | ChainName,
+  chain: ChainId | Chain,
   network: Network,
-  originChain: ChainId | ChainName,
+  originChain: ChainId | Chain,
   originAddress: string,
   rpc?: string
 ): Promise<string | null> => {
-  const chainName = coalesceChainName(chain);
+  const chainName = toChain(chain);
   const originAddressUint8Array = tryNativeToUint8Array(
     originAddress,
     originChain
   );
-  const tokenBridgeAddress = CONTRACTS[network][chainName].token_bridge;
+  const tokenBridgeAddress = contracts.tokenBridge.get(network, chainName);
   if (!tokenBridgeAddress) {
     throw new Error(
       `Token bridge address not defined for ${chainName} ${network}`
@@ -41,143 +42,141 @@ export const getWrappedAssetAddress = async (
   }
 
   switch (chainName) {
-    case "unset":
-      throw new Error("Chain not set");
-    case "solana": {
+    case "Solana": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetSolana(
         provider,
         tokenBridgeAddress,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "acala":
-    case "arbitrum":
-    case "aurora":
-    case "avalanche":
-    case "base":
-    case "bsc":
-    case "celo":
-    case "ethereum":
-    case "fantom":
-    case "gnosis":
-    case "karura":
-    case "klaytn":
-    case "moonbeam":
-    case "neon":
-    case "oasis":
-    case "optimism":
-    case "polygon":
-    // case "rootstock":
-    case "scroll":
-    case "mantle":
-    case "blast":
-    case "xlayer":
-    case "linea":
-    case "berachain":
-    case "seievm":
-    case "sepolia":
-    case "arbitrum_sepolia":
-    case "base_sepolia":
-    case "optimism_sepolia":
-    case "polygon_sepolia":
-    case "holesky": {
+    case "Acala":
+    case "Arbitrum":
+    case "Aurora":
+    case "Avalanche":
+    case "Base":
+    case "Bsc":
+    case "Celo":
+    case "Ethereum":
+    case "Fantom":
+    case "Gnosis":
+    case "Karura":
+    case "Klaytn":
+    case "Moonbeam":
+    case "Neon":
+    case "Oasis":
+    case "Optimism":
+    case "Polygon":
+    // case "Rootstock":
+    case "Scroll":
+    case "Mantle":
+    case "Blast":
+    case "Xlayer":
+    case "Linea":
+    case "Berachain":
+    case "Seievm":
+    case "Sepolia":
+    case "ArbitrumSepolia":
+    case "BaseSepolia":
+    case "OptimismSepolia":
+    case "PolygonSepolia":
+    case "Holesky": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetEth(
         tokenBridgeAddress,
         provider,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "terra":
-    case "terra2": {
+    case "Terra":
+    case "Terra2": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetTerra(
         tokenBridgeAddress,
         provider,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "injective": {
+    case "Injective": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetInjective(
         tokenBridgeAddress,
         provider,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "sei": {
+    case "Sei": {
       const provider = await getProviderForChain(chainName, network, { rpc });
       return getForeignAssetSei(
         tokenBridgeAddress,
         provider,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "xpla": {
+    case "Xpla": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetXpla(
         tokenBridgeAddress,
         provider,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "algorand": {
+    case "Algorand": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetAlgorand(
         provider,
         BigInt(tokenBridgeAddress),
-        originChain,
+        toChainId(originChain),
         originAddress
       ).then((x) => x?.toString() ?? null);
     }
-    case "near": {
+    case "Near": {
       const provider = await getProviderForChain(chainName, network, { rpc });
       return getForeignAssetNear(
         provider,
         tokenBridgeAddress,
-        originChain,
+        toChainId(originChain),
         originAddress
       );
     }
-    case "aptos": {
+    case "Aptos": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetAptos(
         provider,
         tokenBridgeAddress,
-        originChain,
+        toChainId(originChain),
         originAddress
       );
     }
-    case "sui": {
+    case "Sui": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetSui(
         provider,
         tokenBridgeAddress,
-        originChain,
+        toChainId(originChain),
         originAddressUint8Array
       );
     }
-    case "btc":
-    case "osmosis":
-    case "pythnet":
-    case "wormchain":
-    case "cosmoshub":
-    case "evmos":
-    case "kujira":
-    case "neutron":
-    case "celestia":
-    case "rootstock":
-    case "stargaze":
-    case "seda":
-    case "dymension":
-    case "provenance":
+    case "Btc":
+    case "Osmosis":
+    case "Pythnet":
+    case "Wormchain":
+    case "Cosmoshub":
+    case "Evmos":
+    case "Kujira":
+    case "Neutron":
+    case "Celestia":
+    case "Rootstock":
+    case "Stargaze":
+    case "Seda":
+    case "Dymension":
+    case "Provenance":
       throw new Error(`${chainName} not supported`);
     default:
       impossible(chainName);
