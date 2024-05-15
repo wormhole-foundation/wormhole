@@ -6,24 +6,26 @@ import {
   setMaxGasBudgetDevnet,
 } from "./utils";
 import {
-  CONTRACTS,
-  ChainName,
+  Chain,
   Network,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk/lib/esm/utils";
+  chainToChainId,
+  contracts,
+} from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "../../sdk/array";
 
 export async function transferSui(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  const { core, token_bridge } = CONTRACTS[network]["sui"];
+  const core = contracts.coreBridge(network, "Sui");
   if (!core) {
     throw Error("Core bridge object ID is undefined");
   }
+  const token_bridge = contracts.tokenBridge.get(network, "Sui");
   if (!token_bridge) {
     throw new Error("Token bridge object ID is undefined");
   }
@@ -44,8 +46,8 @@ export async function transferSui(
     coins,
     coinType,
     BigInt(amount),
-    dstChain,
-    tryNativeToUint8Array(dstAddress, dstChain)
+    chainToChainId(dstChain),
+    tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
   setMaxGasBudgetDevnet(network, tx);
   const result = await executeTransactionBlock(signer, tx);

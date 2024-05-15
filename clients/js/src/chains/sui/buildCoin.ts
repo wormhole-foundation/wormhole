@@ -1,6 +1,5 @@
 import { JsonRpcProvider } from "@mysten/sui.js";
 import fs from "fs";
-import { Network } from "../../utils";
 import { MoveToml } from "./MoveToml";
 import {
   buildPackage,
@@ -12,6 +11,7 @@ import {
 } from "./publish";
 import { SuiBuildOutput } from "./types";
 import { getPackageId } from "./utils";
+import { Network } from "@wormhole-foundation/sdk";
 
 export const buildCoin = async (
   provider: JsonRpcProvider,
@@ -93,8 +93,8 @@ const setupCoin = (
   for (const dependencyPath of paths) {
     // todo(aki): the 4th param is a hack that makes this work, but doesn't
     // necessarily make sense. We should probably revisit this later.
-    setupMainToml(dependencyPath, network, false, network !== "DEVNET");
-    if (network === "DEVNET") {
+    setupMainToml(dependencyPath, network, false, network !== "Devnet");
+    if (network === "Devnet") {
       const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
       switch (getPackageNameFromPath(dependencyPath)) {
         case "wormhole":
