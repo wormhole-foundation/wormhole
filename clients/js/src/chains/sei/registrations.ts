@@ -1,28 +1,22 @@
 import { getCosmWasmClient } from "@sei-js/core";
-import {
-  ChainName,
-  CHAINS,
-  CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { NETWORKS } from "../../consts/networks";
-import { Network } from "../../utils";
+import { Chain, Network, chains, contracts } from "@wormhole-foundation/sdk";
 
 export async function queryRegistrationsSei(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  const chain = "sei" as ChainName;
+  const chain: Chain = "Sei";
   const n = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   let target_contract: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      target_contract = contracts.token_bridge;
+      target_contract = contracts.tokenBridge.get(network, chain);
       break;
     case "NFTBridge":
-      target_contract = contracts.nft_bridge;
+      target_contract = contracts.nftBridge.get(network, chain);
       break;
     default:
       throw new Error(`Invalid module: ${module}`);
@@ -41,14 +35,14 @@ export async function queryRegistrationsSei(
 
   // Query the bridge registration for all the chains in parallel.
   const registrations = await Promise.all(
-    Object.entries(CHAINS)
-      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-      .map(async ([c_name, c_id]) => [
+    chains
+      .filter((c_name) => c_name !== chain)
+      .map(async (c_name) => [
         c_name,
         await (async () => {
           let query_msg = {
             chain_registration: {
-              chain: c_id,
+              chain: c_name,
             },
           };
 

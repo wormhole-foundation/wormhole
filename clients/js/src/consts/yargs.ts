@@ -1,8 +1,9 @@
 import {
-  CHAINS,
+  Chain,
   ChainId,
-  ChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+  chainIds,
+  chains,
+} from "@wormhole-foundation/sdk-base";
 
 export const DEBUG_OPTIONS = {
   alias: "d",
@@ -38,11 +39,9 @@ export const RPC_OPTIONS = {
   demandOption: false,
 } as const;
 
-export const CHAIN_ID_OR_NAME_CHOICES = [
-  ...Object.keys(CHAINS),
-  ...Object.values(CHAINS),
-] as (ChainName | ChainId)[];
+export const CHAIN_ID_OR_NAME_CHOICES = [...chains, ...chainIds] as (
+  | Chain
+  | ChainId
+)[];
 
-export const CHAIN_NAME_CHOICES = Object.keys(CHAINS).filter(
-  (c) => c !== "unset"
-) as ChainName[];
+export const CHAIN_NAME_CHOICES = [...chains];
