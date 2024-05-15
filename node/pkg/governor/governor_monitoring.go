@@ -276,7 +276,7 @@ func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
 }
 
 // REST query to get the current available notional value per chain.
-func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, err error) {
+func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -284,7 +284,8 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 	for _, ce := range gov.chains {
 		value, err := sumValue(ce.transfers, startTime)
 		if err != nil {
-			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0), err
+			// Don't return an error here, just return 0
+			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
 		}
 		if value >= ce.dailyLimit {
 			value = 0
@@ -304,7 +305,7 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 		return (resp[i].ChainId < resp[j].ChainId)
 	})
 
-	return resp, nil
+	return resp
 }
 
 // REST query to get the list of enqueued VAAs.
