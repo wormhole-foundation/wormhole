@@ -767,7 +767,26 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 							return nil, err
 						}
 						ce.transfers = append(ce.transfers, transfer)
-						// TODO: Add inverse transfer to destination?
+
+						// Add inverse transfer to destination chain entry if this asset can cancel flows.
+						key := tokenKey{chain: dbTransfer.EmitterChain, addr: dbTransfer.EmitterAddress}
+						tokenEntry := gov.tokens[key]
+						if tokenEntry != nil {
+							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
+							if tokenEntry.flowCancels {
+								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
+									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
+										return nil, err
+									}
+								} else {
+									gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+										zap.String("msgID", dbTransfer.MsgID),
+										zap.String("hash", pe.hash), zap.Error(err),
+										zap.Stringer("target chain", payload.TargetChain),
+									)
+								}
+							}
+						}
 						gov.msgsSeen[pe.hash] = transferComplete
 					} else {
 						delete(gov.msgsSeen, pe.hash)
