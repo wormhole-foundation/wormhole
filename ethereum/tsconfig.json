@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "strict": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "outDir": "build-ts"
   }
 }

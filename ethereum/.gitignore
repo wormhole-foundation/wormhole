@@ -4,3 +4,4 @@ lib/*
 flattened
 ethers-contracts
 build-forge/
+build-ts/

@@ -39,6 +39,7 @@
     "abigen": "truffle run abigen",
     "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "build:typescript": "tsc --skipLibCheck",
     "typecheck": "tsc --noEmit --skipLibCheck"
   },
   "author": "",
