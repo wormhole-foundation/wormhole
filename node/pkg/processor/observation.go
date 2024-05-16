@@ -80,6 +80,8 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
+	observationsReceivedTotal.Inc()
+
 	m := obs.Msg
 	hash := hex.EncodeToString(m.Hash)
 	s := p.state.signatures[hash]
@@ -98,8 +100,6 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 		)
 	}
-
-	observationsReceivedTotal.Inc()
 
 	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
 	// the public key that was used to sign the payload.
