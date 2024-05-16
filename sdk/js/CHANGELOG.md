@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.16
+
+Add X Layer mainnet support
+
 ## 0.10.15
 
 Add Provenance to cosmwasm chains
