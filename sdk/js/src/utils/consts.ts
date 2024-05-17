@@ -324,8 +324,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   xlayer: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x194B123c5E96B9b2E49763619985790Dc241CAC0",
+    token_bridge: "0x5537857664B0f9eFe38C9f320F75fEf23234D904",
     nft_bridge: undefined,
   },
   linea: {
