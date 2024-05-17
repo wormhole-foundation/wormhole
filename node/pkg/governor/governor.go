@@ -242,9 +242,9 @@ func (gov *ChainGovernor) initConfig() error {
 	configChains := chainList()
 
 	if gov.env == common.UnsafeDevNet {
-		configTokens, configChains = gov.initDevnetConfig()
+		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
-		configTokens, configChains = gov.initTestnetConfig()
+		configTokens, flowCancelTokens, configChains = gov.initTestnetConfig()
 	}
 
 	for _, ct := range configTokens {
