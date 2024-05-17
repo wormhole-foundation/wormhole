@@ -103,8 +103,9 @@ func (gov *ChainGovernor) Status() (resp string) {
 	for _, ce := range gov.chains {
 		valueTrans, err := sumValue(ce.transfers, startTime)
 		if err != nil {
-			// Print an error to the logs. We don't want to actually return an error or otherwise stop
-			// execution in this case.
+			// We don't want to actually return an error or otherwise stop
+			// execution in this case. Instead of propagating the error here, print the contents of the
+			// error message.
 			return fmt.Sprintf("chain: %v, dailyLimit: OVERFLOW. error: %s", ce.emitterChainId, err)
 		}
 		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
