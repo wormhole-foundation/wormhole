@@ -1,0 +1,20 @@
+FROM node:iron-slim@sha256:cffed8cd39d6a380434e6d08116d188c53e70611175cd5ec7700f93f32a935a6
+
+RUN mkdir -p /home/node/app/ethereum
+
+WORKDIR /home/node/app/ethereum
+RUN apt-get update && apt-get -y install \
+  git make curl
+
+RUN curl -L https://foundry.paradigm.xyz | bash
+RUN $HOME/.foundry/bin/foundryup --version nightly-7469d79cca59e0bb5f23563ac5a6bd5f2ec8c5e4
+RUN cp $HOME/.foundry/bin/* /bin/
+
+COPY . .
+ENV ENV=mainnet
+ENV DEV=False
+RUN make build
+
+RUN npm run build:typescript
+
+CMD ["node", "build-ts/ts-scripts/relayer/wormholeRelayer/verifyWormholeRelayerDeployedByteCode.js"]
