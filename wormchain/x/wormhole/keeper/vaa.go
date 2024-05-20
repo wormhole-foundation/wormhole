@@ -43,10 +43,10 @@ func (k Keeper) CalculateQuorum(ctx sdk.Context, guardianSetIndex uint32) (int, 
 	// On testnet, the block height is different (and so is the block time
 	// slightly). There, we switch over at 2pm UTC 07/02/2024.
 	// On mainnet, the average block time is 5.77 seconds.
-	// We are targeting the cutover to happen on 5/28/2024 ~8am UTC.
-	// At 5.77 blocks/second, this is ~112,305 blocks from 5/20/2024 at 8pm UTC, which has block height of 8,502,967.
-	// Therefore, 8,502,967 + 112,305 = 8,615,272
-	if (isMainnet && ctx.BlockHeight() < 8615272) || (isTestnet && ctx.BlockHeight() < 7468418) {
+	// We are targeting the cutover to happen on 5/29/2024 ~8am UTC.
+	// At 5.77 blocks/second, this is ~127,279 blocks from 5/20/2024 at 8pm UTC, which had a block height of 8,503,027.
+	// Therefore, 8,503,027 + 127,279 = 8,630,306
+	if (isMainnet && ctx.BlockHeight() < 8630306) || (isTestnet && ctx.BlockHeight() < 7468418) {
 		// old
 		if 0 < guardianSet.ExpirationTime && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
 			return 0, nil, types.ErrGuardianSetExpired
