@@ -357,7 +357,7 @@ export async function getWormholeRelayerInfoByHash(
   // There is weirdness with arbitrum where if you call 'block.number', it gives you the L1 block number (the ethereum one) - and this is what is stored in the 'replay protection mapping' - so basically that value isn't useful in finding the delivery here
   const blockRange =
     infoRequest?.targetBlockRange ||
-    (targetChain === "arbitrum"
+    (targetChain === "arbitrum" || targetChain === "arbitrum_sepolia"
       ? undefined
       : [blockNumber.toNumber(), blockNumber.toNumber()]);
 
