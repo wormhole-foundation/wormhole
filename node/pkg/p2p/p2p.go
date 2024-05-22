@@ -345,6 +345,7 @@ func Run(
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
 			pubsub.WithGossipSubParams(components.GossipParams),
+			pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		)
 		if err != nil {
 			panic(err)
