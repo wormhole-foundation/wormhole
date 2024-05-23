@@ -11,7 +11,6 @@ import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
   executeTransactionBlock,
-  getForeignAssetSui,
   getPackageId,
   getProvider,
   getSigner,
@@ -28,6 +27,7 @@ import {
   contracts,
   deserialize,
 } from "@wormhole-foundation/sdk";
+import { getForeignAssetSui } from "../../sdk/sui";
 
 export const submit = async (
   payload: Payload,

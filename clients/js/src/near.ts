@@ -1,21 +1,19 @@
 import BN from "bn.js";
 import { Account, connect, KeyPair } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
-import { Provider } from "near-api-js/lib/providers";
-import { CodeResult } from "near-api-js/lib/providers/provider";
 import { NETWORKS } from "./consts";
 import { impossible, Payload } from "./vaa";
 import {
   transferNearFromNear,
   transferTokenFromNear,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   chainToChainId,
   contracts,
   Network,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 export function keyPairToImplicitAccount(keyPair: KeyPair): string {
   return Buffer.from(keyPair.getPublicKey().data).toString("hex");
@@ -221,41 +219,4 @@ export async function transferNear(
       console.log(result.transaction.hash);
     }
   }
-}
-
-export async function hashLookup(
-  provider: Provider,
-  tokenBridge: string,
-  hash: string
-): Promise<{ found: boolean; value: string }> {
-  const [found, value] = await callFunctionNear(
-    provider,
-    tokenBridge,
-    "hash_lookup",
-    {
-      hash,
-    }
-  );
-  return {
-    found,
-    value,
-  };
-}
-
-export async function callFunctionNear(
-  provider: Provider,
-  accountId: string,
-  methodName: string,
-  args?: any
-) {
-  const response = await provider.query<CodeResult>({
-    request_type: "call_function",
-    account_id: accountId,
-    method_name: methodName,
-    args_base64: args
-      ? Buffer.from(JSON.stringify(args)).toString("base64")
-      : "",
-    finality: "final",
-  });
-  return JSON.parse(Buffer.from(response.result).toString());
 }

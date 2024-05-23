@@ -65,7 +65,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to register",
-              choices: chains,
+              type: "string",
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -108,7 +108,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to upgrade",
-              choices: chains,
+              type: "string",
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -149,7 +149,7 @@ export const builder = function (y: typeof yargs) {
             .option("emitter-chain", {
               alias: "e",
               describe: "Emitter chain of the VAA",
-              choices: chains,
+              type: "string",
               demandOption: true,
             } as const)
             .option("emitter-address", {
@@ -161,7 +161,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Token's chain",
-              choices: chains,
+              type: "string",
               demandOption: true,
             } as const)
             .option("token-address", {
@@ -189,9 +189,8 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             }),
         (argv) => {
-          const emitter_chain = argv["emitter-chain"];
+          const emitter_chain = chainToChain(argv["emitter-chain"]);
           const chain = chainToChain(argv.chain);
-          const emitterChain = chainToChain(emitter_chain);
           const payload: TokenBridgeAttestMeta = {
             module: "TokenBridge",
             type: "AttestMeta",
@@ -203,8 +202,8 @@ export const builder = function (y: typeof yargs) {
             name: argv["name"],
           };
           const vaa = makeVAA(
-            toChainId(emitterChain),
-            parseAddress(emitterChain, argv["emitter-address"]),
+            toChainId(emitter_chain),
+            parseAddress(emitter_chain, argv["emitter-address"]),
             argv["guardian-secret"].split(","),
             payload
           );
@@ -260,7 +259,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain of Wormhole Relayer contract",
-              choices: chains,
+              type: "string",
               demandOption: true,
             } as const)
             .option("delivery-provider-address", {

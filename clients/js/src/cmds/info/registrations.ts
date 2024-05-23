@@ -26,7 +26,7 @@ export const builder = (y: typeof yargs) => {
     } as const)
     .positional("chain", {
       describe: "Chain to query",
-      choices: chains,
+      type: "string",
       demandOption: true,
     } as const)
     .positional("module", {

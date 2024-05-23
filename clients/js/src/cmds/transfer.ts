@@ -1,10 +1,4 @@
-import {
-  isCosmWasmChain,
-  isEVMChain,
-  isTerraChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
-import { impossible } from "../vaa";
 import { transferEVM } from "../evm";
 import { CHAIN_NAME_CHOICES, NETWORK_OPTIONS, NETWORKS } from "../consts";
 import { transferTerra } from "../terra";
@@ -18,11 +12,10 @@ import { transferAptos } from "../aptos";
 import {
   Chain,
   PlatformToChains,
-  chain,
   chainToPlatform,
   toChain,
 } from "@wormhole-foundation/sdk-base";
-import { getNetwork } from "../utils";
+import { chainToChain, getNetwork } from "../utils";
 
 export const command = "transfer";
 export const desc = "Transfer a token";
@@ -30,12 +23,12 @@ export const builder = (y: typeof yargs) =>
   y
     .option("src-chain", {
       describe: "source chain",
-      choices: CHAIN_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     })
     .option("dst-chain", {
       describe: "destination chain",
-      choices: CHAIN_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     })
     .option("dst-addr", {
@@ -65,8 +58,8 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const srcChain: Chain = argv["src-chain"];
-  const dstChain: Chain = argv["dst-chain"];
+  const srcChain: Chain = chainToChain(argv["src-chain"]);
+  const dstChain: Chain = chainToChain(argv["dst-chain"]);
   // TODO: support transfers to sei
   if (dstChain === "Sei") {
     throw new Error("transfer to sei currently unsupported");
@@ -88,7 +81,6 @@ export const handler = async (
   if (!rpc) {
     throw new Error(`No ${network} rpc defined for ${srcChain}`);
   }
-  // if (isEVMChain(srcChain)) {
   if (chainToPlatform(srcChain) === "Evm") {
     await transferEVM(
       srcChain as PlatformToChains<"Evm">,

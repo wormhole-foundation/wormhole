@@ -6,10 +6,7 @@ import { NETWORKS } from "./consts";
 import { Payload, impossible } from "./vaa";
 import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
 import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
-import {
-  generateSignAndSubmitEntryFunction,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk/lib/esm/utils";
+import { generateSignAndSubmitEntryFunction } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   ChainId,
@@ -18,6 +15,7 @@ import {
   contracts,
   toChainId,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_aptos(
   payload: Payload,
@@ -391,7 +389,6 @@ export async function queryRegistrationsAptos(
 ): Promise<Object> {
   const n = NETWORKS[network]["Aptos"];
   const client = new AptosClient(n.rpc);
-  // const contracts = CONTRACTS[network]["aptos"];
   let stateObjectId: string | undefined;
 
   switch (module) {

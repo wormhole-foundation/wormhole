@@ -9,7 +9,12 @@ import {
   setStorageAt,
 } from "../evm";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
-import { assertEVMChain, evm_address, getNetwork } from "../utils";
+import {
+  assertEVMChain,
+  chainToChain,
+  evm_address,
+  getNetwork,
+} from "../utils";
 import {
   assertChain,
   chains,
@@ -88,7 +93,7 @@ export const builder = function (y: typeof yargs) {
           .option("chain", {
             alias: "c",
             describe: "Chain to query",
-            choices: chains,
+            type: "string",
             demandOption: true,
           } as const)
           .option("module", {
@@ -112,8 +117,7 @@ export const builder = function (y: typeof yargs) {
             demandOption: false,
           }),
       async (argv) => {
-        const chain = argv.chain;
-        assertChain(chain);
+        const chain = chainToChain(argv.chain);
         assertEVMChain(chain);
         const network = getNetwork(argv.network);
         const module = argv.module;
@@ -171,7 +175,6 @@ export const builder = function (y: typeof yargs) {
           }),
       async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",");
-        // let rpc = argv.rpc ?? NETWORKS.DEVNET.ethereum.rpc;
         let rpc = argv.rpc ?? NETWORKS.Devnet.Ethereum.rpc;
         await hijack_evm(
           rpc,

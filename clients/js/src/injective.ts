@@ -16,7 +16,6 @@ import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { impossible, Payload } from "./vaa";
 import { transferFromInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   chainToChainId,
@@ -24,6 +23,7 @@ import {
   Network,
 } from "@wormhole-foundation/sdk-base";
 import { chains } from "@wormhole-foundation/sdk";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_injective(
   payload: Payload,

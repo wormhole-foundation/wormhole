@@ -7,22 +7,7 @@ import {
   sha256,
   stripZeros,
 } from "ethers/lib/utils";
-// import { Provider as NearProvider } from "near-api-js/lib/providers";
-// import { ethers } from "ethers";
-import {
-  nativeStringToHexAlgorand,
-  // hexToNativeAssetStringAlgorand,
-  // nativeStringToHexAlgorand,
-  uint8ArrayToNativeStringAlgorand,
-} from "./algorand";
 import { bech32 } from "bech32";
-// import { canonicalAddress, humanAddress } from "./cosmos";
-// import { buildTokenId } from "./cosmwasm/address";
-// import { isNativeDenom } from "./terra";
-// import { hashLookup } from "./near";
-// import { getExternalAddressFromType, isValidAptosType } from "./aptos";
-// import { isValidSuiAddress } from "@mysten/sui.js";
-// import { isValidSuiType } from "./sui";
 import {
   Chain,
   ChainId,
@@ -34,31 +19,34 @@ import {
 import {
   PlatformToChains,
   UniversalAddress,
-  // canonicalAddress,
   encoding,
-  platformToChains,
 } from "@wormhole-foundation/sdk";
+import { chainToNativeDenoms } from "@wormhole-foundation/sdk-cosmwasm";
 import { isValidSuiAddress } from "@mysten/sui.js";
-import { isValidSuiType } from "./chains/sui";
 import { sha3_256 } from "js-sha3";
+import {
+  nativeStringToHexAlgorand,
+  uint8ArrayToNativeStringAlgorand,
+} from "@certusone/wormhole-sdk/lib/esm/algorand";
+import { isValidSuiType } from "@certusone/wormhole-sdk/lib/esm/sui";
 
-// /**
-//  *
-//  * Returns true iff the hex string represents a native Terra denom.
-//  *
-//  * Native assets on terra don't have an associated smart contract address, just
-//  * like eth isn't an ERC-20 contract on Ethereum.
-//  *
-//  * The difference is that the EVM implementations of Portal don't support eth
-//  * directly, and instead require swapping to an ERC-20 wrapped eth (WETH)
-//  * contract first.
-//  *
-//  * The Terra implementation instead supports Terra-native denoms without
-//  * wrapping to CW-20 token first. As these denoms don't have an address, they
-//  * are encoded in the Portal payloads by the setting the first byte to 1.  This
-//  * encoding is safe, because the first 12 bytes of the 32-byte wormhole address
-//  * space are not used on Terra otherwise, as cosmos addresses are 20 bytes wide.
-//  */
+/**
+ *
+ * Returns true iff the hex string represents a native Terra denom.
+ *
+ * Native assets on terra don't have an associated smart contract address, just
+ * like eth isn't an ERC-20 contract on Ethereum.
+ *
+ * The difference is that the EVM implementations of Portal don't support eth
+ * directly, and instead require swapping to an ERC-20 wrapped eth (WETH)
+ * contract first.
+ *
+ * The Terra implementation instead supports Terra-native denoms without
+ * wrapping to CW-20 token first. As these denoms don't have an address, they
+ * are encoded in the Portal payloads by the setting the first byte to 1.  This
+ * encoding is safe, because the first 12 bytes of the 32-byte wormhole address
+ * space are not used on Terra otherwise, as cosmos addresses are 20 bytes wide.
+ */
 export const isHexNativeTerra = (h: string): boolean => h.startsWith("01");
 
 const isLikely20ByteCosmwasm = (h: string): boolean =>
@@ -66,12 +54,6 @@ const isLikely20ByteCosmwasm = (h: string): boolean =>
 
 export const nativeTerraHexToDenom = (h: string): string =>
   Buffer.from(stripZeros(hexToUint8Array(h.substr(2)))).toString("ascii");
-
-export const isNativeDenom = (string = "") =>
-  isNativeTerra(string) || string === "uluna";
-
-export const isNativeTerra = (string = "") =>
-  string.startsWith("u") && string.length === 4;
 
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   encoding.hex.encode(a);
@@ -88,28 +70,14 @@ export function humanAddress(hrp: string, canonicalAddress: Uint8Array) {
 }
 
 export function buildTokenId(
-  chain: Exclude<PlatformToChains<"Cosmwasm">, "Terra">,
+  chain: Exclude<PlatformToChains<"Cosmwasm">, "Seda">,
   address: string
 ) {
   return (
-    (isNativeCosmWasmDenom(chain, address) ? "01" : "00") +
+    (chainToNativeDenoms("Mainnet", chain) === address ? "01" : "00") +
     keccak256(Buffer.from(address, "utf-8")).substring(4)
   );
 }
-
-// export function buildTokenId_old(
-//   chain: Exclude<
-//     CosmWasmChainId | CosmWasmChainName,
-//     typeof CHAIN_ID_TERRA | "terra"
-//   >,
-//   address: string
-// ) {
-//   const chainId: CosmWasmChainId = coalesceCosmWasmChainId(chain);
-//   return (
-//     (isNativeCosmWasmDenom(chainId, address) ? "01" : "00") +
-//     keccak256(Buffer.from(address, "utf-8")).substring(4)
-//   );
-// }
 
 /**
  *
@@ -192,18 +160,6 @@ export const tryUint8ArrayToNative = (
   }
 };
 
-// export const tryHexToNativeStringNear = async (
-//   provider: NearProvider,
-//   tokenBridge: string,
-//   address: string
-// ): Promise<string> => {
-//   const { found, value } = await hashLookup(provider, tokenBridge, address);
-//   if (!found) {
-//     throw new Error("Address not found");
-//   }
-//   return value;
-// };
-
 /**
  *
  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
@@ -216,59 +172,6 @@ export const tryHexToNativeAssetString = (h: string, c: ChainId): string =>
     ? // Algorand assets are represented by their asset ids, not an address
       new UniversalAddress(h).toNative("Algorand").toBigInt().toString()
     : new UniversalAddress(h).toNative(toChain(c)).toString();
-
-// /**
-//  *
-//  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
-//  * string representation.
-//  *
-//  * @deprecated since 0.3.0, use [[tryHexToNativeString]] instead.
-//  */
-// export const hexToNativeAssetString = (
-//   h: string | undefined,
-//   c: ChainId
-// ): string | undefined => {
-//   if (!h) {
-//     return undefined;
-//   }
-//   try {
-//     return tryHexToNativeAssetString(h, c);
-//   } catch (e) {
-//     return undefined;
-//   }
-// };
-
-// /**
-//  *
-//  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
-//  * string representation.
-//  *
-//  * @throws if address is not the right length for the given chain
-//  */
-// export const tryHexToNativeString = (h: string, c: ChainId | Chain): string =>
-//   tryUint8ArrayToNative(hexToUint8Array(h), c);
-
-// /**
-//  *
-//  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
-//  * string representation.
-//  *
-//  * @deprecated since 0.3.0, use [[tryHexToNativeString]] instead.
-//  */
-// export const hexToNativeString = (
-//   h: string | undefined,
-//   c: ChainId | Chain
-// ): string | undefined => {
-//   if (!h) {
-//     return undefined;
-//   }
-
-//   try {
-//     return tryHexToNativeString(h, c);
-//   } catch (e) {
-//     return undefined;
-//   }
-// };
 
 /**
  *
@@ -287,7 +190,7 @@ export const tryNativeToHexString = (
   } else if (chainToPlatform(chainName) === "Solana") {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
   } else if (chainName === "Terra") {
-    if (isNativeDenom(address)) {
+    if (chainToNativeDenoms("Mainnet", chainName) === address) {
       return (
         "01" +
         uint8ArrayToHex(
@@ -331,24 +234,6 @@ export const tryNativeToHexString = (
   }
 };
 
-// /**
-//  *
-//  * Convert an address in a chain's native representation into a 32-byte hex string
-//  * understood by wormhole.
-//  *
-//  * @deprecated since 0.3.0, use [[tryNativeToHexString]] instead.
-//  * @throws if address is a malformed string for the given chain id
-//  */
-// export const nativeToHexString = (
-//   address: string | undefined,
-//   chain: ChainId | Chain
-// ): string | null => {
-//   if (!address) {
-//     return null;
-//   }
-//   return tryNativeToHexString(address, chain);
-// };
-
 /**
  *
  * Convert an address in a chain's native representation into a 32-byte array
@@ -362,82 +247,6 @@ export function tryNativeToUint8Array(
 ): Uint8Array {
   const chainId = toChainId(chain);
   return hexToUint8Array(tryNativeToHexString(address, chainId));
-}
-
-// /**
-//  *
-//  * Convert an address in a chain's native representation into a 32-byte hex string
-//  * understood by wormhole.
-//  *
-//  * @deprecated since 0.3.0, use [[tryUint8ArrayToNative]] instead.
-//  * @throws if address is a malformed string for the given chain id
-//  */
-// export const uint8ArrayToNative = (a: Uint8Array, chainId: ChainId) =>
-//   hexToNativeString(uint8ArrayToHex(a), chainId);
-
-// export function chunks<T>(array: T[], size: number): T[][] {
-//   return Array.apply<number, T[], T[][]>(
-//     0,
-//     new Array(Math.ceil(array.length / size))
-//   ).map((_, index) => array.slice(index * size, (index + 1) * size));
-// }
-
-// export function textToHexString(name: string): string {
-//   return Buffer.from(name, "binary").toString("hex");
-// }
-
-// export function textToUint8Array(name: string): Uint8Array {
-//   return new Uint8Array(Buffer.from(name, "binary"));
-// }
-
-// export function hex(x: string): Buffer {
-//   return Buffer.from(
-//     ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
-//     "hex"
-//   );
-// }
-
-// export function ensureHexPrefix(x: string): string {
-//   return x.substring(0, 2) !== "0x" ? `0x${x}` : x;
-// }
-
-export const isNativeDenomInjective = (denom: string) => denom === "inj";
-export const isNativeDenomXpla = (denom: string) => denom === "axpla";
-export const isNativeDenomSei = (denom: string) => denom === "usei";
-export const isNativeDenomWormchain = (denom: string) => denom === "uworm";
-export const isNativeDenomOsmosis = (denom: string) => denom === "uosmo";
-export const isNativeDenomCosmosHub = (denom: string) => denom === "uatom";
-export const isNativeDenomEvmos = (denom: string) =>
-  denom === "aevmos" || denom === "atevmos";
-export const isNativeDenomKujira = (denom: string) => denom === "ukuji";
-export const isNativeDenomNeutron = (denom: string) => denom === "untrn";
-export const isNativeDenomCelestia = (denom: string) => denom === "utia";
-export const isNativeDenomStargaze = (denom: string) => denom === "ustars";
-export const isNativeDenomSeda = (denom: string) => denom === "aseda";
-export const isNativeDenomDymension = (denom: string) => denom === "adym";
-export const isNativeDenomProvenance = (denom: string) => denom === "nhash";
-
-export function isNativeCosmWasmDenom(
-  chain: PlatformToChains<"Cosmwasm">,
-  address: string
-) {
-  return (
-    ((chain === "Terra" || chain === "Terra2") && isNativeDenom(address)) ||
-    (chain === "Injective" && isNativeDenomInjective(address)) ||
-    (chain === "Xpla" && isNativeDenomXpla(address)) ||
-    (chain === "Sei" && isNativeDenomSei(address)) ||
-    (chain === "Wormchain" && isNativeDenomWormchain(address)) ||
-    (chain === "Osmosis" && isNativeDenomOsmosis(address)) ||
-    (chain === "Cosmoshub" && isNativeDenomCosmosHub(address)) ||
-    (chain === "Evmos" && isNativeDenomEvmos(address)) ||
-    (chain === "Kujira" && isNativeDenomKujira(address)) ||
-    (chain === "Neutron" && isNativeDenomNeutron(address)) ||
-    (chain === "Celestia" && isNativeDenomCelestia(address)) ||
-    (chain === "Stargaze" && isNativeDenomStargaze(address)) ||
-    (chain === "Seda" && isNativeDenomSeda(address)) ||
-    (chain === "Dymension" && isNativeDenomDymension(address)) ||
-    (chain === "Provenance" && isNativeDenomProvenance(address))
-  );
 }
 
 /**

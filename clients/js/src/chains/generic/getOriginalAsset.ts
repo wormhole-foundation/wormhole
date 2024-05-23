@@ -17,7 +17,6 @@ import {
   Chain,
   ChainId,
   Network,
-  chainToChainId,
   chainToPlatform,
   contracts,
   toChain,
@@ -34,9 +33,8 @@ import algorand from "@wormhole-foundation/sdk/algorand";
 import aptos from "@wormhole-foundation/sdk/aptos";
 import cosmwasm from "@wormhole-foundation/sdk/cosmwasm";
 import sui from "@wormhole-foundation/sdk/sui";
-// import { WormholeWrappedInfo } from "@certusone/wormhole-sdk";
 
-export const getOriginalAsset_old = async (
+export const getOriginalAsset = async (
   chain: ChainId | Chain,
   network: Network,
   assetAddress: string,
@@ -92,13 +90,6 @@ export const getOriginalAsset_old = async (
         assetAddress,
         toChainId(chain)
       );
-      // const wh = await wormhole(network, [evm]);
-      // const asset = Wormhole.tokenId(chainName, assetAddress);
-      // const tokenId = await wh.getOriginalAsset(asset);
-      // let wwi: WormholeWrappedInfo = {
-      //   chainId: chainToChainId(chainName),
-      //   tokenId: tokenId,
-      // };
     }
     case "Terra":
     case "Terra2": {
@@ -155,46 +146,4 @@ export const getOriginalAsset_old = async (
     default:
       impossible(chainName);
   }
-};
-
-export const getOriginalAsset_new = async (
-  chain: ChainId | Chain,
-  network: Network,
-  assetAddress: string
-): Promise<TokenId> => {
-  const chainName = toChain(chain);
-  const asset = Wormhole.tokenId(chainName, assetAddress);
-  const platform = chainToPlatform(chainName);
-  let wh;
-  wh = await wormhole(network, [solana, evm, algorand, aptos, cosmwasm, sui]);
-  // switch (platform) {
-  //   case "Solana": {
-  //     wh = await wormhole(network, [solana]);
-  //   }
-  //   case "Evm": {
-  //     wh = await wormhole(network, [evm]);
-  //   }
-  //   case "Algorand": {
-  //     wh = await wormhole(network, [algorand]);
-  //   }
-  //   case "Aptos": {
-  //     wh = await wormhole(network, [aptos]);
-  //   }
-  //   case "Btc": {
-  //     wh = await wormhole(network, [btc]);
-  //   }
-  //   case "Cosmwasm": {
-  //     wh = await wormhole(network, [cosmwasm]);
-  //   }
-  //   case "Near": {
-  //     wh = await wormhole(network, [near]);
-  //   }
-  //   case "Sui": {
-  //     wh = await wormhole(network, [sui]);
-  //   }
-  // }
-  // if (wh) {
-  return wh.getOriginalAsset(asset);
-  // }
-  throw new Error(`${platform} not supported`);
 };

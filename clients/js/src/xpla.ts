@@ -10,13 +10,13 @@ import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { Payload, impossible } from "./vaa";
 import { transferFromXpla } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   chainToChainId,
   contracts,
   Network,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_xpla(
   payload: Payload,

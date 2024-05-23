@@ -5,13 +5,13 @@ import {
   getSigner,
   setMaxGasBudgetDevnet,
 } from "./utils";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   Network,
   chainToChainId,
   contracts,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "../../sdk/array";
 
 export async function transferSui(
   dstChain: Chain,

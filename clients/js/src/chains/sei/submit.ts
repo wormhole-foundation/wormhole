@@ -15,7 +15,6 @@ export const submit = async (
   network: Network,
   rpc?: string
 ) => {
-  // const contracts = CONTRACTS[network].Sei;
   const networkInfo = NETWORKS[network].Sei;
   rpc = rpc || networkInfo.rpc;
   const key = networkInfo.key;
@@ -37,7 +36,6 @@ export const submit = async (
       }
 
       target_contract = core;
-      // sigh...
       execute_msg = {
         submit_v_a_a: {
           vaa: vaa.toString("base64"),
@@ -61,9 +59,6 @@ export const submit = async (
     case "NFTBridge": {
       const nft = contracts.nftBridge.get(network, "Sei");
       if (!nft) {
-        // NOTE: this code can safely be removed once the sei NFT bridge is
-        // released, but it's fine for it to stay, as the condition will just be
-        // skipped once 'contracts.nft_bridge' is defined
         throw new Error("NFT bridge not supported yet for Sei");
       }
 

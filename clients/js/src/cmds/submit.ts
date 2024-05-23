@@ -3,7 +3,7 @@ import { execute_algorand } from "../algorand";
 import { execute_aptos } from "../aptos";
 import { submit as submitSei } from "../chains/sei";
 import { submit as submitSui } from "../chains/sui";
-import { CHAIN_NAME_CHOICES, NETWORK_OPTIONS } from "../consts";
+import { NETWORK_OPTIONS } from "../consts";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
@@ -12,18 +12,18 @@ import { execute_terra } from "../terra";
 import { assertKnownPayload, impossible, parse, Payload, VAA } from "../vaa";
 import { execute_xpla } from "../xpla";
 import { NETWORKS } from "../consts";
-import { getNetwork } from "../utils";
+import { chainToChain, getNetwork } from "../utils";
 import {
   Chain,
   Network,
   PlatformToChains,
   assertChain,
   assertChainId,
+  chainIdToChain,
   chainToPlatform,
   chains,
   contracts,
   toChain,
-  toChainId,
 } from "@wormhole-foundation/sdk";
 
 export const command = "submit <vaa>";
@@ -38,7 +38,7 @@ export const builder = (y: typeof yargs) =>
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      choices: CHAIN_NAME_CHOICES,
+      type: "string",
       demandOption: false,
     } as const)
     .option("network", NETWORK_OPTIONS)
@@ -102,22 +102,34 @@ export const handler = async (
   // get VAA chain
   const vaa_chain_id =
     "chain" in parsed_vaa.payload ? parsed_vaa.payload.chain : 0;
-  assertChainId(vaa_chain_id);
-  const vaa_chain = toChain(vaa_chain_id);
+
+  // if vaa_chain_id is 0, it means the chain is not specified in the VAA.
+  // We don't have a notion of an unsupported chain, so we don't want to just assert.
+  let vaa_chain;
+  if (vaa_chain_id !== 0) {
+    assertChainId(vaa_chain_id);
+    vaa_chain = chainIdToChain(vaa_chain_id);
+  }
 
   // get chain from command line arg
-  const cli_chain = argv.chain;
+  const cli_chain = argv.chain ? chainToChain(argv.chain) : argv.chain;
 
   let chain: Chain;
   if (cli_chain !== undefined) {
     assertChain(cli_chain);
-    if (cli_chain !== vaa_chain) {
+    if (vaa_chain && cli_chain !== vaa_chain) {
       throw Error(
         `Specified target chain (${cli_chain}) does not match VAA target chain (${vaa_chain})`
       );
     }
     chain = toChain(cli_chain);
   } else {
+    if (!vaa_chain) {
+      throw Error(
+        `VAA does not specify a target chain and one was not provided, please specify one with --chain or -c`
+      );
+    }
+    assertChain(vaa_chain);
     chain = vaa_chain;
   }
 

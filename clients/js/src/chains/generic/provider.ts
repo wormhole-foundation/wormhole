@@ -53,7 +53,6 @@ export const getProviderForChain = <T extends Chain>(
   network: Network,
   options?: { rpc?: string; [opt: string]: any }
 ): ChainProvider<T> => {
-  // const chainName = toChain(chain);
   const rpc = options?.rpc ?? NETWORKS[network][chain].rpc;
   if (!rpc) {
     throw new Error(`No ${network} rpc defined for ${chain}`);

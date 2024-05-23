@@ -16,7 +16,6 @@ import {
   transferFromEth,
   transferFromEthNative,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   Network,
@@ -25,6 +24,7 @@ import {
   chains,
   contracts,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 const _IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";

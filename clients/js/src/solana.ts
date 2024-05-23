@@ -25,10 +25,6 @@ import {
   transferFromSolana,
   transferNativeSol,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import {
-  hexToUint8Array,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk/lib/esm/utils";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import {
@@ -39,9 +35,9 @@ import {
   chainToPlatform,
   chains,
   contracts,
-  platform,
   platformToChains,
 } from "@wormhole-foundation/sdk-base";
+import { hexToUint8Array, tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -65,7 +61,6 @@ export async function execute_solana(
   const connection = setupConnection(rpc);
   const from = web3s.Keypair.fromSecretKey(base58.decode(key));
 
-  // const contracts = CONTRACTS[network][chain];
   const coreContract = contracts.coreBridge.get(network, chain);
   if (!coreContract) {
     throw new Error(`Core bridge address not defined for ${chain} ${network}`);

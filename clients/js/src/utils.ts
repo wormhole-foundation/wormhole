@@ -53,8 +53,8 @@ export function getNetwork(network: string): Network {
 }
 
 export function chainToChain(input: string): Chain {
-  if (input.length === 0) {
-    throw new Error("Empty chain");
+  if (input.length < 2) {
+    throw new Error(`Invalid chain: ${input}`);
   }
   const chainStr = input[0].toUpperCase() + input.slice(1).toLowerCase();
   return toChain(chainStr);

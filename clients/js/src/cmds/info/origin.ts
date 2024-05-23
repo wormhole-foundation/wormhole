@@ -1,9 +1,8 @@
-// import { tryUint8ArrayToNative } from "@certusone/wormhole-sdk/lib/esm/utils";
 import yargs from "yargs";
-import { getOriginalAsset_old } from "../../chains/generic";
+import { getOriginalAsset } from "../../chains/generic";
 import { CHAIN_ID_OR_NAME_CHOICES, RPC_OPTIONS } from "../../consts";
 import { getNetwork } from "../../utils";
-import { tryUint8ArrayToNative } from "../../array";
+import { tryUint8ArrayToNative } from "../../sdk/array";
 import { toChain } from "@wormhole-foundation/sdk-base";
 
 export const command = "origin <chain> <address>";
@@ -35,7 +34,7 @@ export const handler = async (
   console.warn = () => {};
 
   const network = getNetwork(argv.network);
-  const res = await getOriginalAsset_old(argv.chain, network, argv.address);
+  const res = await getOriginalAsset(argv.chain, network, argv.address);
   console.log({
     ...res,
     assetAddress: tryUint8ArrayToNative(res.assetAddress, toChain(res.chainId)),

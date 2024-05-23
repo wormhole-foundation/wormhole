@@ -96,24 +96,24 @@ aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress
 
 # 4) create token bridge registration VAAs
 # invoke CLI commands to create registration VAAs
-solTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
-ethTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
-terraTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
-bscTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
-algoTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
-nearTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
-terra2TokenBridgeVAA=$(worm generate registration -m TokenBridge -c Terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
-suiTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
-aptosTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
-wormchainTokenBridgeVAA=$(worm generate registration -m TokenBridge -c Wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
+solTokenBridgeVAA=$(worm generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
+ethTokenBridgeVAA=$(worm generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
+terraTokenBridgeVAA=$(worm generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
+bscTokenBridgeVAA=$(worm generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
+algoTokenBridgeVAA=$(worm generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
+nearTokenBridgeVAA=$(worm generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
+terra2TokenBridgeVAA=$(worm generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
+suiTokenBridgeVAA=$(worm generate registration -m TokenBridge -c sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
+aptosTokenBridgeVAA=$(worm generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
+wormchainTokenBridgeVAA=$(worm generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
 echo "generating contract registration VAAs for nft bridges"
-solNFTBridgeVAA=$(worm generate registration -m NFTBridge -c Solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
-ethNFTBridgeVAA=$(worm generate registration -m NFTBridge -c Ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
-nearNFTBridgeVAA=$(worm generate registration -m NFTBridge -c Near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
-aptosNFTBridgeVAA=$(worm generate registration -m NFTBridge -c Aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
+solNFTBridgeVAA=$(worm generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
+ethNFTBridgeVAA=$(worm generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
+nearNFTBridgeVAA=$(worm generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
+aptosNFTBridgeVAA=$(worm generate registration -m NFTBridge -c aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
 
 
 # 6) write the registration VAAs to env files

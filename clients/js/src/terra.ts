@@ -11,7 +11,6 @@ import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { Payload, impossible } from "./vaa";
 import { transferFromTerra } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 import {
   Chain,
   Network,
@@ -19,6 +18,7 @@ import {
   contracts,
   toChainId,
 } from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_terra(
   payload: Payload,

@@ -20,7 +20,7 @@ import {
   toChain,
   toChainId,
 } from "@wormhole-foundation/sdk-base";
-import { tryNativeToUint8Array } from "../../array";
+import { tryNativeToUint8Array } from "../../sdk/array";
 
 export const getWrappedAssetAddress = async (
   chain: ChainId | Chain,

@@ -1,4 +1,3 @@
-import { APTOS_DEPLOYER_ADDRESS_DEVNET } from "@certusone/wormhole-sdk";
 import { BCS, FaucetClient } from "aptos";
 import { spawnSync } from "child_process";
 import fs from "fs";
@@ -32,6 +31,9 @@ const APTOS_NODE_URL = "http://0.0.0.0:8080/v1";
 const APTOS_FAUCET_URL = "http://0.0.0.0:8081";
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/aptos/README.md";
+
+export const APTOS_DEPLOYER_ADDRESS_DEVNET =
+  "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 
 interface Package {
   meta_file: string;
@@ -194,9 +196,7 @@ export const builder = (y: typeof yargs) =>
         const b = serializePackage(p);
         const seed = Buffer.from(argv["seed"], "ascii");
 
-        // TODO(csongor): use deployer address from sdk (when it's there)
-        let module_name =
-          "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
+        let module_name = APTOS_DEPLOYER_ADDRESS_DEVNET + "::deployer";
         if (network == "Testnet" || network == "Mainnet") {
           module_name =
             "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
@@ -227,9 +227,7 @@ export const builder = (y: typeof yargs) =>
       async (argv) => {
         const network = getNetwork(argv.network);
         const rpc = NETWORKS[network].Aptos.rpc;
-        // TODO(csongor): use sdk address
-        let module_name =
-          "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
+        let module_name = APTOS_DEPLOYER_ADDRESS_DEVNET + "::sender";
         if (network == "Testnet" || network == "Mainnet") {
           module_name =
             "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::sender";
