@@ -331,8 +331,8 @@ export async function buildOverrides(
     overrides.type = 0;
   } else if (chain.chainId === 36) {
     overrides.type = 2;
-    overrides.maxFeePerGas = ethers.utils.parseUnits("0.005", "gwei");
-    overrides.maxPriorityFeePerGas = ethers.utils.parseUnits("0.001", "gwei");
+    overrides.maxFeePerGas = ethers.utils.parseUnits("0.08", "gwei");
+    overrides.maxPriorityFeePerGas = ethers.utils.parseUnits("0.000000001", "gwei");
   }
   return overrides;
 }
