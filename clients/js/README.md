@@ -35,7 +35,7 @@ Commands:
   worm recover <digest> <signature>  Recover an address from a signature
   worm submit <vaa>                  Execute a VAA
   worm sui                           Sui utilities
-  worm verify-vaa                    Verifies a VAA by querying the core contract on Ethereum
+  worm verify-vaa                    Verifies a VAA by querying the core contract on the specified EVM chain
 
 Options:
   --help     Show help                                                 [boolean]
@@ -340,10 +340,22 @@ Options:
 
 ```sh
 Options:
-      --help     Show help                                             [boolean]
-      --version  Show version number                                   [boolean]
-  -v, --vaa      vaa in hex format                           [string] [required]
-  -n, --network  Network    [required] [choices: "mainnet", "testnet", "devnet"]
+      --help              Show help                                    [boolean]
+      --version           Show version number                          [boolean]
+  -v, --vaa               vaa in hex format                  [string] [required]
+  -n, --network           Network
+                            [required] [choices: "mainnet", "testnet", "devnet"]
+  -c, --chain             chain name
+  [required] [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
+   "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala", "kla
+  ytn", "celo", "near", "moonbeam", "neon", "terra2", "injective", "osmosis", "s
+  ui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet", "xpla", "btc", "bas
+  e", "sei", "rootstock", "scroll", "mantle", "blast", "xlayer", "linea", "berac
+  hain", "seievm", "wormchain", "cosmoshub", "evmos", "kujira", "neutron", "cele
+  stia", "stargaze", "seda", "dymension", "provenance", "sepolia", "arbitrum_sep
+        olia", "base_sepolia", "optimism_sepolia", "holesky", "polygon_sepolia"]
+  -a, --contract-address  Contract to verify VAA on (override config)   [string]
+      --rpc               RPC endpoint                                  [string]
 ```
 </details>
 
