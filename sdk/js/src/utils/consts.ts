@@ -314,8 +314,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   mantle: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6",
+    token_bridge: "0x24850c6f61C438823F01B7A3BF2B89B72174Fa9d",
     nft_bridge: undefined,
   },
   blast: {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.17
+
+Add Mantle mainnet support
+
 ## 0.10.16
 
 Add X Layer mainnet support
