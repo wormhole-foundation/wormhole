@@ -53,5 +53,8 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 37, addr: "00000000000000000000000074b7f16337b8972027f6196a17a631ac6de26d22", symbol: "USDC", coinGeckoId: "polygon-hermez-bridged-usdc-x-layer", decimals: 6, price: 0.9949},
 		{chain: 37, addr: "000000000000000000000000ea034fb02eb1808c2cc3adbc15f447b93cbe08e1", symbol: "WBTC", coinGeckoId: "polygon-hermez-bridged-wbtc-x-layer", decimals: 8, price: 57029},
 		{chain: 37, addr: "000000000000000000000000c5015b9d9161dca7e18e32f6f25c4ad850731fd4", symbol: "DAI", coinGeckoId: "polygon-hermez-bridged-dai-x-layer", decimals: 18, price: 1.0006},
+		// MANTLE (tokens over $50,000 24h volume)
+		{chain: 35, addr: "0000000000000000000000003c3a81e81dc49a522a592e7622a7e711c06bf354", symbol: "MNT", coinGeckoId: "mantle", decimals: 18, price: 1.02},
+		{chain: 35, addr: "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 0.9998},
 	}
 }
