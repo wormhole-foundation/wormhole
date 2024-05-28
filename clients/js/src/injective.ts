@@ -9,7 +9,7 @@ import {
 } from "@injectivelabs/networks";
 import {
   ChainGrpcWasmApi,
-  ChainRestAuthApi,
+  ChainGrpcAuthApi,
   createTransaction,
   MsgExecuteContractCompat,
   Msgs,
@@ -23,6 +23,7 @@ import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
 import { transferFromInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
 import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import { inspect } from "util";
 
 export async function execute_injective(
   payload: Payload,
@@ -39,15 +40,9 @@ export async function execute_injective(
   }
 
   let contracts = CONTRACTS[network][chain];
-  const endPoint =
-    network === "MAINNET"
-      ? InjectiveNetwork.MainnetK8s
-      : InjectiveNetwork.TestnetK8s;
 
-  const networkInfo = getNetworkInfo(endPoint);
   const walletPK = PrivateKey.fromMnemonic(key);
   const walletInjAddr = walletPK.toBech32();
-  const walletPublicKey = walletPK.toPublicKey().toBase64();
 
   let target_contract: string;
   let action: "submit_v_a_a" | "submit_vaa";
@@ -207,23 +202,28 @@ async function signAndSendTx(
 ) {
   const endPoint =
     network === "MAINNET"
-      ? InjectiveNetwork.MainnetK8s
+      ? InjectiveNetwork.Mainnet
       : InjectiveNetwork.TestnetK8s;
   const networkInfo = getNetworkInfo(endPoint);
   const walletPublicKey = walletPK.toPublicKey().toBase64();
-  const accountDetails = await new ChainRestAuthApi(
-    networkInfo.rest
-  ).fetchAccount(walletPK.toBech32());
+  console.log(`about to open grpc channel`);
+  const grpcAuth = new ChainGrpcAuthApi(networkInfo.grpc);
+  console.log(`grpc channel opened`);
+  const accountDetails = await grpcAuth.fetchAccount(walletPK.toBech32());
+  console.log(`accountDetails: ${inspect(accountDetails)}`);
+  // we append an `a` because the `getStdFee` function requires a character but does not specify what kind of unit it expects.
+  // TODO: figure out what did they mean by this and use appropriate suffix/unit
+  const gasLimit = parseInt(DEFAULT_STD_FEE.gas, 10) * 1;
+  console.log(`gasLimit: ${gasLimit}`);
+  const fee = getStdFee({gas: gasLimit, gasPrice: 160000000});
+  console.log(`fee: ${inspect(fee)}`);
   const { signBytes, txRaw } = createTransaction({
     message: msgs,
     memo: "",
-    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
+    fee,
     pubKey: walletPublicKey,
-    sequence: parseInt(accountDetails.account.base_account.sequence, 10),
-    accountNumber: parseInt(
-      accountDetails.account.base_account.account_number,
-      10
-    ),
+    sequence: accountDetails.baseAccount.sequence,
+    accountNumber: accountDetails.baseAccount.accountNumber,
     chainId: networkInfo.chainId,
   });
   console.log("txRaw", txRaw);
