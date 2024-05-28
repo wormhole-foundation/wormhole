@@ -228,10 +228,8 @@ async function signAndSendTx(
     .createAndSignTx({
       msgs,
       memo: "",
-      fee: new Fee(
-        feeEstimate.gas_limit,
-        feeEstimate.amount.add(new Coin("uluna", 12))
-      ),
+      gasPrices: { uluna: 0.015 },
+      gasAdjustment: 1.9,
     })
     .then((tx) => terra.tx.broadcast(tx))
     .then((result) => {

@@ -138,7 +138,7 @@ const MAINNET = {
     chain_id: undefined,
   },
   terra2: {
-    rpc: "https://phoenix-lcd.terra.dev",
+    rpc: "https://terra-lcd.publicnode.com/",
     chain_id: "phoenix-1",
     key: getEnvVar("TERRA_MNEMONIC"),
   },
