@@ -210,6 +210,7 @@ historical limitation.
 * Arbitrum
 * Base
 * Optimism
+* xLayer - Use [xlayer-erigon](https://github.com/okx/xlayer-erigon) instead of [xlayer-node](https://github.com/okx/xlayer-node) for a simpler setup, as it requires a single binary rather than multiple ones or multiple Docker containers.
 
 Newer execution clients such as [reth](https://github.com/paradigmxyz/reth) lack this limitation and are worth
 investigating once they are stable.
