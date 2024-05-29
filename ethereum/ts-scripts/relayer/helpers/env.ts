@@ -416,7 +416,7 @@ export function getCreate2FactoryAddress(chain: ChainInfo): string {
         chain.chainId,
     );
   }
-  return address;
+  return ethers.utils.getAddress(address);
 }
 
 export const getCreate2Factory = async (

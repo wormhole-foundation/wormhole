@@ -16,6 +16,7 @@ import {
   env,
   getChain,
   getProvider,
+  getCreate2FactoryAddress,
 } from "./env";
 import { ethers } from "ethers";
 import { wait } from "./utils";
@@ -110,7 +111,7 @@ export async function deployMockIntegration(
   return { address: receipt.contractAddress, chainId: chain.chainId };
 }
 
-let ethC2Promise: Promise<string>;
+let ethC2Promise: Promise<Create2Factory__factory>;
 
 /**
  * Deploys `Create2Factory` with the old (account, nonce) tuple hashing creation mechanism.
@@ -123,60 +124,47 @@ export async function deployCreate2Factory(
   console.log("deployCreate2Factory " + chain.chainId);
 
   const signer = await getSigner(chain);
-  const factory = new Create2Factory__factory(signer);
+  let factory = new Create2Factory__factory();
 
   const signerAddress = await signer.getAddress();
   const ethChain = getChain(2);
   const ethChainProvider = getProvider(ethChain);
   const ethNetwork = await ethChainProvider.getNetwork();
   if (ethNetwork.chainId === 1 && signerAddress.toLowerCase() === "0x5623bdf52b51085c807a5dc39152eed05825f5fd") {
-    // Here we check that the bytecode matches against Ethereum.
+    // Here we fetch the creation bytecode from Ethereum.
+    // We also perform a few sanity checks to ensure that the retrieved creation bytecode looks good:
+    // 1. The transaction receipt should contain the expected address for the `Create2Factory`.
+    // 2. The bytecode hash should be a specific one.
+    //
+    // Why do this? The creation bytecode of `SimpleProxy` is part of the hash function that derives the address.
+    // This means that to reproduce the same address on a different chain, you need to create the exact same `SimpleProxy` contract.
+    // Since the compiler inserts metadata hashes, and potentially other properties, that don't impact the functionality,
+    // we reuse the same creation bytecode that we originally used instead of attempting to tune newer compiler versions to produce the same bytecode.
     if (ethC2Promise === undefined) {
-      // we assign the promise immediately to avoid race conditions
+      // We assign the promise immediately to avoid race conditions
       ethC2Promise = (async () => {
-        const ethFactory = await getCreate2Factory(ethChain, ethChainProvider);
-        return ethFactory.provider.getCode(ethFactory.address);
+        const factoryCreationTxid = "0xfd6551a91a2e9f423285a2e86f7f480341a658dda1ff1d8bc9167b2b7ec77caa";
+        const ethFactoryAddress = getCreate2FactoryAddress(chain);
+        const factoryReceipt = await ethChainProvider.getTransactionReceipt(factoryCreationTxid);
+        if (factoryReceipt.contractAddress !== ethFactoryAddress) {
+          throw new Error("Wrong txid for the transaction that created the Create2Factory in Ethereum mainnet.");
+        }
+        const ethFactoryTx = await ethChainProvider.getTransaction(factoryCreationTxid);
+
+        const expectedCreationCodeHash = "0x4b72c18c9a1a24d8406bde2edc283025bd33513d13c51601bb02dd4f298ada7d";
+        const fetchedCreationCodeHash = ethers.utils.sha256(ethFactoryTx.data);
+        if (expectedCreationCodeHash !== fetchedCreationCodeHash) {
+          throw new Error(`Creation code mismatch for Create2Factory. Found: ${fetchedCreationCodeHash} Expected: ${expectedCreationCodeHash}`);
+        }
+        return new Create2Factory__factory(Create2Factory__factory.createInterface(), ethFactoryTx.data);
       })();
     }
 
-    const ethCreate2FactoryCodeStr = strip0x(await ethC2Promise);
-    // Note that we're looking up the deployed bytecode within the "init" bytecode,
-    // i.e. bytecode that contains both the constructor and the object to be deployed.
-
-    // The create 2 factory contract has these immutables (taken from the compiler output for Create2Factory):
-    // "immutableReferences": {
-    //   "20558": [
-    //     {
-    //       "start": 704,
-    //       "length": 32
-    //     },
-    //     {
-    //       "start": 1007,
-    //       "length": 32
-    //     }
-    //   ],
-    //   "20560": [
-    //     {
-    //       "start": 1134,
-    //       "length": 32
-    //     }
-    //   ]
-    // }
-    // These are set as soon as the constructor executes and they only depend on the account where the constructor executes.
-    // The constructor has no parameters.
-    // Thus, we'll just zero out these locations in the ethereum bytecode so that we can look up the deployed bytecode within the deployable bytecode that we are about to use.
-    const ethCreate2FactoryCode = Buffer.from(ethCreate2FactoryCodeStr, "hex");
-    const zeroWord = Buffer.alloc(32, 0);
-    ethCreate2FactoryCode.set(zeroWord, 704);
-    ethCreate2FactoryCode.set(zeroWord, 1007);
-    ethCreate2FactoryCode.set(zeroWord, 1134);
-    const comparableEthCode = ethCreate2FactoryCode.toString("hex");
-
-    if (!factory.bytecode.includes(comparableEthCode)) {
-      throw new Error("Factory contract bytecode doesn't match the factory deployed in Ethereum. Aborting deployment.");
-    }
+    factory = await ethC2Promise;
   }
 
+  // We need to connect the signer here because we're overwriting the factory when deploying to mainnet.
+  factory = factory.connect(signer);
   const overrides = await buildOverridesDeploy(factory, chain, []);
   const contract = await factory.deploy(overrides).then(deployed);
   console.log(`Successfully deployed contract at ${contract.address}`);
