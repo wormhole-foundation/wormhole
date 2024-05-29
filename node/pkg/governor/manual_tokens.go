@@ -56,7 +56,6 @@ func manualTokenList() []tokenConfigEntry {
 		// MANTLE (tokens over $50,000 24h volume)
 		{chain: 35, addr: "0000000000000000000000003c3a81e81dc49a522a592e7622a7e711c06bf354", symbol: "MNT", coinGeckoId: "mantle", decimals: 18, price: 1.01},
 		{chain: 35, addr: "00000000000000000000000078c1b0c915c4faa5fffa6cabf0219da63d7f4cb8", symbol: "WMNT", coinGeckoId: "wrapped-mantle", decimals: 18, price: 1.01},
-		{chain: 35, addr: "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 0.9998},
 		{chain: 35, addr: "00000000000000000000000009bc4e0d864854c6afb6eb9a9cdf58ac190d0df9", symbol: "USDC", coinGeckoId: "mantle-bridged-usdc-mantle", decimals: 6, price: 1},
 		{chain: 35, addr: "000000000000000000000000201EBa5CC46D216Ce6DC03F6a759e8E766e956aE", symbol: "USDT", coinGeckoId: "mantle-bridged-usdt-mantle", decimals: 6, price: 0.9973},
 		{chain: 35, addr: "000000000000000000000000d5f7838f5c461feff7fe49ea5ebaf7728bb0adfa", symbol: "METH", coinGeckoId: "mantle-staked-ether", decimals: 18, price: 3934.06},
