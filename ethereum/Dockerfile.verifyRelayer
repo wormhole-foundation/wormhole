@@ -6,9 +6,12 @@ WORKDIR /home/node/app/ethereum
 RUN apt-get update && apt-get -y install \
   git make curl
 
-RUN curl -L https://foundry.paradigm.xyz | bash
-RUN $HOME/.foundry/bin/foundryup --version nightly-7469d79cca59e0bb5f23563ac5a6bd5f2ec8c5e4
-RUN cp $HOME/.foundry/bin/* /bin/
+COPY --from=ghcr.io/foundry-rs/foundry:nightly-7469d79cca59e0bb5f23563ac5a6bd5f2ec8c5e4@sha256:f84eabbe85ec74dd59464816bf65b8d1ec707c8fa78003aca66c13dad3a6fa42 \
+  /usr/local/bin/forge \
+  /usr/local/bin/cast \
+  /usr/local/bin/anvil \
+  /usr/local/bin/chisel \
+  /bin/
 
 COPY . .
 ENV ENV=mainnet
