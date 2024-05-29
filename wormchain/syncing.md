@@ -14,7 +14,7 @@ git clone https://github.com/wormhole-foundation/wormhole
 
 # checkout latest release (v2.23.0 at time of writing)
 cd wormhole
-git checkout v2.23.0
+git checkout v2.24.2-wormchaind
 
 # build wormchain
 cd wormchain
