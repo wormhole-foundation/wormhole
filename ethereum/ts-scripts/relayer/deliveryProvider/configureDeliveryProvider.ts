@@ -60,11 +60,11 @@ interface SupportedKeys {
    * List of bit indices for each key.
    * Bit 0 is for Wormhole VAA key.
    * Bit 1 is for CCTP message key.
-   * E.g. [0, 1] means "set Wormhole VAA and CCTP message supported flags"
-   * E.g. [0] means "set Wormhole VAA supported flag"
+   * E.g. ["vaa", "cctp"] means "set Wormhole VAA and CCTP message supported flags"
+   * E.g. ["vaa"] means "set Wormhole VAA supported flag"
    * Note that all supported keys must be set in this array since it overwrites the bitmap every time.
    */
-  supportedKeys: number[];
+  supportedKeys: string[];
 }
 
 interface RewardAddress {
@@ -76,6 +76,9 @@ interface SupportedChain {
   chainId: ChainId;
   isSupported: boolean;
 }
+
+const vaaKey = 2n << 0n;
+const cctpKey = 2n << 1n;
 
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 const whZeroAddress =
@@ -471,10 +474,15 @@ function extractKeys(bitmap: bigint): bigint[] {
   return keys;
 }
 
-function generateBitmap(keys: number[]): bigint {
+function generateBitmap(keys: string[]): bigint {
   let bitmap = 0n;
   for (const key of keys) {
-    bitmap |= 1n << BigInt(key);
+    let i;
+    if (key === "vaa") i = vaaKey;
+    else if (key === "cctp") i = cctpKey;
+    else throw new Error(`Unknown message key ${key}`);
+
+    bitmap |= i;
   }
   return bitmap;
 }

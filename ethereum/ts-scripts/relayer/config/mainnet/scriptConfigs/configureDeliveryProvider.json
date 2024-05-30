@@ -297,11 +297,11 @@
   "supportedKeysByChain": [
     {
       "chainId": 34,
-      "supportedKeys": [1],
+      "supportedKeys": ["vaa"]
     },
     {
       "chainId": 36,
-      "supportedKeys": [1],
+      "supportedKeys": ["vaa"]
     }
   ]
 }
