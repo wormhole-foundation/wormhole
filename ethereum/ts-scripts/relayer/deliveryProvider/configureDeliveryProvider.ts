@@ -125,7 +125,7 @@ function printUpdate(updates: UpdateStruct[], coreConfig: CoreConfigStruct, { ch
     const bitmap = BigNumber.isBigNumber(coreConfig.supportedKeyTypesBitmap)
       ? coreConfig.supportedKeyTypesBitmap.toBigInt()
       : BigNumber.from(coreConfig.supportedKeyTypesBitmap).toBigInt();
-    const supportedKeys = extractKeys(bitmap);
+    const supportedKeys = extractKeys(bitmap).map(supportedKeyBitDescription);
     messages.push(`  Supported key types: [${supportedKeys.join(", ")}]`);
   }
 
@@ -485,6 +485,12 @@ function generateBitmap(keys: string[]): bigint {
     bitmap |= i;
   }
   return bitmap;
+}
+
+function supportedKeyBitDescription(i: bigint): "vaa" | "cctp" {
+  if (i === vaaKey) return "vaa";
+  else if (i === cctpKey) return "cctp";
+  else throw new Error(`Unknown message key bit ${i}`);
 }
 
 run().then(() => console.log(`Done! ${processName}`));
