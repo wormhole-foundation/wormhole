@@ -1,0 +1,26 @@
+name: "Required review check"
+on:
+  # pull_request_target is suggested for projects where pull requests will be
+  # made from forked repositories. If pull_request is used in these cases,
+  # the github token will not have sufficient permission to update the PR.
+  pull_request_review:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read # to read changed files
+  pull-requests: write # to read/write PR reviewers
+  statuses: write # to add the status pass/fail
+
+jobs:
+  check:
+    name: Checking required reviews
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Automattic/action-required-review@bc37113f38a3d10969c1a2a6eadbb53cb2360156
+        with:
+          token: ${{ github.token }}
+          requirements-file: .github/required-review.yml
+          request-reviews: true
+          status: Required review

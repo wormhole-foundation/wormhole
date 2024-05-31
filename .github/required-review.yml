@@ -1,0 +1,349 @@
+# see https://github.com/Automattic/action-required-review for more details
+
+# Chains
+
+- name: Chains - Algorand
+  paths:
+    - "algorand/**"
+  teams:
+    - "@evan-gray"
+    - "@kcsongor"
+
+- name: Chains - Aptos
+  paths:
+    - "aptos/**"
+  teams:
+    - "@kcsongor"
+    - "@a5-pickle"
+
+- name: Chains - Bitcoin
+  paths:
+    - "bitcoin/**"
+  teams:
+    - "@evan-gray"
+
+- name: Chains - Cosmwasm
+  paths:
+    - "cosmwasm/**"
+  teams:
+    - "@nik-suri"
+    - "@kcsongor"
+    - "@a5-pickle"
+
+- name: Chains - EVM - Deployment .envs
+  paths:
+    - "ethereum/env/**"
+  consume: true
+  teams:
+    - "@a5-pickle"
+    - "@gator-boi"
+    - "@kcsongor"
+    - "@evan-gray"
+    - "@bruce-riley"
+- name: Chains - EVM
+  paths:
+    - "ethereum/**"
+  teams:
+    - "@a5-pickle"
+    - "@gator-boi"
+    - "@kcsongor"
+
+- name: Chains - EVM - Relayer
+  paths:
+    - "relayer/ethereum/**"
+  teams:
+    - "@nonergodic"
+    - "@gator-boi"
+
+- name: Chains - Near
+  paths:
+    - "near/**"
+  teams:
+    - "@evan-gray"
+    - "@kcsongor"
+
+- name: Chains - Solana
+  paths:
+    - "solana/**"
+  teams:
+    - "@kcsongor"
+    - "@a5-pickle"
+
+- name: Chains - Sui
+  paths:
+    - "sui/**"
+  teams:
+    - "@kcsongor"
+    - "@a5-pickle"
+    - "@gator-boi"
+
+- name: Chains - Terra
+  paths:
+    - "terra/**"
+  teams:
+    - "@kcsongor"
+    - "@a5-pickle"
+
+# Utilities
+
+- name: Utilities - Clients
+  paths:
+    - "clients/**"
+  teams:
+    - "@kcsongor"
+    - "@kev1n-peters"
+    - "@evan-gray"
+
+- name: Utilities - LP UI
+  paths:
+    - "lp_ui/**"
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+
+- name: Utilities - Off-Chain Relayer
+  paths:
+    - "relayer/generic_relayer/**"
+  teams:
+    - "@nonergodic"
+    - "@gator-boi"
+
+- name: Utilities - Scripts
+  paths:
+    - "scripts/**"
+  teams:
+    - "@evan-gray"
+    - "@kcsongor"
+
+- name: Utilities - JS - Protobuf - Node
+  paths:
+    - "sdk/js-proto-node/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+- name: Utilities - JS - Protobuf - Web
+  paths:
+    - "sdk/js-proto-web/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+- name: Utilities - JS - Query SDK
+  paths:
+    - "sdk/js-query/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@bruce-riley"
+- name: Utilities - JS - Wasm SDK
+  paths:
+    - "sdk/js-wasm/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+- name: Utilities - JS SDK
+  paths:
+    - "sdk/js/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@barnjamin"
+    - "@panoel"
+- name: Utilities - Rust SDK
+  paths:
+    - "sdk/rust/**"
+  consume: true
+  teams:
+    - "@a5-pickle"
+- name: Utilities - Go VAA SDK
+  paths:
+    - "sdk/vaa/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@SEJeff"
+- name: Utilities - Go SDK
+  paths:
+    - "sdk/**"
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@SEJeff"
+
+- name: Utilities - JS - Spy SDK
+  paths:
+    - "spydk/**"
+  teams:
+    - "@evan-gray"
+
+- name: Utilities - Testing
+  paths:
+    - "testing/**"
+  teams:
+    - "@a5-pickle"
+    - "@evan-gray"
+
+- name: Utilities - Deployments
+  paths:
+    - "deployments/**"
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@panoel"
+    - "@bruce-riley"
+
+# Wormchain
+
+- name: Wormchain - CI Tests
+  paths:
+    - "wormchain/contracts/tools/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@panoel"
+- name: Wormchain - Devnet
+  paths:
+    - "wormchain/devnet/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@bruce-riley"
+- name: Wormchain - TS SDK
+  paths:
+    - "wormchain/ts-sdk/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@kev1n-peters"
+    - "@panoel"
+- name: Wormchain - Default
+  paths:
+    - "wormchain/**"
+  teams:
+    - "@nik-suri"
+
+# Guardiand node
+
+- name: Protobuf - Node
+  paths:
+    - "proto/node/**"
+  teams:
+    - "@evan-gray"
+    - "@bruce-riley"
+- name: Node - Entrypoint / RPC
+  paths:
+    - "node/cmd/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@panoel"
+    - "@evan-gray"
+- name: Node - DB
+  paths:
+    - "node/pkg/db/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@panoel"
+- name: Node - Accountant
+  paths:
+    - "node/pkg/accountant/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@panoel"
+- name: Node - Governor
+  paths:
+    - "node/pkg/governor/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@claudijd"
+    - "@SEJeff"
+    - "@djb15"
+- name: Node - Gateway Relayer
+  paths:
+    - "node/pkg/gwrelayer/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@panoel"
+- name: Node - P2P
+  paths:
+    - "node/pkg/p2p/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@panoel"
+- name: Node - Consensus / Processor
+  paths:
+    - "node/pkg/processor/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@panoel"
+- name: Node - Public RPC
+  paths:
+    - "node/pkg/publicrpc/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@panoel"
+- name: Node - Supervisor Framework
+  paths:
+    - "node/pkg/supervisor/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+- name: Node - Watchers
+  paths:
+    - "node/pkg/watchers/**"
+  consume: true
+  teams:
+    - "@evan-gray"
+    - "@bruce-riley"
+    - "@panoel"
+- name: Node - Hacks / Tools
+  paths:
+    - "node/hack/**"
+  consume: true
+  teams:
+    - "@bruce-riley"
+    - "@panoel"
+    - "@evan-gray"
+- name: Node - Default
+  paths:
+    - "node/**"
+  teams:
+    - "@bruce-riley"
+    - "@evan-gray"
+    - "@SEJeff"
+
+## Documentation
+
+- name: Documentation
+  paths:
+    - "docs/**"
+  teams:
+    - "@evan-gray"
+    - "@barnjamin"
+    - "@SEJeff"
+    - "@bruce-riley"
+
+# Default
+
+- name: Default
+  paths: unmatched
+  teams:
+    - "@evan-gray"
