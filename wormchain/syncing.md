@@ -133,17 +133,15 @@ cp ../mainnet/* config/
 ./wormchaind-v2.14.9.6 rollback --home .
 ./wormchaind-v2.14.9.6 start --home . --moniker <your-moniker> --halt-height 3151200
 # sync until block 3151200 (problematic block is 3151174)
-# stop the sync right after 3151174
 ```
 
 ## Sync with v2.18.1
 
 ```bash
-./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker>
+./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker> --halt-height 4411562
 # check sync status
 ./wormchaind-v2.18.1 status | jq ".SyncInfo.latest_block_height"
-# Error in validation err="wrong Block.Header.LastResultsHash.  Expected E74E1453A45DC2F427A367659BA5B9DD56DE6CC48ABF3244E2348AF7FC5AEC06, got CC32E562E6C9C2EF4D0BB7ABCE7B6AB82C2E452E1B2475557C1237A314EEC978" module=blockchain
-# Block 4411563
+# sync until block 4411562 
 ```
 
 ## Sync with v2.18.1.1
