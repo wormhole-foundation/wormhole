@@ -80,7 +80,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -96,14 +95,19 @@ import (
 )
 
 // Admin command to display status to the log.
-func (gov *ChainGovernor) Status() string {
+func (gov *ChainGovernor) Status() (resp string) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	var resp string
 	for _, ce := range gov.chains {
-		valueTrans := sumValue(ce.transfers, startTime)
+		valueTrans, err := sumValue(ce.transfers, startTime)
+		if err != nil {
+			// We don't want to actually return an error or otherwise stop
+			// execution in this case. Instead of propagating the error here, print the contents of the
+			// error message.
+			return fmt.Sprintf("chain: %v, dailyLimit: OVERFLOW. error: %s", ce.emitterChainId, err)
+		}
 		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
 		resp += s1 + "\n"
 		gov.logger.Info(s1)
@@ -242,32 +246,48 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-func sumValue(transfers []*db.Transfer, startTime time.Time) uint64 {
+// sumValue sums the value of all `transfers`. See also `TrimAndSumValue`.
+func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
 	if len(transfers) == 0 {
-		return 0
+		return 0, nil
 	}
 
-	var sum uint64
+	var sum int64
 
 	for _, t := range transfers {
-		if !t.Timestamp.Before(startTime) {
-			sum += t.Value
+		if t.dbTransfer.Timestamp.Before(startTime) {
+			continue
 		}
+		checkedSum, err := CheckedAddInt64(sum, t.value)
+		if err != nil {
+			// We have to stop and return an error here (rather than saturate, for example). The
+			// transfers are not sorted by value so we can't make any guarantee on the final value
+			// if we hit the upper or lower bound. We don't expect this to happen in any case.
+			return 0, err
+		}
+		sum = checkedSum
 	}
 
-	return sum
+	// Do not return negative values. Instead, saturate to zero.
+	if sum <= 0 {
+		return 0, nil
+	}
+
+	return uint64(sum), nil
 }
 
 // REST query to get the current available notional value per chain.
-func (gov *ChainGovernor) GetAvailableNotionalByChain() []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry {
+func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	resp := make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
-
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	for _, ce := range gov.chains {
-		value := sumValue(ce.transfers, startTime)
+		value, err := sumValue(ce.transfers, startTime)
+		if err != nil {
+			// Don't return an error here, just return 0
+			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
+		}
 		if value >= ce.dailyLimit {
 			value = 0
 		} else {
@@ -421,7 +441,12 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 
 		if exists {
 			enabled = "1"
-			value := sumValue(ce.transfers, startTime)
+			value, err := sumValue(ce.transfers, startTime)
+			if err != nil {
+				// Error can occur if the sum overflows. Return 0 in this case rather than returning an
+				// error.
+				value = 0
+			}
 			if value >= ce.dailyLimit {
 				value = 0
 			} else {
@@ -527,8 +552,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for _, ce := range gov.chains {
-		value := sumValue(ce.transfers, startTime)
-		if value >= ce.dailyLimit {
+		value, err := sumValue(ce.transfers, startTime)
+
+		if err != nil || value >= ce.dailyLimit {
+			// In case of error, set value to 0 rather than returning an error to the caller. An error
+			// here means sumValue has encountered an overflow and this should never happen. Even if it did
+			// we don't want to stop execution here.
 			value = 0
 		} else {
 			value = ce.dailyLimit - value
