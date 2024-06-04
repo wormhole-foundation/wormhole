@@ -117,8 +117,9 @@ func NewWatcher(
 	latestBlockURL := "cosmos/base/tendermint/v1beta1/blocks/latest"
 
 	// Injective does not base64 encode parameters (as of release v1.11.2).
+	// Terra does not base64 encode parameters (as of v3.0.1 software upgrade)
 	// Terra2 no longer base64 encodes parameters.
-	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2)
+	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2 && chainID != vaa.ChainIDTerra)
 
 	return &Watcher{
 		urlWS:                    urlWS,
