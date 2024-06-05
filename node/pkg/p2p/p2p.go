@@ -372,8 +372,9 @@ func Run(
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
 			pubsub.WithGossipSubParams(components.GossipParams),
-			pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 			pubsub.WithEventTracer(ourTracer),
+			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
+			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		)
 		if err != nil {
 			panic(err)
