@@ -144,12 +144,14 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 			invalidQueryRequestReceived.WithLabelValues("bad_call_data").Inc()
 			return http.StatusBadRequest, fmt.Errorf("eth call data must be at least four bytes")
 		}
-		call := hex.EncodeToString(cd.Data[0:ETH_CALL_SIG_LENGTH])
-		callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainId, contractAddress, call)
-		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-			return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+		if !permsForUser.allowAnything {
+			call := hex.EncodeToString(cd.Data[0:ETH_CALL_SIG_LENGTH])
+			callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainId, contractAddress, call)
+			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+				return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+			}
 		}
 
 		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
@@ -160,15 +162,17 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 
 // validateSolanaAccountQuery performs verification on a Solana sol_account query.
 func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
-	for _, acct := range q.Accounts {
-		callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
-		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-			return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
-		}
+	if !permsForUser.allowAnything {
+		for _, acct := range q.Accounts {
+			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
+			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
+			}
 
-		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+		}
 	}
 
 	return http.StatusOK, nil
@@ -176,15 +180,17 @@ func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntr
 
 // validateSolanaPdaQuery performs verification on a Solana sol_account query.
 func validateSolanaPdaQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaPdaQueryRequest) (int, error) {
-	for _, acct := range q.PDAs {
-		callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct.ProgramAddress).String())
-		if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-			logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-			invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-			return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
-		}
+	if !permsForUser.allowAnything {
+		for _, acct := range q.PDAs {
+			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct.ProgramAddress).String())
+			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
+				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
+			}
 
-		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+		}
 	}
 
 	return http.StatusOK, nil

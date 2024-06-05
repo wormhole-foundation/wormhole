@@ -893,4 +893,58 @@ describe("eth call", () => {
       );
     }
   });
+  test("allow anything", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const decimalsCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "decimals",
+      "uint8"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      decimalsCallData,
+    ]);
+    const chainId = 2;
+    const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+    const nonce = 1;
+    const request = new QueryRequest(nonce, [ethQuery]);
+    const serialized = request.serialize();
+    const digest = QueryRequest.digest(ENV, serialized);
+    const signature = sign(PRIVATE_KEY, digest);
+    const response = await axios.put(
+      QUERY_URL,
+      {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      },
+      { headers: { "X-API-Key": "my_secret_key_3" } }
+    );
+    expect(response.status).toBe(200);
+
+    const queryResponse = QueryResponse.from(response.data.bytes);
+    expect(queryResponse.version).toEqual(1);
+    expect(queryResponse.requestChainId).toEqual(0);
+    expect(queryResponse.request.version).toEqual(1);
+    expect(queryResponse.request.requests.length).toEqual(1);
+    expect(queryResponse.request.requests[0].chainId).toEqual(2);
+    expect(queryResponse.request.requests[0].query.type()).toEqual(
+      ChainQueryType.EthCall
+    );
+
+    const ecr = queryResponse.responses[0].response as EthCallQueryResponse;
+    expect(ecr.blockNumber.toString()).toEqual(BigInt(blockNumber).toString());
+    expect(ecr.blockHash).toEqual(
+      (await web3.eth.getBlock(BigInt(blockNumber))).hash
+    );
+    expect(ecr.results.length).toEqual(2);
+    expect(ecr.results[0]).toEqual(
+      // Name
+      "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d5772617070656420457468657200000000000000000000000000000000000000"
+    );
+    expect(ecr.results[1]).toEqual(
+      // Decimals
+      "0x0000000000000000000000000000000000000000000000000000000000000012"
+    );
+  });
 });
