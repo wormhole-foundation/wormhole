@@ -47,7 +47,7 @@ var (
 
 // signaturesToVaaFormat converts a map[common.Address][]byte (processor state format) to []*vaa.Signature (VAA format) given a set of keys gsKeys
 // It also returns a bool array indicating which key in gsKeys had a signature
-// The processor state format is used for effeciently storing signatures during aggregation while the VAA format is more efficient for on-chain verification.
+// The processor state format is used for efficiently storing signatures during aggregation while the VAA format is more efficient for on-chain verification.
 func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common.Address) ([]*vaa.Signature, []bool) {
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	agg := make([]bool, len(gsKeys))
