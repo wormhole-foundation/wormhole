@@ -12,8 +12,8 @@ const MainnetBootstrapPeers = "/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp
 const MainnetCcqBootstrapPeers = "/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8996/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC,/dns4/wormhole.mcf.rocks/udp/8996/quic/p2p/12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU,/dns4/wormhole-v2-mainnet-bootstrap.staking.fund/udp/8996/quic/p2p/12D3KooWG8obDX9DNi1KUwZNu9xkGwfKqTp2GFwuuHpWZ3nQruS1"
 
 const TestnetNetworkId = "/wormhole/testnet/2/1"
-const TestnetBootstrapPeers = "/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
-const TestnetCcqBootstrapPeers = "/dns4/t-guardian-01.nodes.stable.io/udp/8996/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8996/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8996/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
+const TestnetBootstrapPeers = "/dns4/t-guardian-01.testnet.xlabs.xyz/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.testnet.xlabs.xyz/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8999/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
+const TestnetCcqBootstrapPeers = "/dns4/t-guardian-01.testnet.xlabs.xyz/udp/8996/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.testnet.xlabs.xyz/udp/8996/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK,/dns4/p2p-guardian-testnet-1.solana.p2p.org/udp/8996/quic/p2p/12D3KooWE4dmZwxhfjCKHLUqSaww96Cf7kmq1ZuKmzPz3MrJgZxp"
 
 // The Devnet bootstrap peers are derived from the guardian key so we can't include them here.
 const DevnetNetworkId = "/wormhole/dev"
