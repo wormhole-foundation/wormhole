@@ -347,13 +347,14 @@ Options:
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -c, --chain             chain name
   [required] [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
-   "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala", "kla
-  ytn", "celo", "near", "moonbeam", "neon", "terra2", "injective", "osmosis", "s
-  ui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet", "xpla", "btc", "bas
-  e", "sei", "rootstock", "scroll", "mantle", "blast", "xlayer", "linea", "berac
-  hain", "seievm", "wormchain", "cosmoshub", "evmos", "kujira", "neutron", "cele
-  stia", "stargaze", "seda", "dymension", "provenance", "sepolia", "arbitrum_sep
-        olia", "base_sepolia", "optimism_sepolia", "holesky", "polygon_sepolia"]
+        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
+            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
+         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
+         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
+    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
+               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
+                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
+                               "optimism_sepolia", "holesky", "polygon_sepolia"]
   -a, --contract-address  Contract to verify VAA on (override config)   [string]
       --rpc               RPC endpoint                                  [string]
 ```
