@@ -215,7 +215,7 @@ axios
               notional +
               "\n";
 
-            newTokenKeys[chain + "-" + wormholeAddr + "-" + data.Symbol] = true;
+            newTokenKeys[chain + "-" + wormholeAddr] = true;
             newTokensCount += 1;
           }
         }
@@ -224,7 +224,9 @@ axios
 
     for (var token of existingTokenKeys) {
       // A token has been removed from the token list 
-      if (!newTokenKeys[token]) {
+      // We cut the symbol off the end of the key as it's possible for a token to change its symbol
+      var tokenParts = token.split("-");
+      if (!newTokenKeys[tokenParts[0] + "-" + tokenParts[1]]) {
         removedTokens.push(token);
       }
     }
