@@ -27,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libp2ppb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -71,6 +72,16 @@ var (
 			Name: "wormhole_p2p_receive_channel_overflow",
 			Help: "Total number of p2p received messages dropped due to channel overflow",
 		}, []string{"type"})
+	p2pDrop = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_drops",
+			Help: "Total number of messages that were dropped by libp2p",
+		})
+	p2pReject = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_rejects",
+			Help: "Total number of messages rejected by libp2p",
+		})
 )
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
@@ -153,6 +164,21 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 		// GracePeriod set to 0 means that new peers are not protected by a grace period
 		connmgr.WithGracePeriod(0),
 	)
+}
+
+// traceHandler is used to intercept libp2p trace events so we can peg metrics.
+type traceHandler struct {
+}
+
+// Trace is the interface to the libp2p trace handler. It pegs metrics as appropriate.
+func (*traceHandler) Trace(evt *libp2ppb.TraceEvent) {
+	if evt.Type != nil {
+		if *evt.Type == libp2ppb.TraceEvent_DROP_RPC {
+			p2pDrop.Inc()
+		} else if *evt.Type == libp2ppb.TraceEvent_REJECT_MESSAGE {
+			p2pReject.Inc()
+		}
+	}
 }
 
 // BootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
@@ -342,9 +368,13 @@ func Run(
 		}
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+		ourTracer := &traceHandler{}
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
 			pubsub.WithGossipSubParams(components.GossipParams),
+			pubsub.WithEventTracer(ourTracer),
+			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
+			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		)
 		if err != nil {
 			panic(err)

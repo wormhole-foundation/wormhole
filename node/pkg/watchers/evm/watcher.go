@@ -553,8 +553,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 					// Transaction is now ready
 					if pLock.height <= blockNumberU {
+						msm := time.Now()
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
+						queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 						cancel()
 
 						// If the node returns an error after waiting expectedConfirmation blocks,
@@ -690,10 +692,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	w.currentGuardianSet = &idx
 
 	if w.setC != nil {
-		w.setC <- &common.GuardianSet{
-			Keys:  gs.Keys,
-			Index: idx,
-		}
+		w.setC <- common.NewGuardianSet(gs.Keys, idx)
 	}
 
 	return nil
