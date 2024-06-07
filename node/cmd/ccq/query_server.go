@@ -47,6 +47,7 @@ var (
 	shutdownDelay2         *uint
 	monitorPeers           *bool
 	gossipAdvertiseAddress *string
+	allowAnything          *bool
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -69,6 +70,7 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
+	allowAnything = QueryServerCmd.Flags().Bool("allowAnything", false, `Should allow API keys with the "allowAnything" flag (only allowed in testnet and devnet)`)
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -162,7 +164,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --ethContract")
 	}
 
-	permissions, err := NewPermissions(*permFile)
+	if *allowAnything {
+		if env != common.TestNet && env != common.UnsafeDevNet {
+			logger.Fatal(`The "--allowAnything" flag is only supported in testnet and devnet`)
+		}
+		logger.Info("will allow anything for users for which it is enabled")
+	}
+
+	permissions, err := NewPermissions(*permFile, *allowAnything)
 	if err != nil {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}

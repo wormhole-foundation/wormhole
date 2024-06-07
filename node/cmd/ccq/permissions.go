@@ -28,6 +28,7 @@ type (
 		UserName      string        `json:"userName"`
 		ApiKey        string        `json:"apiKey"`
 		AllowUnsigned bool          `json:"allowUnsigned"`
+		AllowAnything bool          `json:"allowAnything"`
 		LogResponses  bool          `json:"logResponses"`
 		AllowedCalls  []AllowedCall `json:"allowedCalls"`
 	}
@@ -75,6 +76,7 @@ type (
 		userName      string
 		apiKey        string
 		allowUnsigned bool
+		allowAnything bool
 		logResponses  bool
 		allowedCalls  allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
 	}
@@ -82,23 +84,25 @@ type (
 	allowedCallsForUser map[string]struct{}
 
 	Permissions struct {
-		lock     sync.Mutex
-		permMap  PermissionsMap
-		fileName string
-		watcher  *fswatch.Watcher
+		lock          sync.Mutex
+		permMap       PermissionsMap
+		fileName      string
+		allowAnything bool
+		watcher       *fswatch.Watcher
 	}
 )
 
 // NewPermissions creates a Permissions object which contains the per-user permissions.
-func NewPermissions(fileName string) (*Permissions, error) {
-	permMap, err := parseConfigFile(fileName)
+func NewPermissions(fileName string, allowAnything bool) (*Permissions, error) {
+	permMap, err := parseConfigFile(fileName, allowAnything)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Permissions{
-		permMap:  permMap,
-		fileName: fileName,
+		permMap:       permMap,
+		fileName:      fileName,
+		allowAnything: allowAnything,
 	}, nil
 }
 
@@ -127,7 +131,7 @@ func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, 
 
 // Reload reloads the permissions file.
 func (perms *Permissions) Reload(logger *zap.Logger) {
-	permMap, err := parseConfigFile(perms.fileName)
+	permMap, err := parseConfigFile(perms.fileName, perms.allowAnything)
 	if err != nil {
 		logger.Error("failed to reload the permissions file, sticking with the old one", zap.String("fileName", perms.fileName), zap.Error(err))
 		permissionFileReloadsFailure.Inc()
@@ -159,7 +163,7 @@ func (perms *Permissions) GetUserEntry(apiKey string) (*permissionEntry, bool) {
 const ETH_CALL_SIG_LENGTH = 4
 
 // parseConfigFile parses the permissions config file into a map keyed by API key.
-func parseConfigFile(fileName string) (PermissionsMap, error) {
+func parseConfigFile(fileName string, allowAnything bool) (PermissionsMap, error) {
 	jsonFile, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to open permissions file "%s": %w`, fileName, err)
@@ -171,7 +175,7 @@ func parseConfigFile(fileName string) (PermissionsMap, error) {
 		return nil, fmt.Errorf(`failed to read permissions file "%s": %w`, fileName, err)
 	}
 
-	retVal, err := parseConfig(byteValue)
+	retVal, err := parseConfig(byteValue, allowAnything)
 	if err != nil {
 		return retVal, fmt.Errorf(`failed to parse permissions file "%s": %w`, fileName, err)
 	}
@@ -180,7 +184,7 @@ func parseConfigFile(fileName string) (PermissionsMap, error) {
 }
 
 // parseConfig parses the permissions config from a buffer into a map keyed by API key.
-func parseConfig(byteValue []byte) (PermissionsMap, error) {
+func parseConfig(byteValue []byte, allowAnything bool) (PermissionsMap, error) {
 	var config Config
 	if err := json.Unmarshal(byteValue, &config); err != nil {
 		return nil, fmt.Errorf(`failed to unmarshal json: %w`, err)
@@ -198,6 +202,15 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 		apiKey := strings.ToLower(user.ApiKey)
 		if _, exists := ret[apiKey]; exists {
 			return nil, fmt.Errorf(`API key "%s" is a duplicate`, apiKey)
+		}
+
+		if user.AllowAnything {
+			if !allowAnything {
+				return nil, fmt.Errorf(`UserName "%s" has "allowAnything" specified when the feature is not enabled`, user.UserName)
+			}
+			if len(user.AllowedCalls) != 0 {
+				return nil, fmt.Errorf(`UserName "%s" has "allowedCalls" specified with "allowAnything", which is not allowed`, user.UserName)
+			}
 		}
 
 		// Build the list of allowed calls for this API key.
@@ -296,6 +309,7 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 			userName:      user.UserName,
 			apiKey:        apiKey,
 			allowUnsigned: user.AllowUnsigned,
+			allowAnything: user.AllowAnything,
 			logResponses:  user.LogResponses,
 			allowedCalls:  allowedCalls,
 		}

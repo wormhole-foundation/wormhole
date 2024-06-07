@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseConfigFileDoesntExist(t *testing.T) {
-	_, err := parseConfigFile("missingFile.json")
+	_, err := parseConfigFile("missingFile.json", false)
 	require.Error(t, err)
 	assert.Equal(t, `failed to open permissions file "missingFile.json": open missingFile.json: no such file or directory`, err.Error())
 }
@@ -47,7 +47,7 @@ func TestParseConfigBadJson(t *testing.T) {
       ]
     }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `failed to unmarshal json: unexpected end of JSON input`, err.Error())
 }
@@ -88,7 +88,7 @@ func TestParseConfigDuplicateUser(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `UserName "Test User" is a duplicate`, err.Error())
 }
@@ -129,7 +129,7 @@ func TestParseConfigDuplicateApiKey(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `API key "my_secret_key" is a duplicate`, err.Error())
 }
@@ -155,7 +155,7 @@ func TestParseConfigUnsupportedCallType(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `unsupported call type for user "Test User", must be "ethCall", "ethCallByTimestamp", "ethCallWithFinality", "solAccount" or "solPDA"`, err.Error())
 }
@@ -181,7 +181,7 @@ func TestParseConfigInvalidContractAddress(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `invalid contract address "HelloWorld" for user "Test User"`, err.Error())
 }
@@ -207,7 +207,7 @@ func TestParseConfigInvalidEthCall(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `invalid eth call "HelloWorld" for user "Test User"`, err.Error())
 }
@@ -233,7 +233,7 @@ func TestParseConfigInvalidEthCallLength(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `eth call "0x06fd" for user "Test User" has an invalid length, must be 4 bytes`, err.Error())
 }
@@ -267,7 +267,7 @@ func TestParseConfigDuplicateAllowedCallForUser(t *testing.T) {
   ]
 }`
 
-	_, err := parseConfig([]byte(str))
+	_, err := parseConfig([]byte(str), false)
 	require.Error(t, err)
 	assert.Equal(t, `"ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03" is a duplicate allowed call for user "Test User"`, err.Error())
 }
@@ -323,7 +323,7 @@ func TestParseConfigSuccess(t *testing.T) {
   ]
 }`
 
-	perms, err := parseConfig([]byte(str))
+	perms, err := parseConfig([]byte(str), false)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(perms))
 
@@ -346,4 +346,118 @@ func TestParseConfigSuccess(t *testing.T) {
 
 	_, exists = perm.allowedCalls["solPDA:1:Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"]
 	assert.True(t, exists)
+}
+
+func TestParseConfigAllowAnythingWhenNotEnabled(t *testing.T) {
+	str := `
+	{
+  "permissions": [
+    {
+      "userName": "Test User",
+      "apiKey": "my_secret_key",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test User2",
+      "apiKey": "my_secret_key_2",
+      "allowUnsigned": true,
+      "allowAnything": true
+    }
+  ]
+}`
+
+	_, err := parseConfig([]byte(str), false)
+	require.Error(t, err)
+	assert.Equal(t, `UserName "Test User2" has "allowAnything" specified when the feature is not enabled`, err.Error())
+}
+
+func TestParseConfigAllowAnythingWithAllowedCallsIsInvalid(t *testing.T) {
+	str := `
+	{
+  "permissions": [
+    {
+      "userName": "Test User",
+      "apiKey": "my_secret_key",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test User2",
+      "apiKey": "my_secret_key_2",
+      "allowUnsigned": true,
+      "allowAnything": true,
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    }
+  ]
+}`
+
+	_, err := parseConfig([]byte(str), true)
+	require.Error(t, err)
+	assert.Equal(t, `UserName "Test User2" has "allowedCalls" specified with "allowAnything", which is not allowed`, err.Error())
+}
+
+func TestParseConfigAllowAnythingSuccess(t *testing.T) {
+	str := `
+	{
+  "permissions": [
+    {
+      "userName": "Test User",
+      "apiKey": "my_secret_key",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test User2",
+      "apiKey": "my_secret_key_2",
+      "allowUnsigned": true,
+      "allowAnything": true
+    }
+  ]
+}`
+
+	perms, err := parseConfig([]byte(str), true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(perms))
+
+	perm, ok := perms["my_secret_key"]
+	require.True(t, ok)
+	assert.False(t, perm.allowAnything)
+
+	perm, ok = perms["my_secret_key_2"]
+	require.True(t, ok)
+	assert.True(t, perm.allowAnything)
 }

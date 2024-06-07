@@ -178,6 +178,12 @@
           }
         }
       ]
+    },
+    {
+      "userName": "Unlimited User",
+      "apiKey": "my_secret_key_3",
+      "allowUnsigned": true,
+      "allowAnything": true
     }
   ]
 }
