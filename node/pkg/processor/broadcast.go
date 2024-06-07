@@ -8,7 +8,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
@@ -43,7 +42,7 @@ func (p *Processor) broadcastSignature(
 ) {
 	digest := o.SigningDigest()
 	obsv := gossipv1.SignedObservation{
-		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
+		Addr:      p.ourAddr.Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,

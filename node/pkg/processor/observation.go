@@ -228,7 +228,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		// Hence, if len(s.signatures) < quorum, then there is definitely no quorum and we can return early to save additional computation,
 		// but if len(s.signatures) >= quorum, there is not necessarily quorum for the active guardian set.
 		// We will later check for quorum again after assembling the VAA for a particular guardian set.
-		if len(s.signatures) < gs.Quorum {
+		if len(s.signatures) < gs.Quorum() {
 			// no quorum yet, we're done here
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("quorum not yet met",
@@ -250,13 +250,13 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 				zap.Any("set", gs.KeysAsHexStrings()),
 				zap.Uint32("index", gs.Index),
 				zap.Bools("aggregation", agg),
-				zap.Int("required_sigs", gs.Quorum),
+				zap.Int("required_sigs", gs.Quorum()),
 				zap.Int("have_sigs", len(sigsVaaFormat)),
-				zap.Bool("quorum", len(sigsVaaFormat) >= gs.Quorum),
+				zap.Bool("quorum", len(sigsVaaFormat) >= gs.Quorum()),
 			)
 		}
 
-		if len(sigsVaaFormat) >= gs.Quorum {
+		if len(sigsVaaFormat) >= gs.Quorum() {
 			// we have reached quorum *with the active guardian set*
 			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
 		} else {

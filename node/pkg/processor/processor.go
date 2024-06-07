@@ -223,7 +223,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", p.gs.KeysAsHexStrings()),
 				zap.Uint32("index", p.gs.Index),
-				zap.Int("quorum", p.gs.Quorum),
+				zap.Int("quorum", p.gs.Quorum()),
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
