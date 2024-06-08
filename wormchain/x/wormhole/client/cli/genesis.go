@@ -130,7 +130,7 @@ func CmdDecodeAddress() *cobra.Command {
 
 func ImportKeyFromFile(filePath string) (*ecdsa.PrivateKey, error) {
 	priv := ecdsa.PrivateKey{}
-	bz, err := io.ReadFile(filePath)
+	bz, err := os.ReadFile(filePath)
 	if err != nil {
 		return &priv, err
 	}
@@ -138,7 +138,7 @@ func ImportKeyFromFile(filePath string) (*ecdsa.PrivateKey, error) {
 }
 
 func ImportPublicKeyFromFile(filePath string) ([]byte, error) {
-	hexBz, err := io.ReadFile(filePath)
+	hexBz, err := os.ReadFile(filePath)
 	if err != nil {
 		return []byte{}, err
 	}
