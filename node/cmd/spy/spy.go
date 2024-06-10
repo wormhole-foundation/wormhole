@@ -394,6 +394,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx,
 			"p2p",
 			p2p.Run(nil, // Ignore incoming observations.
+				nil, // Ignore batch observations.
 				nil, // Ignore observation requests.
 				nil,
 				sendC,

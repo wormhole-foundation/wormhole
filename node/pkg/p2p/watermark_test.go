@@ -28,6 +28,7 @@ const LOCAL_P2P_PORTRANGE_START = 11000
 type G struct {
 	// arguments passed to p2p.New
 	obsvC                  chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]
+	batchObsvC             chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	obsvReqC               chan *gossipv1.ObservationRequest
 	obsvReqSendC           chan *gossipv1.ObservationRequest
 	sendC                  chan []byte
@@ -63,6 +64,7 @@ func NewG(t *testing.T, nodeName string) *G {
 
 	g := &G{
 		obsvC:                  make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservation], cs),
+		batchObsvC:             make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
 		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
 		obsvReqSendC:           make(chan *gossipv1.ObservationRequest, cs),
 		sendC:                  make(chan []byte, cs),
@@ -166,6 +168,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
 	supervisor.New(ctx, zap.L(),
 		Run(g.obsvC,
+			g.batchObsvC,
 			g.obsvReqC,
 			g.obsvReqSendC,
 			g.sendC,

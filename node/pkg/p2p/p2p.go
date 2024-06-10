@@ -51,6 +51,12 @@ const P2P_SUBSCRIPTION_BUFFER_SIZE = 1024
 // TESTNET_BOOTSTRAP_DHI configures how many nodes may connect to the testnet bootstrap node. This number should not exceed HighWaterMark.
 const TESTNET_BOOTSTRAP_DHI = 350
 
+// MaxObservationBatchSize is the maximum number of observations that will fit in a single `SignedObservationBatch` message.
+const MaxObservationBatchSize = 4000
+
+// MaxObservationBatchDelay is the longest we will wait before publishing any queued up observations.
+const MaxObservationBatchDelay = time.Second
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -295,6 +301,7 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 
 func Run(
 	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
+	batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	obsvReqC chan<- *gossipv1.ObservationRequest,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	gossipSendC chan []byte,
@@ -706,9 +713,20 @@ func Run(
 						p2pMessagesReceived.WithLabelValues("observation").Inc()
 					} else {
 						if components.WarnChannelOverflow {
-							logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+							logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
 						}
 						p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
+					}
+				}
+			case *gossipv1.GossipMessage_SignedObservationBatch:
+				if batchObsvC != nil {
+					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, batchObsvC); err == nil {
+						p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+					} else {
+						if components.WarnChannelOverflow {
+							logger.Warn("Ignoring SignedObservationBatch because batchObsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
+						}
+						p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
 					}
 				}
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:

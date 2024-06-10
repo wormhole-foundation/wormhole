@@ -57,6 +57,7 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 
 			g.runnables["p2p"] = p2p.Run(
 				g.obsvC,
+				g.batchObsvC.writeC,
 				g.obsvReqC.writeC,
 				g.obsvReqSendC.readC,
 				g.gossipSendC,
@@ -556,6 +557,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.setC.readC,
 				g.gossipSendC,
 				g.obsvC,
+				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.gk,
