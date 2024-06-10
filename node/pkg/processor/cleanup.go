@@ -115,7 +115,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			}
 
 			hasSigs := len(s.signatures)
-			quorum := hasSigs >= gs.Quorum
+			quorum := hasSigs >= gs.Quorum()
 
 			var chain vaa.ChainID
 			if s.ourObservation != nil {
@@ -128,7 +128,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 					zap.Int("have_sigs", hasSigs),
-					zap.Int("required_sigs", gs.Quorum),
+					zap.Int("required_sigs", gs.Quorum()),
 					zap.Bool("quorum", quorum),
 					zap.Stringer("emitter_chain", chain),
 				)
@@ -245,8 +245,8 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.Int("have_sigs", hasSigs),
-						zap.Int("required_sigs", p.gs.Quorum),
-						zap.Bool("quorum", hasSigs >= p.gs.Quorum),
+						zap.Int("required_sigs", p.gs.Quorum()),
+						zap.Bool("quorum", hasSigs >= p.gs.Quorum()),
 					)
 				}
 				delete(p.state.signatures, hash)

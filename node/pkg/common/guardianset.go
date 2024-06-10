@@ -54,13 +54,18 @@ type GuardianSet struct {
 	// On-chain set index
 	Index uint32
 
-	// Quorum value for this set of keys
-	Quorum int
+	// quorum value for this set of keys
+	quorum int
 
 	// A map from address to index. Testing showed that, on average, a map is almost three times faster than a sequential search of the key slice.
 	// Testing also showed that the map was twice as fast as using a sorted slice and `slices.BinarySearchFunc`. That being said, on a 4GHz CPU,
 	// the sequential search takes an average of 800 nanos and the map look up takes about 260 nanos. Is this worth doing?
 	keyMap map[common.Address]int
+}
+
+// Quorum returns the current quorum value.
+func (gs *GuardianSet) Quorum() int {
+	return gs.quorum
 }
 
 func NewGuardianSet(keys []common.Address, index uint32) *GuardianSet {
@@ -71,7 +76,7 @@ func NewGuardianSet(keys []common.Address, index uint32) *GuardianSet {
 	return &GuardianSet{
 		Keys:   keys,
 		Index:  index,
-		Quorum: vaa.CalculateQuorum(len(keys)),
+		quorum: vaa.CalculateQuorum(len(keys)),
 		keyMap: keyMap,
 	}
 }

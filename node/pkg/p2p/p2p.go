@@ -590,7 +590,9 @@ func Run(
 					}
 
 					// Send to local observation request queue (the loopback message is ignored)
-					obsvReqC <- msg
+					if obsvReqC != nil {
+						obsvReqC <- msg
+					}
 
 					err = th.Publish(ctx, b)
 					p2pMessagesSent.Inc()
@@ -699,59 +701,65 @@ func Run(
 					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
-					p2pMessagesReceived.WithLabelValues("observation").Inc()
-				} else {
-					if components.WarnChannelOverflow {
-						logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+				if obsvC != nil {
+					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
+						p2pMessagesReceived.WithLabelValues("observation").Inc()
+					} else {
+						if components.WarnChannelOverflow {
+							logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+						}
+						p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 					}
-					p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-				select {
-				case signedInC <- m.SignedVaaWithQuorum:
-					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
-				default:
-					if components.WarnChannelOverflow {
-						// TODO do not log this in production
-						var hexStr string
-						if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-							hexStr = vaa.HexDigest()
+				if signedInC != nil {
+					select {
+					case signedInC <- m.SignedVaaWithQuorum:
+						p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+					default:
+						if components.WarnChannelOverflow {
+							// TODO do not log this in production
+							var hexStr string
+							if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+								hexStr = vaa.HexDigest()
+							}
+							logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
 						}
-						logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
+						p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 					}
-					p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedObservationRequest:
-				s := m.SignedObservationRequest
-				gs := gst.Get()
-				if gs == nil {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+				if obsvReqC != nil {
+					s := m.SignedObservationRequest
+					gs := gst.Get()
+					if gs == nil {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+						}
+						break
 					}
-					break
-				}
-				r, err := processSignedObservationRequest(s, gs)
-				if err != nil {
-					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("invalid signed observation request received",
-							zap.Error(err),
-							zap.Any("payload", msg.Message),
-							zap.Any("value", s),
-							zap.Binary("raw", envelope.Data),
-							zap.String("from", envelope.GetFrom().String()))
-					}
-				} else {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
-					}
+					r, err := processSignedObservationRequest(s, gs)
+					if err != nil {
+						p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("invalid signed observation request received",
+								zap.Error(err),
+								zap.Any("payload", msg.Message),
+								zap.Any("value", s),
+								zap.Binary("raw", envelope.Data),
+								zap.String("from", envelope.GetFrom().String()))
+						}
+					} else {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
+						}
 
-					select {
-					case obsvReqC <- r:
-						p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
-					default:
-						p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+						select {
+						case obsvReqC <- r:
+							p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+						default:
+							p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+						}
 					}
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorConfig:

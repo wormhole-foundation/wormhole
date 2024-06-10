@@ -340,12 +340,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 	// Outbound gossip message queue
 	sendC := make(chan []byte)
 
-	// Inbound observations
-	obsvC := make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], 1024)
-
-	// Inbound observation requests
-	obsvReqC := make(chan *gossipv1.ObservationRequest, 1024)
-
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 1024)
 
@@ -369,29 +363,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 			logger.Fatal(`Failed to read initial guardian set for VAA verification`, zap.Error(err))
 		}
 	}
-
-	// Ignore observations
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvC:
-			}
-		}
-	}()
-
-	// Ignore observation requests
-	// Note: without this, the whole program hangs on observation requests
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvReqC:
-			}
-		}
-	}()
 
 	// Log signed VAAs
 	go func() {
@@ -422,8 +393,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 		components.Port = *p2pPort
 		if err := supervisor.Run(ctx,
 			"p2p",
-			p2p.Run(obsvC,
-				obsvReqC,
+			p2p.Run(nil, // Ignore incoming observations.
+				nil, // Ignore observation requests.
 				nil,
 				sendC,
 				signedInC,

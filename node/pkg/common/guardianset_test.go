@@ -34,7 +34,7 @@ func TestNewGuardianSet(t *testing.T) {
 	gs := NewGuardianSet(keys, 1)
 	assert.True(t, reflect.DeepEqual(keys, gs.Keys))
 	assert.Equal(t, uint32(1), gs.Index)
-	assert.Equal(t, vaa.CalculateQuorum(len(keys)), gs.Quorum)
+	assert.Equal(t, vaa.CalculateQuorum(len(keys)), gs.Quorum())
 }
 
 func TestKeyIndex(t *testing.T) {
