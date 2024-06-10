@@ -87,11 +87,25 @@
       "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
     },
     {
+      "description": "Mantle",
+      "evmNetworkId": 5000,
+      "chainId": 35,
+      "rpc": "https://rpc.ankr.com/mantle",
+      "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+    },
+    {
       "description": "Blast",
       "evmNetworkId": 81457,
       "chainId": 36,
       "rpc": "https://rpc.ankr.com/blast",
       "wormholeAddress": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+    },
+    {
+      "description": "XLayer",
+      "evmNetworkId": 196,
+      "chainId": 37,
+      "rpc": "https://xlayerrpc.okx.com",
+      "wormholeAddress": "0x194B123c5E96B9b2E49763619985790Dc241CAC0"
     }
   ]
 }
