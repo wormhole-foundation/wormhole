@@ -123,14 +123,12 @@ export async function deployCreate2Factory(
 ): Promise<Deployment> {
   console.log("deployCreate2Factory " + chain.chainId);
 
-  const signer = await getSigner(chain);
   let factory = new Create2Factory__factory();
 
-  const signerAddress = await signer.getAddress();
   const ethChain = getChain(2);
   const ethChainProvider = getProvider(ethChain);
   const ethNetwork = await ethChainProvider.getNetwork();
-  if (ethNetwork.chainId === 1 && signerAddress.toLowerCase() === "0x5623bdf52b51085c807a5dc39152eed05825f5fd") {
+  if (ethNetwork.chainId === 1) {
     // Here we fetch the creation bytecode from Ethereum.
     // We also perform a few sanity checks to ensure that the retrieved creation bytecode looks good:
     // 1. The transaction receipt should contain the expected address for the `Create2Factory`.
@@ -164,6 +162,7 @@ export async function deployCreate2Factory(
   }
 
   // We need to connect the signer here because we're overwriting the factory when deploying to mainnet.
+  const signer = await getSigner(chain);
   factory = factory.connect(signer);
   const overrides = await buildOverridesDeploy(factory, chain, []);
   const contract = await factory.deploy(overrides).then(deployed);
