@@ -72,9 +72,28 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 	return sigs, agg
 }
 
-// handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
-// and assembles and submits a valid VAA if possible.
-func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+// handleBatchObservation processes a batch of remote VAA observations.
+func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) {
+	for _, obs := range m.Msg.Observations {
+		p.handleSingleObservation(m.Msg.Addr, obs)
+	}
+	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+}
+
+// handleObservation processes a remote VAA observation.
+func (p *Processor) handleObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+	obs := gossipv1.Observation{
+		Hash:      m.Msg.Hash,
+		Signature: m.Msg.Signature,
+		TxHash:    m.Msg.TxHash,
+		MessageId: m.Msg.MessageId,
+	}
+	p.handleSingleObservation(m.Msg.Addr, &obs)
+	observationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+}
+
+// handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum, and assembles and submits a valid VAA if possible.
+func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
@@ -82,7 +101,6 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 	observationsReceivedTotal.Inc()
 
-	m := obs.Msg
 	hash := hex.EncodeToString(m.Hash)
 	s := p.state.signatures[hash]
 	if s != nil && s.submitted {
@@ -95,7 +113,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.String("message_id", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
+			zap.String("addr", hex.EncodeToString(addr)),
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 		)
@@ -109,14 +127,14 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.String("messageId", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
+			zap.String("addr", hex.EncodeToString(addr)),
 			zap.Error(err))
 		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
 		return
 	}
 
-	// Verify that m.Addr matches the public key that signed m.Hash.
-	their_addr := common.BytesToAddress(m.Addr)
+	// Verify that addr matches the public key that signed m.Hash.
+	their_addr := common.BytesToAddress(addr)
 	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
 
 	if their_addr != signer_pk {
@@ -124,7 +142,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.String("messageId", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
+			zap.String("addr", hex.EncodeToString(addr)),
 			zap.String("pk", signer_pk.Hex()))
 		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
 		return
@@ -165,7 +183,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		return
 	}
 
-	// Verify that m.Addr is included in the guardian set. If it's not, drop the message. In case it's us
+	// Verify that addr is included in the guardian set. If it's not, drop the message. In case it's us
 	// who have the outdated guardian set, we'll just wait for the message to be retransmitted eventually.
 	_, ok := gs.KeyIndex(their_addr)
 	if !ok {
@@ -275,8 +293,6 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			)
 		}
 	}
-
-	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
 }
 
 func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {

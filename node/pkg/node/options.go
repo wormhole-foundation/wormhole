@@ -562,6 +562,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.setC.readC,
 				g.gossipSendC,
 				g.obsvC,
+				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.gk,

@@ -10,7 +10,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
-	node_common "github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -40,13 +39,27 @@ func (p *Processor) broadcastSignature(
 	signature []byte,
 	txhash []byte,
 ) {
+	addr := p.ourAddr.Bytes()
 	digest := o.SigningDigest()
-	obsv := gossipv1.SignedObservation{
-		Addr:      p.ourAddr.Bytes(),
+	msgId := o.MessageID()
+
+	// Post the observation to the batch publisher.
+	ourObs := &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
-		MessageId: o.MessageID(),
+		MessageId: msgId,
+	}
+
+	p.postObservationToBatch(ourObs)
+
+	// Post the observation in its own gossip message. TODO: Remove this once everyone has migrated to batches.
+	obsv := gossipv1.SignedObservation{
+		Addr:      addr,
+		Hash:      digest.Bytes(),
+		Signature: signature,
+		TxHash:    txhash,
+		MessageId: msgId,
 	}
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
@@ -57,7 +70,7 @@ func (p *Processor) broadcastSignature(
 	}
 
 	// Broadcast the observation.
-	p.gossipSendC <- msg
+	p.gossipSendC <- msg // TODO: Get rid of this
 	observationsBroadcast.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())
@@ -72,21 +85,14 @@ func (p *Processor) broadcastSignature(
 	}
 
 	p.state.signatures[hash].ourObservation = o
+	p.state.signatures[hash].ourObs = ourObs
 	p.state.signatures[hash].ourMsg = msg
 	p.state.signatures[hash].txHash = txhash
 	p.state.signatures[hash].source = o.GetEmitterChain().String()
 	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 
-	// Fast path for our own signature
-	// send to obsvC directly if there is capacity, otherwise do it in a go routine.
-	// We can't block here because the same process would be responsible for reading from obsvC.
-	om := node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv)
-	select {
-	case p.obsvC <- om:
-	default:
-		go func() { p.obsvC <- om }()
-	}
-
+	// Post the signature to ourselves.
+	p.handleSingleObservation(addr, ourObs)
 	observationsPostedInternally.Inc()
 }
 
