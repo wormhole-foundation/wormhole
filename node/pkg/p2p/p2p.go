@@ -381,7 +381,7 @@ func Run(
 			pubsub.WithGossipSubParams(components.GossipParams),
 			pubsub.WithEventTracer(ourTracer),
 			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
-			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
+			pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		)
 		if err != nil {
 			panic(err)
