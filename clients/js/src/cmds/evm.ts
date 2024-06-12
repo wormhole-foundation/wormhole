@@ -1,12 +1,3 @@
-import {
-  assertChain,
-  assertEVMChain,
-  ChainName,
-  CHAINS,
-  CONTRACTS,
-  isEVMChain,
-  toChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
 import { homedir } from "os";
 import yargs from "yargs";
@@ -18,7 +9,18 @@ import {
   setStorageAt,
 } from "../evm";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
-import { assertNetwork, evm_address } from "../utils";
+import {
+  assertEVMChain,
+  chainToChain,
+  evm_address,
+  getNetwork,
+} from "../utils";
+import {
+  assertChain,
+  chains,
+  contracts,
+  platformToChains,
+} from "@wormhole-foundation/sdk-base";
 
 export const command = "evm";
 export const desc = "EVM utilities";
@@ -81,12 +83,7 @@ export const builder = function (y: typeof yargs) {
       }
     )
     .command("chains", "Return all EVM chains", async (_) => {
-      console.log(
-        Object.values(CHAINS)
-          .map((id) => toChainName(id))
-          .filter((name) => isEVMChain(name))
-          .join(" ")
-      );
+      console.log(...platformToChains("Evm"));
     })
     .command(
       "info",
@@ -96,7 +93,7 @@ export const builder = function (y: typeof yargs) {
           .option("chain", {
             alias: "c",
             describe: "Chain to query",
-            choices: Object.keys(CHAINS) as ChainName[],
+            type: "string",
             demandOption: true,
           } as const)
           .option("module", {
@@ -120,11 +117,9 @@ export const builder = function (y: typeof yargs) {
             demandOption: false,
           }),
       async (argv) => {
-        const chain = argv.chain;
-        assertChain(chain);
+        const chain = chainToChain(argv.chain);
         assertEVMChain(chain);
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         const module = argv.module;
         const rpc = argv.rpc ?? NETWORKS[network][chain].rpc;
         if (argv["implementation-only"]) {
@@ -163,7 +158,7 @@ export const builder = function (y: typeof yargs) {
             alias: "a",
             describe: "Core contract address",
             type: "string",
-            default: CONTRACTS.MAINNET.ethereum.core,
+            default: contracts.coreBridge("Mainnet", "Ethereum"),
           })
           .option("guardian-address", {
             alias: "g",
@@ -180,7 +175,7 @@ export const builder = function (y: typeof yargs) {
           }),
       async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",");
-        let rpc = argv.rpc ?? NETWORKS.DEVNET.ethereum.rpc;
+        let rpc = argv.rpc ?? NETWORKS.Devnet.Ethereum.rpc;
         await hijack_evm(
           rpc,
           argv["core-contract-address"],

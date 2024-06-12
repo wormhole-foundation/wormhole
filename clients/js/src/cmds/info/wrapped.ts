@@ -1,8 +1,8 @@
 import { assertChain } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { getWrappedAssetAddress } from "../../chains/generic/getWrappedAssetAddress";
-import { CHAIN_ID_OR_NAME_CHOICES, RPC_OPTIONS } from "../../consts";
-import { assertNetwork } from "../../utils";
+import { RPC_OPTIONS } from "../../consts";
+import { chainToChain, getNetwork } from "../../utils";
 
 export const command = "wrapped <origin-chain> <origin-address> <target-chain>";
 export const desc =
@@ -11,7 +11,7 @@ export const builder = (y: typeof yargs) =>
   y
     .positional("origin-chain", {
       describe: "Chain that wrapped asset came from",
-      choices: CHAIN_ID_OR_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     } as const)
     .positional("origin-address", {
@@ -21,7 +21,7 @@ export const builder = (y: typeof yargs) =>
     })
     .positional("target-chain", {
       describe: "Chain to query for wrapped asset address",
-      choices: CHAIN_ID_OR_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     } as const)
     .option("network", {
@@ -42,14 +42,13 @@ export const handler = async (
   const consoleWarnTemp = console.warn;
   console.warn = () => {};
 
-  const originChain = argv["origin-chain"];
+  const originChain = chainToChain(argv["origin-chain"]);
   const originAddress = argv["origin-address"];
-  const targetChain = argv["target-chain"];
-  const network = argv.network.toUpperCase();
+  const targetChain = chainToChain(argv["target-chain"]);
+  const network = getNetwork(argv.network);
 
   assertChain(originChain);
   assertChain(targetChain);
-  assertNetwork(network);
 
   console.log(
     await getWrappedAssetAddress(

@@ -248,16 +248,7 @@ Positionals:
 Options:
       --help              Show help                                    [boolean]
       --version           Show version number                          [boolean]
-  -c, --chain             chain name
-             [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
-        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
-            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
-         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
-    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
-               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
-                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
-                               "optimism_sepolia", "holesky", "polygon_sepolia"]
+  -c, --chain             chain name                                    [string]
   -n, --network           Network
                             [required] [choices: "mainnet", "testnet", "devnet"]
   -a, --contract-address  Contract to submit VAA to (override config)   [string]
@@ -307,26 +298,8 @@ Options:
 Options:
       --help        Show help                                          [boolean]
       --version     Show version number                                [boolean]
-      --src-chain   source chain
-           [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
-        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
-            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
-         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
-    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
-               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
-                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
-                               "optimism_sepolia", "holesky", "polygon_sepolia"]
-      --dst-chain   destination chain
-           [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
-        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
-            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
-         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
-    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
-               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
-                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
-                               "optimism_sepolia", "holesky", "polygon_sepolia"]
+      --src-chain   source chain                             [string] [required]
+      --dst-chain   destination chain                        [string] [required]
       --dst-addr    destination address                      [string] [required]
       --token-addr  token address               [string] [default: native token]
       --amount      token amount                             [string] [required]
@@ -353,16 +326,7 @@ Options:
 ```sh
 Positionals:
   network  Network                     [choices: "mainnet", "testnet", "devnet"]
-  chain    Source chain
-             [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
-        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
-            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
-         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-         "xpla", "btc", "base", "sei", "rootstock", "scroll", "mantle", "blast",
-    "xlayer", "linea", "berachain", "seievm", "wormchain", "cosmoshub", "evmos",
-               "kujira", "neutron", "celestia", "stargaze", "seda", "dymension",
-                    "provenance", "sepolia", "arbitrum_sepolia", "base_sepolia",
-                               "optimism_sepolia", "holesky", "polygon_sepolia"]
+  chain    Source chain                                                 [string]
   tx       Source transaction hash                                      [string]
 
 Options:

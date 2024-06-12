@@ -1,21 +1,11 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk/lib/esm/utils/array";
-import {
-  assertChain,
-  ChainName,
-  CHAINS,
-  isCosmWasmChain,
-  isEVMChain,
-  toChainId,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { fromBech32, toHex } from "@cosmjs/encoding";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
 import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER } from "../consts";
-import { evm_address } from "../utils";
+import { chainToChain, evm_address } from "../utils";
 import {
   ContractUpgrade,
-  impossible,
   Payload,
   PortalRegisterChain,
   RecoverChainId,
@@ -25,6 +15,13 @@ import {
   VAA,
   WormholeRelayerSetDefaultDeliveryProvider,
 } from "../vaa";
+import {
+  Chain,
+  assertChain,
+  chainToPlatform,
+  chains,
+  toChainId,
+} from "@wormhole-foundation/sdk-base";
 
 function makeVAA(
   emitterChain: number,
@@ -68,7 +65,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to register",
-              choices: Object.keys(CHAINS) as ChainName[],
+              type: "string",
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -85,13 +82,13 @@ export const builder = function (y: typeof yargs) {
             } as const),
         (argv) => {
           const module = argv["module"];
-          assertChain(argv.chain);
+          const chain = chainToChain(argv.chain);
           const payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
-            emitterChain: toChainId(argv.chain),
-            emitterAddress: parseAddress(argv.chain, argv["contract-address"]),
+            emitterChain: toChainId(chain),
+            emitterAddress: parseAddress(chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -111,7 +108,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to upgrade",
-              choices: Object.keys(CHAINS) as ChainName[],
+              type: "string",
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -127,13 +124,13 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          assertChain(argv.chain);
+          const chain = chainToChain(argv.chain);
           const module = argv["module"];
           const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
-            chain: toChainId(argv.chain),
-            address: parseCodeAddress(argv.chain, argv["contract-address"]),
+            chain: toChainId(chain),
+            address: parseCodeAddress(chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -152,7 +149,7 @@ export const builder = function (y: typeof yargs) {
             .option("emitter-chain", {
               alias: "e",
               describe: "Emitter chain of the VAA",
-              choices: Object.keys(CHAINS) as ChainName[],
+              type: "string",
               demandOption: true,
             } as const)
             .option("emitter-address", {
@@ -164,7 +161,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Token's chain",
-              choices: Object.keys(CHAINS) as ChainName[],
+              type: "string",
               demandOption: true,
             } as const)
             .option("token-address", {
@@ -192,15 +189,14 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             }),
         (argv) => {
-          const emitter_chain = argv["emitter-chain"];
-          assertChain(argv.chain);
-          assertChain(emitter_chain);
+          const emitter_chain = chainToChain(argv["emitter-chain"]);
+          const chain = chainToChain(argv.chain);
           const payload: TokenBridgeAttestMeta = {
             module: "TokenBridge",
             type: "AttestMeta",
             chain: 0,
-            tokenAddress: parseAddress(argv.chain, argv["token-address"]),
-            tokenChain: toChainId(argv.chain),
+            tokenAddress: parseAddress(chain, argv["token-address"]),
+            tokenChain: toChainId(chain),
             decimals: argv["decimals"],
             symbol: argv["symbol"],
             name: argv["name"],
@@ -263,7 +259,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain of Wormhole Relayer contract",
-              choices: Object.keys(CHAINS),
+              type: "string",
               demandOption: true,
             } as const)
             .option("delivery-provider-address", {
@@ -274,13 +270,13 @@ export const builder = function (y: typeof yargs) {
             });
         },
         (argv) => {
-          assertChain(argv.chain);
+          const chain = chainToChain(argv.chain);
           const payload: WormholeRelayerSetDefaultDeliveryProvider = {
             module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
-            chain: toChainId(argv["chain"]),
+            chain: toChainId(chain),
             relayProviderAddress: parseAddress(
-              argv["chain"],
+              chain,
               argv["delivery-provider-address"]
             ),
           };
@@ -297,45 +293,43 @@ export const builder = function (y: typeof yargs) {
 };
 export const handler = () => {};
 
-function parseAddress(chain: ChainName, address: string): string {
-  if (chain === "unset") {
-    throw Error("Chain unset");
-  } else if (isEVMChain(chain)) {
+function parseAddress(chain: Chain, address: string): string {
+  if (chainToPlatform(chain) === "Evm") {
     return "0x" + evm_address(address);
-  } else if (isCosmWasmChain(chain)) {
+  } else if (chainToPlatform(chain) === "Cosmwasm") {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
-  } else if (chain === "solana" || chain === "pythnet") {
+  } else if (chain === "Solana" || chain === "Pythnet") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0");
-  } else if (chain === "algorand") {
+  } else if (chain === "Algorand") {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
-  } else if (chain === "near") {
+  } else if (chain === "Near") {
     return "0x" + evm_address(address);
-  } else if (chain === "sui") {
+  } else if (chain === "Sui") {
     return "0x" + evm_address(address);
-  } else if (chain === "aptos") {
+  } else if (chain === "Aptos") {
     if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
       return "0x" + evm_address(address);
     }
 
     return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
-  } else if (chain === "btc") {
+  } else if (chain === "Btc") {
     throw Error("btc is not supported yet");
-  } else if (chain === "cosmoshub") {
+  } else if (chain === "Cosmoshub") {
     throw Error("cosmoshub is not supported yet");
-  } else if (chain === "evmos") {
+  } else if (chain === "Evmos") {
     throw Error("evmos is not supported yet");
-  } else if (chain === "kujira") {
+  } else if (chain === "Kujira") {
     throw Error("kujira is not supported yet");
-  } else if (chain === "rootstock") {
+  } else if (chain === "Rootstock") {
     throw Error("rootstock is not supported yet");
   } else {
-    impossible(chain);
+    throw Error(`Unsupported chain: ${chain}`);
   }
 }
 
-function parseCodeAddress(chain: ChainName, address: string): string {
-  if (isCosmWasmChain(chain)) {
+function parseCodeAddress(chain: Chain, address: string): string {
+  if (chainToPlatform(chain) === "Cosmwasm") {
     return "0x" + parseInt(address, 10).toString(16).padStart(64, "0");
   } else {
     return parseAddress(chain, address);

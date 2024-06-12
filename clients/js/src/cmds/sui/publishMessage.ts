@@ -13,8 +13,8 @@ import {
   setMaxGasBudgetDevnet,
 } from "../../chains/sui";
 import { NETWORK_OPTIONS, NETWORKS, RPC_OPTIONS } from "../../consts";
-import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+import { getNetwork } from "../../utils";
 
 export const addPublishMessageCommands: YargsAddCommandsFn = (
   y: typeof yargs
@@ -57,14 +57,13 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
         })
         .option("rpc", RPC_OPTIONS),
     async (argv) => {
-      const network = argv.network.toUpperCase();
-      assertNetwork(network);
+      const network = getNetwork(argv.network);
       const packageId = argv["package-id"];
       const stateObjectId = argv.state;
       const wormholeStateObjectId = argv["wormhole-state"];
       const message = argv.message;
       const privateKey = argv["private-key"];
-      const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
 
       const provider = getProvider(network, rpc);
       const signer = getSigner(provider, network, privateKey);
