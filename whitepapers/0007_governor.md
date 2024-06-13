@@ -47,13 +47,18 @@ Governor divides token-based transactions into two categories: small transaction
 - **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artificially split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
 - **Large Transactions:** Transactions larger than the single-transaction threshold of the chain where the transfer is originating from are considered large transactions.  All large transactions have an imposed 24h finality delay before Wormhole Guardians sign them. These transactions do not affect the 24h threshold counter.
 
+#### Headroom Calculations
+
+The headroom for a given chain is the sum of the notional USD value of all transfers of governed tokens emitted from that chain within a 24 hour sliding window.
+Inbound transfers of certain tokens can also decrease this sum, a process we refer to as Flow Canceling. The tokens are listed in [flow_cancel_tokens.go]. An inbound transfer of these tokens to chain will reduce that chain's outbound limit: effectively the net-flow is zero. This allows for a relaxing of the Governor's rate-limiting as it accounts for the net flow of these assets rather than calculating only the outbound value.
+
 ### Asset pricing
 
 Since the thresholds are denominated in the base currency, the Governor must know the notional value of transfers in this base currency. To determine the price of a token it uses the *maximum* of:
 1. **Hardcoded Floor Price**: This price is hard coded into the governor and is based on a fixed point in time (usually during a Wormhole Guardian release) which polls CoinGecko for a known set of known tokens that are governed.
 2. **Dynamic Price:** This price is dynamically polled from CoinGecko at 5-10min intervals.
 
-The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go).
+The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). [flow_cancel_tokens.go] contains the token list of Flow Cancel tokens but does not include price information.
 
 If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hardcoded floor price instead.
 
@@ -69,7 +74,7 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 
 ## Detailed Design
 
-The Governor is implemented as an additional package that defines (1) a `ChainGovernor` object, (2) `mainnet_tokens.go`, a single map of tokens that will be monitored, and (3) `mainnet_chains.go`, a map of chains governed by the chain governor.
+The Governor is implemented as an additional package that defines (1) a `ChainGovernor` object, (2) `mainnet_tokens.go`, a single map of tokens that will be monitored, (3) `mainnet_chains.go`, a map of chains governed by the chain governor, and (4) `flow_cancel_tokens.go`, a map of tokens that can reduce the Governor's rate limit.
 
 The `mainnet_tokens.go` maps a list of tokens with the maximum price between a hard-coded token floor price and the latest price read from CoinGecko.
 
@@ -81,14 +86,15 @@ The checks performed include:
 2. Is the message sent from a governed emitter?
 3. Is the message a known type that transfers value?
 4. Is the token transferred listed within `mainnet_tokens.go`?
-5. Is the transaction a “large” transaction (ie. greater than or equal to `bigTransactionSize` for this chain)?
-6. Is the transaction a “small” transaction (ie. less than `bigTransactionSize` for this chain)?
+5. Is the token transferred listed within `flow_cancel_tokens.go`?
+6. Is the transaction a “large” transaction (ie. greater than or equal to `bigTransactionSize` for this chain)?
+7. Is the transaction a “small” transaction (ie. less than `bigTransactionSize` for this chain)?
 
 The above checks will produce 3 possible scenarios:
 
 - **Non-Governed Message**: If a message does not pass checks (1-4), `ChainGovernor` will indicate that the message can be published.
 - **Governed Message (Large)**: If a message is “large”, `ChainGovernor` will wait for 24hrs before signing the VAA and place the message in a queue.
-- **Governed Message (Small)**: If a message is “small”, `ChainGovernor` will determine if it fits inside the `dailyLimit` for this chain. If it does fit, it will be signed immediately. If it does not fit, it will wait in the queue until it does fit. If it does not fit in 24hrs, it will be released from the queue.
+- **Governed Message (Small)**: If a message is “small”, `ChainGovernor` will determine if it fits inside the `dailyLimit` for this chain. If it does fit, it will be signed immediately. If it does not fit, it will wait in the queue until it does fit. If it does not fit in 24hrs, it will be released from the queue. The `dailyLimit` is the sum of the notional USD value of outbound transfers minus the value of any inbound Flow Cancel tokens.
 
 While messages are enqueued, any Guardian has a window of opportunity to determine if a message is fraudulent using their own processes for fraud detection. If Guardians determine a message is fraudulent, they can delete the message from the queue from their own independently managed queue. If a super minority of Guardians (7 of 19) delete a message from their queues, this fraudulent message is effectively censored as it can no longer reach a super-majority quorum.
 
