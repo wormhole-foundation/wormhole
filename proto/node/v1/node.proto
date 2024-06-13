@@ -382,6 +382,7 @@ message ChainGovernorReleasePendingVAAResponse {
 
 message ChainGovernorResetReleaseTimerRequest {
   string vaa_id = 1;
+  uint32 num_days = 2;
 }
 
 message ChainGovernorResetReleaseTimerResponse {
