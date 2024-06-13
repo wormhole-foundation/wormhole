@@ -21,7 +21,10 @@ import {
   UniversalAddress,
   encoding,
 } from "@wormhole-foundation/sdk";
-import { chainToNativeDenoms } from "@wormhole-foundation/sdk-cosmwasm";
+import {
+  chainToNativeDenoms,
+  CosmwasmAddress,
+} from "@wormhole-foundation/sdk-cosmwasm";
 import { isValidSuiAddress } from "@mysten/sui.js";
 import { sha3_256 } from "js-sha3";
 import {
@@ -65,8 +68,11 @@ export function canonicalAddress(humanAddress: string) {
   return new Uint8Array(bech32.fromWords(bech32.decode(humanAddress).words));
 }
 
-export function humanAddress(hrp: string, canonicalAddress: Uint8Array) {
-  return bech32.encode(hrp, bech32.toWords(canonicalAddress));
+export function humanAddress(
+  hrp: string,
+  canonicalAddress: Uint8Array
+): string {
+  return CosmwasmAddress.encode(hrp, canonicalAddress);
 }
 
 export function buildTokenId(
