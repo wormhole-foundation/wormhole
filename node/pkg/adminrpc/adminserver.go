@@ -1031,7 +1031,11 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
 	}
 
-	resp, err := s.governor.ResetReleaseTimer(req.VaaId)
+	if req.NumDays < 1 || req.NumDays > 7 {
+		return nil, fmt.Errorf("the specified number of days falls outside the range of 1 to 7")
+	}
+
+	resp, err := s.governor.ResetReleaseTimer(req.VaaId, req.NumDays)
 	if err != nil {
 		return nil, err
 	}

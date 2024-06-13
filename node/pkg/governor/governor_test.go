@@ -1481,7 +1481,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 1, len(gov.msgsSeen))
 
 	// But then the operator resets the release time.
-	_, err = gov.resetReleaseTimerForTime(msg3.MessageIDString(), now)
+	_, err = gov.resetReleaseTimerForTime(msg3.MessageIDString(), now, 1)
 	require.NoError(t, err)
 
 	// So now, 12 hours later the big transaction is enqueued, it still won't get released.
