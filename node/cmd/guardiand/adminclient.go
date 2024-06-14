@@ -165,7 +165,7 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 
 var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 	Use:   "governor-reset-release-timer [VAA_ID] <num_days>",
-	Short: "Resets the release timer for a chain governor pending VAA, extending it to the configured maximum",
+	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 7), or 24 hours if num_days is omitted",
 	Run:   runChainGovernorResetReleaseTimer,
 	Args:  cobra.RangeArgs(1, 2),
 }
@@ -549,6 +549,7 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
+	// defaults to 1 day if num_days isn't specified
 	var numDays = uint32(1)
 	if len(args) > 1 {
 		numDaysArg, err := strconv.Atoi(args[1])
@@ -557,7 +558,7 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 			log.Fatalf("invalid num_days: %v", err)
 		}
 
-		numDays = min(max(uint32(numDaysArg), 1), 7)
+		numDays = uint32(numDaysArg)
 	}
 
 	msg := nodev1.ChainGovernorResetReleaseTimerRequest{
