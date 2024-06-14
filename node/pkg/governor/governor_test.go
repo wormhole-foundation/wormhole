@@ -1315,7 +1315,6 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	gov, err := newChainGovernorForTest(ctx)
 
 	require.NoError(t, err)
-	assert.NotNil(t, gov)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -1356,10 +1355,11 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 
 	msg.MessageIDString()
 
-	// check that the enqueued vaa's release date is now + 24 hours
+	// check that the enqueued vaa's release date is now + 1 day
+	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix())
 	enqueuedVaas := gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
-	assert.Equal(t, enqueuedVaas[0].ReleaseTime, uint32(now.Add(24*time.Hour).Unix()))
+	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
 
 	// the release timer gets reset to 5 days
 	_, err = gov.resetReleaseTimerForTime(msg.MessageIDString(), now, 5)
@@ -1368,7 +1368,8 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	// check that the enqueued vaa's release date is now + 5 days
 	enqueuedVaas = gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
-	assert.Equal(t, enqueuedVaas[0].ReleaseTime, uint32(now.Add(5*24*time.Hour).Unix()))
+	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix())
+	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
 
 }
 
