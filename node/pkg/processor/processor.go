@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -150,8 +151,9 @@ type Processor struct {
 	acctReadC      <-chan *common.MessagePublication
 	pythnetVaas    map[string]PythNetVaaEntry
 	gatewayRelayer *gwrelayer.GatewayRelayer
-
-	batchObsvPubC chan *gossipv1.Observation
+	batchObsvPubC  chan *gossipv1.Observation
+	updateVAALock  sync.Mutex
+	updatedVAAs    map[string]*vaa.VAA
 }
 
 var (
@@ -247,6 +249,7 @@ func NewProcessor(
 		acctReadC:      acctReadC,
 		pythnetVaas:    make(map[string]PythNetVaaEntry),
 		gatewayRelayer: gatewayRelayer,
+		updatedVAAs:    make(map[string]*vaa.VAA),
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 	}
 }
@@ -254,6 +257,10 @@ func NewProcessor(
 func (p *Processor) Run(ctx context.Context) error {
 	if err := supervisor.Run(ctx, "batchProcessor", common.WrapWithScissors(p.batchProcessor, "batchProcessor")); err != nil {
 		return fmt.Errorf("failed to start batch processor: %w", err)
+	}
+
+	if err := supervisor.Run(ctx, "vaaWriter", common.WrapWithScissors(p.vaaWriter, "vaaWriter")); err != nil {
+		return fmt.Errorf("failed to start vaa writer: %w", err)
 	}
 
 	cleanup := time.NewTicker(CleanupInterval)
@@ -345,13 +352,16 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 }
 
-func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
+func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 	if v.EmitterChain == vaa.ChainIDPythNet {
 		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
-		return nil
+		return
 	}
-	return p.db.StoreSignedVAA(v)
+	key := fmt.Sprintf("%d/%v/%v", v.EmitterChain, v.EmitterAddress, v.Sequence)
+	p.updateVAALock.Lock()
+	p.updatedVAAs[key] = v
+	p.updateVAALock.Unlock()
 }
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID
@@ -365,12 +375,16 @@ func (p *Processor) haveSignedVAA(id db.VAAID) bool {
 		return exists
 	}
 
+	key := fmt.Sprintf("%d/%v/%v", id.EmitterChain, id.EmitterAddress, id.Sequence)
+	if p.getVaaFromUpdateMap(key) != nil {
+		return true
+	}
+
 	if p.db == nil {
 		return false
 	}
 
 	ok, err := p.db.HasVAA(id)
-
 	if err != nil {
 		p.logger.Error("failed to look up VAA in database",
 			zap.String("vaaID", string(id.Bytes())),
@@ -380,4 +394,36 @@ func (p *Processor) haveSignedVAA(id db.VAAID) bool {
 	}
 
 	return ok
+}
+
+func (p *Processor) getVaaFromUpdateMap(key string) *vaa.VAA {
+	p.updateVAALock.Lock()
+	v, exists := p.updatedVAAs[key]
+	p.updateVAALock.Unlock()
+	if !exists {
+		return nil
+	}
+	return v
+}
+
+func (p *Processor) vaaWriter(ctx context.Context) error {
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			p.updateVAALock.Lock()
+			updatedVAAs := p.updatedVAAs
+			p.updatedVAAs = make(map[string]*vaa.VAA)
+			p.updateVAALock.Unlock()
+			if len(updatedVAAs) != 0 {
+				for _, v := range updatedVAAs {
+					if err := p.db.StoreSignedVAA(v); err != nil {
+						p.logger.Error("failed to write VAA to database", zap.Error(err))
+					}
+				}
+			}
+		}
+	}
 }
