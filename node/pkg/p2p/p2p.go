@@ -362,7 +362,9 @@ func Run(
 			panic(err)
 		}
 
-		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
+		vaaTopic := fmt.Sprintf("%s/%s", networkID, "broadcast")
+		attestationTopic := fmt.Sprintf("%s/%s", networkID, "attestation")
+		controlTopic := fmt.Sprintf("%s/%s", networkID, "control")
 
 		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
 
@@ -374,7 +376,7 @@ func Run(
 			}
 		}
 
-		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+		logger.Info("Subscribing pubsub topic", zap.String("topic", vaaTopic))
 		ourTracer := &traceHandler{}
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
@@ -387,24 +389,46 @@ func Run(
 			panic(err)
 		}
 
-		th, err := ps.Join(topic)
+		vaaPubsubTopic, err := ps.Join(vaaTopic)
 		if err != nil {
 			return fmt.Errorf("failed to join topic: %w", err)
 		}
 
 		defer func() {
-			if err := th.Close(); err != nil && !errors.Is(err, context.Canceled) {
+			if err := vaaPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("Error closing the topic", zap.Error(err))
+			}
+		}()
+		
+		attestationPubsubTopic, err := ps.Join(attestationTopic)
+		if err != nil {
+			return fmt.Errorf("failed to join topic: %w", err)
+		}
+
+		defer func() {
+			if err := attestationPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("Error closing the topic", zap.Error(err))
+			}
+		}()
+		
+		controlPubsubTopic, err := ps.Join(controlTopic)
+		if err != nil {
+			return fmt.Errorf("failed to join topic: %w", err)
+		}
+
+		defer func() {
+			if err := controlPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
 				logger.Error("Error closing the topic", zap.Error(err))
 			}
 		}()
 
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
-		sub, err := th.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+		controlSubscription, err := controlPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
-		defer sub.Cancel()
+		defer controlSubscription.Cancel()
 
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
@@ -546,7 +570,7 @@ func Run(
 						return b
 					}()
 
-					err = th.Publish(ctx, b)
+					err = controlPubsubTopic.Publish(ctx, b)
 					if err != nil {
 						logger.Warn("failed to publish heartbeat message", zap.Error(err))
 					}
@@ -601,7 +625,7 @@ func Run(
 						obsvReqC <- msg
 					}
 
-					err = th.Publish(ctx, b)
+					err = controlPubsubTopic.Publish(ctx, b)
 					p2pMessagesSent.Inc()
 					if err != nil {
 						logger.Error("failed to publish observation request", zap.Error(err))
@@ -612,189 +636,437 @@ func Run(
 			}
 		}()
 
-		for {
-			envelope, err := sub.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
-			if err != nil {
-				return fmt.Errorf("failed to receive pubsub message: %w", err)
-			}
-
-			var msg gossipv1.GossipMessage
-			err = proto.Unmarshal(envelope.Data, &msg)
-			if err != nil {
-				logger.Info("received invalid message",
-					zap.Binary("data", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
-				p2pMessagesReceived.WithLabelValues("invalid").Inc()
-				continue
-			}
-
-			if envelope.GetFrom() == h.ID() {
-				if logger.Level().Enabled(zapcore.DebugLevel) {
-					logger.Debug("received message from ourselves, ignoring", zap.Any("payload", msg.Message))
+		errC := make(chan error)
+		
+		go func() {
+			for {
+				envelope, err := controlSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+				if err != nil {
+					errC <- fmt.Errorf("failed to receive pubsub message on control subscription: %w",err)
+					return
 				}
-				p2pMessagesReceived.WithLabelValues("loopback").Inc()
-				continue
-			}
 
-			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("received message",
-					zap.Any("payload", msg.Message),
-					zap.Binary("raw", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
-			}
-
-			switch m := msg.Message.(type) {
-			case *gossipv1.GossipMessage_SignedHeartbeat:
-				s := m.SignedHeartbeat
-				gs := gst.Get()
-				if gs == nil {
-					// No valid guardian set yet - dropping heartbeat
-					logger.Log(components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-						zap.Any("value", s),
+				var msg gossipv1.GossipMessage
+				err = proto.Unmarshal(envelope.Data, &msg)
+				if err != nil {
+					logger.Info("received invalid message",
+						zap.Binary("data", envelope.Data),
 						zap.String("from", envelope.GetFrom().String()))
-					break
+					p2pMessagesReceived.WithLabelValues("invalid").Inc()
+					continue
 				}
-				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
-					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-					logger.Log(components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-						zap.Error(err),
+
+				if envelope.GetFrom() == h.ID() {
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("received message from ourselves, ignoring", zap.Any("payload", msg.Message))
+					}
+					p2pMessagesReceived.WithLabelValues("loopback").Inc()
+					continue
+				}
+
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("received message",
 						zap.Any("payload", msg.Message),
-						zap.Any("value", s),
 						zap.Binary("raw", envelope.Data),
 						zap.String("from", envelope.GetFrom().String()))
-				} else {
-					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-					logger.Log(components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-						zap.Any("value", heartbeat),
-						zap.String("from", envelope.GetFrom().String()))
+				}
 
-					func() {
-						if len(heartbeat.P2PNodeId) != 0 {
-							components.ProtectedHostByGuardianKeyLock.Lock()
-							defer components.ProtectedHostByGuardianKeyLock.Unlock()
-							var peerId peer.ID
-							if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
-								logger.Error("p2p_node_id_in_heartbeat_invalid",
+				switch m := msg.Message.(type) {
+				case *gossipv1.GossipMessage_SignedHeartbeat:
+					s := m.SignedHeartbeat
+					gs := gst.Get()
+					if gs == nil {
+						// No valid guardian set yet - dropping heartbeat
+						logger.Log(components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+							zap.Any("value", s),
+							zap.String("from", envelope.GetFrom().String()))
+						break
+					}
+					if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
+						p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
+						logger.Log(components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+							zap.Error(err),
+							zap.Any("payload", msg.Message),
+							zap.Any("value", s),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					} else {
+						p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
+						logger.Log(components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+							zap.Any("value", heartbeat),
+							zap.String("from", envelope.GetFrom().String()))
+
+						func() {
+							if len(heartbeat.P2PNodeId) != 0 {
+								components.ProtectedHostByGuardianKeyLock.Lock()
+								defer components.ProtectedHostByGuardianKeyLock.Unlock()
+								var peerId peer.ID
+								if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
+									logger.Error("p2p_node_id_in_heartbeat_invalid",
+										zap.Any("payload", msg.Message),
+										zap.Any("value", s),
+										zap.Binary("raw", envelope.Data),
+										zap.String("from", envelope.GetFrom().String()))
+								} else {
+									guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
+									if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
+										prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+										if ok {
+											if prevPeerId != peerId {
+												logger.Info("p2p_guardian_peer_changed",
+													zap.String("guardian_addr", guardianAddr.String()),
+													zap.String("prevPeerId", prevPeerId.String()),
+													zap.String("newPeerId", peerId.String()),
+												)
+												components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+												components.ConnMgr.Protect(peerId, "heartbeat")
+												components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+											}
+										} else {
+											components.ConnMgr.Protect(peerId, "heartbeat")
+											components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+										}
+									}
+								}
+							} else {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("p2p_node_id_not_in_heartbeat", zap.Error(err), zap.Any("payload", heartbeat.NodeName))
+								}
+							}
+						}()
+					}
+				case *gossipv1.GossipMessage_SignedObservationRequest:
+					if obsvReqC != nil {
+						s := m.SignedObservationRequest
+						gs := gst.Get()
+						if gs == nil {
+							if logger.Level().Enabled(zapcore.DebugLevel) {
+								logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+							}
+							break
+						}
+						r, err := processSignedObservationRequest(s, gs)
+						if err != nil {
+							p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+							if logger.Level().Enabled(zapcore.DebugLevel) {
+								logger.Debug("invalid signed observation request received",
+									zap.Error(err),
 									zap.Any("payload", msg.Message),
 									zap.Any("value", s),
 									zap.Binary("raw", envelope.Data),
 									zap.String("from", envelope.GetFrom().String()))
-							} else {
-								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-								if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
-									prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
-									if ok {
-										if prevPeerId != peerId {
-											logger.Info("p2p_guardian_peer_changed",
-												zap.String("guardian_addr", guardianAddr.String()),
-												zap.String("prevPeerId", prevPeerId.String()),
-												zap.String("newPeerId", peerId.String()),
-											)
-											components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
-											components.ConnMgr.Protect(peerId, "heartbeat")
-											components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-										}
-									} else {
-										components.ConnMgr.Protect(peerId, "heartbeat")
-										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-									}
-								}
 							}
 						} else {
 							if logger.Level().Enabled(zapcore.DebugLevel) {
-								logger.Debug("p2p_node_id_not_in_heartbeat", zap.Error(err), zap.Any("payload", heartbeat.NodeName))
+								logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
 							}
-						}
-					}()
-				}
-			case *gossipv1.GossipMessage_SignedObservation:
-				if obsvC != nil {
-					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
-						p2pMessagesReceived.WithLabelValues("observation").Inc()
-					} else {
-						if components.WarnChannelOverflow {
-							logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
-						}
-						p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-					}
-				}
-			case *gossipv1.GossipMessage_SignedObservationBatch:
-				if batchObsvC != nil {
-					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, batchObsvC); err == nil {
-						p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
-					} else {
-						if components.WarnChannelOverflow {
-							logger.Warn("Ignoring SignedObservationBatch because batchObsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
-						}
-						p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
-					}
-				}
-			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-				if signedInC != nil {
-					select {
-					case signedInC <- m.SignedVaaWithQuorum:
-						p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
-					default:
-						if components.WarnChannelOverflow {
-							// TODO do not log this in production
-							var hexStr string
-							if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-								hexStr = vaa.HexDigest()
-							}
-							logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
-						}
-						p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
-					}
-				}
-			case *gossipv1.GossipMessage_SignedObservationRequest:
-				if obsvReqC != nil {
-					s := m.SignedObservationRequest
-					gs := gst.Get()
-					if gs == nil {
-						if logger.Level().Enabled(zapcore.DebugLevel) {
-							logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
-						}
-						break
-					}
-					r, err := processSignedObservationRequest(s, gs)
-					if err != nil {
-						p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-						if logger.Level().Enabled(zapcore.DebugLevel) {
-							logger.Debug("invalid signed observation request received",
-								zap.Error(err),
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
-						}
-					} else {
-						if logger.Level().Enabled(zapcore.DebugLevel) {
-							logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
-						}
 
-						select {
-						case obsvReqC <- r:
-							p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
-						default:
-							p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+							select {
+							case obsvReqC <- r:
+								p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+							default:
+								p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+							}
 						}
 					}
+				case *gossipv1.GossipMessage_SignedChainGovernorConfig:
+					if signedGovCfg != nil {
+						signedGovCfg <- m.SignedChainGovernorConfig
+					}
+				case *gossipv1.GossipMessage_SignedChainGovernorStatus:
+					if signedGovSt != nil {
+						signedGovSt <- m.SignedChainGovernorStatus
+					}
+				default:
+					p2pMessagesReceived.WithLabelValues("unknown").Inc()
+					logger.Warn("received unknown message type (running outdated software?)",
+						zap.Any("payload", msg.Message),
+						zap.Binary("raw", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
 				}
-			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
-				if signedGovCfg != nil {
-					signedGovCfg <- m.SignedChainGovernorConfig
-				}
-			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
-				if signedGovSt != nil {
-					signedGovSt <- m.SignedChainGovernorStatus
-				}
-			default:
-				p2pMessagesReceived.WithLabelValues("unknown").Inc()
-				logger.Warn("received unknown message type (running outdated software?)",
-					zap.Any("payload", msg.Message),
-					zap.Binary("raw", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
 			}
+		}()
+
+		if obsvC != nil || batchObsvC != nil {
+			// Increase the buffer size to prevent failed delivery
+			// to slower subscribers
+			attestationSubscription, err := attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+			if err != nil {
+				return fmt.Errorf("failed to subscribe topic: %w", err)
+			}
+			defer attestationSubscription.Cancel()
+
+			go func() {
+				for {
+					envelope, err := attestationSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+					if err != nil {
+						errC <- fmt.Errorf("failed to receive pubsub message on attestation subscription: %w",err)
+						return
+					}
+		
+					var msg gossipv1.GossipMessage
+					err = proto.Unmarshal(envelope.Data, &msg)
+					if err != nil {
+						logger.Info("received invalid message",
+							zap.Binary("data", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+						p2pMessagesReceived.WithLabelValues("invalid").Inc()
+						continue
+					}
+		
+					if envelope.GetFrom() == h.ID() {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("received message from ourselves, ignoring", zap.Any("payload", msg.Message))
+						}
+						p2pMessagesReceived.WithLabelValues("loopback").Inc()
+						continue
+					}
+		
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("received message",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+		
+					switch m := msg.Message.(type) {
+					case *gossipv1.GossipMessage_SignedObservation:
+						if obsvC != nil {
+							if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
+								p2pMessagesReceived.WithLabelValues("observation").Inc()
+							} else {
+								if components.WarnChannelOverflow {
+									logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+								}
+								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
+							}
+						}
+					case *gossipv1.GossipMessage_SignedObservationBatch:
+						if batchObsvC != nil {
+							if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, batchObsvC); err == nil {
+								p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+							} else {
+								if components.WarnChannelOverflow {
+									logger.Warn("Ignoring SignedObservationBatch because batchObsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
+								}
+								p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
+							}
+						}
+					default:
+						p2pMessagesReceived.WithLabelValues("unknown").Inc()
+						logger.Warn("received unknown message type (running outdated software?)",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+				}
+			}()
+		}
+
+		if signedInC != nil {
+			// Increase the buffer size to prevent failed delivery
+			// to slower subscribers
+			vaaSubscription, err := vaaPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+			if err != nil {
+				return fmt.Errorf("failed to subscribe topic: %w", err)
+			}
+			defer vaaSubscription.Cancel()
+			
+			go func() {
+				for {
+					envelope, err := vaaSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+					if err != nil {
+						errC <- fmt.Errorf("failed to receive pubsub message on vaa subscription: %w",err)
+						return
+					}
+
+					var msg gossipv1.GossipMessage
+					err = proto.Unmarshal(envelope.Data, &msg)
+					if err != nil {
+						logger.Info("received invalid message",
+							zap.Binary("data", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+						p2pMessagesReceived.WithLabelValues("invalid").Inc()
+						continue
+					}
+
+					if envelope.GetFrom() == h.ID() {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("received message from ourselves, ignoring", zap.Any("payload", msg.Message))
+						}
+						p2pMessagesReceived.WithLabelValues("loopback").Inc()
+						continue
+					}
+
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("received message",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+
+					switch m := msg.Message.(type) {
+					// case *gossipv1.GossipMessage_SignedHeartbeat:
+					// 	s := m.SignedHeartbeat
+					// 	gs := gst.Get()
+					// 	if gs == nil {
+					// 		// No valid guardian set yet - dropping heartbeat
+					// 		logger.Log(components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+					// 			zap.Any("value", s),
+					// 			zap.String("from", envelope.GetFrom().String()))
+					// 		break
+					// 	}
+					// 	if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
+					// 		p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
+					// 		logger.Log(components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+					// 			zap.Error(err),
+					// 			zap.Any("payload", msg.Message),
+					// 			zap.Any("value", s),
+					// 			zap.Binary("raw", envelope.Data),
+					// 			zap.String("from", envelope.GetFrom().String()))
+					// 	} else {
+					// 		p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
+					// 		logger.Log(components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+					// 			zap.Any("value", heartbeat),
+					// 			zap.String("from", envelope.GetFrom().String()))
+
+					// 		func() {
+					// 			if len(heartbeat.P2PNodeId) != 0 {
+					// 				components.ProtectedHostByGuardianKeyLock.Lock()
+					// 				defer components.ProtectedHostByGuardianKeyLock.Unlock()
+					// 				var peerId peer.ID
+					// 				if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
+					// 					logger.Error("p2p_node_id_in_heartbeat_invalid",
+					// 						zap.Any("payload", msg.Message),
+					// 						zap.Any("value", s),
+					// 						zap.Binary("raw", envelope.Data),
+					// 						zap.String("from", envelope.GetFrom().String()))
+					// 				} else {
+					// 					guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
+					// 					if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
+					// 						prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+					// 						if ok {
+					// 							if prevPeerId != peerId {
+					// 								logger.Info("p2p_guardian_peer_changed",
+					// 									zap.String("guardian_addr", guardianAddr.String()),
+					// 									zap.String("prevPeerId", prevPeerId.String()),
+					// 									zap.String("newPeerId", peerId.String()),
+					// 								)
+					// 								components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+					// 								components.ConnMgr.Protect(peerId, "heartbeat")
+					// 								components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+					// 							}
+					// 						} else {
+					// 							components.ConnMgr.Protect(peerId, "heartbeat")
+					// 							components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+					// 						}
+					// 					}
+					// 				}
+					// 			} else {
+					// 				if logger.Level().Enabled(zapcore.DebugLevel) {
+					// 					logger.Debug("p2p_node_id_not_in_heartbeat", zap.Error(err), zap.Any("payload", heartbeat.NodeName))
+					// 				}
+					// 			}
+					// 		}()
+					// 	}
+					// case *gossipv1.GossipMessage_SignedObservation:
+					// 	if obsvC != nil {
+					// 		if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
+					// 			p2pMessagesReceived.WithLabelValues("observation").Inc()
+					// 		} else {
+					// 			if components.WarnChannelOverflow {
+					// 				logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+					// 			}
+					// 			p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
+					// 		}
+					// 	}
+					// case *gossipv1.GossipMessage_SignedObservationBatch:
+					// 	if batchObsvC != nil {
+					// 		if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, batchObsvC); err == nil {
+					// 			p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+					// 		} else {
+					// 			if components.WarnChannelOverflow {
+					// 				logger.Warn("Ignoring SignedObservationBatch because batchObsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
+					// 			}
+					// 			p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
+					// 		}
+					// 	}
+					case *gossipv1.GossipMessage_SignedVaaWithQuorum:
+						if signedInC != nil {
+							select {
+							case signedInC <- m.SignedVaaWithQuorum:
+								p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+							default:
+								if components.WarnChannelOverflow {
+									// TODO do not log this in production
+									var hexStr string
+									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+										hexStr = vaa.HexDigest()
+									}
+									logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
+								}
+								p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
+							}
+						}
+					// case *gossipv1.GossipMessage_SignedObservationRequest:
+					// 	if obsvReqC != nil {
+					// 		s := m.SignedObservationRequest
+					// 		gs := gst.Get()
+					// 		if gs == nil {
+					// 			if logger.Level().Enabled(zapcore.DebugLevel) {
+					// 				logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+					// 			}
+					// 			break
+					// 		}
+					// 		r, err := processSignedObservationRequest(s, gs)
+					// 		if err != nil {
+					// 			p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+					// 			if logger.Level().Enabled(zapcore.DebugLevel) {
+					// 				logger.Debug("invalid signed observation request received",
+					// 					zap.Error(err),
+					// 					zap.Any("payload", msg.Message),
+					// 					zap.Any("value", s),
+					// 					zap.Binary("raw", envelope.Data),
+					// 					zap.String("from", envelope.GetFrom().String()))
+					// 			}
+					// 		} else {
+					// 			if logger.Level().Enabled(zapcore.DebugLevel) {
+					// 				logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
+					// 			}
+
+					// 			select {
+					// 			case obsvReqC <- r:
+					// 				p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+					// 			default:
+					// 				p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+					// 			}
+					// 		}
+					// 	}
+					// case *gossipv1.GossipMessage_SignedChainGovernorConfig:
+					// 	if signedGovCfg != nil {
+					// 		signedGovCfg <- m.SignedChainGovernorConfig
+					// 	}
+					// case *gossipv1.GossipMessage_SignedChainGovernorStatus:
+					// 	if signedGovSt != nil {
+					// 		signedGovSt <- m.SignedChainGovernorStatus
+					// 	}
+					default:
+						p2pMessagesReceived.WithLabelValues("unknown").Inc()
+						logger.Warn("received unknown message type (running outdated software?)",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+				}
+			}()
+		}
+
+		// Wait for either a shutdown or a fatal error from a pubsub subscription.
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errC:
+			return err
 		}
 	}
 }
