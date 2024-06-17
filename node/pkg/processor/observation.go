@@ -337,11 +337,5 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		)
 	}
 
-	if err := p.storeSignedVAA(v); err != nil {
-		p.logger.Error("failed to store signed VAA",
-			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
-		)
-		return
-	}
+	p.storeSignedVAA(v)
 }
