@@ -271,29 +271,34 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 		return false, nil
 	}
 
-	vaaID, err := db.VaaIDFromString(s.ourObservation.MessageID())
+	msgId := s.ourObservation.MessageID()
+	vaaID, err := db.VaaIDFromString(msgId)
 	if err != nil {
 		return false, fmt.Errorf(`failed to generate VAA ID from message id "%s": %w`, s.ourObservation.MessageID(), err)
 	}
 
-	vb, err := p.db.GetSignedVAABytes(*vaaID)
-	if err != nil {
-		if err == db.ErrVAANotFound {
-			if p.logger.Level().Enabled(zapcore.DebugLevel) {
-				p.logger.Debug("VAA not in DB",
-					zap.String("message_id", s.ourObservation.MessageID()),
-					zap.String("digest", hash),
-				)
+	// If the VAA is waiting to be written to the DB, use that version. Otherwise use the DB.
+	v := p.getVaaFromUpdateMap(msgId)
+	if v == nil {
+		vb, err := p.db.GetSignedVAABytes(*vaaID)
+		if err != nil {
+			if err == db.ErrVAANotFound {
+				if p.logger.Level().Enabled(zapcore.DebugLevel) {
+					p.logger.Debug("VAA not in DB",
+						zap.String("message_id", s.ourObservation.MessageID()),
+						zap.String("digest", hash),
+					)
+				}
+				return false, nil
+			} else {
+				return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
 			}
-			return false, nil
-		} else {
-			return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
 		}
-	}
 
-	v, err := vaa.Unmarshal(vb)
-	if err != nil {
-		return false, fmt.Errorf("failed to unmarshal VAA: %w", err)
+		v, err = vaa.Unmarshal(vb)
+		if err != nil {
+			return false, fmt.Errorf("failed to unmarshal VAA: %w", err)
+		}
 	}
 
 	oldHash := hex.EncodeToString(v.SigningDigest().Bytes())
