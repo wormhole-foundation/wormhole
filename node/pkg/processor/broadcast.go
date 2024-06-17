@@ -70,7 +70,7 @@ func (p *Processor) broadcastSignature(
 	}
 
 	// Broadcast the observation.
-	p.gossipSendC <- msg // TODO: Get rid of this
+	p.gossipAttestationSendC <- msg // TODO: Get rid of this
 	observationsBroadcast.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())
@@ -112,7 +112,7 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 	}
 
 	// Broadcast the signed VAA.
-	p.gossipSendC <- msg
+	p.gossipVaaSendC <- msg
 	signedVAAsBroadcast.Inc()
 
 	if p.gatewayRelayer != nil {

@@ -337,9 +337,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
-	// Outbound gossip message queue
-	sendC := make(chan []byte)
-
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 1024)
 
@@ -393,11 +390,14 @@ func runSpy(cmd *cobra.Command, args []string) {
 		components.Port = *p2pPort
 		if err := supervisor.Run(ctx,
 			"p2p",
-			p2p.Run(nil, // Ignore incoming observations.
-				nil, // Ignore batch observations.
+			p2p.Run(
+				nil, // Ignore incoming observations.
+				nil, // Ignore incoming batch observations.
 				nil, // Ignore observation requests.
-				nil,
-				sendC,
+				nil, // Won't publish observation requests.
+				nil, // Won't be publishing control messages.
+				nil, // Won't be publishing observations.
+				nil, // Won't be publishing VAAs.
 				signedInC,
 				priv,
 				nil,
