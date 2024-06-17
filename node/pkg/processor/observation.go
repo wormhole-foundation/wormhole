@@ -258,7 +258,9 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 		if len(sigsVaaFormat) >= gs.Quorum() {
 			// we have reached quorum *with the active guardian set*
+			start := time.Now()
 			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
+			timeToHandleQuorum.Observe(float64(time.Since(start).Microseconds()))
 		} else {
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("quorum not met, doing nothing",
