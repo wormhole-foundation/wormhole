@@ -563,7 +563,7 @@ const TESTNET = {
     nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
   },
   gnosis: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    core: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
