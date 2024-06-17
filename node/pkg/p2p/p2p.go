@@ -80,11 +80,6 @@ var (
 			Name: "wormhole_p2p_drops",
 			Help: "Total number of messages that were dropped by libp2p",
 		})
-	p2pReject = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_p2p_rejects",
-			Help: "Total number of messages rejected by libp2p",
-		})
 )
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
@@ -178,8 +173,6 @@ func (*traceHandler) Trace(evt *libp2ppb.TraceEvent) {
 	if evt.Type != nil {
 		if *evt.Type == libp2ppb.TraceEvent_DROP_RPC {
 			p2pDrop.Inc()
-		} else if *evt.Type == libp2ppb.TraceEvent_REJECT_MESSAGE {
-			p2pReject.Inc()
 		}
 	}
 }
@@ -308,6 +301,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 	return func(ctx context.Context) error {
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
+		p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
 
@@ -356,6 +350,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			pubsub.WithEventTracer(ourTracer),
 			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
 			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
+			// pubsub.WithPeerOutboundQueueSize(1000000),
 		)
 		if err != nil {
 			panic(err)
