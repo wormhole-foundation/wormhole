@@ -230,7 +230,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					}
 					p.postObservationToBatch(s.ourObs)
 					if s.ourMsg != nil {
-						p.gossipSendC <- s.ourMsg // TODO: Get rid of this
+						p.gossipAttestationSendC <- s.ourMsg // TODO: Get rid of this
 					}
 					s.retryCtr++
 					s.nextRetry = time.Now().Add(nextRetryDuration(s.retryCtr))

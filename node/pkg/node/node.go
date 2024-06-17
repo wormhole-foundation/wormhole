@@ -20,8 +20,14 @@ import (
 )
 
 const (
-	// gossipSendBufferSize configures the size of the gossip network send buffer
-	gossipSendBufferSize = 5000
+	// gossipControlSendBufferSize configures the size of the gossip network send buffer
+	gossipControlSendBufferSize = 100
+
+	// gossipAttestationSendBufferSize configures the size of the gossip network send buffer
+	gossipAttestationSendBufferSize = 5000
+
+	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
+	gossipVaaSendBufferSize = 5000
 
 	// inboundObservationBufferSize configures the size of the obsvC channel that contains observations from other Guardians.
 	// One observation takes roughly 0.1ms to process on one core, so the whole queue could be processed in 1s
@@ -74,8 +80,10 @@ type G struct {
 	runnables             map[string]supervisor.Runnable
 
 	// various channels
-	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
-	gossipSendC chan []byte
+	// Outbound gossip message queues (needs to be read/write because p2p needs read/write)
+	gossipControlSendC     chan []byte
+	gossipAttestationSendC chan []byte
+	gossipVaaSendC         chan []byte
 	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 	// Inbound observation batches.
@@ -116,7 +124,9 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
-	g.gossipSendC = make(chan []byte, gossipSendBufferSize)
+	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
+	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
+	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)

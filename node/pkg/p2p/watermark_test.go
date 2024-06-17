@@ -31,7 +31,9 @@ type G struct {
 	batchObsvC             chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	obsvReqC               chan *gossipv1.ObservationRequest
 	obsvReqSendC           chan *gossipv1.ObservationRequest
-	sendC                  chan []byte
+	controlSendC           chan []byte
+	attestationSendC       chan []byte
+	vaaSendC               chan []byte
 	signedInC              chan *gossipv1.SignedVAAWithQuorum
 	priv                   p2pcrypto.PrivKey
 	gk                     *ecdsa.PrivateKey
@@ -69,7 +71,9 @@ func NewG(t *testing.T, nodeName string) *G {
 		batchObsvC:             make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
 		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
 		obsvReqSendC:           make(chan *gossipv1.ObservationRequest, cs),
-		sendC:                  make(chan []byte, cs),
+		controlSendC:           make(chan []byte, cs),
+		attestationSendC:       make(chan []byte, cs),
+		vaaSendC:               make(chan []byte, cs),
 		signedInC:              make(chan *gossipv1.SignedVAAWithQuorum, cs),
 		priv:                   p2ppriv,
 		gk:                     guardianpriv,
@@ -93,7 +97,9 @@ func NewG(t *testing.T, nodeName string) *G {
 		case <-g.signedInC:
 		case <-g.signedGovCfg:
 		case <-g.signedGovSt:
-		case <-g.sendC:
+		case <-g.controlSendC:
+		case <-g.attestationSendC:
+		case <-g.vaaSendC:
 		}
 	}()
 
@@ -181,7 +187,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.batchObsvC,
 			g.signedInC,
 			g.obsvReqC,
-			g.sendC,
+			g.attestationSendC,
 			g.obsvReqSendC,
 			g.acct,
 			g.gov,
