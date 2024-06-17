@@ -57,6 +57,11 @@ type (
 		ccqBootstrapPeers     string
 		ccqPort               uint
 		ccqAllowedPeers       string
+
+		// This is junk:
+		gossipControlSendC     chan []byte
+		gossipAttestationSendC chan []byte
+		gossipVaaSendC         chan []byte
 	}
 
 	// RunOpt is used to specify optional parameters.

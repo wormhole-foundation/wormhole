@@ -103,8 +103,13 @@ type Processor struct {
 	msgC <-chan *common.MessagePublication
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
-	// gossipSendC is a channel of outbound messages to broadcast on p2p
-	gossipSendC chan<- []byte
+
+	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
+	gossipAttestationSendC chan<- []byte
+
+	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
+	gossipVaaSendC chan<- []byte
+
 	// obsvC is a channel of inbound decoded observations from p2p
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 
@@ -155,14 +160,52 @@ var (
 			Help:    "Latency histogram for total time to process signed observations",
 			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
+
+	timeToHandleObservation = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_time_to_handle_observation_us",
+			Help:    "Latency histogram for total time to handle observation on an observation",
+			Buckets: []float64{100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
+		})
+
+	timeToHandleQuorum = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_time_to_handle_quorum_us",
+			Help:    "Latency histogram for total time to handle quorum on an observation",
+			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
+		})
+
+	batchObservationChanDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_batch_observation_channel_delay_us",
+			Help:    "Latency histogram for delay of batched observations in channel",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+		})
+
+	batchObservationTotalDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_batch_observation_total_delay_us",
+			Help:    "Latency histogram for total time to process batched observations",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+		})
+
+	batchObservationChannelOverflow = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_batch_observation_channel_overflow",
+			Help: "Total number of times a write to the batch observation publish channel failed",
+		}, []string{"channel"})
 )
+
+// batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
+const batchObsvPubChanSize = p2p.MaxObservationBatchSize * 5
 
 func NewProcessor(
 	ctx context.Context,
 	db *db.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
-	gossipSendC chan<- []byte,
+	gossipAttestationSendC chan<- []byte,
+	gossipVaaSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
@@ -175,15 +218,16 @@ func NewProcessor(
 ) *Processor {
 
 	return &Processor{
-		msgC:         msgC,
-		setC:         setC,
-		gossipSendC:  gossipSendC,
-		obsvC:        obsvC,
-		obsvReqSendC: obsvReqSendC,
-		signedInC:    signedInC,
-		gk:           gk,
-		gst:          gst,
-		db:           db,
+		msgC:                   msgC,
+		setC:                   setC,
+		gossipAttestationSendC: gossipAttestationSendC,
+		gossipVaaSendC:         gossipVaaSendC,
+		obsvC:                  obsvC,
+		obsvReqSendC:           obsvReqSendC,
+		signedInC:              signedInC,
+		gk:                     gk,
+		gst:                    gst,
+		db:                     db,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
