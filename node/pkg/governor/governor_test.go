@@ -188,9 +188,9 @@ func TestSumWithFlowCancelling(t *testing.T) {
 
 	// Choose a hard-coded value from the Flow Cancel Token List
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
-	var originChain vaa.ChainID = 2
+	var originChain vaa.ChainID = 1
 	var originAddress vaa.Address
-	originAddress, err = vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	originAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
 	// Ensure asset is registered in the governor and can flow cancel
@@ -269,9 +269,9 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 
 	// Set-up asset to be used in the test
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
-	var originChain vaa.ChainID = 2
+	var originChain vaa.ChainID = 1
 	var originAddress vaa.Address
-	originAddress, err = vaa.StringToAddress("000000000000000000000000bcca60bb61934080951369a648fb03df4f96263c")
+	originAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
 	// Ensure asset is registered in the governor and can flow cancel
