@@ -187,9 +187,9 @@ const MAINNET = {
     chain_id: 81457,
   },
   xlayer: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://xlayerrpc.okx.com",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 196,
   },
   linea: {
     rpc: undefined,
