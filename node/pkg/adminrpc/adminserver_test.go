@@ -367,18 +367,23 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 		},
 		"NumDaysEqualsUpperBoundary": {
 			vaaId:          "valid",
-			numDays:        7,
+			numDays:        maxResetReleaseTimerDays,
 			expectedResult: success,
 		},
 		"NumDaysExceedsUpperBoundary": {
 			vaaId:          "valid",
-			numDays:        8,
+			numDays:        maxResetReleaseTimerDays + 1,
 			expectedResult: boundsCheckFailure,
 		},
 		"EmptyVaaIdAndNumDaysExceedsUpperBoundary": {
 			vaaId:          "",
-			numDays:        1000,
+			numDays:        maxResetReleaseTimerDays + 1,
 			expectedResult: vaaIdLengthFailure,
+		},
+		"NumDaysSignificantlyExceedsUpperBoundary": {
+			vaaId:          "valid",
+			numDays:        maxResetReleaseTimerDays + 1000,
+			expectedResult: boundsCheckFailure,
 		},
 	}
 
