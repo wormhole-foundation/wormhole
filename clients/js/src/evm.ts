@@ -296,6 +296,11 @@ async function getSigner(chain: EVMChainName, key: string, rpc: string) {
     };
   } else if (chain === "klaytn" || chain === "fantom") {
     overrides = { gasPrice: (await signer.getGasPrice()).toString() };
+  } else if (chain === "mantle") {
+    overrides = {
+      maxFeePerGas: ethers.utils.parseUnits("0.2", "gwei"),
+      maxPriorityFeePerGas: 0,
+    }
   }
   return {
     signer,
