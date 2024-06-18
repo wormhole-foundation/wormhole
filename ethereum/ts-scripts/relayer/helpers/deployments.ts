@@ -142,7 +142,7 @@ export async function deployCreate2Factory(
       // We assign the promise immediately to avoid race conditions
       ethC2Promise = (async () => {
         const factoryCreationTxid = "0xfd6551a91a2e9f423285a2e86f7f480341a658dda1ff1d8bc9167b2b7ec77caa";
-        const ethFactoryAddress = getCreate2FactoryAddress(chain);
+        const ethFactoryAddress = getCreate2FactoryAddress(ethChain);
         const factoryReceipt = await ethChainProvider.getTransactionReceipt(factoryCreationTxid);
         if (factoryReceipt.contractAddress !== ethFactoryAddress) {
           throw new Error("Wrong txid for the transaction that created the Create2Factory in Ethereum mainnet.");
