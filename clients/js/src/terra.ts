@@ -206,23 +206,23 @@ async function signAndSendTx(
   msgs: MsgExecuteContract[]
 ) {
   const feeDenoms = ["uluna"];
-  const gasPrices = await axios
-    .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
-    .then((result) => result.data);
-  const feeEstimate = await terra.tx.estimateFee(
-    [
-      {
-        sequenceNumber: await wallet.sequence(),
-        publicKey: wallet.key.publicKey,
-      },
-    ],
-    {
-      msgs,
-      memo: "",
-      feeDenoms,
-      gasPrices,
-    }
-  );
+  // const gasPrices = await axios
+  //   .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
+  //   .then((result) => result.data);
+  // const feeEstimate = await terra.tx.estimateFee(
+  //   [
+  //     {
+  //       sequenceNumber: await wallet.sequence(),
+  //       publicKey: wallet.key.publicKey,
+  //     },
+  //   ],
+  //   {
+  //     msgs,
+  //     memo: "",
+  //     feeDenoms,
+  //     gasPrices,
+  //   }
+  // );
 
   return wallet
     .createAndSignTx({
