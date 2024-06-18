@@ -177,9 +177,9 @@ const MAINNET = {
     chain_id: 534352,
   },
   mantle: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://rpc.ankr.com/mantle",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 5000,
   },
   blast: {
     rpc: "https://rpc.ankr.com/blast",
