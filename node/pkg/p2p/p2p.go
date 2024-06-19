@@ -60,11 +60,11 @@ var (
 			Name: "wormhole_p2p_heartbeats_sent_total",
 			Help: "Total number of p2p heartbeats sent",
 		})
-	p2pMessagesSent = promauto.NewCounter(
+	p2pMessagesSent = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_sent_total",
 			Help: "Total number of p2p pubsub broadcast messages sent",
-		})
+		}, []string{"type"})
 	p2pMessagesReceived = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_received_total",
@@ -300,6 +300,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 	}
 
 	return func(ctx context.Context) error {
+		p2pMessagesSent.WithLabelValues("control").Add(0)
+		p2pMessagesSent.WithLabelValues("attestation").Add(0)
+		p2pMessagesSent.WithLabelValues("vaa").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
@@ -571,6 +574,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						}()
 
 						err = controlPubsubTopic.Publish(ctx, b)
+						p2pMessagesSent.WithLabelValues("control").Inc()
 						if err != nil {
 							logger.Warn("failed to publish heartbeat message", zap.Error(err))
 						}
@@ -592,7 +596,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				case msg := <-params.gossipControlSendC:
 					if controlPubsubTopic != nil {
 						err := controlPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.Inc()
+						p2pMessagesSent.WithLabelValues("control").Inc()
 						if err != nil {
 							logger.Error("failed to publish message from control queue", zap.Error(err))
 						}
@@ -602,7 +606,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				case msg := <-params.gossipAttestationSendC:
 					if attestationPubsubTopic != nil {
 						err := attestationPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.Inc()
+						p2pMessagesSent.WithLabelValues("attestation").Inc()
 						if err != nil {
 							logger.Error("failed to publish message from attestation queue", zap.Error(err))
 						}
@@ -612,7 +616,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				case msg := <-params.gossipVaaSendC:
 					if vaaPubsubTopic != nil {
 						err := vaaPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.Inc()
+						p2pMessagesSent.WithLabelValues("vaa").Inc()
 						if err != nil {
 							logger.Error("failed to publish message from vaa queue", zap.Error(err))
 						}
@@ -654,7 +658,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						}
 
 						err = controlPubsubTopic.Publish(ctx, b)
-						p2pMessagesSent.Inc()
+						p2pMessagesSent.WithLabelValues("control").Inc()
 						if err != nil {
 							logger.Error("failed to publish observation request", zap.Error(err))
 						} else {
