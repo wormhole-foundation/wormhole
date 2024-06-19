@@ -2,7 +2,6 @@ package processor
 
 import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"go.uber.org/zap"
 )
 
 type VAA struct {
@@ -26,13 +25,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 		ConsistencyLevel: v.ConsistencyLevel,
 	}
 
-	// Store signed VAA in database.
-	p.logger.Info("signed VAA with quorum",
-		zap.String("message_id", signed.MessageID()),
-		zap.String("digest", hash),
-	)
-
-	p.storeSignedVAA(signed)
+	p.storeSignedVAA(signed, hash)
 	p.broadcastSignedVAA(signed)
 	p.state.signatures[hash].submitted = true
 }
