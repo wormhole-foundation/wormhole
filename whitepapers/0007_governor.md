@@ -104,7 +104,7 @@ In this design, there are three mechanisms for enqueued messages to be published
 
 ## Operational Considerations
 ### Extending the release time to have more time to investigate
-Guardian operators can use the `ChainGovernorResetReleaseTimer` admin RPC or the `governor-reset-release-timer [VAA_ID] <num_days>` admin command to reset the delay to the specified amount of days (`num_days`), up to 7 days.
+Guardian operators can use the `ChainGovernorResetReleaseTimer` admin RPC or the `governor-reset-release-timer [VAA_ID] <num_days>` admin command to reset the delay to the specified amount of days (`num_days`), up to 7 days. Omitting the argument defaults to 1 day.
 
 ### Dropping messages from the Governor
 Guardian operators can use the `ChainGovernorDropPendingVAA` admin RPC or `governor-drop-pending-vaa [VAA_ID]` admin command to remove a VAA from the Governor queue. Note that in most cases this should be done in conjunction with disconnecting a chain or block-listing certain messages because otherwise the message may just get re-observed through automatic observation requests.
