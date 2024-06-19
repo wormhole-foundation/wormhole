@@ -30,18 +30,14 @@ export async function execute_algorand(
     throw Error(`No ${network} rpc defined for Algorand`);
   }
 
-  const coreContract = contracts.coreBridge(network, chain);
-  console.log("contracts", contracts);
+  const coreContract = contracts.coreBridge.get(network, chain);
+  if (!coreContract) {
+    throw new Error(`Core bridge address not defined for Algorand ${network}`);
+  }
 
   let target_contract: string;
   switch (payload.module) {
     case "Core": {
-      if (!coreContract) {
-        throw new Error(
-          `Core bridge address not defined for Algorand ${network}`
-        );
-      }
-
       target_contract = coreContract;
       switch (payload.type) {
         case "GuardianSetUpgrade":
@@ -84,7 +80,7 @@ export async function execute_algorand(
       break;
     }
     case "TokenBridge": {
-      const tbContract = contracts.tokenBridge(network, chain);
+      const tbContract = contracts.tokenBridge.get(network, chain);
       if (!tbContract) {
         throw new Error(
           `Token bridge address not defined for Algorand ${network}`

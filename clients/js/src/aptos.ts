@@ -33,7 +33,7 @@ export async function execute_aptos(
 
   switch (payload.module) {
     case "Core": {
-      contract = contract ?? contracts.coreBridge(network, chain);
+      contract = contract ?? contracts.coreBridge.get(network, chain);
       if (contract === undefined) {
         throw Error("core bridge contract is undefined");
       }
@@ -70,7 +70,7 @@ export async function execute_aptos(
       break;
     }
     case "NFTBridge": {
-      contract = contract ?? contracts.nftBridge(network, chain);
+      contract = contract ?? contracts.nftBridge.get(network, chain);
       if (contract === undefined) {
         throw Error("nft bridge contract is undefined");
       }
@@ -119,7 +119,7 @@ export async function execute_aptos(
       break;
     }
     case "TokenBridge": {
-      contract = contract ?? contracts.tokenBridge(network, chain);
+      contract = contract ?? contracts.tokenBridge.get(network, chain);
       if (contract === undefined) {
         throw Error("token bridge contract is undefined");
       }
@@ -257,7 +257,7 @@ export async function transferAptos(
   if (!rpc) {
     throw new Error("No rpc for aptos");
   }
-  const token_bridge = contracts.tokenBridge(network, "Aptos");
+  const token_bridge = contracts.tokenBridge.get(network, "Aptos");
   if (!token_bridge) {
     throw new Error("token bridge contract is undefined");
   }
@@ -393,7 +393,7 @@ export async function queryRegistrationsAptos(
 
   switch (module) {
     case "TokenBridge":
-      stateObjectId = contracts.tokenBridge(network, "Aptos");
+      stateObjectId = contracts.tokenBridge.get(network, "Aptos");
       if (stateObjectId === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for Aptos`);
       }

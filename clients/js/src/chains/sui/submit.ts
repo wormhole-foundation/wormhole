@@ -45,7 +45,7 @@ export const submit = async (
 
   switch (payload.module) {
     case "Core": {
-      const coreObjectId = contracts.coreBridge(network, chain);
+      const coreObjectId = contracts.coreBridge.get(network, chain);
       if (!coreObjectId) {
         throw Error("Core bridge object ID is undefined");
       }
@@ -103,12 +103,15 @@ export const submit = async (
       throw new Error("NFT bridge not supported on Sui");
     }
     case "TokenBridge": {
-      const coreBridgeStateObjectId = contracts.coreBridge(network, chain);
+      const coreBridgeStateObjectId = contracts.coreBridge.get(network, chain);
       if (!coreBridgeStateObjectId) {
         throw Error("Core bridge object ID is undefined");
       }
 
-      const tokenBridgeStateObjectId = contracts.tokenBridge(network, chain);
+      const tokenBridgeStateObjectId = contracts.tokenBridge.get(
+        network,
+        chain
+      );
       if (!tokenBridgeStateObjectId) {
         throw Error("Token bridge object ID is undefined");
       }
