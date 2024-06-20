@@ -26,7 +26,6 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	}
 
 	p.postSignedVAA(signed, hash)
-	p.state.signatures[hash].submitted = true
 }
 
 func (v *VAA) IsReliable() bool {
