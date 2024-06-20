@@ -213,11 +213,11 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 }
 
 // Admin command to reset the release timer for a pending VAA, extending it to the configured limit.
-func (gov *ChainGovernor) ResetReleaseTimer(vaaId string) (string, error) {
-	return gov.resetReleaseTimerForTime(vaaId, time.Now())
+func (gov *ChainGovernor) ResetReleaseTimer(vaaId string, numDays uint32) (string, error) {
+	return gov.resetReleaseTimerForTime(vaaId, time.Now(), numDays)
 }
 
-func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) (string, error) {
+func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, numDays uint32) (string, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -225,7 +225,7 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 		for _, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				pe.dbData.ReleaseTime = now.Add(maxEnqueuedTime)
+				pe.dbData.ReleaseTime = now.Add(time.Duration(numDays) * time.Hour * 24)
 				gov.logger.Info("updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
