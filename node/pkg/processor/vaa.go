@@ -25,8 +25,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 		ConsistencyLevel: v.ConsistencyLevel,
 	}
 
-	p.storeSignedVAA(signed, hash)
-	p.broadcastSignedVAA(signed)
+	p.postSignedVAA(signed, hash)
 	p.state.signatures[hash].submitted = true
 }
 
