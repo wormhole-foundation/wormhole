@@ -209,14 +209,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 	s.signatures[their_addr] = m.Signature
 
-	if s.submitted {
-		if p.logger.Level().Enabled(zapcore.DebugLevel) {
-			p.logger.Debug("already submitted, doing nothing",
-				zap.String("messageId", m.MessageId),
-				zap.String("digest", hash),
-			)
-		}
-	} else if s.ourObservation != nil {
+	if s.ourObservation != nil {
 		// We have made this observation on chain!
 
 		// Check if we have more signatures than required for quorum.
