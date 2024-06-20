@@ -337,5 +337,5 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		)
 	}
 
-	p.storeSignedVAA(v, "")
+	p.storeSignedVAA(v)
 }
