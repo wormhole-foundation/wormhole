@@ -169,18 +169,32 @@ var (
 			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
 
+	timeToHandleObservation = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_time_to_handle_observation_us",
+			Help:    "Latency histogram for total time to handle observation on an observation",
+			Buckets: []float64{100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
+		})
+
+	timeToHandleQuorum = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_time_to_handle_quorum_us",
+			Help:    "Latency histogram for total time to handle quorum on an observation",
+			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
+		})
+
 	batchObservationChanDelay = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_batch_observation_channel_delay_us",
 			Help:    "Latency histogram for delay of batched observations in channel",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
 
 	batchObservationTotalDelay = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_batch_observation_total_delay_us",
 			Help:    "Latency histogram for total time to process batched observations",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
 
 	batchObservationChannelOverflow = promauto.NewCounterVec(

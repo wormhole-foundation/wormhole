@@ -75,7 +75,9 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 // handleBatchObservation processes a batch of remote VAA observations.
 func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) {
 	for _, obs := range m.Msg.Observations {
+		start := time.Now()
 		p.handleSingleObservation(m.Msg.Addr, obs)
+		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 	}
 	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 }
@@ -231,14 +233,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 
 	s.signatures[their_addr] = m.Signature
 
-	if s.submitted {
-		if p.logger.Level().Enabled(zapcore.DebugLevel) {
-			p.logger.Debug("already submitted, doing nothing",
-				zap.String("messageId", m.MessageId),
-				zap.String("digest", hash),
-			)
-		}
-	} else if s.ourObservation != nil {
+	if s.ourObservation != nil {
 		// We have made this observation on chain!
 
 		// Check if we have more signatures than required for quorum.
@@ -276,7 +271,9 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 
 		if len(sigsVaaFormat) >= gs.Quorum() {
 			// we have reached quorum *with the active guardian set*
+			start := time.Now()
 			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
+			timeToHandleQuorum.Observe(float64(time.Since(start).Microseconds()))
 		} else {
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("quorum not met, doing nothing",
