@@ -390,6 +390,10 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 }
 
 // ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// Returns true if:
+// - the message is not governed
+// - the transfer is complete and has already been observed
+// - the transfer does not trigger any error conditions (happy path)
 // Validation:
 // - ensure MessagePublication is not nil
 // - check that the MessagePublication is governed
