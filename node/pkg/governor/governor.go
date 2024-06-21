@@ -571,7 +571,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
 	// Add inverse transfer to destination chain entry if this asset can cancel flows.
-	key := tokenKey{chain: msg.EmitterChain, addr: msg.EmitterAddress}
+	key := tokenKey{chain: token.token.chain, addr: token.token.addr}
+
 	tokenEntry := gov.tokens[key]
 	if tokenEntry != nil {
 		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
