@@ -824,13 +824,14 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
 
 	// Data for Sui
-	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
+	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
 	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
 
 	// Data for Solana. Only used to represent the flow cancel asset.
-	tokenBridgeAddrStrSolana := "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" // "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
+	// "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
+	tokenBridgeAddrStrSolana := "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" //nolint:gosec
 
 	// Add chain entries to `gov`
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
@@ -1062,10 +1063,10 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
 
 	// Data for Sui
-	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
+	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
-	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31" //nolint:gosec
 
 	// Add chain entries to `gov`
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
@@ -1177,6 +1178,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, 1, len(suiTransfers)) // A single NEGATIVE transfer
 	assert.Equal(t, int64(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	require.NoError(t, err)
 	suiGovernorUsage, err := gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
 	require.NoError(t, err)
