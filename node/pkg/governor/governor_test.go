@@ -788,6 +788,11 @@ func TestVaaForUninterestingToken(t *testing.T) {
 }
 
 // Test the flow cancel mechanism at the resolution of the ProcessMsgForTime (VAA parsing)
+// This test simulates a transaction of a flow-cancelling asset from one chain to another and back.
+// After this operation, we verify that the net flow across these chains is zero but that the
+// transfers have indeed been processed. 
+// The flow cancelling asset has an origin chain that is different from the emitter chain to demonstrate
+// that these values don't have to match.
 func TestFlowCancelProcessMsgForTime(t *testing.T) {
 
 	ctx := context.Background()
@@ -822,16 +827,22 @@ func TestFlowCancelProcessMsgForTime(t *testing.T) {
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
 	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+	
+	// Data for Solana. Only used to represent the flow cancel asset.
+	tokenBridgeAddrStrSolana := "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" // "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 
 	// Add chain entries to `gov`
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
 	require.NoError(t, err)
 	err = gov.setChainForTesting(vaa.ChainIDSui, tokenBridgeAddrStrSui, 10000, 0)
 	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSolana, tokenBridgeAddrStrSolana, 10000, 0)
+	require.NoError(t, err)
 
 	// Add flow cancel asset and non-flow cancelable asset to the token entry for `gov`
-	err = gov.setTokenForTesting(vaa.ChainIDEthereum, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
+	err = gov.setTokenForTesting(vaa.ChainIDSolana, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
 	require.NoError(t, err)
+	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDSolana, addr: flowCancelTokenOriginAddress}])
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, notFlowCancelTokenOriginAddress.String(), "NOTCANCELABLE", 2.5, false)
 	require.NoError(t, err)
 
@@ -845,9 +856,9 @@ func TestFlowCancelProcessMsgForTime(t *testing.T) {
 		EmitterAddress:   tokenBridgeAddrEthereum,
 		ConsistencyLevel: uint8(32),
 		Payload: buildMockTransferPayloadBytes(1,
-			vaa.ChainIDEthereum,
+			vaa.ChainIDSolana, // The origin asset for the token being transferred
 			flowCancelTokenOriginAddress.String(),
-			vaa.ChainIDSui,
+			vaa.ChainIDSui,    // destination chain of the transfer
 			recipientSui,
 			5000,
 		),
@@ -861,17 +872,17 @@ func TestFlowCancelProcessMsgForTime(t *testing.T) {
 		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   tokenBridgeAddrSui,
-		ConsistencyLevel: uint8(0), // Sui has a consistency level of 0 (instant)
+		ConsistencyLevel: uint8(0),	// Sui has a consistency level of 0 (instant)
 		Payload: buildMockTransferPayloadBytes(1,
-			vaa.ChainIDEthereum, // Asset is owned by Ethereum chain. That's all we care about here.
+			vaa.ChainIDSolana,	// Asset is owned by Solana chain. That's all we care about here.
 			flowCancelTokenOriginAddress.String(),
-			vaa.ChainIDEthereum,
+			vaa.ChainIDEthereum,	// destination chain 
 			recipientEthereum,
 			5000,
 		),
 	}
 
-	// msg that is NOT flow cancelable
+	// msg and asset that are NOT flow cancelable
 	msg3 := common.MessagePublication{
 		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+1), 0),
@@ -995,8 +1006,6 @@ func TestFlowCancelProcessMsgForTime(t *testing.T) {
 }
 
 // TODO - Add a similar test above but use non-perfect cancellable values (5000 and 1000, for instance)
-// TODO - Add a similar test above but use a flow cancel asset that originates on a chain that is different
-//	from the emitter chain
 
 func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	ctx := context.Background()
