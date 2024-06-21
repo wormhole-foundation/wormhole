@@ -926,10 +926,14 @@ func TestFlowCancelProcessMsgForTime(t *testing.T) {
 	assert.Equal(t, int(1), len(ethTransfers))
 	require.NoError(t, err)
 
-	// Outbound check
+	// Outbound check: 
+	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
+	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
 	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, 1, len(suiTransfers)) // A single NEGATIVE transfer
 	assert.Equal(t, int64(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	suiGovernorUsage, err := gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
 	require.NoError(t, err)
 
 	// Perform a SECOND transfer (Sui --> Ethereum)
