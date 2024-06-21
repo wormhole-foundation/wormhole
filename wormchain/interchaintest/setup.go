@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	pathWormchainGaia   = "wormchain-gaia" // Replace with 2nd cosmos chain supporting wormchain
-	genesisWalletAmount = int64(10_000_000)
-	votingPeriod        = "10s"
-	maxDepositPeriod    = "10s"
-	coinType            = "118"
-	wormchainConfig     = ibc.ChainConfig{
+	// pathWormchainGaia   = "wormchain-gaia" // Replace with 2nd cosmos chain supporting wormchain
+	// genesisWalletAmount = int64(10_000_000)
+	votingPeriod     = "10s"
+	maxDepositPeriod = "10s"
+	coinType         = "118"
+	wormchainConfig  = ibc.ChainConfig{
 		Type:    "cosmos",
 		Name:    "wormchain",
 		ChainID: "wormchain-1",
@@ -198,9 +198,15 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 
 		// Get faucet address
 		faucetAddress, err := dyno.Get(g, "app_state", "auth", "accounts", numVals, "address")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get faucet address: %w", err)
+		}
 
 		// Get relayer address
 		relayerAddress, err := dyno.Get(g, "app_state", "auth", "accounts", numVals+1, "address")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get relayer address: %w", err)
+		}
 
 		// Set guardian set list and validators
 		guardianSetList := []GuardianSet{}

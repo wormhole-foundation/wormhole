@@ -39,7 +39,8 @@ func SetMiddlewareContract(
 	payload := vaa.BodyGatewayIbcComposabilityMwContract{
 		ContractAddr: contractAddr,
 	}
-	payloadBz := payload.Serialize()
+	payloadBz, err := payload.Serialize()
+	require.NoError(t, err)
 	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
@@ -64,7 +65,8 @@ func ScheduleUpgrade(
 		Name:   name,
 		Height: height,
 	}
-	payloadBz := payload.Serialize()
+	payloadBz, err := payload.Serialize()
+	require.NoError(t, err)
 	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
@@ -83,7 +85,8 @@ func CancelUpgrade(
 ) {
 	node := chain.GetFullNode()
 
-	payloadBz := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
+	payloadBz, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
+	require.NoError(t, err)
 	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)

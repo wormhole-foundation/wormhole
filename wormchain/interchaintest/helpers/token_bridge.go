@@ -67,7 +67,8 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 		EmitterAddress: vaa.Address(emitterBz),
 	}
 
-	payload := bodyTbRegisterChain.Serialize()
+	payload, err := bodyTbRegisterChain.Serialize()
+	require.NoError(t, err)
 	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
@@ -87,7 +88,8 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emitterAddr string, decimals uint8, symbol string, name string, guardians *guardians.ValSet) []byte {
 	payload := new(bytes.Buffer)
 	vaa.MustWrite(payload, binary.BigEndian, uint8(2))
-	tokenAddrPadded := vaa.LeftPadBytes(tokenAddr, 32)
+	tokenAddrPadded, err := vaa.LeftPadBytes(tokenAddr, 32)
+	require.NoError(t, err)
 	payload.Write(tokenAddrPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, chainID)
 	vaa.MustWrite(payload, binary.BigEndian, decimals)
@@ -130,7 +132,8 @@ type WrappedRegistry struct {
 }
 
 func CreateCW20Query(t *testing.T, chainID uint16, address string) TbQueryMsg {
-	addressBz := vaa.LeftPadBytes(address, 32)
+	addressBz, err := vaa.LeftPadBytes(address, 32)
+	require.NoError(t, err)
 	msg := TbQueryMsg{
 		WrappedRegistry: WrappedRegistry{
 			Chain:   chainID,

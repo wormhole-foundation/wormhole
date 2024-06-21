@@ -37,7 +37,8 @@ func SubmitAllowlistInstantiateContract(
 		ContractAddr: contractAddr,
 		CodeId:       codeId,
 	}
-	payloadBz := payload.Serialize(vaa.ActionAddWasmInstantiateAllowlist)
+	payloadBz, err := payload.Serialize(vaa.ActionAddWasmInstantiateAllowlist)
+	require.NoError(t, err)
 	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
@@ -72,11 +73,13 @@ type SubmitUpdateChainToChannelMap struct {
 
 func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, allowlistChannel string, guardians *guardians.ValSet) string {
 	payload := new(bytes.Buffer)
-	module := vaa.LeftPadBytes("IbcTranslator", 32)
+	module, err := vaa.LeftPadBytes("IbcTranslator", 32)
+	require.NoError(t, err)
 	payload.Write(module.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, uint8(1))
 	vaa.MustWrite(payload, binary.BigEndian, uint16(0))
-	channelPadded := vaa.LeftPadBytes(allowlistChannel, 64)
+	channelPadded, err := vaa.LeftPadBytes(allowlistChannel, 64)
+	require.NoError(t, err)
 	payload.Write(channelPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
 
@@ -111,7 +114,10 @@ func CreatePayload1(amount uint64, tokenAddr string, tokenChain uint16, recipien
 	payload.Write(make([]byte, 24))
 	vaa.MustWrite(payload, binary.BigEndian, amount)
 
-	tokenAddrPadded := vaa.LeftPadBytes(tokenAddr, 32)
+	tokenAddrPadded, err := vaa.LeftPadBytes(tokenAddr, 32)
+	if err != nil {
+		panic(err)
+	}
 	payload.Write(tokenAddrPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, tokenChain)
 
@@ -131,7 +137,10 @@ func CreatePayload3(cfg ibc.ChainConfig, amount uint64, tokenAddr string, tokenC
 	payload.Write(make([]byte, 24))
 	vaa.MustWrite(payload, binary.BigEndian, amount)
 
-	tokenAddrPadded := vaa.LeftPadBytes(tokenAddr, 32)
+	tokenAddrPadded, err := vaa.LeftPadBytes(tokenAddr, 32)
+	if err != nil {
+		panic(err)
+	}
 	payload.Write(tokenAddrPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, tokenChain)
 
