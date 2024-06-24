@@ -390,6 +390,10 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 }
 
 // ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// Returns true if:
+// - the message is not governed
+// - the transfer is complete and has already been observed
+// - the transfer does not trigger any error conditions (happy path)
 // Validation:
 // - ensure MessagePublication is not nil
 // - check that the MessagePublication is governed
@@ -567,7 +571,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
 	// Add inverse transfer to destination chain entry if this asset can cancel flows.
-	key := tokenKey{chain: msg.EmitterChain, addr: msg.EmitterAddress}
+	key := tokenKey{chain: token.token.chain, addr: token.token.addr}
+
 	tokenEntry := gov.tokens[key]
 	if tokenEntry != nil {
 		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
