@@ -205,7 +205,7 @@ async function signAndSendTx(
   wallet: Wallet,
   msgs: MsgExecuteContract[]
 ) {
-  const feeDenoms = ["uluna"];
+  // const feeDenoms = ["uluna"];
   // const gasPrices = await axios
   //   .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
   //   .then((result) => result.data);

@@ -25,7 +25,7 @@ const MAINNET = {
     key: getEnvVar("SOLANA_KEY"),
   },
   terra: {
-    rpc: "https://lcd.terra.dev",
+    rpc: "https://terra-classic-lcd.publicnode.com",
     chain_id: "columbus-5",
     key: getEnvVar("TERRA_MNEMONIC"),
   },
