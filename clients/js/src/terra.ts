@@ -228,6 +228,10 @@ async function signAndSendTx(
     .createAndSignTx({
       msgs,
       memo: "",
+      // Works in terra classic with publicnode. Expensive.
+      // With our own node we can send txs with much lower gas prices.
+      // gasPrices: { uluna: 28.415 },
+      // Works in terra 2
       gasPrices: { uluna: 0.015 },
       gasAdjustment: 1.9,
     })
