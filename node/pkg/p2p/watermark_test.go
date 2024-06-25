@@ -61,6 +61,8 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
+	_, rootCtxCancel := context.WithCancel(context.Background())
+
 	g := &G{
 		obsvC:                  make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservation], cs),
 		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
@@ -72,7 +74,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		gst:                    node_common.NewGuardianSetState(nil),
 		nodeName:               nodeName,
 		disableHeartbeatVerify: false,
-		rootCtxCancel:          nil,
+		rootCtxCancel:          rootCtxCancel,
 		gov:                    nil,
 		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
 		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
@@ -164,32 +166,34 @@ func TestWatermark(t *testing.T) {
 
 func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
-	supervisor.New(ctx, zap.L(),
-		Run(g.obsvC,
-			g.obsvReqC,
-			g.obsvReqSendC,
-			g.sendC,
-			g.signedInC,
-			g.priv,
-			g.gk,
-			g.gst,
-			g.networkID,
-			g.bootstrapPeers,
+	params, err := NewRunParams(
+		g.bootstrapPeers,
+		g.networkID,
+		g.priv,
+		g.gst,
+		g.rootCtxCancel,
+		WithGuardianOptions(
 			g.nodeName,
-			g.disableHeartbeatVerify,
-			g.rootCtxCancel,
+			g.gk,
+			g.obsvC,
+			g.signedInC,
+			g.obsvReqC,
+			g.sendC,
+			g.obsvReqSendC,
 			g.acct,
 			g.gov,
-			g.signedGovCfg,
-			g.signedGovSt,
 			g.components,
-			nil,   // ibc feature string
+			nil,   //g.ibcFeaturesFunc,
 			false, // gateway relayer enabled
 			false, // ccqEnabled
 			nil,   // signed query request channel
 			nil,   // query response channel
 			"",    // query bootstrap peers
 			0,     // query port
-			"",    // query allowed peers
+			"",    // query allowed peers),
 		))
+	require.NoError(t, err)
+
+	supervisor.New(ctx, zap.L(),
+		Run(params))
 }

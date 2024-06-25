@@ -55,33 +55,38 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
-			g.runnables["p2p"] = p2p.Run(
-				g.obsvC,
-				g.obsvReqC.writeC,
-				g.obsvReqSendC.readC,
-				g.gossipSendC,
-				g.signedInC.writeC,
-				p2pKey,
-				g.gk,
-				g.gst,
-				networkId,
+			params, err := p2p.NewRunParams(
 				bootstrapPeers,
-				nodeName,
-				disableHeartbeatVerify,
+				networkId,
+				p2pKey,
+				g.gst,
 				g.rootCtxCancel,
-				g.acct,
-				g.gov,
-				nil,
-				nil,
-				components,
-				ibcFeaturesFunc,
-				(g.gatewayRelayer != nil),
-				(g.queryHandler != nil),
-				g.signedQueryReqC.writeC,
-				g.queryResponsePublicationC.readC,
-				ccqBootstrapPeers,
-				ccqPort,
-				ccqAllowedPeers,
+				p2p.WithGuardianOptions(
+					nodeName,
+					g.gk,
+					g.obsvC,
+					g.signedInC.writeC,
+					g.obsvReqC.writeC,
+					g.gossipSendC,
+					g.obsvReqSendC.readC,
+					g.acct,
+					g.gov,
+					components,
+					ibcFeaturesFunc,
+					(g.gatewayRelayer != nil), // gatewayRelayerEnabled,
+					(g.queryHandler != nil),   // ccqEnabled,
+					g.signedQueryReqC.writeC,
+					g.queryResponsePublicationC.readC,
+					ccqBootstrapPeers,
+					ccqPort,
+					ccqAllowedPeers),
+			)
+			if err != nil {
+				return err
+			}
+
+			g.runnables["p2p"] = p2p.Run(
+				params,
 			)
 
 			return nil
