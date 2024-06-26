@@ -10,6 +10,7 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -43,7 +44,6 @@ func (p *Processor) broadcastSignature(
 	digest := o.SigningDigest()
 	msgId := o.MessageID()
 
-	// Post the observation to the batch publisher.
 	ourObs := &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
@@ -51,26 +51,31 @@ func (p *Processor) broadcastSignature(
 		MessageId: msgId,
 	}
 
-	p.postObservationToBatch(ourObs)
+	var msg []byte
+	if p2p.GossipCutoverComplete() {
+		// Post the observation to the batch publisher.
+		p.postObservationToBatch(ourObs)
+	} else {
+		// Post the observation in its own gossip message.
+		obsv := gossipv1.SignedObservation{
+			Addr:      addr,
+			Hash:      digest.Bytes(),
+			Signature: signature,
+			TxHash:    txhash,
+			MessageId: msgId,
+		}
 
-	// Post the observation in its own gossip message. TODO: Remove this once everyone has migrated to batches.
-	obsv := gossipv1.SignedObservation{
-		Addr:      addr,
-		Hash:      digest.Bytes(),
-		Signature: signature,
-		TxHash:    txhash,
-		MessageId: msgId,
+		w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
+
+		var err error
+		msg, err = proto.Marshal(&w)
+		if err != nil {
+			panic(err)
+		}
+
+		p.gossipAttestationSendC <- p2p.GossipAttestationMsg{MsgType: p2p.GossipAttestationSignedObservation, Msg: msg}
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
-
-	msg, err := proto.Marshal(&w)
-	if err != nil {
-		panic(err)
-	}
-
-	// Broadcast the observation.
-	p.gossipAttestationSendC <- msg // TODO: Get rid of this
 	observationsBroadcast.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())
@@ -86,7 +91,7 @@ func (p *Processor) broadcastSignature(
 
 	p.state.signatures[hash].ourObservation = o
 	p.state.signatures[hash].ourObs = ourObs
-	p.state.signatures[hash].ourMsg = msg
+	p.state.signatures[hash].ourMsg = msg // TODO: Get rid of this after the cutover.
 	p.state.signatures[hash].txHash = txhash
 	p.state.signatures[hash].source = o.GetEmitterChain().String()
 	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs

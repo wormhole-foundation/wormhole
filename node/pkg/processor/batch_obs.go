@@ -62,7 +62,7 @@ func (p *Processor) handleBatch(ctx context.Context) error {
 	}
 
 	select {
-	case p.gossipAttestationSendC <- msg:
+	case p.gossipAttestationSendC <- p2p.GossipAttestationMsg{MsgType: p2p.GossipAttestationSignedObservationBatch, Msg: msg}:
 	default:
 		batchObservationChannelOverflow.WithLabelValues("gossipSend").Inc()
 	}

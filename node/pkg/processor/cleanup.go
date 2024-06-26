@@ -9,6 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -228,9 +229,10 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
-					p.postObservationToBatch(s.ourObs)
-					if s.ourMsg != nil {
-						p.gossipAttestationSendC <- s.ourMsg // TODO: Get rid of this
+					if p2p.GossipCutoverComplete() {
+						p.postObservationToBatch(s.ourObs)
+					} else if s.ourMsg != nil {
+						p.gossipAttestationSendC <- p2p.GossipAttestationMsg{MsgType: p2p.GossipAttestationSignedObservation, Msg: s.ourMsg}
 					}
 					s.retryCtr++
 					s.nextRetry = time.Now().Add(nextRetryDuration(s.retryCtr))

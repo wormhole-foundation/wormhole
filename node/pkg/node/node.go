@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -82,7 +83,7 @@ type G struct {
 	// various channels
 	// Outbound gossip message queues (needs to be read/write because p2p needs read/write)
 	gossipControlSendC     chan []byte
-	gossipAttestationSendC chan []byte
+	gossipAttestationSendC chan p2p.GossipAttestationMsg
 	gossipVaaSendC         chan []byte
 	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
@@ -125,7 +126,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 
 	// Setup various channels...
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
-	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
+	g.gossipAttestationSendC = make(chan p2p.GossipAttestationMsg, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)

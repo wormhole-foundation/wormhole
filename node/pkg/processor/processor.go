@@ -108,7 +108,7 @@ type Processor struct {
 	setC <-chan *common.GuardianSet
 
 	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
-	gossipAttestationSendC chan<- []byte
+	gossipAttestationSendC chan<- p2p.GossipAttestationMsg
 
 	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
 	gossipVaaSendC chan<- []byte
@@ -212,7 +212,7 @@ func NewProcessor(
 	db *db.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
-	gossipAttestationSendC chan<- []byte,
+	gossipAttestationSendC chan<- p2p.GossipAttestationMsg,
 	gossipVaaSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
