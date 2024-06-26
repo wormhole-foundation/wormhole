@@ -74,12 +74,13 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
 // and assembles and submits a valid VAA if possible.
-func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+func (p *Processor) handleObservation(obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
+	start := time.Now()
 	observationsReceivedTotal.Inc()
 
 	m := obs.Msg
@@ -87,6 +88,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	s := p.state.signatures[hash]
 	if s != nil && s.submitted {
 		// already submitted; ignoring additional signatures for it.
+		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 		return
 	}
 
@@ -236,6 +238,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 					zap.String("digest", hash),
 				)
 			}
+			timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 			return
 		}
 
@@ -279,6 +282,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	}
 
 	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
+	timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 }
 
 func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {

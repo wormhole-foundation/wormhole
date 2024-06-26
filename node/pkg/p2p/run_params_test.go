@@ -143,7 +143,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	obsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation], 42)
 	signedInC := make(chan<- *gossipv1.SignedVAAWithQuorum, 42)
 	obsvReqC := make(chan<- *gossipv1.ObservationRequest, 42)
-	gossipSendC := make(chan []byte, 42)
+	gossipControlSendC := make(chan []byte, 42)
+	gossipAttestationSendC := make(chan []byte, 42)
+	gossipVaaSendC := make(chan []byte, 42)
 	obsvReqSendC := make(<-chan *gossipv1.ObservationRequest, 42)
 
 	acct := &accountant.Accountant{}
@@ -172,7 +174,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			obsvC,
 			signedInC,
 			obsvReqC,
-			gossipSendC,
+			gossipControlSendC,
+			gossipAttestationSendC,
+			gossipVaaSendC,
 			obsvReqSendC,
 			acct,
 			gov,
@@ -194,7 +198,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	assert.Equal(t, obsvC, params.obsvC)
 	assert.Equal(t, signedInC, params.signedInC)
 	assert.Equal(t, obsvReqC, params.obsvReqC)
-	assert.Equal(t, gossipSendC, params.gossipSendC)
+	assert.Equal(t, gossipControlSendC, params.gossipControlSendC)
+	assert.Equal(t, gossipAttestationSendC, params.gossipAttestationSendC)
+	assert.Equal(t, gossipVaaSendC, params.gossipVaaSendC)
 	assert.Equal(t, obsvReqSendC, params.obsvReqSendC)
 	assert.Equal(t, acct, params.acct)
 	assert.Equal(t, gov, params.gov)

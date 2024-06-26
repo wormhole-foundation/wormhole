@@ -165,7 +165,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "wormhole_time_to_handle_observation_us",
 			Help:    "Latency histogram for total time to handle observation on an observation",
-			Buckets: []float64{100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
+			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
 		})
 
 	timeToHandleQuorum = promauto.NewHistogram(
@@ -174,30 +174,7 @@ var (
 			Help:    "Latency histogram for total time to handle quorum on an observation",
 			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
 		})
-
-	batchObservationChanDelay = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_batch_observation_channel_delay_us",
-			Help:    "Latency histogram for delay of batched observations in channel",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
-
-	batchObservationTotalDelay = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_batch_observation_total_delay_us",
-			Help:    "Latency histogram for total time to process batched observations",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
-
-	batchObservationChannelOverflow = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "wormhole_batch_observation_channel_overflow",
-			Help: "Total number of times a write to the batch observation publish channel failed",
-		}, []string{"channel"})
 )
-
-// batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
-const batchObsvPubChanSize = p2p.MaxObservationBatchSize * 5
 
 func NewProcessor(
 	ctx context.Context,
@@ -298,7 +275,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleMessage(k)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleObservation(ctx, m)
+			p.handleObservation(m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-cleanup.C:
