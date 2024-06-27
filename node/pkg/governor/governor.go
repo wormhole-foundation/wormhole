@@ -774,7 +774,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						ce.transfers = append(ce.transfers, transfer)
 
 						// Add inverse transfer to destination chain entry if this asset can cancel flows.
-						key := tokenKey{chain: dbTransfer.EmitterChain, addr: dbTransfer.EmitterAddress}
+						key := tokenKey{chain: pe.token.token.chain, addr: pe.token.token.addr}
 						tokenEntry := gov.tokens[key]
 						if tokenEntry != nil {
 							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
@@ -948,7 +948,8 @@ func CheckedAddUint64(x uint64, y uint64) (uint64, error) {
 	return sum, nil
 }
 
-// CheckedAddInt64 adds two uint64 values with overflow checks
+// CheckedAddInt64 adds two uint64 values with overflow checks. Returns an error if the calculation would
+// overflow or underflow. In this case, the returned value is 0.
 func CheckedAddInt64(x int64, y int64) (int64, error) {
 	if x == 0 {
 		return y, nil
