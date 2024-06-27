@@ -38,7 +38,7 @@ type (
 		// WithChainGovernorStatusListener is optional and can be set with `WithChainGovernorStatusListener`.
 		signedGovSt chan *gossipv1.SignedChainGovernorStatus
 
-		// disableHeartbeatVerify is optional and can be set with `WithDisableHeartbeatVerify`.
+		// disableHeartbeatVerify is optional and can be set with `WithDisableHeartbeatVerify` or `WithGuardianOptions`.
 		disableHeartbeatVerify bool
 
 		// The following options are guardian specific. Set with `WithGuardianOptions`.
@@ -154,6 +154,7 @@ func WithGuardianOptions(
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	acct *accountant.Accountant,
 	gov *governor.ChainGovernor,
+	disableHeartbeatVerify bool,
 	components *Components,
 	ibcFeaturesFunc func() string,
 	gatewayRelayerEnabled bool,
@@ -174,6 +175,7 @@ func WithGuardianOptions(
 		p.obsvReqSendC = obsvReqSendC
 		p.acct = acct
 		p.gov = gov
+		p.disableHeartbeatVerify = disableHeartbeatVerify
 		p.components = components
 		p.ibcFeaturesFunc = ibcFeaturesFunc
 		p.gatewayRelayerEnabled = gatewayRelayerEnabled

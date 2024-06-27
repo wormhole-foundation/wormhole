@@ -182,6 +182,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.obsvReqSendC,
 			g.acct,
 			g.gov,
+			g.disableHeartbeatVerify,
 			g.components,
 			nil,   //g.ibcFeaturesFunc,
 			false, // gateway relayer enabled

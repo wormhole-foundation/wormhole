@@ -148,6 +148,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 
 	acct := &accountant.Accountant{}
 	gov := &governor.ChainGovernor{}
+	disableHeartbeatVerify := false
 	components := &Components{}
 	ibcFeaturesFunc := func() string { return "Hello, World!" }
 	gatewayRelayerEnabled := true
@@ -175,6 +176,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			obsvReqSendC,
 			acct,
 			gov,
+			disableHeartbeatVerify,
 			components,
 			ibcFeaturesFunc,
 			gatewayRelayerEnabled,
