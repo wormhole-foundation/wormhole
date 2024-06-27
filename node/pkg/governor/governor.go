@@ -133,6 +133,7 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
 // - the TargetChain must match the chain ID of the Chain Entry
+// - the flow cancel value must always be less than the big transfer limit
 func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
 	targetChain := transfer.dbTransfer.TargetChain
@@ -678,6 +679,15 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
+// Iterates over all pending transfers for all of the chain entries configured for the Governor.
+// If a pending message is ready to be released, modifies the chain entry's `pending` and `transfers` slices by
+// moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
+// A transfer is ready to be released when one of the following conditions holds:
+//   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
+//     the Governor's current capacity)
+//   - Within the release time duration, other transfers have been processed and have freed up outbound Governor capacity.
+//     This happens either because other transfers get released after 24 hours or because incoming transfers of
+//     flow-cancelling assets have freed up outbound capacity.
 func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -799,12 +809,13 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						ce.transfers = append(ce.transfers, transfer)
 
 						// Add inverse transfer to destination chain entry if this asset can cancel flows.
-						key := tokenKey{chain: dbTransfer.EmitterChain, addr: dbTransfer.EmitterAddress}
+						key := tokenKey{chain: pe.token.token.chain, addr: pe.token.token.addr}
 						tokenEntry := gov.tokens[key]
 						if tokenEntry != nil {
 							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 							if tokenEntry.flowCancels {
 								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
+
 									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
 										return nil, err
 									}
@@ -973,7 +984,8 @@ func CheckedAddUint64(x uint64, y uint64) (uint64, error) {
 	return sum, nil
 }
 
-// CheckedAddInt64 adds two uint64 values with overflow checks
+// CheckedAddInt64 adds two uint64 values with overflow checks. Returns an error if the calculation would
+// overflow or underflow. In this case, the returned value is 0.
 func CheckedAddInt64(x int64, y int64) (int64, error) {
 	if x == 0 {
 		return y, nil

@@ -248,6 +248,8 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, 
 }
 
 // sumValue sums the value of all `transfers`. See also `TrimAndSumValue`.
+// Returns an error if the sum of all transfers would overflow the bounds of Int64. In this case, the function
+// returns a value of 0.
 func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
 	if len(transfers) == 0 {
 		return 0, nil
@@ -277,18 +279,20 @@ func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
 	return uint64(sum), nil
 }
 
-// REST query to get the current available notional value per chain.
+// REST query to get the current available notional value per chain. This is defined as the sum of all transfers
+// subtracted from the chains's dailyLimit.
 func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
-	for _, cid := range gov.chainIds {
-		ce := gov.chains[cid]
+	for _, chainId := range gov.chainIds {
+		ce := gov.chains[chainId]
 		value, err := sumValue(ce.transfers, startTime)
 		if err != nil {
-			// Don't return an error here, just return 0
+			// Don't return an error here, just return 0.
+			gov.logger.Error("GetAvailableNotionalByChain: failed to compute sum of transfers for chain entry", zap.String("chainID", chainId.String()), zap.Error(err))
 			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
 		}
 		if value >= ce.dailyLimit {
@@ -448,6 +452,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 			if err != nil {
 				// Error can occur if the sum overflows. Return 0 in this case rather than returning an
 				// error.
+				gov.logger.Error("CollectMetrics: failed to compute sum of transfers for chain entry", zap.String("chain", chain.String()), zap.Error(err))
 				value = 0
 			}
 			if value >= ce.dailyLimit {
@@ -556,16 +561,20 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
-	for _, ce := range gov.chains {
-		value, err := sumValue(ce.transfers, startTime)
+	for chainId, ce := range gov.chains {
+		// The capacity for the chain to emit further messages, denoted as USD value.
+		remainingAvailableNotional := uint64(0)
+		// A chain's governor usage is the sum of all outgoing transfers and incoming flow-cancelling transfers
+		governorUsage, err := sumValue(ce.transfers, startTime)
 
-		if err != nil || value >= ce.dailyLimit {
-			// In case of error, set value to 0 rather than returning an error to the caller. An error
+		if err != nil {
+			// In case of error, set remainingAvailableNotional to 0 rather than returning an error to the caller. An error
 			// here means sumValue has encountered an overflow and this should never happen. Even if it did
 			// we don't want to stop execution here.
-			value = 0
-		} else {
-			value = ce.dailyLimit - value
+			gov.logger.Error("publishStatus: failed to compute sum of transfers for chain entry", zap.String("chain", chainId.String()), zap.Error(err))
+		} else if governorUsage < ce.dailyLimit {
+			// `remainingAvailableNotional` is 0 unless the current usage is strictly less than the limit.
+			remainingAvailableNotional = ce.dailyLimit - governorUsage
 		}
 
 		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
@@ -595,7 +604,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
 			ChainId:                    uint32(ce.emitterChainId),
-			RemainingAvailableNotional: value,
+			RemainingAvailableNotional: remainingAvailableNotional,
 			Emitters:                   []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
 		})
 	}
