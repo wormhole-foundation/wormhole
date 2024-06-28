@@ -655,6 +655,15 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
+// Iterates over all pending transfers for all of the chain entries configured for the Governor.
+// If a pending message is ready to be released, modifies the chain entry's `pending` and `transfers` slices by
+// moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
+// A transfer is ready to be released when one of the following conditions holds:
+//   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
+//     the Governor's current capacity)
+//   - Within the release time duration, other transfers have been processed and have freed up outbound Governor capacity.
+//     This happens either because other transfers get released after 24 hours or because incoming transfers of
+//     flow-cancelling assets have freed up outbound capacity.
 func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
