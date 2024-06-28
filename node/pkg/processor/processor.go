@@ -399,10 +399,9 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 			p.updateVAALock.Unlock()
 			if updatedVAAs != nil {
 				// If there's anything to write, do that.
+				vaaBatch := make([]*vaa.VAA, 0, len(updatedVAAs))
 				for _, entry := range updatedVAAs {
-					if err := p.db.StoreSignedVAA(entry.v); err != nil {
-						p.logger.Error("failed to write VAA to database", zap.Error(err))
-					}
+					vaaBatch = append(vaaBatch, entry.v)
 					if entry.hashToLog != "" {
 						p.logger.Info("signed VAA with quorum",
 							zap.String("message_id", entry.v.MessageID()),
@@ -410,6 +409,10 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 						)
 						p.broadcastSignedVAA(entry.v)
 					}
+				}
+
+				if err := p.db.StoreSignedVAABatch(vaaBatch); err != nil {
+					p.logger.Error("failed to write VAAs to database", zap.Int("numVAAs", len(vaaBatch)), zap.Error(err))
 				}
 
 				// Go through the map and delete anything we have written that hasn't been updated again.
