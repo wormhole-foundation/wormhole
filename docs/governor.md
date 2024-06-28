@@ -72,7 +72,7 @@ guardiand admin governor-drop-pending-vaa "emitted_chain_ID/address/sequence_num
 **Warning:** *Dropping a VAA should only be used in the context of confirmed fraud that directly affects the security of the Wormhole network.  A super minority of Guardians are required to effectively censor a VAA.*
 
 ### Resetting Release Timer
-Guardians can reset the release timer to a specified number of days, from the current time, using the `governer-reset-release-timer` admin command as follows: 
+Guardians can reset the release timer to a specified number of days, from the current time, using the `governor-reset-release-timer` admin command as follows: 
 
 ```bash
 guardiand admin governor-reset-release-timer "emitted_chain_ID/address/sequence_number" "number of days" --socket /path/to/admin.sock
