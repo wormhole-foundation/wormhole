@@ -7,9 +7,11 @@ package main
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/tidwall/gjson"
+
 	//	"encoding/base64"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -27,7 +29,7 @@ func getTxStatus(tx string, src string) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func getBlock(block uint64) ([]byte, error) {
@@ -39,7 +41,7 @@ func getBlock(block uint64) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func getFinalBlock() ([]byte, error) {
@@ -51,7 +53,7 @@ func getFinalBlock() ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func getChunk(chunk string) ([]byte, error) {
@@ -64,7 +66,7 @@ func getChunk(chunk string) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func inspectBody(block uint64, body gjson.Result) error {
@@ -121,7 +123,7 @@ func inspectBody(block uint64, body gjson.Result) error {
 						if !strings.HasPrefix(event, "EVENT_JSON:") {
 							continue
 						}
-//						event_json := gjson.ParseBytes(event[11:])
+						//event_json := gjson.ParseBytes(event[11:])
 						fmt.Printf("log: %s\n", event[11:])
 					}
 				}

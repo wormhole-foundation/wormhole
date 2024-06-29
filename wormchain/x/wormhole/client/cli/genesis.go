@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -79,11 +78,11 @@ func CmdGenerateTestGuardianKey() *cobra.Command {
 			private_key := [32]byte{}
 			key.D.FillBytes(private_key[:])
 
-			err = ioutil.WriteFile(outPrivatePath, []byte(hex.EncodeToString(private_key[:])), 0644)
+			err = os.WriteFile(outPrivatePath, []byte(hex.EncodeToString(private_key[:])), 0644)
 			if err != nil {
 				return err
 			}
-			ioutil.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
+			os.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
 			if err != nil {
 				return err
 			}
@@ -131,7 +130,7 @@ func CmdDecodeAddress() *cobra.Command {
 
 func ImportKeyFromFile(filePath string) (*ecdsa.PrivateKey, error) {
 	priv := ecdsa.PrivateKey{}
-	bz, err := ioutil.ReadFile(filePath)
+	bz, err := os.ReadFile(filePath)
 	if err != nil {
 		return &priv, err
 	}
@@ -139,7 +138,7 @@ func ImportKeyFromFile(filePath string) (*ecdsa.PrivateKey, error) {
 }
 
 func ImportPublicKeyFromFile(filePath string) ([]byte, error) {
-	hexBz, err := ioutil.ReadFile(filePath)
+	hexBz, err := os.ReadFile(filePath)
 	if err != nil {
 		return []byte{}, err
 	}

@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 
 	"encoding/hex"
@@ -22,7 +22,7 @@ import (
 var _ = strconv.Itoa(0)
 
 func parseStoreCodeArgs(file string, sender sdk.AccAddress, vaa []byte) (types.MsgStoreCode, error) {
-	wasm, err := ioutil.ReadFile(file)
+	wasm, err := os.ReadFile(file)
 	if err != nil {
 		return types.MsgStoreCode{}, err
 	}
