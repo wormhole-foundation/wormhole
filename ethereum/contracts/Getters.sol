@@ -53,4 +53,20 @@ contract Getters is State {
     function nextSequence(address emitter) public view returns (uint64) {
         return _state.sequences[emitter];
     }
+
+    function getGuardianSetHash(uint32 index) public view returns (bytes32) {
+        return _state.guardianSetHashes[index];
+    }
+
+    function getEncodedGuardianSet(uint32 index) public view returns (bytes memory encodedGuardianSet) {
+        Structs.GuardianSet memory guardianSet = getGuardianSet(index);
+
+        // Encode the guardian set.
+        uint256 guardianCount = guardianSet.keys.length;
+        for (uint256 i = 0; i < guardianCount;) {
+            encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSet.keys[i]);
+            unchecked { ++i; }
+        }
+        encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSet.expirationTime);
+    }
 }
