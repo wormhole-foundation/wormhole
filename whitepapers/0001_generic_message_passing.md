@@ -201,7 +201,7 @@ is provided by permissionless relayers.
 
 With IBC, for two chains to communicate directly with each other, they would have to be able to prove state mutually.
 This usually means implementing light clients for the other chain. In modern pBFT chains like those based
-on [Tendermint](https://v1.cosmos.network/resources/whitepaper) consensus, verifying light client proofs
+on [Tendermint](https://cosmos.network/whitepaper) consensus, verifying light client proofs
 is [very cheap](https://blog.cosmos.network/light-clients-in-tendermint-consensus-1237cfbda104) - all that is needed is
 to follow validator set changes, instead of a full header chain. However, chains talking to each other directly would
 get unmanageable with many chains - and this is where central hubs like Cosmos Hub come in. Instead of every individual
