@@ -26,6 +26,9 @@ type (
 		// obsvC is optional and can be set with `WithSignedObservationListener`.
 		obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 
+		// batchObsvC is optional and can be set with `WithSignedObservationBatchListener`.
+		batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
+
 		// obsvReqC is optional and can be set with `WithObservationRequestListener`.
 		obsvReqC chan<- *gossipv1.ObservationRequest
 
@@ -95,10 +98,18 @@ func NewRunParams(
 	return p, nil
 }
 
-// WithSignedObservationListener is used to set the channel to receive `SignedObservation“ messages.
+// WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
 func WithSignedObservationListener(obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
 	return func(p *RunParams) error {
 		p.obsvC = obsvC
+		return nil
+	}
+}
+
+// WithSignedObservationBatchListener is used to set the channel to receive `SignedObservationBatch` messages.
+func WithSignedObservationBatchListener(batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) RunOpt {
+	return func(p *RunParams) error {
+		p.batchObsvC = batchObsvC
 		return nil
 	}
 }
@@ -148,6 +159,7 @@ func WithGuardianOptions(
 	nodeName string,
 	gk *ecdsa.PrivateKey,
 	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
+	batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqC chan<- *gossipv1.ObservationRequest,
 	gossipSendC chan []byte,
@@ -169,6 +181,7 @@ func WithGuardianOptions(
 		p.nodeName = nodeName
 		p.gk = gk
 		p.obsvC = obsvC
+		p.batchObsvC = batchObsvC
 		p.signedInC = signedInC
 		p.obsvReqC = obsvReqC
 		p.gossipSendC = gossipSendC

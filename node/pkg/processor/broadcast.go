@@ -53,7 +53,7 @@ func (p *Processor) broadcastSignature(
 
 	p.postObservationToBatch(ourObs)
 
-	// Post the observation in its own gossip message. TODO: Remove this once everyone has migrated to batches.
+	// Post the observation in its own gossip message.
 	obsv := gossipv1.SignedObservation{
 		Addr:      addr,
 		Hash:      digest.Bytes(),
@@ -70,7 +70,7 @@ func (p *Processor) broadcastSignature(
 	}
 
 	// Broadcast the observation.
-	p.gossipSendC <- msg // TODO: Get rid of this
+	p.gossipSendC <- msg
 	observationsBroadcast.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())

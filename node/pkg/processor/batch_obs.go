@@ -13,11 +13,12 @@ import (
 
 // postObservationToBatch posts an individual observation to the batch processor.
 func (p *Processor) postObservationToBatch(obs *gossipv1.Observation) {
-	select {
-	case p.batchObsvPubC <- obs:
-	default:
-		batchObservationChannelOverflow.WithLabelValues("batchObsvPub").Inc()
-	}
+	// TODO: This will be enabled as part of the gossip split PR.
+	// select {
+	// case p.batchObsvPubC <- obs:
+	// default:
+	// 	batchObservationChannelOverflow.WithLabelValues("batchObsvPub").Inc()
+	// }
 }
 
 // batchProcessor is the entry point for the batch processor, which is responsible for taking individual

@@ -350,7 +350,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			pubsub.WithEventTracer(ourTracer),
 			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
 			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
-			// pubsub.WithPeerOutboundQueueSize(1000000),
 		)
 		if err != nil {
 			panic(err)
@@ -688,11 +687,11 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 				}
 			case *gossipv1.GossipMessage_SignedObservationBatch:
-				if batchObsvC != nil {
-					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, batchObsvC); err == nil {
+				if params.batchObsvC != nil {
+					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservationBatch](m.SignedObservationBatch, params.batchObsvC); err == nil {
 						p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
 					} else {
-						if components.WarnChannelOverflow {
+						if params.components.WarnChannelOverflow {
 							logger.Warn("Ignoring SignedObservationBatch because batchObsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
 						}
 						p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
