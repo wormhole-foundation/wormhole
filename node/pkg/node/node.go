@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -20,12 +21,23 @@ import (
 )
 
 const (
-	// gossipSendBufferSize configures the size of the gossip network send buffer
-	gossipSendBufferSize = 5000
+	// gossipControlSendBufferSize configures the size of the gossip network send buffer
+	gossipControlSendBufferSize = 100
+
+	// gossipAttestationSendBufferSize configures the size of the gossip network send buffer
+	gossipAttestationSendBufferSize = 5000
+
+	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
+	gossipVaaSendBufferSize = 5000
 
 	// inboundObservationBufferSize configures the size of the obsvC channel that contains observations from other Guardians.
 	// One observation takes roughly 0.1ms to process on one core, so the whole queue could be processed in 1s
 	inboundObservationBufferSize = 10000
+
+	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
+	// Since a batch contains many observations, the guardians should not be publishing too many of these, so we can keep the channel small. With
+	// 19 guardians, we would expect 19 messages per second during normal operations. This gives us plenty of extra room.
+	inboundBatchObservationBufferSize = 100
 
 	// inboundSignedVaaBufferSize configures the size of the signedInC channel that contains VAAs from other Guardians.
 	// One VAA takes roughly 0.01ms to process if we already have one in the database and 2ms if we don't.
@@ -69,10 +81,14 @@ type G struct {
 	runnables             map[string]supervisor.Runnable
 
 	// various channels
-	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
-	gossipSendC chan []byte
+	// Outbound gossip message queues (needs to be read/write because p2p needs read/write)
+	gossipControlSendC     chan []byte
+	gossipAttestationSendC chan p2p.GossipAttestationMsg
+	gossipVaaSendC         chan []byte
 	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
+	// Inbound observation batches.
+	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
 	msgC channelPair[*common.MessagePublication]
 	// Ethereum incoming guardian set updates
@@ -109,8 +125,11 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
-	g.gossipSendC = make(chan []byte, gossipSendBufferSize)
+	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
+	g.gossipAttestationSendC = make(chan p2p.GossipAttestationMsg, gossipAttestationSendBufferSize)
+	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
+	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)

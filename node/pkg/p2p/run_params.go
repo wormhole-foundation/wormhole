@@ -26,6 +26,9 @@ type (
 		// obsvC is optional and can be set with `WithSignedObservationListener`.
 		obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 
+		// batchObsvC is optional and can be set with `WithSignedObservationBatchListener`.
+		batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
+
 		// obsvReqC is optional and can be set with `WithObservationRequestListener`.
 		obsvReqC chan<- *gossipv1.ObservationRequest
 
@@ -42,21 +45,23 @@ type (
 		disableHeartbeatVerify bool
 
 		// The following options are guardian specific. Set with `WithGuardianOptions`.
-		nodeName              string
-		gk                    *ecdsa.PrivateKey
-		gossipSendC           chan []byte
-		obsvReqSendC          <-chan *gossipv1.ObservationRequest
-		acct                  *accountant.Accountant
-		gov                   *governor.ChainGovernor
-		components            *Components
-		ibcFeaturesFunc       func() string
-		gatewayRelayerEnabled bool
-		ccqEnabled            bool
-		signedQueryReqC       chan<- *gossipv1.SignedQueryRequest
-		queryResponseReadC    <-chan *query.QueryResponsePublication
-		ccqBootstrapPeers     string
-		ccqPort               uint
-		ccqAllowedPeers       string
+		nodeName               string
+		gk                     *ecdsa.PrivateKey
+		gossipControlSendC     chan []byte
+		gossipAttestationSendC chan GossipAttestationMsg
+		gossipVaaSendC         chan []byte
+		obsvReqSendC           <-chan *gossipv1.ObservationRequest
+		acct                   *accountant.Accountant
+		gov                    *governor.ChainGovernor
+		components             *Components
+		ibcFeaturesFunc        func() string
+		gatewayRelayerEnabled  bool
+		ccqEnabled             bool
+		signedQueryReqC        chan<- *gossipv1.SignedQueryRequest
+		queryResponseReadC     <-chan *query.QueryResponsePublication
+		ccqBootstrapPeers      string
+		ccqPort                uint
+		ccqAllowedPeers        string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -95,10 +100,18 @@ func NewRunParams(
 	return p, nil
 }
 
-// WithSignedObservationListener is used to set the channel to receive `SignedObservation“ messages.
+// WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
 func WithSignedObservationListener(obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
 	return func(p *RunParams) error {
 		p.obsvC = obsvC
+		return nil
+	}
+}
+
+// WithSignedObservationBatchListener is used to set the channel to receive `SignedObservationBatch` messages.
+func WithSignedObservationBatchListener(batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) RunOpt {
+	return func(p *RunParams) error {
+		p.batchObsvC = batchObsvC
 		return nil
 	}
 }
@@ -148,9 +161,12 @@ func WithGuardianOptions(
 	nodeName string,
 	gk *ecdsa.PrivateKey,
 	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
+	batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqC chan<- *gossipv1.ObservationRequest,
-	gossipSendC chan []byte,
+	gossipControlSendC chan []byte,
+	gossipAttestationSendC chan GossipAttestationMsg,
+	gossipVaaSendC chan []byte,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	acct *accountant.Accountant,
 	gov *governor.ChainGovernor,
@@ -169,9 +185,12 @@ func WithGuardianOptions(
 		p.nodeName = nodeName
 		p.gk = gk
 		p.obsvC = obsvC
+		p.batchObsvC = batchObsvC
 		p.signedInC = signedInC
 		p.obsvReqC = obsvReqC
-		p.gossipSendC = gossipSendC
+		p.gossipControlSendC = gossipControlSendC
+		p.gossipAttestationSendC = gossipAttestationSendC
+		p.gossipVaaSendC = gossipVaaSendC
 		p.obsvReqSendC = obsvReqSendC
 		p.acct = acct
 		p.gov = gov
