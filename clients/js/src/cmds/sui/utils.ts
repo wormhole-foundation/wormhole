@@ -2,8 +2,8 @@ import { PaginatedObjectsResponse } from "@mysten/sui.js";
 import yargs from "yargs";
 import { getPackageId, getProvider } from "../../chains/sui";
 import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
-import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+import { getNetwork } from "../../utils";
 
 export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y
@@ -20,9 +20,8 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const network = getNetwork(argv.network);
+        const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
         const owner = argv.owner;
 
         const provider = getProvider(network, rpc);
@@ -61,9 +60,8 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const network = getNetwork(argv.network);
+        const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
         const provider = getProvider(network, rpc);
         console.log(await getPackageId(provider, argv["state-object-id"]));
       }
@@ -89,9 +87,8 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           } as const)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const network = getNetwork(argv.network);
+        const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
         const provider = getProvider(network, rpc);
         console.log(
           JSON.stringify(

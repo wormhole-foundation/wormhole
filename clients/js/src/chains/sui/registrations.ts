@@ -1,25 +1,24 @@
 import { getObjectFields } from "@certusone/wormhole-sdk/lib/esm/sui";
-import {
-  CHAIN_ID_TO_NAME,
-  CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { NETWORKS } from "../../consts/networks";
-import { Network } from "../../utils";
 import { getProvider } from "./utils";
-import { ChainId } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  Network,
+  chainIdToChain,
+  contracts,
+} from "@wormhole-foundation/sdk";
 
 export async function queryRegistrationsSui(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  const n = NETWORKS[network]["sui"];
+  const n = NETWORKS[network]["Sui"];
   const provider = getProvider(network, n.rpc);
-  const contracts = CONTRACTS[network]["sui"];
   let state_object_id: string;
 
   switch (module) {
     case "TokenBridge":
-      state_object_id = contracts.token_bridge;
+      state_object_id = contracts.tokenBridge(network, "Sui");
       if (state_object_id === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for Sui`);
       }
@@ -49,7 +48,7 @@ export async function queryRegistrationsSui(
       const emitterAddress: Uint8Array =
         emitter.data?.content?.fields.value.fields.value.fields.data;
       const emitterAddrStr = Buffer.from(emitterAddress).toString("hex");
-      results[CHAIN_ID_TO_NAME[chainId]] = emitterAddrStr;
+      results[chainIdToChain(chainId)] = emitterAddrStr;
     }
   }
 

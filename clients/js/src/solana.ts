@@ -16,13 +16,6 @@ import {
   createUpgradeGuardianSetInstruction,
   createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
 } from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
-import {
-  CHAINS,
-  CONTRACTS,
-  ChainName,
-  Network,
-  SolanaChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import * as web3s from "@solana/web3.js";
 import base58 from "bs58";
 import { NETWORKS } from "./consts";
@@ -32,19 +25,30 @@ import {
   transferFromSolana,
   transferNativeSol,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import {
-  hexToUint8Array,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk/lib/esm/utils";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
+import {
+  Chain,
+  Network,
+  PlatformToChains,
+  chainToChainId,
+  chainToPlatform,
+  chains,
+  contracts,
+  platformToChains,
+} from "@wormhole-foundation/sdk-base";
+import { hexToUint8Array, tryNativeToUint8Array } from "./sdk/array";
 
 export async function execute_solana(
   v: VAA<Payload>,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET",
-  chain: SolanaChainName
+  network: Network,
+  chain: Chain
 ) {
+  if (chainToPlatform(chain) !== "Solana") {
+    // This "Solana" platform, also, includes Pythnet
+    throw new Error("Invalid chain");
+  }
   const { rpc, key } = NETWORKS[network][chain];
   if (!key) {
     throw Error(`No ${network} key defined for ${chain}`);
@@ -57,22 +61,24 @@ export async function execute_solana(
   const connection = setupConnection(rpc);
   const from = web3s.Keypair.fromSecretKey(base58.decode(key));
 
-  const contracts = CONTRACTS[network][chain];
-  if (!contracts.core) {
+  const coreContract = contracts.coreBridge.get(network, chain);
+  if (!coreContract) {
     throw new Error(`Core bridge address not defined for ${chain} ${network}`);
   }
 
-  if (!contracts.nft_bridge) {
+  const nftContract = contracts.nftBridge.get(network, chain);
+  if (!nftContract) {
     throw new Error(`NFT bridge address not defined for ${chain} ${network}`);
   }
 
-  if (!contracts.token_bridge) {
+  const tbContract = contracts.tokenBridge.get(network, chain);
+  if (!tbContract) {
     throw new Error(`Token bridge address not defined for ${chain} ${network}`);
   }
 
-  const bridgeId = new web3s.PublicKey(contracts.core);
-  const tokenBridgeId = new web3s.PublicKey(contracts.token_bridge);
-  const nftBridgeId = new web3s.PublicKey(contracts.nft_bridge);
+  const bridgeId = new web3s.PublicKey(coreContract);
+  const tokenBridgeId = new web3s.PublicKey(tbContract);
+  const nftBridgeId = new web3s.PublicKey(nftContract);
 
   let ix: web3s.TransactionInstruction;
   switch (v.payload.module) {
@@ -163,7 +169,7 @@ export async function execute_solana(
           break;
         case "Transfer":
           console.log("Completing transfer");
-          if (payload.tokenChain === CHAINS[chain]) {
+          if (payload.tokenChain === chainToChainId(chain)) {
             ix = createCompleteTransferNativeInstruction(
               tokenBridgeId,
               bridgeId,
@@ -228,14 +234,15 @@ export async function execute_solana(
 }
 
 export async function transferSolana(
-  srcChain: SolanaChainName,
-  dstChain: ChainName,
+  srcChain: PlatformToChains<"Solana">,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
+  platformToChains("Solana");
   const { key } = NETWORKS[network][srcChain];
   if (!key) {
     throw Error(`No ${network} key defined for ${srcChain}`);
@@ -244,12 +251,13 @@ export async function transferSolana(
   const connection = setupConnection(rpc);
   const keypair = web3s.Keypair.fromSecretKey(base58.decode(key));
 
-  const { core, token_bridge } = CONTRACTS[network][srcChain];
+  const core = contracts.coreBridge.get(network, srcChain);
   if (!core) {
     throw new Error(
       `Core bridge address not defined for ${srcChain} ${network}`
     );
   }
+  const token_bridge = contracts.tokenBridge.get(network, srcChain);
   if (!token_bridge) {
     throw new Error(
       `Token bridge address not defined for ${srcChain} ${network}`
@@ -268,8 +276,8 @@ export async function transferSolana(
       tokenBridgeId,
       payerAddress,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, dstChain),
-      dstChain
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
+      chainToChainId(dstChain)
     );
   } else {
     // find the associated token account
@@ -287,8 +295,8 @@ export async function transferSolana(
       fromAddress,
       tokenAddress, // mintAddress
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, dstChain),
-      dstChain
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
+      chainToChainId(dstChain)
     );
   }
 
@@ -316,18 +324,17 @@ export async function queryRegistrationsSolana(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  const chain = "solana" as ChainName;
+  const chain = "Solana";
   const n = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   let targetAddress: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      targetAddress = contracts.token_bridge;
+      targetAddress = contracts.tokenBridge(network, chain);
       break;
     case "NFTBridge":
-      targetAddress = contracts.nft_bridge;
+      targetAddress = contracts.nftBridge(network, chain);
       break;
     default:
       throw new Error(`Invalid module: ${module}`);
@@ -346,26 +353,26 @@ export async function queryRegistrationsSolana(
 
   // Query the bridge registration for all the chains in parallel.
   const registrations: (string | null)[][] = await Promise.all(
-    Object.entries(CHAINS)
-      .filter(([cname, _]) => cname !== chain && cname !== "unset")
-      .map(async ([cstr, cid]) => [
+    chains
+      .filter((cname) => cname !== chain)
+      .map(async (cstr) => [
         cstr,
         await (async () => {
-          let cname = cstr as ChainName;
+          // let cname = cstr as Chain;
           let addr: string | undefined;
           if (module === "TokenBridge") {
-            addr = CONTRACTS[network][cname].token_bridge;
+            addr = contracts.tokenBridge.get(network, cstr);
           } else {
-            addr = CONTRACTS[network][cname].nft_bridge;
+            addr = contracts.nftBridge.get(network, cstr);
           }
           if (addr === undefined) {
             return null;
           }
-          let emitter_addr = await getEmitterAddress(cname as ChainName, addr);
+          let emitter_addr = await getEmitterAddress(cstr, addr);
 
           const endpoint = deriveEndpointKey(
             programId,
-            cid,
+            chainToChainId(cstr),
             hexToUint8Array(emitter_addr)
           );
 

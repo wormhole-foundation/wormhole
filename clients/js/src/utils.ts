@@ -1,13 +1,13 @@
+import {
+  Chain,
+  ChainId,
+  Network,
+  PlatformToChains,
+  chainToPlatform,
+  toChain,
+} from "@wormhole-foundation/sdk-base";
 import { spawnSync } from "child_process";
 import { ethers } from "ethers";
-
-export type Network = "MAINNET" | "TESTNET" | "DEVNET";
-
-export function assertNetwork(n: string): asserts n is Network {
-  if (n !== "MAINNET" && n !== "TESTNET" && n !== "DEVNET") {
-    throw Error(`Unknown network: ${n}`);
-  }
-}
 
 export const checkBinary = (binaryName: string, readmeUrl?: string): void => {
   const binary = spawnSync(binaryName, ["--version"]);
@@ -29,3 +29,33 @@ export const evm_address = (x: string): string => {
 export const hex = (x: string): string => {
   return ethers.utils.hexlify(x, { allowMissingPrefix: true });
 };
+
+export function assertEVMChain(
+  chain: ChainId | Chain
+): asserts chain is PlatformToChains<"Evm"> {
+  if (chainToPlatform(toChain(chain)) !== "Evm") {
+    throw Error(`Expected an EVM chain, but ${chain} is not`);
+  }
+}
+
+export function getNetwork(network: string): Network {
+  const lcNetwork: string = network.toLowerCase();
+  if (lcNetwork === "mainnet") {
+    return "Mainnet";
+  }
+  if (lcNetwork === "testnet") {
+    return "Testnet";
+  }
+  if (lcNetwork === "devnet") {
+    return "Devnet";
+  }
+  throw new Error(`Unknown network: ${network}`);
+}
+
+export function chainToChain(input: string): Chain {
+  if (input.length < 2) {
+    throw new Error(`Invalid chain: ${input}`);
+  }
+  const chainStr = input[0].toUpperCase() + input.slice(1).toLowerCase();
+  return toChain(chainStr);
+}

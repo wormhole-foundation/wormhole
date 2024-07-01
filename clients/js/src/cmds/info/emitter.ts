@@ -1,10 +1,6 @@
-import {
-  CHAINS,
-  ChainName,
-  assertChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { getEmitterAddress } from "../../emitter";
+import { assertChain, chains } from "@wormhole-foundation/sdk-base";
 
 export const command = "emitter <chain> <address>";
 export const desc = "Print address in emitter address format";
@@ -13,7 +9,7 @@ export const builder = (y: typeof yargs) =>
     .positional("chain", {
       describe: "Chain to query",
       type: "string",
-      choices: Object.keys(CHAINS) as ChainName[],
+      choices: chains,
       demandOption: true,
     } as const)
     .positional("address", {

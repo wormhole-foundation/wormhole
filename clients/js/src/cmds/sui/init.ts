@@ -22,8 +22,9 @@ import {
   PRIVATE_KEY_OPTIONS,
   RPC_OPTIONS,
 } from "../../consts";
-import { Network, assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+import { getNetwork } from "../../utils";
+import { Network } from "@wormhole-foundation/sdk";
 
 export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y
@@ -48,8 +49,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const privateKey = argv["private-key"];
@@ -108,14 +108,13 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
 
         const res = await initTokenBridge(
           network,
@@ -180,8 +179,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         const packageId = argv["package-id"];
         const initialGuardian = argv["initial-guardian"];
         const debug = argv.debug ?? false;
@@ -222,7 +220,7 @@ export const initExampleApp = async (
   rpc?: string,
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
-  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
 
@@ -244,7 +242,7 @@ export const initTokenBridge = async (
   rpc?: string,
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
-  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
   const owner = await signer.getAddress();
@@ -307,7 +305,7 @@ export const initWormhole = async (
   rpc?: string,
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
-  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
   const owner = await signer.getAddress();

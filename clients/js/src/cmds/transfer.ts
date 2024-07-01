@@ -1,13 +1,6 @@
-import {
-  isCosmWasmChain,
-  isEVMChain,
-  isTerraChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
-import { impossible } from "../vaa";
 import { transferEVM } from "../evm";
 import { CHAIN_NAME_CHOICES, NETWORK_OPTIONS, NETWORKS } from "../consts";
-import { assertNetwork } from "../utils";
 import { transferTerra } from "../terra";
 import { transferInjective } from "../injective";
 import { transferXpla } from "../xpla";
@@ -16,6 +9,13 @@ import { transferAlgorand } from "../algorand";
 import { transferNear } from "../near";
 import { transferSui } from "../chains/sui/transfer";
 import { transferAptos } from "../aptos";
+import {
+  Chain,
+  PlatformToChains,
+  chainToPlatform,
+  toChain,
+} from "@wormhole-foundation/sdk-base";
+import { chainToChain, getNetwork } from "../utils";
 
 export const command = "transfer";
 export const desc = "Transfer a token";
@@ -23,12 +23,12 @@ export const builder = (y: typeof yargs) =>
   y
     .option("src-chain", {
       describe: "source chain",
-      choices: CHAIN_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     })
     .option("dst-chain", {
       describe: "destination chain",
-      choices: CHAIN_NAME_CHOICES,
+      type: "string",
       demandOption: true,
     })
     .option("dst-addr", {
@@ -58,16 +58,10 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const srcChain = argv["src-chain"];
-  const dstChain = argv["dst-chain"];
-  if (srcChain === "unset") {
-    throw new Error("source chain is unset");
-  }
-  if (dstChain === "unset") {
-    throw new Error("destination chain is unset");
-  }
+  const srcChain: Chain = chainToChain(argv["src-chain"]);
+  const dstChain: Chain = chainToChain(argv["dst-chain"]);
   // TODO: support transfers to sei
-  if (dstChain === "sei") {
+  if (dstChain === "Sei") {
     throw new Error("transfer to sei currently unsupported");
   }
   if (srcChain === dstChain) {
@@ -78,19 +72,18 @@ export const handler = async (
     throw new Error("amount must be greater than 0");
   }
   const tokenAddr = argv["token-addr"];
-  if (tokenAddr === "native" && isCosmWasmChain(srcChain)) {
+  if (tokenAddr === "native" && chainToPlatform(srcChain) === "Cosmwasm") {
     throw new Error(`token-addr must be specified for ${srcChain}`);
   }
   const dstAddr = argv["dst-addr"];
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
-  const rpc = argv.rpc ?? NETWORKS[network][srcChain].rpc;
+  const network = getNetwork(argv.network);
+  const rpc = argv.rpc ?? NETWORKS[network][toChain(srcChain)].rpc;
   if (!rpc) {
     throw new Error(`No ${network} rpc defined for ${srcChain}`);
   }
-  if (isEVMChain(srcChain)) {
+  if (chainToPlatform(srcChain) === "Evm") {
     await transferEVM(
-      srcChain,
+      srcChain as PlatformToChains<"Evm">,
       dstChain,
       dstAddr,
       tokenAddr,
@@ -98,7 +91,7 @@ export const handler = async (
       network,
       rpc
     );
-  } else if (isTerraChain(srcChain)) {
+  } else if (srcChain === "Terra" || srcChain === "Terra2") {
     await transferTerra(
       srcChain,
       dstChain,
@@ -108,7 +101,7 @@ export const handler = async (
       network,
       rpc
     );
-  } else if (srcChain === "solana" || srcChain === "pythnet") {
+  } else if (srcChain === "Solana" || srcChain === "Pythnet") {
     await transferSolana(
       srcChain,
       dstChain,
@@ -118,49 +111,37 @@ export const handler = async (
       network,
       rpc
     );
-  } else if (srcChain === "algorand") {
+  } else if (srcChain === "Algorand") {
     await transferAlgorand(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "near") {
+  } else if (srcChain === "Near") {
     await transferNear(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "injective") {
+  } else if (srcChain === "Injective") {
     await transferInjective(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "xpla") {
+  } else if (srcChain === "Xpla") {
     await transferXpla(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "sei") {
+  } else if (srcChain === "Sei") {
     throw new Error("sei is not supported yet");
-  } else if (srcChain === "osmosis") {
+  } else if (srcChain === "Osmosis") {
     throw Error("OSMOSIS is not supported yet");
-  } else if (srcChain === "sui") {
+  } else if (srcChain === "Sui") {
     await transferSui(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "aptos") {
+  } else if (srcChain === "Aptos") {
     await transferAptos(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "wormchain") {
+  } else if (srcChain === "Wormchain") {
     throw Error("Wormchain is not supported yet");
-  } else if (srcChain === "btc") {
+  } else if (srcChain === "Btc") {
     throw Error("btc is not supported yet");
-  } else if (srcChain === "cosmoshub") {
+  } else if (srcChain === "Cosmoshub") {
     throw Error("cosmoshub is not supported yet");
-  } else if (srcChain === "evmos") {
+  } else if (srcChain === "Evmos") {
     throw Error("evmos is not supported yet");
-  } else if (srcChain === "kujira") {
+  } else if (srcChain === "Kujira") {
     throw Error("kujira is not supported yet");
-  } else if (srcChain === "neutron") {
+  } else if (srcChain === "Neutron") {
     throw Error("neutron is not supported yet");
-  } else if (srcChain === "celestia") {
+  } else if (srcChain === "Celestia") {
     throw Error("celestia is not supported yet");
-  } else if (srcChain === "stargaze") {
-    throw Error("stargaze is not supported yet");
-  } else if (srcChain === "seda") {
-    throw Error("seda is not supported yet");
-  } else if (srcChain === "dymension") {
-    throw Error("dymension is not supported yet");
-  } else if (srcChain === "provenance") {
-    throw Error("provenance is not supported yet");
-  } else if (srcChain === "rootstock") {
-    throw Error("rootstock is not supported yet");
   } else {
-    // If you get a type error here, hover over `chain`'s type and it tells you
-    // which cases are not handled
-    impossible(srcChain);
+    throw new Error(`${srcChain} is not supported yet`);
   }
 };

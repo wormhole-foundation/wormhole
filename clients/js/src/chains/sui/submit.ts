@@ -6,16 +6,7 @@ import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/createWrapped";
-import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
-import {
-  CHAIN_ID_SUI,
-  CHAIN_ID_TO_NAME,
-  CONTRACTS,
-  assertChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
 import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
-import { Network } from "../../utils";
 import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
@@ -28,6 +19,15 @@ import {
   registerChain,
   setMaxGasBudgetDevnet,
 } from "./utils";
+import {
+  Chain,
+  Network,
+  VAA,
+  assertChain,
+  contracts,
+  deserialize,
+} from "@wormhole-foundation/sdk";
+import { getForeignAssetSui } from "../../sdk/sui";
 
 export const submit = async (
   payload: Payload,
@@ -39,13 +39,13 @@ export const submit = async (
   const consoleWarnTemp = console.warn;
   console.warn = () => {};
 
-  const chain = CHAIN_ID_TO_NAME[CHAIN_ID_SUI];
+  const chain: Chain = "Sui";
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
 
   switch (payload.module) {
     case "Core": {
-      const coreObjectId = CONTRACTS[network][chain].core;
+      const coreObjectId = contracts.coreBridge.get(network, chain);
       if (!coreObjectId) {
         throw Error("Core bridge object ID is undefined");
       }
@@ -103,12 +103,15 @@ export const submit = async (
       throw new Error("NFT bridge not supported on Sui");
     }
     case "TokenBridge": {
-      const coreBridgeStateObjectId = CONTRACTS[network][chain].core;
+      const coreBridgeStateObjectId = contracts.coreBridge.get(network, chain);
       if (!coreBridgeStateObjectId) {
         throw Error("Core bridge object ID is undefined");
       }
 
-      const tokenBridgeStateObjectId = CONTRACTS[network][chain].token_bridge;
+      const tokenBridgeStateObjectId = contracts.tokenBridge.get(
+        network,
+        chain
+      );
       if (!tokenBridgeStateObjectId) {
         throw Error("Token bridge object ID is undefined");
       }
@@ -116,13 +119,19 @@ export const submit = async (
       switch (payload.type) {
         case "AttestMeta": {
           // Test attest VAA: 01000000000100d87023087588d8a482d6082c57f3c93649c9a61a98848fc3a0b271f4041394ff7b28abefc8e5e19b83f45243d073d677e122e41425c2dbae3eb5ae1c7c0ac0ee01000000c056a8000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000001020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000
-          const { tokenChain, tokenAddress } = parseAttestMetaVaa(vaa);
+          const parsedAttest: VAA<"TokenBridge:AttestMeta"> = deserialize(
+            "TokenBridge:AttestMeta",
+            vaa
+          );
+          const tokenChain = parsedAttest.payload.token.chain;
           assertChain(tokenChain);
+          const tokenAddress = parsedAttest.payload.token.address;
+          const decimals = parsedAttest.payload.decimals;
           const coinType = await getForeignAssetSui(
             provider,
             tokenBridgeStateObjectId,
             tokenChain,
-            tokenAddress
+            tokenAddress.toUint8Array()
           );
           if (coinType) {
             // Coin already exists, so we update it
@@ -135,7 +144,7 @@ export const submit = async (
               provider,
               coreBridgeStateObjectId,
               tokenBridgeStateObjectId,
-              parseAttestMetaVaa(vaa).decimals,
+              decimals,
               await signer.getAddress()
             );
             setMaxGasBudgetDevnet(network, prepareTx);
@@ -153,7 +162,7 @@ export const submit = async (
             console.log(`  Published to ${coinPackageId}`);
             console.log(`  Type ${getWrappedCoinType(coinPackageId)}`);
 
-            if (!rpc && network !== "DEVNET") {
+            if (!rpc && network !== "Devnet") {
               // Wait for wrapped asset creation to be propagated to other
               // nodes in case this complete registration call is load balanced
               // to another node.

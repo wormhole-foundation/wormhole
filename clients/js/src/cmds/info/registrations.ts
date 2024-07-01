@@ -3,16 +3,17 @@
 // is defined in the consts.ts file in the SDK (to verify that all chains // are properly registered.)
 
 import yargs from "yargs";
-import {
-  assertChain,
-  ChainName,
-  CHAINS,
-  Contracts,
-  CONTRACTS,
-  isEVMChain,
-  isTerraChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { getEmitterAddress } from "../../emitter";
+import {
+  Network,
+  assertChain,
+  chainToPlatform,
+  chains,
+  contracts,
+  toChain,
+} from "@wormhole-foundation/sdk-base";
+import { chainToChain, getNetwork } from "../../utils";
+import { Chain } from "@wormhole-foundation/sdk";
 
 export const command = "registrations <network> <chain> <module>";
 export const desc = "Print chain registrations";
@@ -25,7 +26,7 @@ export const builder = (y: typeof yargs) => {
     } as const)
     .positional("chain", {
       describe: "Chain to query",
-      choices: Object.keys(CHAINS) as ChainName[],
+      type: "string",
       demandOption: true,
     } as const)
     .positional("module", {
@@ -45,43 +46,39 @@ export const builder = (y: typeof yargs) => {
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  assertChain(argv.chain);
-  const chain = argv.chain;
-  const network = argv.network.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
-  }
+  const chain = chainToChain(argv.chain);
+  const network = getNetwork(argv.network);
   const module = argv.module;
   if (module !== "TokenBridge" && module !== "NFTBridge") {
     throw Error(`Module must be TokenBridge or NFTBridge`);
   }
   let results: object;
-  if (chain === "solana") {
+  if (chain === "Solana") {
     const solana = require("../../solana");
     results = await solana.queryRegistrationsSolana(network, module);
-  } else if (isEVMChain(chain)) {
+  } else if (chainToPlatform(chain) === "Evm") {
     const evm = require("../../evm");
     results = await evm.queryRegistrationsEvm(network, chain, module);
-  } else if (isTerraChain(chain) || chain === "xpla") {
+  } else if (chain === "Terra" || chain === "Terra2" || chain === "Xpla") {
     const terra = require("../../terra");
     results = await terra.queryRegistrationsTerra(network, chain, module);
-  } else if (chain === "injective") {
+  } else if (chain === "Injective") {
     const injective = require("../../injective");
     results = await injective.queryRegistrationsInjective(network, module);
-  } else if (chain === "sei") {
+  } else if (chain === "Sei") {
     const sei = require("../../chains/sei/registrations");
     results = await sei.queryRegistrationsSei(network, module);
-  } else if (chain === "sui") {
+  } else if (chain === "Sui") {
     const sui = require("../../chains/sui/registrations");
     results = await sui.queryRegistrationsSui(network, module);
-  } else if (chain === "aptos") {
+  } else if (chain === "Aptos") {
     const aptos = require("../../aptos");
     results = await aptos.queryRegistrationsAptos(network, module);
   } else {
     throw Error(`Command not supported for chain ${chain}`);
   }
   if (argv["verify"]) {
-    verifyRegistrations(network, chain as string, module, results);
+    verifyRegistrations(network, chain, module, results);
   } else {
     console.log(results);
   }
@@ -89,8 +86,8 @@ export const handler = async (
 
 // verifyRegistrations takes the results returned above and verifies them against the expected values in the consts file.
 async function verifyRegistrations(
-  network: "MAINNET" | "TESTNET" | "DEVNET",
-  chain: string,
+  network: Network,
+  chain: Chain,
   module: "NFTBridge" | "TokenBridge",
   input: Object
 ) {
@@ -104,25 +101,21 @@ async function verifyRegistrations(
 
   // Loop over the chains and make sure everything is in our input, and the values match.
   const results: { [key: string]: string } = {};
-  for (const chainStr in CHAINS) {
-    const thisChain = chainStr as ChainName;
-    if (thisChain === "unset" || thisChain === chain) {
+  for (const chainStr of chains) {
+    const thisChain = toChain(chainStr);
+    if (thisChain === chain) {
       continue;
     }
-    const contracts: Contracts = CONTRACTS[network][thisChain];
 
     let expectedAddr: string | undefined;
     if (module === "TokenBridge") {
-      expectedAddr = contracts.token_bridge;
+      expectedAddr = contracts.tokenBridge.get(network, thisChain);
     } else {
-      expectedAddr = contracts.nft_bridge;
+      expectedAddr = contracts.nftBridge.get(network, thisChain);
     }
 
     if (expectedAddr !== undefined) {
-      expectedAddr = await getEmitterAddress(
-        thisChain as ChainName,
-        expectedAddr
-      );
+      expectedAddr = await getEmitterAddress(thisChain, expectedAddr);
       if (!expectedAddr.startsWith("0x")) {
         expectedAddr = "0x" + expectedAddr;
       }

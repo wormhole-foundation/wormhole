@@ -2,24 +2,26 @@ import {
   _submitVAAAlgorand,
   signSendAndConfirmAlgorand,
 } from "@certusone/wormhole-sdk/lib/esm/algorand";
-import {
-  CONTRACTS,
-  ChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { Account, Algodv2, mnemonicToSecretKey } from "algosdk";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 import { transferFromAlgorand } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk/lib/esm/utils";
+import { tryNativeToHexString } from "./sdk/array";
+import {
+  Chain,
+  chainToChainId,
+  contracts,
+  Network,
+  toChainId,
+} from "@wormhole-foundation/sdk-base";
 
 export async function execute_algorand(
   payload: Payload,
   vaa: Uint8Array,
   network: Network
 ) {
-  const chainName = "algorand";
-  const { key, rpc } = NETWORKS[network][chainName];
+  const chain: Chain = "Algorand";
+  const { key, rpc } = NETWORKS[network][chain];
   if (!key) {
     throw Error(`No ${network} key defined for Algorand`);
   }
@@ -28,19 +30,15 @@ export async function execute_algorand(
     throw Error(`No ${network} rpc defined for Algorand`);
   }
 
-  const contracts = CONTRACTS[network][chainName];
-  console.log("contracts", contracts);
+  const coreContract = contracts.coreBridge.get(network, chain);
+  if (!coreContract) {
+    throw new Error(`Core bridge address not defined for Algorand ${network}`);
+  }
 
   let target_contract: string;
   switch (payload.module) {
     case "Core": {
-      if (!contracts.core) {
-        throw new Error(
-          `Core bridge address not defined for Algorand ${network}`
-        );
-      }
-
-      target_contract = contracts.core;
+      target_contract = coreContract;
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -57,14 +55,12 @@ export async function execute_algorand(
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
-        // NOTE: this code can safely be removed once the algorand NFT bridge is
-        // released, but it's fine for it to stay, as the condition will just be
-        // skipped once 'contracts.nft_bridge' is defined
+      const nftContract = contracts.nftBridge.get(network, chain);
+      if (!nftContract) {
         throw new Error("NFT bridge not supported yet for Algorand");
       }
 
-      target_contract = contracts.nft_bridge;
+      target_contract = nftContract;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -84,13 +80,14 @@ export async function execute_algorand(
       break;
     }
     case "TokenBridge": {
-      if (!contracts.token_bridge) {
+      const tbContract = contracts.tokenBridge.get(network, chain);
+      if (!tbContract) {
         throw new Error(
           `Token bridge address not defined for Algorand ${network}`
         );
       }
 
-      target_contract = contracts.token_bridge;
+      target_contract = tbContract;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -121,7 +118,7 @@ export async function execute_algorand(
   }
 
   const target = BigInt(parseInt(target_contract));
-  const CORE_ID = BigInt(parseInt(contracts.core));
+  const CORE_ID = BigInt(parseInt(coreContract));
   const algodClient = getClient(network, rpc);
   const algoWallet: Account = mnemonicToSecretKey(key);
 
@@ -140,27 +137,29 @@ export async function execute_algorand(
 }
 
 export async function transferAlgorand(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  const { key } = NETWORKS[network].algorand;
+  const { key } = NETWORKS[network].Algorand;
   if (!key) {
     throw Error(`No ${network} key defined for Algorand`);
   }
-  const contracts = CONTRACTS[network].algorand;
   const client = getClient(network, rpc);
   const wallet: Account = mnemonicToSecretKey(key);
-  const CORE_ID = BigInt(parseInt(contracts.core));
-  const TOKEN_BRIDGE_ID = BigInt(parseInt(contracts.token_bridge));
-  const recipient = tryNativeToHexString(dstAddress, dstChain);
+  const CORE_ID = BigInt(parseInt(contracts.coreBridge(network, "Algorand")));
+  const TOKEN_BRIDGE_ID = BigInt(
+    parseInt(contracts.tokenBridge(network, "Algorand"))
+  );
+  const recipient = tryNativeToHexString(dstAddress, chainToChainId(dstChain));
   if (!recipient) {
     throw new Error("Failed to convert recipient address");
   }
   const assetId = tokenAddress === "native" ? BigInt(0) : BigInt(tokenAddress);
+
   const txs = await transferFromAlgorand(
     client,
     TOKEN_BRIDGE_ID,
@@ -169,7 +168,7 @@ export async function transferAlgorand(
     assetId,
     BigInt(amount),
     recipient,
-    dstChain,
+    toChainId(dstChain),
     BigInt(0)
   );
   const result = await signSendAndConfirmAlgorand(client, txs, wallet);
@@ -182,7 +181,7 @@ function getClient(network: Network, rpc: string) {
     algodServer: rpc,
     algodPort: "",
   };
-  if (network === "DEVNET") {
+  if (network === "Devnet") {
     ALGORAND_HOST.algodToken =
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     ALGORAND_HOST.algodPort = "4001";

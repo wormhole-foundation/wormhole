@@ -1,14 +1,10 @@
 import path from "path";
 import yargs from "yargs";
 import { buildCoin, getProvider } from "../../chains/sui";
-import {
-  CONTRACTS,
-  NETWORKS,
-  NETWORK_OPTIONS,
-  RPC_OPTIONS,
-} from "../../consts";
-import { assertNetwork, checkBinary } from "../../utils";
+import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
+import { checkBinary, getNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+import { contracts } from "@wormhole-foundation/sdk";
 
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
@@ -58,17 +54,16 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
     async (argv) => {
       checkBinary("sui", README_URL);
 
-      const network = argv.network.toUpperCase();
-      assertNetwork(network);
+      const network = getNetwork(argv.network);
       const decimals = argv["decimals"];
       const version = argv["version-struct"];
       const packagePath =
         argv["package-path"] ??
         path.resolve(__dirname, "../../../../../sui/examples");
       const coreBridgeStateObjectId =
-        argv["wormhole-state"] ?? CONTRACTS[network].sui.core;
+        argv["wormhole-state"] ?? contracts.coreBridge(network, "Sui");
       const tokenBridgeStateObjectId =
-        argv["token-bridge-state"] ?? CONTRACTS[network].sui.token_bridge;
+        argv["token-bridge-state"] ?? contracts.tokenBridge(network, "Sui");
 
       if (!coreBridgeStateObjectId) {
         throw new Error(
@@ -84,7 +79,7 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
       const provider = getProvider(
         network,
-        argv.rpc ?? NETWORKS[network].sui.rpc
+        argv.rpc ?? NETWORKS[network].Sui.rpc
       );
       const build = await buildCoin(
         provider,

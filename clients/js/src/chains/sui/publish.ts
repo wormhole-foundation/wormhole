@@ -8,10 +8,10 @@ import {
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
-import { Network } from "../../utils";
 import { MoveToml } from "./MoveToml";
 import { SuiBuildOutput } from "./types";
 import { executeTransactionBlock } from "./utils";
+import { Network } from "@wormhole-foundation/sdk";
 
 export const buildPackage = (packagePath: string): SuiBuildOutput => {
   if (!fs.existsSync(packagePath)) {
@@ -76,7 +76,7 @@ export const publishPackage = async (
 
     // Publish contracts
     const tx = new TransactionBlock();
-    if (network === "DEVNET") {
+    if (network === "Devnet") {
       // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
       tx.setGasBudget(10000000000);
     }
@@ -186,7 +186,7 @@ export const setupMainToml = (
   // don't have to manually reset them repeatedly during local development.
   // This is not recursive because we assume that packages are deployed bottom
   // up.
-  if (!isDependency && network === "DEVNET") {
+  if (!isDependency && network === "Devnet") {
     resetNetworkToml(packagePath, network);
   }
 

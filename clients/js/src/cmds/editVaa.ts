@@ -17,14 +17,14 @@
 //
 
 import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { Other } from "@certusone/wormhole-sdk/lib/esm/vaa";
 import axios from "axios";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORK_OPTIONS, NETWORKS } from "../consts";
-import { assertNetwork, Network } from "../utils";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
+import { contracts, Network } from "@wormhole-foundation/sdk-base";
+import { getNetwork } from "../utils";
 
 export const command = "edit-vaa";
 export const desc = "Edits or generates a VAA";
@@ -102,8 +102,7 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
+  const network = getNetwork(argv.network);
 
   let numSigs = 0;
   if (argv.signatures) {
@@ -235,8 +234,8 @@ const getGuardianSet = async (
   network: Network,
   guardianSetIndex: number
 ): Promise<string[]> => {
-  let n = NETWORKS[network].ethereum;
-  let contract_address = CONTRACTS[network].ethereum.core;
+  let n = NETWORKS[network].Ethereum;
+  let contract_address = contracts.coreBridge(network, "Ethereum");
   if (contract_address === undefined) {
     throw Error(`Unknown core contract on ${network} for ethereum`);
   }
