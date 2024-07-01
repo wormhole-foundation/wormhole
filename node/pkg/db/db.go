@@ -142,7 +142,7 @@ func (d *Database) StoreSignedVAABatch(vaaBatch []*vaa.VAA) error {
 
 		b, err := v.Marshal()
 		if err != nil {
-			panic("StoreSignedVAABatch failed to marshall VAA")
+			panic("StoreSignedVAABatch failed to marshal VAA")
 		}
 
 		err = batchTx.Set(VaaIDFromVAA(v).Bytes(), b)
