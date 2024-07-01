@@ -178,6 +178,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.nodeName,
 			g.gk,
 			g.obsvC,
+			g.batchObsvC,
 			g.signedInC,
 			g.obsvReqC,
 			g.sendC,
