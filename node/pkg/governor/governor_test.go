@@ -1565,8 +1565,6 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
-	// var notFlowCancelTokenOriginAddress vaa.Address
-	// notFlowCancelTokenOriginAddress, err = vaa.StringToAddress("77777af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f7777")
 	require.NoError(t, err)
 
 	// Data for Ethereum
@@ -1598,8 +1596,6 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	err = gov.setTokenForTesting(vaa.ChainIDSolana, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
 	require.NoError(t, err)
 	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDSolana, addr: flowCancelTokenOriginAddress}])
-	// err = gov.setTokenForTesting(vaa.ChainIDEthereum, notFlowCancelTokenOriginAddress.String(), "NOTCANCELABLE", 1.0, false)
-	// require.NoError(t, err)
 
 	// First message: consume most of the dailyLimit for the emitter chain
 	msg1 := common.MessagePublication{
@@ -1721,12 +1717,6 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, 1, numPending)           // Second transfer is queued because the limit is exhausted
 	assert.Equal(t, uint64(500), valuePending)
 
-	// Verify the stats that are non flow-cancelling.
-	// In practice this is the sum of the absolute value of all the transfers.
-	// 5000 * 2 + 1000 * 2 = 12000
-	// _, absValueTrans, _, _ := gov.getStatsForAllChains()
-	// assert.Equal(t, uint64(12000), absValueTrans)
-
 	// Check the state of the governor.
 	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
 	chainEntrySui = gov.chains[vaa.ChainIDSui]
@@ -1757,11 +1747,6 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, int64(0), netValueTrans) // Still zero because everything flow cancels
 	assert.Equal(t, 1, numPending)           // Not released yet
 	assert.Equal(t, uint64(500), valuePending)
-	// Verify the stats that are non flow-cancelling.
-	// In practice this is the sum of the absolute value of all the transfers.
-	// 5000 * 2 + 1000 * 2 + 1500 = 13500
-	// _, absValueTrans, _, _ = gov.getStatsForAllChains()
-	// assert.Equal(t, uint64(13500), absValueTrans) // The net actual flow of assets is 4000 (after cancelling) plus 1500
 
 	// Check the state of the governor
 	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
