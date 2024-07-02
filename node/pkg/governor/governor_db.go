@@ -165,7 +165,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 
 // reloadTransfer method processes a db.Transfer and validates that it should be loaded into `gov`.
 // Modifies `gov` as a side-effect: when a valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
-// updated with information about the loaded transfer. In the case of a loading a transfer of a flow-canceling asset,
+// updated with information about the loaded transfer. In the case where a flow-canceling asset's transfer is loaded,
 // both chain entries (emitter and target) will be updated.
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	ce, exists := gov.chains[xfer.EmitterChain]

@@ -2352,7 +2352,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	// Set-up time
 	gov.setDayLengthInMinutes(24 * 60)
-	transferTime := time.Unix(int64(1654543099), 0)
+	transferTime := time.Now()
 
 	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
 	// when the Origin chain of the asset does not match the emitter chain
@@ -2369,13 +2369,11 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	// recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
-	// recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
 
 	// Data for Solana. Only used to represent the flow cancel asset.
 	// "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
@@ -2398,7 +2396,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	// This transfer should exhaust the dailyLimit for the emitter chain
 	xfer1 := &db.Transfer{
-		Timestamp:      transferTime,
+		Timestamp:      transferTime.Add(-10),
 		Value:          uint64(10000),
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
@@ -2412,7 +2410,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	// This incoming transfer should free up some of the space on the previous emitter chain
 	xfer2 := &db.Transfer{
-		Timestamp:      transferTime.Add(1),
+		Timestamp:      transferTime.Add(-9),
 		Value:          uint64(2000),
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
@@ -2427,7 +2425,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	// Send another transfer out from the original emitter chain so that we "exceed the daily limit" if flow
 	// cancel is not applied
 	xfer3 := &db.Transfer{
-		Timestamp:      transferTime.Add(2),
+		Timestamp:      transferTime.Add(-8),
 		Value:          uint64(50),
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
