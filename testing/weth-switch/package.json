@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.9.0",
+    "@certusone/wormhole-sdk": "^0.9.24",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "axios": "^0.24.0",
     "ethers": "^5.5.2"
