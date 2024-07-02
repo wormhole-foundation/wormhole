@@ -2439,10 +2439,6 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 		Hash:           "Hash3",
 	}
 
-	// Transfers emitted by the first chain
-	var transfersLoadedFromDb []*db.Transfer
-	transfersLoadedFromDb = append(transfersLoadedFromDb, xfer1, xfer2, xfer3)
-
 	// Simulate reloading from the database.
 	// NOTE: The actual execution path we want to test is the following and runs when the node is restarted:
 	//	gov.Run () --> gov.loadFromDb() --> gov.loadFromDBAlreadyLocked() --> gov.reloadTransfer()
@@ -2483,6 +2479,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	require.NoError(t, err)
 	governorUsageSui, err := gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
+	require.NoError(t, err)
 	sumTransfersSui, _, err := gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int64(-10000), sumTransfersSui)
 	require.NoError(t, err)
@@ -2506,6 +2503,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
+	require.NoError(t, err)
 	sumTransfersSui, _, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int64(-8000), sumTransfersSui)
 	require.NoError(t, err)
@@ -2527,6 +2525,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // Remaining capacity
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	require.NoError(t, err)
 	assert.Zero(t, governorUsageSui)
 	sumTransfersSui, _, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int64(-8050), sumTransfersSui)
