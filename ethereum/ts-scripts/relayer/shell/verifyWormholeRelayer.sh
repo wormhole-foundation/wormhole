@@ -62,15 +62,33 @@ for chain in $chain_ids
     # Celo has a verification API but it currently doesn't work with `forge verify-contract`
     # We print the compiler input to a file instead for manual verification
     if test $chain -eq 14
-        forge verify-contract $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy --watch --constructor-args $init_contract_address --show-standard-json-input > WormholeRelayerProxy.compiler-input.json
-        forge verify-contract $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer --watch --constructor-args $wormhole_address --show-standard-json-input > WormholeRelayerImplementation.compiler-input.json
+        forge verify-contract --watch --show-standard-json-input --constructor-args $init_contract_address \
+            $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy > WormholeRelayerProxy.compiler-input.json
+        forge verify-contract --watch --show-standard-json-input --constructor-args $wormhole_address \
+            $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer > WormholeRelayerImplementation.compiler-input.json
 
         echo "Please manually submit the compiler input files at celoscan.io"
         echo "- $implementation_address: WormholeRelayerImplementation.compiler-input.json"
         echo "- $proxy_address: WormholeRelayerProxy.compiler-input.json"
+    else if test $chain -eq 35
+        set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
+
+        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+            $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
+        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+            $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
+    else if test $chain -eq 37
+        set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
+
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
     else
-        forge verify-contract $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy --watch --constructor-args $init_contract_address
-        forge verify-contract $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer --watch --constructor-args $wormhole_address
+        forge verify-contract --watch --constructor-args $init_contract_address \
+            $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
+        forge verify-contract --watch --constructor-args $wormhole_address \
+            $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
     end
 end
 

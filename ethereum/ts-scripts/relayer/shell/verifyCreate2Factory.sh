@@ -54,8 +54,24 @@ for chain in $chain_ids
         echo "Please manually submit the compiler input files at celoscan.io"
         echo "- $create2_factory_address: Create2Factory.compiler-input.json"
         echo "- $init_contract_address: Init.compiler-input.json"
+    else if test $chain -eq 35
+        set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
+
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
+            $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
+            $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
+    else if test $chain -eq 37
+        set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
+
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
     else
-        forge verify-contract $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory --watch
-        forge verify-contract $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init --watch
+        forge verify-contract --watch \
+            $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
+        forge verify-contract --watch \
+            $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
     end
 end

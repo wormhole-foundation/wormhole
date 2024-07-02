@@ -36,16 +36,16 @@ for chain in $chain_ids
     set setup_address (jq --raw-output ".deliveryProviderSetups[] | select(.chainId == $chain) | .address" $contracts_file)
     set proxy_address (jq --raw-output ".deliveryProviders[] | select(.chainId == $chain) | .address" $contracts_file)
 
+    # These two are documented in `forge verify-contract` as accepted environment variables.
     # We need the token to be unquoted when passed to `forge verify-contract`
-    set scan_token (jq --raw-output ".[] | select(.chainId == $chain) | .etherscan" $scan_tokens_file)
+    set --export ETHERSCAN_API_KEY (jq --raw-output ".[] | select(.chainId == $chain) | .etherscan" $scan_tokens_file)
 
-    # if we dont have a scan token echo a warning and continue
-    if test -z $scan_token
-        echo "Error: No scan token found for chain $chain. Chain will not be verified."
-        continue
+    # Some explorers like mantle.explorer.xyz don't have an API token
+    if test -z $ETHERSCAN_API_KEY
+        echo "Warning: No scan token found for chain $chain."
     end
 
-    set evm_chain_id (jq ".chains[] | select(.chainId == $chain) | .evmNetworkId" $chains_file)
+    set --export CHAIN (jq ".chains[] | select(.chainId == $chain) | .evmNetworkId" $chains_file)
 
     # We're using the production profile for delivery providers on mainnet and testnet
     set --export FOUNDRY_PROFILE production
@@ -54,17 +54,41 @@ for chain in $chain_ids
     # Celo has a verification API but it currently doesn't work with `forge verify-contract`
     # We print the compiler input to a file instead for manual verification
     if test $chain -eq 14
-        forge verify-contract $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderImplementation.compiler-input.json
-        forge verify-contract $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderSetup.compiler-input.json
-        forge verify-contract $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy --chain-id $evm_chain_id --watch --constructor-args $proxy_constructor_args --etherscan-api-key $scan_token --show-standard-json-input > DeliveryProviderProxy.compiler-input.json
+        forge verify-contract --watch --show-standard-json-input \
+            $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation  > DeliveryProviderImplementation.compiler-input.json
+        forge verify-contract --watch --show-standard-json-input \
+            $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup > DeliveryProviderSetup.compiler-input.json
+        forge verify-contract --watch --show-standard-json-input --constructor-args $proxy_constructor_args \
+            $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy > DeliveryProviderProxy.compiler-input.json
 
         echo "Please manually submit the compiler input files at celoscan.io"
         echo "- $implementation_address: DeliveryProviderImplementation.compiler-input.json"
         echo "- $setup_address: DeliveryProviderSetup.compiler-input.json"
         echo "- $proxy_address: DeliveryProviderProxy.compiler-input.json"
+    else if test $chain -eq 35
+        set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
+
+        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+            $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
+        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+            $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
+        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+            $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
+    else if test $chain -eq 37
+        set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
+
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
+        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+            $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
     else
-        forge verify-contract $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token
-        forge verify-contract $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup --chain-id $evm_chain_id --watch --etherscan-api-key $scan_token
-        forge verify-contract $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy --chain-id $evm_chain_id --watch --constructor-args $proxy_constructor_args --etherscan-api-key $scan_token
+        forge verify-contract --watch \
+            $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
+        forge verify-contract --watch \
+            $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
+        forge verify-contract --watch --constructor-args $proxy_constructor_args \
+            $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
     end
 end
