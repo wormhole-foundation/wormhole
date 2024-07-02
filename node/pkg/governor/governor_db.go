@@ -18,6 +18,9 @@ func (gov *ChainGovernor) loadFromDB() error {
 	return gov.loadFromDBAlreadyLocked()
 }
 
+// Loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
+// These fields are slices transfers or pendingTransfers and will be sorted by their Timestamp property.
+// Modifies the state of the database as a side-effect: 'transfers' that are older than 24 hours are deleted.
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
@@ -154,10 +157,16 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 		zap.String("Hash", hash),
 	)
 
+	// Note: no flow cancel added here. We only want to add an inverse, flow-cancel transfer when the transfer is
+	// released from the pending queue, not when it's added.
 	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: *pending})
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
+// Processes a db.Transfer and validates that it should be loaded into `gov`.
+// Modifies `gov` as a side-effect: when valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
+// updated with information about the loaded transfer. In the case of a loading a transfer of a flow-canceling asset,
+// both chain entries (emitter and target) will be updated.
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	ce, exists := gov.chains[xfer.EmitterChain]
 	if !exists {
@@ -233,5 +242,32 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 		return err
 	}
 	ce.transfers = append(ce.transfers, transfer)
+
+	// If the transfer does not flow cancel, we're done now. Transfers about the bigTransactionSize never flow cancel.
+	if ce.isBigTransfer(xfer.Value) {
+		return nil
+	}
+
+	// Reload flow-cancel transfers for the TargetChain. This is important when node restarts so that a corresponding,
+	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` loop but
+	// that function does not capture flow-cancelling when the node is restarted.
+	tokenEntry := gov.tokens[tk]
+	if tokenEntry != nil {
+		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
+		if tokenEntry.flowCancels {
+			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
+				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
+					return  err
+				}
+			} else {
+				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+					zap.String("msgID", xfer.MsgID),
+					zap.Stringer("token chain", xfer.OriginChain),
+					zap.Stringer("token address", xfer.OriginAddress),
+					zap.Stringer("target chain", xfer.TargetChain),
+				)
+			}
+		}
+	}
 	return nil
 }
