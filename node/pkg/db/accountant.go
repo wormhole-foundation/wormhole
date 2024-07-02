@@ -92,9 +92,9 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 		})
 	}
 
-	// See if we have any old format pending transfers.
+	// Any pending transfers in the old format are long since obsolete. Just delete them.
 	if err == nil {
-		oldPendingTransfers := []*common.MessagePublication{}
+		oldPendingTransfers := []string{}
 		prefixBytes := []byte(acctOldPendingTransfer)
 		err = d.db.View(func(txn *badger.Txn) error {
 			opts := badger.DefaultIteratorOptions
@@ -116,7 +116,7 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 						continue
 					}
 
-					oldPendingTransfers = append(oldPendingTransfers, pt)
+					oldPendingTransfers = append(oldPendingTransfers, pt.MessageIDString())
 				} else {
 					return fmt.Errorf("unexpected accountant pending transfer key '%s'", string(key))
 				}
@@ -126,20 +126,14 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 		})
 
 		if err == nil && len(oldPendingTransfers) != 0 {
-			pendingTransfers = append(pendingTransfers, oldPendingTransfers...)
 			for _, pt := range oldPendingTransfers {
-				logger.Info("updating format of database entry for pending vaa", zap.String("msgId", pt.MessageIDString()))
-				err := d.AcctStorePendingTransfer(pt)
-				if err != nil {
-					return pendingTransfers, fmt.Errorf("failed to write new pending msg for key [%v]: %w", pt.MessageIDString(), err)
-				}
-
-				key := acctOldPendingTransferMsgID(pt.MessageIDString())
+				key := acctOldPendingTransferMsgID(pt)
+				logger.Info("deleting obsolete pending transfer", zap.String("msgId", pt), zap.String("key", string(key)))
 				if err := d.db.Update(func(txn *badger.Txn) error {
 					err := txn.Delete(key)
 					return err
 				}); err != nil {
-					return pendingTransfers, fmt.Errorf("failed to delete old pending msg for key [%v]: %w", pt.MessageIDString(), err)
+					return pendingTransfers, fmt.Errorf("failed to delete old pending msg for key [%v]: %w", pt, err)
 				}
 			}
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"os"
-	"sort"
 	"testing"
 	"time"
 
@@ -201,7 +200,7 @@ func TestAcctGetData(t *testing.T) {
 	assert.Equal(t, *msg2, *pendings[1])
 }
 
-func TestAcctLoadingOldPendings(t *testing.T) {
+func TestAcctLoadingWhereOldPendingsGetDropped(t *testing.T) {
 	dbPath := t.TempDir()
 	db, err := Open(dbPath)
 	if err != nil {
@@ -249,27 +248,20 @@ func TestAcctLoadingOldPendings(t *testing.T) {
 	err = db.AcctStorePendingTransfer(pending2)
 	require.Nil(t, err)
 
-	logger := zap.NewNop()
+	logger, _ := zap.NewDevelopment()
 	pendings, err := db.AcctGetData(logger)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(pendings))
+	require.Equal(t, 1, len(pendings))
 
-	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
-	sort.SliceStable(pendings, func(i, j int) bool {
-		return pendings[i].Timestamp.Before(pendings[j].Timestamp)
-	})
+	assert.Equal(t, *pending2, *pendings[0])
 
-	assert.Equal(t, *pending1, *pendings[0])
-	assert.Equal(t, *pending2, *pendings[1])
-
-	// Make sure we can reload the updated pendings.
+	// Make sure we can still reload things after deleting the old one.
 	pendings2, err := db.AcctGetData(logger)
 
 	require.Nil(t, err)
-	require.Equal(t, 2, len(pendings2))
+	require.Equal(t, 1, len(pendings2))
 
-	assert.Equal(t, pending1, pendings2[0])
-	assert.Equal(t, pending2, pendings2[1])
+	assert.Equal(t, pending2, pendings2[0])
 }
 
 func (d *Database) acctStoreOldPendingTransfer(t *testing.T, msg *common.MessagePublication) {
