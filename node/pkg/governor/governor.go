@@ -151,7 +151,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	}
 	// Big transfers should not flow cancel under any circumstances
 	if ce.isBigTransfer(transfer.dbTransfer.Value) {
-		return fmt.Errorf("refusing to add flow cancel transfer with value %d above the bigTransactionSize %d", transfer.dbTransfer.Value, ce.bigTransactionSize) 
+		return fmt.Errorf("refusing to add flow cancel transfer with value %d above the bigTransactionSize %d", transfer.dbTransfer.Value, ce.bigTransactionSize)
 	}
 
 	ce.transfers = append(ce.transfers, transfer)
