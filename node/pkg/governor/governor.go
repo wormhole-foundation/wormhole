@@ -132,6 +132,7 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
 // - the TargetChain must match the chain ID of the Chain Entry
+// - the flow cancel value must always be less than the big transfer limit
 func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
 	targetChain := transfer.dbTransfer.TargetChain
@@ -147,6 +148,10 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	}
 	if targetChain != ce.emitterChainId {
 		return fmt.Errorf("flow cancel transfer TargetChain %s does not match this chainEntry %s", targetChain, ce.emitterChainId)
+	}
+	// Big transfers should not flow cancel under any circumstances
+	if ce.isBigTransfer(transfer.dbTransfer.Value) {
+		return fmt.Errorf("refusing to add flow cancel transfer with value %d above the bigTransactionSize %d", transfer.dbTransfer.Value, ce.bigTransactionSize) 
 	}
 
 	ce.transfers = append(ce.transfers, transfer)
@@ -789,6 +794,10 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 							if tokenEntry.flowCancels {
 								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
+									if ce.isBigTransfer(value) {
+										return nil, err
+									}
+
 									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
 										return nil, err
 									}
