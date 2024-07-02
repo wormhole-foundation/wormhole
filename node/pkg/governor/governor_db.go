@@ -243,11 +243,6 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	}
 	ce.transfers = append(ce.transfers, transfer)
 
-	// If the transfer does not flow cancel, we're done now. Transfers about the bigTransactionSize never flow cancel.
-	if ce.isBigTransfer(xfer.Value) {
-		return nil
-	}
-
 	// Reload flow-cancel transfers for the TargetChain. This is important when node restarts so that a corresponding,
 	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` loop but
 	// that function does not capture flow-cancelling when the node is restarted.
@@ -257,7 +252,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 		if tokenEntry.flowCancels {
 			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
 				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
-					return  err
+					return err
 				}
 			} else {
 				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
