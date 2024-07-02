@@ -18,8 +18,8 @@ func (gov *ChainGovernor) loadFromDB() error {
 	return gov.loadFromDBAlreadyLocked()
 }
 
-// Loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
-// These fields are slices transfers or pendingTransfers and will be sorted by their Timestamp property.
+// loadFromDBAlreadyLocked method loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
+// These fields are slices of transfers or pendingTransfers and will be sorted by their Timestamp property.
 // Modifies the state of the database as a side-effect: 'transfers' that are older than 24 hours are deleted.
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
@@ -163,8 +163,8 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
-// Processes a db.Transfer and validates that it should be loaded into `gov`.
-// Modifies `gov` as a side-effect: when valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
+// reloadTransfer method processes a db.Transfer and validates that it should be loaded into `gov`.
+// Modifies `gov` as a side-effect: when a valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
 // updated with information about the loaded transfer. In the case of a loading a transfer of a flow-canceling asset,
 // both chain entries (emitter and target) will be updated.
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
