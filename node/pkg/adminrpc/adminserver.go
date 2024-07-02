@@ -41,6 +41,8 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
+const maxResetReleaseTimerDays = 7
+
 var (
 	vaaInjectionsTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -1031,7 +1033,11 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
 	}
 
-	resp, err := s.governor.ResetReleaseTimer(req.VaaId)
+	if req.NumDays < 1 || req.NumDays > maxResetReleaseTimerDays {
+		return nil, fmt.Errorf("the specified number of days falls outside the range of 1 to %d", maxResetReleaseTimerDays)
+	}
+
+	resp, err := s.governor.ResetReleaseTimer(req.VaaId, req.NumDays)
 	if err != nil {
 		return nil, err
 	}

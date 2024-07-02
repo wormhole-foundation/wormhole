@@ -62,6 +62,7 @@ Optional Parameters
 
 - The `gossipAdvertiseAddress` argument allows you to specify an external IP to advertize on P2P (use if behind a NAT or running in k8s).
 - The `monitorPeers` flag will cause the proxy server to periodically check its connectivity to the P2P bootstrap peers, and attempt to reconnect if necessary.
+- The `allowAnything` flag enables defining users with the `allowAnything` flag set to true. This is only allowed in testnet and devnet.
 
 #### Creating the Signing Key File
 
@@ -111,6 +112,7 @@ The simplest file would look something like this
         }
       ]
     }
+  ]
 }
 ```
 
@@ -152,6 +154,25 @@ Beyond that, the API keys have no special meaning. They can be generated using a
 The proxy server monitors the permissions file for changes. Whenever a change is detected, it reads the file, validates it, and if
 it passes validation, switches to the new version. Care should be taken when editing the file while the proxy server is running, because
 as soon as you save the file, the changes will be picked up (whether they are logically complete or not).
+
+#### The `allowAnything` flag
+
+If this flag is specified for a user, then that user may make any call on any supported chain, without restriction.
+This flag is only allowed if the `allowAnything` command line argument is specified.
+If this flag is specified, then `allowedCalls` must not be specified.
+
+```json
+{
+  "permissions": [
+    {
+      "userName": "Monitor",
+      "apiKey": "insert_generated_api_key_here",
+      "allowUnsigned": true,
+      "allowedAnything": true
+    }
+  ]
+}
+```
 
 ## Telemetry
 

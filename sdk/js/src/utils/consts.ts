@@ -314,8 +314,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   mantle: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6",
+    token_bridge: "0x24850c6f61C438823F01B7A3BF2B89B72174Fa9d",
     nft_bridge: undefined,
   },
   blast: {
@@ -324,8 +324,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   xlayer: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x194B123c5E96B9b2E49763619985790Dc241CAC0",
+    token_bridge: "0x5537857664B0f9eFe38C9f320F75fEf23234D904",
     nft_bridge: undefined,
   },
   linea: {
@@ -563,7 +563,7 @@ const TESTNET = {
     nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
   },
   gnosis: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    core: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd",
     token_bridge: undefined,
     nft_bridge: undefined,
   },

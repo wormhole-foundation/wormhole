@@ -10,10 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/governor"
-	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -27,6 +24,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libp2ppb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -71,6 +69,16 @@ var (
 			Name: "wormhole_p2p_receive_channel_overflow",
 			Help: "Total number of p2p received messages dropped due to channel overflow",
 		}, []string{"type"})
+	p2pDrop = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_drops",
+			Help: "Total number of messages that were dropped by libp2p",
+		})
+	p2pReject = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_rejects",
+			Help: "Total number of messages rejected by libp2p",
+		})
 )
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
@@ -153,6 +161,21 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 		// GracePeriod set to 0 means that new peers are not protected by a grace period
 		connmgr.WithGracePeriod(0),
 	)
+}
+
+// traceHandler is used to intercept libp2p trace events so we can peg metrics.
+type traceHandler struct {
+}
+
+// Trace is the interface to the libp2p trace handler. It pegs metrics as appropriate.
+func (*traceHandler) Trace(evt *libp2ppb.TraceEvent) {
+	if evt.Type != nil {
+		if *evt.Type == libp2ppb.TraceEvent_DROP_RPC {
+			p2pDrop.Inc()
+		} else if *evt.Type == libp2ppb.TraceEvent_REJECT_MESSAGE {
+			p2pReject.Inc()
+		}
+	}
 }
 
 // BootstrapAddrs takes a comma-separated string of multi-address strings and returns an array of []peer.AddrInfo that does not include `self`.
@@ -267,36 +290,14 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 	return h, err
 }
 
-func Run(
-	obsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
-	obsvReqC chan<- *gossipv1.ObservationRequest,
-	obsvReqSendC <-chan *gossipv1.ObservationRequest,
-	gossipSendC chan []byte,
-	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
-	priv crypto.PrivKey,
-	gk *ecdsa.PrivateKey,
-	gst *common.GuardianSetState,
-	networkID string,
-	bootstrapPeers string,
-	nodeName string,
-	disableHeartbeatVerify bool,
-	rootCtxCancel context.CancelFunc,
-	acct *accountant.Accountant,
-	gov *governor.ChainGovernor,
-	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
-	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
-	components *Components,
-	ibcFeaturesFunc func() string,
-	gatewayRelayerEnabled bool,
-	ccqEnabled bool,
-	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
-	queryResponseReadC <-chan *query.QueryResponsePublication,
-	ccqBootstrapPeers string,
-	ccqPort uint,
-	ccqAllowedPeers string,
-) func(ctx context.Context) error {
-	if components == nil {
-		components = DefaultComponents()
+func Run(params *RunParams) func(ctx context.Context) error {
+	if params == nil {
+		return func(ctx context.Context) error {
+			return errors.New("params may not be nil")
+		}
+	}
+	if params.components == nil {
+		params.components = DefaultComponents()
 	}
 
 	return func(ctx context.Context) error {
@@ -310,10 +311,10 @@ func Run(
 			// TODO: Right now we're canceling the root context because it used to be the case that libp2p cannot be cleanly restarted.
 			// But that seems to no longer be the case. We may want to revisit this. See (https://github.com/libp2p/go-libp2p/issues/992) for background.
 			logger.Warn("p2p routine has exited, cancelling root context...")
-			rootCtxCancel()
+			params.rootCtxCancel()
 		}()
 
-		h, err := NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
+		h, err := NewHost(logger, ctx, params.networkID, params.bootstrapPeers, params.components, params.priv)
 		if err != nil {
 			panic(err)
 		}
@@ -329,22 +330,26 @@ func Run(
 			panic(err)
 		}
 
-		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
+		topic := fmt.Sprintf("%s/%s", params.networkID, "broadcast")
 
-		bootstrappers, bootstrapNode := BootstrapAddrs(logger, bootstrapPeers, h.ID())
+		bootstrappers, bootstrapNode := BootstrapAddrs(logger, params.bootstrapPeers, h.ID())
 
 		if bootstrapNode {
 			logger.Info("We are a bootstrap node.")
-			if networkID == "/wormhole/testnet/2/1" {
-				components.GossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
-				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", components.GossipParams.Dhi))
+			if params.networkID == "/wormhole/testnet/2/1" {
+				params.components.GossipParams.Dhi = TESTNET_BOOTSTRAP_DHI
+				logger.Info("We are a bootstrap node in Testnet. Setting gossipParams.Dhi.", zap.Int("gossipParams.Dhi", params.components.GossipParams.Dhi))
 			}
 		}
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+		ourTracer := &traceHandler{}
 		ps, err := pubsub.NewGossipSub(ctx, h,
 			pubsub.WithValidateQueueSize(P2P_VALIDATE_QUEUE_SIZE),
-			pubsub.WithGossipSubParams(components.GossipParams),
+			pubsub.WithGossipSubParams(params.components.GossipParams),
+			pubsub.WithEventTracer(ourTracer),
+			// TODO: Investigate making this change. May need to use LaxSign until everyone has upgraded to that.
+			// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		)
 		if err != nil {
 			panic(err)
@@ -386,10 +391,10 @@ func Run(
 
 		bootTime := time.Now()
 
-		if ccqEnabled {
+		if params.ccqEnabled {
 			ccqErrC := make(chan error)
-			ccq := newCcqRunP2p(logger, ccqAllowedPeers, components)
-			if err := ccq.run(ctx, priv, gk, networkID, ccqBootstrapPeers, ccqPort, signedQueryReqC, queryResponseReadC, ccqErrC); err != nil {
+			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
+			if err := ccq.run(ctx, params.priv, params.gk, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -400,7 +405,7 @@ func Run(
 						return
 					case ccqErr := <-ccqErrC:
 						logger.Error("ccqp2p returned an error", zap.Error(ccqErr), zap.String("component", "ccqp2p"))
-						rootCtxCancel()
+						params.rootCtxCancel()
 						return
 					}
 				}
@@ -414,7 +419,7 @@ func Run(
 			for {
 				select {
 				case <-ticker.C:
-					gst.Cleanup()
+					params.gst.Cleanup()
 				case <-ctx.Done():
 					return
 				}
@@ -423,10 +428,10 @@ func Run(
 
 		go func() {
 			// Disable heartbeat when no node name is provided (spy mode)
-			if nodeName == "" {
+			if params.nodeName == "" {
 				return
 			}
-			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+			ourAddr := ethcrypto.PubkeyToAddress(params.gk.PublicKey)
 
 			ctr := int64(0)
 			// Guardians should send out their first heartbeat immediately to speed up test runs.
@@ -453,27 +458,27 @@ func Run(
 						}
 
 						features := make([]string, 0)
-						if gov != nil {
+						if params.gov != nil {
 							features = append(features, "governor")
 						}
-						if acct != nil {
-							features = append(features, acct.FeatureString())
+						if params.acct != nil {
+							features = append(features, params.acct.FeatureString())
 						}
-						if ibcFeaturesFunc != nil {
-							ibcFlags := ibcFeaturesFunc()
+						if params.ibcFeaturesFunc != nil {
+							ibcFlags := params.ibcFeaturesFunc()
 							if ibcFlags != "" {
 								features = append(features, ibcFlags)
 							}
 						}
-						if gatewayRelayerEnabled {
+						if params.gatewayRelayerEnabled {
 							features = append(features, "gwrelayer")
 						}
-						if ccqEnabled {
+						if params.ccqEnabled {
 							features = append(features, "ccq")
 						}
 
 						heartbeat := &gossipv1.Heartbeat{
-							NodeName:      nodeName,
+							NodeName:      params.nodeName,
 							Counter:       ctr,
 							Timestamp:     time.Now().UnixNano(),
 							Networks:      networks,
@@ -483,22 +488,22 @@ func Run(
 							Features:      features,
 						}
 
-						if components.P2PIDInHeartbeat {
+						if params.components.P2PIDInHeartbeat {
 							heartbeat.P2PNodeId = nodeIdBytes
 						}
 
-						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
+						if err := params.gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
 							panic(err)
 						}
 						collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
-						if gov != nil {
-							gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
+						if params.gov != nil {
+							params.gov.CollectMetrics(heartbeat, params.gossipSendC, params.gk, ourAddr)
 						}
 
 						msg := gossipv1.GossipMessage{
 							Message: &gossipv1.GossipMessage_SignedHeartbeat{
-								SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
+								SignedHeartbeat: createSignedHeartbeat(params.gk, heartbeat),
 							},
 						}
 
@@ -525,13 +530,13 @@ func Run(
 				select {
 				case <-ctx.Done():
 					return
-				case msg := <-gossipSendC:
+				case msg := <-params.gossipSendC:
 					err := th.Publish(ctx, msg)
 					p2pMessagesSent.Inc()
 					if err != nil {
 						logger.Error("failed to publish message from queue", zap.Error(err))
 					}
-				case msg := <-obsvReqSendC:
+				case msg := <-params.obsvReqSendC:
 					b, err := proto.Marshal(msg)
 					if err != nil {
 						panic(err)
@@ -539,7 +544,7 @@ func Run(
 
 					// Sign the observation request using our node's guardian key.
 					digest := signedObservationRequestDigest(b)
-					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					sig, err := ethcrypto.Sign(digest.Bytes(), params.gk)
 					if err != nil {
 						panic(err)
 					}
@@ -547,7 +552,7 @@ func Run(
 					sReq := &gossipv1.SignedObservationRequest{
 						ObservationRequest: b,
 						Signature:          sig,
-						GuardianAddr:       ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.gk.PublicKey).Bytes(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -560,7 +565,9 @@ func Run(
 					}
 
 					// Send to local observation request queue (the loopback message is ignored)
-					obsvReqC <- msg
+					if params.obsvReqC != nil {
+						params.obsvReqC <- msg
+					}
 
 					err = th.Publish(ctx, b)
 					p2pMessagesSent.Inc()
@@ -607,17 +614,17 @@ func Run(
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedHeartbeat:
 				s := m.SignedHeartbeat
-				gs := gst.Get()
+				gs := params.gst.Get()
 				if gs == nil {
 					// No valid guardian set yet - dropping heartbeat
-					logger.Log(components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+					logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
 						zap.Any("value", s),
 						zap.String("from", envelope.GetFrom().String()))
 					break
 				}
-				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
+				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-					logger.Log(components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+					logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
 						zap.Error(err),
 						zap.Any("payload", msg.Message),
 						zap.Any("value", s),
@@ -625,14 +632,14 @@ func Run(
 						zap.String("from", envelope.GetFrom().String()))
 				} else {
 					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-					logger.Log(components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+					logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
 
 					func() {
 						if len(heartbeat.P2PNodeId) != 0 {
-							components.ProtectedHostByGuardianKeyLock.Lock()
-							defer components.ProtectedHostByGuardianKeyLock.Unlock()
+							params.components.ProtectedHostByGuardianKeyLock.Lock()
+							defer params.components.ProtectedHostByGuardianKeyLock.Unlock()
 							var peerId peer.ID
 							if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
 								logger.Error("p2p_node_id_in_heartbeat_invalid",
@@ -642,8 +649,8 @@ func Run(
 									zap.String("from", envelope.GetFrom().String()))
 							} else {
 								guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-								if gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(gk.PublicKey) {
-									prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+								if params.gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.gk.PublicKey) {
+									prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
 									if ok {
 										if prevPeerId != peerId {
 											logger.Info("p2p_guardian_peer_changed",
@@ -651,13 +658,13 @@ func Run(
 												zap.String("prevPeerId", prevPeerId.String()),
 												zap.String("newPeerId", peerId.String()),
 											)
-											components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
-											components.ConnMgr.Protect(peerId, "heartbeat")
-											components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+											params.components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+											params.components.ConnMgr.Protect(peerId, "heartbeat")
+											params.components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 										}
 									} else {
-										components.ConnMgr.Protect(peerId, "heartbeat")
-										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+										params.components.ConnMgr.Protect(peerId, "heartbeat")
+										params.components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 									}
 								}
 							}
@@ -669,68 +676,74 @@ func Run(
 					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, obsvC); err == nil {
-					p2pMessagesReceived.WithLabelValues("observation").Inc()
-				} else {
-					if components.WarnChannelOverflow {
-						logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+				if params.obsvC != nil {
+					if err := common.PostMsgWithTimestamp[gossipv1.SignedObservation](m.SignedObservation, params.obsvC); err == nil {
+						p2pMessagesReceived.WithLabelValues("observation").Inc()
+					} else {
+						if params.components.WarnChannelOverflow {
+							logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+						}
+						p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 					}
-					p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-				select {
-				case signedInC <- m.SignedVaaWithQuorum:
-					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
-				default:
-					if components.WarnChannelOverflow {
-						// TODO do not log this in production
-						var hexStr string
-						if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-							hexStr = vaa.HexDigest()
+				if params.signedInC != nil {
+					select {
+					case params.signedInC <- m.SignedVaaWithQuorum:
+						p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+					default:
+						if params.components.WarnChannelOverflow {
+							// TODO do not log this in production
+							var hexStr string
+							if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+								hexStr = vaa.HexDigest()
+							}
+							logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
 						}
-						logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
+						p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 					}
-					p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 				}
 			case *gossipv1.GossipMessage_SignedObservationRequest:
-				s := m.SignedObservationRequest
-				gs := gst.Get()
-				if gs == nil {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+				if params.obsvReqC != nil {
+					s := m.SignedObservationRequest
+					gs := params.gst.Get()
+					if gs == nil {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
+						}
+						break
 					}
-					break
-				}
-				r, err := processSignedObservationRequest(s, gs)
-				if err != nil {
-					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("invalid signed observation request received",
-							zap.Error(err),
-							zap.Any("payload", msg.Message),
-							zap.Any("value", s),
-							zap.Binary("raw", envelope.Data),
-							zap.String("from", envelope.GetFrom().String()))
-					}
-				} else {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
-					}
+					r, err := processSignedObservationRequest(s, gs)
+					if err != nil {
+						p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("invalid signed observation request received",
+								zap.Error(err),
+								zap.Any("payload", msg.Message),
+								zap.Any("value", s),
+								zap.Binary("raw", envelope.Data),
+								zap.String("from", envelope.GetFrom().String()))
+						}
+					} else {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
+						}
 
-					select {
-					case obsvReqC <- r:
-						p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
-					default:
-						p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+						select {
+						case params.obsvReqC <- r:
+							p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+						default:
+							p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+						}
 					}
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
-				if signedGovCfg != nil {
-					signedGovCfg <- m.SignedChainGovernorConfig
+				if params.signedGovCfg != nil {
+					params.signedGovCfg <- m.SignedChainGovernorConfig
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
-				if signedGovSt != nil {
-					signedGovSt <- m.SignedChainGovernorStatus
+				if params.signedGovSt != nil {
+					params.signedGovSt <- m.SignedChainGovernorStatus
 				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()

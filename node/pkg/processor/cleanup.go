@@ -115,8 +115,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			}
 
 			hasSigs := len(s.signatures)
-			wantSigs := vaa.CalculateQuorum(len(gs.Keys))
-			quorum := hasSigs >= wantSigs
+			quorum := hasSigs >= gs.Quorum()
 
 			var chain vaa.ChainID
 			if s.ourObservation != nil {
@@ -129,7 +128,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 					zap.Int("have_sigs", hasSigs),
-					zap.Int("required_sigs", wantSigs),
+					zap.Int("required_sigs", gs.Quorum()),
 					zap.Bool("quorum", quorum),
 					zap.Stringer("emitter_chain", chain),
 				)
@@ -220,6 +219,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.String("firstObserved", s.firstObserved.String()),
+						zap.Int("numSignatures", len(s.signatures)),
 					)
 					req := &gossipv1.ObservationRequest{
 						ChainId: uint32(s.ourObservation.GetEmitterChain()),
@@ -238,7 +238,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				// network reached consensus without us. We don't know the correct guardian
 				// set, so we simply use the most recent one.
 				hasSigs := len(s.signatures)
-				wantSigs := vaa.CalculateQuorum(len(p.gs.Keys))
 
 				if p.logger.Level().Enabled(zapcore.DebugLevel) {
 					p.logger.Debug("expiring unsubmitted nil observation",
@@ -246,8 +245,8 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
 						zap.Int("have_sigs", hasSigs),
-						zap.Int("required_sigs", wantSigs),
-						zap.Bool("quorum", hasSigs >= wantSigs),
+						zap.Int("required_sigs", p.gs.Quorum()),
+						zap.Bool("quorum", hasSigs >= p.gs.Quorum()),
 					)
 				}
 				delete(p.state.signatures, hash)

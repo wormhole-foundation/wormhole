@@ -93,6 +93,7 @@ axios
     var significantPriceChanges = [];
     var addedTokens = [];
     var removedTokens = [];
+    var changedSymbols = [];
     var newTokensCount = 0;
 
     for (let chain in res.data.AllTime) {
@@ -215,7 +216,9 @@ axios
               notional +
               "\n";
 
-            newTokenKeys[chain + "-" + wormholeAddr + "-" + data.Symbol] = true;
+            // We add in the "=" character to ensure an undefined symbol
+            // does not mess up the removed tokens logic
+            newTokenKeys[chain + "-" + wormholeAddr] = "=" + data.Symbol;
             newTokensCount += 1;
           }
         }
@@ -224,8 +227,16 @@ axios
 
     for (var token of existingTokenKeys) {
       // A token has been removed from the token list 
-      if (!newTokenKeys[token]) {
+      // We cut the symbol off the end of the key as it's possible for a token to change its symbol
+      var tokenParts = token.split("-");
+      var newTokenSymbol = newTokenKeys[tokenParts[0] + "-" + tokenParts[1]];
+      if (!newTokenSymbol) {
         removedTokens.push(token);
+      }
+      // The token symbol has changed
+      // We take a substring of the symbol to cut the "=" character we added above
+      else if (tokenParts[0] + "-" + tokenParts[1] + "-" + newTokenSymbol.substring(1) != token) {
+        changedSymbols.push(token + "->" + newTokenSymbol);
       }
     }
 
@@ -241,6 +252,8 @@ axios
     changedContent += JSON.stringify(addedTokens, null, 1);
     changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
+    changedContent += "\n\nTokens with changed symbols = " + changedSymbols.length + ":\n<WH_chain_id>-<WH_token_addr>-<old_token_symbol>-><new_token_symbol>\n\n";
+    changedContent += JSON.stringify(changedSymbols, null, 1);
     changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
     changedContent += "\n```";

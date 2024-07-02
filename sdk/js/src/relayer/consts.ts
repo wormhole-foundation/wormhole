@@ -81,12 +81,12 @@ const TESTNET: { [K in ChainName]?: AddressInfo } = {
 
 const DEVNET: { [K in ChainName]?: AddressInfo } = {
   ethereum: {
-    wormholeRelayerAddress: "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083",
+    wormholeRelayerAddress: "0xb98F46E96cb1F519C333FdFB5CCe0B13E0300ED4",
     mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
   bsc: {
-    wormholeRelayerAddress: "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083",
+    wormholeRelayerAddress: "0xb98F46E96cb1F519C333FdFB5CCe0B13E0300ED4",
     mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
@@ -131,6 +131,12 @@ const MAINNET: { [K in ChainName]?: AddressInfo } = {
   },
   base: {
     wormholeRelayerAddress: "0x706f82e9bb5b0813501714ab5974216704980e31",
+  },
+  scroll: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+  },
+  blast: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
 };
 

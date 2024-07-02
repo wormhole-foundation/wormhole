@@ -12,9 +12,9 @@
 # checkout git repository
 git clone https://github.com/wormhole-foundation/wormhole
 
-# checkout latest release (v2.23.0 at time of writing)
+# checkout latest release (v2.24.2-wormchaind at time of writing)
 cd wormhole
-git checkout v2.23.0
+git checkout v2.24.2-wormchaind
 
 # build wormchain
 cd wormchain
@@ -77,10 +77,20 @@ git checkout v2.18.1
 make build/wormchaind
 mv build/wormchaind build/wormchaind-v2.18.1
 
+# v2.18.1.1
+git checkout v2.18.1.1
+make build/wormchaind
+mv build/wormchaind build/wormchaind-v2.18.1.1
+
 # v2.23.0
 git checkout v2.23.0
 make build/wormchaind
 mv build/wormchaind build/wormchaind-v2.23.0
+
+# v2.24.2-wormchaind
+git checkout v2.24.2-wormchaind
+make build/wormchaind
+mv build/wormchaind build/wormchaind-v2.24.2-wormchaind
 ```
 
 ## Setup Folders to sync Wormchain
@@ -121,15 +131,24 @@ cp ../mainnet/* config/
 
 ```bash
 ./wormchaind-v2.14.9.6 rollback --home .
-./wormchaind-v2.14.9.6 start --home . --moniker <your-moniker>
+./wormchaind-v2.14.9.6 start --home . --moniker <your-moniker> --halt-height 3151200
 # sync until block 3151200 (problematic block is 3151174)
-# stop the sync right after 3151174
 ```
 
 ## Sync with v2.18.1
 
 ```bash
-./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker>
+./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker> --halt-height 4411562
+# check sync status
+./wormchaind-v2.18.1 status | jq ".SyncInfo.latest_block_height"
+# sync until block 4411562 
+```
+
+## Sync with v2.18.1.1
+
+```bash
+./build/wormchaind-v2.18.1.1 rollback --home .
+./build/wormchaind-v2.18.1.1 start --home . --moniker <your-moniker>
 # sync will stop automatically on block 4449129
 # after this stops, you just need to restart your wormchain node with v2.23.0
 # no rollback is required.
@@ -139,5 +158,16 @@ cp ../mainnet/* config/
 
 ```bash
 ./build/wormchaind-v2.23.0 start --home . --moniker <your-moniker>
+# check sync status
+./build/wormchaind-v2.23.0 status | jq ".SyncInfo.latest_block_height"
+# Error in validation err="wrong Block.Header.LastResultsHash.  Expected 4C349D91FFFC2B84588E703A5459CBB29D6053D788C32B8AF1445F44CFCD988B, got D2D3EBC9D1249733EE2CBD7CA9C9A63509BB28436BFF200CEB6162BCBA282EC3" module=blockchain
+# Block 8630308
+```
+
+## Sync with v2.24.2-wormchaind
+
+```bash
+./build/wormchaind-v2.24.2-wormchaind rollback --home .
+./build/wormchaind-v2.24.2-wormchaind start --home . --moniker <your-moniker>
 # this will sync until the latest block!
 ```

@@ -33,10 +33,31 @@ func (k Keeper) CalculateQuorum(ctx sdk.Context, guardianSetIndex uint32) (int, 
 		return 0, nil, types.ErrGuardianSetNotFound
 	}
 
-	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
+	isMainnet := ctx.ChainID() == "wormchain"
+	isTestnet := ctx.ChainID() == "wormchain-testnet-0"
 
-	if guardianSet.Index != latestGuardianSetIndex && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
-		return 0, nil, types.ErrGuardianSetExpired
+	// We enable the new conditional approximately a week after block 6,961,447, which is
+	// calculated by dividing the number of seconds in a week by the average block time (~6s).
+	// The average block time may change in the future, so future calculations should be based
+	// on the actual block times at the time of the change.
+	// On testnet, the block height is different (and so is the block time
+	// slightly). There, we switch over at 2pm UTC 07/02/2024.
+	// On mainnet, the average block time is 5.77 seconds.
+	// We are targeting the cutover to happen on 5/29/2024 ~8am UTC.
+	// At 5.77 blocks/second, this is ~127,279 blocks from 5/20/2024 at 8pm UTC, which had a block height of 8,503,027.
+	// Therefore, 8,503,027 + 127,279 = 8,630,306
+	if (isMainnet && ctx.BlockHeight() < 8630306) || (isTestnet && ctx.BlockHeight() < 7468418) {
+		// old
+		if 0 < guardianSet.ExpirationTime && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
+			return 0, nil, types.ErrGuardianSetExpired
+		}
+	} else {
+		// new
+		latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
+
+		if guardianSet.Index != latestGuardianSetIndex && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
+			return 0, nil, types.ErrGuardianSetExpired
+		}
 	}
 
 	return CalculateQuorum(len(guardianSet.Keys)), &guardianSet, nil

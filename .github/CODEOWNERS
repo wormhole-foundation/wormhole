@@ -28,7 +28,7 @@
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters @bruce-riley
 /sdk/js-wasm/ @evan-gray @kev1n-peters
-/sdk/js/ @evan-gray @kev1n-peters @barnjamin
+/sdk/js/ @evan-gray @kev1n-peters @barnjamin @panoel
 /sdk/rust/ @a5-pickle
 /sdk/vaa/ @bruce-riley @SEJeff
 /spydk/ @evan-gray
@@ -46,7 +46,7 @@
 
 ## Fallback
 
-/node/ @bruce-riley @evan-gray
+/node/ @bruce-riley @evan-gray @SEJeff
 
 ## Entrypoint / RPC
 

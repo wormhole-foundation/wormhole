@@ -337,15 +337,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
-	// Outbound gossip message queue
-	sendC := make(chan []byte)
-
-	// Inbound observations
-	obsvC := make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], 1024)
-
-	// Inbound observation requests
-	obsvReqC := make(chan *gossipv1.ObservationRequest, 1024)
-
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 1024)
 
@@ -369,29 +360,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 			logger.Fatal(`Failed to read initial guardian set for VAA verification`, zap.Error(err))
 		}
 	}
-
-	// Ignore observations
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvC:
-			}
-		}
-	}()
-
-	// Ignore observation requests
-	// Note: without this, the whole program hangs on observation requests
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvReqC:
-			}
-		}
-	}()
 
 	// Log signed VAAs
 	go func() {
@@ -420,35 +388,21 @@ func runSpy(cmd *cobra.Command, args []string) {
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		components := p2p.DefaultComponents()
 		components.Port = *p2pPort
+		params, err := p2p.NewRunParams(
+			*p2pBootstrap,
+			*p2pNetworkID,
+			priv,
+			gst,
+			rootCtxCancel,
+			p2p.WithSignedVAAListener(signedInC),
+		)
+		if err != nil {
+			return err
+		}
+
 		if err := supervisor.Run(ctx,
 			"p2p",
-			p2p.Run(obsvC,
-				obsvReqC,
-				nil,
-				sendC,
-				signedInC,
-				priv,
-				nil,
-				gst,
-				*p2pNetworkID,
-				*p2pBootstrap,
-				"",
-				false,
-				rootCtxCancel,
-				nil,
-				nil,
-				nil,
-				nil,
-				components,
-				nil,   // ibc feature string
-				false, // gateway relayer enabled
-				false, // ccqEnabled
-				nil,   // query requests
-				nil,   // query responses
-				"",    // query bootstrap peers
-				0,     // query port
-				"",    // query allow list
-			)); err != nil {
+			p2p.Run(params)); err != nil {
 			return err
 		}
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -51,7 +50,7 @@ func FetchLatestBlockNumberFromUrl(ctx context.Context, rawUrl string) (*big.Int
 	return header.Number, nil
 }
 
-func FetchCurrentGuardianSet(network common.Environment) (uint32, *ethabi.StructsGuardianSet, error) {
+func FetchCurrentGuardianSet(network common.Environment) (uint32, *ethAbi.StructsGuardianSet, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 

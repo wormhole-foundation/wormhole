@@ -97,6 +97,8 @@ jobs:
 
   solana:
     runs-on: ubuntu-20.04
+    container: ghcr.io/wormhole-foundation/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad
+
     env:
       RUSTFLAGS: -Dwarnings
       EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
@@ -163,25 +165,6 @@ jobs:
         run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
           --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
-      - name: Cache solana tools
-        id: cache-solana
-        uses: actions/cache@v3
-        env:
-          cache-name: solana-tools
-        with:
-          path: |
-            ~/.local/share/solana/install/
-            ~/.cache/solana/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.solana.outputs.version }}
-
-      - if: ${{ steps.cache-solana.outputs.cache-hit != 'true' }}
-        name: Install solana tools
-        env:
-          SOLANA_VERSION: ${{ steps.solana.outputs.version }}
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
-          ~/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/install.sh
-
       - name: Run unit tests
         env:
           RUST_BACKTRACE: "1"
@@ -203,6 +186,8 @@ jobs:
           done
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+        shell:
+          bash
 
   aptos:
     name: Aptos
