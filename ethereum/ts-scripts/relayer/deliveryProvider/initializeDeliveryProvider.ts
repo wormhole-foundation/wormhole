@@ -75,7 +75,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
   // Set the entire relay provider configuration
   for (const targetChain of allChains) {
     const targetChainPriceUpdate = (config.pricingInfo as PricingInfo[]).find(
-      (x: any) => x.chainId == targetChain.chainId
+      (x) => x.chainId == targetChain.chainId
     );
     if (!targetChainPriceUpdate) {
       throw new Error(
