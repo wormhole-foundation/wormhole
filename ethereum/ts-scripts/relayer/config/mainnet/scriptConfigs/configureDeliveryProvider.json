@@ -73,7 +73,7 @@
     {
       "chainId": 37,
       "updatePriceGas": "1200000",
-      "updatePriceNative": "3415400000"
+      "updatePriceNative": "41860000"
     }
   ],
   "deliveryGasOverheads": [
@@ -135,7 +135,7 @@
     },
     {
       "chainId": 37,
-      "updateGasOverhead": "243992895"
+      "updateGasOverhead": "19907628603"
     }
   ],
   "maximumBudgets": [
@@ -197,7 +197,7 @@
     },
     {
       "chainId": 37,
-      "updateMaximumBudget": "58558294782455900"
+      "updateMaximumBudget": "4777830864787390000"
     },
   ],
   "conversionBuffers": [
