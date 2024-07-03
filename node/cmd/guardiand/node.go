@@ -1407,7 +1407,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			NetworkID:        "sui",
 			ChainID:          vaa.ChainIDSui,
 			Rpc:              *suiRPC,
-			Websocket:        *suiWS,
 			SuiMoveEventType: *suiMoveEventType,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
