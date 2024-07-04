@@ -62,7 +62,7 @@
     },
     {
       "chainId": 35,
-      "updatePriceGas": "1200000",
+      "updatePriceGas": "2000000000",
       "updatePriceNative": "780000"
     },
     {
@@ -72,7 +72,7 @@
     },
     {
       "chainId": 37,
-      "updatePriceGas": "1200000",
+      "updatePriceGas": "120000000",
       "updatePriceNative": "41860000"
     }
   ],
@@ -127,7 +127,7 @@
     },
     {
       "chainId": 35,
-      "updateGasOverhead": "1068376068376"
+      "updateGasOverhead": "192307692"
     },
     {
       "chainId": 36,
@@ -135,7 +135,7 @@
     },
     {
       "chainId": 37,
-      "updateGasOverhead": "19907628603"
+      "updateGasOverhead": "199076286"
     }
   ],
   "maximumBudgets": [
@@ -198,7 +198,7 @@
     {
       "chainId": 37,
       "updateMaximumBudget": "4777830864787390000"
-    },
+    }
   ],
   "conversionBuffers": [
     {
