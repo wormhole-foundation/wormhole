@@ -64,9 +64,9 @@ for chain in $chain_ids
     else if test $chain -eq 37
         set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
 
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
     else
         forge verify-contract --watch \

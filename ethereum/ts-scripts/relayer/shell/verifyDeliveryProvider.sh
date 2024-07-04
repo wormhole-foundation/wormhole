@@ -23,7 +23,7 @@ if not test -e $contracts_file
     exit 1
 end
 
-set chain_ids (string split \n --no-empty -- (jq '.chains[] | .chainId' $chains_file))
+set chain_ids (string split \n --no-empty -- (jq '.operatingChains[]' $chains_file))
 
 for chain in $chain_ids
     # Klaytn, Karura and Acala don't have a verification API yet
@@ -68,20 +68,20 @@ for chain in $chain_ids
     else if test $chain -eq 35
         set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
 
-        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
-        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
-        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
     else if test $chain -eq 37
         set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
 
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
     else
         forge verify-contract --watch \

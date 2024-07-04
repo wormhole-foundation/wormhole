@@ -21,7 +21,7 @@ set scan_tokens_file $_flag_scan_tokens
 set chains_file "ts-scripts/relayer/config/$ENV/chains.json"
 set contracts_file "ts-scripts/relayer/config/$ENV/contracts.json"
 
-set chain_ids (string split \n --no-empty -- (jq '.chains[] | .chainId' $chains_file))
+set chain_ids (string split \n --no-empty -- (jq '.operatingChains[]' $chains_file))
 
 for chain in $chain_ids
     # Klaytn, Karura and Acala don't have a verification API yet
@@ -73,16 +73,16 @@ for chain in $chain_ids
     else if test $chain -eq 35
         set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
 
-        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
-        forge verify-contract --verifier blockscout --verifier-url "$mantle_explorer_url" --watch \
+        forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
     else if test $chain -eq 37
         set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
 
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
-        forge verify-contract --verifier-url $xlayer_explorer_url --watch \
+        forge verify-contract --verifier oklink --verifier-url $xlayer_explorer_url --watch \
             $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
     else
         forge verify-contract --watch --constructor-args $init_contract_address \
