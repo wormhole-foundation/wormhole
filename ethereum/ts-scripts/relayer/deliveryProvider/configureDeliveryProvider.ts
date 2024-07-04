@@ -144,12 +144,6 @@ function printUpdate(updates: UpdateStruct[], coreConfig: CoreConfigStruct, { ch
       const maximumBudget = utils.formatEther(update.maximumTotalBudget);
       messages.push(`  Maximum budget update: ${maximumBudget}`);
     }
-    if (update.updateTargetChainAddress) {
-      messages.push(`  Target chain address update: ${update.targetChainAddress}`);
-    }
-    if (update.updateSupportedChain) {
-      messages.push(`  Supported chain update: ${update.isSupported}`);
-    }
     if (update.updateAssetConversionBuffer) {
       const bufferDenominator = BigNumber.isBigNumber(update.bufferDenominator) ? update.bufferDenominator : BigNumber.from(update.bufferDenominator);
       const buffer = BigNumber.isBigNumber(update.buffer) ? update.buffer : BigNumber.from(update.buffer);
@@ -160,11 +154,6 @@ function printUpdate(updates: UpdateStruct[], coreConfig: CoreConfigStruct, { ch
     }
     if (update.updateTargetChainAddress) {
       messages.push(`  Target chain address update: ${utils.hexlify(update.targetChainAddress)}`);
-    }
-    if (update.updateAssetConversionBuffer) {
-      messages.push(`  Asset conversion buffer update:`);
-      messages.push(`    buffer: ${update.buffer}`);
-      messages.push(`    buffer denominator: ${update.bufferDenominator}`);
     }
   }
 
