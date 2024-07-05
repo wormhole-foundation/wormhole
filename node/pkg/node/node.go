@@ -75,7 +75,7 @@ type G struct {
 	runnables             map[string]supervisor.Runnable
 
 	// various channels
-	// Outbound gossip message queues (needs to be read/write because p2p needs read/write)
+	// Outbound gossip message queues (need to be read/write because p2p needs read/write)
 	gossipControlSendC     chan []byte
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte

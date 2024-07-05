@@ -85,17 +85,3 @@ func getCutOverTimeStr(networkID string) string { //nolint:unparam
 	}
 	return devnetCutOverTimeStr
 }
-
-// GossipAttestationMsg is the payload of the `gossipAttestationSendC` channel. This will be used instead of just `[]byte`
-// until after the cutover is complete and support for publishing `SignedObservations` is removed. Then this can be deleted.
-type GossipAttestationMsg struct {
-	MsgType GossipAttestationMsgType
-	Msg     []byte
-}
-
-type GossipAttestationMsgType uint8
-
-const (
-	GossipAttestationSignedObservation GossipAttestationMsgType = iota
-	GossipAttestationSignedObservationBatch
-)
