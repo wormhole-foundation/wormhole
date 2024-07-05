@@ -1,13 +1,10 @@
 package processor
 
 import (
-	"encoding/hex"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -21,12 +18,6 @@ var (
 			Help: "Total number of signed observations queued for broadcast",
 		})
 
-	observationsPostedInternally = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_observations_posted_internally",
-			Help: "Total number of our observations posted internally",
-		})
-
 	signedVAAsBroadcast = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_signed_vaas_queued_for_broadcast",
@@ -36,17 +27,17 @@ var (
 
 // broadcastSignature broadcasts the observation for something we observed locally.
 func (p *Processor) broadcastSignature(
-	o Observation,
-	signature []byte,
+	messageID string,
 	txhash []byte,
-) {
-	digest := o.SigningDigest()
+	digest ethCommon.Hash,
+	signature []byte,
+) (*gossipv1.SignedObservation, []byte) {
 	obsv := gossipv1.SignedObservation{
 		Addr:      p.ourAddr.Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
-		MessageId: o.MessageID(),
+		MessageId: messageID,
 	}
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
@@ -59,35 +50,10 @@ func (p *Processor) broadcastSignature(
 	// Broadcast the observation.
 	p.gossipSendC <- msg
 	observationsBroadcast.Inc()
-	observationsPostedInternally.Inc()
-
-	hash := hex.EncodeToString(digest.Bytes())
-
-	s := p.state.signatures[hash]
-	if s == nil {
-		s = &state{
-			firstObserved: time.Now(),
-			nextRetry:     time.Now().Add(nextRetryDuration(0)),
-			signatures:    map[ethcommon.Address][]byte{},
-			source:        "loopback",
-		}
-
-		p.state.signatures[hash] = s
-	}
-
-	s.ourObservation = o
-	s.ourMsg = msg
-	s.txHash = txhash
-	s.source = o.GetEmitterChain().String()
-	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
-	s.signatures[p.ourAddr] = signature
-
-	// Fast path for our own signature.
-	start := time.Now()
-	p.handleObservationAlreadyVerified(&obsv, s, s.gs, hash)
-	timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
+	return &obsv, msg
 }
 
+// broadcastSignedVAA broadcasts a VAA to the gossip network.
 func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 	b, err := v.Marshal()
 	if err != nil {

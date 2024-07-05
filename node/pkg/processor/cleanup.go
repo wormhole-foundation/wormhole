@@ -290,9 +290,9 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 					)
 				}
 				return false, nil
-			} else {
-				return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
 			}
+
+			return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
 		}
 
 		v, err = vaa.Unmarshal(vb)
