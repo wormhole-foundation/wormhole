@@ -2,7 +2,6 @@
 package processor
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -70,12 +69,13 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
 // and assembles and submits a valid VAA if possible.
-func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+func (p *Processor) handleObservation(obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
+	start := time.Now()
 	observationsReceivedTotal.Inc()
 
 	m := obs.Msg
@@ -83,6 +83,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	s := p.state.signatures[hash]
 	if s != nil && s.submitted {
 		// already submitted; ignoring additional signatures for it.
+		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 		return
 	}
 
@@ -208,7 +209,16 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	}
 
 	s.signatures[their_addr] = m.Signature
+	p.handleObservationAlreadyVerified(m, s, gs, hash)
+	timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
+	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
+}
 
+// handleObservationAlreadyVerified handles an observation after it's validity has been confirmed. It is called both for local and external observations.
+func (p *Processor) handleObservationAlreadyVerified(m *gossipv1.SignedObservation, s *state, gs *node_common.GuardianSet, hash string) {
+	if s.submitted {
+		return
+	}
 	if s.ourObservation != nil {
 		// We have made this observation on chain!
 
@@ -246,8 +256,9 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 
 		if len(sigsVaaFormat) >= gs.Quorum() {
 			// we have reached quorum *with the active guardian set*
+			start := time.Now()
 			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
-			s.submitted = true
+			timeToHandleQuorum.Observe(float64(time.Since(start).Microseconds()))
 		} else {
 			if p.logger.Level().Enabled(zapcore.DebugLevel) {
 				p.logger.Debug("quorum not met, doing nothing",
@@ -264,11 +275,9 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			)
 		}
 	}
-
-	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
 }
 
-func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
+func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQuorum) {
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",

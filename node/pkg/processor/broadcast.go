@@ -10,7 +10,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
-	node_common "github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -35,6 +34,7 @@ var (
 		})
 )
 
+// broadcastSignature broadcasts the observation for something we observed locally.
 func (p *Processor) broadcastSignature(
 	o Observation,
 	signature []byte,
@@ -59,35 +59,33 @@ func (p *Processor) broadcastSignature(
 	// Broadcast the observation.
 	p.gossipSendC <- msg
 	observationsBroadcast.Inc()
+	observationsPostedInternally.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())
 
-	if p.state.signatures[hash] == nil {
-		p.state.signatures[hash] = &state{
+	s := p.state.signatures[hash]
+	if s == nil {
+		s = &state{
 			firstObserved: time.Now(),
 			nextRetry:     time.Now().Add(nextRetryDuration(0)),
 			signatures:    map[ethcommon.Address][]byte{},
 			source:        "loopback",
 		}
+
+		p.state.signatures[hash] = s
 	}
 
-	p.state.signatures[hash].ourObservation = o
-	p.state.signatures[hash].ourMsg = msg
-	p.state.signatures[hash].txHash = txhash
-	p.state.signatures[hash].source = o.GetEmitterChain().String()
-	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
+	s.ourObservation = o
+	s.ourMsg = msg
+	s.txHash = txhash
+	s.source = o.GetEmitterChain().String()
+	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
+	s.signatures[p.ourAddr] = signature
 
-	// Fast path for our own signature
-	// send to obsvC directly if there is capacity, otherwise do it in a go routine.
-	// We can't block here because the same process would be responsible for reading from obsvC.
-	om := node_common.CreateMsgWithTimestamp[gossipv1.SignedObservation](&obsv)
-	select {
-	case p.obsvC <- om:
-	default:
-		go func() { p.obsvC <- om }()
-	}
-
-	observationsPostedInternally.Inc()
+	// Fast path for our own signature.
+	start := time.Now()
+	p.handleObservationAlreadyVerified(&obsv, s, s.gs, hash)
+	timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 }
 
 func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
