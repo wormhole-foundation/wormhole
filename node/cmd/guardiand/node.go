@@ -149,7 +149,6 @@ var (
 	aptosHandle  *string
 
 	suiRPC           *string
-	suiWS            *string
 	suiMoveEventType *string
 
 	solanaRPC *string
@@ -350,7 +349,6 @@ func init() {
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
-	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "ws://sui:9000", []string{"ws", "wss"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
@@ -707,8 +705,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
 
-	if !argsConsistent([]string{*suiRPC, *suiWS, *suiMoveEventType}) {
-		logger.Fatal("Either --suiRPC, --suiWS and --suiMoveEventType must all be set or all unset")
+	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
+		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
@@ -853,7 +851,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["suiRPC"] = *suiRPC
-	rpcMap["suiWS"] = *suiWS
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
@@ -1407,7 +1404,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			NetworkID:        "sui",
 			ChainID:          vaa.ChainIDSui,
 			Rpc:              *suiRPC,
-			Websocket:        *suiWS,
 			SuiMoveEventType: *suiMoveEventType,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
