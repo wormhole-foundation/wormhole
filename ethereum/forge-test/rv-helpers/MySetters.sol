@@ -44,4 +44,8 @@ contract MySetters is Setters {
     function setEvmChainId_external(uint256 evmChainId) external {
         setEvmChainId(evmChainId);
     }
+
+    function storeGuardianSet_external(Structs.GuardianSet memory set, uint32 index) external {
+        storeGuardianSet(set, index);
+    }
 }

@@ -5,12 +5,25 @@ pragma solidity ^0.8.0;
 
 import "forge-test/rv-helpers/MySetters.sol";
 import "forge-test/rv-helpers/TestUtils.sol";
+import "../contracts/Structs.sol";
 
 contract TestSetters is TestUtils {
+    address constant testGuardianPub = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
+
     MySetters setters;
+    Structs.GuardianSet guardianSet;
 
     function setUp() public {
         setters = new MySetters();
+
+        address[] memory initialGuardians = new address[](1);
+        initialGuardians[0] = testGuardianPub;
+
+        // Create a guardian set
+        guardianSet = Structs.GuardianSet({
+            keys: initialGuardians,
+            expirationTime: 0
+        });
     }
 
     function testUpdateGuardianSetIndex(uint32 index, bytes32 storageSlot)
@@ -264,5 +277,37 @@ contract TestSetters is TestUtils {
         symbolic(address(setters))
     {
         testSetEvmChainId_Revert(newEvmChainId, storageSlot);
+    }
+
+    function testSetGuardianSetHash_Success(uint256 index, uint256 numGuardianSets, bytes32 storageSlot)
+        public
+        unchangedStorage(address(setters), storageSlot)
+    {
+        numGuardianSets = bound(numGuardianSets, 1, type(uint8).max);
+        index = bound(index, 0, numGuardianSets - 1);
+
+        bytes32 storageLocation = hashedLocation(index, GUARDIANSETHASHES_STORAGE_INDEX);
+        vm.assume(storageSlot != storageLocation);
+
+        for (uint256 i = 0; i < numGuardianSets; i++) {
+            setters.storeGuardianSet_external(guardianSet, uint32(i));
+        }
+        
+        setters.setGuardianSetHash(uint32(index));
+    }
+
+    function testSetGuardianSetHash_Revert(uint256 index, uint256 numGuardianSets, bytes32 storageSlot)
+        public
+        unchangedStorage(address(setters), storageSlot)
+    {
+        numGuardianSets = bound(numGuardianSets, 1, type(uint8).max);
+        index = bound(index, numGuardianSets, type(uint8).max);
+
+        for (uint256 i = 0; i < numGuardianSets; i++) {
+            setters.storeGuardianSet_external(guardianSet, uint32(i));
+        }
+        
+        vm.expectRevert("non-existent guardian set");
+        setters.setGuardianSetHash(uint32(index));
     }
 }

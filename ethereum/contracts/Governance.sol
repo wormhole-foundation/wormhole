@@ -104,6 +104,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         // Trigger a time-based expiry of current guardianSet
         expireGuardianSet(getCurrentGuardianSetIndex());
 
+        // Update the hash of the expiring guardian set
+        setGuardianSetHash(getCurrentGuardianSetIndex());
+
         // Add the new guardianSet to guardianSets
         storeGuardianSet(upgrade.newGuardianSet, upgrade.newGuardianSetIndex);
 

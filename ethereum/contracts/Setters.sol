@@ -20,7 +20,7 @@ contract Setters is State {
             require(set.keys[i] != address(0), "Invalid key");
             unchecked { ++i; }
         }
-        _state.guardianSets[index] = set;   
+        _state.guardianSets[index] = set;
     }
 
     function setInitialized(address implementatiom) internal {
@@ -61,6 +61,11 @@ contract Setters is State {
         Structs.GuardianSet memory guardianSet = _state.guardianSets[index];
         
         uint256 guardianCount = guardianSet.keys.length;
+        
+        // Only allow setting the hash for a valid guardian set index
+        // Governance guards against updating to an empty guardian set
+        require(guardianCount > 0, "non-existent guardian set");
+
         bytes memory encodedGuardianSet;
         for (uint256 i = 0; i < guardianCount;) {
             encodedGuardianSet = abi.encodePacked(encodedGuardianSet, guardianSet.keys[i]);

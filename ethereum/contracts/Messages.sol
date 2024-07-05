@@ -12,14 +12,18 @@ import "./libraries/relayer/BytesParsing.sol";
 contract Messages is Getters {
     using BytesParsing for bytes;
 
+    uint8 private constant ADDRESS_SIZE = 20; // in bytes
+    uint8 private constant EXPIRATION_TIME_SIZE = 4; // in bytes
+
     function parseAndVerifyVMOptimized(
         bytes calldata encodedVM,
         bytes calldata guardianSet,
         uint32 guardianSetIndex
     ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         // Verify that the specified guardian set is a valid.
+        bytes32 guardianSetHash = getGuardianSetHash(guardianSetIndex);
         require(
-            getGuardianSetHash(guardianSetIndex) == keccak256(guardianSet),
+            guardianSetHash == keccak256(guardianSet) && guardianSetHash != bytes32(0),
             "invalid guardian set"
         );
 
@@ -32,15 +36,13 @@ contract Messages is Getters {
     }
 
     function parseGuardianSet(bytes calldata guardianSetData) public pure returns (Structs.GuardianSet memory guardianSet) {
-        // Fetch the guardian set length.
-        uint256 endGuardianKeyIndex = guardianSetData.length - 4;
-        uint256 guardianCount = endGuardianKeyIndex / 20;
+        uint256 guardianSetDataLength = guardianSetData.length;
+        uint256 guardianCount = (guardianSetDataLength - EXPIRATION_TIME_SIZE) / ADDRESS_SIZE;
 
         guardianSet = Structs.GuardianSet({
             keys : new address[](guardianCount),
             expirationTime : 0
         });
-        (guardianSet.expirationTime, ) = guardianSetData.asUint32Unchecked(endGuardianKeyIndex);
 
         uint256 offset = 0;
         for(uint256 i = 0; i < guardianCount;) {
@@ -49,6 +51,10 @@ contract Messages is Getters {
                 ++i;
             }
         }
+
+        (guardianSet.expirationTime, offset) = guardianSetData.asUint32Unchecked(offset);
+
+        require(guardianSetDataLength == offset, "invalid guardian set data length");
     }
 
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
@@ -194,7 +200,7 @@ contract Messages is Getters {
         // This is not a problem today since there is only one accepted version, but it
         // could be a problem if we wanted to allow other versions in the future.
         (vm.version, offset) = encodedVM.asUint8Unchecked(offset);
-        require(vm.version == 1, "invalid payload id");
+        require(vm.version == 1, "VM version incompatible");
 
         // Guardian set index.
         (vm.guardianSetIndex, offset) = encodedVM.asUint32Unchecked(offset);

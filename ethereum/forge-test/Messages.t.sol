@@ -112,22 +112,22 @@ contract TestMessages is Test {
     uint32 guardianSetIndex
   ) internal view returns (bytes memory signedTransfer) {
     // construct `TransferWithPayload` Wormhole message
-    Structs.VM memory vm;
+    Structs.VM memory vm_;
 
     // set the vm values inline
-    vm.version = uint8(1);
-    vm.timestamp = uint32(block.timestamp);
-    vm.emitterChainId = emitterChainId;
-    vm.emitterAddress = emitterAddress;
-    vm.sequence = messages.nextSequence(
+    vm_.version = uint8(1);
+    vm_.timestamp = uint32(block.timestamp);
+    vm_.emitterChainId = emitterChainId;
+    vm_.emitterAddress = emitterAddress;
+    vm_.sequence = messages.nextSequence(
         address(uint160(uint256(emitterAddress)))
     );
-    vm.consistencyLevel = 15;
-    vm.payload = payload;
+    vm_.consistencyLevel = 15;
+    vm_.payload = payload;
 
-    // encode the bservation
+    // encode the observation
     signedTransfer = wormholeSimulator.encodeAndSignMessage(
-      vm,
+      vm_,
       _guardianKeys,
       guardianSetIndex
     );
@@ -259,8 +259,8 @@ contract TestMessages is Test {
     assertEq(reason, "vm.hash doesn't match body");
   }
 
-  function testParseGuardianSetOptimized(uint8 guardianCount) public view {
-    vm.assume(guardianCount > 0 && guardianCount <= 19);
+  function testParseGuardianSetOptimized(uint256 guardianCount) public view {
+    guardianCount = bound(guardianCount, 1, 19);
 
     // Encode the guardian set.
     bytes memory encodedGuardianSet;
