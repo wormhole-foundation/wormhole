@@ -160,20 +160,6 @@ var (
 			Help:    "Latency histogram for total time to process signed observations",
 			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
-
-	timeToHandleObservation = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_time_to_handle_observation_us",
-			Help:    "Latency histogram for total time to handle observation on an observation",
-			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
-		})
-
-	timeToHandleQuorum = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_time_to_handle_quorum_us",
-			Help:    "Latency histogram for total time to handle quorum on an observation",
-			Buckets: []float64{25.0, 50.0, 75.0, 100.0, 200.0, 300.0, 400.0, 500.0, 750.0, 1000.0, 5000.0, 10_000.0},
-		})
 )
 
 func NewProcessor(
@@ -275,7 +261,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleMessage(k)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleObservation(m)
+			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-cleanup.C:
