@@ -903,10 +903,8 @@ var blockNotFoundErrors = map[string]struct{}{
 
 // canRetryGetBlockTime returns true if the error returned by getBlockTime warrants doing a retry.
 func canRetryGetBlockTime(err error) bool {
-	if _, exists := blockNotFoundErrors[err.Error()]; exists {
-		return true
-	}
-	return false
+	_, exists := blockNotFoundErrors[err.Error()]
+	return exists
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
