@@ -501,9 +501,9 @@ const TESTNET = {
     nft_bridge: "0x0A693c2D594292B6Eb89Cb50EFe4B0b63Dd2760D",
   },
   acala: {
-    core: "0x4377B49d559c0a9466477195C6AdC3D433e265c0",
-    token_bridge: "0xebA00cbe08992EdD08ed7793E07ad6063c807004",
-    nft_bridge: "0x96f1335e0AcAB3cfd9899B30b2374e25a2148a6E",
+    core: "0x64fb09E405D2043ed7785a29E296C766D56F2056",
+    token_bridge: "0xe157115ef34c93145Fec2FE53706846853B07F42",
+    nft_bridge: undefined,
   },
   klaytn: {
     core: "0x1830CC6eE66c84D2F177B94D544967c774E624cA",
