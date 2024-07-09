@@ -21,7 +21,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	ethereum "github.com/ethereum/go-ethereum"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
@@ -895,9 +894,17 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	w.pendingMu.Unlock()
 }
 
+// blockNotFoundErrors is used by `canRetryGetBlockTime`. It is a map of the error returns from `getBlockTime` that can trigger a retry.
+var blockNotFoundErrors = map[string]struct{}{
+	"not found":                     {},
+	"Unknown block":                 {},
+	"cannot query unfinalized data": {}, // Seen on Avalanche
+}
+
 // canRetryGetBlockTime returns true if the error returned by getBlockTime warrants doing a retry.
 func canRetryGetBlockTime(err error) bool {
-	return err == ethereum.NotFound /* go-ethereum */ || err.Error() == "cannot query unfinalized data" /* avalanche */
+	_, exists := blockNotFoundErrors[err.Error()]
+	return exists
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
