@@ -110,6 +110,7 @@ type Components struct {
 	// is only accessed by a single routine at any given time in a running Guardian.
 	ProtectedHostByGuardianKeyLock sync.Mutex
 	// WarnChannelOverflow: If true, errors due to overflowing channels will produce logger.Warn
+	// WARNING: This should not be enabled in production. It is only used in node tests to watch for overflows.
 	WarnChannelOverflow bool
 	// SignedHeartbeatLogLevel is the log level at which SignedHeartbeatReceived events will be logged.
 	SignedHeartbeatLogLevel zapcore.Level
@@ -588,6 +589,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						}()
 
 						if GossipCutoverComplete() {
+							if controlPubsubTopic == nil {
+								panic("controlPubsubTopic should not be nil when nodeName is set")
+							}
 							err = controlPubsubTopic.Publish(ctx, b)
 							p2pMessagesSent.WithLabelValues("control").Inc()
 							if err != nil {
@@ -616,99 +620,97 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				case <-ctx.Done():
 					return
 				case msg := <-params.gossipControlSendC:
-					if controlPubsubTopic != nil {
-						if GossipCutoverComplete() {
-							err := controlPubsubTopic.Publish(ctx, msg)
-							p2pMessagesSent.WithLabelValues("control").Inc()
-							if err != nil {
-								logger.Error("failed to publish message from control queue", zap.Error(err))
-							}
-						} else if vaaPubsubTopic != nil {
-							err := vaaPubsubTopic.Publish(ctx, msg)
-							p2pMessagesSent.WithLabelValues("old_control").Inc()
-							if err != nil {
-								logger.Error("failed to publish message from control queue to old topic", zap.Error(err))
-							}
+					if GossipCutoverComplete() {
+						if controlPubsubTopic == nil {
+							panic("controlPubsubTopic should not be nil when gossipControlSendC is set")
 						}
-					} else {
-						logger.Error("received a message on the control queue when we do not have a control topic")
+						err := controlPubsubTopic.Publish(ctx, msg)
+						p2pMessagesSent.WithLabelValues("control").Inc()
+						if err != nil {
+							logger.Error("failed to publish message from control queue", zap.Error(err))
+						}
+					} else if vaaPubsubTopic != nil {
+						err := vaaPubsubTopic.Publish(ctx, msg)
+						p2pMessagesSent.WithLabelValues("old_control").Inc()
+						if err != nil {
+							logger.Error("failed to publish message from control queue to old topic", zap.Error(err))
+						}
 					}
 				case msg := <-params.gossipAttestationSendC:
-					if attestationPubsubTopic != nil {
-						if GossipCutoverComplete() {
-							err := attestationPubsubTopic.Publish(ctx, msg)
-							p2pMessagesSent.WithLabelValues("attestation").Inc()
-							if err != nil {
-								logger.Error("failed to publish message from attestation queue", zap.Error(err))
-							}
-						} else if vaaPubsubTopic != nil {
-							err := vaaPubsubTopic.Publish(ctx, msg)
-							p2pMessagesSent.WithLabelValues("old_attestation").Inc()
-							if err != nil {
-								logger.Error("failed to publish message from attestation queue to old topic", zap.Error(err))
-							}
+					if GossipCutoverComplete() {
+						if attestationPubsubTopic == nil {
+							panic("attestationPubsubTopic should not be nil when gossipAttestationSendC is set")
 						}
-					} else {
-						logger.Error("received a message on the attestation queue when we do not have an attestation topic")
+						err := attestationPubsubTopic.Publish(ctx, msg)
+						p2pMessagesSent.WithLabelValues("attestation").Inc()
+						if err != nil {
+							logger.Error("failed to publish message from attestation queue", zap.Error(err))
+						}
+					} else if vaaPubsubTopic != nil {
+						err := vaaPubsubTopic.Publish(ctx, msg)
+						p2pMessagesSent.WithLabelValues("old_attestation").Inc()
+						if err != nil {
+							logger.Error("failed to publish message from attestation queue to old topic", zap.Error(err))
+						}
 					}
 				case msg := <-params.gossipVaaSendC:
-					if vaaPubsubTopic != nil {
-						err := vaaPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.WithLabelValues("vaa").Inc()
-						if err != nil {
-							logger.Error("failed to publish message from vaa queue", zap.Error(err))
-						}
-					} else {
-						logger.Error("received a message on the vaa queue when we do not have a vaa topic")
+					if vaaPubsubTopic == nil {
+						panic("vaaPubsubTopic should not be nil when gossipVaaSendC is set")
+					}
+					err := vaaPubsubTopic.Publish(ctx, msg)
+					p2pMessagesSent.WithLabelValues("vaa").Inc()
+					if err != nil {
+						logger.Error("failed to publish message from vaa queue", zap.Error(err))
 					}
 				case msg := <-params.obsvReqSendC:
-					if controlPubsubTopic != nil {
-						b, err := proto.Marshal(msg)
+					b, err := proto.Marshal(msg)
+					if err != nil {
+						panic(err)
+					}
+
+					// Sign the observation request using our node's guardian key.
+					digest := signedObservationRequestDigest(b)
+					sig, err := ethcrypto.Sign(digest.Bytes(), params.gk)
+					if err != nil {
+						panic(err)
+					}
+
+					sReq := &gossipv1.SignedObservationRequest{
+						ObservationRequest: b,
+						Signature:          sig,
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.gk.PublicKey).Bytes(),
+					}
+
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedObservationRequest{
+							SignedObservationRequest: sReq}}
+
+					b, err = proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+
+					// Send to local observation request queue (the loopback message is ignored)
+					if params.obsvReqC != nil {
+						params.obsvReqC <- msg
+					}
+
+					if GossipCutoverComplete() {
+						if controlPubsubTopic == nil {
+							panic("controlPubsubTopic should not be nil when obsvReqSendC is set")
+						}
+						err = controlPubsubTopic.Publish(ctx, b)
+						p2pMessagesSent.WithLabelValues("control").Inc()
 						if err != nil {
-							panic(err)
+							logger.Error("failed to publish observation request", zap.Error(err))
+						} else {
+							logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 						}
-
-						// Sign the observation request using our node's guardian key.
-						digest := signedObservationRequestDigest(b)
-						sig, err := ethcrypto.Sign(digest.Bytes(), params.gk)
+					} else if vaaPubsubTopic != nil {
+						err = vaaPubsubTopic.Publish(ctx, b)
+						p2pMessagesSent.WithLabelValues("old_control").Inc()
 						if err != nil {
-							panic(err)
-						}
-
-						sReq := &gossipv1.SignedObservationRequest{
-							ObservationRequest: b,
-							Signature:          sig,
-							GuardianAddr:       ethcrypto.PubkeyToAddress(params.gk.PublicKey).Bytes(),
-						}
-
-						envelope := &gossipv1.GossipMessage{
-							Message: &gossipv1.GossipMessage_SignedObservationRequest{
-								SignedObservationRequest: sReq}}
-
-						b, err = proto.Marshal(envelope)
-						if err != nil {
-							panic(err)
-						}
-
-						// Send to local observation request queue (the loopback message is ignored)
-						if params.obsvReqC != nil {
-							params.obsvReqC <- msg
-						}
-
-						if GossipCutoverComplete() {
-							err = controlPubsubTopic.Publish(ctx, b)
-							p2pMessagesSent.WithLabelValues("control").Inc()
-							if err != nil {
-								logger.Error("failed to publish observation request", zap.Error(err))
-							} else {
-								logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
-							}
-						} else if vaaPubsubTopic != nil {
-							err = vaaPubsubTopic.Publish(ctx, b)
-							p2pMessagesSent.WithLabelValues("old_control").Inc()
-							if err != nil {
-								logger.Error("failed to publish observation request to old topic", zap.Error(err))
-							}
+							logger.Error("failed to publish observation request to old topic", zap.Error(err))
 						}
 					}
 				}
@@ -1044,7 +1046,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
 							default:
 								if params.components.WarnChannelOverflow {
-									// TODO do not log this in production
 									var hexStr string
 									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
 										hexStr = vaa.HexDigest()
