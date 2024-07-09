@@ -545,7 +545,7 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 	}
 
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -1775,7 +1775,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	gov.env = common.TestNet
 	err := gov.initConfig()
@@ -1785,7 +1785,7 @@ func TestMainnetConfigIsValid(t *testing.T) {
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	gov.env = common.TestNet
 	err := gov.initConfig()

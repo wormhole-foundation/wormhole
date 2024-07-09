@@ -195,14 +195,18 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
-				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env)
+				if flowCancelEnabled {
+					logger.Info("chain governor is enabled with flow cancel enabled")
+				} else {
+					logger.Info("chain governor is enabled without flow cancel")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled)
 			} else {
 				logger.Info("chain governor is disabled")
 			}
