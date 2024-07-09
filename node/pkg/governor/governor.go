@@ -149,10 +149,6 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	if targetChain != ce.emitterChainId {
 		return fmt.Errorf("flow cancel transfer TargetChain %s does not match this chainEntry %s", targetChain, ce.emitterChainId)
 	}
-	// Big transfers should not flow cancel under any circumstances
-	if ce.isBigTransfer(transfer.dbTransfer.Value) {
-		return fmt.Errorf("refusing to add flow cancel transfer with value %d above the bigTransactionSize %d", transfer.dbTransfer.Value, ce.bigTransactionSize)
-	}
 
 	ce.transfers = append(ce.transfers, transfer)
 	return nil
@@ -794,11 +790,6 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 							if tokenEntry.flowCancels {
 								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
-									// Defense in depth check. A transfer with this value should have been
-									// added to the pending list above instead of reaching this branch.
-									if ce.isBigTransfer(value) {
-										return nil, fmt.Errorf("refusing to add flow cancel transfer with value %d above the bigTransactionSize %d", transfer.dbTransfer.Value, ce.bigTransactionSize)
-									}
 
 									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
 										return nil, err
