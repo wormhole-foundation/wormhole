@@ -100,6 +100,7 @@ func (gov *ChainGovernor) Status() (resp string) {
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+
 	for _, ce := range gov.chains {
 		valueTrans, err := sumValue(ce.transfers, startTime)
 		if err != nil {
@@ -282,7 +283,9 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	for _, ce := range gov.chains {
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, cid := range gov.chainIds {
+		ce := gov.chains[cid]
 		value, err := sumValue(ce.transfers, startTime)
 		if err != nil {
 			// Don't return an error here, just return 0
@@ -493,7 +496,9 @@ var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
 func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
-	for _, ce := range gov.chains {
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, cid := range gov.chainIds {
+		ce := gov.chains[cid]
 		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
 			ChainId:            uint32(ce.emitterChainId),
 			NotionalLimit:      ce.dailyLimit,

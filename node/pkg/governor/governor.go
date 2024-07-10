@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"sync"
 	"time"
 
@@ -179,12 +180,15 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                    db.GovernorDB // protected by `mutex`
-	logger                *zap.Logger
-	mutex                 sync.Mutex
-	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
-	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
-	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
+	db                  db.GovernorDB // protected by `mutex`
+	logger              *zap.Logger
+	mutex               sync.Mutex
+	tokens              map[tokenKey]*tokenEntry    // protected by `mutex`
+	tokensByCoinGeckoId map[string][]*tokenEntry    // protected by `mutex`
+	chains              map[vaa.ChainID]*chainEntry // protected by `mutex`
+	// We maintain a sorted slice of governed chainIds so we can iterate over maps in a deterministic way
+	// This slice should be sorted in ascending order by (Wormhole) Chain ID.
+	chainIds              []vaa.ChainID
 	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
@@ -380,6 +384,19 @@ func (gov *ChainGovernor) initConfig() error {
 	if len(gov.chains) == 0 {
 		return fmt.Errorf("no chains are configured")
 	}
+
+	// Populate a sorted list of chain IDs so that we can iterate over maps in a determinstic way.
+	// https://go.dev/blog/maps, "Iteration order" section
+	var governedChainIds []vaa.ChainID
+	for id := range gov.chains {
+		governedChainIds = append(governedChainIds, id)
+	}
+	// Custom sorting for the vaa.ChainID type
+	sort.Slice(governedChainIds, func(i, j int) bool {
+		return governedChainIds[i] < governedChainIds[j]
+	})
+
+	gov.chainIds = governedChainIds
 
 	return nil
 }
@@ -675,7 +692,9 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		gov.msgsToPublish = nil
 	}
 
-	for _, ce := range gov.chains {
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, cid := range gov.chainIds {
+		ce := gov.chains[cid]
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
