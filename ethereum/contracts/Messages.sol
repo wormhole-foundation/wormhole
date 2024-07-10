@@ -6,12 +6,10 @@ pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
 import "./Structs.sol";
-import "./libraries/external/BytesLib.sol";
-import "wormhole-solidity-sdk/libraries/BytesParsing.sol";
+import "wormhole-sdk/libraries/BytesParsing.sol";
 
 
 contract Messages is Getters {
-    using BytesLib for bytes;
     using BytesParsing for bytes;
 
     uint8 private constant ADDRESS_SIZE = 20; // in bytes
@@ -219,13 +217,7 @@ contract Messages is Getters {
         }
 
         /// @dev Verify the proposed vm.signatures against the guardianSet
-        (bool signaturesValid, string memory invalidReason) = verifySignatures(hash, signatures, guardianSet);
-        if(!signaturesValid){
-            return (false, invalidReason);
-        }
-
-        /// If we are here, we've validated the VM is a valid multi-sig that matches the current guardianSet.
-        return (true, "");
+        return verifySignatures(hash, signatures, guardianSet);
     }
 
     /**

@@ -41,7 +41,7 @@ lib/openzeppelin-contracts:
 	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
 
 lib/wormhole-solidity-sdk:
-	forge install wormhole-foundation/wormhole-solidity-sdk@b9e129e65d34827d92fceeed8c87d3ecdfc801d0 --no-git --no-commit
+	forge install djb15/wormhole-solidity-sdk@78f4b5e1d1ce4c36e43522c9205eb1e92fde7106 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
