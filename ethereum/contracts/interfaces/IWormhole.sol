@@ -100,6 +100,8 @@ interface IWormhole {
 
     function verifySignatures(bytes32 hash, Signature[] memory signatures, GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason);
 
+    function verifyCurrentQuorum(bytes32 hash, Signature[] memory signatures) external view returns (bool valid, string memory response);
+
     function parseVM(bytes memory encodedVM) external pure returns (VM memory vm);
 
     function quorum(uint numGuardians) external pure returns (uint numSignaturesRequiredForQuorum);
