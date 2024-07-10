@@ -133,6 +133,8 @@ Initialize the Wormchain environment with the necessary configurations.
 ```bash
 /path/to/wormchain/bin/wormchaind init <your-node-name> --chain-id wormchain --home /path/to/wormchain/directory
 ```
+This command will generate the private validator key. That key should be backed up.
+This key is set on `config.toml` file under the `priv_validator_key_file` field.
 
 #### Generate configuration files
 The `--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
@@ -184,6 +186,17 @@ To generate wormchain keys, run the following command:
 ```bash
 /path/to/wormchain/bin/wormchaind keys add <key-name> --keyring-backend file --home /path/to/wormchain/directory
 ```
+
+This command will create a `<key-name>.info` file. To extract the key, run the following command:
+```bash
+wormchaind keys export <key_name> --home /path/to/wormchain/directory --keyring-dir . --keyring-backend file
+```
+This command will ask for a passphrase to be created for it. Both `wormchain.key` and `passphrase` will be used by the following `guardiand` flags:
+- `--accountantKeyPath`
+- `--accountantKeyPassPhrase`
+
+**Note**
+These steps could be executed directly on the `guardiand` node, having previously built the `wormchaind` binary.
 
 #### Wormchain Useful Commands
 
