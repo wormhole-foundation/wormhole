@@ -196,7 +196,7 @@ interface IHevm {
     function addr(uint256 privateKey) external returns (address add);
     function ffi(string[] calldata inputs) external returns (bytes memory result);
     function prank(address newSender) external;
-    function createFork() external returns (uint256 forkId);
+    function createFork(string calldata urlOrAlias) external returns (uint256 forkId);
     function selectFork(uint256 forkId) external;
 }
 
@@ -249,10 +249,10 @@ contract DiffFuzzUpgrades {
     }
 
     constructor() public {
-        hevm.roll(20286330);
-        hevm.warp(1720737875);
-        fork1 = hevm.createFork();
-        fork2 = hevm.createFork();
+        hevm.roll(20286167);
+        hevm.warp(1720735919);
+        fork1 = hevm.createFork("1");
+        fork2 = hevm.createFork("2");
         fork1 = 1;
         fork2 = 2;
         implementationV1 = IImplementationV1(0x3c3d457f1522D3540AB3325Aa5f1864E34cBA9D0);
@@ -341,7 +341,7 @@ contract DiffFuzzUpgrades {
         }
     }
 
-    function Implementation_verifyVM(VM memory a) public virtual {
+    function Implementation_verifyVM(IImplementationV2.VM memory a) public virtual {
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -364,7 +364,7 @@ contract DiffFuzzUpgrades {
         }
     }
 
-    function Implementation_verifySignatures(bytes32 a, Signature[] memory b, GuardianSet memory c) public virtual {
+    function Implementation_verifySignatures(bytes32 a, IImplementationV2.Signature[] memory b, GuardianSet memory c) public virtual {
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -903,7 +903,7 @@ contract DiffFuzzUpgrades {
         assert(true);
     }
 
-    function Implementation_verifyCurrentQuorum(bytes32 a, Signature[] memory b) public virtual {
+    function Implementation_verifyCurrentQuorum(bytes32 a, IImplementationV2.Signature[] memory b) public virtual {
         // This function does nothing with the V1, since verifyCurrentQuorum is new in the V2
         hevm.selectFork(fork2);
         emit SwitchedFork(fork2);
