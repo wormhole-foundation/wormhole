@@ -1,4 +1,4 @@
-# 3. cosmos sdk v0.47 upgrade will be implemented in wormhole fork
+# 3. Cosmos SDK v0.47 upgrade will be implemented in Wormhole Fork
 
 Date: 2024-07-10
 
@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-The Wormhole Foundation has made a copy of the Cosmos SDK repository, which can be found in their Github organization [here](https://github.com/wormhole-foundation/cosmos-sdk). They are referencing this copied repository in the wormchain [go.mod](	github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole-2) file, referencing the [v0.45.9-wormhole-2](https://github.com/wormhole-foundation/cosmos-sdk/releases/tag/v0.45.9-wormhole-2) tag. This tag has [commits](https://github.com/wormhole-foundation/cosmos-sdk/commits/v0.45.9-wormhole-2/?since=2022-10-19&until=2022-12-21) made by the wormhole-foundation team that fundamentally change the behavior of the staking module, particularly implementing proof of authority based on the wormchain guardian set.
+The Wormhole Foundation has made a copy of the Cosmos SDK repository, which can be found in their Github organization [here](https://github.com/wormhole-foundation/cosmos-sdk). They are referencing this copied repository in the wormchain [go.mod](https://github.com/wormhole-foundation/wormhole/blob/6236a9a6cbd0dc00a940e6654c6f6106d0904ece/wormchain/go.mod#L142) file, referencing the [v0.45.9-wormhole-2](https://github.com/wormhole-foundation/cosmos-sdk/releases/tag/v0.45.9-wormhole-2) tag. This tag has [commits](https://github.com/wormhole-foundation/cosmos-sdk/commits/v0.45.9-wormhole-2/?since=2022-10-19&until=2022-12-21) made by the wormhole-foundation team that fundamentally change the behavior of the staking module, particularly implementing proof of authority based on the wormchain guardian set.
 
 ## Decision
 
