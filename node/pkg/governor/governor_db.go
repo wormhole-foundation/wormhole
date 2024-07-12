@@ -243,15 +243,19 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	}
 	ce.transfers = append(ce.transfers, transfer)
 
-	// Reload flow-cancel transfers for the TargetChain. This is important when node restarts so that a corresponding,
-	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` loop but
-	// that function does not capture flow-cancelling when the node is restarted.
+	// Reload flow-cancel transfers for the TargetChain. This is important when the node restarts so that a corresponding,
+	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` and
+	// `CheckPending` loops but those functions do not capture flow-cancelling when the node is restarted.
 	tokenEntry := gov.tokens[tk]
 	if tokenEntry != nil {
 		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 		if tokenEntry.flowCancels {
 			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
 				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
+					gov.logger.Warn("could not add flow canceling transfer to destination chain",
+						zap.String("msgID", xfer.MsgID),
+						zap.String("hash", xfer.Hash), zap.Error(err),
+					)
 					return err
 				}
 			} else {
