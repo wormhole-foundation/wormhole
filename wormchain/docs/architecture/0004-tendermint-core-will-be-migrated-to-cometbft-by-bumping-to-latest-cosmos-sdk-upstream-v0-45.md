@@ -30,4 +30,4 @@ The migration to Tendermint Core will take place by:
 This change will have the following consequences:
 
 1. It pulls in the latest bug fixes and security updates in the v0.45 line while work on moving to v0.47 continues (see ADR 3 for details)
-2. It will require extensive testing and review to ensure the changes fro v0.45.9 to v0.45.16 did not break the Wormchain repo's usage of the Cosmos SDK
+2. It will require extensive testing and review to ensure the changes from v0.45.9 to v0.45.16 did not break the Wormchain repo's usage of the Cosmos SDK
