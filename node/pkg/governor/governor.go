@@ -686,16 +686,8 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 			foundOne := false
 			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 			if err != nil {
-				// An error here might mean that the sum of emitted transfers for a chain has exceeded
-				// the Governor's daily limit for this chain, or that the previous total value could
-				// not be calculated. Although this is a serious issue, we do not want to return an error
-				// here because it will cause the Governor to be restarted
-				// by the processor. Instead, skip processing pending transfers for this chain while
-				// continuing to process other chains as normal.
-				// Note that the sliding 24h window and/or incoming flow canceling transfers will
-				// reduce `prevTotalValue` over time. Therefore we expect this state to be temporary.
 				gov.logger.Error("error when attempting to trim and sum transfers", zap.Error(err))
-				gov.logger.Error("refusing to release transfers for this chain until Governor usage is reduced",
+				gov.logger.Error("refusing to release transfers for this chain until the sum can be correctly calculated",
 					zap.Stringer("chainId", chainId),
 					zap.Uint64("prevTotalValue", prevTotalValue),
 					zap.Error(err))
@@ -883,42 +875,35 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a
+// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
 // The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
-// As a side-effect, this function modifies the parameter `emitter`, updating its `transfers` field so that it only includes
+// As a side-effect, this function modifies the parameter `chainEntry`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
-// Returns an error if the sum cannit be calculated or if the sum exceeds the daily limit for the chain. If this happens,
-// the transfers field will still be updated.
+// Returns an error if the sum cannot be calculated. The transfers field will still be updated in this case. When
+// an error condition occurs, this function returns the chain's `dailyLimit` as the sum. This should result in the
+// chain appearing at maximum capacity from the perspective of the Governor, and therefore cause new transfers to be
+// queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
-// SECURITY Invariant: The `sum` return value should never exceed the "Governor limit" for the chain
-func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
-	// Sum the value of all outgoing transfers
-	var sumOutgoing int64
-	sumOutgoing, emitter.transfers, err = gov.TrimAndSumValue(emitter.transfers, startTime)
+func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
+	// Sum the value of all transfers for this chain. This sum can be negative if flow-cancelling is enabled
+	// and the incoming value of flow-cancelling assets exceeds the summed value of all outgoing assets.
+	var sumValue int64
+	sumValue, chainEntry.transfers, err = gov.TrimAndSumValue(chainEntry.transfers, startTime)
 	if err != nil {
-		return 0, err
+		// Return the daily limit as the sum so that any further transfers will be queued.
+		return chainEntry.dailyLimit, err
 	}
 
-	// Return early if the sum is not positive as it cannot exceed the daily limit.
-	// In this case, return 0 even if the sum is negative.
-	if sumOutgoing <= 0 {
+	// Return 0 even if the sum is negative.
+	if sumValue <= 0 {
 		return 0, nil
 	}
 
-	sum = uint64(sumOutgoing)
-	if sum > emitter.dailyLimit {
-		return 0, fmt.Errorf(
-			"invariant violation: calculated sum %d exceeds Governor limit %d",
-			sum,
-			emitter.dailyLimit,
-		)
-	}
-
-	return sum, nil
+	return uint64(sumValue), nil
 
 }
 

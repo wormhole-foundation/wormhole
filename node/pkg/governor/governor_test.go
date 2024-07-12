@@ -360,10 +360,12 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	assert.Zero(t, usage)
 }
 
-// Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
-// the configured Governor limit. This should never happen, so we make sure that an error
-// is returned if the system is in this state
-func TestInvariantGovernorLimit(t *testing.T) {
+// We never expect this to occur when flow-cancelling is disabled. If flow-cancelling is enabled, there
+// are some cases where the outgoing value exceeds the daily limit. Example: a large, incoming transfer
+// of a flow-cancelling asset increases the Governor capacity beyond the daily limit. After 24h, that
+// transfer is trimmed. This reduces the daily limit back to normal, but by this time more outgoing
+// transfers have been emitted, causing the sum to exceed the daily limit.
+func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 	require.NoError(t, err)
@@ -406,10 +408,69 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	assert.Equal(t, expectedNumTransfers, len(transfers))
 	assert.NotZero(t, sum)
 
-	// Make sure we trigger the Invariant
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
-	require.ErrorContains(t, err, "invariant violation: calculated sum")
-	assert.Zero(t, usage)
+	require.NoError(t, err)
+	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage)
+}
+
+func TestTrimAndSumValueOverflowErrors(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	var transfers_from_emitter []transfer
+	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	emitterChainId := vaa.ChainIDSolana
+
+	transfer, err := newTransferFromDbTransfer(&db.Transfer{Value: math.MaxInt64, Timestamp: transferTime})
+	require.NoError(t, err)
+	transfer2, err := newTransferFromDbTransfer(&db.Transfer{Value: 1, Timestamp: transferTime})
+	require.NoError(t, err)
+	transfers_from_emitter = append(transfers_from_emitter, transfer, transfer2)
+
+	// Populate chainEntry and ChainGovernor
+	emitter := &chainEntry{
+		transfers:      transfers_from_emitter,
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     10000,
+	}
+	gov.chains[emitter.emitterChainId] = emitter
+
+	sum, _, err := gov.TrimAndSumValue(emitter.transfers, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer overflow")
+	assert.Zero(t, sum)
+	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer overflow")
+	assert.Equal(t, uint64(10000), usage)
+
+	// overwrite emitter (discard transfer added above)
+	emitter = &chainEntry{
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     10000,
+	}
+	gov.chains[emitter.emitterChainId] = emitter
+
+	// Now test underflow
+	transfer3 := &db.Transfer{Value: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
+
+	ce := gov.chains[emitter.emitterChainId]
+	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
+	require.NoError(t, err)
+	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
+	require.NoError(t, err)
+
+	sum, _, err = gov.TrimAndSumValue(emitter.transfers, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer underflow")
+	assert.Zero(t, sum)
+	usage, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer underflow")
+	assert.Equal(t, uint64(10000), usage)
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
