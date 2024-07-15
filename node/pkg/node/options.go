@@ -39,13 +39,32 @@ type GuardianOption struct {
 
 // GuardianOptionP2P configures p2p networking.
 // Dependencies: Accountant, Governor
-func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, nodeName string, disableHeartbeatVerify bool, port uint, ccqBootstrapPeers string, ccqPort uint, ccqAllowedPeers, gossipAdvertiseAddress string, ibcFeaturesFunc func() string) *GuardianOption {
+func GuardianOptionP2P(
+	p2pKey libp2p_crypto.PrivKey,
+	networkId string,
+	bootstrapPeers string,
+	nodeName string,
+	subscribeToVAAs bool,
+	disableHeartbeatVerify bool,
+	port uint,
+	ccqBootstrapPeers string,
+	ccqPort uint,
+	ccqAllowedPeers string,
+	gossipAdvertiseAddress string,
+	ibcFeaturesFunc func() string,
+) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
 		dependencies: []string{"accountant", "governor", "gateway-relayer"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
+
+			var signedInC chan<- *gossipv1.SignedVAAWithQuorum
+			if subscribeToVAAs {
+				logger.Info("subscribing to incoming signed VAAs")
+				signedInC = g.signedInC.writeC
+			}
 
 			if g.env == common.GoTest {
 				components.WarnChannelOverflow = true
@@ -65,7 +84,7 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 					nodeName,
 					g.gk,
 					g.obsvC,
-					g.signedInC.writeC,
+					signedInC,
 					g.obsvReqC.writeC,
 					g.gossipControlSendC,
 					g.gossipAttestationSendC,
