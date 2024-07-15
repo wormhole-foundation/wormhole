@@ -11,8 +11,8 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	testutil "github.com/cosmos/cosmos-sdk/x/bank/testutil"
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/wormhole-foundation/wormchain/app"
@@ -26,7 +26,7 @@ func CreateTestInput(t *testing.T) (*app.App, sdk.Context) {
 }
 
 func FundAccount(t *testing.T, ctx sdk.Context, osmosis *app.App, acct sdk.AccAddress) {
-	err := simapp.FundAccount(osmosis.BankKeeper, ctx, acct, sdk.NewCoins(
+	err := testutil.FundAccount(osmosis.BankKeeper, ctx, acct, sdk.NewCoins(
 		sdk.NewCoin("uosmo", sdk.NewInt(10000000000)),
 	))
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func instantiateReflectContract(t *testing.T, ctx sdk.Context, tokenz *app.App, 
 }
 
 func fundAccount(t *testing.T, ctx sdk.Context, tokenz *app.App, addr sdk.AccAddress, coins sdk.Coins) {
-	err := simapp.FundAccount(
+	err := testutil.FundAccount(
 		tokenz.BankKeeper,
 		ctx,
 		addr,

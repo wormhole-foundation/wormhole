@@ -1,125 +1,131 @@
-package rest
+// The whole REST service was deprecated in v0.45 and now no longer exists in v0.47
 
-import (
-	"encoding/hex"
-	"net/http"
+// package rest
 
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/tx"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/rest"
-	govrest "github.com/cosmos/cosmos-sdk/x/gov/client/rest"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
-)
+// import (
+// 	"encoding/hex"
+// 	"net/http"
 
-type (
-	// GuardianSetUpdateProposalReq defines a guardian set update proposal request body.
-	GuardianSetUpdateProposalReq struct {
-		BaseReq rest.BaseReq `json:"base_req" yaml:"base_req"`
+// 	"github.com/cosmos/cosmos-sdk/client"
+// 	"github.com/cosmos/cosmos-sdk/client/tx"
+// 	sdk "github.com/cosmos/cosmos-sdk/types"
+// 	"github.com/cosmos/cosmos-sdk/testutil/rest"
+// 	govrest "github.com/cosmos/cosmos-sdk/x/gov/client/rest"
+// 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+// 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
+// )
 
-		Title            string         `json:"title" yaml:"title"`
-		Description      string         `json:"description" yaml:"description"`
-		GuardianSetIndex uint32         `json:"guardianSetIndex" yaml:"guardianSetIndex"`
-		GuardianSetKeys  []string       `json:"guardianSetKeys" yaml:"guardianSetKeys"`
-		Proposer         sdk.AccAddress `json:"proposer" yaml:"proposer"`
-		Deposit          sdk.Coins      `json:"deposit" yaml:"deposit"`
-	}
+// // https://github.com/cosmos/cosmos-sdk/blob/main/CHANGELOG.md#v0460---2022-07-26
+// // 'types/rest package moved to testutil/rest'
+// // PR: https://github.com/cosmos/cosmos-sdk/pull/9594/files#diff-3c9f5288e05dbd4b31c9fe08f0732fd297585ed65174c0a48eb3f249635fc673
 
-	// WormholeGovernanceMessageProposalReq defines a wormhole governance message proposal request body.
-	WormholeGovernanceMessageProposalReq struct {
-		BaseReq rest.BaseReq `json:"base_req" yaml:"base_req"`
+// type (
+// 	// GuardianSetUpdateProposalReq defines a guardian set update proposal request body.
+// 	GuardianSetUpdateProposalReq struct {
+// 		BaseReq rest.BaseReq `json:"base_req" yaml:"base_req"`
 
-		Title       string         `json:"title" yaml:"title"`
-		Description string         `json:"description" yaml:"description"`
-		TargetChain uint16         `json:"targetChain" yaml:"targetChain"`
-		Action      uint8          `json:"action" yaml:"action"`
-		Module      []byte         `json:"module" yaml:"module"`
-		Payload     []byte         `json:"payload" yaml:"payload"`
-		Proposer    sdk.AccAddress `json:"proposer" yaml:"proposer"`
-		Deposit     sdk.Coins      `json:"deposit" yaml:"deposit"`
-	}
-)
+// 		Title            string         `json:"title" yaml:"title"`
+// 		Description      string         `json:"description" yaml:"description"`
+// 		GuardianSetIndex uint32         `json:"guardianSetIndex" yaml:"guardianSetIndex"`
+// 		GuardianSetKeys  []string       `json:"guardianSetKeys" yaml:"guardianSetKeys"`
+// 		Proposer         sdk.AccAddress `json:"proposer" yaml:"proposer"`
+// 		Deposit          sdk.Coins      `json:"deposit" yaml:"deposit"`
+// 	}
 
-// ProposalGuardianSetUpdateRESTHandler returns a ProposalRESTHandler that exposes the guardian set update
-// REST handler with a given sub-route.
-func ProposalGuardianSetUpdateRESTHandler(clientCtx client.Context) govrest.ProposalRESTHandler {
-	return govrest.ProposalRESTHandler{
-		SubRoute: "wormhole_guardian_update",
-		Handler:  postProposalGuardianSetUpdateHandlerFn(clientCtx),
-	}
-}
+// 	// WormholeGovernanceMessageProposalReq defines a wormhole governance message proposal request body.
+// 	WormholeGovernanceMessageProposalReq struct {
+// 		BaseReq rest.BaseReq `json:"base_req" yaml:"base_req"`
 
-func postProposalGuardianSetUpdateHandlerFn(clientCtx client.Context) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req GuardianSetUpdateProposalReq
-		if !rest.ReadRESTReq(w, r, clientCtx.LegacyAmino, &req) {
-			return
-		}
+// 		Title       string         `json:"title" yaml:"title"`
+// 		Description string         `json:"description" yaml:"description"`
+// 		TargetChain uint16         `json:"targetChain" yaml:"targetChain"`
+// 		Action      uint8          `json:"action" yaml:"action"`
+// 		Module      []byte         `json:"module" yaml:"module"`
+// 		Payload     []byte         `json:"payload" yaml:"payload"`
+// 		Proposer    sdk.AccAddress `json:"proposer" yaml:"proposer"`
+// 		Deposit     sdk.Coins      `json:"deposit" yaml:"deposit"`
+// 	}
+// )
 
-		req.BaseReq = req.BaseReq.Sanitize()
-		if !req.BaseReq.ValidateBasic(w) {
-			return
-		}
+// // ProposalGuardianSetUpdateRESTHandler returns a ProposalRESTHandler that exposes the guardian set update
+// // REST handler with a given sub-route.
+// func ProposalGuardianSetUpdateRESTHandler(clientCtx client.Context) govrest.ProposalRESTHandler {
+// 	return govrest.ProposalRESTHandler{
+// 		SubRoute: "wormhole_guardian_update",
+// 		Handler:  postProposalGuardianSetUpdateHandlerFn(clientCtx),
+// 	}
+// }
 
-		keys := make([][]byte, len(req.GuardianSetKeys))
-		for i, keyString := range req.GuardianSetKeys {
-			keyBytes, err := hex.DecodeString(keyString)
-			if rest.CheckBadRequestError(w, err) {
-				return
-			}
-			keys[i] = keyBytes
-		}
+// func postProposalGuardianSetUpdateHandlerFn(clientCtx client.Context) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		var req GuardianSetUpdateProposalReq
+// 		if !rest.ReadRESTReq(w, r, clientCtx.LegacyAmino, &req) {
+// 			return
+// 		}
 
-		content := types.NewGuardianSetUpdateProposal(req.Title, req.Description, types.GuardianSet{
-			Index:          req.GuardianSetIndex,
-			Keys:           keys,
-			ExpirationTime: 0,
-		})
+// 		req.BaseReq = req.BaseReq.Sanitize()
+// 		if !req.BaseReq.ValidateBasic(w) {
+// 			return
+// 		}
 
-		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
-		if rest.CheckBadRequestError(w, err) {
-			return
-		}
-		if rest.CheckBadRequestError(w, msg.ValidateBasic()) {
-			return
-		}
+// 		keys := make([][]byte, len(req.GuardianSetKeys))
+// 		for i, keyString := range req.GuardianSetKeys {
+// 			keyBytes, err := hex.DecodeString(keyString)
+// 			if rest.CheckBadRequestError(w, err) {
+// 				return
+// 			}
+// 			keys[i] = keyBytes
+// 		}
 
-		tx.WriteGeneratedTxResponse(clientCtx, w, req.BaseReq, msg)
-	}
-}
+// 		content := types.NewGuardianSetUpdateProposal(req.Title, req.Description, types.GuardianSet{
+// 			Index:          req.GuardianSetIndex,
+// 			Keys:           keys,
+// 			ExpirationTime: 0,
+// 		})
 
-// ProposalWormholeGovernanceMessageRESTHandler returns a ProposalRESTHandler that exposes the wormhole governance message
-// REST handler with a given sub-route.
-func ProposalWormholeGovernanceMessageRESTHandler(clientCtx client.Context) govrest.ProposalRESTHandler {
-	return govrest.ProposalRESTHandler{
-		SubRoute: "wormhole_governance_message",
-		Handler:  postProposalWormholeGovernanceMessageHandlerFn(clientCtx),
-	}
-}
+// 		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
+// 		if rest.CheckBadRequestError(w, err) {
+// 			return
+// 		}
+// 		if rest.CheckBadRequestError(w, msg.ValidateBasic()) {
+// 			return
+// 		}
 
-func postProposalWormholeGovernanceMessageHandlerFn(clientCtx client.Context) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req WormholeGovernanceMessageProposalReq
-		if !rest.ReadRESTReq(w, r, clientCtx.LegacyAmino, &req) {
-			return
-		}
+// 		tx.WriteGeneratedTxResponse(clientCtx, w, req.BaseReq, msg)
+// 	}
+// }
 
-		req.BaseReq = req.BaseReq.Sanitize()
-		if !req.BaseReq.ValidateBasic(w) {
-			return
-		}
+// // ProposalWormholeGovernanceMessageRESTHandler returns a ProposalRESTHandler that exposes the wormhole governance message
+// // REST handler with a given sub-route.
+// func ProposalWormholeGovernanceMessageRESTHandler(clientCtx client.Context) govrest.ProposalRESTHandler {
+// 	return govrest.ProposalRESTHandler{
+// 		SubRoute: "wormhole_governance_message",
+// 		Handler:  postProposalWormholeGovernanceMessageHandlerFn(clientCtx),
+// 	}
+// }
 
-		content := types.NewGovernanceWormholeMessageProposal(req.Title, req.Description, req.Action, req.TargetChain, req.Module, req.Payload)
+// func postProposalWormholeGovernanceMessageHandlerFn(clientCtx client.Context) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		var req WormholeGovernanceMessageProposalReq
+// 		if !rest.ReadRESTReq(w, r, clientCtx.LegacyAmino, &req) {
+// 			return
+// 		}
 
-		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
-		if rest.CheckBadRequestError(w, err) {
-			return
-		}
-		if rest.CheckBadRequestError(w, msg.ValidateBasic()) {
-			return
-		}
+// 		req.BaseReq = req.BaseReq.Sanitize()
+// 		if !req.BaseReq.ValidateBasic(w) {
+// 			return
+// 		}
 
-		tx.WriteGeneratedTxResponse(clientCtx, w, req.BaseReq, msg)
-	}
-}
+// 		content := types.NewGovernanceWormholeMessageProposal(req.Title, req.Description, req.Action, req.TargetChain, req.Module, req.Payload)
+
+// 		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
+// 		if rest.CheckBadRequestError(w, err) {
+// 			return
+// 		}
+// 		if rest.CheckBadRequestError(w, msg.ValidateBasic()) {
+// 			return
+// 		}
+
+// 		tx.WriteGeneratedTxResponse(clientCtx, w, req.BaseReq, msg)
+// 	}
+// }

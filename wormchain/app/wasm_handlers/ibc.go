@@ -6,12 +6,12 @@ import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	ibcappkeeper "github.com/cosmos/ibc-go/v4/modules/apps/transfer/keeper"
-	connectiontypes "github.com/cosmos/ibc-go/v4/modules/core/03-connection/types"
-	ibckeeper "github.com/cosmos/ibc-go/v4/modules/core/04-channel/keeper"
-	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
-	ibcportkeeper "github.com/cosmos/ibc-go/v4/modules/core/05-port/keeper"
-	ibcexported "github.com/cosmos/ibc-go/v4/modules/core/exported"
+	ibcappkeeper "github.com/cosmos/ibc-go/v7/modules/apps/transfer/keeper"
+	connectiontypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
+	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	ibcportkeeper "github.com/cosmos/ibc-go/v7/modules/core/05-port/keeper"
+	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 )
 
 // This defines which modules we actually want to expose cosmwasm contracts.
