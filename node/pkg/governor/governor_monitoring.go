@@ -649,12 +649,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 		}
 
 		emitter := gossipv1.ChainGovernorStatus_Emitter{
-			EmitterAddress:        "0x" + ce.emitterAddr.String(),
-			TotalEnqueuedVaas:     uint64(len(ce.pending)),
-			EnqueuedVaas:          enqueuedVaas,
-			SmallTxNetNotionalValue:      netUsage,
+			EmitterAddress:              "0x" + ce.emitterAddr.String(),
+			TotalEnqueuedVaas:           uint64(len(ce.pending)),
+			EnqueuedVaas:                enqueuedVaas,
+			SmallTxNetNotionalValue:     netUsage,
 			SmallTxOutgingNotionalValue: smallTxNotional,
-			FlowCancelNotionalValue:  flowCancelNotional,
+			FlowCancelNotionalValue:     flowCancelNotional,
 		}
 
 		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
