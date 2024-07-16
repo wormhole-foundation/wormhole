@@ -2322,9 +2322,9 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	// But the big transaction should not affect the daily notional.
 	ce, exists := gov.chains[vaa.ChainIDEthereum]
 	require.Equal(t, true, exists)
-	valueTrans, err = sumValue(ce.transfers, now)
+	_, _, outgoing, err := sumValue(ce.transfers, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, uint64(0), outgoing)
 }
 
 func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
