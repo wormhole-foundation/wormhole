@@ -418,9 +418,9 @@ const TESTNET = {
     chain_id: 59141,
   },
   berachain: {
-    rpc: "https://artio.rpc.berachain.com/",
+    rpc: "https://bartio.rpc.berachain.com/",
     key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 80085,
+    chain_id: 80084,
   },
   seievm: {
     rpc: "https://evm-rpc-arctic-1.sei-apis.com/",

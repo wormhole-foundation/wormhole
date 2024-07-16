@@ -137,7 +137,7 @@ axios
                     const provider = new JsonRpcProvider(
                       new Connection({
                         // fullnode: "https://fullnode.mainnet.sui.io",
-                        fullnode: "https://sui-mainnet-rpc.allthatnode.com",
+                        fullnode: "https://sui-mainnet.g.allthatnode.com/full/json_rpc",
                       })
                     );
                     const result = await getOriginalAssetSui(
