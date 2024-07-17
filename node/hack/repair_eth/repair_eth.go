@@ -366,7 +366,10 @@ func main() {
 	// Press enter to continue if not in dryRun mode
 	if !*dryRun {
 		fmt.Println("Press enter to continue")
-		fmt.Scanln()
+		_, err := fmt.Scanln()
+		if err != nil {
+			log.Printf("Scanln error: %s\n", err)
+		}
 	}
 
 	log.Printf("finding sequences")
