@@ -195,14 +195,17 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, coinGeckoApi string) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
 				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env)
+				if coinGeckoApi != "" {
+					logger.Info("coingecko pro API key in use")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, coinGeckoApi)
 			} else {
 				logger.Info("chain governor is disabled")
 			}

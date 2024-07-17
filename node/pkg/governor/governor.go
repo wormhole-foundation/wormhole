@@ -194,12 +194,14 @@ type ChainGovernor struct {
 	nextConfigPublishTime time.Time
 	statusPublishCounter  int64
 	configPublishCounter  int64
+	coinGeckoApiKey       string // Empty stirng entry means that no key was specified
 }
 
 func NewChainGovernor(
 	logger *zap.Logger,
 	db db.GovernorDB,
 	env common.Environment,
+	coinGeckoApiKey string,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
@@ -209,6 +211,7 @@ func NewChainGovernor(
 		chains:              make(map[vaa.ChainID]*chainEntry),
 		msgsSeen:            make(map[string]bool),
 		env:                 env,
+		coinGeckoApiKey:     coinGeckoApiKey,
 	}
 }
 
