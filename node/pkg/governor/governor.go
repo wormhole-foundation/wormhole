@@ -389,7 +389,7 @@ func (gov *ChainGovernor) initConfig() error {
 
 	// Populate a sorted list of chain IDs so that we can iterate over maps in a determinstic way.
 	// https://go.dev/blog/maps, "Iteration order" section
-	var governedChainIds []vaa.ChainID
+	governedChainIds := make([]vaa.ChainID, len(gov.chains))
 	for id := range gov.chains {
 		governedChainIds = append(governedChainIds, id)
 	}
