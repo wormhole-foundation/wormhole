@@ -111,9 +111,9 @@ import (
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
-	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/types"
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/packetforward/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/packetforward/types"
 
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
