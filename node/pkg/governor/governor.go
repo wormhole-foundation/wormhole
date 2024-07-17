@@ -28,6 +28,7 @@ package governor
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -390,8 +391,11 @@ func (gov *ChainGovernor) initConfig() error {
 	// Populate a sorted list of chain IDs so that we can iterate over maps in a determinstic way.
 	// https://go.dev/blog/maps, "Iteration order" section
 	governedChainIds := make([]vaa.ChainID, len(gov.chains))
+	i := 0
 	for id := range gov.chains {
-		governedChainIds = append(governedChainIds, id)
+		// updating the slice in place here to satisfy prealloc lint. In theory this should be more performant
+		governedChainIds[i] = id
+		i++
 	}
 	// Custom sorting for the vaa.ChainID type
 	sort.Slice(governedChainIds, func(i, j int) bool {
@@ -709,7 +713,11 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 
 	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
 	for _, chainId := range gov.chainIds {
-		ce := gov.chains[chainId]
+		ce, ok := gov.chains[chainId]
+		if !ok {
+			gov.logger.Error("chainId not found in gov.chains", zap.Stringer("chainId", chainId))
+
+		}
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
@@ -919,6 +927,10 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 // queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
 func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
+	if chainEntry == nil {
+		// We don't expect this to happen but this prevents a nil pointer deference
+		return 0, errors.New("TrimAndSumValeForChain parameter chainEntry must not be nil")
+	}
 	// Sum the value of all transfers for this chain. This sum can be negative if flow-cancelling is enabled
 	// and the incoming value of flow-cancelling assets exceeds the summed value of all outgoing assets.
 	var sumValue int64

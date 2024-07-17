@@ -185,6 +185,21 @@ func TestTrimEmptyTransfers(t *testing.T) {
 	assert.Equal(t, 0, len(updatedTransfers))
 }
 
+// Make sure that the code doesn't panic if called with a nil chainEntry
+func TestTrimAndSumValueForChainReturnsErrorForNilChainEntry(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+	require.NoError(t, err)
+
+	sum, err := gov.TrimAndSumValueForChain(nil, now)
+	require.Error(t, err)
+	assert.Equal(t, uint64(0), sum)
+}
+
 func TestSumAllFromToday(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
@@ -1432,7 +1447,6 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 func TestPendingTransferBeingReleased(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
-
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
@@ -1577,7 +1591,9 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, 4, len(gov.msgsSeen))
 
 	// If we check pending before noon, nothing should happen.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
+	now, err = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
+	require.NoError(t, err)
+	assert.NotNil(t, now)
 	toBePublished, err := gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
@@ -1603,6 +1619,29 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(532385), valuePending)
 	assert.Equal(t, 3, len(gov.msgsSeen))
+}
+
+func TestPopulateChainIds(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+	// Sanity check
+	assert.NotZero(t, len(gov.chainIds))
+
+	// Ensure that the chainIds slice match the entries in the chains map
+	assert.Equal(t, len(gov.chains), len(gov.chainIds))
+	lowest := 0
+	for _, chainId := range gov.chainIds {
+		chainEntry, ok := gov.chains[chainId]
+		assert.NotNil(t, chainEntry)
+		assert.True(t, ok)
+		assert.Equal(t, chainEntry.emitterChainId, chainId)
+		// Check that the chainIds are in ascending order. The point of this slice is that it provides
+		// deterministic ordering over chainIds.
+		assert.Greater(t, int(chainId), lowest)
+		lowest = int(chainId)
+	}
 }
 
 // Test that, when a small transfer (under the 'big tx limit') of a flow-cancelling asset is queued and
