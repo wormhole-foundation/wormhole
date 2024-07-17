@@ -2897,8 +2897,6 @@ func TestCoinGeckoPriceChecks(t *testing.T) {
 		require.Equal(t, ok, true)
 		require.LessOrEqual(t, token_price, 1.5)
 		require.GreaterOrEqual(t, token_price, 0.5)
-
-		fmt.Println(coinGeckoQueries)
 	}
 }
 
