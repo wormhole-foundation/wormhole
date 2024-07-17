@@ -6,7 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
-	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/router/types"
 	ibccomposabilitytypes "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"

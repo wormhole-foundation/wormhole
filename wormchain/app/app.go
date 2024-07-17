@@ -111,9 +111,9 @@ import (
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
-	packetforward "github.com/strangelove-ventures/packet-forward-middleware/v4/router"
-	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
-	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7/types"
 
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
@@ -883,6 +883,19 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		app.Ics20WasmHooks,
 	)
 
+	// Packet Forward Middleware
+	// Initialize packet forward middleware keeper BEFORE the ibc transfer keeper
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		app.appCodec,
+		app.keys[packetforwardtypes.StoreKey],
+		nil, // will be zero-value here, reference is set later on with SetTransferKeeper.
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
 	// Create Transfer Keepers
 	transferKeeper := ibctransferkeeper.NewKeeper(
 		app.appCodec,
@@ -896,22 +909,22 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		app.BankKeeper,
 		app.ScopedTransferKeeper,
 	)
+
+	app.TransferKeeper = ibctransferkeeper.NewKeeper(
+		app.appCodec,
+		app.keys[ibctransfertypes.StoreKey],
+		app.GetSubspace(ibctransfertypes.ModuleName),
+		app.PacketForwardKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		&app.IBCKeeper.PortKeeper,
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.ScopedTransferKeeper,
+	)
+
+	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 	app.TransferKeeper = transferKeeper
 	app.RawIcs20TransferAppModule = transfer.NewAppModule(app.TransferKeeper)
-
-	// Packet Forward Middleware
-	// Initialize packet forward middleware router
-	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
-		app.appCodec,
-		app.keys[packetforwardtypes.StoreKey],
-		app.GetSubspace(packetforwardtypes.ModuleName),
-		app.TransferKeeper,
-		app.IBCKeeper.ChannelKeeper,
-		app.DistrKeeper,
-		app.BankKeeper,
-		// The ICS4Wrapper is replaced by the HooksICS4Wrapper instead of the channel so that sending can be overridden by the middleware
-		app.HooksICS4Wrapper,
-	)
 
 	// Set up transfer stack
 	// channel.RecvPacket -> ibcComposabilityMw.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
