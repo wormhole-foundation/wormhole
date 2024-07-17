@@ -184,7 +184,7 @@ message ChainGovernorStatus {
     uint64 total_enqueued_vaas = 2;
     repeated EnqueuedVAA enqueued_vaas = 3; // Only the first 20 will be included.
     int64 small_tx_net_notional_value = 4;
-    uint64 small_tx_outging_notional_value = 5;
+    uint64 small_tx_outgoing_notional_value = 5;
     uint64 flow_cancel_notional_value = 6;
   }
 

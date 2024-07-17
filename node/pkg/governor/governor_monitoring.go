@@ -269,14 +269,13 @@ func sumValue(transfers []transfer, startTime time.Time) (netNotional int64, sma
 		if t.dbTransfer.Timestamp.Before(startTime) {
 			continue
 		}
-		checkedSum, err := CheckedAddInt64(netNotional, t.value)
+		netNotional, err = CheckedAddInt64(netNotional, t.value)
 		if err != nil {
 			// We have to stop and return an error here (rather than saturate, for example). The
 			// transfers are not sorted by value so we can't make any guarantee on the final value
 			// if we hit the upper or lower bound. We don't expect this to happen in any case.
 			return 0, 0, 0, err
 		}
-		netNotional = checkedSum
 		if t.value < 0 {
 			// If a transfer is negative then it is an incoming, flow-cancelling transfer.
 			// We can use the dbTransfer.Value for calculating the sum because it is the unsigned version
@@ -338,18 +337,20 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 					zap.Error(err))
 			}
 
-			resp = append(resp, &publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry{
-				ChainId:                    uint32(ce.emitterChainId),
-				RemainingAvailableNotional: remaining,
-				NotionalLimit:              ce.dailyLimit,
-				BigTransactionSize:         ce.bigTransactionSize,
-			})
 		}
 
-		sort.SliceStable(resp, func(i, j int) bool {
-			return (resp[i].ChainId < resp[j].ChainId)
+		resp = append(resp, &publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry{
+			ChainId:                    uint32(ce.emitterChainId),
+			RemainingAvailableNotional: remaining,
+			NotionalLimit:              ce.dailyLimit,
+			BigTransactionSize:         ce.bigTransactionSize,
 		})
+
 	}
+
+	sort.SliceStable(resp, func(i, j int) bool {
+		return (resp[i].ChainId < resp[j].ChainId)
+	})
 
 	return resp
 }
@@ -649,12 +650,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 		}
 
 		emitter := gossipv1.ChainGovernorStatus_Emitter{
-			EmitterAddress:              "0x" + ce.emitterAddr.String(),
-			TotalEnqueuedVaas:           uint64(len(ce.pending)),
-			EnqueuedVaas:                enqueuedVaas,
-			SmallTxNetNotionalValue:     netUsage,
-			SmallTxOutgingNotionalValue: smallTxNotional,
-			FlowCancelNotionalValue:     flowCancelNotional,
+			EmitterAddress:               "0x" + ce.emitterAddr.String(),
+			TotalEnqueuedVaas:            uint64(len(ce.pending)),
+			EnqueuedVaas:                 enqueuedVaas,
+			SmallTxNetNotionalValue:      netUsage,
+			SmallTxOutgoingNotionalValue: smallTxNotional,
+			FlowCancelNotionalValue:      flowCancelNotional,
 		}
 
 		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{

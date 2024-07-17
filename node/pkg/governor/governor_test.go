@@ -2116,6 +2116,69 @@ func TestTestnetConfigIsValid(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestNumDaysForReleaseTimerReset(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
+	require.NoError(t, err)
+
+	now := time.Now()
+	messageTimestamp := now.Add(-5) // 5 seconds ago
+
+	// message that, when processed, should exceed the big transfer size
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        messageTimestamp,
+		Nonce:            uint32(1),
+		Sequence:         uint64(3),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			100,
+		),
+	}
+
+	canPost, err := gov.ProcessMsgForTime(&msg, now)
+	require.NoError(t, err)
+	assert.Equal(t, false, canPost)
+
+	msg.MessageIDString()
+
+	// check that the enqueued vaa's release date is now + 1 day
+	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix())
+	enqueuedVaas := gov.GetEnqueuedVAAs()
+	assert.Equal(t, len(enqueuedVaas), 1)
+	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
+
+	// the release timer gets reset to 5 days
+	_, err = gov.resetReleaseTimerForTime(msg.MessageIDString(), now, 5)
+	require.NoError(t, err)
+
+	// check that the enqueued vaa's release date is now + 5 days
+	enqueuedVaas = gov.GetEnqueuedVAAs()
+	assert.Equal(t, len(enqueuedVaas), 1)
+	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix())
+	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
+
+}
+
 func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
@@ -2322,7 +2385,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	// But the big transaction should not affect the daily notional.
 	ce, exists := gov.chains[vaa.ChainIDEthereum]
 	require.Equal(t, true, exists)
-	_, _, outgoing, err := sumValue(ce.transfers, now)
+	_, outgoing, _, err := sumValue(ce.transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), outgoing)
 }
