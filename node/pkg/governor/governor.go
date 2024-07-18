@@ -696,7 +696,7 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 //     flow-cancelling assets have freed up outbound capacity.
 //
 // WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
-// signal to RESTART THE NODE. Therefore, errors returned by this function effectively act as panics.
+// signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
 func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
