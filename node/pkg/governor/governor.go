@@ -686,7 +686,7 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
-// CheckPendingForTime If a pending message is ready to be released, modifies the chain entry's `pending` and `transfers` slices by
+// CheckPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
 // moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
 // A transfer is ready to be released when one of the following conditions holds:
 //   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
@@ -826,7 +826,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 								zap.String("hash", pe.hash),
 								zap.Error(err),
 							)
-							// This causes the process to die. We don't want to process transfers that
+							// This causes the processor to die. We don't want to process transfers that
 							// have USD value in excess of MaxInt64 under any circumstances.
 							// This check should occur before the call to the database so
 							// that we don't store a problematic transfer.
@@ -835,7 +835,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 
 						if err := gov.db.StoreTransfer(&dbTransfer); err != nil {
 							gov.msgsToPublish = msgsToPublish
-							// This causes the process to die. We can't tolerate DB connection
+							// This causes the processor to die. We can't tolerate DB connection
 							// errors.
 							return nil, err
 						}
