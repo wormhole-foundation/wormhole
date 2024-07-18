@@ -44,7 +44,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	// Create the set of queries, breaking the IDs into the appropriate size chunks.
-	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery)
+	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery, gov.coinGeckoApiKey)
 	for queryIdx, query := range gov.coinGeckoQueries {
 		gov.logger.Info("coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
 	}
@@ -64,7 +64,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 }
 
 // createCoinGeckoQueries creates the set of CoinGecko queries, breaking the set of IDs into the appropriate size chunks.
-func createCoinGeckoQueries(idList []string, tokensPerQuery int) []string {
+func createCoinGeckoQueries(idList []string, tokensPerQuery int, coinGeckoApiKey string) []string {
 	var queries []string
 	queryIdx := 0
 	tokenIdx := 0
@@ -72,7 +72,7 @@ func createCoinGeckoQueries(idList []string, tokensPerQuery int) []string {
 	first := true
 	for _, coinGeckoId := range idList {
 		if tokenIdx%tokensPerQuery == 0 && tokenIdx != 0 {
-			queries = append(queries, createCoinGeckoQuery(ids))
+			queries = append(queries, createCoinGeckoQuery(ids, coinGeckoApiKey))
 			ids = ""
 			first = true
 			queryIdx += 1
@@ -88,19 +88,30 @@ func createCoinGeckoQueries(idList []string, tokensPerQuery int) []string {
 	}
 
 	if ids != "" {
-		queries = append(queries, createCoinGeckoQuery(ids))
+		queries = append(queries, createCoinGeckoQuery(ids, coinGeckoApiKey))
 	}
 
 	return queries
 }
 
 // createCoinGeckoQuery creates a CoinGecko query for the specified set of IDs.
-func createCoinGeckoQuery(ids string) string {
+func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
 	params := url.Values{}
 	params.Add("ids", ids)
 	params.Add("vs_currencies", "usd")
 
-	query := "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
+	// If modifying this code, ensure that the test 'TestCoinGeckoPriceChecks' passes when adding a pro API key to it.
+	// Since the code is requires an API key (which we don't want to publish to git), this
+	// part of the test is normally skipped but mods to sensitive places should still be checked
+	query := ""
+	if coinGeckoApiKey == "" {
+		query = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
+	} else { // Pro version API key path
+		query = "https://pro-api.coingecko.com/api/v3/simple/price?"
+		params.Add("x_cg_pro_api_key", coinGeckoApiKey)
+		query += "&" + params.Encode()
+	}
+
 	return query
 }
 
@@ -309,7 +320,7 @@ func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.MainNet, true)
+	gov := NewChainGovernor(logger, &db, common.MainNet, true, "")
 
 	if err := gov.initConfig(); err != nil {
 		return err

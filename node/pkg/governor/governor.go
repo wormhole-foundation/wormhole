@@ -201,6 +201,7 @@ type ChainGovernor struct {
 	statusPublishCounter  int64
 	configPublishCounter  int64
 	flowCancelEnabled     bool
+	coinGeckoApiKey       string
 }
 
 func NewChainGovernor(
@@ -208,7 +209,9 @@ func NewChainGovernor(
 	db db.GovernorDB,
 	env common.Environment,
 	flowCancelEnabled bool,
+	coinGeckoApiKey string,
 ) *ChainGovernor {
+
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger.With(zap.String("component", "cgov")),
@@ -218,6 +221,7 @@ func NewChainGovernor(
 		msgsSeen:            make(map[string]bool),
 		env:                 env,
 		flowCancelEnabled:   flowCancelEnabled,
+		coinGeckoApiKey:     coinGeckoApiKey,
 	}
 }
 

@@ -233,6 +233,7 @@ var (
 
 	chainGovernorEnabled      *bool
 	governorFlowCancelEnabled *bool
+	coinGeckoApiKey           *string
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
@@ -439,6 +440,7 @@ func init() {
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
+	coinGeckoApiKey = NodeCmd.Flags().String("coinGeckoApiKey", "", "Coin gecko pro API key. Defaults to off via no API key")
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
@@ -729,6 +731,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
+	}
+
+	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
+		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -1586,7 +1592,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
-		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled),
+		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
