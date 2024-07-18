@@ -625,17 +625,17 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 
 	err := gov.Run(ctx)
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	emitterAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	tokenAddr, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	gov.initConfigForTest(
