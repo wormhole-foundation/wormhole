@@ -1,11 +1,11 @@
 ---
 name: Bug report
-about: Submit a bug ticket if you have an issue. If you're a user, check out the Wormhole Discord server below for faster assistance.
+about: Submit a bug ticket if you found a bug not related to the guardian software. If you're a user, check out the Wormhole Discord server below for faster assistance.
 title: ''
-labels: 'bug'
+labels: ['bug']
 assignees: ''
 ---
-<!--- Fill out the fields if you're an integrator or contributor. -->
+<!--- Fill out all the fields below for faster assistance. -->
 
 ## Description and context
 <!--- Provide a detailed description of the problem to expedite the process. -->
@@ -29,4 +29,3 @@ assignees: ''
 
 ## Solution recommendation
 <!--- Not mandatory, but feel free to recommend a way fix the issue. -->
-
