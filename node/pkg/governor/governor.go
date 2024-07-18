@@ -242,6 +242,10 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 	return nil
 }
 
+func (gov *ChainGovernor) IsFlowCancelEnabled() bool {
+	return gov.flowCancelEnabled
+}
+
 func (gov *ChainGovernor) initConfig() error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
