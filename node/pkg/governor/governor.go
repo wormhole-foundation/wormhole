@@ -135,7 +135,6 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
 // - the TargetChain must match the chain ID of the Chain Entry
-// - the flow cancel value must always be less than the big transfer limit
 func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
 	targetChain := transfer.dbTransfer.TargetChain
