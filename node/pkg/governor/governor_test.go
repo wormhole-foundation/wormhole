@@ -3258,6 +3258,56 @@ func TestCoinGeckoQueryFormat(t *testing.T) {
 	require.Equal(t, params.Has("vs_currencies"), true)
 	require.Equal(t, params["vs_currencies"][0], "usd")
 	require.Equal(t, params.Has("ids"), true)
+
+}
+
+// Test that the prices are gathering from the CoinGecko API
+func TestCoinGeckoPriceChecks(t *testing.T) {
+	coinGeckoApiKey := "" // Add API key to test the pro API endpoint. Remove before commit
+	ids := []string{"usd-coin"}
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.Equal(t, err, nil)
+
+	/*
+		The standard governor doesn't have the test suite initiated. Even if it did,
+		the amount of time this takes is too high So, instead of doing that, we're
+		testing at a lower level to ensure that the queries are actually made successfully
+		from the URLs given directly
+	*/
+	coinGeckoQueries := createCoinGeckoQueries(ids, 1, "")
+	require.Equal(t, len(coinGeckoQueries), 1)
+
+	token_map, err := gov.queryCoinGeckoChunk(coinGeckoQueries[0])
+	require.Equal(t, err, nil)
+	token_entry, ok := token_map[ids[0]].(map[string]interface{})
+	require.Equal(t, ok, true)
+
+	token_price, ok := token_entry["usd"]
+	require.Equal(t, ok, true)
+	require.LessOrEqual(t, token_price, 1.5)
+	require.GreaterOrEqual(t, token_price, 0.5)
+
+	// Only run if the key is specified
+	if coinGeckoApiKey != "" {
+		// Pro API key tests
+		coinGeckoQueries = createCoinGeckoQueries(ids, 1, coinGeckoApiKey)
+		require.Equal(t, len(coinGeckoQueries), 1)
+
+		token_map, err = gov.queryCoinGeckoChunk(coinGeckoQueries[0])
+		require.Equal(t, err, nil)
+
+		// Check the price information. Make sure it succeeded.
+		token_entry, ok = token_map[ids[0]].(map[string]interface{})
+		require.Equal(t, ok, true)
+		token_price, ok = token_entry["usd"]
+		require.Equal(t, ok, true)
+		require.LessOrEqual(t, token_price, 1.5)
+		require.GreaterOrEqual(t, token_price, 0.5)
+
+		fmt.Println(coinGeckoQueries)
+	}
 }
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
