@@ -3,7 +3,6 @@ package wormhole
 import (
 	"math/rand"
 
-	simappparams "cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -18,7 +17,8 @@ import (
 var (
 	_ = sample.AccAddress
 	_ = wormholesimulation.FindAccount
-	_ = simappparams.StakePerAccount
+	// TODO: JOEL - FIX THIS - SIM APP NO LONGER HAS PARAMS
+	// _ = simappparams.StakePerAccount
 	_ = simulation.MsgEntryKind
 	_ = baseapp.Paramspace
 )

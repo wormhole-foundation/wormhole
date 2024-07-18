@@ -3,13 +3,13 @@ package simulation
 import (
 	"math/rand"
 
-	simappparams "cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
+	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/params"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
@@ -383,7 +383,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 // BuildOperationInput helper to build object
 func BuildOperationInput(
 	r *rand.Rand,
-	app *baseapp.BaseApp,
+	baseapp *baseapp.BaseApp,
 	ctx sdk.Context,
 	msg interface {
 		sdk.Msg
@@ -396,8 +396,8 @@ func BuildOperationInput(
 ) simulation.OperationInput {
 	return simulation.OperationInput{
 		R:               r,
-		App:             app,
-		TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
+		App:             baseapp,
+		TxGen:           app.MakeEncodingConfig().TxConfig,
 		Cdc:             nil,
 		Msg:             msg,
 		MsgType:         msg.Type(),

@@ -21,13 +21,12 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 
+	tmdb "github.com/cometbft/cometbft-db"
+	"github.com/cometbft/cometbft/libs/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
@@ -58,7 +57,7 @@ func WormholeKeeperAndWasmd(t testing.TB) (*keeper.Keeper, wasmkeeper.Keeper, *w
 	stateStore.MountStoreWithDB(tkeys[paramstypes.TStoreKey], sdk.StoreTypeTransient, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 
-	encodingConfig := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encodingConfig := app.MakeEncodingConfig()
 	appCodec := encodingConfig.Marshaler
 	amino := encodingConfig.Amino
 
