@@ -7,29 +7,8 @@ assignees: ''
 ---
 <!--- Fill out all the fields below for faster assistance. -->
 
-## Description and context
-<!--- Provide a detailed description of the problem to expedite the process. -->
+## Description
+<!-- Please describe the issue in detail. Include logs, errors, and expected behavior. -->
 
-
-## Steps to reproduce
-<!--- Describe what happened step by step. -->
-<!--- If applicable, provide a link to a live example or include code to reproduce. -->
-
-1.
-2.
-3.
-
-## Experienced behavior
-<!--- Describe what happened after the last step. -->
-
-
-## Expected behavior
-<!--- Describe what was expected to happen instead. -->
-
-
-## Upload guardian logs
-<!--- Providing logs will speed up the process significantly. -->
-
-
-## Solution recommendation
-<!--- Not mandatory, but feel free to recommend a way fix the issue. -->
+## Recommendation
+<!-- Not necessary, but feel free to recommend a way to fix the issue. -->
