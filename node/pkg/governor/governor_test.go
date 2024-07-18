@@ -666,7 +666,7 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 	}
 
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest, true)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -2183,7 +2183,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest, true)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	gov.env = common.TestNet
 	err := gov.initConfig()
@@ -2193,7 +2193,7 @@ func TestMainnetConfigIsValid(t *testing.T) {
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest, true)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	gov.env = common.TestNet
 	err := gov.initConfig()
@@ -3187,7 +3187,7 @@ func TestCoinGeckoQueries(t *testing.T) {
 				ids[idx] = fmt.Sprintf("id%d", idx)
 			}
 
-			queries := createCoinGeckoQueries(ids, tc.chunkSize)
+			queries := createCoinGeckoQueries(ids, tc.chunkSize, "")
 			require.Equal(t, tc.expectedQueries, len(queries))
 
 			results := make(map[string]string)
@@ -3213,6 +3213,100 @@ func TestCoinGeckoQueries(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Test the URL of CoinGecko queries to be correct
+func TestCoinGeckoQueryFormat(t *testing.T) {
+	id_amount := 10
+	ids := make([]string, id_amount)
+	for idx := 0; idx < id_amount; idx++ {
+		ids[idx] = fmt.Sprintf("id%d", idx)
+	}
+
+	// Create and parse the query
+	queries := createCoinGeckoQueries(ids, 100, "") // Not API key
+	require.Equal(t, len(queries), 1)
+	query_url, err := url.Parse(queries[0])
+	require.Equal(t, err, nil)
+	params, err := url.ParseQuery(query_url.RawQuery)
+	require.Equal(t, err, nil)
+
+	// Test the portions of the URL for the non-pro version of the API
+	require.Equal(t, query_url.Scheme, "https")
+	require.Equal(t, query_url.Host, "api.coingecko.com")
+	require.Equal(t, query_url.Path, "/api/v3/simple/price")
+	require.Equal(t, params.Has("x_cg_pro_api_key"), false)
+	require.Equal(t, params.Has("vs_currencies"), true)
+	require.Equal(t, params["vs_currencies"][0], "usd")
+	require.Equal(t, params.Has("ids"), true)
+
+	// Create and parse the query with an API key
+	queries = createCoinGeckoQueries(ids, 100, "FAKE_KEY") // With API key
+	require.Equal(t, len(queries), 1)
+	query_url, err = url.Parse(queries[0])
+	require.Equal(t, err, nil)
+	params, err = url.ParseQuery(query_url.RawQuery)
+	require.Equal(t, err, nil)
+
+	// Test the portions of the URL actually provided
+	require.Equal(t, query_url.Scheme, "https")
+	require.Equal(t, query_url.Host, "pro-api.coingecko.com")
+	require.Equal(t, query_url.Path, "/api/v3/simple/price")
+	require.Equal(t, params.Has("x_cg_pro_api_key"), true)
+	require.Equal(t, params["x_cg_pro_api_key"][0], "FAKE_KEY")
+	require.Equal(t, params.Has("vs_currencies"), true)
+	require.Equal(t, params["vs_currencies"][0], "usd")
+	require.Equal(t, params.Has("ids"), true)
+
+}
+
+// Test that the prices are gathering from the CoinGecko API
+func TestCoinGeckoPriceChecks(t *testing.T) {
+	coinGeckoApiKey := "" // Add API key to test the pro API endpoint. Remove before commit
+	ids := []string{"usd-coin"}
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.Equal(t, err, nil)
+
+	/*
+		The standard governor doesn't have the test suite initiated. Even if it did,
+		the amount of time this takes is too high So, instead of doing that, we're
+		testing at a lower level to ensure that the queries are actually made successfully
+		from the URLs given directly
+	*/
+	coinGeckoQueries := createCoinGeckoQueries(ids, 1, "")
+	require.Equal(t, len(coinGeckoQueries), 1)
+
+	token_map, err := gov.queryCoinGeckoChunk(coinGeckoQueries[0])
+	require.Equal(t, err, nil)
+	token_entry, ok := token_map[ids[0]].(map[string]interface{})
+	require.Equal(t, ok, true)
+
+	token_price, ok := token_entry["usd"]
+	require.Equal(t, ok, true)
+	require.LessOrEqual(t, token_price, 1.5)
+	require.GreaterOrEqual(t, token_price, 0.5)
+
+	// Only run if the key is specified
+	if coinGeckoApiKey != "" {
+		// Pro API key tests
+		coinGeckoQueries = createCoinGeckoQueries(ids, 1, coinGeckoApiKey)
+		require.Equal(t, len(coinGeckoQueries), 1)
+
+		token_map, err = gov.queryCoinGeckoChunk(coinGeckoQueries[0])
+		require.Equal(t, err, nil)
+
+		// Check the price information. Make sure it succeeded.
+		token_entry, ok = token_map[ids[0]].(map[string]interface{})
+		require.Equal(t, ok, true)
+		token_price, ok = token_entry["usd"]
+		require.Equal(t, ok, true)
+		require.LessOrEqual(t, token_price, 1.5)
+		require.GreaterOrEqual(t, token_price, 0.5)
+
+		fmt.Println(coinGeckoQueries)
 	}
 }
 

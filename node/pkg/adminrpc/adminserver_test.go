@@ -335,7 +335,7 @@ func Test_adminCommands(t *testing.T) {
 }
 
 func newNodePrivilegedServiceForGovernorTests() *nodePrivilegedService {
-	gov := governor.NewChainGovernor(zap.NewNop(), &db.MockGovernorDB{}, wh_common.GoTest, false)
+	gov := governor.NewChainGovernor(zap.NewNop(), &db.MockGovernorDB{}, wh_common.GoTest, false, "")
 
 	return &nodePrivilegedService{
 		db:              nil,

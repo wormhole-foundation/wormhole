@@ -218,7 +218,7 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGeckoApiKey string) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
@@ -227,9 +227,13 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *Guard
 				if flowCancelEnabled {
 					logger.Info("chain governor is enabled with flow cancel enabled")
 				} else {
+
 					logger.Info("chain governor is enabled without flow cancel")
 				}
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled)
+				if coinGeckoApiKey != "" {
+					logger.Info("coingecko pro API key in use")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled, coinGeckoApiKey)
 			} else {
 				logger.Info("chain governor is disabled")
 			}
