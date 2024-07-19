@@ -101,7 +101,7 @@ func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
 	params.Add("vs_currencies", "usd")
 
 	// If modifying this code, ensure that the test 'TestCoinGeckoPriceChecks' passes when adding a pro API key to it.
-	// Since the code is requires an API key (which we don't want to publish to git), this
+	// Since the code requires an API key (which we don't want to publish to git), this
 	// part of the test is normally skipped but mods to sensitive places should still be checked
 	query := ""
 	if coinGeckoApiKey == "" {

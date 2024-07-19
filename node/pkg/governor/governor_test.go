@@ -3225,7 +3225,7 @@ func TestCoinGeckoQueryFormat(t *testing.T) {
 	}
 
 	// Create and parse the query
-	queries := createCoinGeckoQueries(ids, 100, "") // Not API key
+	queries := createCoinGeckoQueries(ids, 100, "") // No API key
 	require.Equal(t, len(queries), 1)
 	query_url, err := url.Parse(queries[0])
 	require.Equal(t, err, nil)
