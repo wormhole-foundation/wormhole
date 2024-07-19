@@ -29,9 +29,42 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	keccak.Write(wasmBytes)
 	keccak.Sum(hashWasm[:0])
 
-	gov_msg := types.NewGovernanceMessage(vaa.WasmdModule, byte(vaa.ActionStoreCode), uint16(vaa.ChainIDWormchain), hashWasm[:])
+	gov_msg := types.NewGovernanceMessage(vaa.WasmdModule, byte(vaa.ActionStoreCode), uint16(vaa.ChainIDWormchain),
+		hashWasm[:])
 	return gov_msg.MarshalBinary()
 }
+
+func createContractUpgradePayload(payload vaa.BodyContractUpgrade) ([]byte, error) {
+	var coreModule [32]byte
+	copy(coreModule[:], vaa.CoreModule[:])
+
+	marshalledPayload, err := payload.Serialize()
+	if err != nil {
+		return nil, err
+	}
+
+	gov_msg := types.NewGovernanceMessage(coreModule, byte(vaa.ActionContractUpgrade), uint16(vaa.ChainIDWormchain),
+		marshalledPayload)
+
+	return gov_msg.MarshalBinary(), nil
+}
+
+func createIbcReceiverUpdateChannelPayload(payload vaa.BodyIbcUpdateChannelChain) ([]byte, error) {
+	marshalledPayload, err := payload.Serialize(vaa.IbcReceiverModuleStr)
+	if err != nil {
+		return nil, err
+	}
+
+	gov_msg := types.NewGovernanceMessage(vaa.IbcReceiverModule, byte(vaa.IbcReceiverActionUpdateChannelChain), uint16(vaa.ChainIDWormchain),
+		marshalledPayload)
+
+	return gov_msg.MarshalBinary(), nil
+}
+
+// func UpgradeCoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, payload vaa.BodyContractUpgrade, guardians *guardians.ValSet) {
+// 	node := chain.GetFullNode()
+
+// }
 
 // wormchaind tx wormhole store [wasm file] [vaa-hex] [flags]
 func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, fileLoc string, guardians *guardians.ValSet) (codeId string) {
