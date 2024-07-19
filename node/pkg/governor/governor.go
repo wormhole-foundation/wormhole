@@ -211,7 +211,6 @@ func NewChainGovernor(
 	flowCancelEnabled bool,
 	coinGeckoApiKey string,
 ) *ChainGovernor {
-
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger.With(zap.String("component", "cgov")),
