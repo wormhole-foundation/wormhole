@@ -64,7 +64,7 @@ func evaluateGossipCutOverImpl(logger *zap.Logger, cutOverTimeStr string, now ti
 		return true, 0, nil
 	}
 
-	// If we get here, we need to wait for the cutover and then force a restart.
+	// If we get here, we need to wait for the cutover and then switch the global flag.
 	delay := cutOverTime.Sub(now)
 	logger.Info("still waiting for cut over time",
 		zap.Stringer("cutOverTime", cutOverTime),
