@@ -252,14 +252,14 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 		if tokenEntry.flowCancels {
 			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
 				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
-					gov.logger.Warn("could not add flow canceling transfer to destination chain",
+					gov.logger.Error("could not add flow canceling transfer to destination chain",
 						zap.String("msgID", xfer.MsgID),
 						zap.String("hash", xfer.Hash), zap.Error(err),
 					)
 					return err
 				}
 			} else {
-				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+				gov.logger.Error("tried to cancel flow but chain entry for target chain does not exist",
 					zap.String("msgID", xfer.MsgID),
 					zap.Stringer("token chain", xfer.OriginChain),
 					zap.Stringer("token address", xfer.OriginAddress),
