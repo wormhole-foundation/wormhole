@@ -351,10 +351,10 @@ async function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecima
   return true; 
 }
 
-// Validates that a list of characters are not in the provided string.
+// Checks whether an illegal character is present in the provided string
 // If a character is found then return true. Otherwise, return false. 
 async function inputHasInvalidChars(input) : Promise<boolean>{
-  var deny_list = ["\"", "%", "\n","\r", "\\"]
+  var deny_list = ["\"", "%", "\n","\r", "\\","{","}","/","'"]
   for(var char of deny_list) {
     if(input.includes(char)){
       return true; 
