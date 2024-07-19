@@ -372,7 +372,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
-		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqC != nil || params.signedGovCfg != nil || params.signedGovSt != nil {
+		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil {
 			controlTopic := fmt.Sprintf("%s/%s", params.networkID, "control")
 			logger.Info("joining the control topic", zap.String("topic", controlTopic))
 			controlPubsubTopic, err = ps.Join(controlTopic)
@@ -386,7 +386,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvReqC != nil || params.signedGovCfg != nil || params.signedGovSt != nil {
+			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil {
 				logger.Info("subscribing to the control topic", zap.String("topic", controlTopic))
 				controlSubscription, err = controlPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -397,7 +397,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the attestation channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipAttestationSendC != nil || params.obsvC != nil {
+		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil {
 			attestationTopic := fmt.Sprintf("%s/%s", params.networkID, "attestation")
 			logger.Info("joining the attestation topic", zap.String("topic", attestationTopic))
 			attestationPubsubTopic, err = ps.Join(attestationTopic)
@@ -411,7 +411,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvC != nil {
+			if params.obsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -422,7 +422,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the VAA channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipVaaSendC != nil || params.signedInC != nil || needOldTopic {
+		if params.gossipVaaSendC != nil || params.signedIncomingVaaRecvC != nil || needOldTopic {
 			vaaTopic := fmt.Sprintf("%s/%s", params.networkID, "broadcast")
 			logger.Info("joining the vaa topic", zap.String("topic", vaaTopic))
 			vaaPubsubTopic, err = ps.Join(vaaTopic)
@@ -436,7 +436,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.signedInC != nil || needOldTopic {
+			if params.signedIncomingVaaRecvC != nil || needOldTopic {
 				logger.Info("subscribing to the vaa topic", zap.String("topic", vaaTopic))
 				vaaSubscription, err = vaaPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -691,8 +691,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					// Send to local observation request queue (the loopback message is ignored)
-					if params.obsvReqC != nil {
-						params.obsvReqC <- msg
+					if params.obsvReqRecvC != nil {
+						params.obsvReqRecvC <- msg
 					}
 
 					if GossipCutoverComplete() {
@@ -819,7 +819,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}()
 						}
 					case *gossipv1.GossipMessage_SignedObservationRequest:
-						if params.obsvReqC != nil {
+						if params.obsvReqRecvC != nil {
 							s := m.SignedObservationRequest
 							gs := params.gst.Get()
 							if gs == nil {
@@ -845,7 +845,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								}
 
 								select {
-								case params.obsvReqC <- r:
+								case params.obsvReqRecvC <- r:
 									p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
 								default:
 									p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
@@ -853,12 +853,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorConfig:
-						if params.signedGovCfg != nil {
-							params.signedGovCfg <- m.SignedChainGovernorConfig
+						if params.signedGovCfgRecvC != nil {
+							params.signedGovCfgRecvC <- m.SignedChainGovernorConfig
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorStatus:
-						if params.signedGovSt != nil {
-							params.signedGovSt <- m.SignedChainGovernorStatus
+						if params.signedGovStatusRecvC != nil {
+							params.signedGovStatusRecvC <- m.SignedChainGovernorStatus
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
@@ -908,12 +908,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					switch m := msg.Message.(type) {
 					case *gossipv1.GossipMessage_SignedObservation:
-						if params.obsvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvC); err == nil {
+						if params.obsvRecvC != nil {
+							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
 								p2pMessagesReceived.WithLabelValues("observation").Inc()
 							} else {
 								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservation.Addr)))
+									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservation.Addr)))
 								}
 								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 							}
@@ -1029,20 +1029,20 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}()
 						}
 					case *gossipv1.GossipMessage_SignedObservation: // TODO: Get rid of this after the cutover.
-						if params.obsvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvC); err == nil {
+						if params.obsvRecvC != nil {
+							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
 								p2pMessagesReceived.WithLabelValues("observation").Inc()
 							} else {
 								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
+									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
 								}
 								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 							}
 						}
 					case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-						if params.signedInC != nil {
+						if params.signedIncomingVaaRecvC != nil {
 							select {
-							case params.signedInC <- m.SignedVaaWithQuorum:
+							case params.signedIncomingVaaRecvC <- m.SignedVaaWithQuorum:
 								p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
 							default:
 								if params.components.WarnChannelOverflow {
@@ -1050,13 +1050,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
 										hexStr = vaa.HexDigest()
 									}
-									logger.Warn("Ignoring SignedVaaWithQuorum because signedInC full", zap.String("hash", hexStr))
+									logger.Warn("Ignoring SignedVaaWithQuorum because signedIncomingVaaRecvC full", zap.String("hash", hexStr))
 								}
 								p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 							}
 						}
 					case *gossipv1.GossipMessage_SignedObservationRequest: // TODO: Get rid of this after the cutover.
-						if params.obsvReqC != nil {
+						if params.obsvReqRecvC != nil {
 							s := m.SignedObservationRequest
 							gs := params.gst.Get()
 							if gs == nil {
@@ -1082,7 +1082,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								}
 
 								select {
-								case params.obsvReqC <- r:
+								case params.obsvReqRecvC <- r:
 									p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
 								default:
 									p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
@@ -1090,12 +1090,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorConfig: // TODO: Get rid of this after the cutover.
-						if params.signedGovCfg != nil {
-							params.signedGovCfg <- m.SignedChainGovernorConfig
+						if params.signedGovCfgRecvC != nil {
+							params.signedGovCfgRecvC <- m.SignedChainGovernorConfig
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorStatus: // TODO: Get rid of this after the cutover.
-						if params.signedGovSt != nil {
-							params.signedGovSt <- m.SignedChainGovernorStatus
+						if params.signedGovStatusRecvC != nil {
+							params.signedGovStatusRecvC <- m.SignedChainGovernorStatus
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
