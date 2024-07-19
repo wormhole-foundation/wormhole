@@ -3,7 +3,6 @@ package simapp
 import (
 	"time"
 
-	// "cosmossdk.io/simapp"
 	tmdb "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
@@ -22,7 +21,7 @@ func New(dir string) runtime.AppI {
 	encoding := app.MakeEncodingConfig()
 
 	a := app.New(logger, db, nil, true, map[int64]bool{}, dir, 0, encoding,
-		nil) //simapp.EmptyAppOptions{})
+		nil)
 	// InitChain updates deliverState which is required when app.NewContext is called
 	a.InitChain(abci.RequestInitChain{
 		ConsensusParams: defaultConsensusParams,
@@ -31,8 +30,8 @@ func New(dir string) runtime.AppI {
 	return a
 }
 
-var defaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
+var defaultConsensusParams = &tmproto.ConsensusParams{
+	Block: &tmproto.BlockParams{
 		MaxBytes: 200000,
 		MaxGas:   2000000,
 	},
