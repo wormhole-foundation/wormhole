@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
-    "@certusone/wormhole-sdk": "^0.9.24",
+    "@certusone/wormhole-sdk": "^0.10.0",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.91.3",
