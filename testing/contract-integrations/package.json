@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@certusone/wormhole-examples": "file:../../core",
-    "@certusone/wormhole-sdk": "^0.9.24",
+    "@certusone/wormhole-sdk": "^0.10.0",
     "@chainsafe/truffle-plugin-abigen": "^0.0.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
