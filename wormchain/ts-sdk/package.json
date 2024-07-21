@@ -19,11 +19,11 @@
   },
   "homepage": "https://github.com/wormhole-foundation/wormchain#readme",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.9.0",
+    "@certusone/wormhole-sdk": "^0.9.24",
     "@cosmjs/cosmwasm-stargate": "^0.32.0",
     "@cosmjs/launchpad": "^0.27.1",
     "@cosmjs/math": "^0.27.1",
-    "@cosmjs/proto-signing": "^0.27.1",
+    "@cosmjs/proto-signing": "^0.28.6",
     "@cosmjs/stargate": "^0.32.0",
     "@cosmjs/tendermint-rpc": "^0.32.0",
     "axios": "^1.6.4",
