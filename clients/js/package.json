@@ -6,7 +6,7 @@
     "@certusone/wormhole-sdk": "^0.10.2",
     "@cosmjs/encoding": "^0.26.2",
     "@injectivelabs/networks": "^1.0.37",
-    "@injectivelabs/sdk-ts": "^1.0.211",
+    "@injectivelabs/sdk-ts": "^1.14.13",
     "@injectivelabs/tx-ts": "^1.0.43",
     "@solana/web3.js": "^1.22.0",
     "@terra-money/terra.js": "^3.1.3",
