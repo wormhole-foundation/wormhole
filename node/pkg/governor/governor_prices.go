@@ -309,7 +309,7 @@ func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.MainNet, false)
+	gov := NewChainGovernor(logger, &db, common.MainNet, true)
 
 	if err := gov.initConfig(); err != nil {
 		return err
