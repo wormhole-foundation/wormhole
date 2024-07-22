@@ -20,7 +20,7 @@ type (
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
 		wasmdKeeper   types.WasmdKeeper
-		upgradeKeeper upgradekeeper.Keeper
+		upgradeKeeper *upgradekeeper.Keeper
 
 		setWasmd   bool
 		setUpgrade bool
@@ -54,7 +54,7 @@ func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.setWasmd = true
 }
 
-func (k *Keeper) SetUpgradeKeeper(keeper upgradekeeper.Keeper) {
+func (k *Keeper) SetUpgradeKeeper(keeper *upgradekeeper.Keeper) {
 	k.upgradeKeeper = keeper
 	k.setUpgrade = true
 }

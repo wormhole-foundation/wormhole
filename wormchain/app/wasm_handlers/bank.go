@@ -1,14 +1,18 @@
 package wasm_handlers
 
 import (
+	"context"
+
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 type BankViewKeeperHandler struct {
 	Keeper bankkeeper.Keeper
 }
+
 type BurnerHandler struct {
 	Keeper bankkeeper.Keeper
 }
@@ -32,6 +36,14 @@ func (b *BankViewKeeperHandler) GetSupply(ctx sdk.Context, denom string) sdk.Coi
 	return b.Keeper.GetSupply(ctx, denom)
 }
 
+func (b *BankViewKeeperHandler) GetDenomMetaData(ctx sdk.Context, denom string) (banktypes.Metadata, bool) {
+	return b.Keeper.GetDenomMetaData(ctx, denom)
+}
+
+func (b *BankViewKeeperHandler) DenomsMetadata(ctx context.Context, req *banktypes.QueryDenomsMetadataRequest) (*banktypes.QueryDenomsMetadataResponse, error) {
+	return b.Keeper.DenomsMetadata(ctx, req)
+}
+
 func (b *BurnerHandler) BurnCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error {
 	return b.Keeper.BurnCoins(ctx, moduleName, amt)
 }
@@ -48,4 +60,12 @@ func (b *BankKeeperHandler) BlockedAddr(addr sdk.AccAddress) bool {
 }
 func (b *BankKeeperHandler) SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, toAddr sdk.AccAddress, amt sdk.Coins) error {
 	return b.BankViewKeeperHandler.Keeper.SendCoins(ctx, fromAddr, toAddr, amt)
+}
+
+func (b *BankKeeperHandler) GetDenomMetaData(ctx sdk.Context, denom string) (banktypes.Metadata, bool) {
+	return b.BankViewKeeperHandler.Keeper.GetDenomMetaData(ctx, denom)
+}
+
+func (b *BankKeeperHandler) DenomsMetadata(ctx context.Context, req *banktypes.QueryDenomsMetadataRequest) (*banktypes.QueryDenomsMetadataResponse, error) {
+	return b.BankViewKeeperHandler.Keeper.DenomsMetadata(ctx, req)
 }

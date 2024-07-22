@@ -100,6 +100,7 @@ func WormholeKeeperAndWasmd(t testing.TB) (*keeper.Keeper, wasmkeeper.Keeper, *w
 	if err != nil {
 		panic(err)
 	}
+	// use 'wasmkeeper'
 	wasmKeeper := wasm.NewKeeper(
 		appCodec,
 		keys[wasmtypes.StoreKey],

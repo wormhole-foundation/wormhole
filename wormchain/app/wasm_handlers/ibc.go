@@ -64,6 +64,11 @@ func (b *ChannelKeeperHandler) SetChannel(ctx sdk.Context, portID, channelID str
 	// not permitted
 }
 
+func (b *ChannelKeeperHandler) GetAllChannelsWithPortPrefix(ctx sdk.Context, portPrefix string) []channeltypes.IdentifiedChannel {
+	// not permitted
+	return []channeltypes.IdentifiedChannel{}
+}
+
 func (b *ClientKeeperHandler) GetClientConsensusState(ctx sdk.Context, clientID string) (ibcexported.ConsensusState, bool) {
 	return nil, false
 }
