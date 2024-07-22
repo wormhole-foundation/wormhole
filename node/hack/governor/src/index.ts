@@ -94,6 +94,7 @@ axios
     var addedTokens = [];
     var removedTokens = [];
     var changedSymbols = [];
+    var failedInputValidationTokens = [];
     var newTokensCount = 0;
 
     for (let chain in res.data.AllTime) {
@@ -165,6 +166,7 @@ axios
 
               // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
               if(!(await safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
+                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol)
                 continue; 
               }
             }
@@ -258,7 +260,10 @@ axios
     changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
     changedContent += "\n\nTokens with changed symbols = " + changedSymbols.length + ":\n<WH_chain_id>-<WH_token_addr>-<old_token_symbol>-><new_token_symbol>\n\n";
-    changedContent += JSON.stringify(changedSymbols, null, 1);
+
+    changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
+
     changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
     changedContent += "\n```";
@@ -354,7 +359,7 @@ async function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecima
 // Checks whether an illegal character is present in the provided string
 // If a character is found then return true. Otherwise, return false. 
 async function inputHasInvalidChars(input) : Promise<boolean>{
-  var deny_list = ["\"", "%", "\n","\r", "\\","{","}","/","'"]
+  var deny_list = ["\"", "%", "\n","\r", "\\","{","}","/","'","[","]","(",")"]
   for(var char of deny_list) {
     if(input.includes(char)){
       return true; 
