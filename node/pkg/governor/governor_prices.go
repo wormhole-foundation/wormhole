@@ -171,7 +171,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 		query := query + "&" + params.Encode()
 		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
-			gov.logger.Error("CoinGecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
+			gov.logger.Error("CoinGecko query failed", zap.Error(err), zap.Int("queryIdx", queryIdx), zap.String("query", query))
 			gov.revertAllPrices()
 			return err
 		}
