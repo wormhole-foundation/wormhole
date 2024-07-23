@@ -199,16 +199,11 @@ require (
 )
 
 replace (
-	// cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/cosmos/cosmos-sdk => ../../wh-cosmos-sdk
-	// github.com/CosmWasm/wasmd v0.45.0 => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-2
-
-	// v0.47.0 changelog replace statements
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-
-	// wormhole forks
 	github.com/wormhole-foundation/wormhole/sdk => ../sdk
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
+// github.com/CosmWasm/wasmd v0.45.0 => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-2
 )

@@ -481,12 +481,6 @@ func New(
 
 	app.WireICS20PreWasmKeeper(&app.WormholeKeeper)
 
-	// register the proposal types
-	govRouter := govv1beta.NewRouter().
-		AddRoute(govtypes.RouterKey, govv1beta.ProposalHandler).
-		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
-
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
 		appCodec,
@@ -497,7 +491,12 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	govRouter.AddRoute(wormholemoduletypes.RouterKey, wormholemodule.NewWormholeGovernanceProposalHandler(app.WormholeKeeper))
+	// register the proposal types
+	govRouter := govv1beta.NewRouter().
+		AddRoute(govtypes.RouterKey, govv1beta.ProposalHandler).
+		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
+		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
+		AddRoute(wormholemoduletypes.RouterKey, wormholemodule.NewWormholeGovernanceProposalHandler(app.WormholeKeeper))
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec,
@@ -509,6 +508,7 @@ func New(
 		govtypes.DefaultConfig(),
 		govModAddress,
 	)
+	app.GovKeeper.SetLegacyRouter(govRouter)
 
 	app.TokenFactoryKeeper = tokenfactorykeeper.NewKeeper(
 		app.keys[tokenfactorytypes.StoreKey],

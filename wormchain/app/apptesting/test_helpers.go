@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CosmWasm/wasmd/app"
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -134,10 +133,10 @@ func setup(withGenesis bool, invCheckPeriod uint) (*app.App, app.GenesisState) {
 		EmptyBaseAppOptions{},
 	)
 	if withGenesis {
-		return wormApp.(*app.App), app.NewDefaultGenesisState(encoding.Marshaler)
+		return wormApp, app.NewDefaultGenesisState(encoding.Marshaler)
 	}
 
-	return wormApp.(*app.App), app.GenesisState{}
+	return wormApp, app.GenesisState{}
 }
 
 func genesisStateWithValSet(t *testing.T,
@@ -184,6 +183,7 @@ func genesisStateWithValSet(t *testing.T,
 		defaultStParams.MaxEntries,
 		defaultStParams.HistoricalEntries,
 		appparams.BondDenom,
+		defaultStParams.MinCommissionRate,
 	)
 
 	// set validators and delegations
@@ -213,6 +213,7 @@ func genesisStateWithValSet(t *testing.T,
 		balances,
 		totalSupply,
 		[]banktypes.Metadata{},
+		[]banktypes.SendEnabled{}, // TODO: JOEL - MAY NEED TO ADD A DENOM TO THE SEND ENABLED
 	)
 
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
