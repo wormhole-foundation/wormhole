@@ -1,0 +1,20 @@
+{
+  "name": "Guardian Development",
+  "build": {
+    "context": "..",
+    "dockerfile": "../node/Dockerfile",
+    "target": "dev"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "files.insertFinalNewline": true
+      }
+    }
+  },
+}
