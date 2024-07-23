@@ -837,7 +837,6 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						}
 
 						if err := gov.db.StoreTransfer(&dbTransfer); err != nil {
-							gov.msgsToPublish = msgsToPublish
 							// This causes the processor to die. We can't tolerate DB connection
 							// errors.
 							return nil, err

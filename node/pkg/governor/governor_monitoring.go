@@ -324,6 +324,10 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 			// within the range of [0, dailyLimit]. Flow cancel allows flexibility here. netUsage may be
 			// negative if there is a lot of incoming flow; conversely, it may exceed dailyLimit if incoming
 			// flow added space, allowed additional transfers through, and then expired after 24h.
+			// Note that if flow cancel is enabled and then later disabled, netUsage can exceed dailyLimit
+			// for 24h as old transfers will be loaded from the database into the Governor, but the flow
+			// cancel transfers will not. The value should return to the normal range after 24h has elapsed
+			// since the old transfers were sent.
 			if netUsage < 0 || incoming != 0 {
 				gov.logger.Warn("GetAvailableNotionalByChain: net value for chain is negative even though flow cancel is disabled",
 					zap.String("chainID", chainId.String()),
