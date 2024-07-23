@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
@@ -12,6 +12,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 
@@ -127,7 +128,8 @@ func (h WasmHooks) execWasmMsg(ctx sdk.Context, execMsg *wasmtypes.MsgExecuteCon
 	if err := execMsg.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf(types.ErrBadExecutionMsg, err.Error())
 	}
-	wasmMsgServer := wasmkeeper.NewMsgServerImpl(h.ContractKeeper)
+	wasmMsgServer := wasmkeeper.NewMsgServerImpl(h.ContractKeeper) // TODO: JOEL - This is due to their fork
+
 	return wasmMsgServer.ExecuteContract(sdk.WrapSDKContext(ctx), execMsg)
 }
 
@@ -225,19 +227,28 @@ func ValidateAndParseMemo(memo string, receiver string) (isWasmRouted bool, cont
 }
 
 func (h WasmHooks) SendPacketOverride(i ICS4Middleware, ctx sdk.Context, chanCap *capabilitytypes.Capability, packet ibcexported.PacketI) error {
+
+	height := clienttypes.Height{
+		RevisionNumber: packet.GetTimeoutHeight().GetRevisionNumber(),
+		RevisionHeight: packet.GetTimeoutHeight().GetRevisionHeight(),
+	}
+
 	concretePacket, ok := packet.(channeltypes.Packet)
 	if !ok {
-		return i.channel.SendPacket(ctx, chanCap, packet) // continue
+		_, err := i.channel.SendPacket(ctx, chanCap, packet.GetSourcePort(), packet.GetSourceChannel(), height, packet.GetTimeoutTimestamp(), packet.GetData()) // continue
+		return err
 	}
 
 	isIcs20, data := isIcs20Packet(concretePacket)
 	if !isIcs20 {
-		return i.channel.SendPacket(ctx, chanCap, packet) // continue
+		_, err := i.channel.SendPacket(ctx, chanCap, packet.GetSourcePort(), packet.GetSourceChannel(), height, packet.GetTimeoutTimestamp(), packet.GetData()) // continue
+		return err
 	}
 
 	isCallbackRouted, metadata := jsonStringHasKey(data.GetMemo(), types.IBCCallbackKey)
 	if !isCallbackRouted {
-		return i.channel.SendPacket(ctx, chanCap, packet) // continue
+		_, err := i.channel.SendPacket(ctx, chanCap, packet.GetSourcePort(), packet.GetSourceChannel(), height, packet.GetTimeoutTimestamp(), packet.GetData()) // continue
+		return err
 	}
 
 	// We remove the callback metadata from the memo as it has already been processed.
@@ -263,7 +274,7 @@ func (h WasmHooks) SendPacketOverride(i ICS4Middleware, ctx sdk.Context, chanCap
 		return sdkerrors.Wrap(err, "Send packet with callback error")
 	}
 
-	packetWithoutCallbackMemo := channeltypes.Packet{
+	packetNoCallbackMemo := channeltypes.Packet{
 		Sequence:           concretePacket.Sequence,
 		SourcePort:         concretePacket.SourcePort,
 		SourceChannel:      concretePacket.SourceChannel,
@@ -274,7 +285,7 @@ func (h WasmHooks) SendPacketOverride(i ICS4Middleware, ctx sdk.Context, chanCap
 		TimeoutHeight:      concretePacket.TimeoutHeight,
 	}
 
-	err = i.channel.SendPacket(ctx, chanCap, packetWithoutCallbackMemo)
+	_, err = i.channel.SendPacket(ctx, chanCap, packetNoCallbackMemo.SourcePort, packetNoCallbackMemo.SourceChannel, packetNoCallbackMemo.TimeoutHeight, packetNoCallbackMemo.TimeoutTimestamp, packetNoCallbackMemo.Data)
 	if err != nil {
 		return err
 	}

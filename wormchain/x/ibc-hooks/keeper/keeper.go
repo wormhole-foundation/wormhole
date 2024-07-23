@@ -9,18 +9,19 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type (
 	Keeper struct {
-		storeKey sdk.StoreKey
+		storeKey storetypes.StoreKey
 	}
 )
 
 // NewKeeper returns a new instance of the x/ibchooks keeper
 func NewKeeper(
-	storeKey sdk.StoreKey,
+	storeKey storetypes.StoreKey,
 ) Keeper {
 	return Keeper{
 		storeKey: storeKey,
