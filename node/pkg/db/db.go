@@ -149,12 +149,11 @@ func (d *Database) StoreSignedVAABatch(vaaBatch []*vaa.VAA) error {
 		if err != nil {
 			return err
 		}
-
-		storedVaaTotal.Inc()
 	}
 
 	// Wait for the batch to finish.
 	err := batchTx.Flush()
+	storedVaaTotal.Add(float64(len(vaaBatch)))
 	return err
 }
 
