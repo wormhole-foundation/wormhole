@@ -61,7 +61,7 @@ func (s *KeeperTestHelper) Setup() {
 	s.TestAccs = CreateRandomAccounts(3)
 
 	s.StakingHelper = stakinghelper.NewHelper(s.Suite.T(), s.Ctx, s.App.StakingKeeper)
-	// TODO: JOEL - MAY NEED TO ADD THE DENOM?
+	s.StakingHelper.Denom = "uworm"
 }
 
 func (s *KeeperTestHelper) SetupTestForInitGenesis() {

@@ -213,7 +213,7 @@ func genesisStateWithValSet(t *testing.T,
 		balances,
 		totalSupply,
 		[]banktypes.Metadata{},
-		[]banktypes.SendEnabled{}, // TODO: JOEL - MAY NEED TO ADD A DENOM TO THE SEND ENABLED
+		[]banktypes.SendEnabled{},
 	)
 
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)

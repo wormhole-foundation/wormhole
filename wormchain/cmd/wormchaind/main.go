@@ -18,20 +18,4 @@ func main() {
 		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
 		os.Exit(1)
 	}
-
-	// TODO: JOEL - REMOVE BELOW
-	// rootCmd, _ := cosmoscmd.NewRootCmd(
-	// 	app.Name,
-	// 	app.AccountAddressPrefix,
-	// 	app.DefaultNodeHome,
-	// 	app.Name,
-	// 	app.ModuleBasics,
-	// 	app.New,
-	// 	// this line is used by starport scaffolding # root/arguments
-	// )
-
-	// rootCmd.AddCommand(cli.GetGenesisCmd())
-	// if err := svrcmd.Execute(rootCmd, app.DefaultNodeHome); err != nil {
-	// 	os.Exit(1)
-	// }
 }

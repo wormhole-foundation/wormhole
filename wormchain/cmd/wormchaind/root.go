@@ -2,10 +2,8 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	wasm "github.com/CosmWasm/wasmd/x/wasm"
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
@@ -51,13 +49,9 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 		WithHomeDir(app.DefaultNodeHome).
 		WithViper("")
 
-	// Allows you to add extra params to your client.toml
-	// gas, gas-price, gas-adjustment, fees, note, etc.
-	setCustomEnvVariablesFromClientToml(initClientCtx)
-
 	rootCmd := &cobra.Command{
 		Use:   version.AppName,
-		Short: "Neutron",
+		Short: "Wormchain",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
@@ -91,40 +85,6 @@ func initAppConfig() (string, interface{}) {
 	srvCfg := serverconfig.DefaultConfig()
 
 	return serverconfig.DefaultConfigTemplate, srvCfg
-}
-
-// Reads the custom extra values in the config.toml file if set.
-// If they are, then use them.
-func setCustomEnvVariablesFromClientToml(ctx client.Context) {
-	configFilePath := filepath.Join(ctx.HomeDir, "config", "client.toml")
-
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		return
-	}
-
-	viper := ctx.Viper
-	viper.SetConfigFile(configFilePath)
-
-	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("unable to read config file: %w", err))
-	}
-
-	setEnvFromConfig := func(key, envVar string) {
-		// if the user sets the env key manually, then we don't want to override it
-		if os.Getenv(envVar) != "" {
-			return
-		}
-
-		// reads from the config file
-		val := viper.GetString(key)
-		if val != "" {
-			// Sets the env for this instance of the app only.
-			os.Setenv(envVar, val)
-		}
-	}
-
-	setEnvFromConfig("gas", "WORMCHAIND_GAS")
-	// todo: Add more custom env variables here
 }
 
 func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {

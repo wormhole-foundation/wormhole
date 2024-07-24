@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 
-	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
@@ -13,13 +12,8 @@ const (
 )
 
 func init() {
-
-	// TODO: JOEL - HOW DO I REGISTER THE PROPOSAL CODEC TYPES? codec.go?
-
 	govv1beta.RegisterProposalType(ProposalTypeGuardianSetUpdate)
-	gov.RegisterProposalTypeCodec(&GuardianSetUpdateProposal{}, "wormhole/GuardianSetUpdate")
 	govv1beta.RegisterProposalType(ProposalTypeGovernanceWormholeMessage)
-	gov.RegisterProposalTypeCodec(&GovernanceWormholeMessageProposal{}, "wormhole/GovernanceWormholeMessage")
 }
 
 func NewGuardianSetUpdateProposal(title, description string, guardianSet GuardianSet) *GuardianSetUpdateProposal {

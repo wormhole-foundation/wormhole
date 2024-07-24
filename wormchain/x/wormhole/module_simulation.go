@@ -17,8 +17,6 @@ import (
 var (
 	_ = sample.AccAddress
 	_ = wormholesimulation.FindAccount
-	// TODO: JOEL - FIX THIS - SIM APP NO LONGER HAS PARAMS
-	// _ = simappparams.StakePerAccount
 	_ = simulation.MsgEntryKind
 	_ = baseapp.Paramspace
 )
