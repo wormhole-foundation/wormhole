@@ -156,6 +156,45 @@ def command_with_dlv(argv):
         "--",
     ] + argv[1:]
 
+def generate_bootstrap_peers(num_guardians):
+    # The devnet guardian uses deterministic P2P peer IDs based on the guardian index. The peer IDs here
+    # were generated using `DeterministicP2PPrivKeyByIndex` in `node/pkg/devnet/deterministic_p2p_key.go`.
+    peer_ids = [
+        "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw",
+        "12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu",
+        "12D3KooWKRyzVWW6ChFjQjK4miCty85Niy49tpPV95XdKu1BcvMA",
+        "12D3KooWB1b3qZxWJanuhtseF3DmPggHCtG36KZ9ixkqHtdKH9fh",
+        "12D3KooWE4qDcRrueTuRYWUdQZgcy7APZqBngVeXRt4Y6ytHizKV",
+        "12D3KooWPgam4TzSVCRa4AbhxQnM9abCYR4E9hV57SN7eAjEYn1j",
+        "12D3KooWM4yJB31d4hF2F9Vdwuj9WFo1qonoySyw4bVAQ9a9d21o",
+        "12D3KooWCv935r3ropYhUe5yMCp9QiUoc9A6cZpYQ5x84DqEPbwb",
+        "12D3KooWQfG74brcJhzpNwjPCZmcbBv8f6wxKgLSYmEDXXdPXQpH",
+        "12D3KooWNEWRB7PnuZs164xaA9QWM3iZHekHyEQo5qGP5KCHHuSN",
+        "12D3KooWB224kvi7vN34xJfsfW7bnv6eodxTkgo9VFA6UiaGMgRD",
+        "12D3KooWCR2EoapJjoQVR4E3NLjWn818gG3XizQ92Yx6C424HL2g",
+        "12D3KooWNc5rNmCJ9yvXviXaENnp7vqDQjomZwia4aA7Q3hSYkiW",
+        "12D3KooWBremnqYWBDK6ctvCuhCqJAps5ZAPADu53gXhQHexrvtP",
+        "12D3KooWFqdBYPrtwErMosomvD4uRtVhXQdqqZZHC3NCBZYVxr4t",
+        "12D3KooW9yvKfP5HgVaLnNaxWywo3pLAEypk7wjUcpgKwLznk5gQ",
+        "12D3KooWRuYVGEsecrJJhZsSoKf1UNdBVYKFCmFLNj9ucZiSQCYj",
+        "12D3KooWGEcD5sW5osB6LajkHGqiGc3W8eKfYwnJVVqfujkpLWX2",
+        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY" 
+    ]
+    bootstrap = ""
+    ccq_bootstrap = ""
+    for idx in range(num_guardians):
+        if bootstrap != "":
+            bootstrap += ","
+            ccq_bootstrap += ","
+        bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = 8999, peer = peer_ids[idx])
+        ccq_bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = 8996, peer = peer_ids[idx])
+    return [
+        "--bootstrap",
+        bootstrap,
+        "--ccqP2pBootstrap",
+        ccq_bootstrap,
+    ]
+
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
 
@@ -172,6 +211,9 @@ def build_node_yaml():
             if guardiand_debug:
                 container["command"] = command_with_dlv(container["command"])
                 print(container["command"])
+
+            if num_guardians > 1:
+                container["command"] += generate_bootstrap_peers(num_guardians)              
 
             if aptos:
                 container["command"] += [
