@@ -163,9 +163,9 @@ axios
                   continue;
                 }
               }
-
+              
               // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
-              if(!(await safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
+              if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
                 failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol)
                 continue; 
               }
@@ -312,24 +312,24 @@ axios
 
   Example data: 30 000000000000000000000000b5c457ddb4ce3312a6c5a2b056a1652bd542a208 O404 omni404 18 1128.69 0xb5c457ddb4ce3312a6c5a2b056a1652bd542a208 7.4832146999999996
 */
-async function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecimals, tokenPrice, address, notional)  : Promise<boolean>{
+function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecimals, tokenPrice, address, notional)  : boolean{
   
   if(isNaN(chain)){
     console.log("Invalid chain ID ", chain, " provided")
     return false; 
   }
 
-  if(await inputHasInvalidChars(wormholeAddr)){
+  if(inputHasInvalidChars(wormholeAddr)){
     console.log("Invalid wormhole address ", wormholeAddr, " provided")
     return false; 
   }
 
-  if(await inputHasInvalidChars(symbol)){
+  if(inputHasInvalidChars(symbol)){
     console.log("Invalid token symbol ", symbol, " provided")
     return false; 
   }
 
-  if(await inputHasInvalidChars(coinGeckoId)){
+  if(inputHasInvalidChars(coinGeckoId)){
     console.log("Invalid coin gecko id ", coinGeckoId, " provided")
     return false; 
   }
@@ -344,7 +344,7 @@ async function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecima
     return false; 
   }
 
-  if(await inputHasInvalidChars(address)){
+  if(inputHasInvalidChars(address)){
     console.log("Invalid address ", address, " provided")
     return false; 
   }
@@ -358,7 +358,7 @@ async function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecima
 
 // Checks whether an illegal character is present in the provided string
 // If a character is found then return true. Otherwise, return false. 
-async function inputHasInvalidChars(input) : Promise<boolean>{
+function inputHasInvalidChars(input) : boolean{
   var deny_list = ["\"", "%", "\n","\r", "\\","{","}","/","'","[","]","(",")"]
   for(var char of deny_list) {
     if(input.includes(char)){
