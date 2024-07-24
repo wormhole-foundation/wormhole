@@ -5,8 +5,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
+	ibcclienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	// ibc-go
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 )
@@ -27,30 +27,22 @@ func NewICS4Middleware(channel porttypes.ICS4Wrapper, hooks Hooks) ICS4Middlewar
 	}
 }
 
-func (i ICS4Middleware) SendPacket(
-	ctx sdk.Context,
-	chanCap *capabilitytypes.Capability,
-	sourcePort string,
-	sourceChannel string,
-	timeoutHeight clienttypes.Height,
-	timeoutTimestamp uint64,
-	data []byte,
-) (sequence uint64, err error) {
+func (i ICS4Middleware) SendPacket(ctx sdk.Context, channelCap *capabilitytypes.Capability, sourcePort string, sourceChannel string, timeoutHeight ibcclienttypes.Height, timeoutTimestamp uint64, data []byte) (sequence uint64, err error) {
 	if hook, ok := i.Hooks.(SendPacketOverrideHooks); ok {
-		return hook.SendPacketOverride(i, ctx, chanCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
+		return hook.SendPacketOverride(i, ctx, channelCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
 	}
 
 	if hook, ok := i.Hooks.(SendPacketBeforeHooks); ok {
-		hook.SendPacketBeforeHook(ctx, chanCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
+		hook.SendPacketBeforeHook(ctx, channelCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
 	}
 
-	sequence, err = i.channel.SendPacket(ctx, chanCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
+	seq, err := i.channel.SendPacket(ctx, channelCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data)
 
 	if hook, ok := i.Hooks.(SendPacketAfterHooks); ok {
-		hook.SendPacketAfterHook(ctx, chanCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data, sequence, err)
+		hook.SendPacketAfterHook(ctx, channelCap, sourcePort, sourceChannel, timeoutHeight, timeoutTimestamp, data, err)
 	}
 
-	return sequence, err
+	return seq, err
 }
 
 func (i ICS4Middleware) WriteAcknowledgement(ctx sdk.Context, chanCap *capabilitytypes.Capability, packet ibcexported.PacketI, ack ibcexported.Acknowledgement) error {

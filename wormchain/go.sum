@@ -186,8 +186,8 @@ cloud.google.com/go/workflows v1.6.0/go.mod h1:6t9F5h/unJz41YqfBmqSASJSXccBLtD1V
 cloud.google.com/go/workflows v1.7.0/go.mod h1:JhSrZuVZWuiDfKEFxU0/F1PQjmpnpcoISEXH2bcHC3M=
 cosmossdk.io/api v0.3.1 h1:NNiOclKRR0AOlO4KIqeaG6PS6kswOMhHD0ir0SscNXE=
 cosmossdk.io/api v0.3.1/go.mod h1:DfHfMkiNA2Uhy8fj0JJlOCYOBp4eWUUJ1te5zBGNyIw=
-cosmossdk.io/core v0.5.1 h1:vQVtFrIYOQJDV3f7rw4pjjVqc1id4+mE0L9hHP66pyI=
-cosmossdk.io/core v0.5.1/go.mod h1:KZtwHCLjcFuo0nmDc24Xy6CRNEL9Vl/MeimQ2aC7NLE=
+cosmossdk.io/core v0.6.1 h1:OBy7TI2W+/gyn2z40vVvruK3di+cAluinA6cybFbE7s=
+cosmossdk.io/core v0.6.1/go.mod h1:g3MMBCBXtxbDWBURDVnJE7XML4BG5qENhs0gzkcpuFA=
 cosmossdk.io/depinject v1.0.0-alpha.4 h1:PLNp8ZYAMPTUKyG9IK2hsbciDWqna2z1Wsl98okJopc=
 cosmossdk.io/depinject v1.0.0-alpha.4/go.mod h1:HeDk7IkR5ckZ3lMGs/o91AVUc7E596vMaOmslGFM3yU=
 cosmossdk.io/errors v1.0.1 h1:bzu+Kcr0kS/1DuPBtUFdWjzLqyUuCiyHjyJB6srBV/0=
@@ -212,8 +212,8 @@ github.com/CosmWasm/wasmd v0.45.0/go.mod h1:RnSAiqbNIZu4QhO+0pd7qGZgnYAMBPGmXpzT
 github.com/CosmWasm/wasmvm v1.5.2 h1:+pKB1Mz9GZVt1vadxB+EDdD1FOz3dMNjIKq/58/lrag=
 github.com/CosmWasm/wasmvm v1.5.2/go.mod h1:Q0bSEtlktzh7W2hhEaifrFp1Erx11ckQZmjq8FLCyys=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
-github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
-github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
+github.com/DataDog/zstd v1.5.2 h1:vUG4lAyuPCXO0TLbXvPv7EB7cNK1QV/luu55UHLrrn8=
+github.com/DataDog/zstd v1.5.2/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=

@@ -3,22 +3,20 @@ package ibc_hooks
 import (
 	"encoding/json"
 
-	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-
 	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/client/cli"
 	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
+	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var (
@@ -92,11 +90,6 @@ func (AppModule) Name() string {
 
 // RegisterInvariants registers the ibc-hooks module invariants.
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
-
-// QuerierRoute returns the module's querier route name.
-func (AppModule) QuerierRoute() string {
-	return ""
-}
 
 // RegisterServices registers a gRPC query service to respond to the
 // module-specific gRPC queries.

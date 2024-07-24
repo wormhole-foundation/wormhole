@@ -102,7 +102,6 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory"
 	wormholemodule "github.com/wormhole-foundation/wormchain/x/wormhole"
 	wormholemoduleante "github.com/wormhole-foundation/wormchain/x/wormhole/ante"
-	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 
@@ -137,8 +136,8 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		paramsclient.ProposalHandler,
 		upgradeclient.LegacyProposalHandler,
 		upgradeclient.LegacyCancelProposalHandler,
-		wormholeclient.GuardianSetUpdateProposalHandler,
-		wormholeclient.WormholeGovernanceMessageProposalHandler,
+		// wormholeclient.GuardianSetUpdateProposalHandler, // TODO: JOEL - NO LONGER NECESSARY, PROPOSALS WILL BE SENT TO GOV MSG SERVER
+		// wormholeclient.WormholeGovernanceMessageProposalHandler,
 	)
 
 	return govProposalHandlers
@@ -556,7 +555,7 @@ func New(
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
-	app.Ics20WasmHooks.ContractKeeper = app.ContractKeeper
+	app.Ics20WasmHooks.ContractKeeper = &app.wasmKeeper
 	app.IbcComposabilityMwKeeper.SetWasmKeeper(&app.wasmKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
@@ -995,7 +994,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 
 	// Setup the ICS4Wrapper used by the hooks middleware
 	wormPrefix := sdk.GetConfig().GetBech32AccountAddrPrefix()
-	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
+	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, &app.wasmKeeper, wormPrefix) // The contract keeper needs to be set later
 	app.Ics20WasmHooks = &wasmHooks
 	app.HooksICS4Wrapper = ibchooks.NewICS4Middleware(
 		ibcComposabilityMwICS4Wrapper,

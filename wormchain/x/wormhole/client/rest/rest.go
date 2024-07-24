@@ -1,6 +1,6 @@
-// The whole REST service was deprecated in v0.45 and now no longer exists in v0.47
+// // The whole REST service was deprecated in v0.45 and now no longer exists in v0.47
 
-// package rest
+package rest
 
 // import (
 // 	"encoding/hex"
@@ -8,8 +8,8 @@
 
 // 	"github.com/cosmos/cosmos-sdk/client"
 // 	"github.com/cosmos/cosmos-sdk/client/tx"
-// 	sdk "github.com/cosmos/cosmos-sdk/types"
 // 	"github.com/cosmos/cosmos-sdk/testutil/rest"
+// 	sdk "github.com/cosmos/cosmos-sdk/types"
 // 	govrest "github.com/cosmos/cosmos-sdk/x/gov/client/rest"
 // 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 // 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"

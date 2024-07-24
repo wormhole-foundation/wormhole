@@ -3,14 +3,13 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/types/address"
-
-	"github.com/cometbft/cometbft/libs/log"
-
 	"github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/address"
+
+	"github.com/cometbft/cometbft/libs/log"
 )
 
 type (
@@ -58,6 +57,6 @@ func (k Keeper) DeletePacketCallback(ctx sdk.Context, channel string, packetSequ
 func DeriveIntermediateSender(channel, originalSender, bech32Prefix string) (string, error) {
 	senderStr := fmt.Sprintf("%s/%s", channel, originalSender)
 	senderHash32 := address.Hash(types.SenderPrefix, []byte(senderStr))
-	sender := sdk.AccAddress(senderHash32[:])
+	sender := sdk.AccAddress(senderHash32)
 	return sdk.Bech32ifyAddressBytes(bech32Prefix, sender)
 }
