@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -274,7 +275,7 @@ func runP2P(
 							failedQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()
 							delete(responses, requestSignature)
 							select {
-							case pendingResponse.errCh <- &ErrorEntry{err: fmt.Errorf("quorum not met"), status: http.StatusBadRequest}:
+							case pendingResponse.errCh <- &ErrorEntry{err: errors.New("quorum not met"), status: http.StatusBadRequest}:
 								logger.Info("query failed, quorum not met",
 									zap.String("peerId", peerId),
 									zap.String("userId", pendingResponse.userName),
