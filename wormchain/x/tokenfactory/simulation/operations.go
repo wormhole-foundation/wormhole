@@ -9,7 +9,6 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
-	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/params"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
@@ -364,7 +363,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 		// Check if sims account enough create fee
 		createFee := tfKeeper.GetParams(ctx).DenomCreationFee
 		balances := bk.GetAllBalances(ctx, simAccount.Address)
-		_, hasNeg := balances.SafeSub(createFee)
+		_, hasNeg := balances.SafeSub(createFee...)
 		if hasNeg {
 			return simtypes.NoOpMsg(types.ModuleName, types.MsgCreateDenom{}.Type(), "Creator not enough creation fee"), nil, nil
 		}
@@ -397,7 +396,7 @@ func BuildOperationInput(
 	return simulation.OperationInput{
 		R:               r,
 		App:             baseapp,
-		TxGen:           app.MakeEncodingConfig().TxConfig,
+		TxGen:           params.MakeEncodingConfig().TxConfig,
 		Cdc:             nil,
 		Msg:             msg,
 		MsgType:         msg.Type(),
