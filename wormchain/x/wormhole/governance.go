@@ -8,7 +8,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -17,8 +17,8 @@ import (
 // NewWormholeGovernanceProposalHandler creates a governance handler to manage new proposal types.
 // It enables GuardianSetProposal to update the guardian set and GenericWormholeMessageProposal to emit a generic wormhole
 // message from the governance emitter.
-func NewWormholeGovernanceProposalHandler(k keeper.Keeper) govtypes.Handler {
-	return func(ctx sdk.Context, content govtypes.Content) error {
+func NewWormholeGovernanceProposalHandler(k keeper.Keeper) govv1beta.Handler {
+	return func(ctx sdk.Context, content govv1beta.Content) error {
 		switch c := content.(type) {
 		case *types.GuardianSetUpdateProposal:
 			return handleGuardianSetUpdateProposal(ctx, k, c)

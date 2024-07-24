@@ -6,6 +6,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -14,8 +15,8 @@ import (
 type (
 	Keeper struct {
 		cdc      codec.BinaryCodec
-		storeKey sdk.StoreKey
-		memKey   sdk.StoreKey
+		storeKey storetypes.StoreKey
+		memKey   storetypes.StoreKey
 
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
@@ -30,7 +31,7 @@ type (
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey,
-	memKey sdk.StoreKey,
+	memKey storetypes.StoreKey,
 
 	accountKeeper types.AccountKeeper, bankKeeper types.BankKeeper,
 ) *Keeper {

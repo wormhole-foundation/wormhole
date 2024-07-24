@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 const (
@@ -12,9 +13,12 @@ const (
 )
 
 func init() {
-	gov.RegisterProposalType(ProposalTypeGuardianSetUpdate)
+
+	// TODO: JOEL - HOW DO I REGISTER THE PROPOSAL CODEC TYPES? codec.go?
+
+	govv1beta.RegisterProposalType(ProposalTypeGuardianSetUpdate)
 	gov.RegisterProposalTypeCodec(&GuardianSetUpdateProposal{}, "wormhole/GuardianSetUpdate")
-	gov.RegisterProposalType(ProposalTypeGovernanceWormholeMessage)
+	govv1beta.RegisterProposalType(ProposalTypeGovernanceWormholeMessage)
 	gov.RegisterProposalTypeCodec(&GovernanceWormholeMessageProposal{}, "wormhole/GovernanceWormholeMessage")
 }
 
@@ -32,7 +36,7 @@ func (sup *GuardianSetUpdateProposal) ValidateBasic() error {
 	if err := sup.NewGuardianSet.ValidateBasic(); err != nil {
 		return err
 	}
-	return gov.ValidateAbstract(sup)
+	return govv1beta.ValidateAbstract(sup)
 }
 
 func (sup *GuardianSetUpdateProposal) String() string {
@@ -61,7 +65,7 @@ func (sup *GovernanceWormholeMessageProposal) ValidateBasic() error {
 	if len(sup.Module) != 32 {
 		return fmt.Errorf("invalid module length: %d != 32", len(sup.Module))
 	}
-	return gov.ValidateAbstract(sup)
+	return govv1beta.ValidateAbstract(sup)
 }
 
 func (sup *GovernanceWormholeMessageProposal) String() string {
