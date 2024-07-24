@@ -186,6 +186,9 @@ var (
 	berachainRPC      *string
 	berachainContract *string
 
+	snaxchainRPC      *string
+	snaxchainContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -388,6 +391,9 @@ func init() {
 
 	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
+
+	snaxchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	snaxchainContract = NodeCmd.Flags().String("snaxchainContract", "", "Snaxchain contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -646,6 +652,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
+	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -850,6 +857,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
+	rpcMap["snaxchainRPC"] = *snaxchainRPC
 	rpcMap["suiRPC"] = *suiRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
@@ -1311,6 +1319,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDBerachain,
 			Rpc:              *berachainRPC,
 			Contract:         *berachainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(snaxchainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "snaxchain",
+			ChainID:          vaa.ChainIDSnaxchain,
+			Rpc:              *snaxchainRPC,
+			Contract:         *snaxchainContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
