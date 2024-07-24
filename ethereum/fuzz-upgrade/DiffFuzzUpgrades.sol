@@ -2,209 +2,13 @@
 pragma solidity >=0.8.4;
 
 import { Implementation } from "../contracts/Implementation.sol";
-interface IImplementationV1 {
-    enum GovernanceAction { UpgradeContract, UpgradeGuardianset }
-    struct ContractUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newContract;
-    }
-    struct GuardianSetUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        GuardianSet newGuardianSet;
-        uint32 newGuardianSetIndex;
-    }
-    struct SetMessageFee {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        uint256 messageFee;
-    }
-    struct TransferFees {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        uint256 amount;
-        bytes32 recipient;
-    }
-    struct RecoverChainId {
-        bytes32 module;
-        uint8 action;
-        uint256 evmChainId;
-        uint16 newChainId;
-    }
-    struct VM {
-        uint8 version;
-        uint32 timestamp;
-        uint32 nonce;
-        uint16 emitterChainId;
-        bytes32 emitterAddress;
-        uint64 sequence;
-        uint8 consistencyLevel;
-        bytes payload;
-        uint32 guardianSetIndex;
-        Signature[] signatures;
-        bytes32 hash;
-    }
-    struct Signature {
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-        uint8 guardianIndex;
-    }
-    struct GuardianSet {
-        address[] keys;
-        uint32 expirationTime;
-    }
-    function submitContractUpgrade(bytes memory) external;
-    function submitSetMessageFee(bytes memory) external;
-    function submitNewGuardianSet(bytes memory) external;
-    function submitTransferFees(bytes memory) external;
-    function submitRecoverChainId(bytes memory) external;
-    function parseAndVerifyVM(bytes calldata) external view returns (VM memory,bool,string memory);
-    function verifyVM(VM memory) external view returns (bool,string memory);
-    function verifySignatures(bytes32,Signature[] memory,GuardianSet memory) external pure returns (bool,string memory);
-    function parseVM(bytes memory) external pure returns (VM memory);
-    function quorum(uint256) external pure returns (uint256);
-    function getGuardianSet(uint32) external view returns (GuardianSet memory);
-    function getCurrentGuardianSetIndex() external view returns (uint32);
-    function getGuardianSetExpiry() external view returns (uint32);
-    function governanceActionIsConsumed(bytes32) external view returns (bool);
-    function isInitialized(address) external view returns (bool);
-    function chainId() external view returns (uint16);
-    function evmChainId() external view returns (uint256);
-    function isFork() external view returns (bool);
-    function governanceChainId() external view returns (uint16);
-    function governanceContract() external view returns (bytes32);
-    function messageFee() external view returns (uint256);
-    function nextSequence(address) external view returns (uint64);
-    function parseContractUpgrade(bytes memory) external pure returns (ContractUpgrade memory);
-    function parseGuardianSetUpgrade(bytes memory) external pure returns (GuardianSetUpgrade memory);
-    function parseSetMessageFee(bytes memory) external pure returns (SetMessageFee memory);
-    function parseTransferFees(bytes memory) external pure returns (TransferFees memory);
-    function parseRecoverChainId(bytes memory) external pure returns (RecoverChainId memory);
-    function publishMessage(uint32,bytes memory,uint8) external payable returns (uint64);
-    function initialize() external;
-}
+import "../forge-test/rv-helpers/TestUtils.sol";
+import "./WormholeSigner.sol";
+import "./FuzzingHelpers.sol";
 
-interface IImplementationV2 {
-    enum GovernanceAction { UpgradeContract, UpgradeGuardianset }
-    struct ContractUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newContract;
-    }
-    struct GuardianSetUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        GuardianSet newGuardianSet;
-        uint32 newGuardianSetIndex;
-    }
-    struct SetMessageFee {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        uint256 messageFee;
-    }
-    struct TransferFees {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        uint256 amount;
-        bytes32 recipient;
-    }
-    struct RecoverChainId {
-        bytes32 module;
-        uint8 action;
-        uint256 evmChainId;
-        uint16 newChainId;
-    }
-    struct VM {
-        uint8 version;
-        uint32 timestamp;
-        uint32 nonce;
-        uint16 emitterChainId;
-        bytes32 emitterAddress;
-        uint64 sequence;
-        uint8 consistencyLevel;
-        bytes payload;
-        uint32 guardianSetIndex;
-        Signature[] signatures;
-        bytes32 hash;
-    }
-    struct GuardianSet {
-        address[] keys;
-        uint32 expirationTime;
-    }
-    struct Signature {
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-        uint8 guardianIndex;
-    }
-    function submitContractUpgrade(bytes memory) external;
-    function submitSetMessageFee(bytes memory) external;
-    function submitNewGuardianSet(bytes memory) external;
-    function submitTransferFees(bytes memory) external;
-    function submitRecoverChainId(bytes memory) external;
-    function setGuardianSetHash(uint32) external;
-    function parseAndVerifyVMOptimized(bytes calldata,bytes calldata,uint32) external view returns (VM memory,bool,string memory);
-    function parseGuardianSet(bytes calldata) external pure returns (GuardianSet memory);
-    function parseAndVerifyVM(bytes calldata) external view returns (VM memory,bool,string memory);
-    function verifyVM(VM memory) external view returns (bool,string memory);
-    function verifySignatures(bytes32,Signature[] memory,GuardianSet memory) external pure returns (bool,string memory);
-    function verifyCurrentQuorum(bytes32,Signature[] memory) external view returns (bool,string memory);
-    function parseVM(bytes memory) external view returns (VM memory);
-    function quorum(uint256) external pure returns (uint256);
-    function getGuardianSet(uint32) external view returns (GuardianSet memory);
-    function getCurrentGuardianSetIndex() external view returns (uint32);
-    function getGuardianSetExpiry() external view returns (uint32);
-    function governanceActionIsConsumed(bytes32) external view returns (bool);
-    function isInitialized(address) external view returns (bool);
-    function chainId() external view returns (uint16);
-    function evmChainId() external view returns (uint256);
-    function isFork() external view returns (bool);
-    function governanceChainId() external view returns (uint16);
-    function governanceContract() external view returns (bytes32);
-    function messageFee() external view returns (uint256);
-    function nextSequence(address) external view returns (uint64);
-    function getGuardianSetHash(uint32) external view returns (bytes32);
-    function getEncodedGuardianSet(uint32) external view returns (bytes memory);
-    function parseContractUpgrade(bytes memory) external pure returns (ContractUpgrade memory);
-    function parseGuardianSetUpgrade(bytes memory) external pure returns (GuardianSetUpgrade memory);
-    function parseSetMessageFee(bytes memory) external pure returns (SetMessageFee memory);
-    function parseTransferFees(bytes memory) external pure returns (TransferFees memory);
-    function parseRecoverChainId(bytes memory) external pure returns (RecoverChainId memory);
-    function publishMessage(uint32,bytes memory,uint8) external payable returns (uint64);
-    function initialize() external;
-}
-
-interface IWormhole {
-}
-
-interface IHevm {
-    function warp(uint256 newTimestamp) external;
-    function roll(uint256 newNumber) external;
-    function load(address where, bytes32 slot) external returns (bytes32);
-    function store(address where, bytes32 slot, bytes32 value) external;
-    function sign(uint256 privateKey, bytes32 digest) external returns (uint8 r, bytes32 v, bytes32 s);
-    function addr(uint256 privateKey) external returns (address add);
-    function ffi(string[] calldata inputs) external returns (bytes memory result);
-    function prank(address newSender) external;
-    function createFork(string calldata urlOrAlias) external returns (uint256 forkId);
-    function selectFork(uint256 forkId) external;
-}
-
-contract DiffFuzzUpgrades {
-    IHevm hevm = IHevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
-
-    IImplementationV1 implementationV1;
-    IImplementationV2 implementationV2;
+contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
+    address implementationV1;
+    address implementationV2;
     IWormhole wormhole;
     uint256 fork1;
     uint256 fork2;
@@ -248,54 +52,84 @@ contract DiffFuzzUpgrades {
         uint32 expirationTime;
     }
 
-    constructor() public {
+    mapping(bytes32 => bool) public governanceMessageIsConsumed;
+    bytes32[] public governanceMessagesConsumed;
+    mapping(address => bool) public initializedImplementation;
+
+
+    constructor() {
         hevm.roll(20286167);
         hevm.warp(1720735919);
         fork1 = hevm.createFork("1");
         fork2 = hevm.createFork("2");
         fork1 = 1;
         fork2 = 2;
-        implementationV1 = IImplementationV1(0x3c3d457f1522D3540AB3325Aa5f1864E34cBA9D0);
-        implementationV2 = IImplementationV2(0x0102030405060708091011121314151617181920);
+        implementationV1 = 0x3c3d457f1522D3540AB3325Aa5f1864E34cBA9D0;
         wormhole = IWormhole(0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B);
-        // Store the implementation addresses in the proxy.
+        
         hevm.selectFork(fork1);
-        hevm.store(
-            address(wormhole),
-            bytes32(uint(24440054405305269366569402256811496959409073762505157381672968839269610695612)),
-            bytes32(uint256(uint160(address(implementationV1))))
-        );
-        hevm.selectFork(fork2);
-        hevm.store(
-            address(wormhole),
-            bytes32(uint(24440054405305269366569402256811496959409073762505157381672968839269610695612)),
-            bytes32(uint256(uint160(address(implementationV1))))
-        );
-    }
+        hevm.deal(address(this), type(uint256).max);
 
-    /*** Upgrade Function ***/ 
+        overrideToTestGuardian(IWormhole(wormhole), hevm.addr(testGuardianKey));
 
-    // TODO: Consider replacing this with the actual upgrade method
-    function upgradeV2() external virtual {
+        // Perform a "fake" upgrade on fork2
+        // We set the implementation address in the proxy and then call initialize, which
+        // usually is called during the proper upgrade flow. We test the proper upgrade
+        // flow later
         hevm.selectFork(fork2);
+        hevm.deal(address(this), type(uint256).max);
+
+        implementationV2 = address(new Implementation());
+
         hevm.store(
             address(wormhole),
             bytes32(uint(24440054405305269366569402256811496959409073762505157381672968839269610695612)),
             bytes32(uint256(uint160(address(implementationV2))))
         );
-        hevm.selectFork(fork1);
-        bytes32 impl1 = hevm.load(
-            address(wormhole),
-            bytes32(uint(24440054405305269366569402256811496959409073762505157381672968839269610695612))
+
+        (bool success, bytes memory output) = address(wormhole).call(
+            abi.encodeWithSignature(
+                'initialize()'
+            )
         );
-        bytes32 implV1 = bytes32(uint256(uint160(address(implementationV1))));
-        assert(impl1 == implV1);
+        assert(success == true);
+        initializedImplementation[implementationV2] = true;
+        
+        overrideToTestGuardian(IWormhole(wormhole), hevm.addr(testGuardianKey));
     }
 
 
     /*** Modified Functions ***/ 
 
-    function Implementation_submitNewGuardianSet(bytes memory a) public virtual {
+    function Implementation_submitNewGuardianSet(bool validVAA, bytes32 seed, bytes memory a) public virtual {
+        bytes32 messageHash;
+        
+        if (validVAA) {
+            uint32 newIndex = rollNewGuardianSet(wormhole, seed);
+
+            uint256 newGuardianSetLength = pendingGuardianSetAddresses.length;
+            a = abi.encodePacked(MODULE, uint8(2), CHAINID, newIndex, uint8(newGuardianSetLength));
+
+            for (uint256 i = 0; i < newGuardianSetLength; i++) {
+                a = abi.encodePacked(a, pendingGuardianSetAddresses[i]);
+            }
+
+            (a, messageHash) = encodeAndSignGovernanceMessage(a, wormhole);
+
+            // After rolling a new guardian set but before sending the message we need to make sure the forks are in sync
+            // because we've been calling one fork for the index, but not the other. Guardian set expiry time matters
+            // when comparing the results of the two forks
+            // Keep the forks in sync
+            hevm.selectFork(fork2);
+            emit SwitchedFork(fork2);
+            uint blockNo = block.number;
+            uint blockTime = block.timestamp;
+            hevm.selectFork(fork1);
+            emit SwitchedFork(fork1);
+            hevm.roll(blockNo);
+            hevm.warp(blockTime);
+        }
+
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -314,11 +148,24 @@ contract DiffFuzzUpgrades {
         );
         assert(successV1 == successV2); 
         if(successV1 && successV2) {
+            assert(validVAA == true);
             assert(keccak256(outputV1) == keccak256(outputV2));
+            
+            // We need to commit the new guardian set so it can start signing future messages
+            commitNewGuardianSet();
+            governanceMessageIsConsumed[messageHash] = true;
+            governanceMessagesConsumed.push(messageHash);
+        }
+        else {
+            assert(validVAA == false);
         }
     }
 
-    function Implementation_parseAndVerifyVM(bytes memory a) public virtual {
+    function Implementation_parseAndVerifyVM(bool validVAA, bytes memory a, uint16 emitterChainId, bytes32 emitterAddress) public virtual {
+        if (validVAA) {
+            a = encodeAndSignMessage(a, emitterChainId, emitterAddress, wormhole);
+        }
+
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -338,10 +185,15 @@ contract DiffFuzzUpgrades {
         assert(successV1 == successV2); 
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(validVAA);
+
+            IWormhole.VM memory vaa = abi.decode(outputV2, (IWormhole.VM));
+            assert(vaa.emitterAddress == emitterAddress);
+            assert(vaa.emitterChainId == emitterChainId);
         }
     }
 
-    function Implementation_verifyVM(IImplementationV2.VM memory a) public virtual {
+    function Implementation_verifyVM(IWormhole.VM memory a) public virtual {
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -364,7 +216,7 @@ contract DiffFuzzUpgrades {
         }
     }
 
-    function Implementation_verifySignatures(bytes32 a, IImplementationV2.Signature[] memory b, GuardianSet memory c) public virtual {
+    function Implementation_verifySignatures(bytes32 a, IWormhole.Signature[] memory b, GuardianSet memory c) public virtual {
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -427,7 +279,9 @@ contract DiffFuzzUpgrades {
                 'initialize()'
             )
         );
-        assert(successV1 == successV2); 
+        assert(successV1 == successV2);
+        // We don't want to be able to re-initialize 
+        assert(successV1 == false);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
@@ -436,30 +290,58 @@ contract DiffFuzzUpgrades {
 
     /*** Tainted Functions ***/ 
 
-    function Implementation_submitContractUpgrade(bytes memory a) public virtual {
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.prank(msg.sender);
-        (bool successV1, bytes memory outputV1) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'submitContractUpgrade(bytes)', a
-            )
-        );
+    function Implementation_submitContractUpgrade(bool validVAA, bytes memory a) public virtual {
+        bytes32 messageHash;
+
         hevm.selectFork(fork2);
         emit SwitchedFork(fork2);
+
+        address newImplementation = address(new Implementation());
+
+        if (validVAA) {
+           a = abi.encodePacked(MODULE, uint8(1), CHAINID, uint256(uint160(newImplementation)));
+           (a, messageHash) = encodeAndSignGovernanceMessage(a, wormhole);
+        }
+
         hevm.prank(msg.sender);
         (bool successV2, bytes memory outputV2) = address(wormhole).call(
             abi.encodeWithSignature(
                 'submitContractUpgrade(bytes)', a
             )
         );
-        assert(successV1 == successV2); 
-        if(successV1 && successV2) {
-            assert(keccak256(outputV1) == keccak256(outputV2));
+
+        if (validVAA) {
+            assert(successV2 == true);
+            initializedImplementation[newImplementation] = true;
+
+            // We're explicitly not setting these hashes as consumed becuase we only
+            // submit the contract upgrade to V2
+
+            // governanceMessageIsConsumed[messageHash] = true;
+            // governanceMessagesConsumed.push(messageHash);
         }
+        else{
+            assert(successV2 == false);
+        }
+
+        // Keep the forks in sync
+        uint blockNo = block.number;
+        uint blockTime = block.timestamp;
+        hevm.selectFork(fork1);
+        emit SwitchedFork(fork1);
+        hevm.roll(blockNo);
+        hevm.warp(blockTime);
     }
 
-    function Implementation_submitSetMessageFee(bytes memory a) public virtual {
+    function Implementation_submitSetMessageFee(bool validVAA, bool fee, bytes memory a) public virtual {
+        uint256 messageFee = fee ? 1 ether : 0;
+        bytes32 messageHash;
+        
+        if (validVAA) {
+           a = abi.encodePacked(MODULE, uint8(3), CHAINID, messageFee);
+           (a, messageHash) = encodeAndSignGovernanceMessage(a, wormhole);
+        }
+
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -478,11 +360,28 @@ contract DiffFuzzUpgrades {
         );
         assert(successV1 == successV2); 
         if(successV1 && successV2) {
+            // It must have been a valid VAA
+            assert(validVAA == true);
             assert(keccak256(outputV1) == keccak256(outputV2));
+
+            governanceMessageIsConsumed[messageHash] = true;
+            governanceMessagesConsumed.push(messageHash);
+        }
+        else {
+            assert(validVAA == false);
         }
     }
 
-    function Implementation_submitTransferFees(bytes memory a) public virtual {
+    function Implementation_submitTransferFees(bool validVAA, uint256 amount, bytes32 receiver, bytes memory a) public virtual {
+        bytes32 messageHash;
+        uint256 wormholeBalanceBefore = address(wormhole).balance;
+        
+        if (validVAA) {
+            amount = clampBetween(amount, 0, wormholeBalanceBefore);
+            a = abi.encodePacked(MODULE, uint8(4), CHAINID, amount, receiver);
+            (a, messageHash) = encodeAndSignGovernanceMessage(a, wormhole);
+        }
+
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -502,6 +401,16 @@ contract DiffFuzzUpgrades {
         assert(successV1 == successV2); 
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(validVAA == true);
+
+            governanceMessageIsConsumed[messageHash] = true;
+            governanceMessagesConsumed.push(messageHash);
+
+            assert(address(wormhole).balance == wormholeBalanceBefore - amount);
+
+            hevm.selectFork(fork1);
+            emit SwitchedFork(fork1);
+            assert(address(wormhole).balance == wormholeBalanceBefore - amount);
         }
     }
 
@@ -568,7 +477,9 @@ contract DiffFuzzUpgrades {
                 'getCurrentGuardianSetIndex()'
             )
         );
-        assert(successV1 == successV2); 
+        assert(successV1 == successV2);
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
@@ -592,12 +503,19 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
     }
 
-    function Implementation_governanceActionIsConsumed(bytes32 a) public virtual {
+    function Implementation_governanceActionIsConsumed(bool consumedMessage, uint256 messageIndex, bytes32 a) public virtual {
+        if (consumedMessage && governanceMessagesConsumed.length != 0) {
+            messageIndex = clampBetween(messageIndex, 0, governanceMessagesConsumed.length - 1);
+            a = governanceMessagesConsumed[messageIndex];
+        }
+        
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -617,6 +535,10 @@ contract DiffFuzzUpgrades {
         assert(successV1 == successV2); 
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+
+            if (consumedMessage && governanceMessagesConsumed.length != 0) {
+                assert(abi.decode(outputV2, (bool)) == true);
+            }
         }
     }
 
@@ -637,9 +559,24 @@ contract DiffFuzzUpgrades {
                 'isInitialized(address)', a
             )
         );
-        assert(successV1 == successV2); 
+        assert(successV1 == successV2);
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
-            assert(keccak256(outputV1) == keccak256(outputV2));
+            // We should always get the same result on both forks, apart from with new implementations
+            if (initializedImplementation[a] == false) {
+                assert(keccak256(outputV1) == keccak256(outputV2));
+
+                // This implementation should be initialised on both forks
+                if (a == implementationV1) {
+                    assert(abi.decode(outputV2, (bool)) == true);
+                }
+            }
+            else {
+                // The v2 implementation will only be initialised on fork 2
+                assert(abi.decode(outputV2, (bool)) == true);
+                assert(abi.decode(outputV1, (bool)) == false);
+            }
         }
     }
 
@@ -661,8 +598,11 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(abi.decode(outputV2, (uint16)) == 2);
         }
     }
 
@@ -684,8 +624,11 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(abi.decode(outputV2, (uint256)) == 1);
         }
     }
 
@@ -707,6 +650,8 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
@@ -730,8 +675,11 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(abi.decode(outputV2, (uint16)) == 1);
         }
     }
 
@@ -753,8 +701,11 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
+            assert(abi.decode(outputV2, (bytes32)) == governanceContract);
         }
     }
 
@@ -776,6 +727,8 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
@@ -799,27 +752,44 @@ contract DiffFuzzUpgrades {
             )
         );
         assert(successV1 == successV2); 
+        // This getter should always succeed 
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
     }
 
     function Implementation_publishMessage(uint32 a, bytes memory b, uint8 c) public virtual {
+        
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
-        (bool successV1, bytes memory outputV1) = address(wormhole).call(
+
+        uint256 messageFee = IWormhole(wormhole).messageFee();
+        uint256 balanceBefore = address(this).balance;
+
+        (bool successV1, bytes memory outputV1) = address(wormhole).call{value: messageFee}(
             abi.encodeWithSignature(
                 'publishMessage(uint32,bytes,uint8)', a, b, c
             )
         );
+
+        assert(address(this).balance == balanceBefore - messageFee);
+
         hevm.selectFork(fork2);
         emit SwitchedFork(fork2);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
+
+        balanceBefore = address(this).balance;
+
+        (bool successV2, bytes memory outputV2) = address(wormhole).call{value: messageFee}(
             abi.encodeWithSignature(
                 'publishMessage(uint32,bytes,uint8)', a, b, c
             )
         );
+        assert(address(this).balance == balanceBefore - messageFee);
+
         assert(successV1 == successV2); 
+        // This should always succeed
+        assert(successV1 == true);
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
@@ -903,7 +873,7 @@ contract DiffFuzzUpgrades {
         assert(true);
     }
 
-    function Implementation_verifyCurrentQuorum(bytes32 a, IImplementationV2.Signature[] memory b) public virtual {
+    function Implementation_verifyCurrentQuorum(bytes32 a, IWormhole.Signature[] memory b) public virtual {
         // This function does nothing with the V1, since verifyCurrentQuorum is new in the V2
         hevm.selectFork(fork2);
         emit SwitchedFork(fork2);
@@ -977,11 +947,4 @@ contract DiffFuzzUpgrades {
         // Never fail assertion, since there is nothing to compare
         assert(true);
     }
-
-
-    /*** Tainted Variables ***/ 
-
-
-    /*** Additional Targets ***/ 
-
 }
