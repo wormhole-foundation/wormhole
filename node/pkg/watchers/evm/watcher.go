@@ -329,102 +329,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 				tx := eth_common.BytesToHash(r.TxHash)
 				logger.Info("received observation request", zap.String("tx_hash", tx.Hex()))
-
-				// SECURITY: Load the block number before requesting the transaction to avoid a
-				// race condition where requesting the tx succeeds and is then dropped due to a fork,
-				// but blockNumberU had already advanced beyond the required threshold.
-				//
-				// In the primary watcher flow, this is of no concern since we assume the node
-				// always sends the head before it sends the logs (implicit synchronization
-				// by relying on the same websocket connection).
-				blockNumberU := atomic.LoadUint64(&w.latestFinalizedBlockNumber)
-				safeBlockNumberU := atomic.LoadUint64(&w.latestSafeBlockNumber)
-
-				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-				blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
-				cancel()
-
-				if err != nil {
-					logger.Error("failed to process observation request", zap.String("tx_hash", tx.Hex()), zap.Error(err))
-					continue
-				}
-
-				for _, msg := range msgs {
-					msg.IsReobservation = true
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-						logger.Info("re-observed message publication transaction, publishing it immediately",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-						w.msgC <- msg
-						continue
-					}
-
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe {
-						if safeBlockNumberU == 0 {
-							logger.Error("no safe block number available, ignoring observation request",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
-							)
-							continue
-						}
-
-						if blockNumber <= safeBlockNumberU {
-							logger.Info("re-observed message publication transaction",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
-								zap.Uint64("current_safe_block", safeBlockNumberU),
-								zap.Uint64("observed_block", blockNumber),
-							)
-							w.msgC <- msg
-						} else {
-							logger.Info("ignoring re-observed message publication transaction",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
-								zap.Uint64("current_safe_block", safeBlockNumberU),
-								zap.Uint64("observed_block", blockNumber),
-							)
-						}
-
-						continue
-					}
-
-					if blockNumberU == 0 {
-						logger.Error("no block number available, ignoring observation request",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
-						)
-						continue
-					}
-
-					// SECURITY: In the recovery flow, we already know which transaction to
-					// observe, and we can assume that it has reached the expected finality
-					// level a long time ago. Therefore, the logic is much simpler than the
-					// primary watcher, which has to wait for finality.
-					//
-					// Instead, we can simply check if the transaction's block number is in
-					// the past by more than the expected confirmation number.
-					//
-					// Ensure that the current block number is larger than the message observation's block number.
-					if blockNumber <= blockNumberU {
-						logger.Info("re-observed message publication transaction",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-						w.msgC <- msg
-					} else {
-						logger.Info("ignoring re-observed message publication transaction",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-					}
-				}
+				w.processObservationRequest(ctx, logger, tx)
 			}
 		}
 	})
@@ -472,6 +377,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer headerSubscription.Unsubscribe()
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
+		var prevFinalizedBlockNum uint64
 		stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
 		for {
 			select {
@@ -524,6 +430,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.FinalizedHeight = int64(blockNumberU)
+					if (prevFinalizedBlockNum+1) < blockNumberU && prevFinalizedBlockNum != 0 {
+						logger.Error("gap detected in finalized blocks", zap.Uint64("current_blockNum", blockNumberU), zap.Uint64("prev_blockNum", prevFinalizedBlockNum))
+					}
+					prevFinalizedBlockNum = blockNumberU
 				}
 				w.updateNetworkStats(&stats)
 
@@ -535,16 +445,27 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// Transaction was dropped and never picked up again
 					if pLock.height+MaxWaitConfirmations <= blockNumberU {
-						logger.Info("observation timed out",
+						logger.Error("observation timed out, trying a reobservation",
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.Stringer("txHash", pLock.message.TxHash),
 							zap.Stringer("blockHash", key.BlockHash),
+							zap.Uint64("target_blockNum", pLock.height),
 							zap.Stringer("current_blockNum", ev.Number),
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockHash", currentHash),
 						)
+						if !w.processObservationRequest(ctx, logger, pLock.message.TxHash) {
+							logger.Error("observation timed out and reobservation failed, discarding transaction",
+								zap.String("msgId", pLock.message.MessageIDString()),
+								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
+								zap.Stringer("current_blockNum", ev.Number),
+								zap.Stringer("finality", ev.Finality),
+								zap.Stringer("current_blockHash", currentHash),
+							)
+						}
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 						delete(w.pending, key)
 						continue
@@ -859,6 +780,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.String("msgId", message.MessageIDString()),
 			zap.Stringer("txHash", message.TxHash),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
+			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 			zap.Stringer("blockHash", ev.Raw.BlockHash),
 			zap.Uint64("blockTime", blockTime),
 			zap.Uint32("Nonce", ev.Nonce),
@@ -874,6 +796,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 		zap.String("msgId", message.MessageIDString()),
 		zap.Stringer("txHash", message.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint64("blockTime", blockTime),
 		zap.Uint32("Nonce", ev.Nonce),
@@ -915,6 +838,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 		zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 		zap.Stringer("txHash", ev.Raw.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint32("Nonce", ev.Nonce),
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -998,4 +922,107 @@ func (w *Watcher) SetLineaParams(lineaRollUpUrl string, lineaRollUpContract stri
 	w.lineaRollUpUrl = lineaRollUpUrl
 	w.lineaRollUpContract = lineaRollUpContract
 	return nil
+}
+func (w *Watcher) processObservationRequest(ctx context.Context, logger *zap.Logger, tx eth_common.Hash) bool {
+	// SECURITY: Load the block number before requesting the transaction to avoid a
+	// race condition where requesting the tx succeeds and is then dropped due to a fork,
+	// but blockNumberU had already advanced beyond the required threshold.
+	//
+	// In the primary watcher flow, this is of no concern since we assume the node
+	// always sends the head before it sends the logs (implicit synchronization
+	// by relying on the same websocket connection).
+	blockNumberU := atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+	safeBlockNumberU := atomic.LoadUint64(&w.latestSafeBlockNumber)
+
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
+	cancel()
+
+	if err != nil {
+		logger.Error("failed to process observation request", zap.String("tx_hash", tx.Hex()), zap.Error(err))
+		return false
+	}
+
+	found := false
+	for _, msg := range msgs {
+		msg.IsReobservation = true
+		if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+			logger.Info("re-observed message publication transaction, publishing it immediately",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.Stringer("txHash", msg.TxHash),
+				zap.Uint64("current_block", blockNumberU),
+				zap.Uint64("observed_block", blockNumber),
+			)
+			w.msgC <- msg
+			found = true
+			continue
+		}
+
+		if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe {
+			if safeBlockNumberU == 0 {
+				logger.Error("no safe block number available, ignoring observation request",
+					zap.String("msgId", msg.MessageIDString()),
+					zap.Stringer("txHash", msg.TxHash),
+				)
+				continue
+			}
+
+			if blockNumber <= safeBlockNumberU {
+				logger.Info("re-observed message publication transaction",
+					zap.String("msgId", msg.MessageIDString()),
+					zap.Stringer("txHash", msg.TxHash),
+					zap.Uint64("current_safe_block", safeBlockNumberU),
+					zap.Uint64("observed_block", blockNumber),
+				)
+				w.msgC <- msg
+				found = true
+			} else {
+				logger.Info("ignoring re-observed message publication transaction",
+					zap.String("msgId", msg.MessageIDString()),
+					zap.Stringer("txHash", msg.TxHash),
+					zap.Uint64("current_safe_block", safeBlockNumberU),
+					zap.Uint64("observed_block", blockNumber),
+				)
+			}
+
+			continue
+		}
+
+		if blockNumberU == 0 {
+			logger.Error("no block number available, ignoring observation request",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.Stringer("txHash", msg.TxHash),
+			)
+			continue
+		}
+
+		// SECURITY: In the recovery flow, we already know which transaction to
+		// observe, and we can assume that it has reached the expected finality
+		// level a long time ago. Therefore, the logic is much simpler than the
+		// primary watcher, which has to wait for finality.
+		//
+		// Instead, we can simply check if the transaction's block number is in
+		// the past by more than the expected confirmation number.
+		//
+		// Ensure that the current block number is larger than the message observation's block number.
+		if blockNumber <= blockNumberU {
+			logger.Info("re-observed message publication transaction",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.Stringer("txHash", msg.TxHash),
+				zap.Uint64("current_block", blockNumberU),
+				zap.Uint64("observed_block", blockNumber),
+			)
+			w.msgC <- msg
+			found = true
+		} else {
+			logger.Info("ignoring re-observed message publication transaction",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.Stringer("txHash", msg.TxHash),
+				zap.Uint64("current_block", blockNumberU),
+				zap.Uint64("observed_block", blockNumber),
+			)
+		}
+	}
+
+	return found
 }

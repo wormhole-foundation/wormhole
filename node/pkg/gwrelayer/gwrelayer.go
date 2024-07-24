@@ -297,7 +297,24 @@ func (gwr *GatewayRelayer) worker(ctx context.Context) error {
 			return nil
 		case v2p := <-gwr.subChan:
 			if err := gwr.submitVAAToContract(v2p); err != nil {
-				gwr.logger.Error("failed to submit vaa to contract", zap.String("msgId", v2p.V.MessageID()), zap.String("contract", v2p.ContractAddress), zap.Uint8("vaaType", uint8(v2p.VType)), zap.Error(err))
+				vaaBytes, marshalErr := v2p.V.Marshal()
+				if marshalErr != nil {
+					gwr.logger.Error("failed to submit vaa to contract",
+						zap.String("msgId", v2p.V.MessageID()),
+						zap.String("contract", v2p.ContractAddress),
+						zap.Uint8("vaaType", uint8(v2p.VType)),
+						zap.Error(err),
+						zap.Any("vaa", v2p.V),
+					)
+				} else {
+					gwr.logger.Error("failed to submit vaa to contract",
+						zap.String("msgId", v2p.V.MessageID()),
+						zap.String("contract", v2p.ContractAddress),
+						zap.Uint8("vaaType", uint8(v2p.VType)),
+						zap.Error(err),
+						zap.Any("vaa", hex.EncodeToString(vaaBytes)),
+					)
+				}
 				// TODO: For now we don't want to restart because this will happen if the VAA has already been submitted by another guardian.
 				//return fmt.Errorf("failed to submit vaa to contract: %w", err)
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -154,11 +155,21 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 					b.logger.Error("failed to get gap blocks", zap.Stringer("finality", b.batchData[idx].finality), zap.Error(err))
 					errorFound = true
 				} else {
+					if len(gapBlocks) != int(batchSize) {
+						b.logger.Error("getBlockRange returned the wrong number of blocks", zap.Uint64("expected", batchSize), zap.Int("got", len(gapBlocks)))
+						errorFound = true
+					}
 					// Play out the blocks in this batch. If the block number is zero, that means we failed to retrieve it, so we should stop there.
 					for _, block := range gapBlocks {
-						if block.Number.Uint64() == 0 {
+						if block.Number.Uint64() <= lastPublishedBlock.Number.Uint64() {
+							if b.batchData[idx].finality == Finalized {
+								b.logger.Error("Error found, read returned an old block", zap.Uint64("blockNum", block.Number.Uint64()), zap.Uint64("lastPublishedBlockNum", lastPublishedBlock.Number.Uint64()))
+							}
 							errorFound = true
 							break
+						}
+						if b.batchData[idx].finality == Finalized {
+							b.logger.Info("Publishing gap finalized block", zap.Uint64("thisBlockNum", block.Number.Uint64()), zap.Uint64("prevBlockNum", prevBlocks[idx].Number.Uint64()), zap.Uint64("blockNum", blockNum), zap.Uint64("newBlockNum", newBlockNum), zap.Uint64("batchSize", batchSize))
 						}
 						sink <- block
 						if b.generateSafe && b.batchData[idx].finality == Finalized {
@@ -168,20 +179,26 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 					}
 				}
 
-				blockNum += batchSize
+				blockNum = lastPublishedBlock.Number.Uint64() + 1
 			}
 
 			if !errorFound {
 				// The original value of newBlocks is still good.
+				if b.batchData[idx].finality == Finalized {
+					b.logger.Info("Publishing new finalized block", zap.Uint64("blockNum", newBlock.Number.Uint64()))
+				}
 				sink <- newBlock
 				if b.generateSafe && b.batchData[idx].finality == Finalized {
 					sink <- newBlock.Copy(Safe)
 				}
 			} else {
+				if b.batchData[idx].finality == Finalized {
+					b.logger.Info("Not publishing new finalized block due to error", zap.Uint64("blockNum", newBlock.Number.Uint64()))
+				}
 				newBlocks[idx] = lastPublishedBlock
 			}
 		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			b.logger.Debug("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
+			b.logger.Info("latest block number went backwards, ignoring it", zap.Stringer("finality", b.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
 			newBlocks[idx] = prevBlocks[idx]
 		}
 	}
@@ -225,7 +242,9 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 		var n big.Int
 		m := &results[idx].result
 		if m.Number == nil {
-			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+			if finality == Finalized {
+				logger.Error("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", b.batchData[idx].tag))
+			}
 		} else {
 			n = big.Int(*m.Number)
 		}
@@ -250,12 +269,17 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 
 // getBlockRange gets a range of blocks, starting at blockNum, including the next numBlocks. It passes back an array of those blocks.
 func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logger, blockNum uint64, numBlocks uint64, finality FinalityLevel) (Blocks, error) {
+	if finality == Finalized {
+		logger.Info("Getting block range", zap.Uint64("blockNum", blockNum), zap.Uint64("numBlocks", numBlocks), zap.Stringer("finality", finality))
+	}
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	batch := make([]rpc.BatchElem, numBlocks)
 	results := make([]BatchResult, numBlocks)
+	blockNums := make([]uint64, numBlocks)
 	for idx := 0; idx < int(numBlocks); idx++ {
+		blockNums[idx] = blockNum
 		batch[idx] = rpc.BatchElem{
 			Method: "eth_getBlockByNumber",
 			Args: []interface{}{
@@ -274,6 +298,7 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 		return nil, err
 	}
 
+	sortNeeded := false
 	ret := make(Blocks, numBlocks)
 	for idx := range results {
 		if results[idx].err != nil {
@@ -284,7 +309,9 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 		var n big.Int
 		m := &results[idx].result
 		if m.Number == nil {
-			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality))
+			if finality == Finalized {
+				logger.Error("number is nil, treating as zero", zap.Stringer("finality", finality))
+			}
 		} else {
 			n = big.Int(*m.Number)
 		}
@@ -295,6 +322,13 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 			l1bn = &bn
 		}
 
+		if n.Uint64() != blockNums[idx] {
+			sortNeeded = true
+			if finality == Finalized {
+				logger.Info("Read returned the wrong block", zap.Int("idx", idx), zap.Uint64("expected", blockNums[idx]), zap.Uint64("actual", n.Uint64()))
+			}
+		}
+
 		ret[idx] = &NewBlock{
 			Number:        &n,
 			Time:          uint64(m.Time),
@@ -302,6 +336,12 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 			L1BlockNumber: l1bn,
 			Finality:      finality,
 		}
+	}
+
+	if sortNeeded {
+		sort.Slice(ret, func(i, j int) bool {
+			return ret[i].Number.Uint64() < ret[j].Number.Uint64()
+		})
 	}
 
 	return ret, nil
