@@ -298,6 +298,51 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	assert.Equal(t, difference, usage)
 }
 
+func TestFlowCancelFeatureFlag(t *testing.T) {
+
+	ctx := context.Background()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(zap.NewNop(), &db, common.GoTest, true)
+
+	// Trigger the evaluation of the flow cancelling config
+	err := gov.Run(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// Test private bool
+	assert.True(t, gov.flowCancelEnabled)
+	// Test public getter
+	assert.True(t, gov.IsFlowCancelEnabled())
+	numFlowCancelling := 0
+	for _, tokenEntry := range gov.tokens {
+		if tokenEntry.flowCancels == true {
+			numFlowCancelling++
+		}
+	}
+	assert.NotZero(t, numFlowCancelling)
+
+	// Disable flow cancelling
+	gov = NewChainGovernor(zap.NewNop(), &db, common.GoTest, false)
+
+	// Trigger the evaluation of the flow cancelling config
+	err = gov.Run(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// Test private bool
+	assert.False(t, gov.flowCancelEnabled)
+	// Test public getter
+	assert.False(t, gov.IsFlowCancelEnabled())
+	numFlowCancelling = 0
+	for _, tokenEntry := range gov.tokens {
+		if tokenEntry.flowCancels == true {
+			numFlowCancelling++
+		}
+	}
+	assert.Zero(t, numFlowCancelling)
+
+}
+
 // Flow cancelling transfers are subtracted from the overall sum of all transfers from a given
 // emitter chain. Since we are working with uint64 values, ensure that there is no underflow.
 // When the sum of all flow cancelling transfers is greater than emitted transfers for a chain,
