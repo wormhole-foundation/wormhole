@@ -250,19 +250,21 @@ func (gov *ChainGovernor) initConfig() error {
 	defer gov.mutex.Unlock()
 
 	gov.dayLengthInMinutes = 24 * 60
-	configTokens := tokenList()
-	flowCancelTokens := FlowCancelTokenList()
 	configChains := chainList()
+	configTokens := tokenList()
+	flowCancelTokens := []tokenConfigEntry{}
 
 	if gov.env == common.UnsafeDevNet {
 		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
 		configTokens, flowCancelTokens, configChains = gov.initTestnetConfig()
+	} else {
+		// mainnet, unit tests, or accountant-mock
+		if gov.flowCancelEnabled {
+			flowCancelTokens = FlowCancelTokenList()
+		}
 	}
 
-	if !gov.flowCancelEnabled { // If flow cancel is disabled, then use an empty set of tokens. Easier to put here than have 5 checks in the various sections of code that use it.
-		flowCancelTokens = []tokenConfigEntry{}
-	}
 	for _, ct := range configTokens {
 		addr, err := vaa.StringToAddress(ct.addr)
 		if err != nil {
@@ -322,23 +324,27 @@ func (gov *ChainGovernor) initConfig() error {
 		}
 	}
 
-	for _, flowCancelConfigEntry := range flowCancelTokens {
-		addr, err := vaa.StringToAddress(flowCancelConfigEntry.addr)
-		if err != nil {
-			return err
-		}
-		key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.chain), addr: addr}
+	// If flow cancelling is enabled, enable the `flowCancels` field for the Governed assets that
+	// correspond to the entries in the Flow Cancel Tokens List
+	if gov.flowCancelEnabled {
+		for _, flowCancelConfigEntry := range flowCancelTokens {
+			addr, err := vaa.StringToAddress(flowCancelConfigEntry.addr)
+			if err != nil {
+				return err
+			}
+			key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.chain), addr: addr}
 
-		// Only add flow cancelling for tokens that are already configured for rate-limiting.
-		if _, ok := gov.tokens[key]; ok {
-			gov.tokens[key].flowCancels = true
-		} else {
-			gov.logger.Debug("token present in flow cancel list but absent from main token list:",
-				zap.Stringer("chain", key.chain),
-				zap.Stringer("addr", key.addr),
-				zap.String("symbol", flowCancelConfigEntry.symbol),
-				zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
-			)
+			// Only add flow cancelling for tokens that are already configured for rate-limiting.
+			if _, ok := gov.tokens[key]; ok {
+				gov.tokens[key].flowCancels = true
+			} else {
+				gov.logger.Debug("token present in flow cancel list but absent from main token list:",
+					zap.Stringer("chain", key.chain),
+					zap.Stringer("addr", key.addr),
+					zap.String("symbol", flowCancelConfigEntry.symbol),
+					zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
+				)
+			}
 		}
 	}
 

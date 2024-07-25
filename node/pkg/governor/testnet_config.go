@@ -14,8 +14,12 @@ func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []tokenConfig
 		{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usdc", decimals: 6, price: 1},              // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 1
 	}
 
-	flowCancelTokens := []tokenConfigEntry{
-		{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usdc", decimals: 6, price: 1}, // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 1
+	flowCancelTokens := []tokenConfigEntry{}
+
+	if gov.flowCancelEnabled {
+		flowCancelTokens = []tokenConfigEntry{
+			{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usdc", decimals: 6, price: 1}, // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 1
+		}
 	}
 
 	chains := []chainConfigEntry{
