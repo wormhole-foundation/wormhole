@@ -118,7 +118,36 @@ type (
 		transfers []transfer
 		pending   []*pendingEntry
 	}
+
+	// Represents a pair of Governed chains. Ordering is arbitrary.
+	pipe struct {
+		first  vaa.ChainID
+		second vaa.ChainID
+	}
 )
+
+// valid checks whether a pipe is valid
+func (c *pipe) valid() bool {
+	// The elements must be different
+	if c.first == c.second {
+		return false
+	}
+	return true
+}
+
+// equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
+// pipe's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a pipe
+// without needing to sort or manipulate the elements.
+func (c *pipe) equals(c2 *pipe) bool {
+	if c.first == c2.first && c.second == c2.second {
+		return true
+	}
+	// Ordering doesn't matter
+	if c.first == c2.second && c2.first == c.second {
+		return true
+	}
+	return false
+}
 
 // newTransferFromDbTransfer performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
 // This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
@@ -131,6 +160,10 @@ func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, er
 
 // addFlowCancelTransfer appends a transfer to a ChainEntry's transfers property.
 // SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
+// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching
+//
+//	flow cancel pipe.
+//
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
@@ -202,6 +235,9 @@ type ChainGovernor struct {
 	configPublishCounter  int64
 	flowCancelEnabled     bool
 	coinGeckoApiKey       string
+	// Pairs of chains for which flow canceling is enabled. Note that an asset may be flow canceling even if
+	// it was minted on a chain that is not configured to be an 'end' of any of the pipes.
+	flowCancelPipes []pipe
 }
 
 func NewChainGovernor(
@@ -256,16 +292,23 @@ func (gov *ChainGovernor) initConfig() error {
 	configChains := chainList()
 	configTokens := tokenList()
 	flowCancelTokens := []tokenConfigEntry{}
+	flowCancelPipes := []pipe{}
 
 	if gov.env == common.UnsafeDevNet {
-		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelPipes = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
-		configTokens, flowCancelTokens, configChains = gov.initTestnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelPipes = gov.initTestnetConfig()
 	} else {
 		// mainnet, unit tests, or accountant-mock
 		if gov.flowCancelEnabled {
 			flowCancelTokens = FlowCancelTokenList()
+			flowCancelPipes = FlowCancelPipes()
 		}
+	}
+
+	// We're done with this value for the rest of this function, so write it to the governor struct now
+	if gov.flowCancelEnabled {
+		gov.flowCancelPipes = flowCancelPipes
 	}
 
 	for _, ct := range configTokens {
@@ -611,29 +654,32 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	// - This will cause the summed value of Sui to decrease.
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
-	// Add inverse transfer to destination chain entry if this asset can cancel flows.
-	key := tokenKey{chain: token.token.chain, addr: token.token.addr}
-
-	tokenEntry := gov.tokens[key]
-	if tokenEntry != nil {
-		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
-		if tokenEntry.flowCancels {
-			if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
-				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
-					return false, err
-				}
-			} else {
-				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
-					zap.String("msgID", msg.MessageIDString()),
-					zap.String("hash", hash), zap.Error(err),
-					zap.Stringer("target chain", payload.TargetChain),
-				)
-			}
+	if gov.flowCancelEnabled {
+		_, err = gov.tryAddFlowCancelTransfer(&transfer)
+		if err != nil {
+			gov.logger.Warn("Error when attempting to add a flow cancel transfer",
+				zap.Error(err),
+			)
+			return false, err
 		}
 	}
 
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
+}
+
+// pipeCanFlowCancel checks whether the pipe passed as an argument is present in the list of flow-cancel enabled
+// pipes. This method returns false for all values if flow canceling is disabled.
+func (gov *ChainGovernor) pipeCanFlowCancel(pipe *pipe) bool {
+	if !gov.flowCancelEnabled {
+		return false
+	}
+	for _, configuredPipe := range gov.flowCancelPipes {
+		if pipe.equals(&configuredPipe) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
@@ -854,33 +900,16 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						ce.transfers = append(ce.transfers, transfer)
 
 						gov.msgsSeen[pe.hash] = transferComplete
+						if gov.flowCancelEnabled {
+							_, err := gov.tryAddFlowCancelTransfer(&transfer)
+							if err != nil {
+								gov.logger.Error("Error when attempting to add a flow cancel transfer",
+									zap.Error(err),
+								)
 
-						// Add inverse transfer to destination chain entry if this asset can cancel flows.
-						key := tokenKey{chain: pe.token.token.chain, addr: pe.token.token.addr}
-						tokenEntry := gov.tokens[key]
-						if tokenEntry != nil {
-							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
-							if tokenEntry.flowCancels {
-								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
-
-									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
-										gov.logger.Warn("could not add flow canceling transfer to destination chain",
-											zap.String("msgID", dbTransfer.MsgID),
-											zap.String("hash", pe.hash),
-											zap.Error(err),
-										)
-										// Process the next pending transfer
-										continue
-									}
-								} else {
-									gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
-										zap.String("msgID", dbTransfer.MsgID),
-										zap.String("hash", pe.hash), zap.Error(err),
-										zap.Stringer("target chain", payload.TargetChain),
-									)
-								}
 							}
 						}
+
 					} else {
 						delete(gov.msgsSeen, pe.hash)
 					}
@@ -922,6 +951,65 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	value := valueBigInt.Uint64()
 
 	return value, nil
+}
+
+// tryAddFlowCancelTransfer adds inverse transfer to destination chain entry if this asset can cancel flows.
+func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (added bool, err error) {
+	added = false
+
+	originChain := transfer.dbTransfer.OriginChain
+	originAddr := transfer.dbTransfer.OriginAddress
+	hash := transfer.dbTransfer.Hash
+	target := transfer.dbTransfer.TargetChain
+	emitter := transfer.dbTransfer.EmitterChain
+
+	pipe := &pipe{emitter, target}
+	if !gov.pipeCanFlowCancel(pipe) {
+		return false, nil
+	}
+
+	key := tokenKey{originChain, originAddr}
+	tokenEntry := gov.tokens[key]
+	if tokenEntry == nil {
+		// Weird but not critical
+		gov.logger.Warn("Not adding flow cancel transfer because token is not governed",
+			zap.String("OriginChain", originChain.String()),
+			zap.String("tokenEntry", originAddr.String()),
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", transfer.dbTransfer.Hash),
+		)
+		return false, nil
+	}
+	if !tokenEntry.flowCancels {
+		// Nothing to do in this case
+		return false, nil
+	}
+
+	// Ensure destination exists
+	destinationChainEntry, ok := gov.chains[transfer.dbTransfer.TargetChain]
+	if !ok {
+		// Weird that TargetChain does not exist but not relevant for the flow cancel feature. We just
+		// fail closed here: do not add the flow cancelling transfer.
+		gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", hash),
+			zap.Stringer("target chain", transfer.dbTransfer.TargetChain),
+		)
+		return false, nil
+	}
+
+	// Add the 'inverse' transfer to the destination chain entry.
+	if err := destinationChainEntry.addFlowCancelTransfer(transfer.inverse()); err != nil {
+		gov.logger.Warn("could not add flow canceling transfer to destination chain",
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", transfer.dbTransfer.Hash),
+			zap.Error(err),
+		)
+		// Process the next pending transfer
+		return false, err
+	}
+
+	return true, nil
 }
 
 // TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
