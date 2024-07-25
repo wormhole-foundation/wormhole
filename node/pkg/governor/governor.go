@@ -126,9 +126,8 @@ type (
 	}
 )
 
-// valid checks whether a pipe is valid
+// valid checks whether a pipe is valid. A pipe is invalid if both chain IDs are equal.
 func (c *pipe) valid() bool {
-	// The elements must be different
 	if c.first == c.second {
 		return false
 	}
@@ -963,7 +962,14 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (added bo
 	target := transfer.dbTransfer.TargetChain
 	emitter := transfer.dbTransfer.EmitterChain
 
+	// Validate the pipe to make sure these chains are flow cancel enabled.
 	pipe := &pipe{emitter, target}
+	if !pipe.valid() {
+		gov.logger.Warn("Not adding flow cancel transfer because emitter and target chain are the same",
+			zap.String("hash", hash),
+		)
+		return false, nil
+	}
 	if !gov.pipeCanFlowCancel(pipe) {
 		return false, nil
 	}
@@ -976,7 +982,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (added bo
 			zap.String("OriginChain", originChain.String()),
 			zap.String("tokenEntry", originAddr.String()),
 			zap.String("msgID", transfer.dbTransfer.MsgID),
-			zap.String("hash", transfer.dbTransfer.Hash),
+			zap.String("hash", hash),
 		)
 		return false, nil
 	}
