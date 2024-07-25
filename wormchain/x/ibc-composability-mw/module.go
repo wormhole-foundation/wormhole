@@ -84,11 +84,6 @@ func NewAppModule(keeper *keeper.Keeper) AppModule {
 // RegisterInvariants implements the AppModule interface
 func (AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
-// QuerierRoute implements the AppModule interface
-func (AppModule) QuerierRoute() string {
-	return ""
-}
-
 // RegisterServices registers module services.
 func (am AppModule) RegisterServices(cfg module.Configurator) {}
 

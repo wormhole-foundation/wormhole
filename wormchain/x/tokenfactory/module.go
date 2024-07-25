@@ -126,9 +126,6 @@ func (am AppModule) Name() string {
 	return am.AppModuleBasic.Name()
 }
 
-// QuerierRoute returns the x/tokenfactory module's query routing key.
-func (AppModule) QuerierRoute() string { return types.QuerierRoute }
-
 // RegisterServices registers a GRPC query service to respond to the
 // module-specific GRPC queries.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
