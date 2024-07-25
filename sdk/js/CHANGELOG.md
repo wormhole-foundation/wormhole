@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.18
+
+Add Snaxchain testnet support
+
 ## 0.10.17
 
 Add Mantle mainnet support
