@@ -2944,6 +2944,109 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, uint64(0), valuePending)
 }
 
+func TestPipeType(t *testing.T) {
+	// Check basic validity functions and ensure ordering doesn't matter
+	pipeEthSui := pipe{vaa.ChainIDEthereum, vaa.ChainIDSui}
+	pipeSuiEth := pipe{vaa.ChainIDSui, vaa.ChainIDEthereum}
+	assert.True(t, pipeEthSui.valid())
+	assert.True(t, pipeSuiEth.valid())
+	assert.True(t, pipeEthSui.equals(&pipeSuiEth))
+	assert.True(t, pipeSuiEth.equals(&pipeEthSui))
+
+	// The two ends of a pipe must be different
+	pipeInvalid := pipe{vaa.ChainIDEvmos, vaa.ChainIDEvmos}
+	assert.False(t, pipeInvalid.valid())
+	// Invalid pipes are never equal to anything, even to itself. The idea here is to make invalid states
+	// unrepresentable/unusable by the program.
+	assert.False(t, pipeInvalid.equals(&pipeInvalid))
+}
+
+func TestFlowCancelDependsOnPipes(t *testing.T) {
+
+	var flowCancelTokenOriginAddress vaa.Address
+	flowCancelTokenOriginAddress, err := vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
+	require.NoError(t, err)
+
+	flowCancelPipe := pipe{vaa.ChainIDEthereum, vaa.ChainIDSui}
+
+	ctx := context.Background()
+	assert.NotNil(t, ctx)
+	var database db.MockGovernorDB
+	gov := NewChainGovernor(zap.NewNop(), &database, common.GoTest, false, "")
+
+	err = gov.Run(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// No pipes should be configured when flow cancel is disabled
+	assert.False(t, gov.IsFlowCancelEnabled())
+	assert.Zero(t, len(gov.flowCancelPipes))
+	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+
+	// Try to add a flow cancel transfer when flow cancel is disabled
+	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
+	require.NoError(t, err)
+	dbTransfer := &db.Transfer{
+		Value:         125000,
+		Timestamp:     transferTime,
+		OriginAddress: flowCancelTokenOriginAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetChain:   vaa.ChainIDSui,
+		EmitterChain:  vaa.ChainIDEthereum,
+	}
+	flowCancelTransfer := &transfer{value: 125000, dbTransfer: dbTransfer}
+	added, err := gov.tryAddFlowCancelTransfer(flowCancelTransfer)
+	assert.False(t, added)
+	require.NoError(t, err)
+
+	// Enable flow cancelling but delete the pipes. Adding a flow cancel transfer should fail.
+	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, true, "")
+	gov.flowCancelPipes = []pipe{}
+	assert.True(t, gov.IsFlowCancelEnabled())
+	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	added, err = gov.tryAddFlowCancelTransfer(flowCancelTransfer)
+	assert.False(t, added)
+	require.NoError(t, err)
+
+	// Reset. This time disable flow cancel but add a pipe. This shouldn't ever happen in practice, but even
+	// if it does adding a flow cancel transfer should fail.
+	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, false, "")
+	assert.False(t, gov.IsFlowCancelEnabled())
+	err = gov.Run(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, len(gov.flowCancelPipes))
+	gov.flowCancelPipes = []pipe{flowCancelPipe}
+	assert.Equal(t, 1, len(gov.flowCancelPipes))
+	assert.False(t, gov.IsFlowCancelEnabled())
+	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	added, err = gov.tryAddFlowCancelTransfer(flowCancelTransfer)
+	assert.False(t, added)
+	require.NoError(t, err)
+
+	// From here everything should work normally
+	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, true, "")
+	assert.True(t, gov.IsFlowCancelEnabled())
+
+	// Run should set up the flow cancel pipes (Eth-Sui by default)
+	err = gov.Run(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(gov.flowCancelPipes))
+	assert.NotZero(t, len(gov.tokens))
+	assert.NotZero(t, len(gov.chains))
+	assert.True(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+
+	// Manually add a flow cancel asset
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
+	require.NoError(t, err)
+	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDEthereum, addr: flowCancelTokenOriginAddress}])
+	assert.True(t, gov.tokens[tokenKey{vaa.ChainIDEthereum, flowCancelTokenOriginAddress}].flowCancels)
+
+	// Manually add a flow cancel transfer
+	added, err = gov.tryAddFlowCancelTransfer(flowCancelTransfer)
+	assert.True(t, added)
+	require.NoError(t, err)
+}
+
 func TestReobservationOfPublishedMsg(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
