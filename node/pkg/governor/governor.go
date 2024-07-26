@@ -127,8 +127,8 @@ type (
 )
 
 // valid checks whether a pipe is valid. A pipe is invalid if both chain IDs are equal.
-func (c *pipe) valid() bool {
-	if c.first == c.second {
+func (p *pipe) valid() bool {
+	if p.first == p.second {
 		return false
 	}
 	return true
@@ -137,12 +137,18 @@ func (c *pipe) valid() bool {
 // equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
 // pipe's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a pipe
 // without needing to sort or manipulate the elements.
-func (c *pipe) equals(c2 *pipe) bool {
-	if c.first == c2.first && c.second == c2.second {
+func (p *pipe) equals(p2 *pipe) bool {
+	if !p.valid() || !p2.valid() {
+		// We want to make invalid pipes unusable, so make them fail the equality check.
+		// This is a protective measure in case a developer tries to do some logic on invalid pipes
+		// and forgets to check valid() first.
+		return false
+	}
+	if p.first == p2.first && p.second == p2.second {
 		return true
 	}
 	// Ordering doesn't matter
-	if c.first == c2.second && c2.first == c.second {
+	if p.first == p2.second && p2.first == p.second {
 		return true
 	}
 	return false
@@ -159,10 +165,7 @@ func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, er
 
 // addFlowCancelTransfer appends a transfer to a ChainEntry's transfers property.
 // SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
-// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching
-//
-//	flow cancel pipe.
-//
+// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching flow cancel pipe.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to represent an incoming value)
