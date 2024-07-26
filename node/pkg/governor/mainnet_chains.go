@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func chainList() []chainConfigEntry {
+func ChainList() []chainConfigEntry {
 	return []chainConfigEntry{
 		{emitterChainID: vaa.ChainIDSolana, dailyLimit: 25_000_000, bigTransactionSize: 2_500_000},
 		{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 50_000_000, bigTransactionSize: 5_000_000},

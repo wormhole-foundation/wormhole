@@ -9,7 +9,7 @@ import (
 )
 
 func TestChainListSize(t *testing.T) {
-	chainConfigEntries := chainList()
+	chainConfigEntries := ChainList()
 
 	/* Assuming that governed chains will not go down over time,
 	   lets set a floor of expected chains to guard against parsing
@@ -18,7 +18,7 @@ func TestChainListSize(t *testing.T) {
 }
 
 func TestChainDailyLimitRange(t *testing.T) {
-	chainConfigEntries := chainList()
+	chainConfigEntries := ChainList()
 
 	/* This IS a hard limit, if daily limit is set to zero it would
 	   basically mean no value movement is allowed for that chain*/
@@ -43,7 +43,7 @@ func TestChainDailyLimitRange(t *testing.T) {
 }
 
 func TestChainListChainPresent(t *testing.T) {
-	chainConfigEntries := chainList()
+	chainConfigEntries := ChainList()
 
 	entries := make([]vaa.ChainID, 0, len(chainConfigEntries))
 	for _, e := range chainConfigEntries {
@@ -59,7 +59,7 @@ func TestChainListChainPresent(t *testing.T) {
 }
 
 func TestChainListBigTransfers(t *testing.T) {
-	chainConfigEntries := chainList()
+	chainConfigEntries := ChainList()
 
 	for _, e := range chainConfigEntries {
 		// it's always ideal to have bigTransactionSize be less than dailyLimit
