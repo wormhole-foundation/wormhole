@@ -10,7 +10,7 @@ require (
 	github.com/cometbft/cometbft v0.37.9
 	github.com/cometbft/cometbft-db v0.12.0
 	github.com/cosmos/cosmos-sdk v0.47.12
-	github.com/cosmos/gogoproto v1.5.0
+	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7 v7.1.3
 	github.com/cosmos/ibc-go/v7 v7.6.0
 	github.com/ethereum/go-ethereum v1.10.21
@@ -18,7 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/holiman/uint256 v1.2.1
-	github.com/prometheus/client_golang v1.19.1
+	github.com/prometheus/client_golang v1.16.0
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.1
@@ -135,6 +135,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -146,9 +147,9 @@ require (
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.48.0 // indirect
-	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/common v0.42.0 // indirect
+	github.com/prometheus/procfs v0.10.1 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
@@ -205,5 +206,4 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/wormhole-foundation/wormhole/sdk => ../sdk
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
-// github.com/CosmWasm/wasmd v0.45.0 => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-2
 )
