@@ -206,12 +206,12 @@ func TestCrossChainQuery(t *testing.T) {
 		}
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
-			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
 			var response query.QueryResponsePublication
 			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
-				logger.Fatal("failed to unmarshal response", zap.Error(err))
+				logger.Fatal("failed to unmarshal response", zap.Error(err), zap.Any("response", m.SignedQueryResponse))
 			}
+			logger.Info("query response received", zap.Any("response", response))
 			if bytes.Equal(response.Request.QueryRequest, queryRequestBytes) && bytes.Equal(response.Request.Signature, sig) {
 				digest := query.GetQueryResponseDigestFromBytes(m.SignedQueryResponse.QueryResponse)
 				signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), m.SignedQueryResponse.Signature)
