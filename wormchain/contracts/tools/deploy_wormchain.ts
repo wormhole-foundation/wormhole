@@ -470,6 +470,8 @@ async function main() {
       process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
       // APTOS
       process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
+      // Sui
+      process.env.REGISTER_SUI_TOKEN_BRIDGE_VAA,
     ],
   };
 
