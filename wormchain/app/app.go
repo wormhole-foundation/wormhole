@@ -782,10 +782,13 @@ func simulationModules(
 // Wrap the standard cosmos-sdk antehandlers with additional antehandlers:
 // - wormhole allowlist antehandler
 // - default ibc antehandler
-func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, ibcKeeper *ibckeeper.Keeper) sdk.AnteHandler {
+func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, ibcKeeper *ibckeeper.Keeper, wasmdKeeper wasmkeeper.Keeper) sdk.AnteHandler {
+	wasmdHandler := wormholemoduleante.NewWormholeWasmdDecorator(wormKeeper, wasmdKeeper)
 	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
 	ibcHandler := ibcante.NewRedundantRelayDecorator(ibcKeeper)
-	newHandlers := sdk.ChainAnteDecorators(whHandler, ibcHandler)
+
+	newHandlers := sdk.ChainAnteDecorators(wasmdHandler, whHandler, ibcHandler)
+
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		newCtx, err := originalHandler(ctx, tx, simulate)
 		if err != nil {
