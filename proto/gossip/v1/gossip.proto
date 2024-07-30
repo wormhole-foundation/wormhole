@@ -183,15 +183,15 @@ message ChainGovernorStatus {
     string emitter_address = 1; // human-readable hex-encoded (leading 0x)
     uint64 total_enqueued_vaas = 2;
     repeated EnqueuedVAA enqueued_vaas = 3; // Only the first 20 will be included.
-    int64 small_tx_net_notional_value = 4;
-    uint64 small_tx_outgoing_notional_value = 5;
-    uint64 flow_cancel_notional_value = 6;
   }
 
   message Chain {
     uint32 chain_id = 1;
     uint64 remaining_available_notional = 2;
     repeated Emitter emitters = 3;
+    int64 small_tx_net_notional_value = 4;
+    uint64 small_tx_outgoing_notional_value = 5;
+    uint64 flow_cancel_notional_value = 6;
   }
 
   string node_name = 1;
