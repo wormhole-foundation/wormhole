@@ -7,7 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/gov/client/cli"
-	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
@@ -79,7 +79,7 @@ func NewCmdSubmitGuardianSetUpdateProposal() *cobra.Command {
 				return err
 			}
 
-			msg, err := gov.NewMsgSubmitProposal(content, deposit, from)
+			msg, err := govv1beta.NewMsgSubmitProposal(content, deposit, from)
 			if err != nil {
 				return err
 			}
@@ -167,7 +167,7 @@ func NewCmdSubmitWormholeGovernanceMessageProposal() *cobra.Command {
 				return err
 			}
 
-			msg, err := gov.NewMsgSubmitProposal(content, deposit, from)
+			msg, err := govv1beta.NewMsgSubmitProposal(content, deposit, from)
 			if err != nil {
 				return err
 			}

@@ -5,18 +5,16 @@ import (
 	"testing"
 	"time"
 
+	tmdb "github.com/cometbft/cometbft-db"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/tendermint/spm/cosmoscmd"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmdb "github.com/tendermint/tm-db"
 
 	"github.com/wormhole-foundation/wormchain/app"
 )
@@ -38,7 +36,10 @@ func New(t *testing.T, configs ...network.Config) *network.Network {
 	} else {
 		cfg = configs[0]
 	}
-	net := network.New(t, cfg)
+	net, err := network.New(t, t.TempDir(), cfg)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create network: %s", err))
+	}
 	t.Cleanup(net.Cleanup)
 	return net
 }
@@ -46,20 +47,26 @@ func New(t *testing.T, configs ...network.Config) *network.Network {
 // DefaultConfig will initialize config for the network with custom application,
 // genesis and single validator. All other parameters are inherited from cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encoding := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encoding := app.MakeEncodingConfig()
 	return network.Config{
 		Codec:             encoding.Marshaler,
 		TxConfig:          encoding.TxConfig,
 		LegacyAmino:       encoding.Amino,
 		InterfaceRegistry: encoding.InterfaceRegistry,
 		AccountRetriever:  authtypes.AccountRetriever{},
-		AppConstructor: func(val network.Validator) servertypes.Application {
+		AppConstructor: func(val network.ValidatorI) servertypes.Application {
 			return app.New(
-				val.Ctx.Logger, tmdb.NewMemDB(), nil, true, map[int64]bool{}, val.Ctx.Config.RootDir, 0,
+				val.GetCtx().Logger,
+				tmdb.NewMemDB(),
+				nil,
+				true,
+				map[int64]bool{},
+				val.GetCtx().Config.RootDir,
+				0,
 				encoding,
-				simapp.EmptyAppOptions{},
-				baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
-				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
+				nil,
+				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.GetAppConfig().Pruning)),
+				baseapp.SetMinGasPrices(val.GetAppConfig().MinGasPrices),
 			)
 		},
 		GenesisState:    app.ModuleBasics.DefaultGenesis(encoding.Marshaler),
@@ -71,7 +78,7 @@ func DefaultConfig() network.Config {
 		AccountTokens:   sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
 		StakingTokens:   sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
 		BondedTokens:    sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
-		PruningStrategy: storetypes.PruningOptionNothing,
+		PruningStrategy: pruningtypes.PruningOptionNothing,
 		CleanupDir:      true,
 		SigningAlgo:     string(hd.Secp256k1Type),
 		KeyringOptions:  []keyring.Option{},

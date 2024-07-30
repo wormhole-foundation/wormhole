@@ -5,7 +5,7 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
-	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
@@ -32,7 +32,7 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgDeleteAllowlistEntryRequest{},
 		&MsgExecuteGatewayGovernanceVaa{},
 	)
-	registry.RegisterImplementations((*gov.Content)(nil),
+	registry.RegisterImplementations((*govv1beta.Content)(nil),
 		&GovernanceWormholeMessageProposal{},
 		&GuardianSetUpdateProposal{})
 	registry.RegisterImplementations((*sdk.Msg)(nil),

@@ -10,8 +10,8 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/testhelpers"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 // // Test authz serialize and de-serializes for tokenfactory msg.

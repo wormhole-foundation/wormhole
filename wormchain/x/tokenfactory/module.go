@@ -12,8 +12,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -22,13 +22,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
 
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	simulation "github.com/wormhole-foundation/wormchain/x/tokenfactory/simulation"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/client/cli"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/simulation"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
@@ -127,19 +126,6 @@ func (am AppModule) Name() string {
 	return am.AppModuleBasic.Name()
 }
 
-// Route returns the x/tokenfactory module's message routing key.
-func (am AppModule) Route() sdk.Route {
-	return sdk.Route{}
-}
-
-// QuerierRoute returns the x/tokenfactory module's query routing key.
-func (AppModule) QuerierRoute() string { return types.QuerierRoute }
-
-// LegacyQuerierHandler returns the x/tokenfactory module's Querier.
-func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
-	return nil
-}
-
 // RegisterServices registers a GRPC query service to respond to the
 // module-specific GRPC queries.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
@@ -210,13 +196,8 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 }
 
 // GenerateGenesisState creates a randomized GenState of the bank module.
-func (am AppModule) ProposalContents(_ module.SimulationState) []simtypes.WeightedProposalContent {
+func (am AppModule) ProposalContents(_ module.SimulationState) []simtypes.WeightedProposalMsg {
 	return nil
-}
-
-// RandomizedParams creates randomized bank param changes for the simulator.
-func (am AppModule) RandomizedParams(r *rand.Rand) []simtypes.ParamChange {
-	return simulation.ParamChanges(r)
 }
 
 // RegisterStoreDecoder registers a decoder for supply module's types

@@ -41,7 +41,7 @@ func TestMessageAuthzSerialization(t *testing.T, msg sdk.Msg) {
 	// Authz: Grant Msg
 	typeURL := sdk.MsgTypeURL(msg)
 	later := someDate.Add(time.Hour)
-	grant, err := authz.NewGrant(authz.NewGenericAuthorization(typeURL), later)
+	grant, err := authz.NewGrant(later, authz.NewGenericAuthorization(typeURL), nil)
 	require.NoError(t, err)
 
 	msgGrant := authz.MsgGrant{Granter: mockGranter, Grantee: mockGrantee, Grant: grant}

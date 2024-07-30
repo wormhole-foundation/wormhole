@@ -3,9 +3,10 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -14,13 +15,13 @@ import (
 type (
 	Keeper struct {
 		cdc      codec.BinaryCodec
-		storeKey sdk.StoreKey
-		memKey   sdk.StoreKey
+		storeKey storetypes.StoreKey
+		memKey   storetypes.StoreKey
 
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
 		wasmdKeeper   types.WasmdKeeper
-		upgradeKeeper upgradekeeper.Keeper
+		upgradeKeeper *upgradekeeper.Keeper
 
 		setWasmd   bool
 		setUpgrade bool
@@ -30,7 +31,7 @@ type (
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey,
-	memKey sdk.StoreKey,
+	memKey storetypes.StoreKey,
 
 	accountKeeper types.AccountKeeper, bankKeeper types.BankKeeper,
 ) *Keeper {
@@ -54,7 +55,7 @@ func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.setWasmd = true
 }
 
-func (k *Keeper) SetUpgradeKeeper(keeper upgradekeeper.Keeper) {
+func (k *Keeper) SetUpgradeKeeper(keeper *upgradekeeper.Keeper) {
 	k.upgradeKeeper = keeper
 	k.setUpgrade = true
 }

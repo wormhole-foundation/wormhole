@@ -4,7 +4,6 @@ import (
 	"math/rand"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
@@ -364,7 +363,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 		// Check if sims account enough create fee
 		createFee := tfKeeper.GetParams(ctx).DenomCreationFee
 		balances := bk.GetAllBalances(ctx, simAccount.Address)
-		_, hasNeg := balances.SafeSub(createFee)
+		_, hasNeg := balances.SafeSub(createFee...)
 		if hasNeg {
 			return simtypes.NoOpMsg(types.ModuleName, types.MsgCreateDenom{}.Type(), "Creator not enough creation fee"), nil, nil
 		}
@@ -383,7 +382,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 // BuildOperationInput helper to build object
 func BuildOperationInput(
 	r *rand.Rand,
-	app *baseapp.BaseApp,
+	baseapp *baseapp.BaseApp,
 	ctx sdk.Context,
 	msg interface {
 		sdk.Msg
@@ -396,8 +395,8 @@ func BuildOperationInput(
 ) simulation.OperationInput {
 	return simulation.OperationInput{
 		R:               r,
-		App:             app,
-		TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
+		App:             baseapp,
+		TxGen:           params.MakeEncodingConfig().TxConfig,
 		Cdc:             nil,
 		Msg:             msg,
 		MsgType:         msg.Type(),

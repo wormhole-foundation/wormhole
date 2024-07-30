@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 const (
@@ -12,10 +12,8 @@ const (
 )
 
 func init() {
-	gov.RegisterProposalType(ProposalTypeGuardianSetUpdate)
-	gov.RegisterProposalTypeCodec(&GuardianSetUpdateProposal{}, "wormhole/GuardianSetUpdate")
-	gov.RegisterProposalType(ProposalTypeGovernanceWormholeMessage)
-	gov.RegisterProposalTypeCodec(&GovernanceWormholeMessageProposal{}, "wormhole/GovernanceWormholeMessage")
+	govv1beta.RegisterProposalType(ProposalTypeGuardianSetUpdate)
+	govv1beta.RegisterProposalType(ProposalTypeGovernanceWormholeMessage)
 }
 
 func NewGuardianSetUpdateProposal(title, description string, guardianSet GuardianSet) *GuardianSetUpdateProposal {
@@ -32,7 +30,7 @@ func (sup *GuardianSetUpdateProposal) ValidateBasic() error {
 	if err := sup.NewGuardianSet.ValidateBasic(); err != nil {
 		return err
 	}
-	return gov.ValidateAbstract(sup)
+	return govv1beta.ValidateAbstract(sup)
 }
 
 func (sup *GuardianSetUpdateProposal) String() string {
@@ -61,7 +59,7 @@ func (sup *GovernanceWormholeMessageProposal) ValidateBasic() error {
 	if len(sup.Module) != 32 {
 		return fmt.Errorf("invalid module length: %d != 32", len(sup.Module))
 	}
-	return gov.ValidateAbstract(sup)
+	return govv1beta.ValidateAbstract(sup)
 }
 
 func (sup *GovernanceWormholeMessageProposal) String() string {
