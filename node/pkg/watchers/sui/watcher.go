@@ -547,7 +547,6 @@ func (w *Watcher) getMultipleBlocks(txs []string) ([]TxBlockResult, error) {
 		return retVal, fmt.Errorf("getMultipleBlocks failed to unmarshal body: %s, error: %w", string(body), err)
 	}
 	retVal = res.Result
-	fmt.Println("retVal:", retVal)
 
 	return retVal, nil
 }
