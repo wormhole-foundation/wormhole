@@ -97,8 +97,6 @@ func CreateV3_0_0_UpgradeHandler(
 		params.AllowedClients = append(params.AllowedClients, ibcexported.Localhost)
 		app.IBCKeeper.ClientKeeper.SetParams(ctx, params)
 
-		logger.Info("upgrade complete!")
-
 		return mm.RunMigrations(ctx, cfg, vm)
 	}
 }
