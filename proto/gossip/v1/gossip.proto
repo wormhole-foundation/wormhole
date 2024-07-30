@@ -156,6 +156,7 @@ message ChainGovernorConfig {
   int64 timestamp = 3;
   repeated Chain chains = 4;
   repeated Token tokens = 5;
+  bool flow_cancel_enabled = 6;
 }
 
 // This message is published every minute.
@@ -188,6 +189,9 @@ message ChainGovernorStatus {
     uint32 chain_id = 1;
     uint64 remaining_available_notional = 2;
     repeated Emitter emitters = 3;
+    int64 small_tx_net_notional_value = 4;
+    uint64 small_tx_outgoing_notional_value = 5;
+    uint64 flow_cancel_notional_value = 6;
   }
 
   string node_name = 1;

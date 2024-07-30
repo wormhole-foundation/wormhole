@@ -459,7 +459,11 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 						features := make([]string, 0)
 						if params.gov != nil {
-							features = append(features, "governor")
+							if params.gov.IsFlowCancelEnabled() {
+								features = append(features, "governor:fc")
+							} else {
+								features = append(features, "governor")
+							}
 						}
 						if params.acct != nil {
 							features = append(features, params.acct.FeatureString())
