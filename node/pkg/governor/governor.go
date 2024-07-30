@@ -239,7 +239,7 @@ func (gov *ChainGovernor) initConfig() error {
 	gov.dayLengthInMinutes = 24 * 60
 	configTokens := tokenList()
 	flowCancelTokens := FlowCancelTokenList()
-	configChains := ChainList()
+	configChains := chainList()
 
 	if gov.env == common.UnsafeDevNet {
 		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()

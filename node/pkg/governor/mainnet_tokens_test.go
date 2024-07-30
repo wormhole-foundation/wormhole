@@ -55,7 +55,7 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 
 	tokenConfigEntries := tokenList()
 
-	for _, chainConfigEntry := range ChainList() {
+	for _, chainConfigEntry := range chainList() {
 		e := chainConfigEntry.emitterChainID
 		if _, ignored := ignoredChains[e]; ignored {
 			return
