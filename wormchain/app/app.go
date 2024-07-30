@@ -217,7 +217,7 @@ var (
 
 	tokenFactoryCapabilities = []string{}
 
-	Upgrades = []Upgrade{V2_23_0_Upgrade}
+	Upgrades = []Upgrade{V2_23_0_Upgrade, V3_0_0_Upgrade}
 )
 
 var (
@@ -729,7 +729,7 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper, app.IBCKeeper)
+	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper, app.IBCKeeper, app.wasmKeeper)
 
 	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
