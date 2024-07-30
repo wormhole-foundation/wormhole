@@ -41,6 +41,11 @@ func TestCrossChainQuery(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
+	if bootstrapPeers := os.Getenv("BOOTSTRAP_PEERS"); bootstrapPeers != "" {
+		logger.Info("Overriding bootstrap peers", zap.String("old", p2pBootstrap), zap.String("new", bootstrapPeers))
+		p2pBootstrap = bootstrapPeers
+	}
+
 	signingKeyPath := string("../dev.guardian.key")
 
 	logger.Info("Loading signing key", zap.String("signingKeyPath", signingKeyPath))

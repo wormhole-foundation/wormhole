@@ -156,7 +156,7 @@ def command_with_dlv(argv):
         "--",
     ] + argv[1:]
 
-def generate_bootstrap_peers(num_guardians):
+def generate_bootstrap_peers(num_guardians, port_num):
     # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers. 
     # The devnet guardian uses deterministic P2P peer IDs based on the guardian index. The peer IDs here
     # were generated using `DeterministicP2PPrivKeyByIndex` in `node/pkg/devnet/deterministic_p2p_key.go`.
@@ -182,19 +182,14 @@ def generate_bootstrap_peers(num_guardians):
         "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY" 
     ]
     bootstrap = ""
-    ccq_bootstrap = ""
     for idx in range(num_guardians):
         if bootstrap != "":
             bootstrap += ","
-            ccq_bootstrap += ","
-        bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = 8999, peer = peer_ids[idx])
-        ccq_bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = 8996, peer = peer_ids[idx])
-    return [
-        "--bootstrap",
-        bootstrap,
-        "--ccqP2pBootstrap",
-        ccq_bootstrap,
-    ]
+        bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = port_num, peer = peer_ids[idx])
+    return bootstrap
+
+bootstrapPeers = generate_bootstrap_peers(num_guardians, 8999)
+ccqBootstrapPeers = generate_bootstrap_peers(num_guardians, 8996)
 
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
@@ -214,7 +209,12 @@ def build_node_yaml():
                 print(container["command"])
 
             if num_guardians > 1:
-                container["command"] += generate_bootstrap_peers(num_guardians)              
+                container["command"] += [
+                    "--bootstrap",
+                    bootstrapPeers,
+                    "--ccqP2pBootstrap",
+                    ccqBootstrapPeers,
+                ]            
 
             if aptos:
                 container["command"] += [
@@ -628,7 +628,12 @@ if ci_tests:
         ],
     )
 
-    k8s_yaml_with_ns(encode_yaml_stream(set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians))))
+    k8s_yaml_with_ns(
+        encode_yaml_stream(
+            set_env_in_jobs(
+                set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
+                "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)))
+    )
 
     # separate resources to parallelize docker builds
     k8s_resource(
@@ -948,8 +953,18 @@ if aptos:
         trigger_mode = trigger_mode,
     )
 
+def build_query_server_yaml():
+    qs_yaml = read_yaml_stream("devnet/query-server.yaml")
+
+    for obj in qs_yaml:
+        if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "query-server":
+            container = obj["spec"]["template"]["spec"]["containers"][0]
+            container["command"] += ["--bootstrap="+ccqBootstrapPeers]
+
+    return encode_yaml_stream(qs_yaml)
+
 if query_server:
-    k8s_yaml_with_ns("devnet/query-server.yaml")
+    k8s_yaml_with_ns(build_query_server_yaml())
 
     k8s_resource(
         "query-server",
