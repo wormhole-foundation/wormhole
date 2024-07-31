@@ -1,30 +1,35 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  jest,
-  test,
-} from "@jest/globals";
-import Web3, { ETH_DATA_FORMAT } from "web3";
-import axios from "axios";
-import { AxiosResponse } from "axios";
+import { describe, expect, jest, test } from "@jest/globals";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import base58 from "bs58";
 import {
   ChainQueryType,
+  PerChainQueryRequest,
+  QueryRequest,
+  QueryResponse,
+  sign,
   SolanaAccountQueryRequest,
   SolanaAccountQueryResponse,
   SolanaAccountResult,
   SolanaPdaEntry,
   SolanaPdaQueryRequest,
   SolanaPdaQueryResponse,
-  PerChainQueryRequest,
-  QueryRequest,
-  sign,
-  QueryResponse,
 } from "..";
 
 jest.setTimeout(125000);
+
+// Save Jest from circular axios errors
+axios.interceptors.response.use(
+  (r) => r,
+  (err: AxiosError) => {
+    const error = new Error(
+      `${err.message}${err?.response?.data ? `: ${err.response.data}` : ""}`
+    ) as any;
+    error.response = err.response
+      ? { data: err.response.data, status: err.response.status }
+      : undefined;
+    throw error;
+  }
+);
 
 const CI = process.env.CI;
 const ENV = "DEVNET";
