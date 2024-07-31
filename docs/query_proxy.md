@@ -143,7 +143,7 @@ The following are the Solana call types. Both require the `chain` parameter plus
 - `solAccount`, requires the `account` parameter.
 - `solPDA`, requires the `programAddress` parameter.
 
-The Solana account and and program address can be expressed as either a 32 byte hex string starting with "0x" or as a base 58 value.
+The Solana account and program address can be expressed as either a 32 byte hex string starting with "0x" or as a base 58 value.
 
 #### Wild Card Contract Addresses
 
