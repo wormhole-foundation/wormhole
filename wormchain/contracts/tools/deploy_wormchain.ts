@@ -393,6 +393,11 @@ async function main() {
         address: "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
         name: "nttAccountantTest",
       }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1h6v7cku5w803pf563czepx5s32vrzz5cntj9k4",
+        name: "guardianAccountant0",
+      }),
     ],
     {
       ...ZERO_FEE,
