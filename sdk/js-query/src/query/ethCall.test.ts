@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, jest, test } from "@jest/globals";
-import axios, { AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import Web3, { ETH_DATA_FORMAT } from "web3";
 import {
   ChainQueryType,
@@ -17,6 +17,20 @@ import {
 } from "..";
 
 jest.setTimeout(125000);
+
+// Save Jest from circular axios errors
+axios.interceptors.response.use(
+  (r) => r,
+  (err: AxiosError) => {
+    const error = new Error(
+      `${err.message}${err?.response?.data ? `: ${err.response.data}` : ""}`
+    ) as any;
+    error.response = err.response
+      ? { data: err.response.data, status: err.response.status }
+      : undefined;
+    throw error;
+  }
+);
 
 const CI = process.env.CI;
 const ENV = "DEVNET";
