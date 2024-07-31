@@ -186,7 +186,8 @@ jobs:
           done
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
-        shell: bash
+        shell:
+          bash
 
   aptos:
     name: Aptos
