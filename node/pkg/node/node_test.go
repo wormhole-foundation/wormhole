@@ -939,54 +939,64 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
 		const testTimeout = time.Second * 2
 
-		// Test's main lifecycle context.
-		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
-		defer rootCtxCancel()
+		func() {
+			// Test's main lifecycle context.
+			rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
+			defer rootCtxCancel()
 
-		// we need to catch a zap.Logger.Fatal() here.
-		// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
-		// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
-		// The panic will be subsequently caught by the supervisor
-		fatalHook := make(fatalHook)
-		defer close(fatalHook)
-		zapLogger, zapObserver, _ := setupLogsCapture(t, zap.WithFatalHook(fatalHook))
+			// we need to catch a zap.Logger.Fatal() here.
+			// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
+			// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
+			// The panic will be subsequently caught by the supervisor
+			fatalHook := make(fatalHook)
+			defer close(fatalHook)
+			zapLogger, zapObserver, _ := setupLogsCapture(t, zap.WithFatalHook(fatalHook))
 
-		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
-			// Create a sub-context with cancel function that we can pass to G.run.
-			ctx, ctxCancel := context.WithCancel(ctx)
-			defer ctxCancel()
+			supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
+				// Create a sub-context with cancel function that we can pass to G.run.
+				ctx, ctxCancel := context.WithCancel(ctx)
+				defer ctxCancel()
 
-			if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
-				panic(err)
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+					panic(err)
+				}
+
+				supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+				// wait for all options to get applied
+				// If we were expecting an error, we should never get past this point.
+				for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+					time.Sleep(time.Millisecond * 10)
+				}
+
+				// Test done.
+				logger.Info("Test done.")
+				supervisor.Signal(ctx, supervisor.SignalDone)
+				rootCtxCancel()
+
+				return nil
+			})
+
+			select {
+			case r := <-fatalHook:
+				if tc.err == "" {
+					assert.Equal(t, tc.err, r)
+				}
+				assert.Contains(t, r, tc.err)
+				rootCtxCancel()
+			case <-rootCtx.Done():
+				assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+				assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
 			}
 
-			supervisor.Signal(ctx, supervisor.SignalHealthy)
-
-			// wait for all options to get applied
-			// If we were expecting an error, we should never get past this point.
-			for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+			// There is a race condition where the logger can get destroyed before the supervisor finishes logging on exit. Wait for the last log message from the supervisor.
+			count := 0
+			for len(zapObserver.FilterMessage("supervisor exited").All()) == 0 {
 				time.Sleep(time.Millisecond * 10)
+				count++
+				assert.Greater(t, 100, count)
 			}
-
-			// Test done.
-			logger.Info("Test done.")
-			supervisor.Signal(ctx, supervisor.SignalDone)
-			rootCtxCancel()
-
-			return nil
-		})
-
-		select {
-		case r := <-fatalHook:
-			if tc.err == "" {
-				assert.Equal(t, tc.err, r)
-			}
-			assert.Contains(t, r, tc.err)
-			rootCtxCancel()
-		case <-rootCtx.Done():
-			assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
-			assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
-		}
+		}()
 	}
 }
 
