@@ -11,7 +11,7 @@ jobs:
     # in the future, we may want to run cheap lints, tests, and builds before firing up the expensive tilt test.
     # But for now, we'll kick-off everything at once
     # needs: [go-lint-and-tests, node, algorand, ethereum, terra, rust-lint-and-tests]
-    runs-on: instance-2
+    runs-on: tilt-kube-public
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
     # and capacity is limited, so we want to avoid running multiple builds
