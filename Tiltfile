@@ -102,7 +102,7 @@ generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
 
 if ci:
-    guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
