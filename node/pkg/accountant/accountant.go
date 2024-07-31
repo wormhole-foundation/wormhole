@@ -153,13 +153,7 @@ func NewAccountant(
 
 // Start initializes the accountant and starts the worker and watcher runnables.
 func (acct *Accountant) Start(ctx context.Context) error {
-	acct.logger.Info("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()))
-	if acct.wormchainConn != nil {
-		acct.logger.Info("accountant sender address", zap.String("senderAddress", acct.wormchainConn.SenderAddress()))
-	}
-	if acct.nttWormchainConn != nil {
-		acct.logger.Info("ntt-accountant sender address", zap.String("senderAddress", acct.nttWormchainConn.SenderAddress()))
-	}
+	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()))
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
