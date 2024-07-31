@@ -11,7 +11,7 @@ jobs:
     # in the future, we may want to run cheap lints, tests, and builds before firing up the expensive tilt test.
     # But for now, we'll kick-off everything at once
     # needs: [go-lint-and-tests, node, algorand, ethereum, terra, rust-lint-and-tests]
-    runs-on: tilt-kube-public
+    runs-on: instance-2
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
     # and capacity is limited, so we want to avoid running multiple builds
@@ -186,8 +186,7 @@ jobs:
           done
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
-        shell:
-          bash
+        shell: bash
 
   aptos:
     name: Aptos
