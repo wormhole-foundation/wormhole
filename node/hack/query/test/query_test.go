@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -118,7 +119,20 @@ func TestCrossChainQuery(t *testing.T) {
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
 	// Wait for peers
-	for len(th_req.ListPeers()) < 1 {
+	numPeersToWaitFor := 1
+	if numGuardiansStr := os.Getenv("NUM_GUARDIANS"); numGuardiansStr != "" {
+		if numGuardians, err := strconv.ParseInt(numGuardiansStr, 10, 32); err == nil {
+			numGuardians := int(numGuardians)
+			if numGuardians > numPeersToWaitFor {
+				numPeersToWaitFor = numGuardians
+			}
+		} else {
+			logger.Error("failed to parse NUM_GUARDIANS, assuming only one", zap.String("numGuardiansStr", numGuardiansStr), zap.Error(err))
+		}
+	}
+
+	logger.Info("Waiting for peers", zap.Int("numPeersToWaitFor", numPeersToWaitFor))
+	for len(th_req.ListPeers()) < numPeersToWaitFor {
 		time.Sleep(time.Millisecond * 100)
 	}
 
