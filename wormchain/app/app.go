@@ -92,7 +92,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
-	wormholeparams "github.com/wormhole-foundation/wormchain/app/params"
+	appparams "github.com/wormhole-foundation/wormchain/app/params"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
@@ -243,6 +243,7 @@ type App struct {
 	cdc               *codec.LegacyAmino
 	appCodec          codec.Codec
 	interfaceRegistry types.InterfaceRegistry
+	txConfig          client.TxConfig
 
 	invCheckPeriod uint
 
@@ -309,7 +310,7 @@ func New(
 	skipUpgradeHeights map[int64]bool,
 	homePath string,
 	invCheckPeriod uint,
-	encodingConfig wormholeparams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -321,6 +322,7 @@ func New(
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
+	bApp.SetTxEncoder(encodingConfig.TxConfig.TxEncoder())
 
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey, banktypes.StoreKey, crisistypes.StoreKey, stakingtypes.StoreKey,
@@ -340,6 +342,7 @@ func New(
 		cdc:               cdc,
 		appCodec:          appCodec,
 		interfaceRegistry: interfaceRegistry,
+		txConfig:          encodingConfig.TxConfig,
 		invCheckPeriod:    invCheckPeriod,
 		keys:              keys,
 		tkeys:             tkeys,
@@ -740,6 +743,7 @@ func New(
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
 		}
+		app.CapabilityKeeper.Seal()
 	}
 
 	// define the simulation manager
@@ -752,7 +756,7 @@ func New(
 // define the order of the modules for deterministic simulationss
 func simulationModules(
 	app *App,
-	encodingConfig wormholeparams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	wormholeModule *wormholemodule.AppModule,
 ) []module.AppModuleSimulation {
 	appCodec := encodingConfig.Marshaler
@@ -859,6 +863,11 @@ func (app *App) AppCodec() codec.Codec {
 // InterfaceRegistry returns Gaia's InterfaceRegistry
 func (app *App) InterfaceRegistry() types.InterfaceRegistry {
 	return app.interfaceRegistry
+}
+
+// TxConfig returns Gaia's TxConfig.
+func (app *App) TxConfig() client.TxConfig {
+	return app.txConfig
 }
 
 // GetKey returns the KVStoreKey for the provided store key.

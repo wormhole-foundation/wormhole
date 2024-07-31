@@ -40,7 +40,7 @@ func CreateV3_0_0_UpgradeHandler(
 	app *App,
 ) upgradetypes.UpgradeHandler {
 	return func(ctx sdk.Context, _ upgradetypes.Plan, vm module.VersionMap) (module.VersionMap, error) {
-		logger := ctx.Logger().With("upgrade", "v3.0.0")
+		// logger := ctx.Logger().With("upgrade", "v3.0.0")
 
 		// set param key table for params module migration
 		// ref: https://github.com/cosmos/cosmos-sdk/pull/12363/files
