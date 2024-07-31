@@ -12,7 +12,7 @@ import "./libraries/external/BytesLib.sol";
 contract Messages is Getters {
     using BytesLib for bytes;
 
-    /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
+    /// @dev parseAndVerifyVM serves to parse an encodedVM and wholly validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
         /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
