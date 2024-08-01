@@ -424,7 +424,7 @@ func SubmitVAAToContract(
 		return txResp, fmt.Errorf("out of gas: %s", txResp.TxResponse.RawLog)
 	}
 
-	if strings.Contains(txResp.TxResponse.RawLog, "failed") && !strings.Contains(txResp.TxResponse.RawLog, "VaaAlreadyExecuted") {
+	if strings.Contains(txResp.TxResponse.RawLog, "failed") && !canIgnoreFailure(txResp.TxResponse.RawLog) {
 		return txResp, fmt.Errorf("submit failed: %s", txResp.TxResponse.RawLog)
 	}
 
@@ -440,4 +440,9 @@ func SubmitVAAToContract(
 	logger.Debug("in SubmitVAAToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
 
 	return txResp, nil
+}
+
+// canIgnoreFailure checks for returns from the contract that aren't really errors.
+func canIgnoreFailure(rawLog string) bool {
+	return strings.Contains(rawLog, "VaaAlreadyExecuted") || strings.Contains(rawLog, "this asset has already been attested")
 }
