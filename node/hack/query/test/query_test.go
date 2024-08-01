@@ -25,6 +25,7 @@ import (
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -118,6 +119,10 @@ func TestCrossChainQuery(t *testing.T) {
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
+	bootstrappers, _ := p2p.BootstrapAddrs(logger, bootstrapPeers, h.ID())
+	successes := p2p.ConnectToPeers(ctx, logger, h, bootstrappers)
+	logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+
 	// Wait for peers
 	numPeersToWaitFor := 1
 	if numGuardiansStr := os.Getenv("NUM_GUARDIANS"); numGuardiansStr != "" {
@@ -131,12 +136,25 @@ func TestCrossChainQuery(t *testing.T) {
 		}
 	}
 
-	logger.Info("Waiting for peers", zap.Int("numPeersToWaitFor", numPeersToWaitFor))
-	for len(th_req.ListPeers()) < numPeersToWaitFor {
+	connectedBootstrappers := 0
+	var peers []peer.ID
+	for connectedBootstrappers < numPeersToWaitFor {
+		peers = th_req.ListPeers()
+		logger.Info("Current peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
+		peerMap := map[string]struct{}{}
+		for _, peer := range peers {
+			peerMap[peer.String()] = struct{}{}
+		}
+		connectedBootstrappers = 0
+		for _, p := range bootstrappers {
+			if _, exists := peerMap[p.ID.String()]; exists {
+				connectedBootstrappers++
+			}
+		}
 		time.Sleep(time.Millisecond * 100)
 	}
 
-	logger.Info("Detected peers")
+	logger.Info("Found peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
 
 	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
 	if err != nil {
