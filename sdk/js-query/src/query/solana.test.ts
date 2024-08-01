@@ -475,7 +475,8 @@ describe("solana", () => {
     const query = new PerChainQueryRequest(1, solAccountReq);
     let nonce = 42;
     let promises: Promise<AxiosResponse<any, any>>[] = [];
-    for (let count = 0; count < 20; count++) {
+    // The count should be no more than the number of workers defined for Solana in `node/pkg/query/query.go`.
+    for (let count = 0; count < 10; count++) {
       nonce += 1;
       const request = new QueryRequest(nonce, [query]);
       const serialized = request.serialize();

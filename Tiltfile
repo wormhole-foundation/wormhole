@@ -102,7 +102,7 @@ generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
 
 if ci:
-    guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
@@ -659,12 +659,6 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
-    )
-    k8s_resource(
-        "query-ci-tests",
-        labels = ["ci"],
-        trigger_mode = trigger_mode,
-        resource_deps = [], # node/hack/query/test/test_query.sh handles waiting for guardian, not having deps gets the build earlier
     )
     k8s_resource(
         "query-sdk-ci-tests",
