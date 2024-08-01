@@ -1,12 +1,9 @@
 syntax = "proto3";
-package wormhole_foundation.wormchain.wormhole;
+package wormchain.wormhole;
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
-
-
-message ReplayProtection {
-  string index = 1; 
-  
+message SequenceCounter {
+  string index = 1;
+  uint64 sequence = 2;
 }
-

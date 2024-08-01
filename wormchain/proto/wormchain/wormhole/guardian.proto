@@ -1,13 +1,11 @@
 syntax = "proto3";
-package wormhole_foundation.wormchain.wormhole;
+package wormchain.wormhole;
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
 import "gogoproto/gogo.proto";
 
-message GuardianKey {
-  bytes key = 1;
-}
+message GuardianKey { bytes key = 1; }
 
 message GuardianValidator {
   bytes guardianKey = 1;
@@ -38,6 +36,7 @@ message WasmInstantiateAllowedContractCodeId {
 }
 
 message IbcComposabilityMwContract {
-  // bech32 address of the contract that is used by the ibc composability middleware
+  // bech32 address of the contract that is used by the ibc composability
+  // middleware
   string contract_address = 1;
 }

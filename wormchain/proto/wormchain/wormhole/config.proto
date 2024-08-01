@@ -1,10 +1,7 @@
 syntax = "proto3";
-package wormhole_foundation.wormchain.wormhole;
+package wormchain.wormhole;
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
-
-import "gogoproto/gogo.proto";
-
 
 message Config {
   uint64 guardian_set_expiration = 1;

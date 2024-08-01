@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package wormhole_foundation.wormchain.ibc_composability_mw.v1;
+package wormchain.ibc_composability_mw.v1;
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types";
 

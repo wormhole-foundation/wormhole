@@ -1,5 +1,5 @@
 syntax = "proto3";
-package wormhole_foundation.wormchain.wormhole;
+package wormchain.wormhole;
 
 import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # proto/tx/import
@@ -8,26 +8,32 @@ option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
 // Msg defines the Msg service.
 service Msg {
-  rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
-  rpc RegisterAccountAsGuardian(MsgRegisterAccountAsGuardian) returns (MsgRegisterAccountAsGuardianResponse);
+  rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA)
+      returns (MsgExecuteGovernanceVAAResponse);
+  rpc RegisterAccountAsGuardian(MsgRegisterAccountAsGuardian)
+      returns (MsgRegisterAccountAsGuardianResponse);
 
-  rpc CreateAllowlistEntry(MsgCreateAllowlistEntryRequest) returns (MsgAllowlistResponse);
-  rpc DeleteAllowlistEntry(MsgDeleteAllowlistEntryRequest) returns (MsgAllowlistResponse);
+  rpc CreateAllowlistEntry(MsgCreateAllowlistEntryRequest)
+      returns (MsgAllowlistResponse);
+  rpc DeleteAllowlistEntry(MsgDeleteAllowlistEntryRequest)
+      returns (MsgAllowlistResponse);
 
   // StoreCode to submit Wasm code to the system
   rpc StoreCode(MsgStoreCode) returns (MsgStoreCodeResponse);
   //  Instantiate creates a new smart contract instance for the given code id.
   rpc InstantiateContract(MsgInstantiateContract)
       returns (MsgInstantiateContractResponse);
-    
-  rpc AddWasmInstantiateAllowlist(MsgAddWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
-  rpc DeleteWasmInstantiateAllowlist(MsgDeleteWasmInstantiateAllowlist) returns (MsgWasmInstantiateAllowlistResponse);
 
-  rpc MigrateContract(MsgMigrateContract)
-    returns (MsgMigrateContractResponse);
+  rpc AddWasmInstantiateAllowlist(MsgAddWasmInstantiateAllowlist)
+      returns (MsgWasmInstantiateAllowlistResponse);
+  rpc DeleteWasmInstantiateAllowlist(MsgDeleteWasmInstantiateAllowlist)
+      returns (MsgWasmInstantiateAllowlistResponse);
 
-  rpc ExecuteGatewayGovernanceVaa(MsgExecuteGatewayGovernanceVaa) returns (EmptyResponse);
-// this line is used by starport scaffolding # proto/tx/rpc
+  rpc MigrateContract(MsgMigrateContract) returns (MsgMigrateContractResponse);
+
+  rpc ExecuteGatewayGovernanceVaa(MsgExecuteGatewayGovernanceVaa)
+      returns (EmptyResponse);
+  // this line is used by starport scaffolding # proto/tx/rpc
 }
 
 message EmptyResponse {}
@@ -48,24 +54,21 @@ message MsgDeleteAllowlistEntryRequest {
   string address = 2;
 }
 
-message MsgAllowlistResponse {
-}
+message MsgAllowlistResponse {}
 
 message MsgExecuteGovernanceVAA {
   bytes vaa = 1;
   string signer = 2;
 }
 
-message MsgExecuteGovernanceVAAResponse {
-}
+message MsgExecuteGovernanceVAAResponse {}
 
 message MsgRegisterAccountAsGuardian {
   string signer = 1;
   bytes signature = 3;
 }
 
-message MsgRegisterAccountAsGuardianResponse {
-}
+message MsgRegisterAccountAsGuardianResponse {}
 
 // Same as from x/wasmd but with vaa auth
 message MsgStoreCode {
@@ -73,7 +76,8 @@ message MsgStoreCode {
   string signer = 1;
   // WASMByteCode can be raw or gzip compressed
   bytes wasm_byte_code = 2 [ (gogoproto.customname) = "WASMByteCode" ];
-  // vaa must be governance msg with payload containing sha3 256 hash of `wasm_byte_code`
+  // vaa must be governance msg with payload containing sha3 256 hash of
+  // `wasm_byte_code`
   bytes vaa = 3;
 }
 
@@ -94,7 +98,8 @@ message MsgInstantiateContract {
   string label = 4;
   // Msg json encoded message to be passed to the contract on instantiation
   bytes msg = 5;
-  // vaa must be governance msg with payload containing keccak256 hash(hash(hash(BigEndian(CodeID)), Label), Msg)
+  // vaa must be governance msg with payload containing keccak256
+  // hash(hash(hash(BigEndian(CodeID)), Label), Msg)
   bytes vaa = 6;
 }
 
@@ -108,7 +113,8 @@ message MsgInstantiateContractResponse {
 message MsgAddWasmInstantiateAllowlist {
   // Signer is the actor that signed the messages
   string signer = 1;
-  // Address is the bech32 address of the contract that can call wasm instantiate without a VAA
+  // Address is the bech32 address of the contract that can call wasm
+  // instantiate without a VAA
   string address = 2;
   // CodeID is the reference to the stored WASM code that can be instantiated
   uint64 code_id = 3;
@@ -117,16 +123,16 @@ message MsgAddWasmInstantiateAllowlist {
 }
 
 message MsgDeleteWasmInstantiateAllowlist {
-    // signer should be a guardian validator in a current set or future set.
-    string signer = 1;
-    // the <contract, code_id> pair to remove
-    string address = 2;
-    uint64 code_id = 3;
-    // vaa is the WormchainDeleteWasmInstantiateAllowlist governance message
-    bytes vaa = 4;
+  // signer should be a guardian validator in a current set or future set.
+  string signer = 1;
+  // the <contract, code_id> pair to remove
+  string address = 2;
+  uint64 code_id = 3;
+  // vaa is the WormchainDeleteWasmInstantiateAllowlist governance message
+  bytes vaa = 4;
 }
 
-message MsgWasmInstantiateAllowlistResponse {} 
+message MsgWasmInstantiateAllowlistResponse {}
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {
@@ -139,7 +145,8 @@ message MsgMigrateContract {
   // Msg json encoded message to be passed to the contract on migration
   bytes msg = 4;
 
-  // vaa must be governance msg with payload containing keccak256 hash(hash(hash(BigEndian(CodeID)), Contract), Msg)
+  // vaa must be governance msg with payload containing keccak256
+  // hash(hash(hash(BigEndian(CodeID)), Contract), Msg)
   bytes vaa = 6;
 }
 
