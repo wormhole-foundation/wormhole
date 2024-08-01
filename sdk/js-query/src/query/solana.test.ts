@@ -261,9 +261,7 @@ describe("solana", () => {
 
     const sar = queryResponse.responses[0]
       .response as SolanaAccountQueryResponse;
-    expect(sar.slotNumber.toString()).toEqual(
-      BigInt(minContextSlot).toString()
-    );
+    expect(sar.slotNumber.toString()).toEqual(minContextSlot.toString());
     expect(sar.blockTime.toString()).not.toEqual(BigInt(0).toString());
     expect(sar.results.length).toEqual(2);
 
