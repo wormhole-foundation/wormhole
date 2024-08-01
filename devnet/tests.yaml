@@ -101,6 +101,31 @@ spec:
 kind: Job
 apiVersion: batch/v1
 metadata:
+  name: anvil-test
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: anvil-test
+          image: guardiand-image
+          command:
+            - /bin/sh
+            - -c
+            - "cd /app/node/hack/eth && bash poller.sh && touch success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/node/hack/eth/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
   name: query-sdk-ci-tests
 spec:
   backoffLimit: 0
