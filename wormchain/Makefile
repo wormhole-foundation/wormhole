@@ -20,16 +20,12 @@ all: client
 .PHONY: client build/wormchaind
 client: build/wormchaind
 
-
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	@echo building "wormchaind-$(VERSION)"
 	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
 	cp "$@" "$@"-"$(VERSION)"
 
-proto: $(PROTO_FILES)
-	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
-
-vue: $(GO_FILES) proto
+vue: $(GO_FILES)
 	mkdir -p $@
 	touch -m $@
 	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
@@ -78,3 +74,23 @@ bootstrap:
 clean:
 	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
+
+# New Proto Targets (copied from Juno Network)
+
+DOCKER := $(shell which docker)
+protoVer=0.13.1
+protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
+protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
+
+.PHONY: proto-all proto-gen proto-format proto-lint
+proto-all: proto-format proto-lint proto-gen
+
+proto-gen:
+	@echo "Generating Protobuf files"
+	@$(protoImage) sh ./scripts/protocgen.sh
+
+proto-format:
+	@$(protoImage) find ./ -name "*.proto" -exec clang-format -i {} \;
+
+proto-lint:
+	@$(protoImage) buf lint --error-format=json

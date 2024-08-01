@@ -3,7 +3,6 @@ package osmosis.tokenfactory.v1beta1;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "cosmos/base/query/v1beta1/pagination.proto";
 import "osmosis/tokenfactory/v1beta1/authorityMetadata.proto";
 import "osmosis/tokenfactory/v1beta1/params.proto";
 
