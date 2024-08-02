@@ -496,9 +496,9 @@ const TESTNET = {
     nft_bridge: "0x63eD9318628D26BdCB15df58B53BB27231D1B227",
   },
   karura: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: "0xd11De1f930eA1F7Dd0290Fe3a2e35b9C91AEFb37",
-    nft_bridge: "0x0A693c2D594292B6Eb89Cb50EFe4B0b63Dd2760D",
+    core: "0x64fb09E405D2043ed7785a29E296C766D56F2056",
+    token_bridge: "0xe157115ef34c93145Fec2FE53706846853B07F42",
+    nft_bridge: undefined,
   },
   acala: {
     core: "0x64fb09E405D2043ed7785a29E296C766D56F2056",
