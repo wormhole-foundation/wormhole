@@ -153,12 +153,15 @@ axios
                 }
                 if (wormholeAddr === undefined) {
                   console.log(
-                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is undefined`
+                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is undefined`,
+                    data,
+                    `Is the SDK up-to-date?`
                   );
                   continue;
                 } else if (wormholeAddr === "") {
                   console.log(
-                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is invalid`
+                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is invalid`,
+                    data
                   );
                   continue;
                 }
