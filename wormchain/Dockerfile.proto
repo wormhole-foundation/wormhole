@@ -1,20 +1,80 @@
-FROM ignitehq/cli@sha256:1e2846f3621bc3ed2af3e59749bc02f6aec761e1260486da3a17c8fe2c8d2b6c AS base
+FROM golang:1.22.5 AS base
 
-COPY --chown=tendermint:tendermint wormchain /apps/wormchain
-COPY --chown=tendermint:tendermint sdk /apps/sdk
+WORKDIR /home
 
-WORKDIR /apps/wormchain
+# Install dependencies
+RUN apt update && \
+    apt-get install -y \
+        build-essential \
+        ca-certificates \
+        curl
 
-FROM base AS ignite-go-build
+# Enable faster module downloading.
+ENV GOPROXY https://proxy.golang.org
+
+
+
+## CLI BUILDER STAGE
+FROM base as cli-builder
+
+WORKDIR /ignite
+
+# Git clone https://github.com/ignite/cli version v0.27.2
+RUN git clone --branch release/v0.27.2 https://github.com/ignite/cli.git
+
+WORKDIR /ignite/cli
+
+RUN sed -i 's/go 1.19/go 1.22.5/g' go.mod
+RUN go mod tidy
+
+# Install ignite binary & verify installation
+RUN --mount=type=cache,target=/root/.cache/go-build go install -v ./...
+RUN ignite version
+
+
+
+## WORMCHAIN BUILDER STAGE
+FROM base as wormchain-builder
+
+# Define 'tendermint' user (same as in the official ignite image)
+RUN useradd -ms /bin/bash tendermint
+USER tendermint
+
+# Copy wormchain into container
+COPY --chown=tendermint:tendermint wormchain /wh/apps/wormchain
+COPY --chown=tendermint:tendermint sdk /wh/apps/sdk
+
+# Set working directory
+WORKDIR /wh/apps/wormchain
+
+# Copy ignite cli binary
+COPY --from=cli-builder /go/bin/ignite /usr/bin 
+
+# Verify ignite setup
+RUN ignite doctor
+
+
+
+## GO PROTO BUILDER STAGE
+FROM wormchain-builder as ignite-go-build
 RUN ignite generate proto-go
 
+
+
+## GO EXPORT STAGE
 FROM scratch AS go-export
-COPY --from=ignite-go-build /apps/wormchain/x/wormhole/types /x/wormhole/types
-COPY --from=ignite-go-build /apps/wormchain/x/tokenfactory/types /x/tokenfactory/types
-COPY --from=ignite-go-build /apps/wormchain/x/ibc-composability-mw/types /x/ibc-composability-mw/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/wormhole/types /x/wormhole/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/tokenfactory/types /x/tokenfactory/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/ibc-composability-mw/types
 
-FROM base AS ignite-vue-build
-RUN NODE_OPTIONS="" ignite generate vuex --proto-all-modules
 
+
+## VUE BUILDER STAGE
+FROM wormchain-builder as ignite-vue-build
+RUN NODE_OPTIONS="" ignite generate vuex
+
+
+
+## VUE EXPORT STAGE
 FROM scratch AS vue-export
-COPY --from=ignite-vue-build /apps/wormchain/vue/ /vue
+COPY --from=ignite-vue-build /wh/apps/wormchain/vue /vue

@@ -1,6 +1,6 @@
 module github.com/wormhole-foundation/wormchain
 
-go 1.22.5
+go 1.22
 
 require (
 	cosmossdk.io/errors v1.0.1
@@ -17,6 +17,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0
 	github.com/holiman/uint256 v1.2.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/spf13/cast v1.6.0
@@ -81,6 +82,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/getsentry/sentry-go v0.23.0 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
