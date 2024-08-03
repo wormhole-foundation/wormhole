@@ -669,11 +669,13 @@ func New(
 
 // Wrap the standard cosmos-sdk antehandlers with additional antehandlers:
 // - wormhole allowlist antehandler
+// - wormhole ibc error antehandler
 // - default ibc antehandler
 func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, ibcKeeper *ibckeeper.Keeper) sdk.AnteHandler {
 	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
+	whIbcHandler := wormholemoduleante.NewWormholeIbcErrorDecorator()
 	ibcHandler := ibcante.NewAnteDecorator(ibcKeeper)
-	newHandlers := sdk.ChainAnteDecorators(whHandler, ibcHandler)
+	newHandlers := sdk.ChainAnteDecorators(whHandler, whIbcHandler, ibcHandler)
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		newCtx, err := originalHandler(ctx, tx, simulate)
 		if err != nil {
