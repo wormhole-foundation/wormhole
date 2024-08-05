@@ -5,7 +5,7 @@ test:
 
 .PHONY test-arm64
 test-arm64:
-# Use this command on arm64, other you will encounter linker errors.
+# Use this command on arm64, otherwise you will encounter linker errors.
 # It's not perfect: it will fail due to 'undefined symbols' errors
 # for packges using cgo. Still, it will get you farther than running
 # the default command.
