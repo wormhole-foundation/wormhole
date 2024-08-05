@@ -2,12 +2,14 @@ package processor
 
 import (
 	"encoding/hex"
+	"time"
 
 	"github.com/mr-tron/base58"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -26,13 +28,6 @@ var (
 			Help: "Total number of messages observed",
 		},
 		[]string{"emitter_chain"})
-
-	messagesSignedTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "wormhole_message_observations_signed_total",
-			Help: "Total number of message observations that were successfully signed",
-		},
-		[]string{"emitter_chain"})
 )
 
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
@@ -48,18 +43,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		return
 	}
 
-	if p.logger.Core().Enabled(zapcore.DebugLevel) {
-		p.logger.Debug("message publication confirmed",
-			zap.String("message_id", k.MessageIDString()),
-			zap.Uint32("nonce", k.Nonce),
-			zap.Stringer("txhash", k.TxHash),
-			zap.Time("timestamp", k.Timestamp),
-		)
-	}
-
-	messagesObservedTotal.With(prometheus.Labels{
-		"emitter_chain": k.EmitterChain.String(),
-	}).Add(1)
+	messagesObservedTotal.WithLabelValues(k.EmitterChain.String()).Inc()
 
 	// All nodes will create the exact same VAA and sign its digest.
 	// Consensus is established on this digest.
@@ -83,9 +67,10 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 
 	// Generate digest of the unsigned VAA.
 	digest := v.SigningDigest()
+	hash := hex.EncodeToString(digest.Bytes())
 
 	// Sign the digest using our node's guardian key.
-	s, err := crypto.Sign(digest.Bytes(), p.gk)
+	signature, err := crypto.Sign(digest.Bytes(), p.gk)
 	if err != nil {
 		panic(err)
 	}
@@ -95,16 +80,43 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 			zap.String("message_id", k.MessageIDString()),
 			zap.Stringer("txhash", k.TxHash),
 			zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
-			zap.String("digest", hex.EncodeToString(digest.Bytes())),
+			zap.String("hash", hash),
 			zap.Uint32("nonce", k.Nonce),
+			zap.Time("timestamp", k.Timestamp),
 			zap.Uint8("consistency_level", k.ConsistencyLevel),
-			zap.String("signature", hex.EncodeToString(s)),
+			zap.String("signature", hex.EncodeToString(signature)),
 			zap.Bool("isReobservation", k.IsReobservation),
 		)
 	}
 
-	messagesSignedTotal.With(prometheus.Labels{
-		"emitter_chain": k.EmitterChain.String()}).Add(1)
+	// Broadcast the signature.
+	obsv, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature)
 
-	p.broadcastSignature(v, s, k.TxHash.Bytes())
+	// Get / create our state entry.
+	s := p.state.signatures[hash]
+	if s == nil {
+		s = &state{
+			firstObserved: time.Now(),
+			nextRetry:     time.Now().Add(nextRetryDuration(0)),
+			signatures:    map[ethCommon.Address][]byte{},
+			source:        "loopback",
+		}
+
+		p.state.signatures[hash] = s
+	}
+
+	// Update our state.
+	s.ourObservation = v
+	s.txHash = k.TxHash.Bytes()
+	s.source = v.GetEmitterChain().String()
+	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
+	s.signatures[p.ourAddr] = signature
+	s.ourMsg = msg
+
+	// Fast path for our own signature.
+	if !s.submitted {
+		start := time.Now()
+		p.checkForQuorum(obsv, s, s.gs, hash)
+		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
+	}
 }
