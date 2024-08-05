@@ -57,7 +57,7 @@ func (p *Processor) broadcastSignature(
 	}
 
 	// Broadcast the observation.
-	p.gossipSendC <- msg
+	p.gossipAttestationSendC <- msg
 	observationsBroadcast.Inc()
 
 	hash := hex.EncodeToString(digest.Bytes())
@@ -106,7 +106,7 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 	}
 
 	// Broadcast the signed VAA.
-	p.gossipSendC <- msg
+	p.gossipVaaSendC <- msg
 	signedVAAsBroadcast.Inc()
 
 	if p.gatewayRelayer != nil {

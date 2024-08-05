@@ -228,7 +228,8 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
-					p.gossipSendC <- s.ourMsg
+
+					p.gossipAttestationSendC <- s.ourMsg
 					s.retryCtr++
 					s.nextRetry = time.Now().Add(nextRetryDuration(s.retryCtr))
 					aggregationStateRetries.Inc()

@@ -103,8 +103,13 @@ type Processor struct {
 	msgC <-chan *common.MessagePublication
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
-	// gossipSendC is a channel of outbound messages to broadcast on p2p
-	gossipSendC chan<- []byte
+
+	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
+	gossipAttestationSendC chan<- []byte
+
+	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
+	gossipVaaSendC chan<- []byte
+
 	// obsvC is a channel of inbound decoded observations from p2p
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 
@@ -162,7 +167,8 @@ func NewProcessor(
 	db *db.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
-	gossipSendC chan<- []byte,
+	gossipAttestationSendC chan<- []byte,
+	gossipVaaSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
@@ -175,15 +181,16 @@ func NewProcessor(
 ) *Processor {
 
 	return &Processor{
-		msgC:         msgC,
-		setC:         setC,
-		gossipSendC:  gossipSendC,
-		obsvC:        obsvC,
-		obsvReqSendC: obsvReqSendC,
-		signedInC:    signedInC,
-		gk:           gk,
-		gst:          gst,
-		db:           db,
+		msgC:                   msgC,
+		setC:                   setC,
+		gossipAttestationSendC: gossipAttestationSendC,
+		gossipVaaSendC:         gossipVaaSendC,
+		obsvC:                  obsvC,
+		obsvReqSendC:           obsvReqSendC,
+		signedInC:              signedInC,
+		gk:                     gk,
+		gst:                    gst,
+		db:                     db,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
