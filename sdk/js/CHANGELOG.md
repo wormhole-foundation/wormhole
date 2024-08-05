@@ -3,6 +3,7 @@
 ## 0.10.18
 
 Add Snaxchain testnet support
+Add Mantle and X Layer
 
 ## 0.10.17
 

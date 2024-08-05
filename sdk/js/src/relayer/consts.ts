@@ -138,6 +138,12 @@ const MAINNET: { [K in ChainName]?: AddressInfo } = {
   blast: {
     wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
+  mantle: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+  },
+  xlayer: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+  },
 };
 
 export const RELAYER_CONTRACTS = { MAINNET, TESTNET, DEVNET };
