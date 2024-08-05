@@ -123,6 +123,7 @@ import (
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
 	ibccomposabilitytypes "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
+	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 )
 
 const (
@@ -137,8 +138,8 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		paramsclient.ProposalHandler,
 		upgradeclient.LegacyProposalHandler,
 		upgradeclient.LegacyCancelProposalHandler,
-		// wormholeclient.GuardianSetUpdateProposalHandler, // TODO: JOEL - NO LONGER NECESSARY, PROPOSALS WILL BE SENT TO GOV MSG SERVER
-		// wormholeclient.WormholeGovernanceMessageProposalHandler,
+		wormholeclient.GuardianSetUpdateProposalHandler, // TODO: JOEL - NO LONGER NECESSARY, PROPOSALS WILL BE SENT TO GOV MSG SERVER
+		wormholeclient.WormholeGovernanceMessageProposalHandler,
 	)
 
 	return govProposalHandlers
