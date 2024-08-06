@@ -302,7 +302,7 @@ func TestFlowCancelFeatureFlag(t *testing.T) {
 
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(zap.NewNop(), &db, common.GoTest, true)
+	gov := NewChainGovernor(zap.NewNop(), &db, common.GoTest, true, "")
 
 	// Trigger the evaluation of the flow cancelling config
 	err := gov.Run(ctx)
@@ -322,7 +322,7 @@ func TestFlowCancelFeatureFlag(t *testing.T) {
 	assert.NotZero(t, numFlowCancelling)
 
 	// Disable flow cancelling
-	gov = NewChainGovernor(zap.NewNop(), &db, common.GoTest, false)
+	gov = NewChainGovernor(zap.NewNop(), &db, common.GoTest, false, "")
 
 	// Trigger the evaluation of the flow cancelling config
 	err = gov.Run(ctx)
