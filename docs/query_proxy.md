@@ -143,6 +143,11 @@ The following are the Solana call types. Both require the `chain` parameter plus
 
 The Solana account and and program address can be expressed as either a 32 byte hex string starting with "0x" or as a base 58 value.
 
+#### Wild Card Contract Addresses
+
+For the eth calls, the `contractAddress` field may be set to `"*"` which means the specified call type and call may be made to any
+contract address on the specified chain.
+
 #### Creating New API Keys
 
 Each user must have an API key. These keys only have meaning to the proxy server. They are not passed to the guardians.
