@@ -35,7 +35,6 @@ func manualTokenList() []tokenConfigEntry {
 		// SCROLL (tokens over $50,000 24h volume)
 		{chain: 34, addr: "0000000000000000000000000018d96c579121a94307249d47f053e2d687b5e7", symbol: "MVX", coinGeckoId: "metavault-trade", decimals: 18, price: 2.06},
 		{chain: 34, addr: "00000000000000000000000047c337bd5b9344a6f3d6f58c474d9d8cd419d8ca", symbol: "DACKIE", coinGeckoId: "dackieswap", decimals: 18, price: 0.00655},
-		{chain: 34, addr: "0000000000000000000000005300000000000000000000000000000000000004", symbol: "WETH", coinGeckoId: "bridged-wrapped-ether-scroll", decimals: 18, price: 3145.98},
 		{chain: 34, addr: "000000000000000000000000f55bec9cafdbe8730f096aa55dad6d22d44099df", symbol: "USDT", coinGeckoId: "bridged-tether-scroll", decimals: 6, price: 1.00},
 		{chain: 34, addr: "00000000000000000000000006efdbff2a14a7c8e15944d1f4a48f9f95f663a4", symbol: "USDC", coinGeckoId: "bridged-usd-coin-scroll", decimals: 6, price: 1.00},
 		{chain: 34, addr: "000000000000000000000000eb466342c4d449bc9f53a865d5cb90586f405215", symbol: "AXLUSDC", coinGeckoId: "bridged-axelar-wrapped-usd-coin-scroll", decimals: 6, price: 1.01},
