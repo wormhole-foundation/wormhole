@@ -57,6 +57,11 @@ func (logger *ExternalLoggerLoki) log(time time.Time, message json.RawMessage, l
 	}
 
 	logger.c.Chan() <- entry
+
+	// A fatal error exits, which can cause us to lose messages. Flush everything.
+	if level == zapcore.FatalLevel {
+		logger.c.StopNow()
+	}
 }
 
 func (logger *ExternalLoggerLoki) close() error {
