@@ -1,10 +1,15 @@
 package ccq
 
 import (
+	"encoding/hex"
+	"strings"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 func TestParseConfigFileDoesntExist(t *testing.T) {
@@ -460,4 +465,156 @@ func TestParseConfigAllowAnythingSuccess(t *testing.T) {
 	perm, ok = perms["my_secret_key_2"]
 	require.True(t, ok)
 	assert.True(t, perm.allowAnything)
+}
+
+func TestParseConfigContractWildcard(t *testing.T) {
+	str := `
+	{
+  "permissions": [
+    {
+      "userName": "Test User",
+      "apiKey": "my_secret_key",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of anything on Goerli",
+            "chain": 2,
+            "contractAddress": "*",
+            "call": "0x06fdde03"
+          }
+        },
+        {
+          "ethCallByTimestamp": {
+            "note:": "Total supply of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x18160ddd"
+          }    
+        }   
+      ]
+    }
+  ]
+}`
+
+	perms, err := parseConfig([]byte(str), true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(perms))
+
+	permsForUser, ok := perms["my_secret_key"]
+	require.True(t, ok)
+	assert.Equal(t, 2, len(permsForUser.allowedCalls))
+
+	logger := zap.NewNop()
+
+	type testCase struct {
+		label           string
+		callType        string
+		chainID         vaa.ChainID
+		contractAddress string
+		data            string
+		errText         string // empty string means success
+	}
+
+	var testCases = []testCase{
+		{
+			label:           "Wild card, success",
+			callType:        "ethCall",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x06fdde03",
+			errText:         "",
+		},
+		{
+			label:           "Wild card, success, different address",
+			callType:        "ethCall",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d7",
+			data:            "0x06fdde03",
+			errText:         "",
+		},
+		{
+			label:           "Wild card, wrong call type",
+			callType:        "ethCallByTimestamp",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x06fdde03",
+			errText:         "not authorized",
+		},
+		{
+			label:           "Wild card, wrong chain",
+			callType:        "ethCall",
+			chainID:         vaa.ChainIDBase,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x06fdde03",
+			errText:         "not authorized",
+		},
+		{
+			label:           "Specific, success",
+			callType:        "ethCallByTimestamp",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x18160ddd",
+			errText:         "",
+		},
+		{
+			label:           "Specific, wrong call type",
+			callType:        "ethCall",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x18160ddd",
+			errText:         "not authorized",
+		},
+		{
+			label:           "Specific, wrong chain",
+			callType:        "ethCallByTimestamp",
+			chainID:         vaa.ChainIDBase,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x18160ddd",
+			errText:         "not authorized",
+		},
+		{
+			label:           "Specific, wrong address",
+			callType:        "ethCallByTimestamp",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d7",
+			data:            "0x18160ddd",
+			errText:         "not authorized",
+		},
+		{
+			label:           "Specific, wrong data",
+			callType:        "ethCallByTimestamp",
+			chainID:         vaa.ChainIDEthereum,
+			contractAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+			data:            "0x18160dde",
+			errText:         "not authorized",
+		},
+	}
+
+	for _, tst := range testCases {
+		t.Run(tst.label, func(t *testing.T) {
+			status, err := validateCallData(logger, permsForUser, tst.callType, tst.chainID, createCallData(t, tst.contractAddress, tst.data))
+			if tst.errText == "" {
+				require.NoError(t, err)
+				assert.Equal(t, 200, status)
+			} else {
+				require.ErrorContains(t, err, tst.errText)
+			}
+		})
+	}
+}
+
+func createCallData(t *testing.T, toStr string, dataStr string) []*query.EthCallData {
+	t.Helper()
+	to, err := vaa.StringToAddress(strings.TrimPrefix(toStr, "0x"))
+	require.NoError(t, err)
+
+	data, err := hex.DecodeString(strings.TrimPrefix(dataStr, "0x"))
+	require.NoError(t, err)
+
+	return []*query.EthCallData{
+		{
+			To:   to.Bytes(),
+			Data: data,
+		},
+	}
 }

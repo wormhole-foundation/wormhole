@@ -149,9 +149,13 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 			call := hex.EncodeToString(cd.Data[0:ETH_CALL_SIG_LENGTH])
 			callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainId, contractAddress, call)
 			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-				return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+				// The call data doesn't exist including the contract address. See if it's covered by a wildcard.
+				wildCardCallKey := fmt.Sprintf("%s:%d:*:%s", callTag, chainId, call)
+				if _, exists := permsForUser.allowedCalls[wildCardCallKey]; !exists {
+					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
+					invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
+					return http.StatusBadRequest, fmt.Errorf(`call "%s" not authorized`, callKey)
+				}
 			}
 		}
 
