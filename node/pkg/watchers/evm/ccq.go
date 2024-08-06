@@ -268,7 +268,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 					zap.Uint64("lastBlockNum", lastBlockNum),
 					zap.Uint64("lastBlockTime", lastBlockTime),
 				)
-				w.ccqRequestBackfill(req.TargetTimestamp / 1000000)
+				w.ccqRequestBackfill(timestampForCache)
 			} else {
 				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, failing request",
 					zap.String("requestId", requestId),
