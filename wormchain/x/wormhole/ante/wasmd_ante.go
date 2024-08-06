@@ -42,7 +42,6 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 		switch wasmMsg := msg.(type) {
 
 		case *wasmtypes.MsgInstantiateContract:
-			wasmMsg, _ = msg.(*wasmtypes.MsgInstantiateContract)
 			if !wh.k.HasWasmInstantiateAllowlist(request, wasmMsg.Sender, wasmMsg.CodeID) {
 				return request, errNotSupported()
 			} else {
@@ -50,7 +49,6 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 			}
 
 		case *wasmtypes.MsgInstantiateContract2:
-			wasmMsg, _ = msg.(*wasmtypes.MsgInstantiateContract2)
 			if !wh.k.HasWasmInstantiateAllowlist(request, wasmMsg.Sender, wasmMsg.CodeID) {
 				return request, errNotSupported()
 			} else {

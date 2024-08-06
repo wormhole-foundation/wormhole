@@ -23,6 +23,8 @@ type (
 		wasmdKeeper   types.WasmdKeeper
 		upgradeKeeper *upgradekeeper.Keeper
 
+		authority string
+
 		setWasmd   bool
 		setUpgrade bool
 	}
@@ -32,15 +34,17 @@ func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey,
 	memKey storetypes.StoreKey,
-
-	accountKeeper types.AccountKeeper, bankKeeper types.BankKeeper,
+	accountKeeper types.AccountKeeper,
+	bankKeeper types.BankKeeper,
+	authority string,
 ) *Keeper {
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		memKey:   memKey,
-
-		accountKeeper: accountKeeper, bankKeeper: bankKeeper,
+		cdc:           cdc,
+		storeKey:      storeKey,
+		memKey:        memKey,
+		accountKeeper: accountKeeper,
+		bankKeeper:    bankKeeper,
+		authority:     authority,
 	}
 }
 

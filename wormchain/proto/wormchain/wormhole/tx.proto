@@ -1,8 +1,10 @@
 syntax = "proto3";
 package wormchain.wormhole;
 
+import "wormchain/wormhole/guardian.proto";
 import "gogoproto/gogo.proto";
-// this line is used by starport scaffolding # proto/tx/import
+import "cosmos_proto/cosmos.proto";
+import "cosmos/msg/v1/msg.proto";
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
@@ -33,6 +35,13 @@ service Msg {
 
   rpc ExecuteGatewayGovernanceVaa(MsgExecuteGatewayGovernanceVaa)
       returns (EmptyResponse);
+
+  // GuardianSetUpdateProposal processes a proposal to update the guardian set
+  rpc GuardianSetUpdateProposal(MsgGuardianSetUpdateProposal) returns (EmptyResponse);
+
+  // GovernanceWormholeMessageProposal processes a proposal to emit a generic message
+  rpc GovernanceWormholeMessageProposal(MsgGovernanceWormholeMessageProposal) returns (EmptyResponse);
+    
   // this line is used by starport scaffolding # proto/tx/rpc
 }
 
@@ -163,4 +172,24 @@ message MsgExecuteGatewayGovernanceVaa {
   string signer = 1;
   // vaa must be governance msg with valid module, action, and payload
   bytes vaa = 2;
+}
+
+// GuardianSetUpdateProposal defines a guardian set update governance proposal
+message MsgGuardianSetUpdateProposal {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the address that controls the module (defaults to x/gov unless overwritten).
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  GuardianSet newGuardianSet = 2 [ (gogoproto.nullable) = false ];
+}
+
+// GovernanceWormholeMessageProposal defines a governance proposal to emit a
+// generic message in the governance message format.
+message MsgGovernanceWormholeMessageProposal {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the address that controls the module (defaults to x/gov unless overwritten).
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint32 action = 2;
+  bytes module = 3;
+  uint32 targetChain = 4;
+  bytes payload = 5;
 }

@@ -93,6 +93,7 @@ func WormholeKeeperAndWasmd(t testing.TB) (*keeper.Keeper, wasmkeeper.Keeper, *w
 		memKeys[types.MemStoreKey],
 		accountKeeper,
 		nil,
+		govModAddress,
 	)
 
 	supportedFeatures := "iterator,staking,stargate,wormhole"

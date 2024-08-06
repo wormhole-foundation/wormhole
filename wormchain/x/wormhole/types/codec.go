@@ -5,7 +5,6 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
-	govv1beta "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
@@ -19,6 +18,8 @@ func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgAddWasmInstantiateAllowlist{}, "wormhole/AddWasmInstantiateAllowlist", nil)
 	cdc.RegisterConcrete(&MsgDeleteWasmInstantiateAllowlist{}, "wormhole/DeleteWasmInstantiateAllowlist", nil)
 	cdc.RegisterConcrete(&MsgExecuteGatewayGovernanceVaa{}, "wormhole/ExecuteGatewayGovernanceVaa", nil)
+	cdc.RegisterConcrete(&MsgGuardianSetUpdateProposal{}, "wormhole/GuardianSetUpdateProposal", nil)
+	cdc.RegisterConcrete(&MsgGovernanceWormholeMessageProposal{}, "wormhole/GovernanceWormholeMessageProposal", nil)
 	// this line is used by starport scaffolding # 2
 }
 
@@ -31,11 +32,8 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgCreateAllowlistEntryRequest{},
 		&MsgDeleteAllowlistEntryRequest{},
 		&MsgExecuteGatewayGovernanceVaa{},
-	)
-	registry.RegisterImplementations((*govv1beta.Content)(nil),
-		&GovernanceWormholeMessageProposal{},
-		&GuardianSetUpdateProposal{})
-	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgGovernanceWormholeMessageProposal{},
+		&MsgGuardianSetUpdateProposal{},
 		&MsgRegisterAccountAsGuardian{},
 	)
 	// this line is used by starport scaffolding # 3

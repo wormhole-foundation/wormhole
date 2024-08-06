@@ -123,7 +123,6 @@ import (
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
 	ibccomposabilitytypes "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
-	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 )
 
 const (
@@ -138,8 +137,6 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		paramsclient.ProposalHandler,
 		upgradeclient.LegacyProposalHandler,
 		upgradeclient.LegacyCancelProposalHandler,
-		wormholeclient.GuardianSetUpdateProposalHandler, // TODO: JOEL - NO LONGER NECESSARY, PROPOSALS WILL BE SENT TO GOV MSG SERVER
-		wormholeclient.WormholeGovernanceMessageProposalHandler,
 	)
 
 	return govProposalHandlers
@@ -397,6 +394,7 @@ func New(
 		keys[wormholemoduletypes.MemStoreKey],
 		app.AccountKeeper,
 		app.BankKeeper,
+		govModAddress,
 	)
 
 	stakingKeeper := stakingkeeper.NewKeeper(
@@ -496,8 +494,7 @@ func New(
 	govRouter := govv1beta.NewRouter().
 		AddRoute(govtypes.RouterKey, govv1beta.ProposalHandler).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
-		AddRoute(wormholemoduletypes.RouterKey, wormholemodule.NewWormholeGovernanceProposalHandler(app.WormholeKeeper))
+		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec,

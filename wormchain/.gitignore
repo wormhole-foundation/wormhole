@@ -15,7 +15,7 @@ devnet/wormchain-*/config/genesis.json
 ts-sdk/node_modules
 ts-sdk/lib
 contracts/artifacts
-wormchaind
+cmd/wormchaind/wormchaind
 
 .idea
 *.iml
