@@ -10,6 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	dto "github.com/prometheus/client_model/go"
 )
 
 var GovInterval = time.Minute
@@ -68,6 +68,8 @@ type (
 		settled bool
 		// Human-readable description of the VAA's source, used for metrics.
 		source string
+		// Our observation in case we need to resubmit it to the batch publisher.
+		ourObs *gossipv1.Observation
 		// Copy of the bytes we submitted (ourObservation, but signed and serialized). Used for retransmissions.
 		ourMsg []byte
 		// The hash of the transaction in which the observation was made.  Used for re-observation requests.
@@ -102,6 +104,7 @@ type PythNetVaaEntry struct {
 type Processor struct {
 	// msgC is a channel of observed emitted messages
 	msgC <-chan *common.MessagePublication
+
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
 
@@ -113,6 +116,9 @@ type Processor struct {
 
 	// obsvC is a channel of inbound decoded observations from p2p
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
+
+	// batchObsvC is a channel of inbound decoded batches of observations from p2p
+	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
@@ -147,6 +153,9 @@ type Processor struct {
 	gatewayRelayer *gwrelayer.GatewayRelayer
 	updateVAALock  sync.Mutex
 	updatedVAAs    map[string]*updateVaaEntry
+
+	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
+	batchObsvPubC chan *gossipv1.Observation
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -170,6 +179,26 @@ var (
 			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
 
+	batchObservationChanDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_batch_observation_channel_delay_us",
+			Help:    "Latency histogram for delay of batched observations in channel",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+		})
+
+	batchObservationTotalDelay = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_batch_observation_total_delay_us",
+			Help:    "Latency histogram for total time to process batched observations",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+		})
+
+	batchObservationChannelOverflow = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_batch_observation_channel_overflow",
+			Help: "Total number of times a write to the batch observation publish channel failed",
+		}, []string{"channel"})
+
 	timeToHandleObservation = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_time_to_handle_observation_us",
@@ -185,6 +214,9 @@ var (
 		})
 )
 
+// batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
+const batchObsvPubChanSize = p2p.MaxObservationBatchSize * 5
+
 func NewProcessor(
 	ctx context.Context,
 	db *db.Database,
@@ -193,6 +225,7 @@ func NewProcessor(
 	gossipAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
+	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
@@ -209,6 +242,7 @@ func NewProcessor(
 		gossipAttestationSendC: gossipAttestationSendC,
 		gossipVaaSendC:         gossipVaaSendC,
 		obsvC:                  obsvC,
+		batchObsvC:             batchObsvC,
 		obsvReqSendC:           obsvReqSendC,
 		signedInC:              signedInC,
 		gk:                     gk,
@@ -223,6 +257,7 @@ func NewProcessor(
 		acctReadC:      acctReadC,
 		pythnetVaas:    make(map[string]PythNetVaaEntry),
 		gatewayRelayer: gatewayRelayer,
+		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 	}
 }
@@ -230,6 +265,10 @@ func NewProcessor(
 func (p *Processor) Run(ctx context.Context) error {
 	if err := supervisor.Run(ctx, "vaaWriter", common.WrapWithScissors(p.vaaWriter, "vaaWriter")); err != nil {
 		return fmt.Errorf("failed to start vaa writer: %w", err)
+	}
+
+	if err := supervisor.Run(ctx, "batchProcessor", common.WrapWithScissors(p.batchProcessor, "batchProcessor")); err != nil {
+		return fmt.Errorf("failed to start batch processor: %w", err)
 	}
 
 	cleanup := time.NewTicker(CleanupInterval)
@@ -243,16 +282,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct != nil {
 				p.acct.Close()
 			}
-
-			// Log these as warnings so they show up in the benchmark logs.
-			metric := &dto.Metric{}
-			_ = observationChanDelay.Write(metric)
-			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
-
-			metric = &dto.Metric{}
-			_ = observationTotalDelay.Write(metric)
-			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
-
 			return ctx.Err()
 		case p.gs = <-p.setC:
 			p.logger.Info("guardian set updated",
@@ -290,6 +319,9 @@ func (p *Processor) Run(ctx context.Context) error {
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(m)
+		case m := <-p.batchObsvC:
+			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+			p.handleBatchObservation(m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(m)
 		case <-cleanup.C:
