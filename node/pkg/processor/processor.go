@@ -153,6 +153,7 @@ type Processor struct {
 	gatewayRelayer *gwrelayer.GatewayRelayer
 	updateVAALock  sync.Mutex
 	updatedVAAs    map[string]*updateVaaEntry
+	networkID      string
 
 	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
 	batchObsvPubC chan *gossipv1.Observation
@@ -234,6 +235,7 @@ func NewProcessor(
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
+	networkID string,
 ) *Processor {
 
 	return &Processor{
@@ -259,10 +261,18 @@ func NewProcessor(
 		gatewayRelayer: gatewayRelayer,
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
+		networkID:      networkID,
 	}
 }
 
 func (p *Processor) Run(ctx context.Context) error {
+	// Evaluate the batch cutover time. If it has passed, then the flag will be set to make us publish observation batches.
+	// If not, a routine will be started to wait for that time before starting to publish batches.
+	cutoverErr := evaluateBatchCutover(p.logger, p.networkID)
+	if cutoverErr != nil {
+		panic(cutoverErr)
+	}
+
 	if err := supervisor.Run(ctx, "vaaWriter", common.WrapWithScissors(p.vaaWriter, "vaaWriter")); err != nil {
 		return fmt.Errorf("failed to start vaa writer: %w", err)
 	}
