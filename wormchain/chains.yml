@@ -5,7 +5,7 @@
   github-organization: wormhole-foundation
   github-repo: wormhole
   dockerfile: cosmos
-  build-target: make install
+  build-target: make client
   build-dir: wormchain
   binaries:
     - wormchain/build/wormchaind

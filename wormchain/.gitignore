@@ -6,7 +6,7 @@ release/
 testing/js/node_modules
 !build
 build/wormhole-chaind
-build/wormchaind
+build/wormchaind*
 build/data
 devnet/wormchain-*/data
 devnet/wormchain-*/config/*.toml

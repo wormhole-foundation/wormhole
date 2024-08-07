@@ -4,15 +4,27 @@ GO_FILES=$(shell find . -name "*.go")
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
 VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1))
+BFT_VERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::') # grab everything after the space in "github.com/cometbft/cometbft v0.34.7"
 COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
 
-build_tags := netgo,muslc
-ldflags = \
-    -X github.com/cosmos/cosmos-sdk/version.Name=wormchain\
-	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind\
+build_tags = netgo muslc gcc ledger
+build_tags += $(BUILD_TAGS)
+build_tags := $(strip $(build_tags))
+
+whitespace :=
+whitespace += $(whitespace)
+comma := ,
+build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
+
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=wormchain \
+	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind \
 	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=ledger"
+	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
+	-X github.com/cometbft/cometbft/version.TMCoreSemVer=$(BFT_VERSION)
+ldflags += $(LDFLAGS)
+ldflags := $(strip $(ldflags))
+
 BUILD_FLAGS := -tags "$(build_tags)" -ldflags '$(ldflags)'
 
 .PHONY: all
@@ -23,7 +35,7 @@ client: build/wormchaind
 
 build/wormchaind: cmd/wormchaind/main.go cmd/wormchaind/root.go $(GO_FILES)
 	@echo building "wormchaind-$(VERSION)"
-	go build -v $(BUILD_FLAGS) -tags ledger -o $@ ./cmd/wormchaind
+	go build -mod=readonly $(BUILD_FLAGS) -o $@ ./cmd/wormchaind
 	cp "$@" "$@"-"$(VERSION)"
 
 install: go.sum
