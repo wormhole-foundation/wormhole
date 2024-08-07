@@ -167,7 +167,14 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// Wait for the response or timeout
 	select {
 	case <-time.After(query.RequestTimeout + 5*time.Second):
-		s.logger.Info("publishing time out to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		maxMatchingResponses, outstandingResponses, quorum := pendingResponse.getStats()
+		s.logger.Info("publishing time out to client",
+			zap.String("userId", permEntry.userName),
+			zap.String("requestId", requestId),
+			zap.Int("maxMatchingResponses", maxMatchingResponses),
+			zap.Int("outstandingResponses", outstandingResponses),
+			zap.Int("quorum", quorum),
+		)
 		http.Error(w, "Timed out waiting for response", http.StatusGatewayTimeout)
 		queryTimeoutsByUser.WithLabelValues(permEntry.userName).Inc()
 		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
