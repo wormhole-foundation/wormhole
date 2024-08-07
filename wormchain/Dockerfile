@@ -1,9 +1,11 @@
-FROM docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62
+FROM golang:1.22.5
 
 #used for a readiness probe
-RUN apt-get update
-RUN apt install -y netcat
-RUN apt install -y jq
+RUN apt update && \
+    apt-get install -y \
+        build-essential \
+        ca-certificates \
+        curl
 
 WORKDIR /app
 
@@ -13,7 +15,7 @@ COPY ./sdk /sdk
 RUN go mod download
 
 # copy over c bindings (libwasmvm.x86_64.so, etc)
-RUN cp -r /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/* /usr/lib
+RUN cp -r /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.5.2/internal/api/* /usr/lib
 
 COPY ./wormchain .
 
