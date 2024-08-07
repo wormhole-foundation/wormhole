@@ -7,6 +7,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -31,26 +32,46 @@ func (p *Processor) broadcastSignature(
 	txhash []byte,
 	digest ethCommon.Hash,
 	signature []byte,
-) (*gossipv1.SignedObservation, []byte) {
-	obsv := gossipv1.SignedObservation{
-		Addr:      p.ourAddr.Bytes(),
+	shouldPublishImmediately bool,
+) (ourObs *gossipv1.Observation, msg []byte) {
+	// Create the observation to either be submitted to the batch processor or published immediately.
+	ourObs = &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
 		MessageId: messageID,
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
+	if p2p.GossipCutoverComplete() {
+		if shouldPublishImmediately {
+			msg = p.publishImmediately(ourObs)
+			observationsBroadcast.Inc()
+		} else {
+			p.postObservationToBatch(ourObs)
+		}
+	} else {
+		// Post the observation in its own gossip message.
+		obsv := gossipv1.SignedObservation{
+			Addr:      p.ourAddr.Bytes(),
+			Hash:      digest.Bytes(),
+			Signature: signature,
+			TxHash:    txhash,
+			MessageId: messageID,
+		}
 
-	msg, err := proto.Marshal(&w)
-	if err != nil {
-		panic(err)
+		w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
+
+		var err error
+		msg, err = proto.Marshal(&w)
+		if err != nil {
+			panic(err)
+		}
+
+		// Broadcast the observation.
+		p.gossipAttestationSendC <- msg
+		observationsBroadcast.Inc()
 	}
-
-	// Broadcast the observation.
-	p.gossipAttestationSendC <- msg
-	observationsBroadcast.Inc()
-	return &obsv, msg
+	return ourObs, msg
 }
 
 // broadcastSignedVAA broadcasts a VAA to the gossip network.

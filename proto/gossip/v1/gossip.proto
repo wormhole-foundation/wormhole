@@ -14,6 +14,7 @@ message GossipMessage {
     SignedChainGovernorStatus signed_chain_governor_status = 9;
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
+    SignedObservationBatch signed_observation_batch = 12;
   }
 }
 
@@ -214,4 +215,27 @@ message SignedQueryResponse {
 
   // ECDSA signature using the node's guardian public key.
   bytes signature = 2;
+}
+
+// A SignedObservationBatch is a signed statement by a given guardian node that they observed a number of events.
+message SignedObservationBatch {
+  // Guardian pubkey as truncated eth address.
+  bytes addr = 1;
+  // The set of observations in this batch. Note that the default max message size in libp2p before fragmentation is 1MB.
+  // If we limit this array to 4000 entries, that gives us a marshaled message size of 800K, which is safely below that limit.
+  repeated Observation observations = 2;
+}
+
+// Observation defines a single observation that is contained in SignedObservationBatch
+message Observation {
+  // The observation's deterministic, unique hash.
+  bytes hash = 1;
+  // ECSDA signature of the hash using the node's guardian key.
+  bytes signature = 2;
+  // Transaction hash this observation was made from.
+  // Optional, included for observability.
+  bytes tx_hash = 3;
+  // Message ID (chain/emitter/seq) for this observation.
+  // Optional, included for observability.
+  string message_id = 4;
 }
