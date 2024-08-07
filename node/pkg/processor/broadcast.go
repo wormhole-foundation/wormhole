@@ -7,7 +7,6 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -42,7 +41,7 @@ func (p *Processor) broadcastSignature(
 		MessageId: messageID,
 	}
 
-	if p2p.GossipCutoverComplete() {
+	if batchCutoverComplete() {
 		if shouldPublishImmediately {
 			msg = p.publishImmediately(ourObs)
 			observationsBroadcast.Inc()
