@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	// TODO: JOEL - LOOK INTO SETTING ADDRESS PREFIXES
+	app.SetAddressPrefixes()
 	rootCmd, _ := NewRootCmd()
 
 	if err := svrcmd.Execute(rootCmd, "WORMCHAIND", app.DefaultNodeHome); err != nil {
