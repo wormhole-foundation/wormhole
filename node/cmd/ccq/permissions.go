@@ -280,9 +280,13 @@ func parseConfig(byteValue []byte, allowAnything bool) (PermissionsMap, error) {
 
 			if callKey == "" {
 				// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
-				contractAddress, err := vaa.StringToAddress(contractAddressStr)
-				if err != nil {
-					return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
+				contractAddress := contractAddressStr
+				if contractAddressStr != "*" {
+					contractAddr, err := vaa.StringToAddress(contractAddressStr)
+					if err != nil {
+						return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
+					}
+					contractAddress = contractAddr.String()
 				}
 
 				// The call should be the ABI four byte hex hash of the function signature. Parse it into a standard form of "06fdde03".
