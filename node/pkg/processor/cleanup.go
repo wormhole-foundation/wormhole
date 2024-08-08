@@ -229,6 +229,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
 					if s.ourMsg != nil {
+						// This is the case for immediately published messages (as well as anything still pending from before the cutover).
 						p.gossipAttestationSendC <- s.ourMsg
 					} else {
 						p.postObservationToBatch(s.ourObs)

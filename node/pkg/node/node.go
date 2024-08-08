@@ -34,9 +34,9 @@ const (
 	inboundObservationBufferSize = 10000
 
 	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
-	// Since a batch contains many observations, the guardians should not be publishing too many of these, so we can keep the channel small. With
-	// 19 guardians, we would expect 19 messages per second during normal operations. This gives us plenty of extra room.
-	inboundBatchObservationBufferSize = 100
+	// Since a batch contains many observations, the guardians should not be publishing too many of these. With 19 guardians, we would expect 19 messages
+	// per second during normal operations. However, since some messages get published immediately, we need to allow extra room.
+	inboundBatchObservationBufferSize = 1000
 
 	// inboundSignedVaaBufferSize configures the size of the signedInC channel that contains VAAs from other Guardians.
 	// One VAA takes roughly 0.01ms to process if we already have one in the database and 2ms if we don't.
