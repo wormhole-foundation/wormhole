@@ -88,6 +88,14 @@ interface IWormhole {
 
     function parseAndVerifyVM(bytes calldata encodedVM) external view returns (VM memory vm, bool valid, string memory reason);
 
+    function parseAndVerifyVMOptimized(
+        bytes calldata encodedVM,
+        bytes calldata guardianSet,
+        uint32 guardianSetIndex
+    ) external view returns (VM memory vm, bool valid, string memory reason);
+
+    function parseGuardianSet(bytes calldata guardianSetData) external pure returns (GuardianSet memory guardianSet);
+
     function verifyVM(VM memory vm) external view returns (bool valid, string memory reason);
 
     function verifySignatures(bytes32 hash, Signature[] memory signatures, GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason);
@@ -101,6 +109,10 @@ interface IWormhole {
     function getCurrentGuardianSetIndex() external view returns (uint32);
 
     function getGuardianSetExpiry() external view returns (uint32);
+
+    function getGuardianSetHash(uint32 index) external view returns (bytes32);
+
+    function getEncodedGuardianSet(uint32 index) external view returns (bytes memory encodedGuardianSet);
 
     function governanceActionIsConsumed(bytes32 hash) external view returns (bool);
 
@@ -139,4 +151,6 @@ interface IWormhole {
     function submitTransferFees(bytes memory _vm) external;
 
     function submitRecoverChainId(bytes memory _vm) external;
+
+    function setGuardianSetHash(uint32 index) external;
 }
