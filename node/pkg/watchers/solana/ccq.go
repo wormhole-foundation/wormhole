@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -140,22 +141,46 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	}
 
 	// Read the block for this slot to get the block time.
-	maxSupportedTransactionVersion := uint64(0)
-	block, err := w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
-		Encoding:                       solana.EncodingBase64,
-		Commitment:                     params.Commitment,
-		TransactionDetails:             rpc.TransactionDetailsNone,
-		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
-	})
-	if err != nil {
-		w.ccqLogger.Error(fmt.Sprintf("failed to read block time for %s query request", tag),
-			zap.String("requestId", requestId),
-			zap.Uint64("slotNumber", info.Context.Slot),
-			zap.Error(err),
-		)
+	var block *rpc.GetBlockResult
+	var numBlockReadAttempts int
+	const maxBlockReadAttempts = 3
+	const blockRetryDelay = 250 * time.Millisecond
+	for {
+		maxSupportedTransactionVersion := uint64(0)
+		block, err = w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
+			Encoding:                       solana.EncodingBase64,
+			Commitment:                     params.Commitment,
+			TransactionDetails:             rpc.TransactionDetailsNone,
+			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
+		})
+		if err == nil {
+			break
+		}
 
-		w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
-		return
+		if !ccqIsBlockNotAvailable(err) {
+			w.ccqLogger.Error(fmt.Sprintf("failed to read block time for %s query request", tag),
+				zap.String("requestId", requestId),
+				zap.Uint64("slotNumber", info.Context.Slot),
+				zap.Error(err),
+			)
+
+			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
+			return
+		}
+
+		numBlockReadAttempts += 1
+		if numBlockReadAttempts >= maxBlockReadAttempts {
+			w.ccqLogger.Error(fmt.Sprintf("repeatedly failed to read block time for %s query request, giving up", tag),
+				zap.String("requestId", requestId),
+				zap.Uint64("slotNumber", info.Context.Slot),
+				zap.Error(err),
+			)
+
+			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
+			return
+		}
+
+		time.Sleep(blockRetryDelay)
 	}
 
 	if info == nil {
@@ -538,4 +563,22 @@ func (w *SolanaWatcher) getMultipleAccountsWithOpts(
 		return nil, rpc.ErrNotFound
 	}
 	return
+}
+
+// ccqIsBlockNotAvailable parses an error to see if it is a "Block not available for slot" error.
+func ccqIsBlockNotAvailable(err error) bool {
+	/*
+		  A "Block not available for slot" error looks like this:
+			"(*jsonrpc.RPCError)(0xc0208a0270)({\n Code: (int) -32004,\n Message: (string) (len=38) \"Block not available for slot 282135928\",\n Data: (interface {}) <nil>\n})\n"
+	*/
+	var rpcErr *jsonrpc.RPCError
+	if !errors.As(err, &rpcErr) {
+		return false // Some other kind of error.
+	}
+
+	if rpcErr.Code != -32004 { // Block not available for slot
+		return false // Some other kind of RPC error.
+	}
+
+	return strings.Contains(rpcErr.Message, "Block not available for slot")
 }
