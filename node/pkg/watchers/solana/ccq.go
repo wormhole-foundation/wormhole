@@ -28,6 +28,12 @@ const (
 
 	// CCQ_FAST_RETRY_INTERVAL is how long we sleep between fast retry attempts.
 	CCQ_FAST_RETRY_INTERVAL = 200 * time.Millisecond
+
+	// CCQ_MAX_BLOCK_READ_ATTEMPTS the total number of times we will try to read the block when it returns "Block not available".
+	CCQ_MAX_BLOCK_READ_ATTEMPTS = 3
+
+	// CCQ_BLOCK_RETRY_DELAY is how long we sleep between attempts to read the block time.
+	CCQ_BLOCK_RETRY_DELAY = 250 * time.Millisecond
 )
 
 // ccqStart starts up CCQ query processing.
@@ -143,8 +149,6 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	// Read the block for this slot to get the block time.
 	var block *rpc.GetBlockResult
 	var numBlockReadAttempts int
-	const maxBlockReadAttempts = 3
-	const blockRetryDelay = 250 * time.Millisecond
 	for {
 		maxSupportedTransactionVersion := uint64(0)
 		block, err = w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
@@ -169,7 +173,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 		}
 
 		numBlockReadAttempts += 1
-		if numBlockReadAttempts >= maxBlockReadAttempts {
+		if numBlockReadAttempts >= CCQ_MAX_BLOCK_READ_ATTEMPTS {
 			w.ccqLogger.Error(fmt.Sprintf("repeatedly failed to read block time for %s query request, giving up", tag),
 				zap.String("requestId", requestId),
 				zap.Uint64("slotNumber", info.Context.Slot),
@@ -180,7 +184,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			return
 		}
 
-		time.Sleep(blockRetryDelay)
+		time.Sleep(CCQ_BLOCK_RETRY_DELAY)
 	}
 
 	if info == nil {
