@@ -101,3 +101,37 @@ func TestCcqIsMinContextSlotErrorContextSlotIsNotUint64(t *testing.T) {
 	require.True(t, isMinContext)
 	assert.Equal(t, uint64(0), currentSlot)
 }
+
+func TestCcqIsBlockNotAvailableSuccess(t *testing.T) {
+	myErr := &jsonrpc.RPCError{
+		Code:    -32004,
+		Message: "Block not available for slot 282135928",
+		Data:    nil,
+	}
+
+	assert.True(t, ccqIsBlockNotAvailable(error(myErr)))
+}
+
+func TestCcqIsBlockNotAvailableWrongErrorNumberFailure(t *testing.T) {
+	myErr := &jsonrpc.RPCError{
+		Code:    -32016,
+		Message: "Minimum context slot has not been reached",
+		Data: map[string]interface{}{
+			"contextSlot": json.Number("13526"),
+		},
+	}
+
+	assert.False(t, ccqIsBlockNotAvailable(error(myErr)))
+}
+
+func TestCcqIsBlockNotAvailableWrongTextFailure(t *testing.T) {
+	myErr := &jsonrpc.RPCError{
+		Code:    -32004,
+		Message: "Minimum context slot has not been reached",
+		Data: map[string]interface{}{
+			"contextSlot": json.Number("13526"),
+		},
+	}
+
+	assert.False(t, ccqIsBlockNotAvailable(error(myErr)))
+}
