@@ -30,7 +30,20 @@ var (
 	MaxDepositPeriod = "10s"
 	MinDepositAount  = "1000000"
 
-	GenesisKV = []cosmos.GenesisKV{}
+	GenesisKV = []cosmos.GenesisKV{
+		{
+			Key:   "app_state.gov.params.voting_period",
+			Value: VotingPeriod,
+		},
+		{
+			Key:   "app_state.gov.params.max_deposit_period",
+			Value: MaxDepositPeriod,
+		},
+		{
+			Key:   "app_state.gov.params.min_deposit.0.denom",
+			Value: WormchainDenom,
+		},
+	}
 
 	WormchainImage = ibc.DockerImage{
 		Repository: WormchainName,

@@ -3,8 +3,8 @@ package interchaintest
 import (
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v7"
 	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,17 +19,12 @@ func TestChainStart(t *testing.T) {
 	// Base setup
 	chains := CreateThisBranchChain(t, 1, 0)
 	ic, ctx, _, _ := BuildInitialChain(t, chains)
-
-	chain := chains[0].(*cosmos.CosmosChain)
-
-	const userFunds = int64(10_000_000_000)
-	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), userFunds, chain)
-	chainUser := users[0]
-
-	chainUser.Mnemonic()
-
 	require.NotNil(t, ic)
 	require.NotNil(t, ctx)
+
+	// Confirm 10 blocks are produced
+	chain := chains[0].(*cosmos.CosmosChain)
+	testutil.WaitForBlocks(ctx, 10, chain)
 
 	t.Cleanup(func() {
 		_ = ic.Close()
