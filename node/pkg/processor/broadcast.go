@@ -18,6 +18,12 @@ var (
 			Help: "Total number of signed observations queued for broadcast",
 		})
 
+	batchObservationsBroadcast = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_batch_observations_queued_for_broadcast",
+			Help: "Total number of signed batched observations queued for broadcast",
+		})
+
 	signedVAAsBroadcast = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_signed_vaas_queued_for_broadcast",
@@ -47,6 +53,7 @@ func (p *Processor) broadcastSignature(
 			observationsBroadcast.Inc()
 		} else {
 			p.postObservationToBatch(ourObs)
+			batchObservationsBroadcast.Inc()
 		}
 	} else {
 		// Post the observation in its own gossip message.

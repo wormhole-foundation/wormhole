@@ -411,7 +411,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvRecvC != nil {
+			if params.obsvRecvC != nil || params.batchObsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
