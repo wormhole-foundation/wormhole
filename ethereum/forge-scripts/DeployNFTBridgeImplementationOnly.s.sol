@@ -2,10 +2,10 @@
 
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
-import {NFTBridgeShutdown} from "../contracts/nft/NFTBridgeShutdown.sol";
+import {NFTBridgeImplementation} from "../contracts/nft/NFTBridgeImplementation.sol";
 import "forge-std/Script.sol";
 
-contract DeployNFTBridgeShutdown is Script {
+contract DeployNFTBridgeImplementationOnly is Script {
     // DryRun - Deploy the system
     function dryRun() public {
         _deploy();
@@ -17,8 +17,8 @@ contract DeployNFTBridgeShutdown is Script {
         vm.stopBroadcast();
     }
     function _deploy() internal returns (address deployedAddress) {
-        NFTBridgeShutdown shutdown = new NFTBridgeShutdown();
+        NFTBridgeImplementation impl = new NFTBridgeImplementation();
 
-        return address(shutdown);
+        return address(impl);
     }
 }
