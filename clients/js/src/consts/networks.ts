@@ -336,7 +336,7 @@ const Testnet = {
   Acala: {
     rpc: "https://eth-rpc-acala-testnet.aca-staging.network",
     key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 595,
+    chain_id: 597,
   },
   Klaytn: {
     rpc: "https://api.baobab.klaytn.net:8651",
