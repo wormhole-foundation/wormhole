@@ -53,7 +53,7 @@ ethereum$ MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 
 #### Generate Flattened Source
 
-To generated the flattened source files to verify the contracts using the explorer UI
+To generate the flattened source files to verify the contracts using the explorer UI
 
 ```shell
 ethereum$ ./sh/flatten.sh
