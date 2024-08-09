@@ -6,9 +6,13 @@ require (
 	github.com/CosmWasm/wasmd v0.45.0
 	github.com/cosmos/cosmos-sdk v0.47.12
 	github.com/docker/docker v24.0.7+incompatible
+	github.com/ethereum/go-ethereum v1.10.21
+	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
 	github.com/strangelove-ventures/interchaintest/v7 v7.0.0
 	github.com/stretchr/testify v1.9.0
+	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormchain v0.0.0
+	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20240705140936-31b01629087c
 	go.uber.org/zap v1.26.0
 )
 
@@ -83,7 +87,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
-	github.com/ethereum/go-ethereum v1.10.21 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/getsentry/sentry-go v0.23.0 // indirect
@@ -124,8 +127,8 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
+	github.com/holiman/uint256 v1.2.1 // indirect
 	github.com/huandu/skiplist v1.2.0 // indirect
-	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/go-cid v0.4.1 // indirect
@@ -250,5 +253,6 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/wormhole-foundation/wormchain => ../
+	github.com/wormhole-foundation/wormhole/sdk => ../../sdk
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
 )
