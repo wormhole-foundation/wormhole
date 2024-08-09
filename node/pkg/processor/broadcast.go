@@ -18,6 +18,12 @@ var (
 			Help: "Total number of signed observations queued for broadcast",
 		})
 
+	batchObservationsBroadcast = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_batch_observations_queued_for_broadcast",
+			Help: "Total number of signed batched observations queued for broadcast",
+		})
+
 	signedVAAsBroadcast = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_signed_vaas_queued_for_broadcast",
@@ -31,26 +37,47 @@ func (p *Processor) broadcastSignature(
 	txhash []byte,
 	digest ethCommon.Hash,
 	signature []byte,
-) (*gossipv1.SignedObservation, []byte) {
-	obsv := gossipv1.SignedObservation{
-		Addr:      p.ourAddr.Bytes(),
+	shouldPublishImmediately bool,
+) (ourObs *gossipv1.Observation, msg []byte) {
+	// Create the observation to either be submitted to the batch processor or published immediately.
+	ourObs = &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
 		MessageId: messageID,
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
+	if batchCutoverComplete() {
+		if shouldPublishImmediately {
+			msg = p.publishImmediately(ourObs)
+			observationsBroadcast.Inc()
+		} else {
+			p.postObservationToBatch(ourObs)
+			batchObservationsBroadcast.Inc()
+		}
+	} else {
+		// Post the observation in its own gossip message.
+		obsv := gossipv1.SignedObservation{
+			Addr:      p.ourAddr.Bytes(),
+			Hash:      digest.Bytes(),
+			Signature: signature,
+			TxHash:    txhash,
+			MessageId: messageID,
+		}
 
-	msg, err := proto.Marshal(&w)
-	if err != nil {
-		panic(err)
+		w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
+
+		var err error
+		msg, err = proto.Marshal(&w)
+		if err != nil {
+			panic(err)
+		}
+
+		// Broadcast the observation.
+		p.gossipAttestationSendC <- msg
+		observationsBroadcast.Inc()
 	}
-
-	// Broadcast the observation.
-	p.gossipAttestationSendC <- msg
-	observationsBroadcast.Inc()
-	return &obsv, msg
+	return ourObs, msg
 }
 
 // broadcastSignedVAA broadcasts a VAA to the gossip network.
