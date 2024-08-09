@@ -81,6 +81,7 @@ export const getProviderForChain = <T extends Chain>(
     case "Xlayer":
     case "Linea":
     case "Berachain":
+    case "Snaxchain":
     case "Seievm":
     case "Sepolia":
     case "ArbitrumSepolia":
