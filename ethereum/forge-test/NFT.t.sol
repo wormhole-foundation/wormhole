@@ -610,13 +610,13 @@ contract TestNFTBridge is Test {
         wrapped.ownerOf(tokenId);
     }
 
-    function addressToBytes32(address input) internal returns (bytes32 output) {
+    function addressToBytes32(address input) internal pure returns (bytes32 output) {
         return bytes32(uint256(uint160(input)));
     }
 
     function uint256Array(
         uint256 member
-    ) internal returns (uint256[] memory arr) {
+    ) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](1);
         arr[0] = member;
     }
@@ -631,7 +631,7 @@ contract TestNFTBridge is Test {
         uint256[] memory signers,
         uint32 guardianSetIndex,
         uint8 consistencyLevel
-    ) public returns (bytes memory signedMessage) {
+    ) public pure returns (bytes memory signedMessage) {
         bytes memory body = abi.encodePacked(
             timestamp,
             nonce,
@@ -697,7 +697,6 @@ contract TestNFTBridge is Test {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(bridge), IMPLEMENTATION_STORAGE_SLOT);
 
         bridge.upgrade(vaa);
 
@@ -775,7 +774,6 @@ contract TestNFTBridge is Test {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(bridge), IMPLEMENTATION_STORAGE_SLOT);
 
         bridge.upgrade(vaa);
 
@@ -968,9 +966,10 @@ contract TestNFTBridge is Test {
         address,
         uint256,
         bytes calldata
-    ) external returns (bytes4) {
+    ) external pure returns (bytes4) {
         return 0x150b7a02;
     }
 
     fallback() external payable {}
+    receive() external payable {}
 }

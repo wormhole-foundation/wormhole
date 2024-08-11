@@ -88,7 +88,7 @@ contract TestImplementation is TestUtils {
 
     function uint256Array(
         uint256 member
-    ) internal returns (uint256[] memory arr) {
+    ) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](1);
         arr[0] = member;
     }
@@ -270,7 +270,7 @@ contract TestImplementation is TestUtils {
         uint256[] memory signers,
         uint32 guardianSetIndex,
         uint8 consistencyLevel
-    ) public returns (bytes memory signedMessage) {
+    ) public pure returns (bytes memory signedMessage) {
         bytes memory body = abi.encodePacked(
             timestamp,
             nonce,
@@ -320,7 +320,7 @@ contract TestImplementation is TestUtils {
         uint256[] memory signers,
         uint32 guardianSetIndex,
         uint8 consistencyLevel
-    ) public returns (bytes memory signedMessage) {
+    ) public pure returns (bytes memory signedMessage) {
         bytes memory body = abi.encodePacked(
             timestamp,
             nonce,
@@ -492,7 +492,7 @@ contract TestImplementation is TestUtils {
             consistencyLevel
         );
 
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
+        (, bool valid, string memory reason) = proxied
             .parseAndVerifyVM(signedMessage);
 
         assertEq(valid, false, "Signed vaa shouldn't be valid");
@@ -527,8 +527,7 @@ contract TestImplementation is TestUtils {
         );
 
         vm.expectRevert("signature indices must be ascending");
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = proxied
-            .parseAndVerifyVM(signedMessage);
+        proxied.parseAndVerifyVM(signedMessage);
     }
 
     function testShouldSetAndEnforceFees() public {
@@ -642,7 +641,6 @@ contract TestImplementation is TestUtils {
     function testShouldAcceptANewGuardianSet() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         uint32 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
 
@@ -708,8 +706,6 @@ contract TestImplementation is TestUtils {
 
         MockImplementation mock = new MockImplementation();
 
-        uint256 oldGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
-
         bytes memory data = abi.encodePacked(
             core,
             actionContractUpgrade,
@@ -729,7 +725,6 @@ contract TestImplementation is TestUtils {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
@@ -751,7 +746,6 @@ contract TestImplementation is TestUtils {
     {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         bytes memory data = abi.encodePacked(
             core,
@@ -779,7 +773,6 @@ contract TestImplementation is TestUtils {
     function testShouldRevertGovernancePacketsFromOldGuardianSet() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         // upgrade guardian set
         bytes memory data = abi.encodePacked(
@@ -832,9 +825,6 @@ contract TestImplementation is TestUtils {
     function testShouldTimeOutOldGuardians() public {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
-        uint16 emitterChainId = 11;
-        bytes32 emitterAddress = 0x0000000000000000000000000000000000000000000000000000000000000eee;
 
         // upgrade guardian set
         bytes memory data = abi.encodePacked(
@@ -890,7 +880,6 @@ contract TestImplementation is TestUtils {
     {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         bytes memory data = abi.encodePacked(
             core,
@@ -920,7 +909,6 @@ contract TestImplementation is TestUtils {
     {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         bytes memory data = abi.encodePacked(
             core,
@@ -950,7 +938,6 @@ contract TestImplementation is TestUtils {
     {
         uint32 timestamp = 1000;
         uint32 nonce = 1001;
-        address zeroAddress = address(0x0);
 
         uint256 amount = 1;
         vm.deal(address(proxied), amount);
@@ -980,7 +967,7 @@ contract TestImplementation is TestUtils {
         proxied.submitTransferFees(vaa);
     }
 
-    function addressToBytes32(address input) internal returns (bytes32 output) {
+    function addressToBytes32(address input) internal pure returns (bytes32 output) {
         return bytes32(uint256(uint160(input)));
     }
 
@@ -1010,7 +997,6 @@ contract TestImplementation is TestUtils {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
@@ -1090,7 +1076,6 @@ contract TestImplementation is TestUtils {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(proxied), IMPLEMENTATION_STORAGE_SLOT);
 
         proxied.submitContractUpgrade(vaa);
 
