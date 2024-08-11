@@ -475,8 +475,6 @@ contract TestBridge is Test {
         feeToken.mint(address(this), mintAmount);
         feeToken.approve(address(bridge), mintAmount);
 
-        uint256 bridgeBalanceBefore = feeToken.balanceOf(address(bridge));
-
         uint256 feeAmount = (amount * 9) / 10;
 
         bytes memory transferPayload = abi.encodePacked(
@@ -1080,13 +1078,13 @@ contract TestBridge is Test {
         );
     }
 
-    function addressToBytes32(address input) internal returns (bytes32 output) {
+    function addressToBytes32(address input) internal pure returns (bytes32 output) {
         return bytes32(uint256(uint160(input)));
     }
 
     function uint256Array(
         uint256 member
-    ) internal returns (uint256[] memory arr) {
+    ) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](1);
         arr[0] = member;
     }
@@ -1101,7 +1099,7 @@ contract TestBridge is Test {
         uint256[] memory signers,
         uint32 guardianSetIndex,
         uint8 consistencyLevel
-    ) public returns (bytes memory signedMessage) {
+    ) public pure returns (bytes memory signedMessage) {
         bytes memory body = abi.encodePacked(
             timestamp,
             nonce,
@@ -1167,7 +1165,6 @@ contract TestBridge is Test {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(bridge), IMPLEMENTATION_STORAGE_SLOT);
 
         bridge.upgrade(vaa);
 
@@ -1245,7 +1242,6 @@ contract TestBridge is Test {
         );
 
         bytes32 IMPLEMENTATION_STORAGE_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        bytes32 before = vm.load(address(bridge), IMPLEMENTATION_STORAGE_SLOT);
 
         bridge.upgrade(vaa);
 
@@ -1434,4 +1430,5 @@ contract TestBridge is Test {
     }
 
     fallback() external payable {}
+    receive() external payable {}
 }
