@@ -48,6 +48,7 @@ var (
 	monitorPeers           *bool
 	gossipAdvertiseAddress *string
 	allowAnything          *bool
+	verifyPermissions      *bool
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -71,6 +72,7 @@ func init() {
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
 	allowAnything = QueryServerCmd.Flags().Bool("allowAnything", false, `Should allow API keys with the "allowAnything" flag (only allowed in testnet and devnet)`)
+	verifyPermissions = QueryServerCmd.Flags().Bool("verifyPermissions", false, `parse and verify the permissions file and then exit with 0 if success, 1 if failure`)
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -86,6 +88,15 @@ var QueryServerCmd = &cobra.Command{
 }
 
 func runQueryServer(cmd *cobra.Command, args []string) {
+	if *verifyPermissions {
+		_, err := parseConfigFile(*permFile, *allowAnything)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	common.SetRestrictiveUmask()
 
 	// Setup logging

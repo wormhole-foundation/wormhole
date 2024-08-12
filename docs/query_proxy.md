@@ -179,6 +179,26 @@ If this flag is specified, then `allowedCalls` must not be specified.
 }
 ```
 
+### Validating Permissions File Changes
+
+The query server automatically detects changes to the permissions file and attempts to reload them. If there are errors in the updated
+file, the server rejects the update and continues running on the old version. However, if the file is not fixed, those errors will prevent
+the server from coming up on the next restart. You can avoid this problem by verifying any file updates before attempting to reload.
+
+To do this, you can copy the permissions file to some other file, make your changes to the copy, and then do the following:
+
+```sh
+$ guardiand query-server --verifyPermissions --permFile new.permissions.file.json --allowAnything
+```
+
+where `new.permissions.file.json` is the path to the updated file. Additionally, if your permission file includes the `allowAnything`
+flag for any of the users, you must specify that flag on the command line when doing the verify.
+
+If the updated file is good, the program will exit immediately with no output and an exit code of zero. If the file contains
+errors, the first error will be printed, and the exit code will be one.
+
+Once you are satisfied with your updates, you can copy the updated file to the official location.
+
 ## Telemetry
 
 The proxy server provides two types of telemetry data, logs and metrics.
