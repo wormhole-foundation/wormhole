@@ -14,6 +14,7 @@ message GossipMessage {
     SignedChainGovernorStatus signed_chain_governor_status = 9;
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
+    PropagatedMessage TssMessage = 12;
   }
 }
 
@@ -49,7 +50,7 @@ message Heartbeat {
     // Connection error count
     uint64 error_count = 4;
     // Safe block height of the node, if supported.
-    int64 safe_height = 5;    
+    int64 safe_height = 5;
     // Finalized block height of the node, if supported.
     int64 finalized_height = 6;
   }
@@ -214,4 +215,43 @@ message SignedQueryResponse {
 
   // ECDSA signature using the node's guardian public key.
   bytes signature = 2;
+}
+
+
+// SignedMessage is a message containing a payload for someone specific (containing encrypted and
+// MACed payload) or as a broadcast message (plaintext but signed).
+message SignedMessage {
+  // the message itself
+  bytes payload = 1; // In case of unicast: should be encrypted with a specific DH derived shared key.
+
+  uint32 sender = 2;
+  repeated uint32 recipients = 3;
+
+  // used to identify the number of message for this sender. starts from 0 and advances with each message this signer sends.
+  uint64 msg_serial_number = 4;
+
+  // if this message is part of reliable broadcast protocol, it should include the signature of the sender.
+  // otherwise it should contain the mac over this message.
+  oneof Authentication{
+    bytes MAC = 5;
+    bytes signature = 6;
+  }
+}
+
+// Echo is a message explicitly used by the Reliable Broadcast protocol.
+message Echo {
+  SignedMessage message = 1;
+
+  // without the signature here, this means the signer is also the creator of this message.
+  bytes signature = 2;
+  uint32 echoer = 3;
+}
+
+// PropagatedMessage is a message that is sent across the network,
+// either to a specific recipient or all nodes (using reliable broadcast).
+message PropagatedMessage {
+  oneof payload{
+    SignedMessage Unicast = 1;
+    Echo Echo = 2;
+  }
 }

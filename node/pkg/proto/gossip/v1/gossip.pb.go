@@ -35,6 +35,7 @@ type GossipMessage struct {
 	//	*GossipMessage_SignedChainGovernorStatus
 	//	*GossipMessage_SignedQueryRequest
 	//	*GossipMessage_SignedQueryResponse
+	//	*GossipMessage_TssMessage
 	Message isGossipMessage_Message `protobuf_oneof:"message"`
 }
 
@@ -133,6 +134,13 @@ func (x *GossipMessage) GetSignedQueryResponse() *SignedQueryResponse {
 	return nil
 }
 
+func (x *GossipMessage) GetTssMessage() *PropagatedMessage {
+	if x, ok := x.GetMessage().(*GossipMessage_TssMessage); ok {
+		return x.TssMessage
+	}
+	return nil
+}
+
 type isGossipMessage_Message interface {
 	isGossipMessage_Message()
 }
@@ -169,6 +177,10 @@ type GossipMessage_SignedQueryResponse struct {
 	SignedQueryResponse *SignedQueryResponse `protobuf:"bytes,11,opt,name=signed_query_response,json=signedQueryResponse,proto3,oneof"`
 }
 
+type GossipMessage_TssMessage struct {
+	TssMessage *PropagatedMessage `protobuf:"bytes,12,opt,name=TssMessage,proto3,oneof"`
+}
+
 func (*GossipMessage_SignedObservation) isGossipMessage_Message() {}
 
 func (*GossipMessage_SignedHeartbeat) isGossipMessage_Message() {}
@@ -184,6 +196,8 @@ func (*GossipMessage_SignedChainGovernorStatus) isGossipMessage_Message() {}
 func (*GossipMessage_SignedQueryRequest) isGossipMessage_Message() {}
 
 func (*GossipMessage_SignedQueryResponse) isGossipMessage_Message() {}
+
+func (*GossipMessage_TssMessage) isGossipMessage_Message() {}
 
 type SignedHeartbeat struct {
 	state         protoimpl.MessageState
@@ -1054,6 +1068,274 @@ func (x *SignedQueryResponse) GetSignature() []byte {
 	return nil
 }
 
+// SignedMessage is a message containing a payload for someone specific (containing encrypted and
+// MACed payload) or as a broadcast message (plaintext but signed).
+type SignedMessage struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// the message itself
+	Payload    []byte   `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // In case of unicast: should be encrypted with a specific DH derived shared key.
+	Sender     uint32   `protobuf:"varint,2,opt,name=sender,proto3" json:"sender,omitempty"`
+	Recipients []uint32 `protobuf:"varint,3,rep,packed,name=recipients,proto3" json:"recipients,omitempty"`
+	// used to identify the number of message for this sender. starts from 0 and advances with each message this signer sends.
+	MsgSerialNumber uint64 `protobuf:"varint,4,opt,name=msg_serial_number,json=msgSerialNumber,proto3" json:"msg_serial_number,omitempty"`
+	// if this message is part of reliable broadcast protocol, it should include the signature of the sender.
+	// otherwise it should contain the mac over this message.
+	//
+	// Types that are assignable to Authentication:
+	//
+	//	*SignedMessage_MAC
+	//	*SignedMessage_Signature
+	Authentication isSignedMessage_Authentication `protobuf_oneof:"Authentication"`
+}
+
+func (x *SignedMessage) Reset() {
+	*x = SignedMessage{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_gossip_v1_gossip_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SignedMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignedMessage) ProtoMessage() {}
+
+func (x *SignedMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_v1_gossip_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignedMessage.ProtoReflect.Descriptor instead.
+func (*SignedMessage) Descriptor() ([]byte, []int) {
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SignedMessage) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *SignedMessage) GetSender() uint32 {
+	if x != nil {
+		return x.Sender
+	}
+	return 0
+}
+
+func (x *SignedMessage) GetRecipients() []uint32 {
+	if x != nil {
+		return x.Recipients
+	}
+	return nil
+}
+
+func (x *SignedMessage) GetMsgSerialNumber() uint64 {
+	if x != nil {
+		return x.MsgSerialNumber
+	}
+	return 0
+}
+
+func (m *SignedMessage) GetAuthentication() isSignedMessage_Authentication {
+	if m != nil {
+		return m.Authentication
+	}
+	return nil
+}
+
+func (x *SignedMessage) GetMAC() []byte {
+	if x, ok := x.GetAuthentication().(*SignedMessage_MAC); ok {
+		return x.MAC
+	}
+	return nil
+}
+
+func (x *SignedMessage) GetSignature() []byte {
+	if x, ok := x.GetAuthentication().(*SignedMessage_Signature); ok {
+		return x.Signature
+	}
+	return nil
+}
+
+type isSignedMessage_Authentication interface {
+	isSignedMessage_Authentication()
+}
+
+type SignedMessage_MAC struct {
+	MAC []byte `protobuf:"bytes,5,opt,name=MAC,proto3,oneof"`
+}
+
+type SignedMessage_Signature struct {
+	Signature []byte `protobuf:"bytes,6,opt,name=signature,proto3,oneof"`
+}
+
+func (*SignedMessage_MAC) isSignedMessage_Authentication() {}
+
+func (*SignedMessage_Signature) isSignedMessage_Authentication() {}
+
+// Echo is a message explicitly used by the Reliable Broadcast protocol.
+type Echo struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Message *SignedMessage `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	// without the signature here, this means the signer is also the creator of this message.
+	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	Echoer    uint32 `protobuf:"varint,3,opt,name=echoer,proto3" json:"echoer,omitempty"`
+}
+
+func (x *Echo) Reset() {
+	*x = Echo{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Echo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Echo) ProtoMessage() {}
+
+func (x *Echo) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Echo.ProtoReflect.Descriptor instead.
+func (*Echo) Descriptor() ([]byte, []int) {
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Echo) GetMessage() *SignedMessage {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *Echo) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *Echo) GetEchoer() uint32 {
+	if x != nil {
+		return x.Echoer
+	}
+	return 0
+}
+
+// PropagatedMessage is a message that is sent across the network,
+// either to a specific recipient or all nodes (using reliable broadcast).
+type PropagatedMessage struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Payload:
+	//
+	//	*PropagatedMessage_Unicast
+	//	*PropagatedMessage_Echo
+	Payload isPropagatedMessage_Payload `protobuf_oneof:"payload"`
+}
+
+func (x *PropagatedMessage) Reset() {
+	*x = PropagatedMessage{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PropagatedMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PropagatedMessage) ProtoMessage() {}
+
+func (x *PropagatedMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PropagatedMessage.ProtoReflect.Descriptor instead.
+func (*PropagatedMessage) Descriptor() ([]byte, []int) {
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{15}
+}
+
+func (m *PropagatedMessage) GetPayload() isPropagatedMessage_Payload {
+	if m != nil {
+		return m.Payload
+	}
+	return nil
+}
+
+func (x *PropagatedMessage) GetUnicast() *SignedMessage {
+	if x, ok := x.GetPayload().(*PropagatedMessage_Unicast); ok {
+		return x.Unicast
+	}
+	return nil
+}
+
+func (x *PropagatedMessage) GetEcho() *Echo {
+	if x, ok := x.GetPayload().(*PropagatedMessage_Echo); ok {
+		return x.Echo
+	}
+	return nil
+}
+
+type isPropagatedMessage_Payload interface {
+	isPropagatedMessage_Payload()
+}
+
+type PropagatedMessage_Unicast struct {
+	Unicast *SignedMessage `protobuf:"bytes,1,opt,name=Unicast,proto3,oneof"`
+}
+
+type PropagatedMessage_Echo struct {
+	Echo *Echo `protobuf:"bytes,2,opt,name=Echo,proto3,oneof"`
+}
+
+func (*PropagatedMessage_Unicast) isPropagatedMessage_Payload() {}
+
+func (*PropagatedMessage_Echo) isPropagatedMessage_Payload() {}
+
 type Heartbeat_Network struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1076,7 +1358,7 @@ type Heartbeat_Network struct {
 func (x *Heartbeat_Network) Reset() {
 	*x = Heartbeat_Network{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[13]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1089,7 +1371,7 @@ func (x *Heartbeat_Network) String() string {
 func (*Heartbeat_Network) ProtoMessage() {}
 
 func (x *Heartbeat_Network) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[13]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1442,7 @@ type ChainGovernorConfig_Chain struct {
 func (x *ChainGovernorConfig_Chain) Reset() {
 	*x = ChainGovernorConfig_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1173,7 +1455,7 @@ func (x *ChainGovernorConfig_Chain) String() string {
 func (*ChainGovernorConfig_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1223,7 +1505,7 @@ type ChainGovernorConfig_Token struct {
 func (x *ChainGovernorConfig_Token) Reset() {
 	*x = ChainGovernorConfig_Token{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1236,7 +1518,7 @@ func (x *ChainGovernorConfig_Token) String() string {
 func (*ChainGovernorConfig_Token) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Token) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1287,7 +1569,7 @@ type ChainGovernorStatus_EnqueuedVAA struct {
 func (x *ChainGovernorStatus_EnqueuedVAA) Reset() {
 	*x = ChainGovernorStatus_EnqueuedVAA{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1300,7 +1582,7 @@ func (x *ChainGovernorStatus_EnqueuedVAA) String() string {
 func (*ChainGovernorStatus_EnqueuedVAA) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_EnqueuedVAA) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1357,7 +1639,7 @@ type ChainGovernorStatus_Emitter struct {
 func (x *ChainGovernorStatus_Emitter) Reset() {
 	*x = ChainGovernorStatus_Emitter{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1370,7 +1652,7 @@ func (x *ChainGovernorStatus_Emitter) String() string {
 func (*ChainGovernorStatus_Emitter) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Emitter) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1423,7 +1705,7 @@ type ChainGovernorStatus_Chain struct {
 func (x *ChainGovernorStatus_Chain) Reset() {
 	*x = ChainGovernorStatus_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1436,7 +1718,7 @@ func (x *ChainGovernorStatus_Chain) String() string {
 func (*ChainGovernorStatus_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1499,7 +1781,7 @@ var File_gossip_v1_gossip_proto protoreflect.FileDescriptor
 var file_gossip_v1_gossip_proto_rawDesc = []byte{
 	0x0a, 0x16, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2f, 0x76, 0x31, 0x2f, 0x67, 0x6f, 0x73, 0x73,
 	0x69, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x09, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70,
-	0x2e, 0x76, 0x31, 0x22, 0xe9, 0x05, 0x0a, 0x0d, 0x47, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x4d, 0x65,
+	0x2e, 0x76, 0x31, 0x22, 0xa9, 0x06, 0x0a, 0x0d, 0x47, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x4d, 0x65,
 	0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x4d, 0x0a, 0x12, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x5f,
 	0x6f, 0x62, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x1c, 0x2e, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x69,
@@ -1545,7 +1827,11 @@ var file_gossip_v1_gossip_proto_rawDesc = []byte{
 	0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64,
 	0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x48, 0x00, 0x52,
 	0x13, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3e, 0x0a, 0x0a, 0x54, 0x73, 0x73, 0x4d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x18, 0x0c, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x67, 0x6f, 0x73, 0x73, 0x69,
+	0x70, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x72, 0x6f, 0x70, 0x61, 0x67, 0x61, 0x74, 0x65, 0x64, 0x4d,
+	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x48, 0x00, 0x52, 0x0a, 0x54, 0x73, 0x73, 0x4d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22,
 	0x72, 0x0a, 0x0f, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x48, 0x65, 0x61, 0x72, 0x74, 0x62, 0x65,
 	0x61, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x68, 0x65, 0x61, 0x72, 0x74, 0x62, 0x65, 0x61, 0x74, 0x18,
 	0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x68, 0x65, 0x61, 0x72, 0x74, 0x62, 0x65, 0x61, 0x74,
@@ -1723,12 +2009,40 @@ var file_gossip_v1_gossip_proto_rawDesc = []byte{
 	0x79, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c,
 	0x52, 0x0d, 0x71, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
 	0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x42, 0x41, 0x5a,
-	0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x65, 0x72, 0x74,
-	0x75, 0x73, 0x6f, 0x6e, 0x65, 0x2f, 0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x2f, 0x6e,
-	0x6f, 0x64, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f,
-	0x73, 0x73, 0x69, 0x70, 0x2f, 0x76, 0x31, 0x3b, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x76, 0x31,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x22, 0xd3, 0x01,
+	0x0a, 0x0d, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12,
+	0x18, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c,
+	0x52, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x6e,
+	0x64, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65,
+	0x72, 0x12, 0x1e, 0x0a, 0x0a, 0x72, 0x65, 0x63, 0x69, 0x70, 0x69, 0x65, 0x6e, 0x74, 0x73, 0x18,
+	0x03, 0x20, 0x03, 0x28, 0x0d, 0x52, 0x0a, 0x72, 0x65, 0x63, 0x69, 0x70, 0x69, 0x65, 0x6e, 0x74,
+	0x73, 0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x73, 0x67, 0x5f, 0x73, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x5f,
+	0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0f, 0x6d, 0x73,
+	0x67, 0x53, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x12, 0x0a,
+	0x03, 0x4d, 0x41, 0x43, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x48, 0x00, 0x52, 0x03, 0x4d, 0x41,
+	0x43, 0x12, 0x1e, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x06,
+	0x20, 0x01, 0x28, 0x0c, 0x48, 0x00, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72,
+	0x65, 0x42, 0x10, 0x0a, 0x0e, 0x41, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x22, 0x70, 0x0a, 0x04, 0x45, 0x63, 0x68, 0x6f, 0x12, 0x32, 0x0a, 0x07, 0x6d,
+	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x67,
+	0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x4d,
+	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12,
+	0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x12, 0x16, 0x0a,
+	0x06, 0x65, 0x63, 0x68, 0x6f, 0x65, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x65,
+	0x63, 0x68, 0x6f, 0x65, 0x72, 0x22, 0x7b, 0x0a, 0x11, 0x50, 0x72, 0x6f, 0x70, 0x61, 0x67, 0x61,
+	0x74, 0x65, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x34, 0x0a, 0x07, 0x55, 0x6e,
+	0x69, 0x63, 0x61, 0x73, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x67, 0x6f,
+	0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x4d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x48, 0x00, 0x52, 0x07, 0x55, 0x6e, 0x69, 0x63, 0x61, 0x73, 0x74,
+	0x12, 0x25, 0x0a, 0x04, 0x45, 0x63, 0x68, 0x6f, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f,
+	0x2e, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x45, 0x63, 0x68, 0x6f, 0x48,
+	0x00, 0x52, 0x04, 0x45, 0x63, 0x68, 0x6f, 0x42, 0x09, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f,
+	0x61, 0x64, 0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
+	0x2f, 0x63, 0x65, 0x72, 0x74, 0x75, 0x73, 0x6f, 0x6e, 0x65, 0x2f, 0x77, 0x6f, 0x72, 0x6d, 0x68,
+	0x6f, 0x6c, 0x65, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2f, 0x76, 0x31, 0x3b, 0x67, 0x6f, 0x73,
+	0x73, 0x69, 0x70, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1743,7 +2057,7 @@ func file_gossip_v1_gossip_proto_rawDescGZIP() []byte {
 	return file_gossip_v1_gossip_proto_rawDescData
 }
 
-var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*GossipMessage)(nil),                   // 0: gossip.v1.GossipMessage
 	(*SignedHeartbeat)(nil),                 // 1: gossip.v1.SignedHeartbeat
@@ -1758,12 +2072,15 @@ var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*ChainGovernorStatus)(nil),             // 10: gossip.v1.ChainGovernorStatus
 	(*SignedQueryRequest)(nil),              // 11: gossip.v1.SignedQueryRequest
 	(*SignedQueryResponse)(nil),             // 12: gossip.v1.SignedQueryResponse
-	(*Heartbeat_Network)(nil),               // 13: gossip.v1.Heartbeat.Network
-	(*ChainGovernorConfig_Chain)(nil),       // 14: gossip.v1.ChainGovernorConfig.Chain
-	(*ChainGovernorConfig_Token)(nil),       // 15: gossip.v1.ChainGovernorConfig.Token
-	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 16: gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	(*ChainGovernorStatus_Emitter)(nil),     // 17: gossip.v1.ChainGovernorStatus.Emitter
-	(*ChainGovernorStatus_Chain)(nil),       // 18: gossip.v1.ChainGovernorStatus.Chain
+	(*SignedMessage)(nil),                   // 13: gossip.v1.SignedMessage
+	(*Echo)(nil),                            // 14: gossip.v1.Echo
+	(*PropagatedMessage)(nil),               // 15: gossip.v1.PropagatedMessage
+	(*Heartbeat_Network)(nil),               // 16: gossip.v1.Heartbeat.Network
+	(*ChainGovernorConfig_Chain)(nil),       // 17: gossip.v1.ChainGovernorConfig.Chain
+	(*ChainGovernorConfig_Token)(nil),       // 18: gossip.v1.ChainGovernorConfig.Token
+	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 19: gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	(*ChainGovernorStatus_Emitter)(nil),     // 20: gossip.v1.ChainGovernorStatus.Emitter
+	(*ChainGovernorStatus_Chain)(nil),       // 21: gossip.v1.ChainGovernorStatus.Chain
 }
 var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	3,  // 0: gossip.v1.GossipMessage.signed_observation:type_name -> gossip.v1.SignedObservation
@@ -1774,17 +2091,21 @@ var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	9,  // 5: gossip.v1.GossipMessage.signed_chain_governor_status:type_name -> gossip.v1.SignedChainGovernorStatus
 	11, // 6: gossip.v1.GossipMessage.signed_query_request:type_name -> gossip.v1.SignedQueryRequest
 	12, // 7: gossip.v1.GossipMessage.signed_query_response:type_name -> gossip.v1.SignedQueryResponse
-	13, // 8: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
-	14, // 9: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
-	15, // 10: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
-	18, // 11: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
-	16, // 12: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	17, // 13: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	15, // 8: gossip.v1.GossipMessage.TssMessage:type_name -> gossip.v1.PropagatedMessage
+	16, // 9: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
+	17, // 10: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
+	18, // 11: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
+	21, // 12: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
+	13, // 13: gossip.v1.Echo.message:type_name -> gossip.v1.SignedMessage
+	13, // 14: gossip.v1.PropagatedMessage.Unicast:type_name -> gossip.v1.SignedMessage
+	14, // 15: gossip.v1.PropagatedMessage.Echo:type_name -> gossip.v1.Echo
+	19, // 16: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	20, // 17: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_gossip_v1_gossip_proto_init() }
@@ -1950,7 +2271,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Heartbeat_Network); i {
+			switch v := v.(*SignedMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1962,7 +2283,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorConfig_Chain); i {
+			switch v := v.(*Echo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1974,7 +2295,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorConfig_Token); i {
+			switch v := v.(*PropagatedMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1986,7 +2307,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorStatus_EnqueuedVAA); i {
+			switch v := v.(*Heartbeat_Network); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1998,7 +2319,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorStatus_Emitter); i {
+			switch v := v.(*ChainGovernorConfig_Chain); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2010,6 +2331,42 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorConfig_Token); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_gossip_v1_gossip_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorStatus_EnqueuedVAA); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_gossip_v1_gossip_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorStatus_Emitter); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_gossip_v1_gossip_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorStatus_Chain); i {
 			case 0:
 				return &v.state
@@ -2031,6 +2388,15 @@ func file_gossip_v1_gossip_proto_init() {
 		(*GossipMessage_SignedChainGovernorStatus)(nil),
 		(*GossipMessage_SignedQueryRequest)(nil),
 		(*GossipMessage_SignedQueryResponse)(nil),
+		(*GossipMessage_TssMessage)(nil),
+	}
+	file_gossip_v1_gossip_proto_msgTypes[13].OneofWrappers = []interface{}{
+		(*SignedMessage_MAC)(nil),
+		(*SignedMessage_Signature)(nil),
+	}
+	file_gossip_v1_gossip_proto_msgTypes[15].OneofWrappers = []interface{}{
+		(*PropagatedMessage_Unicast)(nil),
+		(*PropagatedMessage_Echo)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2038,7 +2404,7 @@ func file_gossip_v1_gossip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gossip_v1_gossip_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
