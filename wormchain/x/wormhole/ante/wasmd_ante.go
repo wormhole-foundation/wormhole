@@ -43,14 +43,14 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 
 		case *wasmtypes.MsgInstantiateContract:
 			if !wh.k.HasWasmInstantiateAllowlist(request, wasmMsg.Sender, wasmMsg.CodeID) {
-				return request, errNotSupported()
+				return request, ErrNotSupported()
 			} else {
 				continue
 			}
 
 		case *wasmtypes.MsgInstantiateContract2:
 			if !wh.k.HasWasmInstantiateAllowlist(request, wasmMsg.Sender, wasmMsg.CodeID) {
-				return request, errNotSupported()
+				return request, ErrNotSupported()
 			} else {
 				continue
 			}
@@ -69,7 +69,7 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 			*wasmtypes.MsgRemoveCodeUploadParamsAddresses,
 			*wasmtypes.MsgStoreAndMigrateContract,
 			*wasmtypes.MsgUpdateContractLabel:
-			return request, errNotSupported()
+			return request, ErrNotSupported()
 		}
 	}
 
@@ -77,7 +77,7 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 	return next(request, tx, simulate)
 }
 
-// errNotSupported returns an error indicating the message type is not supported.
-func errNotSupported() error {
+// ErrNotSupported returns an error indicating the message type is not supported.
+func ErrNotSupported() error {
 	return sdkerrors.Wrapf(sdkerrors.ErrNotSupported, "must use x/wormhole")
 }
