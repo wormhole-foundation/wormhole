@@ -30,6 +30,14 @@ type dkgSetupPlayer struct {
 	ProtocolEndOutput <-chan *keygen.LocalPartySaveData
 }
 
+func TestGuardianStorageUnmarshal(t *testing.T) {
+	var st GuardianStorage
+	err := st.Load("guardian.json")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestMarshalSecretKey(t *testing.T) {
 	a := assert.New(t)
 	sk, err := ecdsa.GenerateKey(tss.S256(), rand.Reader)
@@ -39,6 +47,18 @@ func TestMarshalSecretKey(t *testing.T) {
 	unmarshaled := unmarshalEcdsaSecretKey(bz)
 	a.True(sk.PublicKey.Equal(&unmarshaled.PublicKey))
 	a.Equal(sk.D, unmarshaled.D)
+}
+
+func TestMarshalPK(t *testing.T) {
+	a := assert.New(t)
+	sk, err := ecdsa.GenerateKey(tss.S256(), rand.Reader)
+	a.NoError(err)
+
+	bz, _ := marshalEcdsaPublickey(&sk.PublicKey)
+	unmarshaled, err := unmarshalEcdsaPublickey(tss.S256(), bz)
+	a.NoError(err)
+
+	a.True(sk.PublicKey.Equal(unmarshaled))
 }
 
 func TestSetUpGroup(t *testing.T) {
@@ -141,11 +161,15 @@ func genPlayers(orderedKeysByPublicKey []*ecdsa.PrivateKey) []*dkgSetupPlayer {
 	partyIDS := make(tss.UnSortedPartyIDs, Participants)
 	for i := 0; i < Participants; i++ {
 		pnm := strconv.Itoa(i)
+		pk, err := marshalEcdsaPublickey(&orderedKeysByPublicKey[i].PublicKey)
+		if err != nil {
+			panic(err)
+		}
 		partyIDS[i] = &tss.PartyID{
 			MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
 				Id:      pnm,
 				Moniker: pnm,
-				Key:     marshalEcdsaPublickey(&orderedKeysByPublicKey[i].PublicKey),
+				Key:     pk,
 			},
 			Index: -1, // not known until sorted
 		}
@@ -185,8 +209,13 @@ func getOrderedKeys(a *assert.Assertions) []*ecdsa.PrivateKey {
 
 	}
 	sort.Slice(orderedKeysByPublicKey, func(i, j int) bool {
-		ibts := string(marshalEcdsaPublickey(&orderedKeysByPublicKey[i].PublicKey))
-		jbts := string(marshalEcdsaPublickey(&orderedKeysByPublicKey[j].PublicKey))
+		pk1, err := marshalEcdsaPublickey(&orderedKeysByPublicKey[i].PublicKey)
+		a.NoError(err)
+		pk2, err := marshalEcdsaPublickey(&orderedKeysByPublicKey[j].PublicKey)
+		a.NoError(err)
+
+		ibts := string(pk1)
+		jbts := string(pk2)
 		return ibts < jbts
 	})
 	return orderedKeysByPublicKey

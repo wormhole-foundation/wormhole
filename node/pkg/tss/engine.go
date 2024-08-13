@@ -13,6 +13,11 @@ import (
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
+const (
+	Participants = 5
+	Threshold    = 3 // 13 players are needed if threshold is 12, since it isn't inclusive
+)
+
 type symKey []byte
 
 // Engine is a wrapper for the tss-lib fullParty, adds reliable broadcast logic to the message sending and receiving.
@@ -62,10 +67,6 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 		return fmt.Errorf("threshold is higher than the number of guardians")
 	}
 
-	if s.signingKey == nil {
-		return fmt.Errorf("signing key is nil")
-	}
-
 	return nil
 }
 
@@ -84,7 +85,12 @@ func (s *GuardianStorage) Load(storagePath string) error {
 	}
 
 	s.signingKey = unmarshalEcdsaSecretKey(s.SecretKey)
-	pk := unmarshalEcdsaPublickey(tss.S256(), s.Self.Key)
+
+	pk, err := unmarshalEcdsaPublickey(tss.S256(), s.Self.Key)
+	if err != nil {
+		return err
+	}
+
 	if !s.signingKey.PublicKey.Equal(pk) {
 		return fmt.Errorf("signing key does not match the public key stored as Self partyId")
 	}
@@ -96,14 +102,9 @@ func (s *GuardianStorage) Load(storagePath string) error {
 	return nil
 }
 
-const (
-	Participants = 19
-	Threshold    = 12 // 13 players are needed if threshold is 12, since it isn't inclusive
-)
-
 func NewTssEngine(ctx context.Context, storagePath string) (*Engine, error) {
 	var storage GuardianStorage
-	storage.load(storagePath)
+	storage.Load(storagePath)
 
 	// TODO: do DH with every guardian to get symKeys.
 	computeSharedSecrets(storage)

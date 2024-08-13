@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"math/big"
 
+	"github.com/yossigi/tss-lib/v2/crypto"
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
@@ -25,15 +26,18 @@ func unmarshalEcdsaSecretKey(bz []byte) *ecdsa.PrivateKey {
 	}
 }
 
-func unmarshalEcdsaPublickey(curve elliptic.Curve, bz []byte) *ecdsa.PublicKey {
-	x, y := elliptic.UnmarshalCompressed(curve, bz)
-	return &ecdsa.PublicKey{
-		Curve: curve,
-		X:     x,
-		Y:     y,
+func unmarshalEcdsaPublickey(curve elliptic.Curve, bz []byte) (*ecdsa.PublicKey, error) {
+	pnt := &crypto.ECPoint{}
+	if err := pnt.GobDecode(bz); err != nil {
+		return nil, err
 	}
+	return pnt.ToECDSAPubKey(), nil
 }
 
-func marshalEcdsaPublickey(pk *ecdsa.PublicKey) []byte {
-	return elliptic.MarshalCompressed(pk.Curve, pk.X, pk.Y)
+func marshalEcdsaPublickey(pk *ecdsa.PublicKey) ([]byte, error) {
+	pnt, err := crypto.NewECPoint(pk.Curve, pk.X, pk.Y)
+	if err != nil {
+		return nil, err
+	}
+	return pnt.GobEncode()
 }
