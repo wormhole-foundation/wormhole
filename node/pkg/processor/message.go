@@ -75,6 +75,8 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		panic(err)
 	}
 
+	shouldPublishImmediately := p.shouldPublishImmediately(&v.VAA)
+
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("observed and signed confirmed message publication",
 			zap.String("message_id", k.MessageIDString()),
@@ -85,12 +87,13 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 			zap.Time("timestamp", k.Timestamp),
 			zap.Uint8("consistency_level", k.ConsistencyLevel),
 			zap.String("signature", hex.EncodeToString(signature)),
+			zap.Bool("shouldPublishImmediately", shouldPublishImmediately),
 			zap.Bool("isReobservation", k.IsReobservation),
 		)
 	}
 
 	// Broadcast the signature.
-	obsv, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature)
+	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature, shouldPublishImmediately)
 
 	// Get / create our state entry.
 	s := p.state.signatures[hash]
@@ -111,12 +114,13 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	s.source = v.GetEmitterChain().String()
 	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 	s.signatures[p.ourAddr] = signature
+	s.ourObs = ourObs
 	s.ourMsg = msg
 
 	// Fast path for our own signature.
 	if !s.submitted {
 		start := time.Now()
-		p.checkForQuorum(obsv, s, s.gs, hash)
+		p.checkForQuorum(ourObs, s, s.gs, hash)
 		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 	}
 }
