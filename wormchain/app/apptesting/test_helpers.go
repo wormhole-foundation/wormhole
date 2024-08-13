@@ -13,6 +13,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -27,7 +28,7 @@ import (
 
 // SimAppChainID hardcoded chainID for simulation
 const (
-	SimAppChainID = "wormchain-app"
+	SimAppChainID = "testing"
 )
 
 // EmptyBaseAppOptions is a stub implementing AppOptions
@@ -103,12 +104,16 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
+			ChainId:         SimAppChainID,
+			Time:            time.Now().UTC(),
+			InitialHeight:   1,
 		},
 	)
 
 	// commit genesis changes
 	wormApp.Commit()
 	wormApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            SimAppChainID,
 		Height:             wormApp.LastBlockHeight() + 1,
 		AppHash:            wormApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),
@@ -131,6 +136,7 @@ func setup(withGenesis bool, invCheckPeriod uint) (*app.App, app.GenesisState) {
 		invCheckPeriod,
 		encoding,
 		EmptyBaseAppOptions{},
+		baseapp.SetChainID(SimAppChainID),
 	)
 	if withGenesis {
 		return wormApp, app.NewDefaultGenesisState(encoding.Marshaler)

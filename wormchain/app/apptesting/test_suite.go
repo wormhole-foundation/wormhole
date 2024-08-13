@@ -53,7 +53,7 @@ var (
 // Setup sets up basic environment for suite (App, Ctx, and test accounts)
 func (s *KeeperTestHelper) Setup() {
 	s.App = Setup(s.T(), true, 0)
-	s.Ctx = s.App.BaseApp.NewContext(false, tmtypes.Header{Height: 1, ChainID: "osmosis-1", Time: time.Now().UTC()})
+	s.Ctx = s.App.BaseApp.NewContext(false, tmtypes.Header{Height: 1, ChainID: SimAppChainID, Time: time.Now().UTC()})
 	s.QueryHelper = &baseapp.QueryServiceTestHelper{
 		GRPCQueryRouter: s.App.GRPCQueryRouter(),
 		Ctx:             s.Ctx,
@@ -67,7 +67,9 @@ func (s *KeeperTestHelper) Setup() {
 func (s *KeeperTestHelper) SetupTestForInitGenesis() {
 	// Setting to True, leads to init genesis not running
 	s.App = Setup(s.T(), true, 0)
-	s.Ctx = s.App.BaseApp.NewContext(true, tmtypes.Header{})
+	s.Ctx = s.App.BaseApp.NewContext(true, tmtypes.Header{
+		ChainID: SimAppChainID,
+	})
 }
 
 // CreateTestContext creates a test context.
@@ -91,7 +93,7 @@ func (s *KeeperTestHelper) Commit() {
 	oldHeight := s.Ctx.BlockHeight()
 	oldHeader := s.Ctx.BlockHeader()
 	s.App.Commit()
-	newHeader := tmtypes.Header{Height: oldHeight + 1, ChainID: oldHeader.ChainID, Time: oldHeader.Time.Add(time.Second)}
+	newHeader := tmtypes.Header{Height: oldHeight + 1, ChainID: SimAppChainID, Time: oldHeader.Time.Add(time.Second)}
 	s.App.BeginBlock(abci.RequestBeginBlock{Header: newHeader})
 	s.Ctx = s.App.NewContext(false, newHeader)
 }

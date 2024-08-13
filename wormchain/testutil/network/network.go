@@ -6,7 +6,6 @@ import (
 	"time"
 
 	tmdb "github.com/cometbft/cometbft-db"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -17,6 +16,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/wormhole-foundation/wormchain/app"
+	"github.com/wormhole-foundation/wormchain/app/apptesting"
 )
 
 type (
@@ -64,14 +64,15 @@ func DefaultConfig() network.Config {
 				val.GetCtx().Config.RootDir,
 				0,
 				encoding,
-				nil,
+				apptesting.EmptyAppOptions{},
+				baseapp.SetChainID(apptesting.SimAppChainID),
 				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.GetAppConfig().Pruning)),
 				baseapp.SetMinGasPrices(val.GetAppConfig().MinGasPrices),
 			)
 		},
 		GenesisState:    app.ModuleBasics.DefaultGenesis(encoding.Marshaler),
 		TimeoutCommit:   2 * time.Second,
-		ChainID:         "chain-" + tmrand.NewRand().Str(6),
+		ChainID:         apptesting.SimAppChainID,
 		NumValidators:   1,
 		BondDenom:       sdk.DefaultBondDenom,
 		MinGasPrices:    fmt.Sprintf("0.000006%s", sdk.DefaultBondDenom),

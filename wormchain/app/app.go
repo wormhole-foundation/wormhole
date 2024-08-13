@@ -271,10 +271,6 @@ func SetAddressPrefixes() {
 			return errorsmod.Wrapf(sdkerrors.ErrUnknownAddress, "address max length is %d, got %d", address.MaxAddrLen, len(bytes))
 		}
 
-		if len(bytes) != 20 && len(bytes) != 32 {
-			return errorsmod.Wrapf(sdkerrors.ErrUnknownAddress, "address length must be 20 or 32 bytes, got %d", len(bytes))
-		}
-
 		return nil
 	})
 }
@@ -611,14 +607,11 @@ func New(
 		GetWasmOpts(app, appOpts)...,
 	)
 
-	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
-	app.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
+	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
+	app.WormholeKeeper.SetWasmdKeeper(app.ContractKeeper)
 	// the wormhole module must be instantiated after the wasmd module
 	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
 
-	// this line is used by starport scaffolding # stargate/app/keeperDefinition
-
-	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.Ics20WasmHooks.ContractKeeper = &app.wasmKeeper
 	app.IbcComposabilityMwKeeper.SetWasmKeeper(&app.wasmKeeper)
 
