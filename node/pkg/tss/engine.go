@@ -69,8 +69,16 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 
 	return nil
 }
+func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
+	var storage GuardianStorage
+	if err := storage.load(storagePath); err != nil {
+		return nil, err
+	}
 
-func (s *GuardianStorage) Load(storagePath string) error {
+	return &storage, nil
+}
+
+func (s *GuardianStorage) load(storagePath string) error {
 	if s == nil {
 		return fmt.Errorf("GuardianStorage is nil")
 	}
@@ -102,13 +110,15 @@ func (s *GuardianStorage) Load(storagePath string) error {
 	return nil
 }
 
-func NewTssEngine(ctx context.Context, storagePath string) (*Engine, error) {
-	var storage GuardianStorage
-	storage.Load(storagePath)
+func NewTssEngine(ctx context.Context, storage *GuardianStorage) (*Engine, error) {
+	if storage == nil {
+		return nil, fmt.Errorf("the guardian's tss storage is nil")
+	}
 
 	// TODO: do DH with every guardian to get symKeys.
 	computeSharedSecrets(storage)
 
+	// set up new party, and Start it.
 	return &Engine{
 		fp:         nil,
 		signingKey: ecdsa.PrivateKey{},
@@ -116,7 +126,7 @@ func NewTssEngine(ctx context.Context, storagePath string) (*Engine, error) {
 	}, nil
 }
 
-func computeSharedSecrets(storage GuardianStorage) ([]symKey, error) {
+func computeSharedSecrets(storage *GuardianStorage) ([]symKey, error) {
 	return nil, nil
 	// curve := ecdh.X25519()
 	// secretKey, err := curve.NewPrivateKey(storage.SecretKey)

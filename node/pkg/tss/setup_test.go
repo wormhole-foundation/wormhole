@@ -32,7 +32,7 @@ type dkgSetupPlayer struct {
 
 func TestGuardianStorageUnmarshal(t *testing.T) {
 	var st GuardianStorage
-	err := st.Load("guardian.json")
+	err := st.load("guardian.json")
 	if err != nil {
 		t.Error(err)
 	}

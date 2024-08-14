@@ -13,6 +13,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
@@ -59,7 +60,8 @@ type G struct {
 	env           common.Environment
 
 	// keys
-	gk *ecdsa.PrivateKey
+	gk                 *ecdsa.PrivateKey
+	tssGuardianStorage *tss.GuardianStorage
 
 	// components
 	db              *db.Database
@@ -69,6 +71,7 @@ type G struct {
 	gatewayRelayer  *gwrelayer.GatewayRelayer
 	queryHandler    *query.QueryHandler
 	publicrpcServer *grpc.Server
+	tssEngine       *tss.Engine
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
@@ -104,10 +107,12 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
+	tssGuardianStorage *tss.GuardianStorage,
 ) *G {
 	g := G{
-		env: env,
-		gk:  gk,
+		env:                env,
+		gk:                 gk,
+		tssGuardianStorage: tssGuardianStorage,
 	}
 	return &g
 }
@@ -190,6 +195,12 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 				logger.Fatal("error starting runnablesWithScissors", zap.Error(err))
 			}
 		}
+
+		tssEngine, err := tss.NewTssEngine(ctx, g.tssGuardianStorage)
+		if err != nil {
+			logger.Fatal("failed to start tss engine", zap.Error(err))
+		}
+		g.tssEngine = tssEngine
 
 		// TODO there is an opportunity to refactor the startup of the accountant and governor:
 		// Ideally they should just register a g.runnables["governor"] and g.runnables["accountant"] instead of being treated as special cases.
