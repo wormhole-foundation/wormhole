@@ -97,6 +97,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 	start := time.Now()
 	observationsReceivedTotal.Inc()
 
+	their_addr := common.BytesToAddress(addr)
 	hash := hex.EncodeToString(m.Hash)
 	s := p.state.signatures[hash]
 	if s != nil && s.submitted {
@@ -114,35 +115,6 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 		)
-	}
-
-	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
-	// the public key that was used to sign the payload.
-	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
-	if err != nil {
-		p.logger.Warn("failed to verify signature on observation",
-			zap.String("messageId", m.MessageId),
-			zap.String("digest", hash),
-			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(addr)),
-			zap.Error(err))
-		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
-		return
-	}
-
-	// Verify that addr matches the public key that signed m.Hash.
-	their_addr := common.BytesToAddress(addr)
-	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
-
-	if their_addr != signer_pk {
-		p.logger.Info("invalid observation - address does not match pubkey",
-			zap.String("messageId", m.MessageId),
-			zap.String("digest", hash),
-			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(addr)),
-			zap.String("pk", signer_pk.Hex()))
-		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
-		return
 	}
 
 	// Determine which guardian set to use. The following cases are possible:
@@ -194,6 +166,34 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 			)
 		}
 		observationsFailedTotal.WithLabelValues("unknown_guardian").Inc()
+		return
+	}
+
+	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
+	// the public key that was used to sign the payload.
+	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
+	if err != nil {
+		p.logger.Warn("failed to verify signature on observation",
+			zap.String("messageId", m.MessageId),
+			zap.String("digest", hash),
+			zap.String("signature", hex.EncodeToString(m.Signature)),
+			zap.String("addr", hex.EncodeToString(addr)),
+			zap.Error(err))
+		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
+		return
+	}
+
+	// Verify that addr matches the public key that signed m.Hash.
+	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
+
+	if their_addr != signer_pk {
+		p.logger.Info("invalid observation - address does not match pubkey",
+			zap.String("messageId", m.MessageId),
+			zap.String("digest", hash),
+			zap.String("signature", hex.EncodeToString(m.Signature)),
+			zap.String("addr", hex.EncodeToString(addr)),
+			zap.String("pk", signer_pk.Hex()))
+		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
 		return
 	}
 

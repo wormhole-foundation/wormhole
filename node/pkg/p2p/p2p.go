@@ -760,24 +760,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						gs := params.gst.Get()
 						if gs == nil {
 							// No valid guardian set yet - dropping heartbeat
-							logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-								zap.Any("value", s),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+									zap.Any("value", s),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 							break
 						}
 						if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
 							p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-								zap.Error(err),
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+									zap.Error(err),
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 						} else {
 							p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-								zap.Any("value", heartbeat),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+									zap.Any("value", heartbeat),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 
 							func() {
 								if len(heartbeat.P2PNodeId) != 0 {
@@ -981,24 +987,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						gs := params.gst.Get()
 						if gs == nil {
 							// No valid guardian set yet - dropping heartbeat
-							logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-								zap.Any("value", s),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+									zap.Any("value", s),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 							break
 						}
 						if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
 							p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-								zap.Error(err),
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+									zap.Error(err),
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 						} else {
 							p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-								zap.Any("value", heartbeat),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Core().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+									zap.Any("value", heartbeat),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 
 							func() {
 								if len(heartbeat.P2PNodeId) != 0 {
