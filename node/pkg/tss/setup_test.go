@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
 	"github.com/yossigi/tss-lib/v2/tss"
@@ -32,7 +33,7 @@ type dkgSetupPlayer struct {
 
 func TestGuardianStorageUnmarshal(t *testing.T) {
 	var st GuardianStorage
-	err := st.load("guardian.json")
+	err := st.load(testutils.MustGetMockGuardianTssStorage())
 	if err != nil {
 		t.Error(err)
 	}

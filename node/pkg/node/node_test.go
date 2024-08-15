@@ -26,11 +26,13 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -83,6 +85,7 @@ type mockGuardian struct {
 	ready            bool
 	config           *guardianConfig
 	db               *db.Database
+	tssStorage       *tss.GuardianStorage
 }
 
 type guardianConfig struct {
@@ -117,6 +120,11 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			panic(err)
 		}
 
+		tssStorage, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+		if err != nil {
+			panic(err)
+		}
+
 		gs[i] = &mockGuardian{
 			p2pKey:           devnet.DeterministicP2PPrivKeyByIndex(int64(i)),
 			MockObservationC: make(chan *common.MessagePublication),
@@ -124,6 +132,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			gk:               gk,
 			guardianAddr:     eth_crypto.PubkeyToAddress(gk.PublicKey),
 			config:           createGuardianConfig(t, testId, uint(i)),
+			tssStorage:       tssStorage,
 		}
 	}
 
@@ -202,6 +211,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		guardianNode := NewGuardianNode(
 			env,
 			gs[mockGuardianIndex].gk,
+			gs[mockGuardianIndex].tssStorage,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -957,7 +967,10 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				ctx, ctxCancel := context.WithCancel(ctx)
 				defer ctxCancel()
 
-				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+				guardianTssStorage, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+				require.NoError(t, err)
+
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil, guardianTssStorage).Run(ctxCancel, tc.opts...)); err != nil {
 					panic(err)
 				}
 
