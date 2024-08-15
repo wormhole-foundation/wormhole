@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -38,9 +39,11 @@ func TestTokenListAddressSize(t *testing.T) {
 // populated.) While this is not a hard requirement, it may represent that a developer has forgotten to take the step
 // of configuring tokens when deploying the chain. This test helps to remind them.
 func TestGovernedChainHasGovernedAssets(t *testing.T) {
-
 	// Add a chain ID to this set if it genuinely has no native assets that should be governed.
 	ignoredChains := map[vaa.ChainID]bool{
+		// TODO: Remove this once we have governed tokens for Snax.
+		vaa.ChainIDSnaxchain: true,
+
 		// Wormchain is an abstraction over IBC-connected chains so no assets are "native" to it
 		vaa.ChainIDWormchain: true,
 	}
@@ -70,6 +73,13 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 			}
 			assert.True(t, found, "Chain is governed but has no governed native assets configured")
 		})
+	}
+
+	// Make sure we're not ignoring any chains with governed tokens.
+	for _, tokenEntry := range tokenList() {
+		if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
+			require.Equal(t, "", fmt.Sprintf("Chain %s is in ignoredChains but it has governed tokens", vaa.ChainID(tokenEntry.chain)))
+		}
 	}
 }
 
