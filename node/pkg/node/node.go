@@ -196,11 +196,11 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			}
 		}
 
-		tssEngine, err := tss.NewTssEngine(ctx, g.tssGuardianStorage)
+		reliableTss, err := tss.NewReliableTSS(ctx, g.tssGuardianStorage)
 		if err != nil {
 			logger.Fatal("failed to start tss engine", zap.Error(err))
 		}
-		g.tssEngine = tssEngine
+		g.tssEngine = reliableTss
 
 		// TODO there is an opportunity to refactor the startup of the accountant and governor:
 		// Ideally they should just register a g.runnables["governor"] and g.runnables["accountant"] instead of being treated as special cases.

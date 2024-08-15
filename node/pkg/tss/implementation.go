@@ -34,6 +34,16 @@ type Engine struct {
 	// one for its partId.
 }
 
+// BeginAsyncThresholdSigningProtocol implements ReliableTSS.
+func (t *Engine) BeginAsyncThresholdSigningProtocol(msg *gossipv1.ObservationRequest) error {
+	panic("unimplemented")
+}
+
+// ProducedOutputMessages implements ReliableTSS.
+func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage {
+	panic("unimplemented")
+}
+
 type GuardianStorage struct {
 	Self *tss.PartyID
 
@@ -110,7 +120,7 @@ func (s *GuardianStorage) load(storagePath string) error {
 	return nil
 }
 
-func NewTssEngine(ctx context.Context, storage *GuardianStorage) (*Engine, error) {
+func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
@@ -150,7 +160,7 @@ func computeSharedSecrets(storage *GuardianStorage) ([]symKey, error) {
 	// }
 }
 
-func (t *Engine) HandleIncoming(msg *gossipv1.GossipMessage_TssMessage) {
+func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
 	if t == nil {
 		return
 	}
@@ -175,6 +185,6 @@ func (t *Engine) runSigningProtocol(msg *gossipv1.ObservationRequest) {
 	fmt.Println("Engine:start signing")
 }
 
-func (t *Engine) close() {
+func (t *Engine) Close() {
 	fmt.Println("Engine:close")
 }

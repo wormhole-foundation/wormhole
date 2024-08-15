@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"testing"
@@ -144,10 +143,6 @@ keygenLoop:
 	bts, err := json.MarshalIndent(guardians, "", "  ")
 	a.NoError(err)
 	fmt.Println(string(bts))
-
-	if err := os.WriteFile("guardians.json", bts, 0777); err != nil {
-		panic(err)
-	}
 }
 
 func setupPlayers(a *assert.Assertions) []*dkgSetupPlayer {
@@ -222,7 +217,7 @@ func getOrderedKeys(a *assert.Assertions) []*ecdsa.PrivateKey {
 	return orderedKeysByPublicKey
 }
 
-func (player *dkgSetupPlayer) setNewKeygenHandler(preparams ...keygen.LocalPreParams) {
+func (player *dkgSetupPlayer) setNewKeygenHandler() {
 	out := make(chan tss.Message, Participants)
 	endOut := make(chan *keygen.LocalPartySaveData, 1) // ready for at least a single message.
 
