@@ -20,7 +20,7 @@ func TestChainStart(t *testing.T) {
 	// Base setup
 	guardians := guardians.CreateValSet(t, 2)
 	chains := CreateLocalChain(t, *guardians)
-	ic, ctx, _, _, _ := BuildInitialChain(t, chains)
+	ic, ctx, _, _, _, _ := BuildInterchain(t, chains)
 	require.NotNil(t, ic)
 	require.NotNil(t, ctx)
 

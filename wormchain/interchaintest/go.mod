@@ -3,12 +3,15 @@ module github.com/wormhole-foundation/wormchain/interchaintest
 go 1.22.5
 
 require (
+	cosmossdk.io/math v1.3.0
 	github.com/CosmWasm/wasmd v0.45.0
+	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/cosmos/cosmos-sdk v0.47.12
+	github.com/cosmos/ibc-go/v7 v7.6.0
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/ethereum/go-ethereum v1.10.21
 	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
-	github.com/strangelove-ventures/interchaintest/v7 v7.0.0
+	github.com/strangelove-ventures/interchaintest/v7 v7.1.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormchain v0.0.0
@@ -26,19 +29,16 @@ require (
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
 	cosmossdk.io/errors v1.0.1 // indirect
 	cosmossdk.io/log v1.3.1 // indirect
-	cosmossdk.io/math v1.3.0 // indirect
 	cosmossdk.io/tools/rosetta v0.2.1 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
-	github.com/ChainSafe/go-schnorrkel/1 v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ComposableFi/go-subkey/v2 v2.0.0-tm03420 // indirect
 	github.com/CosmWasm/wasmvm v1.5.2 // indirect
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
-	github.com/Microsoft/go-winio v0.6.0 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/StirlingMarketingGroup/go-namecase v1.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/avast/retry-go/v4 v4.5.0 // indirect
@@ -65,7 +65,6 @@ require (
 	github.com/cosmos/gogoproto v1.4.10 // indirect
 	github.com/cosmos/iavl v0.20.1 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.0-rc1 // indirect
-	github.com/cosmos/ibc-go/v7 v7.6.0 // indirect
 	github.com/cosmos/ics23/go v0.10.0 // indirect
 	github.com/cosmos/interchain-security/v3 v3.1.1-0.20231102122221-81650a84f989 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.0 // indirect
@@ -125,6 +124,7 @@ require (
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
 	github.com/holiman/uint256 v1.2.1 // indirect
@@ -151,7 +151,7 @@ require (
 	github.com/mimoo/StrobeGo v0.0.0-20220103164710-9a04d6ca976b // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
-	github.com/misko9/go-substrate-rpc-client/v4 v4.0.0-20230413215336-5bd2aea337ae // indirect
+	github.com/misko9/go-substrate-rpc-client/v4 v4.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -196,9 +196,13 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/btree v1.6.0 // indirect
+	github.com/tidwall/gjson v1.17.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tyler-smith/go-bip32 v1.0.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
+	github.com/vedhavyas/go-subkey/v2 v2.0.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.4.0-alpha.0.0.20240404170359-43604f3112c5 // indirect
@@ -247,11 +251,9 @@ require (
 )
 
 replace (
-	github.com/ChainSafe/go-schnorrkel => github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d
-	github.com/ChainSafe/go-schnorrkel/1 => github.com/ChainSafe/go-schnorrkel v1.0.0
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2
 	github.com/cosmos/cosmos-sdk => github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	github.com/misko9/go-substrate-rpc-client/v4 => github.com/faddat/go-substrate-rpc-client/v4 v4.0.1-0.20240402155230-48db8c110afe
 	github.com/wormhole-foundation/wormchain => ../
 	github.com/wormhole-foundation/wormhole/sdk => ../../sdk
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb

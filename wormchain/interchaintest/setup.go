@@ -22,7 +22,6 @@ import (
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-	wormchaintypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -53,8 +52,9 @@ var (
 		Bech32Prefix:        WormchainBechPrefix,
 		Denom:               WormchainDenom,
 		CoinType:            "118",
-		GasPrices:           fmt.Sprintf("0%s", WormchainDenom),
-		GasAdjustment:       1.8,
+		GasPrices:           fmt.Sprintf("0.0%s", WormchainDenom),
+		Gas:                 "auto",
+		GasAdjustment:       2,
 		TrustingPeriod:      "112h",
 		NoHostMount:         false,
 		ConfigFileOverrides: nil,
@@ -133,7 +133,7 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 	return chains
 }
 
-func BuildInitialChain(t *testing.T, chains []ibc.Chain) (*interchaintest.Interchain, context.Context, ibc.Relayer, *client.Client, string) {
+func BuildInterchain(t *testing.T, chains []ibc.Chain) (*interchaintest.Interchain, context.Context, ibc.Relayer, *testreporter.RelayerExecReporter, *client.Client, string) {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
 
@@ -191,7 +191,7 @@ func BuildInitialChain(t *testing.T, chains []ibc.Chain) (*interchaintest.Interc
 		},
 	)
 
-	return ic, ctx, r, client, network
+	return ic, ctx, r, eRep, client, network
 }
 
 // Modify the genesis file:
@@ -244,15 +244,15 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 		}
 
 		// Set guardian set list and validators
-		guardianSetList := []wormchaintypes.GuardianSet{}
-		guardianSet := wormchaintypes.GuardianSet{
+		guardianSetList := []wormholetypes.GuardianSet{}
+		guardianSet := wormholetypes.GuardianSet{
 			Index: 0,
 			Keys:  [][]byte{},
 		}
-		guardianValidators := []wormchaintypes.GuardianValidator{}
+		guardianValidators := []wormholetypes.GuardianValidator{}
 		for i := 0; i < numVals; i++ {
 			guardianSet.Keys = append(guardianSet.Keys, guardians.Vals[i].Addr)
-			guardianValidators = append(guardianValidators, wormchaintypes.GuardianValidator{
+			guardianValidators = append(guardianValidators, wormholetypes.GuardianValidator{
 				GuardianKey:   guardians.Vals[i].Addr,
 				ValidatorAddr: validators[i],
 			})
@@ -265,13 +265,13 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
 		}
 
-		allowedAddresses := []wormchaintypes.ValidatorAllowedAddress{}
-		allowedAddresses = append(allowedAddresses, wormchaintypes.ValidatorAllowedAddress{
+		allowedAddresses := []wormholetypes.ValidatorAllowedAddress{}
+		allowedAddresses = append(allowedAddresses, wormholetypes.ValidatorAllowedAddress{
 			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
 			AllowedAddress:   faucetAddress.(string),
 			Name:             "Faucet",
 		})
-		allowedAddresses = append(allowedAddresses, wormchaintypes.ValidatorAllowedAddress{
+		allowedAddresses = append(allowedAddresses, wormholetypes.ValidatorAllowedAddress{
 			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
 			AllowedAddress:   relayerAddress.(string),
 			Name:             "Relayer",
