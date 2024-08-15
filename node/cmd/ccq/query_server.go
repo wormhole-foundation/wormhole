@@ -47,7 +47,6 @@ var (
 	shutdownDelay2         *uint
 	monitorPeers           *bool
 	gossipAdvertiseAddress *string
-	allowAnything          *bool
 	verifyPermissions      *bool
 )
 
@@ -71,7 +70,6 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
-	allowAnything = QueryServerCmd.Flags().Bool("allowAnything", false, `Should allow API keys with the "allowAnything" flag (only allowed in testnet and devnet)`)
 	verifyPermissions = QueryServerCmd.Flags().Bool("verifyPermissions", false, `parse and verify the permissions file and then exit with 0 if success, 1 if failure`)
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
@@ -89,7 +87,16 @@ var QueryServerCmd = &cobra.Command{
 
 func runQueryServer(cmd *cobra.Command, args []string) {
 	if *verifyPermissions {
-		_, err := parseConfigFile(*permFile, *allowAnything)
+		env, err := common.ParseEnvironment(*envStr)
+		if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
+			if *envStr == "" {
+				fmt.Println("Please specify --env")
+			} else {
+				fmt.Println("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
+			}
+			os.Exit(1)
+		}
+		_, err = parseConfigFile(*permFile, env)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -175,14 +182,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --ethContract")
 	}
 
-	if *allowAnything {
-		if env != common.TestNet && env != common.UnsafeDevNet {
-			logger.Fatal(`The "--allowAnything" flag is only supported in testnet and devnet`)
-		}
-		logger.Info("will allow anything for users for which it is enabled")
-	}
-
-	permissions, err := NewPermissions(*permFile, *allowAnything)
+	permissions, err := NewPermissions(*permFile, env)
 	if err != nil {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}

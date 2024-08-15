@@ -1,4 +1,5 @@
 {
+  "allowAnythingSupported": true,
   "permissions": [
     {
       "userName": "Test User",
@@ -182,6 +183,14 @@
     {
       "userName": "Unlimited User",
       "apiKey": "my_secret_key_3",
+      "allowUnsigned": true,
+      "allowAnything": true
+    },
+    {
+      "userName": "Rate Limited User",
+      "apiKey": "rate_limited_key",
+      "rateLimit": 1.0,
+      "burstSize": 2,
       "allowUnsigned": true,
       "allowAnything": true
     }

@@ -87,6 +87,14 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
 		return
 	}
+
+	if permEntry.rateLimiter != nil && !permEntry.rateLimiter.Allow() {
+		s.logger.Debug("denying request due to rate limit", zap.String("userId", permEntry.userName))
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		rateLimitExceededByUser.WithLabelValues(permEntry.userName).Inc()
+		return
+	}
+
 	totalRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
