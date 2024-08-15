@@ -40,5 +40,6 @@ func chainList() []chainConfigEntry {
 		{emitterChainID: vaa.ChainIDBlast, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDXLayer, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDWormchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
+		{emitterChainID: vaa.ChainIDSnaxchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
 	}
 }

@@ -198,9 +198,9 @@ const Mainnet = {
     chain_id: undefined,
   },
   Snaxchain: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://mainnet.snaxchain.io",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 2192,
   },
   Seievm: {
     rpc: undefined,
@@ -420,9 +420,9 @@ const Testnet = {
     chain_id: 80084,
   },
   Snaxchain: {
-    rpc: "https://rpc-snaxchain-s50q0kjngn.t.conduit.xyz/",
+    rpc: "https://testnet.snaxchain.io",
     key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 2192,
+    chain_id: 13001,
   },
   Seievm: {
     rpc: "https://evm-rpc-arctic-1.sei-apis.com/",
