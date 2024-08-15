@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -59,6 +60,9 @@ type (
 		ccqBootstrapPeers      string
 		ccqPort                uint
 		ccqAllowedPeers        string
+
+		// Responsible for receiving and processing TSS messages. Will output messages to be propagated through the network.
+		tssMessageHandler tss.ReliableMessageHandler
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -168,6 +172,7 @@ func WithGuardianOptions(
 	ccqBootstrapPeers string,
 	ccqPort uint,
 	ccqAllowedPeers string,
+	tssMessageHandler tss.ReliableMessageHandler,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -191,6 +196,7 @@ func WithGuardianOptions(
 		p.ccqBootstrapPeers = ccqBootstrapPeers
 		p.ccqPort = ccqPort
 		p.ccqAllowedPeers = ccqAllowedPeers
+		p.tssMessageHandler = tssMessageHandler
 		return nil
 	}
 }
@@ -221,6 +227,9 @@ func (p *RunParams) verify() error {
 		if p.gk == nil {
 			return errors.New("if obsvReqSendC is not nil, gk may not be nil")
 		}
+	}
+	if p.tssMessageHandler == nil {
+		return errors.New("tssMessageHandler may not be nil")
 	}
 	return nil
 }
