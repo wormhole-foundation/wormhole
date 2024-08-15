@@ -663,7 +663,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
-	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", false)
+	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)

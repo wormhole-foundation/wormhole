@@ -71,7 +71,7 @@ ethereum$ MNEMONIC= ./sh/upgrade.sh testnet TokenBridge blast
 #### Registering Other Chains on a New TokenBridge
 
 ```shell
-ethereum$ MNEMONIC= ./sh/registerAllChainsOnTokenBridge.sh.sh testnet blast
+ethereum$ MNEMONIC= ./sh/registerAllChainsOnTokenBridge.sh testnet blast
 ```
 
 ### Deploying using Truffle (deprecated)
