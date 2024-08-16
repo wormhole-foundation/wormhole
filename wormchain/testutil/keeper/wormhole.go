@@ -15,12 +15,12 @@ import (
 )
 
 func WormholeKeeper(t *testing.T) (*wormholekeeper.Keeper, sdk.Context) {
-	app, ctx := setupWormchainAndContext(t)
+	app, ctx := SetupWormchainAndContext(t)
 	return &app.WormholeKeeper, ctx
 }
 
 func WormholeKeeperAndWasmd(t *testing.T) (*wormholekeeper.Keeper, *wasmkeeper.Keeper, *wasmkeeper.PermissionedKeeper, sdk.Context) {
-	app, ctx := setupWormchainAndContext(t)
+	app, ctx := SetupWormchainAndContext(t)
 
 	wasmGenState := wasmtypes.GenesisState{}
 	wasmGenState.Params.CodeUploadAccess = wasmtypes.DefaultUploadAccess
@@ -30,7 +30,7 @@ func WormholeKeeperAndWasmd(t *testing.T) (*wormholekeeper.Keeper, *wasmkeeper.K
 	return &app.WormholeKeeper, app.GetWasmKeeper(), app.ContractKeeper, ctx
 }
 
-func setupWormchainAndContext(t *testing.T) (*app.App, sdk.Context) {
+func SetupWormchainAndContext(t *testing.T) (*app.App, sdk.Context) {
 	app := apptesting.Setup(t, false, 0)
 
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{
