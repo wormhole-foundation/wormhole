@@ -33,8 +33,8 @@ type (
 		ApiKey        string        `json:"apiKey"`
 		AllowUnsigned bool          `json:"allowUnsigned"`
 		AllowAnything bool          `json:"allowAnything"`
-		RateLimit     float64       `json:"RateLimit"`
-		BurstSize     int           `json:"BurstSize"`
+		RateLimit     *float64      `json:"RateLimit"`
+		BurstSize     *int          `json:"BurstSize"`
 		LogResponses  bool          `json:"logResponses"`
 		AllowedCalls  []AllowedCall `json:"allowedCalls"`
 	}
@@ -224,14 +224,14 @@ func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, erro
 		}
 
 		var rateLimiter *rate.Limiter
-		rateLimit := user.RateLimit
-		if rateLimit == 0 {
-			rateLimit = config.DefaultRateLimit
+		rateLimit := config.DefaultRateLimit
+		if user.RateLimit != nil {
+			rateLimit = *user.RateLimit
 		}
 		if rateLimit != 0 {
-			burstSize := user.BurstSize
-			if burstSize == 0 {
-				burstSize = config.DefaultBurstSize
+			burstSize := config.DefaultBurstSize
+			if user.BurstSize != nil {
+				burstSize = *user.BurstSize
 			}
 			rateLimiter = rate.NewLimiter(rate.Limit(rateLimit), burstSize)
 		}

@@ -86,17 +86,18 @@ var QueryServerCmd = &cobra.Command{
 }
 
 func runQueryServer(cmd *cobra.Command, args []string) {
-	if *verifyPermissions {
-		env, err := common.ParseEnvironment(*envStr)
-		if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
-			if *envStr == "" {
-				fmt.Println("Please specify --env")
-			} else {
-				fmt.Println("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
-			}
-			os.Exit(1)
+	env, err := common.ParseEnvironment(*envStr)
+	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
+		if *envStr == "" {
+			fmt.Println("Please specify --env")
+		} else {
+			fmt.Println("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
 		}
-		_, err = parseConfigFile(*permFile, env)
+		os.Exit(1)
+	}
+
+	if *verifyPermissions {
+		_, err := parseConfigFile(*permFile, env)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -115,14 +116,6 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	logger := ipfslog.Logger("query-server").Desugar()
 	ipfslog.SetAllLoggers(lvl)
-
-	env, err := common.ParseEnvironment(*envStr)
-	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
-		if *envStr == "" {
-			logger.Fatal("Please specify --env")
-		}
-		logger.Fatal("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
-	}
 
 	if *p2pNetworkID == "" {
 		*p2pNetworkID = p2p.GetNetworkId(env)

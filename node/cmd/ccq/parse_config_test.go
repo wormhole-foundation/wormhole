@@ -693,8 +693,24 @@ func TestParseConfigWithRateLimiterNoDefaults(t *testing.T) {
 	{
   "permissions": [
     {
-      "userName": "Test User",
-      "apiKey": "My_secret_key",
+      "userName": "Test user without rate limits",
+      "apiKey": "my_secret_key_without_rate_limits",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test user with rate limits",
+      "apiKey": "my_secret_key_with_rate_limits",
+      "rateLimit": 0.5,
+      "burstSize": 1,
       "allowedCalls": [
         {
           "ethCall": {
@@ -711,23 +727,59 @@ func TestParseConfigWithRateLimiterNoDefaults(t *testing.T) {
 
 	perms, err := parseConfig([]byte(str), common.MainNet)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(perms))
+	assert.Equal(t, 2, len(perms))
 
-	perm, exists := perms["my_secret_key"]
+	perm, exists := perms["my_secret_key_without_rate_limits"]
 	require.True(t, exists)
-
 	assert.Nil(t, perm.rateLimiter)
+
+	perm, exists = perms["my_secret_key_with_rate_limits"]
+	require.True(t, exists)
+	require.NotNil(t, perm.rateLimiter)
+	assert.Equal(t, rate.Limit(0.5), perm.rateLimiter.Limit())
+	assert.Equal(t, 1, perm.rateLimiter.Burst())
 }
 
 func TestParseConfigWithRateLimiterWithDefaults(t *testing.T) {
 	str := `
 	{
   "defaultRateLimit": 0.5,
-  "defaultBurstSize": 1,
+  "defaultBurstSize": 1,  
   "permissions": [
     {
-      "userName": "Test User",
-      "apiKey": "My_secret_key",
+      "userName": "Test user using default rate limits",
+      "apiKey": "my_secret_key_using_default_rate_limits",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test user overriding default rate limits",
+      "apiKey": "my_secret_key_overriding_default_rate_limits",
+      "rateLimit": 1,
+      "burstSize": 2,
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    },
+    {
+      "userName": "Test user disabling rate limits",
+      "apiKey": "my_secret_key_disabling_rate_limits",
+      "rateLimit": 0,
       "allowedCalls": [
         {
           "ethCall": {
@@ -744,14 +796,23 @@ func TestParseConfigWithRateLimiterWithDefaults(t *testing.T) {
 
 	perms, err := parseConfig([]byte(str), common.MainNet)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(perms))
+	assert.Equal(t, 3, len(perms))
 
-	perm, exists := perms["my_secret_key"]
+	perm, exists := perms["my_secret_key_using_default_rate_limits"]
 	require.True(t, exists)
-
 	require.NotNil(t, perm.rateLimiter)
 	assert.Equal(t, rate.Limit(0.5), perm.rateLimiter.Limit())
 	assert.Equal(t, 1, perm.rateLimiter.Burst())
+
+	perm, exists = perms["my_secret_key_overriding_default_rate_limits"]
+	require.True(t, exists)
+	require.NotNil(t, perm.rateLimiter)
+	assert.Equal(t, rate.Limit(1.0), perm.rateLimiter.Limit())
+	assert.Equal(t, 2, perm.rateLimiter.Burst())
+
+	perm, exists = perms["my_secret_key_disabling_rate_limits"]
+	require.True(t, exists)
+	require.Nil(t, perm.rateLimiter)
 }
 
 func TestParseConfigWithRateLimiterPerUser(t *testing.T) {
