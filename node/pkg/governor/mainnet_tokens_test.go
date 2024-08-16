@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -77,9 +76,11 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 
 	// Make sure we're not ignoring any chains with governed tokens.
 	for _, tokenEntry := range tokenList() {
-		if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
-			require.Equal(t, "", fmt.Sprintf("Chain %s is in ignoredChains but it has governed tokens", vaa.ChainID(tokenEntry.chain)))
-		}
+		t.Run(vaa.ChainID(tokenEntry.chain).String(), func(t *testing.T) {
+			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
+				assert.Fail(t, "Chain is in ignoredChains but it has governed tokens")
+			}
+		})
 	}
 }
 
