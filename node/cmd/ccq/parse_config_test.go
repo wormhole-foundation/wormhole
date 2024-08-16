@@ -872,3 +872,91 @@ func TestParseConfigWithRateLimiterPerUser(t *testing.T) {
 	assert.Equal(t, rate.Limit(0.5), perm.rateLimiter.Limit())
 	assert.Equal(t, 1, perm.rateLimiter.Burst())
 }
+
+func TestParseConfigWithRateLimiterButDefaultBurstSizeNotSet(t *testing.T) {
+	str := `
+	{
+  "defaultRateLimit": 0.5,
+  "permissions": [
+    {
+      "userName": "Test user using default rate limits",
+      "apiKey": "my_secret_key_using_default_rate_limits",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    }
+  ]
+}`
+
+	perms, err := parseConfig([]byte(str), common.MainNet)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(perms))
+
+	perm, exists := perms["my_secret_key_using_default_rate_limits"]
+	require.True(t, exists)
+	require.NotNil(t, perm.rateLimiter)
+	assert.Equal(t, rate.Limit(0.5), perm.rateLimiter.Limit())
+	assert.Equal(t, 1, perm.rateLimiter.Burst())
+}
+
+func TestParseConfigWithRateLimiterButDefaultBurstSizeNIsSetToZero(t *testing.T) {
+	str := `
+	{
+  "defaultBurstSize": 0,
+  "permissions": [
+    {
+      "userName": "Test user using default rate limits",
+      "apiKey": "my_secret_key_using_default_rate_limits",
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    }
+  ]
+}`
+
+	_, err := parseConfig([]byte(str), common.MainNet)
+	assert.Equal(t, "the default burst size may not be zero", err.Error())
+}
+
+func TestParseConfigWithRateLimiterButPerUserBurstSizeSetToZero(t *testing.T) {
+	str := `
+	{
+  "defaultRateLimit": 0.5,
+  "defaultBurstSize": 1,
+  "permissions": [
+    {
+      "userName": "Test user overriding default rate limits",
+      "apiKey": "my_secret_key_overriding_default_rate_limits",
+      "rateLimit": 1,
+      "burstSize": 0,
+      "allowedCalls": [
+        {
+          "ethCall": {
+            "note:": "Name of WETH on Goerli",
+            "chain": 2,
+            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "call": "0x06fdde03"
+          }
+        }
+      ]
+    }
+  ]
+}`
+
+	_, err := parseConfig([]byte(str), common.MainNet)
+	assert.Equal(t, "if rate limiting is enabled, the burst size may not be zero", err.Error())
+}

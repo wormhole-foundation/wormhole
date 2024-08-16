@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -191,9 +192,14 @@ func parseConfigFile(fileName string, env common.Environment) (PermissionsMap, e
 
 // parseConfig parses the permissions config from a buffer into a map keyed by API key.
 func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, error) {
-	var config Config
+	config := Config{DefaultBurstSize: 1}
 	if err := json.Unmarshal(byteValue, &config); err != nil {
 		return nil, fmt.Errorf(`failed to unmarshal json: %w`, err)
+	}
+
+	// According to the docs, a burst size of zero does not allow any events. We don't want that!
+	if config.DefaultBurstSize == 0 {
+		return nil, errors.New("the default burst size may not be zero")
 	}
 
 	if config.AllowAnythingSupported && env == common.MainNet {
@@ -232,6 +238,9 @@ func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, erro
 			burstSize := config.DefaultBurstSize
 			if user.BurstSize != nil {
 				burstSize = *user.BurstSize
+			}
+			if burstSize == 0 {
+				return nil, errors.New("if rate limiting is enabled, the burst size may not be zero")
 			}
 			rateLimiter = rate.NewLimiter(rate.Limit(rateLimit), burstSize)
 		}
