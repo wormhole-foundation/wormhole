@@ -12,6 +12,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+// TestPostMessageProposal tests possible scenarios for how a governance wormhole message proposal can be handled
 func TestPostMessageProposal(t *testing.T) {
 	// get app & ctx
 	app, ctx := keepertest.SetupWormchainAndContext(t)
@@ -22,18 +23,25 @@ func TestPostMessageProposal(t *testing.T) {
 
 	// create message
 	msg := &types.MsgGovernanceWormholeMessageProposal{
-		Authority:   authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+		Authority:   "invalid-authority",
 		Action:      0,
 		Module:      []byte{},
 		TargetChain: 0,
 		Payload:     []byte{},
 	}
 
-	// TEST: FAIL - no configuration
+	// TEST: FAIL - invalid authority
 	_, err := msgServer.GovernanceWormholeMessageProposal(ctx, msg)
 	require.Error(t, err)
 
-	// Set config with valid emitter
+	// set valid authority
+	msg.Authority = authtypes.NewModuleAddress(govtypes.ModuleName).String()
+
+	// TEST: FAIL - no configuration
+	_, err = msgServer.GovernanceWormholeMessageProposal(ctx, msg)
+	require.Error(t, err)
+
+	// set config with valid emitter
 	k.SetConfig(ctx, types.Config{
 		GovernanceEmitter: vaa.GovernanceEmitter[:],
 	})
@@ -41,9 +49,4 @@ func TestPostMessageProposal(t *testing.T) {
 	// TEST: SUCCESS - valid authority & config
 	_, err = msgServer.GovernanceWormholeMessageProposal(ctx, msg)
 	require.NoError(t, err)
-
-	// TEST: FAIL - invalid authority
-	msg.Authority = "invalid"
-	_, err = msgServer.GovernanceWormholeMessageProposal(ctx, msg)
-	require.Error(t, err)
 }
