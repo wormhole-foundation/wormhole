@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -29,6 +30,8 @@ type Engine struct {
 	fpErrChannel chan *tss.Error
 
 	gossipOutChan chan *gossipv1.GossipMessage_TssMessage
+
+	msgSerialNumber uint64
 }
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
@@ -143,8 +146,15 @@ func (t *Engine) fpListener() {
 		select {
 		case <-t.ctx.Done():
 			return
-		case <-t.fpOutChan:
-			//todo: wrap the message into a gossip message and output it to the network, sign/mac it and send it.
+		case m := <-t.fpOutChan:
+			tssMsg, err := t.intoGossipMessage(m)
+			if err != nil {
+				// TODO: log the error
+				continue
+			}
+
+			t.gossipOutChan <- tssMsg
+			//todo: wrap the message into a gossip message and output it to the network, sign (or encrypt and mac) it and send it.
 		case <-t.fpSigOutChan:
 			// todo: find out who should get the signature.
 		case <-t.fpErrChannel:
@@ -153,14 +163,109 @@ func (t *Engine) fpListener() {
 	}
 }
 
+func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage_TssMessage, error) {
+	bts, routing, err := m.WireBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	tssMsg := &gossipv1.PropagatedMessage{}
+
+	indices := make([]uint32, len(routing.To))
+	for i, pId := range routing.To {
+		indices[i] = uint32(pId.Index)
+	}
+
+	msgToSend := &gossipv1.SignedMessage{
+		Payload:         bts,
+		Sender:          uint32(t.Self.Index),
+		Recipients:      indices,
+		MsgSerialNumber: atomic.AddUint64(&t.msgSerialNumber, 1),
+		Authentication:  nil,
+	}
+
+	if routing.IsBroadcast || len(routing.To) == 0 || len(routing.To) > 1 {
+		t.sign(msgToSend)
+		tssMsg.Payload = &gossipv1.PropagatedMessage_Echo{
+			Echo: &gossipv1.Echo{
+				Message:   msgToSend,
+				Signature: nil, //  No sig here, it means this is the original sender of the message, and not a vote.
+				Echoer:    0,   // TODO: use -1 since this is not an echo.
+			},
+		}
+	} else {
+		t.encryptAndMac(msgToSend)
+		// encrypt then mac the msgToSend (payload encrypted, and mac the full &gossipv1.SignedMessage)
+		tssMsg.Payload = &gossipv1.PropagatedMessage_Unicast{
+			Unicast: msgToSend,
+		}
+	}
+
+	return &gossipv1.GossipMessage_TssMessage{
+		TssMessage: tssMsg,
+	}, nil
+}
+func (t *Engine) sign(msg *gossipv1.SignedMessage) {
+	// TODO
+}
+
+func (t *Engine) encryptAndMac(msgToSend *gossipv1.SignedMessage) {
+	// TODO
+}
+
 func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
 	if t == nil {
 		return
 	}
 
-	fmt.Println("Engine:incoming")
+	switch m := msg.TssMessage.Payload.(type) {
+	case *gossipv1.PropagatedMessage_Unicast:
+		defer func() {
+			// todo: consider sending the message to be gossiped or not. perhaps it's a duplicate message?
+		}()
+
+		maccedMsg := m.Unicast
+		if maccedMsg == nil {
+			return // TODO: Err?
+		}
+
+		if maccedMsg.Sender > uint32(len(t.Guardians)) {
+			return
+		}
+
+		if !t.isUnicastForMe(maccedMsg) {
+			return
+		}
+
+		if err := t.authAndDecrypt(maccedMsg); err != nil {
+			return // TODO err?
+		}
+		// TODO: add the uuid of this message to the set of received messages.
+		isBroadcast := t.Guardians == nil || len(t.Guardians) == 0 || len(t.Guardians) > 1
+		parsed, err := tss.ParseWireMessage(maccedMsg.Payload, t.Guardians[maccedMsg.Sender], isBroadcast)
+		if err != nil {
+			return // TODO err?
+		}
+
+		t.fp.Update(parsed)
+	case *gossipv1.PropagatedMessage_Echo:
+		signedMsg := m.Echo
+		_ = signedMsg
+		// todo: verify the signature then update t.fp
+	}
 }
 
-func (t *Engine) Close() {
-	fmt.Println("Engine:close")
+func (t *Engine) authAndDecrypt(maccedMsg *gossipv1.SignedMessage) error {
+	// TODO
+	return nil
+}
+
+func (t *Engine) isUnicastForMe(maccedMsg *gossipv1.SignedMessage) bool {
+	for _, v := range maccedMsg.Recipients {
+		if v == uint32(t.Self.Index) {
+			return true
+		}
+	}
+
+	return false
 }
