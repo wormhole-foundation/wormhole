@@ -7,6 +7,7 @@ import (
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/yossigi/tss-lib/v2/common"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/tss"
@@ -17,9 +18,17 @@ type symKey []byte
 // Engine is the implementation of reliableTSS, it is a wrapper for the tss-lib fullParty and adds reliable broadcast logic
 // to the message sending and receiving.
 type Engine struct {
+	ctx context.Context
+
 	GuardianStorage
 
 	fp party.FullParty
+	//
+	fpOutChan    chan tss.Message // this one must listen on it, and output to the p2p network.
+	fpSigOutChan chan *common.SignatureData
+	fpErrChannel chan *tss.Error
+
+	gossipOutChan chan *gossipv1.GossipMessage_TssMessage
 }
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
@@ -65,8 +74,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 
 // ProducedOutputMessages implements ReliableTSS.
 func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage {
-	// TODO:.
-	return nil
+	return t.gossipOutChan
 }
 
 // GuardianStorageFromFile loads a guardian storage from a file.
@@ -98,18 +106,57 @@ func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, err
 	if err != nil {
 		return nil, err
 	}
-	// set up new party, and Start it.
-	return &Engine{
-		fp:              fp,
+
+	fpOutChan := make(chan tss.Message) // this one must listen on it, and output to the p2p network.
+	fpSigOutChan := make(chan *common.SignatureData)
+	fpErrChannel := make(chan *tss.Error)
+
+	if err := fp.Start(fpOutChan, fpSigOutChan, fpErrChannel); err != nil {
+		return nil, err
+	}
+
+	// ignoring returned func since i want fp.Stop to be tied to the ctx forever.
+	_ = context.AfterFunc(ctx, func() {
+		fp.Stop()
+	})
+
+	t := &Engine{
 		GuardianStorage: *storage,
-	}, nil
+
+		fp:           fp,
+		fpOutChan:    fpOutChan,
+		fpSigOutChan: fpSigOutChan,
+		fpErrChannel: fpErrChannel,
+
+		gossipOutChan: make(chan *gossipv1.GossipMessage_TssMessage),
+	}
+
+	go t.fpListener()
+
+	return t, nil
+}
+
+// fpListener serves as a listining loop for the full party outputs.
+// ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
+func (t *Engine) fpListener() {
+	for {
+		select {
+		case <-t.ctx.Done():
+			return
+		case <-t.fpOutChan:
+			//todo: wrap the message into a gossip message and output it to the network, sign/mac it and send it.
+		case <-t.fpSigOutChan:
+			// todo: find out who should get the signature.
+		case <-t.fpErrChannel:
+			// todo: log the error?
+		}
+	}
 }
 
 func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
 	if t == nil {
 		return
 	}
-	party.NewFullParty(nil)
 
 	fmt.Println("Engine:incoming")
 }
