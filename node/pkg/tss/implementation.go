@@ -3,9 +3,7 @@ package tss
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
-	"os"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
@@ -13,72 +11,51 @@ import (
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
-const (
-	Participants = 5
-	Threshold    = 3 // 13 players are needed if threshold is 12, since it isn't inclusive
-)
-
 type symKey []byte
 
-// Engine is a wrapper for the tss-lib fullParty, adds reliable broadcast logic to the message sending and receiving.
+// Engine is the implementation of reliableTSS, it is a wrapper for the tss-lib fullParty and adds reliable broadcast logic
+// to the message sending and receiving.
 type Engine struct {
 	GuardianStorage
 
 	fp party.FullParty
-
-	signingKey ecdsa.PrivateKey
-	secretKeys []symKey
-	// need to receive specific files, one for the partyIds
-	// one for the keygen data.
-	// TODO: consider using something different than this:
-	// one for its partId.
 }
 
-// BeginAsyncThresholdSigningProtocol implements ReliableTSS.
-func (t *Engine) BeginAsyncThresholdSigningProtocol(msg *gossipv1.ObservationRequest) error {
-	panic("unimplemented")
-}
-
-// ProducedOutputMessages implements ReliableTSS.
-func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage {
-	panic("unimplemented")
-}
-
+// GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
+// including its signing key, and the shared symmetric keys with other guardians.
+// should be loaded from a file.
 type GuardianStorage struct {
 	Self *tss.PartyID
 
 	//Stored sorted by Key. include Self.
 	Guardians []*tss.PartyID
 
-	// secret key used by a single guardian.
+	// SecretKey is the marshaled secret key of ReliableTSS, used to genereate SymKeys and signingKey.
 	SecretKey []byte
 
 	Threshold int
+
 	// all secret keys should be generated with specific value.
 	SavedSecretParameters *keygen.LocalPartySaveData
 
 	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of signing key.
+	Symkeys    []symKey          // should be generated upon creation using DH shared key protocol if nil.
 }
 
-func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
-	if err := json.Unmarshal(storageData, &s); err != nil {
-		return err
-	}
-
-	if s.SecretKey == nil {
-		return fmt.Errorf("secretKey is nil")
-	}
-
-	if len(s.Guardians) == 0 {
-		return fmt.Errorf("no guardians array given")
-	}
-
-	if s.Threshold > len(s.Guardians) {
-		return fmt.Errorf("threshold is higher than the number of guardians")
-	}
-
+// BeginAsyncThresholdSigningProtocol implements ReliableTSS.
+func (t *Engine) BeginAsyncThresholdSigningProtocol(msg *gossipv1.ObservationRequest) error {
+	// TODO:.
 	return nil
 }
+
+// ProducedOutputMessages implements ReliableTSS.
+func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage {
+	// TODO:.
+	return nil
+}
+
+// GuardianStorageFromFile loads a guardian storage from a file.
+// If the storage file hadn't contained symetric keys, it'll compute them.
 func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
 	var storage GuardianStorage
 	if err := storage.load(storagePath); err != nil {
@@ -88,45 +65,10 @@ func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
 	return &storage, nil
 }
 
-func (s *GuardianStorage) load(storagePath string) error {
-	if s == nil {
-		return fmt.Errorf("GuardianStorage is nil")
-	}
-
-	storageData, err := os.ReadFile(storagePath)
-	if err != nil {
-		return err
-	}
-
-	if err := s.unmarshalFromJSON(storageData); err != nil {
-		return err
-	}
-
-	s.signingKey = unmarshalEcdsaSecretKey(s.SecretKey)
-
-	pk, err := unmarshalEcdsaPublickey(tss.S256(), s.Self.Key)
-	if err != nil {
-		return err
-	}
-
-	if !s.signingKey.PublicKey.Equal(pk) {
-		return fmt.Errorf("signing key does not match the public key stored as Self partyId")
-	}
-
-	if !tss.S256().IsOnCurve(pk.X, pk.Y) {
-		return fmt.Errorf("invalid public key, it isn't on the curve")
-	}
-
-	return nil
-}
-
 func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
-
-	// TODO: do DH with every guardian to get symKeys.
-	computeSharedSecrets(storage)
 
 	// set up new party, and Start it.
 	return &Engine{
@@ -136,30 +78,6 @@ func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, err
 	}, nil
 }
 
-func computeSharedSecrets(storage *GuardianStorage) ([]symKey, error) {
-	return nil, nil
-	// curve := ecdh.X25519()
-	// secretKey, err := curve.NewPrivateKey(storage.SecretKey)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // symKeys := make([]symKey, 0, len(storage.GuardianIDs))
-	// for _, v := range storage.Guardians {
-	// 	pk, err := curve.NewPublicKey(v.Key)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	// s,k := ecdh.X25519().GenerateKey()
-	// 	// x, y := elliptic.UnmarshalCompressed(tss.S256(), v.Key)
-	// 	// ecPoint, err := crypto.NewECPoint(tss.S256(), x, y)
-	// 	// if err != nil {
-	// 	// 	return symKeys, err
-	// 	// }
-	// 	// storage.SecretKey.ScalarMult(x, y, v.Key)
-	// }
-}
-
 func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
 	if t == nil {
 		return
@@ -167,22 +85,6 @@ func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage
 	party.NewFullParty(nil)
 
 	fmt.Println("Engine:incoming")
-}
-
-func (t *Engine) produceOutGoing() <-chan struct{} {
-	if t == nil {
-		return nil
-	}
-
-	fmt.Println("Engine:outgoing")
-	return nil
-}
-
-func (t *Engine) runSigningProtocol(msg *gossipv1.ObservationRequest) {
-	if t == nil {
-		return
-	}
-	fmt.Println("Engine:start signing")
 }
 
 func (t *Engine) Close() {

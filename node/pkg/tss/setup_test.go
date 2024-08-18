@@ -16,6 +16,11 @@ import (
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
+const (
+	Participants = 19
+	Threshold    = 12 //  12 means 12 + 1 to  produce signature.
+)
+
 type dkgSetupPlayer struct {
 	SecretKey []byte
 	*tss.PartyID
