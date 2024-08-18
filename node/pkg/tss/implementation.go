@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
@@ -42,10 +43,24 @@ type GuardianStorage struct {
 	Symkeys    []symKey          // should be generated upon creation using DH shared key protocol if nil.
 }
 
-// BeginAsyncThresholdSigningProtocol implements ReliableTSS.
-func (t *Engine) BeginAsyncThresholdSigningProtocol(msg *gossipv1.ObservationRequest) error {
-	// TODO:.
-	return nil
+// BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
+func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
+	if t == nil {
+		return fmt.Errorf("tss engine is nil")
+	}
+
+	if t.fp == nil {
+		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
+	}
+
+	if len(digest) != 32 {
+		return fmt.Errorf("digest length is not 32 bytes")
+	}
+
+	d := party.Digest{}
+	copy(d[:], digest)
+
+	return t.fp.AsyncRequestNewSignature(d)
 }
 
 // ProducedOutputMessages implements ReliableTSS.
@@ -70,11 +85,23 @@ func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, err
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
 
+	fpParams := party.Parameters{
+		SavedSecrets: storage.SavedSecretParameters,
+		PartyIDs:     storage.Guardians,
+		Self:         storage.Self,
+		Threshold:    storage.Threshold,
+		WorkDir:      "",
+		MaxSignerTTL: time.Minute * 5,
+	}
+
+	fp, err := party.NewFullParty(&fpParams)
+	if err != nil {
+		return nil, err
+	}
 	// set up new party, and Start it.
 	return &Engine{
-		fp:         nil,
-		signingKey: ecdsa.PrivateKey{},
-		secretKeys: []symKey{},
+		fp:              fp,
+		GuardianStorage: *storage,
 	}, nil
 }
 

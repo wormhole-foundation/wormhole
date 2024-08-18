@@ -3160,6 +3160,10 @@ github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
 github.com/yossigi/tss-lib/v2 v2.0.0-20240808130224-03f9503f97e3 h1:0fkAfhgAy/SzRcpqpFwiDC0J3KSOAfW/jz8nIGP9ItE=
 github.com/yossigi/tss-lib/v2 v2.0.0-20240808130224-03f9503f97e3/go.mod h1:tRbsNURoGxPr5M7II37bTIEhdErLKo16a6Un6i7Bxwg=
+github.com/yossigi/tss-lib/v2 v2.0.0-20240818065126-cd8db01123f9 h1:NyxlehsAR42d55avAFNwdmw1n3V+wfiPr+2MfwtNCzQ=
+github.com/yossigi/tss-lib/v2 v2.0.0-20240818065126-cd8db01123f9/go.mod h1:tRbsNURoGxPr5M7II37bTIEhdErLKo16a6Un6i7Bxwg=
+github.com/yossigi/tss-lib/v2 v2.0.0-20240818083232-d61420a9b0ba h1:DhLhuOIjUGmAD4KUceLlHLjG8fMwRSHmfwMG6SgrZ5k=
+github.com/yossigi/tss-lib/v2 v2.0.0-20240818083232-d61420a9b0ba/go.mod h1:tRbsNURoGxPr5M7II37bTIEhdErLKo16a6Un6i7Bxwg=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=

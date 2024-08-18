@@ -9,8 +9,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/ethereum/go-ethereum/crypto"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -133,7 +135,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	require.NoError(t, err)
 	gst := common.NewGuardianSetState(nil)
-	_, rootCtxCancel := context.WithCancel(context.Background())
+	ctx, rootCtxCancel := context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
 	gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -162,6 +164,12 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	ccqPort := uint(4242)
 	ccqAllowedPeers := "some allowed peers"
 
+	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	require.NoError(t, err)
+
+	ts, err := tss.NewReliableTSS(ctx, st)
+	require.NoError(t, err)
+
 	params, err := NewRunParams(
 		bootstrapPeers,
 		networkId,
@@ -189,7 +197,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			queryResponseReadC,
 			ccqBootstrapPeers,
 			ccqPort,
-			ccqAllowedPeers),
+			ccqAllowedPeers,
+			ts,
+		),
 	)
 
 	require.NoError(t, err)
