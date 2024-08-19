@@ -10,6 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -140,13 +141,14 @@ type Processor struct {
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
-	governor       *governor.ChainGovernor
-	acct           *accountant.Accountant
-	acctReadC      <-chan *common.MessagePublication
-	pythnetVaas    map[string]PythNetVaaEntry
-	gatewayRelayer *gwrelayer.GatewayRelayer
-	updateVAALock  sync.Mutex
-	updatedVAAs    map[string]*updateVaaEntry
+	governor        *governor.ChainGovernor
+	acct            *accountant.Accountant
+	acctReadC       <-chan *common.MessagePublication
+	pythnetVaas     map[string]PythNetVaaEntry
+	gatewayRelayer  *gwrelayer.GatewayRelayer
+	updateVAALock   sync.Mutex
+	updatedVAAs     map[string]*updateVaaEntry
+	thresholdSigner tss.Signer
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -201,6 +203,7 @@ func NewProcessor(
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
+	thresholdSigner tss.Signer,
 ) *Processor {
 
 	return &Processor{
@@ -215,15 +218,16 @@ func NewProcessor(
 		gst:                    gst,
 		db:                     db,
 
-		logger:         supervisor.Logger(ctx),
-		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(gk.PublicKey),
-		governor:       g,
-		acct:           acct,
-		acctReadC:      acctReadC,
-		pythnetVaas:    make(map[string]PythNetVaaEntry),
-		gatewayRelayer: gatewayRelayer,
-		updatedVAAs:    make(map[string]*updateVaaEntry),
+		logger:          supervisor.Logger(ctx),
+		state:           &aggregationState{observationMap{}},
+		ourAddr:         crypto.PubkeyToAddress(gk.PublicKey),
+		governor:        g,
+		acct:            acct,
+		acctReadC:       acctReadC,
+		pythnetVaas:     make(map[string]PythNetVaaEntry),
+		gatewayRelayer:  gatewayRelayer,
+		updatedVAAs:     make(map[string]*updateVaaEntry),
+		thresholdSigner: thresholdSigner,
 	}
 }
 

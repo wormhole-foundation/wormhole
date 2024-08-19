@@ -205,6 +205,7 @@ func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage_TssMe
 		TssMessage: tssMsg,
 	}, nil
 }
+
 func (t *Engine) sign(msg *gossipv1.SignedMessage) {
 	// TODO
 }
@@ -224,28 +225,12 @@ func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage
 			// todo: consider sending the message to be gossiped or not. perhaps it's a duplicate message?
 		}()
 
-		maccedMsg := m.Unicast
-		if maccedMsg == nil {
-			return // TODO: Err?
-		}
-
-		if maccedMsg.Sender > uint32(len(t.Guardians)) {
-			return
-		}
-
-		if !t.isUnicastForMe(maccedMsg) {
-			return
-		}
-
-		if err := t.authAndDecrypt(maccedMsg); err != nil {
-			return // TODO err?
-		}
-		// TODO: add the uuid of this message to the set of received messages.
-		isBroadcast := t.Guardians == nil || len(t.Guardians) == 0 || len(t.Guardians) > 1
-		parsed, err := tss.ParseWireMessage(maccedMsg.Payload, t.Guardians[maccedMsg.Sender], isBroadcast)
+		parsed, err := t.handleUnicast(m)
 		if err != nil {
-			return // TODO err?
+			return
 		}
+
+		// TODO: add the uuid of this message to the set of received messages.
 
 		t.fp.Update(parsed)
 	case *gossipv1.PropagatedMessage_Echo:
@@ -253,6 +238,35 @@ func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage
 		_ = signedMsg
 		// todo: verify the signature then update t.fp
 	}
+}
+
+func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.ParsedMessage, error) {
+	defer func() {
+
+	}()
+
+	maccedMsg := m.Unicast
+	if maccedMsg == nil {
+		return nil, fmt.Errorf("unicast message is nil")
+	}
+
+	if maccedMsg.Sender > uint32(len(t.Guardians)) {
+		return nil, fmt.Errorf("sender index is out of range")
+	}
+
+	if !t.isUnicastForMe(maccedMsg) {
+		return nil, fmt.Errorf("unicast message is not for me")
+	}
+
+	if err := t.authAndDecrypt(maccedMsg); err != nil {
+		return nil, err
+	}
+
+	parsed, err := tss.ParseWireMessage(maccedMsg.Payload, t.Guardians[maccedMsg.Sender], false)
+	if err != nil {
+		return nil, err
+	}
+	return parsed, nil
 }
 
 func (t *Engine) authAndDecrypt(maccedMsg *gossipv1.SignedMessage) error {

@@ -11,7 +11,7 @@ type ReliableMessageHandler interface {
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
 type Signer interface {
-	BeginAsyncThresholdSigningProtocol(msg *gossipv1.ObservationRequest) error
+	BeginAsyncThresholdSigningProtocol([]byte) error
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of reliable broadcast needed for the security of TSS over the network.

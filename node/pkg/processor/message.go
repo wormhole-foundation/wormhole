@@ -66,8 +66,11 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	}
 
 	// Generate digest of the unsigned VAA.
+
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
+
+	p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes())
 
 	// Sign the digest using our node's guardian key.
 	signature, err := crypto.Sign(digest.Bytes(), p.gk)

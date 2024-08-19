@@ -598,6 +598,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.acct,
 				g.acctC.readC,
 				g.gatewayRelayer,
+				g.tssEngine,
 			).Run
 
 			return nil
