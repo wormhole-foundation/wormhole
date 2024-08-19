@@ -18,6 +18,4 @@ type Signer interface {
 type ReliableTSS interface {
 	ReliableMessageHandler
 	Signer
-
-	Close()
 }

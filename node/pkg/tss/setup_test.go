@@ -3,7 +3,6 @@ package tss
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -17,8 +16,8 @@ import (
 )
 
 const (
-	Participants = 19
-	Threshold    = 12 //  12 means 12 + 1 to  produce signature.
+	Participants = 5
+	Threshold    = 2 //  12 means 12 + 1 to  produce signature.
 )
 
 type dkgSetupPlayer struct {
@@ -145,9 +144,17 @@ keygenLoop:
 		}
 	}
 
-	bts, err := json.MarshalIndent(guardians, "", "  ")
-	a.NoError(err)
-	fmt.Println(string(bts))
+	// for i, guardian := range guardians {
+	// 	a.NotNil(guardian)
+	// 	a.NoError(guardian.createSharedSecrets())
+	// 	bts, err := json.MarshalIndent(guardian, "", "  ")
+	// 	a.NoError(err)
+	// 	fmt.Println(string(bts))
+
+	// 	err = os.WriteFile(fmt.Sprintf("guardian%d.json", i), bts, 0777)
+	// 	a.NoError(err)
+	// }
+
 }
 
 func setupPlayers(a *assert.Assertions) []*dkgSetupPlayer {
