@@ -106,6 +106,13 @@
       "chainId": 37,
       "rpc": "https://xlayerrpc.okx.com",
       "wormholeAddress": "0x194B123c5E96B9b2E49763619985790Dc241CAC0"
+    },
+    {
+      "description": "Snax",
+      "evmNetworkId": 2192,
+      "chainId": 43,
+      "rpc": "https://mainnet.snaxchain.io",
+      "wormholeAddress": "0xc1BA3CC4bFE724A08FbbFbF64F8db196738665f4"
     }
   ]
 }
