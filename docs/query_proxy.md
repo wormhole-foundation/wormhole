@@ -188,7 +188,7 @@ If this flag is specified, then `allowedCalls` must not be specified.
 The query proxy server supports rate limiting by specifying two parameters. The rate limit, which is a floating point value, and the burst size,
 which is an int. See [here](https://pkg.go.dev/golang.org/x/time/rate#Limiter) for a description of how the rate limiter works.
 
-Note that if the rate limits are not specified, or the rate is set to zero, rate limiting will be disabled, allowing unlimited queries per second.
+Note that if the rate limits are not specified, or the rate is set to zero, rate limiting will be disabled, allowing unlimited queries per second. The burst size only has meaning if the rate limit is specified. It defaults to one, and zero is not a valid value.
 
 The rate limits may be specified at either of two levels.
 
