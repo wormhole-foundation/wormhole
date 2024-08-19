@@ -60,7 +60,6 @@ spec:
             - --logLevel=warn
             - --shutdownDelay1
             - "0"
-            - --allowAnything
           ports:
             - containerPort: 6069
               name: rest
