@@ -100,6 +100,14 @@ func NewRunParams(
 	return p, nil
 }
 
+// WithComponents is used to set the components if you need something other than the defaults.
+func WithComponents(components *Components) RunOpt {
+	return func(p *RunParams) error {
+		p.components = components
+		return nil
+	}
+}
+
 // WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
 func WithSignedObservationListener(obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
 	return func(p *RunParams) error {
