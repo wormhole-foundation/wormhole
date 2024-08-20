@@ -54,7 +54,7 @@ var (
 		CoinType:            "118",
 		GasPrices:           fmt.Sprintf("0.0%s", WormchainDenom),
 		Gas:                 "auto",
-		GasAdjustment:       2,
+		GasAdjustment:       5,
 		TrustingPeriod:      "112h",
 		NoHostMount:         false,
 		ConfigFileOverrides: nil,

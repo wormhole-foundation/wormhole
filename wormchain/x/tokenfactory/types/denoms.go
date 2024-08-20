@@ -3,8 +3,9 @@ package types
 import (
 	"strings"
 
+	errorsmod "cosmossdk.io/errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const (
@@ -46,17 +47,17 @@ func DeconstructDenom(denom string) (creator string, subdenom string, err error)
 
 	strParts := strings.Split(denom, "/")
 	if len(strParts) < 3 {
-		return "", "", sdkerrors.Wrapf(ErrInvalidDenom, "not enough parts of denom %s", denom)
+		return "", "", errorsmod.Wrapf(ErrInvalidDenom, "not enough parts of denom %s", denom)
 	}
 
 	if strParts[0] != ModuleDenomPrefix {
-		return "", "", sdkerrors.Wrapf(ErrInvalidDenom, "denom prefix is incorrect. Is: %s.  Should be: %s", strParts[0], ModuleDenomPrefix)
+		return "", "", errorsmod.Wrapf(ErrInvalidDenom, "denom prefix is incorrect. Is: %s.  Should be: %s", strParts[0], ModuleDenomPrefix)
 	}
 
 	creator = strParts[1]
 	creatorAddr, err := sdk.AccAddressFromBech32(creator)
 	if err != nil {
-		return "", "", sdkerrors.Wrapf(ErrInvalidDenom, "Invalid creator address (%s)", err)
+		return "", "", errorsmod.Wrapf(ErrInvalidDenom, "Invalid creator address (%s)", err)
 	}
 
 	// Handle the case where a denom has a slash in its subdenom. For example,

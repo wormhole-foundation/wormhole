@@ -97,6 +97,8 @@ func CreateV3_0_0_UpgradeHandler(
 		params.AllowedClients = append(params.AllowedClients, ibcexported.Localhost)
 		app.IBCKeeper.ClientKeeper.SetParams(ctx, params)
 
+		// TODO: JOEL - MIGRATE TOKENFACTORY TO CONSENSUS V2?
+
 		return mm.RunMigrations(ctx, cfg, vm)
 	}
 }

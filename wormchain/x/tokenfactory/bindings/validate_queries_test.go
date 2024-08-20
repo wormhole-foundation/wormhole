@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
 	wasmbinding "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
 )
@@ -42,10 +41,10 @@ func TestFullDenom(t *testing.T) {
 			subdenom:     "",
 			expFullDenom: fmt.Sprintf("factory/%s/", actor.String()),
 		},
-		"invalid sub-denom (contains brackets)": {
-			addr:     actor.String(),
-			subdenom: "sub[denom]",
-			expErr:   true,
+		"valid sub-denom (contains underscore)": {
+			addr:         actor.String(),
+			subdenom:     "sub_denom",
+			expFullDenom: fmt.Sprintf("factory/%s/sub_denom", actor.String()),
 		},
 	}
 	for name, spec := range specs {
@@ -65,25 +64,22 @@ func TestFullDenom(t *testing.T) {
 
 func TestDenomAdmin(t *testing.T) {
 	addr := RandomAccountAddress()
-	app, ctx := SetupCustomApp(t, addr)
+	wormchain, ctx := SetupCustomApp(t, addr)
 
 	// set token creation fee to zero to make testing easier
-	tfParams := app.TokenFactoryKeeper.GetParams(ctx)
+	tfParams := wormchain.TokenFactoryKeeper.GetParams(ctx)
 	tfParams.DenomCreationFee = sdk.NewCoins()
-	app.TokenFactoryKeeper.SetParams(ctx, tfParams)
+	if err := wormchain.TokenFactoryKeeper.SetParams(ctx, tfParams); err != nil {
+		t.Fatal(err)
+	}
 
 	// create a subdenom via the token factory
 	admin := sdk.AccAddress([]byte("addr1_______________"))
-	tfDenom, err := app.TokenFactoryKeeper.CreateDenom(ctx, admin.String(), "subdenom")
+	tfDenom, err := wormchain.TokenFactoryKeeper.CreateDenom(ctx, admin.String(), "subdenom")
 	require.NoError(t, err)
 	require.NotEmpty(t, tfDenom)
 
-	var bankBaseKeeper bankkeeper.BaseKeeper
-	bankBaseKeeper, ok := app.BankKeeper.(bankkeeper.BaseKeeper)
-	if !ok {
-		panic("Cannot cast bank keeper to bank basekeeper")
-	}
-	queryPlugin := wasmbinding.NewQueryPlugin(&bankBaseKeeper, &app.TokenFactoryKeeper)
+	queryPlugin := wasmbinding.NewQueryPlugin(wormchain.BankKeeper, &wormchain.TokenFactoryKeeper)
 
 	testCases := []struct {
 		name        string

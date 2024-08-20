@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 var (
@@ -41,7 +41,7 @@ func TestMessageAuthzSerialization(t *testing.T, msg sdk.Msg) {
 	// Authz: Grant Msg
 	typeURL := sdk.MsgTypeURL(msg)
 	later := someDate.Add(time.Hour)
-	grant, err := authz.NewGrant(later, authz.NewGenericAuthorization(typeURL), nil)
+	grant, err := authz.NewGrant(someDate, authz.NewGenericAuthorization(typeURL), &later)
 	require.NoError(t, err)
 
 	msgGrant := authz.MsgGrant{Granter: mockGranter, Grantee: mockGrantee, Grant: grant}

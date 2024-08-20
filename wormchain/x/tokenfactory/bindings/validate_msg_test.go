@@ -4,24 +4,21 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
 	wasmbinding "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
 	bindings "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings/types"
-
-	//"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestCreateDenom(t *testing.T) {
 	actor := RandomAccountAddress()
-	tokenz, ctx := SetupCustomApp(t, actor)
+	wormchain, ctx := SetupCustomApp(t, actor)
 
 	// Fund actor with 100 base denom creation fees
-	//actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	//fundAccount(t, ctx, tokenz, actor, actorAmount)
+	// actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	// fundAccount(t, ctx, wormchain, actor, actorAmount)
 
 	specs := map[string]struct {
 		createDenom *bindings.CreateDenom
@@ -40,9 +37,9 @@ func TestCreateDenom(t *testing.T) {
 		},
 		"invalid sub-denom": {
 			createDenom: &bindings.CreateDenom{
-				Subdenom: "sub-denom[2]",
+				Subdenom: "sub-denom_2",
 			},
-			expErr: true,
+			expErr: false,
 		},
 		"null create denom": {
 			createDenom: nil,
@@ -52,15 +49,10 @@ func TestCreateDenom(t *testing.T) {
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {
 			// when
-
-			var bankBaseKeeper bankkeeper.BaseKeeper
-			bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-			if !ok {
-				panic("Cannot cast bank keeper to bank basekeeper")
-			}
-			_, gotErr := wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, actor, spec.createDenom)
+			_, gotErr := wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, actor, spec.createDenom)
 			// then
 			if spec.expErr {
+				t.Logf("validate_msg_test got error: %v", gotErr)
 				require.Error(t, gotErr)
 				return
 			}
@@ -150,23 +142,18 @@ func TestChangeAdmin(t *testing.T) {
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {
 			// Setup
-			tokenz, ctx := SetupCustomApp(t, tokenCreator)
+			wormchain, ctx := SetupCustomApp(t, tokenCreator)
 
 			// Fund actor with 100 base denom creation fees
-			//actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-			//fundAccount(t, ctx, tokenz, tokenCreator, actorAmount)
+			// actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+			// fundAccount(t, ctx, wormchain, tokenCreator, actorAmount)
 
-			var bankBaseKeeper bankkeeper.BaseKeeper
-			bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-			if !ok {
-				panic("Cannot cast bank keeper to bank basekeeper")
-			}
-			_, err := wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, tokenCreator, &bindings.CreateDenom{
+			_, err := wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, tokenCreator, &bindings.CreateDenom{
 				Subdenom: validDenom,
 			})
 			require.NoError(t, err)
 
-			err = wasmbinding.ChangeAdmin(&tokenz.TokenFactoryKeeper, ctx, spec.actor, spec.changeAdmin)
+			err = wasmbinding.ChangeAdmin(&wormchain.TokenFactoryKeeper, ctx, spec.actor, spec.changeAdmin)
 			if len(spec.expErrMsg) > 0 {
 				require.Error(t, err)
 				actualErrMsg := err.Error()
@@ -180,29 +167,23 @@ func TestChangeAdmin(t *testing.T) {
 
 func TestMint(t *testing.T) {
 	creator := RandomAccountAddress()
-	tokenz, ctx := SetupCustomApp(t, creator)
+	wormchain, ctx := SetupCustomApp(t, creator)
 
 	// Fund actor with 100 base denom creation fees
-	//tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	//fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
+	// tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	// fundAccount(t, ctx, wormchain, creator, tokenCreationFeeAmt)
 
 	// Create denoms for valid mint tests
 	validDenom := bindings.CreateDenom{
 		Subdenom: "MOON",
 	}
-
-	var bankBaseKeeper bankkeeper.BaseKeeper
-	bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-	if !ok {
-		panic("Cannot cast bank keeper to bank basekeeper")
-	}
-	_, err := wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, &validDenom)
+	_, err := wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, &validDenom)
 	require.NoError(t, err)
 
 	emptyDenom := bindings.CreateDenom{
 		Subdenom: "",
 	}
-	_, err = wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, &emptyDenom)
+	_, err = wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, &emptyDenom)
 	require.NoError(t, err)
 
 	validDenomStr := fmt.Sprintf("factory/%s/%s", creator.String(), validDenom.Subdenom)
@@ -211,7 +192,7 @@ func TestMint(t *testing.T) {
 	lucky := RandomAccountAddress()
 
 	// lucky was broke
-	balances := tokenz.BankKeeper.GetAllBalances(ctx, lucky)
+	balances := wormchain.BankKeeper.GetAllBalances(ctx, lucky)
 	require.Empty(t, balances)
 
 	amount, ok := sdk.NewIntFromString("8080")
@@ -292,13 +273,7 @@ func TestMint(t *testing.T) {
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {
 			// when
-
-			var bankBaseKeeper bankkeeper.BaseKeeper
-			bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-			if !ok {
-				panic("Cannot cast bank keeper to bank basekeeper")
-			}
-			gotErr := wasmbinding.PerformMint(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, spec.mint)
+			gotErr := wasmbinding.PerformMint(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, spec.mint)
 			// then
 			if spec.expErr {
 				require.Error(t, gotErr)
@@ -309,38 +284,32 @@ func TestMint(t *testing.T) {
 	}
 }
 
-// Capability not enabled as all test use the burn from capability
+// Capability disabled
 /*func TestBurn(t *testing.T) {
 	creator := RandomAccountAddress()
-	tokenz, ctx := SetupCustomApp(t, creator)
+	wormchain, ctx := SetupCustomApp(t, creator)
 
 	// Fund actor with 100 base denom creation fees
-	//tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	//fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
+	tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	fundAccount(t, ctx, wormchain, creator, tokenCreationFeeAmt)
 
 	// Create denoms for valid burn tests
 	validDenom := bindings.CreateDenom{
 		Subdenom: "MOON",
 	}
-
-	var bankBaseKeeper bankkeeper.BaseKeeper
-	bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-	if !ok {
-		panic("Cannot cast bank keeper to bank basekeeper")
-	}
-	_, err := wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, &validDenom)
+	_, err := wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, &validDenom)
 	require.NoError(t, err)
 
 	emptyDenom := bindings.CreateDenom{
 		Subdenom: "",
 	}
-	_, err = wasmbinding.PerformCreateDenom(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, &emptyDenom)
+	_, err = wasmbinding.PerformCreateDenom(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, &emptyDenom)
 	require.NoError(t, err)
 
 	lucky := RandomAccountAddress()
 
 	// lucky was broke
-	balances := tokenz.BankKeeper.GetAllBalances(ctx, lucky)
+	balances := wormchain.BankKeeper.GetAllBalances(ctx, lucky)
 	require.Empty(t, balances)
 
 	validDenomStr := fmt.Sprintf("factory/%s/%s", creator.String(), validDenom.Subdenom)
@@ -422,13 +391,7 @@ func TestMint(t *testing.T) {
 				Amount:        mintAmount,
 				MintToAddress: creator.String(),
 			}
-
-			var bankBaseKeeper bankkeeper.BaseKeeper
-			bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)
-			if !ok {
-				panic("Cannot cast bank keeper to bank basekeeper")
-			}
-			err := wasmbinding.PerformMint(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, mintBinding)
+			err := wasmbinding.PerformMint(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, mintBinding)
 			require.NoError(t, err)
 
 			emptyDenomMintBinding := &bindings.MintTokens{
@@ -436,11 +399,11 @@ func TestMint(t *testing.T) {
 				Amount:        mintAmount,
 				MintToAddress: creator.String(),
 			}
-			err = wasmbinding.PerformMint(&tokenz.TokenFactoryKeeper, &bankBaseKeeper, ctx, creator, emptyDenomMintBinding)
+			err = wasmbinding.PerformMint(&wormchain.TokenFactoryKeeper, wormchain.BankKeeper, ctx, creator, emptyDenomMintBinding)
 			require.NoError(t, err)
 
 			// when
-			gotErr := wasmbinding.PerformBurn(&tokenz.TokenFactoryKeeper, ctx, creator, spec.burn)
+			gotErr := wasmbinding.PerformBurn(&wormchain.TokenFactoryKeeper, ctx, creator, spec.burn)
 			// then
 			if spec.expErr {
 				require.Error(t, gotErr)

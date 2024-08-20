@@ -1,8 +1,9 @@
 package keeper
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )

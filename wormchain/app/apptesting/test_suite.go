@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	authzcodec "github.com/wormhole-foundation/wormchain/x/tokenfactory/types/authzcodec"
+	authzcodec "github.com/wormhole-foundation/wormchain/x/tokenfactory/testhelpers"
 
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/wormhole-foundation/wormchain/app"
@@ -271,22 +271,22 @@ func TestMessageAuthzSerialization(t *testing.T, msg sdk.Msg) {
 	require.NoError(t, err)
 
 	msgGrant := authz.MsgGrant{Granter: mockGranter, Grantee: mockGrantee, Grant: grant}
-	msgGrantBytes := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgGrant)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(msgGrantBytes, &mockMsgGrant)
+	msgGrantBytes := json.RawMessage(sdk.MustSortJSON(authzcodec.AuthzModuleCdc.MustMarshalJSON(&msgGrant)))
+	err = authzcodec.AuthzModuleCdc.UnmarshalJSON(msgGrantBytes, &mockMsgGrant)
 	require.NoError(t, err)
 
 	// Authz: Revoke Msg
 	msgRevoke := authz.MsgRevoke{Granter: mockGranter, Grantee: mockGrantee, MsgTypeUrl: typeURL}
-	msgRevokeByte := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgRevoke)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(msgRevokeByte, &mockMsgRevoke)
+	msgRevokeByte := json.RawMessage(sdk.MustSortJSON(authzcodec.AuthzModuleCdc.MustMarshalJSON(&msgRevoke)))
+	err = authzcodec.AuthzModuleCdc.UnmarshalJSON(msgRevokeByte, &mockMsgRevoke)
 	require.NoError(t, err)
 
 	// Authz: Exec Msg
 	msgAny, err := cdctypes.NewAnyWithValue(msg)
 	require.NoError(t, err)
 	msgExec := authz.MsgExec{Grantee: mockGrantee, Msgs: []*cdctypes.Any{msgAny}}
-	execMsgByte := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgExec)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(execMsgByte, &mockMsgExec)
+	execMsgByte := json.RawMessage(sdk.MustSortJSON(authzcodec.AuthzModuleCdc.MustMarshalJSON(&msgExec)))
+	err = authzcodec.AuthzModuleCdc.UnmarshalJSON(execMsgByte, &mockMsgExec)
 	require.NoError(t, err)
 	require.Equal(t, msgExec.Msgs[0].Value, mockMsgExec.Msgs[0].Value)
 }
