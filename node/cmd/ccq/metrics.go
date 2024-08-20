@@ -45,6 +45,12 @@ var (
 			Help: "Total number of successful queries by user name",
 		}, []string{"user_name"})
 
+	rateLimitExceededByUser = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ccq_server_rate_limit_exceeded_by_user",
+			Help: "Total number of queries rejected due to rate limiting per user name",
+		}, []string{"user_name"})
+
 	failedQueriesByUser = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ccq_server_failed_queries_by_user",

@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
+library = []
 
 [dependencies]
 wormhole-cosmwasm = { version = "0.1.0", default-features = false, features = ["library", "full"] }

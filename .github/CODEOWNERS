@@ -28,7 +28,7 @@
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters @bruce-riley
 /sdk/js-wasm/ @evan-gray @kev1n-peters
-/sdk/js/ @evan-gray @kev1n-peters @barnjamin @panoel
+/sdk/js/ @evan-gray @kev1n-peters @panoel
 /sdk/rust/ @a5-pickle
 /sdk/vaa/ @bruce-riley @SEJeff
 /spydk/ @evan-gray
@@ -62,7 +62,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @bruce-riley @claudijd @SEJeff @djb15
+/node/pkg/governor/ @bruce-riley @claudijd @SEJeff @djb15 @johnsaigle
 
 ## Gateway Relayer
 
@@ -94,4 +94,4 @@
 
 ## Documentation
 
-/docs @evan-gray @barnjamin @SEJeff @bruce-riley
+/docs @evan-gray @SEJeff @bruce-riley

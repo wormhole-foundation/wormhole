@@ -1,14 +1,14 @@
-import {
-  CHAINS,
-  ChainName,
-  assertChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { relayer, Network } from "@certusone/wormhole-sdk";
-import yargs, { string } from "yargs";
-import { CONTRACTS, NETWORKS } from "../consts";
-import { assertNetwork } from "../utils";
-import { impossible } from "../vaa";
+import yargs from "yargs";
 import { ethers } from "ethers";
+import { NETWORKS } from "../consts";
+import { chainToChain, getNetwork } from "../utils";
+import {
+  Chain,
+  assertChain,
+  chainToChainId,
+  contracts,
+} from "@wormhole-foundation/sdk-base";
+import { ChainName, relayer, toChainName } from "@certusone/wormhole-sdk";
 
 export const command = "status <network> <chain> <tx>";
 export const desc =
@@ -21,8 +21,9 @@ export const builder = (y: typeof yargs) =>
       demandOption: true,
     } as const)
     .positional("chain", {
-      describe: "Source chain",
-      choices: Object.keys(CHAINS) as ChainName[],
+      describe:
+        "Source chain. To see a list of supported chains, run `worm chains`",
+      type: "string",
       demandOption: true,
     } as const)
     .positional("tx", {
@@ -33,31 +34,34 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const network = argv.network.toUpperCase();
-  assertNetwork(network);
-  const chain = argv.chain;
+  const network = getNetwork(argv.network);
+  const chain = chainToChain(argv.chain);
   assertChain(chain);
 
-  const addr =
-    relayer.RELAYER_CONTRACTS[network][chain]?.wormholeRelayerAddress;
+  const addr = contracts.relayer.get(network, chain);
   if (!addr) {
     throw new Error(`Wormhole Relayer not deployed on ${chain} in ${network}`);
   }
 
-  const sourceRPC = NETWORKS[network as Network][chain as ChainName].rpc;
+  const sourceRPC = NETWORKS[network][chain].rpc;
   const sourceChainProvider = new ethers.providers.JsonRpcProvider(sourceRPC);
   const targetChainProviders = new Map<ChainName, ethers.providers.Provider>();
   for (const key in NETWORKS[network]) {
     targetChainProviders.set(
-      key as ChainName,
-      new ethers.providers.JsonRpcProvider(
-        NETWORKS[network as Network][key as ChainName].rpc
-      )
+      toChainName(chainToChainId(key as Chain)),
+      new ethers.providers.JsonRpcProvider(NETWORKS[network][key as Chain].rpc)
     );
   }
 
-  const info = await relayer.getWormholeRelayerInfo(chain, argv.tx, {
-    environment: network,
+  // TODO: Convert this over to sdkv2
+  const v1ChainName = toChainName(chainToChainId(chain));
+  const info = await relayer.getWormholeRelayerInfo(v1ChainName, argv.tx, {
+    environment:
+      network === "Devnet"
+        ? "DEVNET"
+        : network === "Testnet"
+        ? "TESTNET"
+        : "MAINNET",
     sourceChainProvider,
     targetChainProviders,
   });

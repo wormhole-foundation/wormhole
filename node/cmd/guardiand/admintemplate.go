@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -1214,7 +1215,7 @@ func parseAddress(s string) (string, error) {
 
 func leftPadAddress(a []byte) (string, error) {
 	if len(a) > 32 {
-		return "", fmt.Errorf("address longer than 32 bytes")
+		return "", errors.New("address longer than 32 bytes")
 	}
 	return hex.EncodeToString(common.LeftPadBytes(a, 32)), nil
 }
@@ -1246,7 +1247,7 @@ func isValidUint256(s string) (bool, error) {
 
 	// Check if i is within the range [0, 2^256 - 1]
 	if i.Cmp(big.NewInt(0)) < 0 || i.Cmp(upperLimit) > 0 {
-		return false, fmt.Errorf("value is not a valid uint256")
+		return false, errors.New("value is not a valid uint256")
 	}
 
 	return true, nil

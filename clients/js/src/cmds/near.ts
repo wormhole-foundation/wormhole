@@ -4,8 +4,9 @@ import { Account, KeyPair, connect } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 import { parseSeedPhrase } from "near-seed-phrase";
 import yargs from "yargs";
-import { CONTRACTS, NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
-import { assertNetwork } from "../utils";
+import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
+import { contracts } from "@wormhole-foundation/sdk-base";
+import { getNetwork } from "../utils";
 
 // Near utilities
 export const command = "near";
@@ -55,14 +56,12 @@ export const builder = function (y: typeof yargs) {
           demandOption: true,
         }),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const contracts = CONTRACTS[network].near;
+        const network = getNetwork(argv.network);
         const {
           rpc: defaultRpc,
           key: defaultKey,
           networkId,
-        } = NETWORKS[network].near;
+        } = NETWORKS[network].Near;
 
         const key =
           argv.key ??
@@ -80,12 +79,12 @@ export const builder = function (y: typeof yargs) {
         let target = argv.target;
         if (!argv.target && argv.module) {
           if (argv.module === "Core") {
-            target = contracts.core;
+            target = contracts.coreBridge(network, "Near");
             console.log("Setting target to core");
           }
 
           if (argv.module === "TokenBridge") {
-            target = contracts.token_bridge;
+            target = contracts.tokenBridge(network, "Near");
             console.log("Setting target to token_bridge");
           }
         }
@@ -125,14 +124,12 @@ export const builder = function (y: typeof yargs) {
           demandOption: true,
         }),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const contracts = CONTRACTS[network].near;
+        const network = getNetwork(argv.network);
         const {
           rpc: defaultRpc,
           key: defaultKey,
           networkId,
-        } = NETWORKS[network].near;
+        } = NETWORKS[network].Near;
 
         const key =
           argv.key ??
@@ -150,12 +147,12 @@ export const builder = function (y: typeof yargs) {
         let target = argv.target;
         if (!argv.target && argv.module) {
           if (argv.module === "Core") {
-            target = contracts.core;
+            target = contracts.coreBridge(network, "Near");
             console.log("Setting target to core");
           }
 
           if (argv.module === "TokenBridge") {
-            target = contracts.token_bridge;
+            target = contracts.tokenBridge(network, "Near");
             console.log("Setting target to token_bridge");
           }
         }

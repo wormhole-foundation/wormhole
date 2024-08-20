@@ -39,13 +39,32 @@ type GuardianOption struct {
 
 // GuardianOptionP2P configures p2p networking.
 // Dependencies: Accountant, Governor
-func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, nodeName string, disableHeartbeatVerify bool, port uint, ccqBootstrapPeers string, ccqPort uint, ccqAllowedPeers, gossipAdvertiseAddress string, ibcFeaturesFunc func() string) *GuardianOption {
+func GuardianOptionP2P(
+	p2pKey libp2p_crypto.PrivKey,
+	networkId string,
+	bootstrapPeers string,
+	nodeName string,
+	subscribeToVAAs bool,
+	disableHeartbeatVerify bool,
+	port uint,
+	ccqBootstrapPeers string,
+	ccqPort uint,
+	ccqAllowedPeers string,
+	gossipAdvertiseAddress string,
+	ibcFeaturesFunc func() string,
+) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
 		dependencies: []string{"accountant", "governor", "gateway-relayer"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
+
+			var signedInC chan<- *gossipv1.SignedVAAWithQuorum
+			if subscribeToVAAs {
+				logger.Info("subscribing to incoming signed VAAs")
+				signedInC = g.signedInC.writeC
+			}
 
 			if g.env == common.GoTest {
 				components.WarnChannelOverflow = true
@@ -65,9 +84,12 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 					nodeName,
 					g.gk,
 					g.obsvC,
-					g.signedInC.writeC,
+					g.batchObsvC.writeC,
+					signedInC,
 					g.obsvReqC.writeC,
-					g.gossipSendC,
+					g.gossipControlSendC,
+					g.gossipAttestationSendC,
+					g.gossipVaaSendC,
 					g.obsvReqSendC.readC,
 					g.acct,
 					g.gov,
@@ -195,14 +217,18 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
-				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env)
+				if flowCancelEnabled {
+					logger.Info("chain governor is enabled with flow cancel enabled")
+				} else {
+					logger.Info("chain governor is enabled without flow cancel")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled)
 			} else {
 				logger.Info("chain governor is disabled")
 			}
@@ -548,7 +574,7 @@ func GuardianOptionDatabase(db *db.Database) *GuardianOption {
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: db, governor, accountant
-func GuardianOptionProcessor() *GuardianOption {
+func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
@@ -560,8 +586,10 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.db,
 				g.msgC.readC,
 				g.setC.readC,
-				g.gossipSendC,
+				g.gossipAttestationSendC,
+				g.gossipVaaSendC,
 				g.obsvC,
+				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.gk,
@@ -570,6 +598,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.acct,
 				g.acctC.readC,
 				g.gatewayRelayer,
+				networkId,
 			).Run
 
 			return nil

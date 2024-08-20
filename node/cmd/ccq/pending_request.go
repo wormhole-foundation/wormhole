@@ -16,6 +16,12 @@ type PendingResponse struct {
 	queryRequest *query.QueryRequest
 	ch           chan *SignedResponse
 	errCh        chan *ErrorEntry
+
+	// statsLock protects the data items below.
+	statsLock            sync.RWMutex
+	maxMatchingResponses int
+	outstandingResponses int
+	quorum               int
 }
 
 type ErrorEntry struct {
@@ -110,4 +116,18 @@ func (p *PendingResponses) updateMetricsAlreadyLocked(reqRemoved *PendingRespons
 			maxConcurrentQueriesByChain.WithLabelValues(chainId.String()).Set(count)
 		}
 	}
+}
+
+func (p *PendingResponse) updateStats(maxMatchingResponses int, outstandingResponses int, quorum int) {
+	p.statsLock.Lock()
+	defer p.statsLock.Unlock()
+	p.maxMatchingResponses = maxMatchingResponses
+	p.outstandingResponses = outstandingResponses
+	p.quorum = quorum
+}
+
+func (p *PendingResponse) getStats() (int, int, int) {
+	p.statsLock.Lock()
+	defer p.statsLock.Unlock()
+	return p.maxMatchingResponses, p.outstandingResponses, p.quorum
 }
