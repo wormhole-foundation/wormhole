@@ -12,7 +12,7 @@
     "@solana/web3.js": "^1.53.0",
     "byteify": "^2.0.10",
     "camelcase": "^7.0.0",
-    "elliptic": "^6.5.4",
+    "elliptic": "^6.5.7",
     "keccak256": "^1.0.6"
   },
   "devDependencies": {
