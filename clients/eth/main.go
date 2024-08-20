@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -183,7 +184,7 @@ func getTransactor(ethC *ethclient.Client) (*abi.AbiTransactor, error) {
 	addr := common.HexToAddress(contractAddress)
 	emptyAddr := common.Address{}
 	if addr == emptyAddr {
-		return nil, fmt.Errorf("invalid contract address")
+		return nil, errors.New("invalid contract address")
 	}
 
 	t, err := abi.NewAbiTransactor(addr, ethC)
@@ -196,7 +197,7 @@ func getTransactor(ethC *ethclient.Client) (*abi.AbiTransactor, error) {
 
 func getGovernanceVaaAction(payload []byte) (uint8, error) {
 	if len(payload) < 32+2+1 {
-		return 0, fmt.Errorf("VAA payload does not contain a governance header")
+		return 0, errors.New("VAA payload does not contain a governance header")
 	}
 
 	return payload[32], nil

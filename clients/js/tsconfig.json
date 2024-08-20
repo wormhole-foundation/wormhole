@@ -6,6 +6,7 @@
     "outDir": "./build",
     "moduleResolution": "node",
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true
   },

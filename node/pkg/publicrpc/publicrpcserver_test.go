@@ -69,7 +69,7 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 func TestGovernorIsVAAEnqueuedNoMessage(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewProduction()
-	gov := governor.NewChainGovernor(logger, nil, common.GoTest)
+	gov := governor.NewChainGovernor(logger, nil, common.GoTest, false)
 	server := &PublicrpcServer{logger: logger, gov: gov}
 
 	// A message without the messageId set should not panic but return an error instead.

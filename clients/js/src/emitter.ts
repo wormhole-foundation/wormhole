@@ -1,31 +1,35 @@
 import {
+  Chain,
   ChainId,
-  ChainName,
-  isCosmWasmChain,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+  chainToPlatform,
+  toChain,
+} from "@wormhole-foundation/sdk-base";
+import { decodeAddress, getApplicationAddress } from "algosdk";
+import { uint8ArrayToHex } from "./sdk/array";
+import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
+import { bech32 } from "bech32";
+import { PublicKey } from "@solana/web3.js";
 
-import {
-  getEmitterAddressAlgorand,
-  getEmitterAddressEth,
-  getEmitterAddressNear,
-  getEmitterAddressSolana,
-  getEmitterAddressTerra,
-} from "@certusone/wormhole-sdk/lib/esm/bridge/getEmitterAddress";
-
-export async function getEmitterAddress(
-  chain: ChainId | ChainName,
-  addr: string
-) {
-  if (chain === "solana" || chain === "pythnet") {
-    // TODO: Create an isSolanaChain()
-    addr = getEmitterAddressSolana(addr);
-  } else if (isCosmWasmChain(chain)) {
-    addr = await getEmitterAddressTerra(addr);
-  } else if (chain === "algorand") {
-    addr = getEmitterAddressAlgorand(BigInt(addr));
-  } else if (chain === "near") {
-    addr = getEmitterAddressNear(addr);
-  } else if (chain === "aptos") {
+export async function getEmitterAddress(chain: ChainId | Chain, addr: string) {
+  const localChain = toChain(chain);
+  if (chainToPlatform(localChain) === "Solana") {
+    const seeds = [Buffer.from("emitter")];
+    const programAddr = PublicKey.findProgramAddressSync(
+      seeds,
+      new PublicKey(addr)
+    )[0];
+    addr = programAddr.toBuffer().toString("hex");
+  } else if (chainToPlatform(localChain) === "Cosmwasm") {
+    addr = Buffer.from(
+      zeroPad(bech32.fromWords(bech32.decode(addr).words), 32)
+    ).toString("hex");
+  } else if (localChain === "Algorand") {
+    const appAddr: string = getApplicationAddress(BigInt(addr));
+    const decAppAddr: Uint8Array = decodeAddress(appAddr).publicKey;
+    addr = uint8ArrayToHex(decAppAddr);
+  } else if (localChain === "Near") {
+    addr = uint8ArrayToHex(arrayify(sha256(Buffer.from(addr, "utf8"))));
+  } else if (localChain === "Aptos") {
     // TODO: There should be something in the SDK to do this.
     if (
       addr ===
@@ -42,7 +46,7 @@ export async function getEmitterAddress(
     } else {
       throw Error(`Unsupported Aptos address: ${addr}`);
     }
-  } else if (chain === "sui") {
+  } else if (localChain === "Sui") {
     // TODO: There should be something in the SDK to do this.
     if (
       addr ===
@@ -61,7 +65,8 @@ export async function getEmitterAddress(
       throw Error(`Unsupported Sui address: ${addr}`);
     }
   } else {
-    addr = getEmitterAddressEth(addr);
+    // This is the Eth version
+    addr = Buffer.from(zeroPad(arrayify(addr), 32)).toString("hex");
   }
 
   return addr;

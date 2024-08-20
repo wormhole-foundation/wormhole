@@ -535,21 +535,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// Transaction was dropped and never picked up again
-					if pLock.height+MaxWaitConfirmations <= blockNumberU {
-						logger.Info("observation timed out",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.Stringer("txHash", pLock.message.TxHash),
-							zap.Stringer("blockHash", key.BlockHash),
-							zap.Stringer("current_blockNum", ev.Number),
-							zap.Stringer("finality", ev.Finality),
-							zap.Stringer("current_blockHash", currentHash),
-						)
-						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
-						delete(w.pending, key)
-						continue
-					}
-
 					// Transaction is now ready
 					if pLock.height <= blockNumberU {
 						msm := time.Now()
@@ -599,14 +584,29 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 						// Any error other than "not found" is likely transient - we retry next block.
 						if err != nil {
-							logger.Warn("transaction could not be fetched",
-								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
-								zap.Stringer("blockHash", key.BlockHash),
-								zap.Stringer("current_blockNum", ev.Number),
-								zap.Stringer("finality", ev.Finality),
-								zap.Stringer("current_blockHash", currentHash),
-								zap.Error(err))
+							if pLock.height+MaxWaitConfirmations <= blockNumberU {
+								// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
+								logger.Info("observation timed out",
+									zap.String("msgId", pLock.message.MessageIDString()),
+									zap.Stringer("txHash", pLock.message.TxHash),
+									zap.Stringer("blockHash", key.BlockHash),
+									zap.Uint64("target_blockNum", pLock.height),
+									zap.Stringer("current_blockNum", ev.Number),
+									zap.Stringer("finality", ev.Finality),
+									zap.Stringer("current_blockHash", currentHash),
+								)
+								ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
+								delete(w.pending, key)
+							} else {
+								logger.Warn("transaction could not be fetched",
+									zap.String("msgId", pLock.message.MessageIDString()),
+									zap.Stringer("txHash", pLock.message.TxHash),
+									zap.Stringer("blockHash", key.BlockHash),
+									zap.Stringer("current_blockNum", ev.Number),
+									zap.Stringer("finality", ev.Finality),
+									zap.Stringer("current_blockHash", currentHash),
+									zap.Error(err))
+							}
 							continue
 						}
 
@@ -739,6 +739,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDOptimism ||
 		w.chainID == vaa.ChainIDOptimismSepolia ||
 		w.chainID == vaa.ChainIDSepolia ||
+		w.chainID == vaa.ChainIDSnaxchain ||
 		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
@@ -858,6 +859,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.String("msgId", message.MessageIDString()),
 			zap.Stringer("txHash", message.TxHash),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
+			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 			zap.Stringer("blockHash", ev.Raw.BlockHash),
 			zap.Uint64("blockTime", blockTime),
 			zap.Uint32("Nonce", ev.Nonce),
@@ -873,6 +875,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 		zap.String("msgId", message.MessageIDString()),
 		zap.Stringer("txHash", message.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint64("blockTime", blockTime),
 		zap.Uint32("Nonce", ev.Nonce),
@@ -914,6 +917,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 		zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 		zap.Stringer("txHash", ev.Raw.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint32("Nonce", ev.Nonce),
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),

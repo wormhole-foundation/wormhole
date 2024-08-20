@@ -149,7 +149,6 @@ var (
 	aptosHandle  *string
 
 	suiRPC           *string
-	suiWS            *string
 	suiMoveEventType *string
 
 	solanaRPC *string
@@ -186,6 +185,9 @@ var (
 
 	berachainRPC      *string
 	berachainContract *string
+
+	snaxchainRPC      *string
+	snaxchainContract *string
 
 	sepoliaRPC      *string
 	sepoliaContract *string
@@ -229,7 +231,8 @@ var (
 	// Prometheus remote write URL
 	promRemoteURL *string
 
-	chainGovernorEnabled *bool
+	chainGovernorEnabled      *bool
+	governorFlowCancelEnabled *bool
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
@@ -247,6 +250,8 @@ var (
 
 	// env is the mode we are running in, Mainnet, Testnet or UnsafeDevnet.
 	env common.Environment
+
+	subscribeToVAAs *bool
 )
 
 func init() {
@@ -350,7 +355,6 @@ func init() {
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
-	suiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiWS", "Sui WS URL", "ws://sui:9000", []string{"ws", "wss"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
@@ -390,6 +394,9 @@ func init() {
 
 	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
+
+	snaxchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	snaxchainContract = NodeCmd.Flags().String("snaxchainContract", "", "Snaxchain contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -431,6 +438,7 @@ func init() {
 	promRemoteURL = NodeCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
@@ -443,6 +451,8 @@ func init() {
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
 	gatewayRelayerKeyPassPhrase = NodeCmd.Flags().String("gatewayRelayerKeyPassPhrase", "", "Pass phrase used to unarmor the gateway relayer key file")
+
+	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 }
 
 var (
@@ -534,6 +544,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	lvl, err := ipfslog.LevelFromString(*logLevel)
 	if err != nil {
 		fmt.Println("Invalid log level")
+		os.Exit(1)
+	}
+
+	if !(*chainGovernorEnabled) && *governorFlowCancelEnabled {
+		fmt.Println("Flow cancel can only be enabled when the governor is enabled")
 		os.Exit(1)
 	}
 
@@ -648,6 +663,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
+	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -707,8 +723,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
 
-	if !argsConsistent([]string{*suiRPC, *suiWS, *suiMoveEventType}) {
-		logger.Fatal("Either --suiRPC, --suiWS and --suiMoveEventType must all be set or all unset")
+	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
+		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
@@ -852,8 +868,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
+	rpcMap["snaxchainRPC"] = *snaxchainRPC
 	rpcMap["suiRPC"] = *suiRPC
-	rpcMap["suiWS"] = *suiWS
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
@@ -1320,6 +1336,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(snaxchainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "snaxchain",
+			ChainID:          vaa.ChainIDSnaxchain,
+			Rpc:              *snaxchainRPC,
+			Contract:         *snaxchainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1407,7 +1435,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			NetworkID:        "sui",
 			ChainID:          vaa.ChainIDSui,
 			Rpc:              *suiRPC,
-			Websocket:        *suiWS,
 			SuiMoveEventType: *suiMoveEventType,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1559,13 +1586,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
-		node.GuardianOptionGovernor(*chainGovernorEnabled),
+		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
-		node.GuardianOptionProcessor(),
+		node.GuardianOptionProcessor(*p2pNetworkID),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {

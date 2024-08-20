@@ -166,3 +166,17 @@ func (lhs Block) Cmp(rhs Block) int {
 
 	return 0
 }
+
+// GetRange returns the range covered by the cache for debugging purposes.
+func (bts *BlocksByTimestamp) GetRange() (firstBlockNum, firstBlockTime, lastBlockNum, lastBlockTime uint64) {
+	bts.mutex.Lock()
+	defer bts.mutex.Unlock()
+
+	l := len(bts.cache)
+	if l <= 0 {
+		return 0, 0, 0, 0
+	}
+
+	l = l - 1
+	return bts.cache[0].BlockNum, bts.cache[0].Timestamp, bts.cache[l].BlockNum, bts.cache[l].Timestamp
+}

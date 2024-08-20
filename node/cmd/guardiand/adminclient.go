@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -238,7 +239,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 	guardianKeyPath := args[0]
 	wormchainAddress := args[1]
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
-		return fmt.Errorf("must provide a bech32 address that has 'wormhole' prefix")
+		return errors.New("must provide a bech32 address that has 'wormhole' prefix")
 	}
 	gk, err := common.LoadGuardianKey(guardianKeyPath, *unsafeDevnetMode)
 	if err != nil {
