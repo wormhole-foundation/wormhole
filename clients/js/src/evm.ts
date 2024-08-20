@@ -5,20 +5,10 @@ import {
   NFTBridgeImplementation__factory,
 } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
 import { WormholeRelayer__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-relayer-contracts";
-import { getWormholeRelayerAddress } from "@certusone/wormhole-sdk/lib/esm/relayer";
-import {
-  CHAINS,
-  CONTRACTS,
-  ChainName,
-  Contracts,
-  EVMChainName,
-  toChainId,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import axios from "axios";
 import { ethers } from "ethers";
 import { solidityKeccak256 } from "ethers/lib/utils";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { Encoding, Payload, encode, impossible, typeWidth } from "./vaa";
 import {
   approveEth,
@@ -26,14 +16,22 @@ import {
   transferFromEth,
   transferFromEthNative,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  Chain,
+  Network,
+  PlatformToChains,
+  chainToChainId,
+  chains,
+  contracts,
+} from "@wormhole-foundation/sdk-base";
+import { tryNativeToUint8Array } from "./sdk/array";
 
 const _IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 export async function query_contract_evm(
   network: Network,
-  chain: EVMChainName,
+  chain: PlatformToChains<"Evm">,
   module: "Core" | "NFTBridge" | "TokenBridge",
   contract_address: string | undefined,
   _rpc: string | undefined
@@ -44,12 +42,13 @@ export async function query_contract_evm(
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  const contracts: Contracts = CONTRACTS[network][chain];
   const provider = new ethers.providers.JsonRpcProvider(rpc);
   const result: any = {};
   switch (module) {
     case "Core":
-      contract_address = contract_address ? contract_address : contracts.core;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.coreBridge.get(network, chain);
       if (!contract_address) {
         throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
@@ -105,7 +104,7 @@ export async function query_contract_evm(
     case "TokenBridge":
       contract_address = contract_address
         ? contract_address
-        : contracts.token_bridge;
+        : contracts.tokenBridge.get(network, chain);
       if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
@@ -115,11 +114,11 @@ export async function query_contract_evm(
       );
       result.address = contract_address;
       const registrationsPromise = Promise.all(
-        Object.entries(CHAINS)
-          .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-          .map(async ([c_name, c_id]) => [
+        chains
+          .filter((c_name) => c_name !== chain)
+          .map(async (c_name) => [
             c_name,
-            await tb.bridgeContracts(c_id),
+            await tb.bridgeContracts(chainToChainId(c_name)),
           ])
       );
       const [
@@ -167,7 +166,7 @@ export async function query_contract_evm(
     case "NFTBridge":
       contract_address = contract_address
         ? contract_address
-        : contracts.nft_bridge;
+        : contracts.nftBridge.get(network, chain);
       if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`);
       }
@@ -177,11 +176,11 @@ export async function query_contract_evm(
       );
       result.address = contract_address;
       const registrationsPromiseNb = Promise.all(
-        Object.entries(CHAINS)
-          .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-          .map(async ([c_name, c_id]) => [
+        chains
+          .filter(([c_name, _]) => c_name !== chain)
+          .map(async (c_name) => [
             c_name,
-            await nb.bridgeContracts(c_id),
+            await nb.bridgeContracts(chainToChainId(c_name)),
           ])
       );
       const [
@@ -232,7 +231,7 @@ export async function query_contract_evm(
 
 export async function getImplementation(
   network: Network,
-  chain: EVMChainName,
+  chain: PlatformToChains<"Evm">,
   module: "Core" | "NFTBridge" | "TokenBridge",
   contract_address: string | undefined,
   _rpc: string | undefined
@@ -243,20 +242,21 @@ export async function getImplementation(
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  const contracts: Contracts = CONTRACTS[network][chain];
   switch (module) {
     case "Core":
-      contract_address = contract_address ? contract_address : contracts.core;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.coreBridge.get(network, chain);
       break;
     case "TokenBridge":
       contract_address = contract_address
         ? contract_address
-        : contracts.token_bridge;
+        : contracts.tokenBridge.get(network, chain);
       break;
     case "NFTBridge":
       contract_address = contract_address
         ? contract_address
-        : contracts.nft_bridge;
+        : contracts.nftBridge.get(network, chain);
       break;
     default:
       impossible(module);
@@ -271,10 +271,14 @@ export async function getImplementation(
   )[0];
 }
 
-async function getSigner(chain: EVMChainName, key: string, rpc: string) {
+async function getSigner(
+  chain: PlatformToChains<"Evm">,
+  key: string,
+  rpc: string
+) {
   let provider: ethers.providers.JsonRpcProvider;
   let signer: ethers.Wallet;
-  if (chain === "celo") {
+  if (chain === "Celo") {
     provider = new celo.CeloProvider(rpc);
     await provider.ready;
     signer = new celo.CeloWallet(key, provider);
@@ -286,15 +290,15 @@ async function getSigner(chain: EVMChainName, key: string, rpc: string) {
   // NOTE: some of these might have only been tested on mainnet. If it fails in
   // testnet (or devnet), they might require additional guards
   let overrides: ethers.Overrides = {};
-  if (chain === "karura" || chain == "acala") {
+  if (chain === "Karura" || chain == "Acala") {
     overrides = await getKaruraGasParams(rpc);
-  } else if (chain === "polygon") {
+  } else if (chain === "Polygon") {
     const feeData = await provider.getFeeData();
     overrides = {
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
-  } else if (chain === "klaytn" || chain === "fantom") {
+  } else if (chain === "Klaytn" || chain === "Fantom") {
     overrides = { gasPrice: (await signer.getGasPrice()).toString() };
   }
   return {
@@ -308,7 +312,7 @@ export async function execute_evm(
   payload: Payload,
   vaa: Buffer,
   network: Network,
-  chain: EVMChainName,
+  chain: PlatformToChains<"Evm">,
   contract_address: string | undefined,
   _rpc: string | undefined
 ) {
@@ -323,12 +327,14 @@ export async function execute_evm(
   }
 
   const key: string = n.key;
-  const contracts: Contracts = CONTRACTS[network][chain];
+  // const contracts: Contracts = CONTRACTS[network][chain];
   const { signer, overrides } = await getSigner(chain, key, rpc);
 
   switch (payload.module) {
     case "Core": {
-      contract_address = contract_address ? contract_address : contracts.core;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.coreBridge.get(network, chain);
       if (contract_address === undefined) {
         throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
@@ -362,7 +368,7 @@ export async function execute_evm(
     case "NFTBridge": {
       contract_address = contract_address
         ? contract_address
-        : contracts.nft_bridge;
+        : contracts.nftBridge.get(network, chain);
       if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`);
       }
@@ -401,7 +407,7 @@ export async function execute_evm(
     case "TokenBridge": {
       contract_address = contract_address
         ? contract_address
-        : contracts.token_bridge;
+        : contracts.tokenBridge.get(network, chain);
       if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
@@ -451,7 +457,7 @@ export async function execute_evm(
     case "WormholeRelayer":
       contract_address = contract_address
         ? contract_address
-        : getWormholeRelayerAddress(chain, network);
+        : contracts.relayer.get(network, chain);
       if (contract_address === undefined) {
         throw Error(
           `Unknown Wormhole Relayer contract on ${network} for ${chain}`
@@ -493,8 +499,8 @@ export async function execute_evm(
 }
 
 export async function transferEVM(
-  srcChain: EVMChainName,
-  dstChain: ChainName,
+  srcChain: PlatformToChains<"Evm">,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -505,7 +511,7 @@ export async function transferEVM(
   if (!n.key) {
     throw Error(`No ${network} key defined for ${srcChain} (see networks.ts)`);
   }
-  const { token_bridge } = CONTRACTS[network][srcChain];
+  const token_bridge = contracts.tokenBridge.get(network, srcChain);
   if (!token_bridge) {
     throw Error(`Unknown token bridge contract on ${network} for ${srcChain}`);
   }
@@ -516,8 +522,8 @@ export async function transferEVM(
       token_bridge,
       signer,
       amount,
-      toChainId(dstChain),
-      tryNativeToUint8Array(dstAddress, dstChain)
+      chainToChainId(dstChain),
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
     );
   } else {
     const allowance = await getAllowanceEth(token_bridge, tokenAddress, signer);
@@ -529,8 +535,8 @@ export async function transferEVM(
       signer,
       tokenAddress,
       amount,
-      dstChain,
-      tryNativeToUint8Array(dstAddress, dstChain),
+      chainToChainId(dstChain),
+      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
       undefined,
       overrides
     );
@@ -828,11 +834,10 @@ const isUnsupportedError = (e: any): e is { reason: string } =>
 
 export async function queryRegistrationsEvm(
   network: Network,
-  chain: EVMChainName,
+  chain: PlatformToChains<"Evm">,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
   const n = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   let targetContract: string | undefined;
   let contract: any;
@@ -841,7 +846,7 @@ export async function queryRegistrationsEvm(
 
   switch (module) {
     case "TokenBridge":
-      targetContract = contracts.token_bridge;
+      targetContract = contracts.tokenBridge.get(network, chain);
       if (targetContract === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
@@ -851,7 +856,7 @@ export async function queryRegistrationsEvm(
       );
       break;
     case "NFTBridge":
-      targetContract = contracts.nft_bridge;
+      targetContract = contracts.nftBridge.get(network, chain);
       if (targetContract === undefined) {
         throw Error(`Unknown NFT bridge contract on ${network} for ${chain}`);
       }
@@ -865,9 +870,12 @@ export async function queryRegistrationsEvm(
   }
 
   const registrations: string[][] = await Promise.all(
-    Object.entries(CHAINS)
-      .filter(([cname, _]) => cname !== chain && cname !== "unset")
-      .map(async ([cname, cid]) => [cname, await contract.bridgeContracts(cid)])
+    chains
+      .filter((cname) => cname !== chain)
+      .map(async (cname) => [
+        cname,
+        await contract.bridgeContracts(chainToChainId(cname)),
+      ])
   );
 
   const results: { [key: string]: string } = {};

@@ -1,20 +1,3 @@
-import {
-  CHAIN_ID_ALGORAND,
-  CHAIN_ID_APTOS,
-  CHAIN_ID_INJECTIVE,
-  CHAIN_ID_NEAR,
-  CHAIN_ID_SEI,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_SUI,
-  CHAIN_ID_TERRA,
-  CHAIN_ID_TERRA2,
-  CHAIN_ID_XPLA,
-  ChainId,
-  ChainName,
-  EVMChainId,
-  EVMChainName,
-  coalesceChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import {
   Network as InjectiveNetwork,
@@ -32,104 +15,104 @@ import { ethers } from "ethers";
 import { connect } from "near-api-js";
 import { Provider as NearProvider } from "near-api-js/lib/providers";
 import { NETWORKS } from "../../consts";
-import { Network } from "../../utils";
 import { impossible } from "../../vaa";
+import {
+  Chain,
+  Network,
+  PlatformToChains,
+} from "@wormhole-foundation/sdk-base";
 
-export type ChainProvider<T extends ChainId | ChainName> = T extends
-  | "algorand"
-  | typeof CHAIN_ID_ALGORAND
+export type ChainProvider<T extends Chain> = T extends "Algorand"
   ? Algodv2
-  : T extends "aptos" | typeof CHAIN_ID_APTOS
+  : T extends "Aptos"
   ? AptosClient
-  : T extends EVMChainName | EVMChainId
+  : T extends PlatformToChains<"Evm">
   ? ethers.providers.JsonRpcProvider
-  : T extends "injective" | typeof CHAIN_ID_INJECTIVE
+  : T extends "Injective"
   ? ChainGrpcWasmApi
-  : T extends "near" | typeof CHAIN_ID_NEAR
+  : T extends "Near"
   ? Promise<NearProvider>
-  : T extends
-      | "terra"
-      | "terra2"
-      | typeof CHAIN_ID_TERRA
-      | typeof CHAIN_ID_TERRA2
+  : T extends "Terra" | "Terra2"
   ? TerraLCDClient
-  : T extends "sei" | typeof CHAIN_ID_SEI
+  : T extends "Sei"
   ? Promise<CosmWasmClient>
-  : T extends "solana" | typeof CHAIN_ID_SOLANA
+  : T extends "Solana"
   ? SolanaConnection
-  : T extends "sui" | typeof CHAIN_ID_SUI
+  : T extends "Sui"
   ? JsonRpcProvider
-  : T extends "xpla" | typeof CHAIN_ID_XPLA
+  : T extends "Xpla"
   ? XplaLCDClient
   : never;
 
-export const getProviderForChain = <T extends ChainId | ChainName>(
+export const getProviderForChain = <T extends Chain>(
   chain: T,
   network: Network,
   options?: { rpc?: string; [opt: string]: any }
 ): ChainProvider<T> => {
-  const chainName = coalesceChainName(chain);
-  const rpc = options?.rpc ?? NETWORKS[network][chainName].rpc;
+  const rpc = options?.rpc ?? NETWORKS[network][chain].rpc;
   if (!rpc) {
-    throw new Error(`No ${network} rpc defined for ${chainName}`);
+    throw new Error(`No ${network} rpc defined for ${chain}`);
   }
 
-  switch (chainName) {
-    case "unset":
-      throw new Error("Chain not set");
-    case "solana":
+  switch (chain) {
+    case "Solana":
       return new SolanaConnection(rpc, "confirmed") as ChainProvider<T>;
-    case "acala":
-    case "arbitrum":
-    case "aurora":
-    case "avalanche":
-    case "base":
-    case "bsc":
-    case "celo":
-    case "ethereum":
-    case "fantom":
-    case "gnosis":
-    case "karura":
-    case "klaytn":
-    case "moonbeam":
-    case "neon":
-    case "oasis":
-    case "optimism":
-    case "polygon":
-    // case "rootstock":
-    case "scroll":
-    case "mantle":
-    case "blast":
-    case "xlayer":
-    case "linea":
-    case "berachain":
-    case "seievm":
-    case "sepolia":
-    case "arbitrum_sepolia":
-    case "base_sepolia":
-    case "optimism_sepolia":
-    case "polygon_sepolia":
-    case "holesky":
+    case "Acala":
+    case "Arbitrum":
+    case "Aurora":
+    case "Avalanche":
+    case "Base":
+    case "Bsc":
+    case "Celo":
+    case "Ethereum":
+    case "Fantom":
+    case "Gnosis":
+    case "Karura":
+    case "Klaytn":
+    case "Moonbeam":
+    case "Neon":
+    case "Oasis":
+    case "Optimism":
+    case "Polygon":
+    // case "Rootstock":
+    case "Scroll":
+    case "Mantle":
+    case "Blast":
+    case "Xlayer":
+    case "Linea":
+    case "Berachain":
+    case "Snaxchain":
+    case "Seievm":
+    case "Sepolia":
+    case "ArbitrumSepolia":
+    case "BaseSepolia":
+    case "OptimismSepolia":
+    case "PolygonSepolia":
+    case "Holesky":
       return new ethers.providers.JsonRpcProvider(rpc) as ChainProvider<T>;
-    case "terra":
-    case "terra2":
+    case "Terra":
+    case "Terra2":
+      const chain_id =
+        chain === "Terra"
+          ? NETWORKS[network].Terra.chain_id
+          : NETWORKS[network].Terra2.chain_id;
       return new TerraLCDClient({
         URL: rpc,
-        chainID: NETWORKS[network][chainName].chain_id,
-        isClassic: chainName === "terra",
+        chainID: chain_id,
+        isClassic: chain === "Terra",
       }) as ChainProvider<T>;
-    case "injective": {
+    case "Injective": {
       const endpoints = getNetworkEndpoints(
-        network === "MAINNET"
+        network === "Mainnet"
           ? InjectiveNetwork.MainnetK8s
           : InjectiveNetwork.TestnetK8s
       );
       return new ChainGrpcWasmApi(endpoints.grpc) as ChainProvider<T>;
     }
-    case "sei":
+    case "Sei":
       return getCosmWasmClient(rpc) as ChainProvider<T>;
-    case "xpla": {
-      const chainId = NETWORKS[network].xpla.chain_id;
+    case "Xpla": {
+      const chainId = NETWORKS[network].Xpla.chain_id;
       if (!chainId) {
         throw new Error(`No ${network} chain ID defined for XPLA.`);
       }
@@ -139,7 +122,7 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
         chainID: chainId,
       }) as ChainProvider<T>;
     }
-    case "algorand": {
+    case "Algorand": {
       const { token, port } = {
         ...{
           token:
@@ -150,34 +133,34 @@ export const getProviderForChain = <T extends ChainId | ChainName>(
       };
       return new Algodv2(token, rpc, port) as ChainProvider<T>;
     }
-    case "near":
+    case "Near":
       return connect({
-        networkId: NETWORKS[network].near.networkId,
+        networkId: NETWORKS[network].Near.networkId,
         nodeUrl: rpc,
         headers: {},
       }).then(({ connection }) => connection.provider) as ChainProvider<T>;
-    case "aptos":
+    case "Aptos":
       return new AptosClient(rpc) as ChainProvider<T>;
-    case "sui":
+    case "Sui":
       return new JsonRpcProvider(
         new SuiConnection({ fullnode: rpc })
       ) as ChainProvider<T>;
-    case "btc":
-    case "osmosis":
-    case "pythnet":
-    case "wormchain":
-    case "cosmoshub":
-    case "evmos":
-    case "kujira":
-    case "neutron":
-    case "celestia":
-    case "stargaze":
-    case "seda":
-    case "dymension":
-    case "provenance":
-    case "rootstock":
-      throw new Error(`${chainName} not supported`);
+    case "Btc":
+    case "Osmosis":
+    case "Pythnet":
+    case "Wormchain":
+    case "Cosmoshub":
+    case "Evmos":
+    case "Kujira":
+    case "Neutron":
+    case "Celestia":
+    case "Stargaze":
+    case "Seda":
+    case "Dymension":
+    case "Provenance":
+    case "Rootstock":
+      throw new Error(`${chain} not supported`);
     default:
-      impossible(chainName);
+      impossible(chain);
   }
 };
