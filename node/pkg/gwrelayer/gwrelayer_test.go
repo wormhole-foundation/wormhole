@@ -180,3 +180,9 @@ func Test_shouldPublishToIbcTranslatorShouldIgnoreUnknownEmitter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, shouldPub)
 }
+
+func Test_canIgnoreFailure(t *testing.T) {
+	assert.True(t, canIgnoreFailure("failed to execute message; message index: 0: Generic error: VaaAlreadyExecuted: execute wasm contract failed"))
+	assert.True(t, canIgnoreFailure("failed to execute message; message index: 0: Generic error: this asset has already been attested: execute wasm contract failed"))
+	assert.False(t, canIgnoreFailure("failed to execute message; message index: 0: Generic error: some other failure: execute wasm contract failed"))
+}

@@ -16,7 +16,7 @@ pub const IBC_APP_VERSION: &str = "ibc-wormhole-v1";
 pub const PACKET_LIFETIME: u64 = 31_536_000;
 
 /// 1. Opening a channel. Step 1 of handshake. Combines ChanOpenInit and ChanOpenTry from the spec.
-/// The only valid action of the contract is to accept the channel or reject it.
+///    The only valid action of the contract is to accept the channel or reject it.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_channel_open(
     _deps: DepsMut,
@@ -71,7 +71,7 @@ pub fn ibc_channel_close(
 }
 
 /// 4. Receiving a packet.
-/// Never should be called as the other side never sends packets
+///    Never should be called as the other side never sends packets
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_receive(
     _deps: DepsMut,

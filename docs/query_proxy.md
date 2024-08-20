@@ -62,7 +62,6 @@ Optional Parameters
 
 - The `gossipAdvertiseAddress` argument allows you to specify an external IP to advertize on P2P (use if behind a NAT or running in k8s).
 - The `monitorPeers` flag will cause the proxy server to periodically check its connectivity to the P2P bootstrap peers, and attempt to reconnect if necessary.
-- The `allowAnything` flag enables defining users with the `allowAnything` flag set to true. This is only allowed in testnet and devnet.
 
 #### Creating the Signing Key File
 
@@ -96,6 +95,9 @@ The simplest file would look something like this
 
 ```json
 {
+  "allowAnythingSupported": false,
+  "defaultRateLimit": 0.5,
+  "defaultBurstSize": 1,
   "permissions": [
     {
       "userName": "Monitor",
@@ -143,6 +145,11 @@ The following are the Solana call types. Both require the `chain` parameter plus
 
 The Solana account and and program address can be expressed as either a 32 byte hex string starting with "0x" or as a base 58 value.
 
+#### Wild Card Contract Addresses
+
+For the eth calls, the `contractAddress` field may be set to `"*"` which means the specified call type and call may be made to any
+contract address on the specified chain.
+
 #### Creating New API Keys
 
 Each user must have an API key. These keys only have meaning to the proxy server. They are not passed to the guardians.
@@ -157,8 +164,10 @@ as soon as you save the file, the changes will be picked up (whether they are lo
 
 #### The `allowAnything` flag
 
+The `allowAnything` flag may only be specified for a user if you are running in testnet and the `allowAnythingSupported` flag in the
+permissions file is set to true.
+
 If this flag is specified for a user, then that user may make any call on any supported chain, without restriction.
-This flag is only allowed if the `allowAnything` command line argument is specified.
 If this flag is specified, then `allowedCalls` must not be specified.
 
 ```json
@@ -173,6 +182,40 @@ If this flag is specified, then `allowedCalls` must not be specified.
   ]
 }
 ```
+
+### Rate Limiting
+
+The query proxy server supports rate limiting by specifying two parameters. The rate limit, which is a floating point value, and the burst size,
+which is an int. See [here](https://pkg.go.dev/golang.org/x/time/rate#Limiter) for a description of how the rate limiter works.
+
+Note that if the rate limits are not specified, or the rate is set to zero, rate limiting will be disabled, allowing unlimited queries per second. The burst size only has meaning if the rate limit is specified. It defaults to one, and zero is not a valid value.
+
+The rate limits may be specified at either of two levels.
+
+First, you may specify global defaults for rate limiting by specifying the `defaultRateLimit` and `defaultBurstSize` parameters
+in the permissions file. If these parameters are specified, they apply to all users for which per-user parameters are not specified.
+This means that each of these users will be allowed that many queries per second.
+
+Second, you may override the global defaults for a given user by specifying `rateLimit` and `burstSize` for that user. Also note that
+you can disable rate limits for a given user (overriding the default) by setting their `rateLimit` to zero.
+
+### Validating Permissions File Changes
+
+The query server automatically detects changes to the permissions file and attempts to reload them. If there are errors in the updated
+file, the server rejects the update and continues running on the old version. However, if the file is not fixed, those errors will prevent
+the server from coming up on the next restart. You can avoid this problem by verifying any file updates before attempting to reload.
+
+To do this, you can copy the permissions file to some other file, make your changes to the copy, and then do the following:
+
+```sh
+$ guardiand query-server --env mainnet --verifyPermissions --permFile new.permissions.file.json
+```
+
+where the `--env` flag should be either `mainnet` or `testnet` and `new.permissions.file.json` is the path to the updated file.
+If the updated file is good, the program will exit immediately with no output and an exit code of zero. If the file contains
+errors, the first error will be printed, and the exit code will be one.
+
+Once you are satisfied with your updates, you can copy the updated file to the official location.
 
 ## Telemetry
 

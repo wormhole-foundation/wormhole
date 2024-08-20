@@ -12,6 +12,9 @@ crate-type = ["cdylib", "rlib"]
 backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query/reply exports
 library = []
+cosmwasm_1_2 = ["cosmwasm-std/cosmwasm_1_2"]
+stargate = ["cosmwasm-std/stargate"]
+staking = ["cosmwasm-std/staking"]
 
 [dependencies]
 anybuf = "0.1.0"

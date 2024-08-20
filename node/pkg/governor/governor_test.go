@@ -185,6 +185,21 @@ func TestTrimEmptyTransfers(t *testing.T) {
 	assert.Equal(t, 0, len(updatedTransfers))
 }
 
+// Make sure that the code doesn't panic if called with a nil chainEntry
+func TestTrimAndSumValueForChainReturnsErrorForNilChainEntry(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+	require.NoError(t, err)
+
+	sum, err := gov.TrimAndSumValueForChain(nil, now)
+	require.Error(t, err)
+	assert.Equal(t, uint64(0), sum)
+}
+
 func TestSumAllFromToday(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
@@ -283,6 +298,51 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	assert.Equal(t, difference, usage)
 }
 
+func TestFlowCancelFeatureFlag(t *testing.T) {
+
+	ctx := context.Background()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(zap.NewNop(), &db, common.GoTest, true)
+
+	// Trigger the evaluation of the flow cancelling config
+	err := gov.Run(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// Test private bool
+	assert.True(t, gov.flowCancelEnabled)
+	// Test public getter
+	assert.True(t, gov.IsFlowCancelEnabled())
+	numFlowCancelling := 0
+	for _, tokenEntry := range gov.tokens {
+		if tokenEntry.flowCancels == true {
+			numFlowCancelling++
+		}
+	}
+	assert.NotZero(t, numFlowCancelling)
+
+	// Disable flow cancelling
+	gov = NewChainGovernor(zap.NewNop(), &db, common.GoTest, false)
+
+	// Trigger the evaluation of the flow cancelling config
+	err = gov.Run(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// Test private bool
+	assert.False(t, gov.flowCancelEnabled)
+	// Test public getter
+	assert.False(t, gov.IsFlowCancelEnabled())
+	numFlowCancelling = 0
+	for _, tokenEntry := range gov.tokens {
+		if tokenEntry.flowCancels == true {
+			numFlowCancelling++
+		}
+	}
+	assert.Zero(t, numFlowCancelling)
+
+}
+
 // Flow cancelling transfers are subtracted from the overall sum of all transfers from a given
 // emitter chain. Since we are working with uint64 values, ensure that there is no underflow.
 // When the sum of all flow cancelling transfers is greater than emitted transfers for a chain,
@@ -360,10 +420,12 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	assert.Zero(t, usage)
 }
 
-// Simulate a case where the total sum of transfers for a chain in a 24 hour period exceeds
-// the configured Governor limit. This should never happen, so we make sure that an error
-// is returned if the system is in this state
-func TestInvariantGovernorLimit(t *testing.T) {
+// We never expect this to occur when flow-cancelling is disabled. If flow-cancelling is enabled, there
+// are some cases where the outgoing value exceeds the daily limit. Example: a large, incoming transfer
+// of a flow-cancelling asset increases the Governor capacity beyond the daily limit. After 24h, that
+// transfer is trimmed. This reduces the daily limit back to normal, but by this time more outgoing
+// transfers have been emitted, causing the sum to exceed the daily limit.
+func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 	require.NoError(t, err)
@@ -406,10 +468,69 @@ func TestInvariantGovernorLimit(t *testing.T) {
 	assert.Equal(t, expectedNumTransfers, len(transfers))
 	assert.NotZero(t, sum)
 
-	// Make sure we trigger the Invariant
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
-	require.ErrorContains(t, err, "invariant violation: calculated sum")
-	assert.Zero(t, usage)
+	require.NoError(t, err)
+	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage)
+}
+
+func TestTrimAndSumValueOverflowErrors(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	var transfers_from_emitter []transfer
+	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, err)
+
+	emitterChainId := vaa.ChainIDSolana
+
+	transfer, err := newTransferFromDbTransfer(&db.Transfer{Value: math.MaxInt64, Timestamp: transferTime})
+	require.NoError(t, err)
+	transfer2, err := newTransferFromDbTransfer(&db.Transfer{Value: 1, Timestamp: transferTime})
+	require.NoError(t, err)
+	transfers_from_emitter = append(transfers_from_emitter, transfer, transfer2)
+
+	// Populate chainEntry and ChainGovernor
+	emitter := &chainEntry{
+		transfers:      transfers_from_emitter,
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     10000,
+	}
+	gov.chains[emitter.emitterChainId] = emitter
+
+	sum, _, err := gov.TrimAndSumValue(emitter.transfers, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer overflow")
+	assert.Zero(t, sum)
+	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer overflow")
+	assert.Equal(t, uint64(10000), usage)
+
+	// overwrite emitter (discard transfer added above)
+	emitter = &chainEntry{
+		emitterChainId: vaa.ChainID(emitterChainId),
+		dailyLimit:     10000,
+	}
+	gov.chains[emitter.emitterChainId] = emitter
+
+	// Now test underflow
+	transfer3 := &db.Transfer{Value: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
+
+	ce := gov.chains[emitter.emitterChainId]
+	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
+	require.NoError(t, err)
+	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
+	require.NoError(t, err)
+
+	sum, _, err = gov.TrimAndSumValue(emitter.transfers, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer underflow")
+	assert.Zero(t, sum)
+	usage, err = gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
+	require.ErrorContains(t, err, "integer underflow")
+	assert.Equal(t, uint64(10000), usage)
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
@@ -545,21 +666,21 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 	}
 
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	err := gov.Run(ctx)
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	emitterAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	tokenAddr, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	if err != nil {
-		return gov, nil
+		return gov, err
 	}
 
 	gov.initConfigForTest(
@@ -1371,7 +1492,6 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 func TestPendingTransferBeingReleased(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
-
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
@@ -1516,7 +1636,9 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, 4, len(gov.msgsSeen))
 
 	// If we check pending before noon, nothing should happen.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
+	now, err = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
+	require.NoError(t, err)
+	assert.NotNil(t, now)
 	toBePublished, err := gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
@@ -1542,6 +1664,292 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(532385), valuePending)
 	assert.Equal(t, 3, len(gov.msgsSeen))
+}
+
+func TestPopulateChainIds(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+	// Sanity check
+	assert.NotZero(t, len(gov.chainIds))
+
+	// Ensure that the chainIds slice match the entries in the chains map
+	assert.Equal(t, len(gov.chains), len(gov.chainIds))
+	lowest := 0
+	for _, chainId := range gov.chainIds {
+		chainEntry, ok := gov.chains[chainId]
+		assert.NotNil(t, chainEntry)
+		assert.True(t, ok)
+		assert.Equal(t, chainEntry.emitterChainId, chainId)
+		// Check that the chainIds are in ascending order. The point of this slice is that it provides
+		// deterministic ordering over chainIds.
+		assert.Greater(t, int(chainId), lowest)
+		lowest = int(chainId)
+	}
+}
+
+// Test that, when a small transfer (under the 'big tx limit') of a flow-cancelling asset is queued and
+// later released, it causes a reduction in the Governor usage for the destination chain.
+func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
+
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	// Set-up time
+	gov.setDayLengthInMinutes(24 * 60)
+	transferTime := time.Unix(int64(1654543099), 0)
+
+	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
+	// when the Origin chain of the asset does not match the emitter chain
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var flowCancelTokenOriginAddress vaa.Address
+	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	// Data for Ethereum
+	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
+	require.NoError(t, err)
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+
+	// Data for Sui
+	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
+	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
+	require.NoError(t, err)
+	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+
+	// Data for Solana. Only used to represent the flow cancel asset.
+	// "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
+	tokenBridgeAddrStrSolana := "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" //nolint:gosec
+
+	// Add chain entries to `gov`
+	dailyLimit := uint64(10000)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, dailyLimit, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSui, tokenBridgeAddrStrSui, dailyLimit, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSolana, tokenBridgeAddrStrSolana, dailyLimit, 0)
+	require.NoError(t, err)
+
+	// Add flow cancel asset and non-flow cancelable asset to the token entry for `gov`
+	err = gov.setTokenForTesting(vaa.ChainIDSolana, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
+	require.NoError(t, err)
+	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDSolana, addr: flowCancelTokenOriginAddress}])
+
+	// First message: consume most of the dailyLimit for the emitter chain
+	msg1 := common.MessagePublication{
+		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		Timestamp:        time.Unix(int64(transferTime.Unix()+1), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddrEthereum,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana, // The origin asset for the token being transferred
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDSui,
+			recipientSui,
+			10000,
+		),
+	}
+
+	// Second message: This transfer gets queued because the limit is exhausted
+	msg2 := common.MessagePublication{
+		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		Timestamp:        time.Unix(int64(transferTime.Unix()+2), 0),
+		Nonce:            uint32(2),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddrEthereum,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana,
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDSui,
+			recipientSui,
+			500,
+		),
+	}
+
+	// Third message: Incoming flow cancelling transfer to the emitter chain for the previous messages. This
+	// reduces the Governor usage for that chain.
+	msg3 := common.MessagePublication{
+		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		Timestamp:        time.Unix(int64(transferTime.Unix()+3), 0),
+		Nonce:            uint32(3),
+		Sequence:         uint64(3),
+		EmitterChain:     vaa.ChainIDSui,
+		EmitterAddress:   tokenBridgeAddrSui,
+		ConsistencyLevel: uint8(0), // Sui has a consistency level of 0 (instant)
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana,
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDEthereum,
+			recipientEthereum,
+			1000,
+		),
+	}
+
+	// Stage 0: No transfers sent
+	chainEntryEthereum, exists := gov.chains[vaa.ChainIDEthereum]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntryEthereum)
+	chainEntrySui, exists := gov.chains[vaa.ChainIDSui]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntrySui)
+	sumEth, ethTransfers, err := gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Zero(t, len(ethTransfers))
+	assert.Zero(t, len(chainEntryEthereum.pending))
+	assert.Zero(t, sumEth)
+	require.NoError(t, err)
+	sumSui, suiTransfers, err := gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(1654543099), 0))
+	assert.Zero(t, len(suiTransfers))
+	assert.Zero(t, sumSui)
+	require.NoError(t, err)
+
+	// Perform a FIRST transfer (Ethereum --> Sui)
+	result, err := gov.ProcessMsgForTime(&msg1, time.Now())
+	assert.True(t, result)
+	require.NoError(t, err)
+
+	numTrans, netValueTrans, numPending, valuePending := gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 2, numTrans)             // One for the positive and one for the negative
+	assert.Equal(t, int64(0), netValueTrans) // Zero, because the asset flow cancels
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsSeen))
+
+	// Check the state of the governor
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(1), len(chainEntryEthereum.transfers))
+	assert.Equal(t, int(0), len(chainEntryEthereum.pending)) // One for inbound refund and another for outbound
+	assert.Equal(t, int(1), len(chainEntrySui.transfers))
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(10000), sumEth) // Equal to total dailyLimit
+	assert.Equal(t, int(1), len(ethTransfers))
+	require.NoError(t, err)
+
+	// Outbound check:
+	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
+	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, 1, len(suiTransfers))  // A single NEGATIVE transfer
+	assert.Equal(t, int64(-10000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	require.NoError(t, err)
+	suiGovernorUsage, err := gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
+	require.NoError(t, err)
+
+	// Perform a SECOND transfer (Ethereum --> Sui again)
+	// When a transfer is queued, ProcessMsgForTime should return false.
+	result, err = gov.ProcessMsgForTime(&msg2, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.False(t, result)
+	require.NoError(t, err)
+
+	// Stage 2: Transfer sent from Ethereum to Sui gets queued
+	numTrans, netValueTrans, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 2, len(gov.msgsSeen))    // Two messages observed
+	assert.Equal(t, 2, numTrans)             // Two transfers (same as previous step)
+	assert.Equal(t, int64(0), netValueTrans) // The two transfers and their inverses cancel each other out.
+	assert.Equal(t, 1, numPending)           // Second transfer is queued because the limit is exhausted
+	assert.Equal(t, uint64(500), valuePending)
+
+	// Check the state of the governor.
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(1), len(chainEntryEthereum.transfers)) // One from previous step
+	assert.Equal(t, int(1), len(chainEntryEthereum.pending))   // One for inbound refund and another for outbound
+	assert.Equal(t, int(1), len(chainEntrySui.transfers))      // One inverse transfer. Inverse from pending not added yet
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(10000), sumEth)      // Same as before: full dailyLimit
+	assert.Equal(t, int(1), len(ethTransfers)) // Same as before
+	require.NoError(t, err)
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int(1), len(suiTransfers)) // just the inverse from before
+	assert.Equal(t, int64(-10000), sumSui)     // Unchanged.
+	require.NoError(t, err)
+	suiGovernorUsage, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
+	require.NoError(t, err)
+
+	// Stage 3: Message that reduces Governor usage for Ethereum (Sui --> Ethereum)
+	result, err = gov.ProcessMsgForTime(&msg3, time.Now())
+	assert.True(t, result)
+	require.NoError(t, err)
+
+	// Stage 3: Governor usage reduced on Ethereum due to incoming from Sui
+	numTrans, netValueTrans, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 3, len(gov.msgsSeen))
+	assert.Equal(t, 4, numTrans)             // Two transfers and their inverses
+	assert.Equal(t, int64(0), netValueTrans) // Still zero because everything flow cancels
+	assert.Equal(t, 1, numPending)           // Not released yet
+	assert.Equal(t, uint64(500), valuePending)
+
+	// Check the state of the governor
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(2), len(chainEntryEthereum.transfers))
+	assert.Equal(t, int(1), len(chainEntryEthereum.pending)) // We have not yet released the pending transfer
+	assert.Equal(t, int(2), len(chainEntrySui.transfers))
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(9000), sumEth)       // We freed up room because of Sui incoming
+	assert.Equal(t, int(2), len(ethTransfers)) // Two transfers cancel each other out
+	require.NoError(t, err)
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int(2), len(suiTransfers))
+	assert.Equal(t, int64(-9000), sumSui) // We consumed some outbound capacity
+	require.NoError(t, err)
+	suiGovernorUsage, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, uint64(0), suiGovernorUsage) // Still zero because it's still negative
+	require.NoError(t, err)
+
+	// Stage 4: Release the pending transfer. We deliberately do not advance the time here because we are relying
+	// on the pending transfer being released as a result of flow-cancelling and not because 24 hours have passed.
+	// NOTE that even though the function says "Checked..." it modifies `gov` as a side-effect when a pending
+	// transfer is ready to be released
+	toBePublished, err := gov.CheckPendingForTime(time.Unix(int64(transferTime.Unix()-1000), 0))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(toBePublished))
+
+	// Stage 4: Pending transfer released. This increases the Ethereum Governor usage again and reduces Sui.
+	numTrans, netValueTrans, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 3, len(gov.msgsSeen))
+	assert.Equal(t, 6, numTrans)             // Two new transfers created from previous pending transfer
+	assert.Equal(t, int64(0), netValueTrans) // Still zero because everything flow cancels
+	assert.Equal(t, 0, numPending)           // Pending transfer has been released
+	assert.Equal(t, uint64(0), valuePending)
+
+	// Verify the stats that are non flow-cancelling.
+	// In practice this is the sum of the absolute value of all the transfers, including the inverses.
+	// 2 * (10000 + 1000 + 500) = 23000
+	_, absValueTrans, _, _ := gov.getStatsForAllChains()
+	assert.Equal(t, uint64(23000), absValueTrans)
+
+	// Check the state of the governor
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(3), len(chainEntryEthereum.transfers)) // Two outbound, one inverse from Sui
+	assert.Equal(t, int(0), len(chainEntryEthereum.pending))   // Released
+	assert.Equal(t, int(3), len(chainEntrySui.transfers))      // One outbound, two inverses from Ethereum
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(9500), sumEth)
+	assert.Equal(t, int(3), len(ethTransfers))
+	require.NoError(t, err)
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int(3), len(suiTransfers)) // New inverse transfer added after pending transfer was released
+	assert.Equal(t, int64(-9500), sumSui)      // Flow-cancelling inverse transfer added to Sui after released
+	require.NoError(t, err)
+	suiGovernorUsage, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, uint64(0), suiGovernorUsage) // Still zero
+	require.NoError(t, err)
 }
 
 func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
@@ -1775,7 +2183,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	gov.env = common.TestNet
 	err := gov.initConfig()
@@ -1785,7 +2193,7 @@ func TestMainnetConfigIsValid(t *testing.T) {
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, common.GoTest)
+	gov := NewChainGovernor(logger, &db, common.GoTest, true)
 
 	gov.env = common.TestNet
 	err := gov.initConfig()
@@ -2061,9 +2469,9 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	// But the big transaction should not affect the daily notional.
 	ce, exists := gov.chains[vaa.ChainIDEthereum]
 	require.Equal(t, true, exists)
-	valueTrans, err = sumValue(ce.transfers, now)
+	_, outgoing, _, err := sumValue(ce.transfers, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, uint64(0), outgoing)
 }
 
 func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {

@@ -87,6 +87,14 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
 		return
 	}
+
+	if permEntry.rateLimiter != nil && !permEntry.rateLimiter.Allow() {
+		s.logger.Debug("denying request due to rate limit", zap.String("userId", permEntry.userName))
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		rateLimitExceededByUser.WithLabelValues(permEntry.userName).Inc()
+		return
+	}
+
 	totalRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
@@ -167,7 +175,14 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// Wait for the response or timeout
 	select {
 	case <-time.After(query.RequestTimeout + 5*time.Second):
-		s.logger.Info("publishing time out to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		maxMatchingResponses, outstandingResponses, quorum := pendingResponse.getStats()
+		s.logger.Info("publishing time out to client",
+			zap.String("userId", permEntry.userName),
+			zap.String("requestId", requestId),
+			zap.Int("maxMatchingResponses", maxMatchingResponses),
+			zap.Int("outstandingResponses", outstandingResponses),
+			zap.Int("quorum", quorum),
+		)
 		http.Error(w, "Timed out waiting for response", http.StatusGatewayTimeout)
 		queryTimeoutsByUser.WithLabelValues(permEntry.userName).Inc()
 		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()

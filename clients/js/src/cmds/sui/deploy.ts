@@ -17,8 +17,9 @@ import {
   PRIVATE_KEY_OPTIONS,
   RPC_OPTIONS,
 } from "../../consts";
-import { Network, assertNetwork, checkBinary } from "../../utils";
+import { checkBinary, getNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+import { Network } from "@wormhole-foundation/sdk";
 
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
@@ -42,8 +43,7 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       checkBinary("sui", README_URL);
 
       const packageDir = argv["package-dir"];
-      const network = argv.network.toUpperCase();
-      assertNetwork(network);
+      const network = getNetwork(argv.network);
       const debug = argv.debug ?? false;
       const privateKey = argv["private-key"];
       const rpc = argv.rpc;
@@ -66,7 +66,7 @@ export const deploy = async (
   rpc?: string,
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
-  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
 
