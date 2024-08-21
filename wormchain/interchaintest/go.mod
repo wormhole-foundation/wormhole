@@ -11,7 +11,7 @@ require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/ethereum/go-ethereum v1.10.21
 	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
-	github.com/strangelove-ventures/interchaintest/v7 v7.1.0
+	github.com/strangelove-ventures/interchaintest/v7 v7.1.1-0.20240821202709-c51068e51c79
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormchain v0.0.0

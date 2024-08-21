@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -28,6 +29,7 @@ import (
 
 var (
 	WormchainName         = "wormchain"
+	WormchainRemoteRepo   = "ghcr.io/strangelove-ventures/heighliner/wormchain"
 	WormchainLocalVersion = "local"
 	WormchainDenom        = "uworm"
 
@@ -81,6 +83,14 @@ func CreateChain(t *testing.T, guardians guardians.ValSet, img ibc.DockerImage) 
 	cfg := WormchainConfig
 	cfg.ModifyGenesis = ModifyGenesis(VotingPeriod, MaxDepositPeriod, guardians)
 	cfg.Images = []ibc.DockerImage{img}
+
+	// Append env variable to flag chain as sdk 47 or not
+	if img.Version == WormchainLocalVersion || strings.Contains(img.Version, "v3") {
+		cfg.Env = []string{"ICT_ABOVE_SDK_47=true"}
+	} else {
+		cfg.Env = []string{"ICT_ABOVE_SDK_47=false"}
+	}
+
 	return CreateChainWithCustomConfig(t, guardians, cfg)
 }
 
@@ -106,7 +116,7 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 		},
 		{
 			Name:          "gaia",
-			Version:       "v15.2.0",
+			Version:       "v10.0.1",
 			NumValidators: &nonWormchainVals,
 			NumFullNodes:  &nonWormchainFull,
 			ChainConfig: ibc.ChainConfig{
@@ -115,7 +125,7 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 		},
 		{
 			Name:          "osmosis",
-			Version:       "v24.0.4",
+			Version:       "v15.1.2",
 			NumValidators: &nonWormchainVals,
 			NumFullNodes:  &nonWormchainFull,
 			ChainConfig: ibc.ChainConfig{
@@ -209,14 +219,30 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
 		}
 
+		isSdk47 := true
+
+		for _, env := range chainConfig.Env {
+			if env == "ICT_ABOVE_SDK_47=false" {
+				isSdk47 = false
+			}
+		}
+
+		votingParams := "params"
+		depositParams := "params"
+
+		if !isSdk47 {
+			votingParams = "voting_params"
+			depositParams = "deposit_params"
+		}
+
 		// Modify gov
-		if err := dyno.Set(g, votingPeriod, "app_state", "gov", "params", "voting_period"); err != nil {
+		if err := dyno.Set(g, votingPeriod, "app_state", "gov", votingParams, "voting_period"); err != nil {
 			return nil, fmt.Errorf("failed to set voting period in genesis json: %w", err)
 		}
-		if err := dyno.Set(g, maxDepositPeriod, "app_state", "gov", "params", "max_deposit_period"); err != nil {
+		if err := dyno.Set(g, maxDepositPeriod, "app_state", "gov", depositParams, "max_deposit_period"); err != nil {
 			return nil, fmt.Errorf("failed to set max deposit period in genesis json: %w", err)
 		}
-		if err := dyno.Set(g, chainConfig.Denom, "app_state", "gov", "params", "min_deposit", 0, "denom"); err != nil {
+		if err := dyno.Set(g, chainConfig.Denom, "app_state", "gov", depositParams, "min_deposit", 0, "denom"); err != nil {
 			return nil, fmt.Errorf("failed to set min deposit in genesis json: %w", err)
 		}
 

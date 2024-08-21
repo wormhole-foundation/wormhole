@@ -1066,8 +1066,8 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/viper v1.3.2/go.mod h1:ZiWeW+zYFKm7srdB9IoDzzZXaJaI5eL9QjNiN/DMA2s=
 github.com/spf13/viper v1.18.2 h1:LUXCnvUvSM6FXAsj6nnfc8Q2tp1dIgUfY9Kc8GsSOiQ=
 github.com/spf13/viper v1.18.2/go.mod h1:EKmWIqdnk5lOcmR72yw6hS+8OPYcwD0jteitLMVB+yk=
-github.com/strangelove-ventures/interchaintest/v7 v7.1.0 h1:elrL7lYtrO1UHSLBw2wvcgUkiur4X7HhdUIGSBXnbOI=
-github.com/strangelove-ventures/interchaintest/v7 v7.1.0/go.mod h1:f5XHr2Pb7Mnmsa/xyW8NPCRXLL60xztQ+vf/s1rzr9w=
+github.com/strangelove-ventures/interchaintest/v7 v7.1.1-0.20240821202709-c51068e51c79 h1:qM9rcrYUsfwitLgpdjF6dKXHPIplhfiJ+Agw/4GaC98=
+github.com/strangelove-ventures/interchaintest/v7 v7.1.1-0.20240821202709-c51068e51c79/go.mod h1:f5XHr2Pb7Mnmsa/xyW8NPCRXLL60xztQ+vf/s1rzr9w=
 github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e h1:pVpVGXBxCgeziw4TzQ53zXpnEeNFQt0uxs/VoeB6gBY=
 github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e/go.mod h1:ADjORYzUQqQv/FxDi0H0K5gW/rAk1CiDR3ZKsExfJV0=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
