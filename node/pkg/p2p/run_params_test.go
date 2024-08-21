@@ -135,7 +135,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	require.NoError(t, err)
 	gst := common.NewGuardianSetState(nil)
-	ctx, rootCtxCancel := context.WithCancel(context.Background())
+	_, rootCtxCancel := context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
 	gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -167,7 +167,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 	require.NoError(t, err)
 
-	ts, err := tss.NewReliableTSS(ctx, st)
+	ts, err := tss.NewReliableTSS(st)
 	require.NoError(t, err)
 
 	params, err := NewRunParams(

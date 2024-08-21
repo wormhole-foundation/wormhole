@@ -177,7 +177,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 	require.NoError(t, err)
 
-	ts, err := tss.NewReliableTSS(ctx, st)
+	ts, err := tss.NewReliableTSS(st)
 	require.NoError(t, err)
 
 	params, err := NewRunParams(
