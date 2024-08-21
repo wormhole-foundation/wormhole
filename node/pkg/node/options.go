@@ -103,6 +103,7 @@ func GuardianOptionP2P(
 					ccqBootstrapPeers,
 					ccqPort,
 					ccqAllowedPeers),
+				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
 			)
 			if err != nil {
 				return err

@@ -528,6 +528,15 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 
 							features := make([]string, 0)
+							if GossipCutoverComplete() {
+								features = append(features, "p2p:new_gossip")
+							}
+							if params.processorFeaturesFunc != nil {
+								flag := params.processorFeaturesFunc()
+								if flag != "" {
+									features = append(features, flag)
+								}
+							}
 							if params.gov != nil {
 								if params.gov.IsFlowCancelEnabled() {
 									features = append(features, "governor:fc")
