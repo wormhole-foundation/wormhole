@@ -154,8 +154,9 @@ func (t *Engine) Start(ctx context.Context) error {
 		t.fp.Stop()
 	})
 
-	t.started = true
 	go t.fpListener()
+
+	t.started = true
 
 	return nil
 }
@@ -173,8 +174,9 @@ func (t *Engine) fpListener() {
 				continue
 			}
 
-			t.gossipOutChan <- tssMsg
+			// todo: ensure someone listens to this channel.
 			//todo: wrap the message into a gossip message and output it to the network, sign (or encrypt and mac) it and send it.
+			t.gossipOutChan <- tssMsg
 		case <-t.fpSigOutChan:
 			// todo: find out who should get the signature.
 		case <-t.fpErrChannel:
@@ -224,14 +226,6 @@ func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage_TssMe
 	return &gossipv1.GossipMessage_TssMessage{
 		TssMessage: tssMsg,
 	}, nil
-}
-
-func (t *Engine) sign(msg *gossipv1.SignedMessage) {
-	// TODO
-}
-
-func (t *Engine) encryptAndMac(msgToSend *gossipv1.SignedMessage) {
-	// TODO
 }
 
 func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
@@ -287,11 +281,6 @@ func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.Parse
 		return nil, err
 	}
 	return parsed, nil
-}
-
-func (t *Engine) authAndDecrypt(maccedMsg *gossipv1.SignedMessage) error {
-	// TODO
-	return nil
 }
 
 func (t *Engine) isUnicastForMe(maccedMsg *gossipv1.SignedMessage) bool {
