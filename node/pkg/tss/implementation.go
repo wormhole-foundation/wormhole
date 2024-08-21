@@ -29,7 +29,7 @@ type Engine struct {
 	fpSigOutChan chan *common.SignatureData
 	fpErrChannel chan *tss.Error
 
-	gossipOutChan chan *gossipv1.GossipMessage_TssMessage
+	gossipOutChan chan *gossipv1.GossipMessage
 
 	started         bool
 	msgSerialNumber uint64
@@ -88,7 +88,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 }
 
 // ProducedOutputMessages implements ReliableTSS.
-func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage {
+func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage {
 	return t.gossipOutChan
 }
 
@@ -135,7 +135,7 @@ func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
 		fpSigOutChan: fpSigOutChan,
 		fpErrChannel: fpErrChannel,
 
-		gossipOutChan: make(chan *gossipv1.GossipMessage_TssMessage),
+		gossipOutChan: make(chan *gossipv1.GossipMessage),
 	}
 
 	return t, nil
@@ -185,7 +185,7 @@ func (t *Engine) fpListener() {
 	}
 }
 
-func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage_TssMessage, error) {
+func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage, error) {
 	bts, routing, err := m.WireBytes()
 	if err != nil {
 		return nil, err
@@ -223,8 +223,10 @@ func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage_TssMe
 		}
 	}
 
-	return &gossipv1.GossipMessage_TssMessage{
-		TssMessage: tssMsg,
+	return &gossipv1.GossipMessage{
+		Message: &gossipv1.GossipMessage_TssMessage{
+			TssMessage: tssMsg,
+		},
 	}, nil
 }
 

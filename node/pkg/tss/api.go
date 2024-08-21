@@ -10,7 +10,7 @@ import (
 type ReliableMessageHandler interface {
 	// HandleIncomingTssMessage receives a network message and process it using a reliable-broadcast protocol.
 	HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage)
-	ProducedOutputMessages() <-chan *gossipv1.GossipMessage_TssMessage // just need to propagate this through the p2p network
+	ProducedOutputMessages() <-chan *gossipv1.GossipMessage // just need to propagate this through the p2p network
 }
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
