@@ -60,8 +60,7 @@ type G struct {
 	env           common.Environment
 
 	// keys
-	gk                 *ecdsa.PrivateKey
-	tssGuardianStorage *tss.GuardianStorage
+	gk *ecdsa.PrivateKey
 
 	// components
 	db              *db.Database
@@ -107,12 +106,13 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
-	tssGuardianStorage *tss.GuardianStorage,
+	tssEngine *tss.Engine,
 ) *G {
+
 	g := G{
-		env:                env,
-		gk:                 gk,
-		tssGuardianStorage: tssGuardianStorage,
+		env:       env,
+		gk:        gk,
+		tssEngine: tssEngine,
 	}
 	return &g
 }
@@ -196,11 +196,12 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			}
 		}
 
-		reliableTss, err := tss.NewReliableTSS(ctx, g.tssGuardianStorage)
-		if err != nil {
-			logger.Fatal("failed to start tss engine", zap.Error(err))
+		if g.tssEngine != nil {
+			logger.Info("Starting TSS engine")
+			if err := g.tssEngine.Start(ctx); err != nil {
+				logger.Fatal("failed to start TSS engine", zap.Error(err))
+			}
 		}
-		g.tssEngine = reliableTss
 
 		// TODO there is an opportunity to refactor the startup of the accountant and governor:
 		// Ideally they should just register a g.runnables["governor"] and g.runnables["accountant"] instead of being treated as special cases.

@@ -85,7 +85,7 @@ type mockGuardian struct {
 	ready            bool
 	config           *guardianConfig
 	db               *db.Database
-	tssStorage       *tss.GuardianStorage
+	tssEngine        *tss.Engine
 }
 
 type guardianConfig struct {
@@ -125,6 +125,11 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			panic(err)
 		}
 
+		reliableTss, err := tss.NewReliableTSS(tssStorage)
+		if err != nil {
+			panic(err)
+		}
+
 		gs[i] = &mockGuardian{
 			p2pKey:           devnet.DeterministicP2PPrivKeyByIndex(int64(i)),
 			MockObservationC: make(chan *common.MessagePublication),
@@ -132,7 +137,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			gk:               gk,
 			guardianAddr:     eth_crypto.PubkeyToAddress(gk.PublicKey),
 			config:           createGuardianConfig(t, testId, uint(i)),
-			tssStorage:       tssStorage,
+			tssEngine:        reliableTss,
 		}
 	}
 
@@ -211,7 +216,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		guardianNode := NewGuardianNode(
 			env,
 			gs[mockGuardianIndex].gk,
-			gs[mockGuardianIndex].tssStorage,
+			gs[mockGuardianIndex].tssEngine,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -970,7 +975,10 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				guardianTssStorage, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 				require.NoError(t, err)
 
-				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil, guardianTssStorage).Run(ctxCancel, tc.opts...)); err != nil {
+				reliableTss, err := tss.NewReliableTSS(guardianTssStorage)
+				require.NoError(t, err)
+
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil, reliableTss).Run(ctxCancel, tc.opts...)); err != nil {
 					panic(err)
 				}
 

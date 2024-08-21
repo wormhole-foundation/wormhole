@@ -31,6 +31,7 @@ type Engine struct {
 
 	gossipOutChan chan *gossipv1.GossipMessage_TssMessage
 
+	started         bool
 	msgSerialNumber uint64
 }
 
@@ -60,11 +61,16 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 	if t == nil {
 		return fmt.Errorf("tss engine is nil")
 	}
+	if !t.started {
+		return fmt.Errorf("tss engine hasn't started")
+	}
 
+	fmt.Println("reached fp checks: ", len(digest))
 	if t.fp == nil {
 		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
 	}
 
+	fmt.Println("digest length: ", len(digest))
 	if len(digest) != 32 {
 		return fmt.Errorf("digest length is not 32 bytes")
 	}
@@ -72,7 +78,13 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 	d := party.Digest{}
 	copy(d[:], digest)
 
-	return t.fp.AsyncRequestNewSignature(d)
+	fmt.Println("begin async sign protocol")
+	if err := t.fp.AsyncRequestNewSignature(d); err != nil {
+		fmt.Println("error in async request new signature: ", err)
+		return err
+	}
+	fmt.Println("end async sign protocol")
+	return nil
 }
 
 // ProducedOutputMessages implements ReliableTSS.
@@ -91,7 +103,8 @@ func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
 	return &storage, nil
 }
 
-func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, error) {
+// TODO: get a signature output channel, so the guardian can listen to outputs from this tssEngine.
+func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
@@ -114,15 +127,6 @@ func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, err
 	fpSigOutChan := make(chan *common.SignatureData)
 	fpErrChannel := make(chan *tss.Error)
 
-	if err := fp.Start(fpOutChan, fpSigOutChan, fpErrChannel); err != nil {
-		return nil, err
-	}
-
-	// ignoring returned func since i want fp.Stop to be tied to the ctx forever.
-	_ = context.AfterFunc(ctx, func() {
-		fp.Stop()
-	})
-
 	t := &Engine{
 		GuardianStorage: *storage,
 
@@ -134,9 +138,26 @@ func NewReliableTSS(ctx context.Context, storage *GuardianStorage) (*Engine, err
 		gossipOutChan: make(chan *gossipv1.GossipMessage_TssMessage),
 	}
 
+	return t, nil
+}
+
+// Start starts the TSS engine, and listens for the outputs of the full party.
+func (t *Engine) Start(ctx context.Context) error {
+	t.ctx = ctx
+
+	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
+		return err
+	}
+
+	// ignoring returned func since i want fp.Stop to be tied to the ctx forever.
+	_ = context.AfterFunc(ctx, func() {
+		t.fp.Stop()
+	})
+
+	t.started = true
 	go t.fpListener()
 
-	return t, nil
+	return nil
 }
 
 // fpListener serves as a listining loop for the full party outputs.
@@ -149,7 +170,6 @@ func (t *Engine) fpListener() {
 		case m := <-t.fpOutChan:
 			tssMsg, err := t.intoGossipMessage(m)
 			if err != nil {
-				// TODO: log the error
 				continue
 			}
 

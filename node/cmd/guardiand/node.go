@@ -1585,11 +1585,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: load the guardianTSSStorage here?
+	reliableTss, err := tss.NewReliableTSS(tssGuardianStorage)
+	if err != nil {
+		logger.Fatal("failed to start tss engine", zap.Error(err))
+	}
+
 	guardianNode := node.NewGuardianNode(
 		env,
 		gk,
-		tssGuardianStorage,
+		reliableTss,
 	)
 
 	guardianOptions := []*node.GuardianOption{

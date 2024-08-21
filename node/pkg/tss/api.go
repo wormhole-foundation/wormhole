@@ -1,6 +1,10 @@
 package tss
 
-import gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+import (
+	"context"
+
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+)
 
 // ReliableMessageHandler is the interface to give any component with the ability to receive over the network incoming TSS messages.
 type ReliableMessageHandler interface {
@@ -18,4 +22,5 @@ type Signer interface {
 type ReliableTSS interface {
 	ReliableMessageHandler
 	Signer
+	Start(ctx context.Context) error
 }
