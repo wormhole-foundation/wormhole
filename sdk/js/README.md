@@ -1,6 +1,8 @@
-# Wormhole SDK
+# Wormhole SDK (Deprecated)
 
-> Note: This is a pre-alpha release and in active development. Function names and signatures are subject to change.
+**⚠️ This SDK is deprecated. Please use the new SDK available at [wormhole-sdk-ts](https://github.com/wormhole-foundation/wormhole-sdk-ts).**
+
+---
 
 ## What is Wormhole?
 
