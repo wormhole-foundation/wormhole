@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 
 	"testing"
 	"time"
@@ -63,10 +64,7 @@ func TestPurgingPythnetVAAs(t *testing.T) {
 	var emitterAddress = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -77,7 +75,7 @@ func TestPurgingPythnetVAAs(t *testing.T) {
 	pythnetSeqNum := uint64(10000)
 	solanaSeqNum := uint64(20000)
 	for count := 0; count < 50; count++ {
-		err = storeVAA(db, &vaa.VAA{
+		err := storeVAA(db, &vaa.VAA{
 			Version:          uint8(1),
 			GuardianSetIndex: uint32(1),
 			Signatures:       nil,
@@ -111,7 +109,7 @@ func TestPurgingPythnetVAAs(t *testing.T) {
 	// Create 75 VAAs each for Pythnet and Solana that are less than three days old.
 	timeStamp = now.Add(-time.Hour * time.Duration(3*24-1))
 	for count := 0; count < 75; count++ {
-		err = storeVAA(db, &vaa.VAA{
+		err := storeVAA(db, &vaa.VAA{
 			Version:          uint8(1),
 			GuardianSetIndex: uint32(1),
 			Signatures:       nil,
@@ -168,10 +166,7 @@ func TestPurgingVAAsForOneEmitterAddress(t *testing.T) {
 	var solanaEmitterAddress1 = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -182,7 +177,7 @@ func TestPurgingVAAsForOneEmitterAddress(t *testing.T) {
 	pythnetSeqNum := uint64(10000)
 	solanaSeqNum := uint64(20000)
 	for count := 0; count < 50; count++ {
-		err = storeVAA(db, &vaa.VAA{
+		err := storeVAA(db, &vaa.VAA{
 			Version:          uint8(1),
 			GuardianSetIndex: uint32(1),
 			Signatures:       nil,
@@ -231,7 +226,7 @@ func TestPurgingVAAsForOneEmitterAddress(t *testing.T) {
 	// Create 75 VAAs each for each emitter that are less than three days old.
 	timeStamp = now.Add(-time.Hour * time.Duration(3*24-1))
 	for count := 0; count < 75; count++ {
-		err = storeVAA(db, &vaa.VAA{
+		err := storeVAA(db, &vaa.VAA{
 			Version:          uint8(1),
 			GuardianSetIndex: uint32(1),
 			Signatures:       nil,

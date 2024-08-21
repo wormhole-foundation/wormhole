@@ -53,13 +53,10 @@ func TestAcctIsPendingTransfer(t *testing.T) {
 
 func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
@@ -118,14 +115,10 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 }
 
 func TestAcctGetEmptyData(t *testing.T) {
+	logger := zap.NewNop()
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(logger, &dbPath)
 	defer db.Close()
-
-	logger, _ := zap.NewDevelopment()
 
 	pendings, err := db.AcctGetData(logger)
 	require.NoError(t, err)
@@ -133,18 +126,14 @@ func TestAcctGetEmptyData(t *testing.T) {
 }
 
 func TestAcctGetData(t *testing.T) {
+	logger := zap.NewNop()
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(logger, &dbPath)
 	defer db.Close()
-
-	logger, _ := zap.NewDevelopment()
 
 	// Store some unrelated junk in the db to make sure it gets skipped.
 	junk := []byte("ABC123")
-	err = db.db.Update(func(txn *badger.Txn) error {
+	err := db.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(junk, junk); err != nil {
 			return err
 		}
@@ -202,10 +191,7 @@ func TestAcctGetData(t *testing.T) {
 
 func TestAcctLoadingWhereOldPendingsGetDropped(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 

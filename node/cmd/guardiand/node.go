@@ -778,10 +778,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Database
-	db := db.OpenDb(logger, dataDir)
-	defer db.Close()
-
 	// Guardian key
 	gk, err := common.LoadGuardianKey(*guardianKeyPath, env == common.UnsafeDevNet)
 	if err != nil {
@@ -946,6 +942,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
+
+	// Database
+	db := db.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
+	defer db.Close()
 
 	wormchainId := "wormchain"
 	if env == common.TestNet {
