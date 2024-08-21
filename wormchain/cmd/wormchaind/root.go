@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/params"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/client/cli"
 
 	dbm "github.com/cometbft/cometbft-db"
 	tmcfg "github.com/cometbft/cometbft/config"
@@ -128,6 +129,12 @@ func genesisCommand(encodingConfig params.EncodingConfig, cmds ...*cobra.Command
 	for _, subCmd := range cmds {
 		cmd.AddCommand(subCmd)
 	}
+
+	// Add wormhole genesis subcommands
+	for _, subCmd := range cli.GetGenesisCmd().Commands() {
+		cmd.AddCommand(subCmd)
+	}
+
 	return cmd
 }
 
