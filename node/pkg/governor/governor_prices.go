@@ -107,9 +107,8 @@ func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
 	if coinGeckoApiKey == "" {
 		query = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
 	} else { // Pro version API key path
-		query = "https://pro-api.coingecko.com/api/v3/simple/price?"
 		params.Add("x_cg_pro_api_key", coinGeckoApiKey)
-		query += params.Encode()
+		query = "https://pro-api.coingecko.com/api/v3/simple/price?" + params.Encode()
 	}
 
 	return query
