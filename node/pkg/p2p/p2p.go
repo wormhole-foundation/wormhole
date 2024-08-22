@@ -1128,10 +1128,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 }
 
 func publishGossipMsg(ctx context.Context, controlPubsubTopic *pubsub.Topic, msg *gossipv1.GossipMessage) error {
-	if !GossipCutoverComplete() {
-		return nil
-	}
-
+	// TODO: undertsand what is the cutover, and why it is needed.
 	if controlPubsubTopic == nil {
 		return fmt.Errorf("no topic to publish message with")
 	}

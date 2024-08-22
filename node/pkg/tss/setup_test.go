@@ -3,7 +3,10 @@ package tss
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 	"sort"
 	"strconv"
 	"testing"
@@ -16,8 +19,8 @@ import (
 )
 
 const (
-	Participants = 5
-	Threshold    = 2 //  12 means 12 + 1 to  produce signature.
+	Participants = 4
+	Threshold    = 2
 )
 
 type dkgSetupPlayer struct {
@@ -144,16 +147,18 @@ keygenLoop:
 		}
 	}
 
-	// for i, guardian := range guardians {
-	// 	a.NotNil(guardian)
-	// 	a.NoError(guardian.createSharedSecrets())
-	// 	bts, err := json.MarshalIndent(guardian, "", "  ")
-	// 	a.NoError(err)
-	// 	fmt.Println(string(bts))
+	for i, guardian := range guardians {
+		a.NotNil(guardian)
+		a.NoError(guardian.createSharedSecrets())
+		bts, err := json.MarshalIndent(guardian, "", "  ")
+		a.NoError(err)
+		fmt.Println(string(bts))
 
-	// 	err = os.WriteFile(fmt.Sprintf("guardian%d.json", i), bts, 0777)
-	// 	a.NoError(err)
-	// }
+		guardianStorageFilePath := path.Join(path.Dir(testutils.MustGetMockGuardianTssStorage()), fmt.Sprintf("guardian%d.json", i))
+
+		err = os.WriteFile(guardianStorageFilePath, bts, 0777)
+		a.NoError(err)
+	}
 
 }
 

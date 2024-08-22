@@ -120,7 +120,12 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			panic(err)
 		}
 
-		tssStorage, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+		tssStoragePath, err := testutils.GetMockGuardianTssStorage(i)
+		if err != nil {
+			panic(err)
+		}
+
+		tssStorage, err := tss.GuardianStorageFromFile(tssStoragePath)
 		if err != nil {
 			panic(err)
 		}

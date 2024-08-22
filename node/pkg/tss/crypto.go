@@ -14,3 +14,13 @@ func (t *Engine) encryptAndMac(msgToSend *gossipv1.SignedMessage) {
 func (t *Engine) sign(msg *gossipv1.SignedMessage) {
 	// TODO
 }
+
+func (t *Engine) verifyEcho(msg *gossipv1.Echo) error {
+	// TODO
+	return nil
+}
+
+func (t *Engine) verifySignedMessage(msg *gossipv1.SignedMessage) error {
+	// TODO
+	return nil
+}

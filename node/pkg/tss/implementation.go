@@ -12,6 +12,7 @@ import (
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/tss"
+	"go.uber.org/zap"
 )
 
 type symKey []byte
@@ -21,6 +22,7 @@ type symKey []byte
 type Engine struct {
 	ctx context.Context
 
+	logger zap.Logger
 	GuardianStorage
 
 	fp party.FullParty
@@ -65,12 +67,10 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 		return fmt.Errorf("tss engine hasn't started")
 	}
 
-	fmt.Println("reached fp checks: ", len(digest))
 	if t.fp == nil {
 		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
 	}
 
-	fmt.Println("digest length: ", len(digest))
 	if len(digest) != 32 {
 		return fmt.Errorf("digest length is not 32 bytes")
 	}
@@ -78,13 +78,8 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
 	d := party.Digest{}
 	copy(d[:], digest)
 
-	fmt.Println("begin async sign protocol")
-	if err := t.fp.AsyncRequestNewSignature(d); err != nil {
-		fmt.Println("error in async request new signature: ", err)
-		return err
-	}
-	fmt.Println("end async sign protocol")
-	return nil
+	// fmt.Printf("guardian %v started signing protocol: %v\n", t.GuardianStorage.Self.Index, d)
+	return t.fp.AsyncRequestNewSignature(d)
 }
 
 // ProducedOutputMessages implements ReliableTSS.
@@ -108,6 +103,7 @@ func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
+	// fmt.Println("guardian storage loaded, threshold is:	", storage.Threshold)
 
 	fpParams := party.Parameters{
 		SavedSecrets: storage.SavedSecretParameters,
@@ -148,11 +144,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
 		return err
 	}
-
-	// ignoring returned func since i want fp.Stop to be tied to the ctx forever.
-	_ = context.AfterFunc(ctx, func() {
-		t.fp.Stop()
-	})
+	//closing the t.fp.start inside th listener
 
 	go t.fpListener()
 
@@ -167,6 +159,8 @@ func (t *Engine) fpListener() {
 	for {
 		select {
 		case <-t.ctx.Done():
+			fmt.Printf("guardian %v stopped its full party\n", t.GuardianStorage.Self.Index)
+			t.fp.Stop()
 			return
 		case m := <-t.fpOutChan:
 			tssMsg, err := t.intoGossipMessage(m)
@@ -177,10 +171,13 @@ func (t *Engine) fpListener() {
 			// todo: ensure someone listens to this channel.
 			//todo: wrap the message into a gossip message and output it to the network, sign (or encrypt and mac) it and send it.
 			t.gossipOutChan <- tssMsg
+			// fmt.Printf("guardian %v sent %v \n", t.GuardianStorage.Self.Index, m.Type())
 		case <-t.fpSigOutChan:
+			// fmt.Println("signature out!")
 			// todo: find out who should get the signature.
-		case <-t.fpErrChannel:
-			// todo: log the error?
+		case err := <-t.fpErrChannel:
+			_ = err // todo: log the error?
+			// fmt.Printf("guardian %v received error %v \n", t.GuardianStorage.Self.Index, err)
 		}
 	}
 }
@@ -235,25 +232,53 @@ func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage
 		return
 	}
 
+	defer func() {
+		// todo: consider sending the message to be gossiped or not. perhaps it's a duplicate message?
+	}()
+
 	switch m := msg.TssMessage.Payload.(type) {
 	case *gossipv1.PropagatedMessage_Unicast:
-		defer func() {
-			// todo: consider sending the message to be gossiped or not. perhaps it's a duplicate message?
-		}()
-
 		parsed, err := t.handleUnicast(m)
 		if err != nil {
 			return
 		}
 
 		// TODO: add the uuid of this message to the set of received messages.
-
 		t.fp.Update(parsed)
 	case *gossipv1.PropagatedMessage_Echo:
-		signedMsg := m.Echo
-		_ = signedMsg
-		// todo: verify the signature then update t.fp
+		parsed, err := t.handleEcho(m)
+		if err != nil {
+			return
+		}
+
+		// fmt.Printf("guardian %v received from %v: %v\n", t.GuardianStorage.Self.Index, parsed.GetFrom().Index, parsed.Type())
+		t.fp.Update(parsed)
 	}
+}
+
+func (t *Engine) handleEcho(m *gossipv1.PropagatedMessage_Echo) (tss.ParsedMessage, error) {
+	echoMsg := m.Echo
+	if echoMsg == nil {
+		return nil, fmt.Errorf("echo message is nil")
+	}
+
+	if err := t.verifySignedMessage(echoMsg.Message); err != nil {
+		return nil, err
+	}
+
+	if echoMsg.Echoer > uint32(len(t.Guardians)) {
+		return nil, fmt.Errorf("echoer index is out of range")
+	}
+
+	if err := t.verifyEcho(echoMsg); err != nil {
+		return nil, err
+	}
+
+	parsed, err := tss.ParseWireMessage(echoMsg.Message.Payload, t.Guardians[echoMsg.Message.Sender], true)
+	if err != nil {
+		return nil, err
+	}
+	return parsed, nil
 }
 
 func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.ParsedMessage, error) {
