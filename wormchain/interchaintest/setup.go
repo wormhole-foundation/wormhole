@@ -30,6 +30,7 @@ import (
 var (
 	WormchainName         = "wormchain"
 	WormchainRemoteRepo   = "ghcr.io/strangelove-ventures/heighliner/wormchain"
+	WormchainLocalRepo    = WormchainName
 	WormchainLocalVersion = "local"
 	WormchainDenom        = "uworm"
 
