@@ -700,12 +700,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Set up telemetry if it is enabled. We can't do this until we have the p2p key and the guardian key.
+	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default.
 	usingLoki := *telemetryLokiURL != ""
-	var hasTelemetryCredential bool = usingLoki
-
-	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
-	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && hasTelemetryCredential)) {
-		if !hasTelemetryCredential {
+	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && usingLoki)) {
+		if !usingLoki {
 			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
