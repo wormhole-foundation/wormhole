@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	store "github.com/cosmos/cosmos-sdk/store/types"
@@ -40,7 +42,7 @@ func CreateV3_0_0_UpgradeHandler(
 	app *App,
 ) upgradetypes.UpgradeHandler {
 	return func(ctx sdk.Context, _ upgradetypes.Plan, vm module.VersionMap) (module.VersionMap, error) {
-		// logger := ctx.Logger().With("upgrade", "v3.0.0")
+		logger := ctx.Logger().With("upgrade", "v3.0.0")
 
 		// set param key table for params module migration
 		// ref: https://github.com/cosmos/cosmos-sdk/pull/12363/files
@@ -91,13 +93,19 @@ func CreateV3_0_0_UpgradeHandler(
 		baseAppLegacySS := app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable())
 		baseapp.MigrateParams(ctx, baseAppLegacySS, &app.ConsensusParamsKeeper)
 
+		// Run migrations
+		logger.Info(fmt.Sprintf("pre migrate version map: %v", vm))
+		versionMap, err := mm.RunMigrations(ctx, cfg, vm)
+		if err != nil {
+			return nil, err
+		}
+		logger.Info(fmt.Sprintf("post migrate version map: %v", versionMap))
+
 		// explicitly update the IBC 02-client params, adding the localhost client type
 		// ref: https://github.com/cosmos/ibc-go/blob/main/docs/docs/05-migrations/09-v7-to-v7_1.md
 		params := app.IBCKeeper.ClientKeeper.GetParams(ctx)
 		params.AllowedClients = append(params.AllowedClients, ibcexported.Localhost)
 		app.IBCKeeper.ClientKeeper.SetParams(ctx, params)
-
-		// TODO: JOEL - MIGRATE TOKENFACTORY TO CONSENSUS V2?
 
 		return mm.RunMigrations(ctx, cfg, vm)
 	}
