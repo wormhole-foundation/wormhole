@@ -38,6 +38,6 @@ var KnownDevnetAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDBSC, Addr: "000000000000000000000000b98F46E96cb1F519C333FdFB5CCe0B13E0300ED4"},
 
 	// NTT end to end testing uses special emitters in local dev and CI.
-	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
-	{ChainId: vaa.ChainIDBSC, Addr: "00000000000000000000000053855d4b64e9a3cf59a84bc768ada716b5536bc5"},
+	{ChainId: vaa.ChainIDEthereum, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
+	{ChainId: vaa.ChainIDBSC, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
 }

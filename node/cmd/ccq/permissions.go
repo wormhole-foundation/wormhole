@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 
 	"github.com/gagliardetto/solana-go"
 	"gopkg.in/godo.v2/watcher/fswatch"
@@ -21,13 +23,19 @@ import (
 
 type (
 	Config struct {
-		Permissions []User `json:"Permissions"`
+		AllowAnythingSupported bool    `json:"AllowAnythingSupported"`
+		DefaultRateLimit       float64 `json:"DefaultRateLimit"`
+		DefaultBurstSize       int     `json:"DefaultBurstSize"`
+		Permissions            []User  `json:"Permissions"`
 	}
 
 	User struct {
 		UserName      string        `json:"userName"`
 		ApiKey        string        `json:"apiKey"`
 		AllowUnsigned bool          `json:"allowUnsigned"`
+		AllowAnything bool          `json:"allowAnything"`
+		RateLimit     *float64      `json:"RateLimit"`
+		BurstSize     *int          `json:"BurstSize"`
 		LogResponses  bool          `json:"logResponses"`
 		AllowedCalls  []AllowedCall `json:"allowedCalls"`
 	}
@@ -74,7 +82,9 @@ type (
 	permissionEntry struct {
 		userName      string
 		apiKey        string
+		rateLimiter   *rate.Limiter
 		allowUnsigned bool
+		allowAnything bool
 		logResponses  bool
 		allowedCalls  allowedCallsForUser // Key is something like "ethCall:2:000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6:06fdde03"
 	}
@@ -83,6 +93,7 @@ type (
 
 	Permissions struct {
 		lock     sync.Mutex
+		env      common.Environment
 		permMap  PermissionsMap
 		fileName string
 		watcher  *fswatch.Watcher
@@ -90,8 +101,8 @@ type (
 )
 
 // NewPermissions creates a Permissions object which contains the per-user permissions.
-func NewPermissions(fileName string) (*Permissions, error) {
-	permMap, err := parseConfigFile(fileName)
+func NewPermissions(fileName string, env common.Environment) (*Permissions, error) {
+	permMap, err := parseConfigFile(fileName, env)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +138,7 @@ func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, 
 
 // Reload reloads the permissions file.
 func (perms *Permissions) Reload(logger *zap.Logger) {
-	permMap, err := parseConfigFile(perms.fileName)
+	permMap, err := parseConfigFile(perms.fileName, perms.env)
 	if err != nil {
 		logger.Error("failed to reload the permissions file, sticking with the old one", zap.String("fileName", perms.fileName), zap.Error(err))
 		permissionFileReloadsFailure.Inc()
@@ -159,7 +170,7 @@ func (perms *Permissions) GetUserEntry(apiKey string) (*permissionEntry, bool) {
 const ETH_CALL_SIG_LENGTH = 4
 
 // parseConfigFile parses the permissions config file into a map keyed by API key.
-func parseConfigFile(fileName string) (PermissionsMap, error) {
+func parseConfigFile(fileName string, env common.Environment) (PermissionsMap, error) {
 	jsonFile, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to open permissions file "%s": %w`, fileName, err)
@@ -171,19 +182,28 @@ func parseConfigFile(fileName string) (PermissionsMap, error) {
 		return nil, fmt.Errorf(`failed to read permissions file "%s": %w`, fileName, err)
 	}
 
-	retVal, err := parseConfig(byteValue)
+	retVal, err := parseConfig(byteValue, env)
 	if err != nil {
-		return retVal, fmt.Errorf(`failed to parse permissions file "%s": %w`, fileName, err)
+		return nil, fmt.Errorf(`failed to parse permissions file "%s": %w`, fileName, err)
 	}
 
 	return retVal, err
 }
 
 // parseConfig parses the permissions config from a buffer into a map keyed by API key.
-func parseConfig(byteValue []byte) (PermissionsMap, error) {
-	var config Config
+func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, error) {
+	config := Config{DefaultBurstSize: 1}
 	if err := json.Unmarshal(byteValue, &config); err != nil {
 		return nil, fmt.Errorf(`failed to unmarshal json: %w`, err)
+	}
+
+	// According to the docs, a burst size of zero does not allow any events. We don't want that!
+	if config.DefaultBurstSize == 0 {
+		return nil, errors.New("the default burst size may not be zero")
+	}
+
+	if config.AllowAnythingSupported && env == common.MainNet {
+		return nil, fmt.Errorf(`the "allowAnythingSupported" flag is not supported in mainnet`)
 	}
 
 	ret := make(PermissionsMap)
@@ -198,6 +218,31 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 		apiKey := strings.ToLower(user.ApiKey)
 		if _, exists := ret[apiKey]; exists {
 			return nil, fmt.Errorf(`API key "%s" is a duplicate`, apiKey)
+		}
+
+		if user.AllowAnything {
+			if !config.AllowAnythingSupported {
+				return nil, fmt.Errorf(`UserName "%s" has "allowAnything" specified when the feature is not enabled`, user.UserName)
+			}
+			if len(user.AllowedCalls) != 0 {
+				return nil, fmt.Errorf(`UserName "%s" has "allowedCalls" specified with "allowAnything", which is not allowed`, user.UserName)
+			}
+		}
+
+		var rateLimiter *rate.Limiter
+		rateLimit := config.DefaultRateLimit
+		if user.RateLimit != nil {
+			rateLimit = *user.RateLimit
+		}
+		if rateLimit != 0 {
+			burstSize := config.DefaultBurstSize
+			if user.BurstSize != nil {
+				burstSize = *user.BurstSize
+			}
+			if burstSize == 0 {
+				return nil, errors.New("if rate limiting is enabled, the burst size may not be zero")
+			}
+			rateLimiter = rate.NewLimiter(rate.Limit(rateLimit), burstSize)
 		}
 
 		// Build the list of allowed calls for this API key.
@@ -267,9 +312,13 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 
 			if callKey == "" {
 				// Convert the contract address into a standard format like "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6".
-				contractAddress, err := vaa.StringToAddress(contractAddressStr)
-				if err != nil {
-					return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
+				contractAddress := contractAddressStr
+				if contractAddressStr != "*" {
+					contractAddr, err := vaa.StringToAddress(contractAddressStr)
+					if err != nil {
+						return nil, fmt.Errorf(`invalid contract address "%s" for user "%s"`, contractAddressStr, user.UserName)
+					}
+					contractAddress = contractAddr.String()
 				}
 
 				// The call should be the ABI four byte hex hash of the function signature. Parse it into a standard form of "06fdde03".
@@ -295,7 +344,9 @@ func parseConfig(byteValue []byte) (PermissionsMap, error) {
 		pe := &permissionEntry{
 			userName:      user.UserName,
 			apiKey:        apiKey,
+			rateLimiter:   rateLimiter,
 			allowUnsigned: user.AllowUnsigned,
+			allowAnything: user.AllowAnything,
 			logResponses:  user.LogResponses,
 			allowedCalls:  allowedCalls,
 		}

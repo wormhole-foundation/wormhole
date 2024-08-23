@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -164,10 +165,10 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 }
 
 var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
-	Use:   "governor-reset-release-timer [VAA_ID]",
-	Short: "Resets the release timer for a chain governor pending VAA, extending it to the configured maximum",
+	Use:   "governor-reset-release-timer [VAA_ID] <num_days>",
+	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 7), defaulting to one day if num_days is omitted",
 	Run:   runChainGovernorResetReleaseTimer,
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.RangeArgs(1, 2),
 }
 
 var PurgePythNetVaasCmd = &cobra.Command{
@@ -238,7 +239,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 	guardianKeyPath := args[0]
 	wormchainAddress := args[1]
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
-		return fmt.Errorf("must provide a bech32 address that has 'wormhole' prefix")
+		return errors.New("must provide a bech32 address that has 'wormhole' prefix")
 	}
 	gk, err := common.LoadGuardianKey(guardianKeyPath, *unsafeDevnetMode)
 	if err != nil {
@@ -549,8 +550,21 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
+	// defaults to 1 day if num_days isn't specified
+	numDays := uint32(1)
+	if len(args) > 1 {
+		numDaysArg, err := strconv.Atoi(args[1])
+
+		if err != nil {
+			log.Fatalf("invalid num_days: %v", err)
+		}
+
+		numDays = uint32(numDaysArg)
+	}
+
 	msg := nodev1.ChainGovernorResetReleaseTimerRequest{
-		VaaId: args[0],
+		VaaId:   args[0],
+		NumDays: numDays,
 	}
 	resp, err := c.ChainGovernorResetReleaseTimer(ctx, &msg)
 	if err != nil {

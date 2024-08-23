@@ -100,15 +100,16 @@ func (gov *ChainGovernor) Status() (resp string) {
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+
 	for _, ce := range gov.chains {
-		valueTrans, err := sumValue(ce.transfers, startTime)
+		netValue, _, _, err := sumValue(ce.transfers, startTime)
 		if err != nil {
 			// We don't want to actually return an error or otherwise stop
 			// execution in this case. Instead of propagating the error here, print the contents of the
 			// error message.
 			return fmt.Sprintf("chain: %v, dailyLimit: OVERFLOW. error: %s", ce.emitterChainId, err)
 		}
-		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
+		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, netValue, len(ce.pending))
 		resp += s1 + "\n"
 		gov.logger.Info(s1)
 		if len(ce.pending) != 0 {
@@ -213,11 +214,11 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 }
 
 // Admin command to reset the release timer for a pending VAA, extending it to the configured limit.
-func (gov *ChainGovernor) ResetReleaseTimer(vaaId string) (string, error) {
-	return gov.resetReleaseTimerForTime(vaaId, time.Now())
+func (gov *ChainGovernor) ResetReleaseTimer(vaaId string, numDays uint32) (string, error) {
+	return gov.resetReleaseTimerForTime(vaaId, time.Now(), numDays)
 }
 
-func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) (string, error) {
+func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, numDays uint32) (string, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -225,7 +226,7 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 		for _, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				pe.dbData.ReleaseTime = now.Add(maxEnqueuedTime)
+				pe.dbData.ReleaseTime = now.Add(time.Duration(numDays) * time.Hour * 24)
 				gov.logger.Info("updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
@@ -244,62 +245,111 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 	}
 
 	return "", fmt.Errorf("vaa not found in the pending list")
+
 }
 
-// sumValue sums the value of all `transfers`. See also `TrimAndSumValue`.
-func sumValue(transfers []transfer, startTime time.Time) (uint64, error) {
+// sumValue sums the value of all `transfers`, returning separate fields for:
+// - the net sum of all outgoing small tranasfers minus flow cancel sum
+// - the sum of all outgoing small tranasfers
+// - the sum of all incoming flow-cancelling transfers
+// NOTE these sums exclude "big transfers" as they are always queued for 24h and are never added to the chain entry's 'transfers' field.
+// Returns an error if the sum of all transfers would overflow the bounds of Int64. In this case, the function
+// returns a value of 0.
+func sumValue(transfers []transfer, startTime time.Time) (netNotional int64, smallTxOutgoingNotional uint64, flowCancelNotional uint64, err error) {
 	if len(transfers) == 0 {
-		return 0, nil
+		return 0, 0, 0, nil
 	}
 
-	var sum int64
+	// Sum of all outgoing small tranasfers minus incoming flow cancel transfers. Big transfers are excluded
+	netNotional = int64(0)
+	smallTxOutgoingNotional = uint64(0)
+	flowCancelNotional = uint64(0)
 
 	for _, t := range transfers {
 		if t.dbTransfer.Timestamp.Before(startTime) {
 			continue
 		}
-		checkedSum, err := CheckedAddInt64(sum, t.value)
+		netNotional, err = CheckedAddInt64(netNotional, t.value)
 		if err != nil {
 			// We have to stop and return an error here (rather than saturate, for example). The
 			// transfers are not sorted by value so we can't make any guarantee on the final value
 			// if we hit the upper or lower bound. We don't expect this to happen in any case.
-			return 0, err
+			return 0, 0, 0, err
 		}
-		sum = checkedSum
+		if t.value < 0 {
+			// If a transfer is negative then it is an incoming, flow-cancelling transfer.
+			// We can use the dbTransfer.Value for calculating the sum because it is the unsigned version
+			// of t.Value
+			flowCancelNotional += t.dbTransfer.Value
+		} else {
+			smallTxOutgoingNotional += t.dbTransfer.Value
+		}
 	}
 
-	// Do not return negative values. Instead, saturate to zero.
-	if sum <= 0 {
-		return 0, nil
-	}
-
-	return uint64(sum), nil
+	return netNotional, smallTxOutgoingNotional, flowCancelNotional, nil
 }
 
-// REST query to get the current available notional value per chain.
+// REST query to get the current available notional value per chain. This is defined as the sum of all transfers
+// subtracted from the chains's dailyLimit.
+// The available notional limit by chain represents the remaining capacity of a chain. As a result, it should not be
+// a negative number: we don't want to represent that there is "negative value" available.
 func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	for _, ce := range gov.chains {
-		value, err := sumValue(ce.transfers, startTime)
+
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, chainId := range gov.chainIds {
+		ce := gov.chains[chainId]
+		netUsage, _, incoming, err := sumValue(ce.transfers, startTime)
 		if err != nil {
-			// Don't return an error here, just return 0
-			return make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
+			// Report 0 available notional if we can't calculate the current usage
+			gov.logger.Error("GetAvailableNotionalByChain: failed to compute sum of transfers for chain entry",
+				zap.String("chainID", chainId.String()),
+				zap.Error(err))
+			resp = append(resp, &publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry{
+				ChainId:                    uint32(ce.emitterChainId),
+				RemainingAvailableNotional: 0,
+				NotionalLimit:              ce.dailyLimit,
+				BigTransactionSize:         ce.bigTransactionSize,
+			})
+			continue
 		}
-		if value >= ce.dailyLimit {
-			value = 0
-		} else {
-			value = ce.dailyLimit - value
+
+		remaining := gov.availableNotionalValue(chainId, netUsage)
+
+		if !gov.flowCancelEnabled {
+			// When flow cancel is disabled, we expect that both the netUsage and remaining notional should be
+			// within the range of [0, dailyLimit]. Flow cancel allows flexibility here. netUsage may be
+			// negative if there is a lot of incoming flow; conversely, it may exceed dailyLimit if incoming
+			// flow added space, allowed additional transfers through, and then expired after 24h.
+			// Note that if flow cancel is enabled and then later disabled, netUsage can exceed dailyLimit
+			// for 24h as old transfers will be loaded from the database into the Governor, but the flow
+			// cancel transfers will not. The value should return to the normal range after 24h has elapsed
+			// since the old transfers were sent.
+			if netUsage < 0 || incoming != 0 {
+				gov.logger.Warn("GetAvailableNotionalByChain: net value for chain is negative even though flow cancel is disabled",
+					zap.String("chainID", chainId.String()),
+					zap.Uint64("dailyLimit", ce.dailyLimit),
+					zap.Int64("netUsage", netUsage),
+					zap.Error(err))
+			} else if uint64(netUsage) > ce.dailyLimit {
+				gov.logger.Warn("GetAvailableNotionalByChain: net value for chain exceeds daily limit even though flow cancel is disabled",
+					zap.String("chainID", chainId.String()),
+					zap.Uint64("dailyLimit", ce.dailyLimit),
+					zap.Error(err))
+			}
+
 		}
 
 		resp = append(resp, &publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry{
 			ChainId:                    uint32(ce.emitterChainId),
-			RemainingAvailableNotional: value,
+			RemainingAvailableNotional: remaining,
 			NotionalLimit:              ce.dailyLimit,
 			BigTransactionSize:         ce.bigTransactionSize,
 		})
+
 	}
 
 	sort.SliceStable(resp, func(i, j int) bool {
@@ -363,6 +413,25 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 	}
 
 	return false, nil
+}
+
+// availableNotionalValue calculates the available notional USD value for a chain entry based on the net value
+// of the chain.
+func (gov *ChainGovernor) availableNotionalValue(id vaa.ChainID, netUsage int64) uint64 {
+	remaining := uint64(0)
+	ce := gov.chains[id]
+
+	// Handle negative case here so we can safely cast to uint64 below
+	if netUsage < 0 {
+		// The full capacity is available for the chain.
+		remaining = ce.dailyLimit
+	} else if uint64(netUsage) > ce.dailyLimit {
+		remaining = 0
+	} else {
+		remaining = ce.dailyLimit - uint64(netUsage)
+	}
+
+	return remaining
 }
 
 // REST query to get the list of tokens being monitored by the governor.
@@ -441,21 +510,21 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 
 		if exists {
 			enabled = "1"
-			value, err := sumValue(ce.transfers, startTime)
+			netUsage, _, _, err := sumValue(ce.transfers, startTime)
+
+			remaining := uint64(0)
 			if err != nil {
 				// Error can occur if the sum overflows. Return 0 in this case rather than returning an
 				// error.
-				value = 0
-			}
-			if value >= ce.dailyLimit {
-				value = 0
+				gov.logger.Error("CollectMetrics: failed to compute sum of transfers for chain entry", zap.String("chain", chain.String()), zap.Error(err))
+				remaining = 0
 			} else {
-				value = ce.dailyLimit - value
+				remaining = gov.availableNotionalValue(chain, netUsage)
 			}
 
 			pending := len(ce.pending)
 			totalNotional = fmt.Sprint(ce.dailyLimit)
-			available = float64(value)
+			available = float64(remaining)
 			numPending = float64(pending)
 			totalPending += pending
 		}
@@ -493,7 +562,9 @@ var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
 func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
-	for _, ce := range gov.chains {
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, cid := range gov.chainIds {
+		ce := gov.chains[cid]
 		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
 			ChainId:            uint32(ce.emitterChainId),
 			NotionalLimit:      ce.dailyLimit,
@@ -513,11 +584,12 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 	gov.configPublishCounter += 1
 	payload := &gossipv1.ChainGovernorConfig{
-		NodeName:  hb.NodeName,
-		Counter:   gov.configPublishCounter,
-		Timestamp: hb.Timestamp,
-		Chains:    chains,
-		Tokens:    tokens,
+		NodeName:          hb.NodeName,
+		Counter:           gov.configPublishCounter,
+		Timestamp:         hb.Timestamp,
+		Chains:            chains,
+		Tokens:            tokens,
+		FlowCancelEnabled: gov.flowCancelEnabled,
 	}
 
 	b, err := proto.Marshal(payload)
@@ -551,16 +623,15 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
-	for _, ce := range gov.chains {
-		value, err := sumValue(ce.transfers, startTime)
+	for chainId, ce := range gov.chains {
+		// The capacity for the chain to emit further messages, denoted as USD value.
+		remaining := uint64(0)
+		netUsage, smallTxNotional, flowCancelNotional, err := sumValue(ce.transfers, startTime)
 
-		if err != nil || value >= ce.dailyLimit {
-			// In case of error, set value to 0 rather than returning an error to the caller. An error
-			// here means sumValue has encountered an overflow and this should never happen. Even if it did
-			// we don't want to stop execution here.
-			value = 0
+		if err != nil {
+			gov.logger.Error("publishStatus: failed to compute sum of transfers for chain entry", zap.String("chain", chainId.String()), zap.Error(err))
 		} else {
-			value = ce.dailyLimit - value
+			remaining = gov.availableNotionalValue(chainId, netUsage)
 		}
 
 		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
@@ -589,9 +660,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 		}
 
 		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
-			ChainId:                    uint32(ce.emitterChainId),
-			RemainingAvailableNotional: value,
-			Emitters:                   []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
+			ChainId:                      uint32(ce.emitterChainId),
+			RemainingAvailableNotional:   remaining,
+			Emitters:                     []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
+			SmallTxNetNotionalValue:      netUsage,
+			SmallTxOutgoingNotionalValue: smallTxNotional,
+			FlowCancelNotionalValue:      flowCancelNotional,
 		})
 	}
 

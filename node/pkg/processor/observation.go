@@ -2,7 +2,6 @@
 package processor
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -46,11 +45,9 @@ var (
 )
 
 // signaturesToVaaFormat converts a map[common.Address][]byte (processor state format) to []*vaa.Signature (VAA format) given a set of keys gsKeys
-// It also returns a bool array indicating which key in gsKeys had a signature
-// The processor state format is used for effeciently storing signatures during aggregation while the VAA format is more efficient for on-chain verification.
-func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common.Address) ([]*vaa.Signature, []bool) {
+// The processor state format is used for efficiently storing signatures during aggregation while the VAA format is more efficient for on-chain verification.
+func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common.Address) []*vaa.Signature {
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
-	agg := make([]bool, len(gsKeys))
 	var sigs []*vaa.Signature
 	for i, a := range gsKeys {
 		sig, ok := signatures[a]
@@ -66,25 +63,46 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 				Signature: bs,
 			})
 		}
-
-		agg[i] = ok
 	}
-	return sigs, agg
+	return sigs
 }
 
-// handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
-// and assembles and submits a valid VAA if possible.
-func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+// handleBatchObservation processes a batch of remote VAA observations.
+func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) {
+	for _, obs := range m.Msg.Observations {
+		p.handleSingleObservation(m.Msg.Addr, obs)
+	}
+	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+}
+
+// handleObservation processes a remote VAA observation.
+func (p *Processor) handleObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
+	obs := gossipv1.Observation{
+		Hash:      m.Msg.Hash,
+		Signature: m.Msg.Signature,
+		TxHash:    m.Msg.TxHash,
+		MessageId: m.Msg.MessageId,
+	}
+	p.handleSingleObservation(m.Msg.Addr, &obs)
+	observationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
+}
+
+// handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum, and assembles and submits a valid VAA if possible.
+func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
-	m := obs.Msg
+	start := time.Now()
+	observationsReceivedTotal.Inc()
+
+	their_addr := common.BytesToAddress(addr)
 	hash := hex.EncodeToString(m.Hash)
 	s := p.state.signatures[hash]
 	if s != nil && s.submitted {
 		// already submitted; ignoring additional signatures for it.
+		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 		return
 	}
 
@@ -93,41 +111,10 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			zap.String("message_id", m.MessageId),
 			zap.String("digest", hash),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
+			zap.String("addr", hex.EncodeToString(addr)),
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 		)
-	}
-
-	observationsReceivedTotal.Inc()
-
-	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
-	// the public key that was used to sign the payload.
-	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
-	if err != nil {
-		p.logger.Warn("failed to verify signature on observation",
-			zap.String("messageId", m.MessageId),
-			zap.String("digest", hash),
-			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
-			zap.Error(err))
-		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
-		return
-	}
-
-	// Verify that m.Addr matches the public key that signed m.Hash.
-	their_addr := common.BytesToAddress(m.Addr)
-	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
-
-	if their_addr != signer_pk {
-		p.logger.Info("invalid observation - address does not match pubkey",
-			zap.String("messageId", m.MessageId),
-			zap.String("digest", hash),
-			zap.String("signature", hex.EncodeToString(m.Signature)),
-			zap.String("addr", hex.EncodeToString(m.Addr)),
-			zap.String("pk", signer_pk.Hex()))
-		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
-		return
 	}
 
 	// Determine which guardian set to use. The following cases are possible:
@@ -165,7 +152,7 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 		return
 	}
 
-	// Verify that m.Addr is included in the guardian set. If it's not, drop the message. In case it's us
+	// Verify that addr is included in the guardian set. If it's not, drop the message. In case it's us
 	// who have the outdated guardian set, we'll just wait for the message to be retransmitted eventually.
 	_, ok := gs.KeyIndex(their_addr)
 	if !ok {
@@ -179,6 +166,34 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 			)
 		}
 		observationsFailedTotal.WithLabelValues("unknown_guardian").Inc()
+		return
+	}
+
+	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
+	// the public key that was used to sign the payload.
+	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
+	if err != nil {
+		p.logger.Warn("failed to verify signature on observation",
+			zap.String("messageId", m.MessageId),
+			zap.String("digest", hash),
+			zap.String("signature", hex.EncodeToString(m.Signature)),
+			zap.String("addr", hex.EncodeToString(addr)),
+			zap.Error(err))
+		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
+		return
+	}
+
+	// Verify that addr matches the public key that signed m.Hash.
+	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
+
+	if their_addr != signer_pk {
+		p.logger.Info("invalid observation - address does not match pubkey",
+			zap.String("messageId", m.MessageId),
+			zap.String("digest", hash),
+			zap.String("signature", hex.EncodeToString(m.Signature)),
+			zap.String("addr", hex.EncodeToString(addr)),
+			zap.String("pk", signer_pk.Hex()))
+		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
 		return
 	}
 
@@ -214,68 +229,74 @@ func (p *Processor) handleObservation(ctx context.Context, obs *node_common.MsgW
 	s.signatures[their_addr] = m.Signature
 
 	if s.ourObservation != nil {
-		// We have made this observation on chain!
-
-		quorum := vaa.CalculateQuorum(len(gs.Keys))
-
-		// Check if we have more signatures than required for quorum.
-		// s.signatures may contain signatures from multiple guardian sets during guardian set updates
-		// Hence, if len(s.signatures) < quorum, then there is definitely no quorum and we can return early to save additional computation,
-		// but if len(s.signatures) >= quorum, there is not necessarily quorum for the active guardian set.
-		// We will later check for quorum again after assembling the VAA for a particular guardian set.
-		if len(s.signatures) < quorum {
-			// no quorum yet, we're done here
-			if p.logger.Level().Enabled(zapcore.DebugLevel) {
-				p.logger.Debug("quorum not yet met",
-					zap.String("messageId", m.MessageId),
-					zap.String("digest", hash),
-				)
-			}
-			return
-		}
-
-		// Now we *may* have quorum, depending on the guardian set in use.
-		// Let's construct the VAA and check if we actually have quorum.
-		sigsVaaFormat, agg := signaturesToVaaFormat(s.signatures, gs.Keys)
-
-		if p.logger.Level().Enabled(zapcore.DebugLevel) {
-			p.logger.Debug("aggregation state for observation", // 1.3M out of 3M info messages / hour / guardian
-				zap.String("messageId", m.MessageId),
-				zap.String("digest", hash),
-				zap.Any("set", gs.KeysAsHexStrings()),
-				zap.Uint32("index", gs.Index),
-				zap.Bools("aggregation", agg),
-				zap.Int("required_sigs", quorum),
-				zap.Int("have_sigs", len(sigsVaaFormat)),
-				zap.Bool("quorum", len(sigsVaaFormat) >= quorum),
-			)
-		}
-
-		if len(sigsVaaFormat) >= quorum && !s.submitted {
-			// we have reached quorum *with the active guardian set*
-			s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
-		} else {
-			if p.logger.Level().Enabled(zapcore.DebugLevel) {
-				p.logger.Debug("quorum not met or already submitted, doing nothing", // 1.2M out of 3M info messages / hour / guardian
-					zap.String("messageId", m.MessageId),
-					zap.String("digest", hash),
-				)
-			}
-		}
+		p.checkForQuorum(m, s, gs, hash)
 	} else {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
-			p.logger.Debug("we have not yet seen this observation - temporarily storing signature", // 175K out of 3M info messages / hour / guardian
+			p.logger.Debug("we have not yet seen this observation yet",
 				zap.String("messageId", m.MessageId),
 				zap.String("digest", hash),
 			)
 		}
-
+		// Keep going to update metrics.
 	}
 
-	observationTotalDelay.Observe(float64(time.Since(obs.Timestamp).Microseconds()))
+	timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 }
 
-func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
+// checkForQuorum checks for quorum after a valid signature has been added to the observation state. If quorum is met, it broadcasts the signed VAA. This function
+// is called both for local and external observations. It assumes we that we have made the observation ourselves but have not already submitted the VAA.
+func (p *Processor) checkForQuorum(m *gossipv1.Observation, s *state, gs *node_common.GuardianSet, hash string) {
+	// Check if we have more signatures than required for quorum.
+	// s.signatures may contain signatures from multiple guardian sets during guardian set updates
+	// Hence, if len(s.signatures) < quorum, then there is definitely no quorum and we can return early to save additional computation,
+	// but if len(s.signatures) >= quorum, there is not necessarily quorum for the active guardian set.
+	// We will later check for quorum again after assembling the VAA for a particular guardian set.
+	if len(s.signatures) < gs.Quorum() {
+		// no quorum yet, we're done here
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("quorum not yet met",
+				zap.String("messageId", m.MessageId),
+				zap.String("digest", hash),
+			)
+		}
+		return
+	}
+
+	// Now we *may* have quorum, depending on the guardian set in use.
+	// Let's construct the VAA and check if we actually have quorum.
+	sigsVaaFormat := signaturesToVaaFormat(s.signatures, gs.Keys)
+
+	if p.logger.Level().Enabled(zapcore.DebugLevel) {
+		p.logger.Debug("aggregation state for observation", // 1.3M out of 3M info messages / hour / guardian
+			zap.String("messageId", m.MessageId),
+			zap.String("digest", hash),
+			zap.Any("set", gs.KeysAsHexStrings()),
+			zap.Uint32("index", gs.Index),
+			zap.Int("required_sigs", gs.Quorum()),
+			zap.Int("have_sigs", len(sigsVaaFormat)),
+			zap.Bool("quorum", len(sigsVaaFormat) >= gs.Quorum()),
+		)
+	}
+
+	if len(sigsVaaFormat) < gs.Quorum() {
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("quorum not met, doing nothing",
+				zap.String("messageId", m.MessageId),
+				zap.String("digest", hash),
+			)
+		}
+		return
+	}
+
+	// We have reached quorum *with the active guardian set*.
+	start := time.Now()
+	s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
+	s.submitted = true
+	timeToHandleQuorum.Observe(float64(time.Since(start).Microseconds()))
+}
+
+// handleInboundSignedVAAWithQuorum takes a VAA received from the network. If we have not already seen it and it is valid, we store it in the database.
+func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQuorum) {
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
@@ -333,11 +354,5 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		)
 	}
 
-	if err := p.storeSignedVAA(v); err != nil {
-		p.logger.Error("failed to store signed VAA",
-			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
-		)
-		return
-	}
+	p.storeSignedVAA(v)
 }

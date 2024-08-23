@@ -67,7 +67,7 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 	ctx, cancel := context.WithTimeout(ctx, delayInMS)
 	defer cancel()
 
-	msgs, err := readFromChannel[*common.MessagePublication](ctx, subChan, batchSize)
+	msgs, err := common.ReadFromChannelWithTimeout[*common.MessagePublication](ctx, subChan, batchSize)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("failed to read messages from channel for %s: %w", tag, err)
 	}
@@ -93,21 +93,6 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
-}
-
-// readFromChannel reads events from the channel until a timeout occurs or the batch is full, and returns them.
-func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, error) {
-	out := make([]T, 0, count)
-	for len(out) < count {
-		select {
-		case <-ctx.Done():
-			return out, ctx.Err()
-		case msg := <-ch:
-			out = append(out, msg)
-		}
-	}
-
-	return out, nil
 }
 
 // removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports

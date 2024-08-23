@@ -1,4 +1,5 @@
 {
+  "allowAnythingSupported": true,
   "permissions": [
     {
       "userName": "Test User",
@@ -8,7 +9,7 @@
           "ethCall": {
             "note:": "Name of WETH on Goerli",
             "chain": 2,
-            "contractAddress": "B4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+            "contractAddress": "*",
             "call": "0x06fdde03"
           }
         },
@@ -178,6 +179,20 @@
           }
         }
       ]
+    },
+    {
+      "userName": "Unlimited User",
+      "apiKey": "my_secret_key_3",
+      "allowUnsigned": true,
+      "allowAnything": true
+    },
+    {
+      "userName": "Rate Limited User",
+      "apiKey": "rate_limited_key",
+      "rateLimit": 1.0,
+      "burstSize": 2,
+      "allowUnsigned": true,
+      "allowAnything": true
     }
   ]
 }
