@@ -619,6 +619,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Verify flags
 
+	if *nodeName == "" {
+		logger.Fatal("Please specify --nodeName")
+	}
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify --nodeKey")
 	}
@@ -641,6 +644,100 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Ethereum is required since we use it to get the guardian set. All other chains are optional.
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
+	}
+
+	// In devnet mode, we generate a deterministic guardian key and write it to disk.
+	if env == common.UnsafeDevNet {
+		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
+		if err != nil {
+			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+		}
+	}
+
+	// Load guardian key
+	gk, err := common.LoadGuardianKey(*guardianKeyPath, env == common.UnsafeDevNet)
+	if err != nil {
+		logger.Fatal("failed to load guardian key", zap.Error(err))
+	}
+
+	logger.Info("Loaded guardian key", zap.String(
+		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
+
+	// Load p2p private key
+	var p2pKey libp2p_crypto.PrivKey
+	if env == common.UnsafeDevNet {
+		idx, err := devnet.GetDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
+
+		if idx != 0 {
+			firstGuardianName, err := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
+			if err != nil {
+				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(err))
+			}
+			// try to connect to guardian-0
+			for {
+				_, err := net.LookupIP(firstGuardianName)
+				if err == nil {
+					break
+				}
+				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))
+				time.Sleep(time.Second)
+			}
+			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
+			// This may no longer be necessary because now the p2p.go ensures that it can connect to at least one bootstrap peer and will
+			// exit the whole guardian if it is unable to. Sleeping here for a bit may reduce overall startup time by preventing unnecessary restarts, though.
+			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds for the bootstrap guardian to come online.")
+			time.Sleep(time.Second * 10)
+		}
+	} else {
+		p2pKey, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			logger.Fatal("Failed to load node key", zap.Error(err))
+		}
+	}
+
+	// Set up telemetry if it is enabled. We can't do this until we have the p2p key and the guardian key.
+	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default.
+	usingLoki := *telemetryLokiURL != ""
+	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && usingLoki)) {
+		if !usingLoki {
+			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
+		}
+
+		// Get libp2p peer ID from private key
+		pk := p2pKey.GetPublic()
+		peerID, err := peer.IDFromPublicKey(pk)
+		if err != nil {
+			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
+		}
+
+		labels := map[string]string{
+			"node_name":     *nodeName,
+			"node_key":      peerID.String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
+			"network":       *p2pNetworkID,
+			"version":       version.Version(),
+		}
+
+		skipPrivateLogs := !*publicRpcLogToTelemetry
+
+		var tm *telemetry.Telemetry
+		if usingLoki {
+			logger.Info("Using Loki telemetry logger",
+				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
+
+			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", skipPrivateLogs, labels)
+			if err != nil {
+				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+			}
+		}
+
+		defer tm.Close()
+		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
 	}
 
 	// Validate the args for all the EVM chains. The last flag indicates if the chain is allowed in mainnet.
@@ -743,10 +840,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("--publicRpcLogDetail should be one of (none, minimal, full)")
 	}
 
-	if *nodeName == "" {
-		logger.Fatal("Please specify --nodeName")
-	}
-
 	// Complain about Infura on mainnet.
 	//
 	// As it turns out, Infura has a bug where it would sometimes incorrectly round
@@ -768,63 +861,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	if strings.Contains(*ethRPC, "mainnet.infura.io") ||
 		strings.Contains(*polygonRPC, "polygon-mainnet.infura.io") {
 		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
-	}
-
-	// In devnet mode, we generate a deterministic guardian key and write it to disk.
-	if env == common.UnsafeDevNet {
-		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
-		if err != nil {
-			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
-		}
-	}
-
-	// Database
-	db := db.OpenDb(logger, dataDir)
-	defer db.Close()
-
-	// Guardian key
-	gk, err := common.LoadGuardianKey(*guardianKeyPath, env == common.UnsafeDevNet)
-	if err != nil {
-		logger.Fatal("failed to load guardian key", zap.Error(err))
-	}
-
-	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
-
-	// Load p2p private key
-	var p2pKey libp2p_crypto.PrivKey
-	if env == common.UnsafeDevNet {
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
-			logger.Fatal("Failed to parse hostname - are we running in devnet?")
-		}
-		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
-
-		if idx != 0 {
-			firstGuardianName, err := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
-			if err != nil {
-				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(err))
-			}
-			// try to connect to guardian-0
-			for {
-				_, err := net.LookupIP(firstGuardianName)
-				if err == nil {
-					break
-				}
-				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))
-				time.Sleep(time.Second)
-			}
-			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
-			// This may no longer be necessary because now the p2p.go ensures that it can connect to at least one bootstrap peer and will
-			// exit the whole guardian if it is unable to. Sleeping here for a bit may reduce overall startup time by preventing unnecessary restarts, though.
-			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds for the bootstrap guardian to come online.")
-			time.Sleep(time.Second * 10)
-		}
-	} else {
-		p2pKey, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
-		if err != nil {
-			logger.Fatal("Failed to load node key", zap.Error(err))
-		}
 	}
 
 	rpcMap := make(map[string]string)
@@ -898,54 +934,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		rootCtxCancel()
 	}()
 
-	usingLoki := *telemetryLokiURL != ""
-
-	var hasTelemetryCredential bool = usingLoki
-
-	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
-	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && hasTelemetryCredential)) {
-		if !hasTelemetryCredential {
-			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
-		}
-
-		// Get libp2p peer ID from private key
-		pk := p2pKey.GetPublic()
-		peerID, err := peer.IDFromPublicKey(pk)
-		if err != nil {
-			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
-		}
-
-		labels := map[string]string{
-			"node_name":     *nodeName,
-			"node_key":      peerID.String(),
-			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
-			"network":       *p2pNetworkID,
-			"version":       version.Version(),
-		}
-
-		skipPrivateLogs := !*publicRpcLogToTelemetry
-
-		var tm *telemetry.Telemetry
-		if usingLoki {
-			logger.Info("Using Loki telemetry logger",
-				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
-				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
-
-			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", skipPrivateLogs, labels)
-			if err != nil {
-				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-			}
-		}
-
-		defer tm.Close()
-		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
-	}
-
 	// log golang version
 	logger.Info("golang version", zap.String("golang_version", runtime.Version()))
 
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
+
+	// Database
+	db := db.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
+	defer db.Close()
 
 	wormchainId := "wormchain"
 	if env == common.TestNet {
