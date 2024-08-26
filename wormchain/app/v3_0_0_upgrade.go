@@ -23,10 +23,11 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
+	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 var V3_0_0_Upgrade = Upgrade{
-	UpgradeName:          "v2.23.0",
+	UpgradeName:          "v3.0.0",
 	CreateUpgradeHandler: CreateV3_0_0_UpgradeHandler,
 	StoreUpgrades: store.StoreUpgrades{
 		Added: []string{
@@ -43,6 +44,7 @@ func CreateV3_0_0_UpgradeHandler(
 ) upgradetypes.UpgradeHandler {
 	return func(ctx sdk.Context, _ upgradetypes.Plan, vm module.VersionMap) (module.VersionMap, error) {
 		logger := ctx.Logger().With("upgrade", "v3.0.0")
+		logger.Info("Starting Upgrade")
 
 		// set param key table for params module migration
 		// ref: https://github.com/cosmos/cosmos-sdk/pull/12363/files
@@ -81,6 +83,8 @@ func CreateV3_0_0_UpgradeHandler(
 			// wormhole modules
 			case tokenfactorytypes.ModuleName:
 				keyTable = tokenfactorytypes.ParamKeyTable()
+			case wormholetypes.ModuleName:
+				continue // skip wormhole module
 			}
 
 			if !subspace.HasKeyTable() {
@@ -107,6 +111,6 @@ func CreateV3_0_0_UpgradeHandler(
 		params.AllowedClients = append(params.AllowedClients, ibcexported.Localhost)
 		app.IBCKeeper.ClientKeeper.SetParams(ctx, params)
 
-		return mm.RunMigrations(ctx, cfg, vm)
+		return versionMap, err
 	}
 }

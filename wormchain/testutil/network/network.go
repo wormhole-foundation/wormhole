@@ -61,7 +61,6 @@ func DefaultConfig() network.Config {
 				nil,
 				true,
 				map[int64]bool{},
-				val.GetCtx().Config.RootDir,
 				0,
 				encoding,
 				apptesting.EmptyAppOptions{},

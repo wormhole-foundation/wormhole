@@ -14,13 +14,13 @@ import (
 )
 
 // New creates application instance with in-memory database and disabled logging.
-func New(dir string) runtime.AppI {
+func New() runtime.AppI {
 	db := tmdb.NewMemDB()
 	logger := log.NewNopLogger()
 
 	encoding := app.MakeEncodingConfig()
 
-	a := app.New(logger, db, nil, true, map[int64]bool{}, dir, 0, encoding,
+	a := app.New(logger, db, nil, true, map[int64]bool{}, 0, encoding,
 		nil)
 	// InitChain updates deliverState which is required when app.NewContext is called
 	a.InitChain(abci.RequestInitChain{

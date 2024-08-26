@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
+	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
+	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	errorsmod "cosmossdk.io/errors"
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	dbm "github.com/cometbft/cometbft-db"
@@ -17,11 +19,13 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
+	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -87,7 +91,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v7/modules/core"
 	ibcclient "github.com/cosmos/ibc-go/v7/modules/core/02-client"
-	ibcclienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	ibcporttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
 	ibcante "github.com/cosmos/ibc-go/v7/modules/core/ante"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
@@ -349,7 +352,6 @@ func New(
 	traceStore io.Writer,
 	loadLatest bool,
 	skipUpgradeHeights map[int64]bool,
-	homePath string,
 	invCheckPeriod uint,
 	encodingConfig appparams.EncodingConfig,
 	appOpts servertypes.AppOptions,
@@ -368,26 +370,31 @@ func New(
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey,
 		banktypes.StoreKey,
-		crisistypes.StoreKey,
-		stakingtypes.StoreKey,
-		minttypes.StoreKey,
-		distrtypes.StoreKey,
-		slashingtypes.StoreKey,
+		capabilitytypes.StoreKey,
 		consensusparamstypes.StoreKey,
-		govtypes.StoreKey,
-		paramstypes.StoreKey,
-		upgradetypes.StoreKey,
-		feegrant.StoreKey,
+		crisistypes.StoreKey,
+
+		distrtypes.StoreKey,
 		evidencetypes.StoreKey,
+		feegrant.StoreKey,
+		govtypes.StoreKey,
+
+		ibcexported.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibccomposabilitytypes.StoreKey,
 		ibchookstypes.StoreKey,
-		ibcexported.StoreKey,
+
+		minttypes.StoreKey,
+		paramstypes.StoreKey,
 		packetforwardtypes.StoreKey,
-		capabilitytypes.StoreKey,
-		wormholemoduletypes.StoreKey,
-		wasmtypes.StoreKey,
+
+		stakingtypes.StoreKey,
+		slashingtypes.StoreKey,
+
 		tokenfactorytypes.StoreKey,
+		upgradetypes.StoreKey,
+		wasmtypes.StoreKey,
+		wormholemoduletypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -506,6 +513,7 @@ func New(
 		app.AccountKeeper,
 	)
 
+	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(
 		skipUpgradeHeights,
 		keys[upgradetypes.StoreKey],
@@ -551,7 +559,7 @@ func New(
 	govRouter := govv1beta.NewRouter().
 		AddRoute(govtypes.RouterKey, govv1beta.ProposalHandler).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
+		AddRoute(ibcexported.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec,
@@ -769,6 +777,14 @@ func New(
 
 	// register upgrade
 	app.setupUpgradeHandlers(app.configurator)
+
+	// SDK v47 - since we do not use dep inject, this gives us access to newer gRPC services.
+	autocliv1.RegisterQueryServer(app.GRPCQueryRouter(), runtimeservices.NewAutoCLIQueryService(app.mm.Modules))
+	reflectionSvc, err := runtimeservices.NewReflectionService()
+	if err != nil {
+		panic(err)
+	}
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), reflectionSvc)
 
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)

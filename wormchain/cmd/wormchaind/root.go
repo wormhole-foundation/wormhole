@@ -1,13 +1,10 @@
 package main
 
 import (
-	"errors"
 	"io"
 	"os"
 
 	wasm "github.com/CosmWasm/wasmd/x/wasm"
-	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormchain/app"
@@ -204,11 +201,6 @@ func (ac appCreator) newApp(
 		skipUpgradeHeights[int64(h)] = true
 	}
 
-	var wasmOpts []wasmkeeper.Option
-	if cast.ToBool(appOpts.Get("telemetry.enabled")) {
-		wasmOpts = append(wasmOpts, wasmkeeper.WithVMCacheMetrics(prometheus.DefaultRegisterer))
-	}
-
 	loadLatest := true
 
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
@@ -219,7 +211,6 @@ func (ac appCreator) newApp(
 		traceStore,
 		loadLatest,
 		skipUpgradeHeights,
-		app.DefaultNodeHome,
 		0,
 		app.MakeEncodingConfig(),
 		appOpts,
@@ -238,10 +229,6 @@ func (ac appCreator) appExport(
 	modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
 	var interchainapp *app.App
-	homePath, ok := appOpts.Get(flags.FlagHome).(string)
-	if !ok || homePath == "" {
-		return servertypes.ExportedApp{}, errors.New("application home is not set")
-	}
 
 	loadLatest := height == -1
 	interchainapp = app.New(
@@ -250,7 +237,6 @@ func (ac appCreator) appExport(
 		traceStore,
 		loadLatest,
 		map[int64]bool{},
-		homePath,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		ac.encCfg,
 		appOpts,

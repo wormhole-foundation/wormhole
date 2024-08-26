@@ -132,7 +132,6 @@ func setup(withGenesis bool, invCheckPeriod uint) (*app.App, app.GenesisState) {
 		nil,
 		true,
 		map[int64]bool{},
-		app.DefaultNodeHome,
 		invCheckPeriod,
 		encoding,
 		EmptyBaseAppOptions{},
