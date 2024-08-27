@@ -30,6 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"nhooyr.io/websocket"
 )
 
@@ -55,6 +56,12 @@ type (
 		lastSlot uint64
 		// subscriber id
 		subId string
+
+		// whLogPrefix is used to search for possible Wormhole messages.
+		whLogPrefix string
+
+		// msgObservedLogLevel is used to log Pythnet observations as debugs but Solana observations as infos.
+		msgObservedLogLevel zapcore.Level
 
 		// latestFinalizedBlockNumber is the latest block processed by this watcher.
 		latestBlockNumber   uint64
@@ -215,21 +222,27 @@ func NewSolanaWatcher(
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 ) *SolanaWatcher {
+	msgObservedLogLevel := zapcore.InfoLevel
+	if chainID == vaa.ChainIDPythNet {
+		msgObservedLogLevel = zapcore.DebugLevel
+	}
 	return &SolanaWatcher{
-		rpcUrl:         rpcUrl,
-		wsUrl:          wsUrl,
-		contract:       contractAddress,
-		rawContract:    rawContract,
-		msgC:           msgC,
-		obsvReqC:       obsvReqC,
-		commitment:     commitment,
-		rpcClient:      rpc.New(rpcUrl),
-		readinessSync:  common.MustConvertChainIdToReadinessSyncing(chainID),
-		chainID:        chainID,
-		networkName:    chainID.String(),
-		queryReqC:      queryReqC,
-		queryResponseC: queryResponseC,
-		ccqConfig:      query.GetPerChainConfig(chainID),
+		rpcUrl:              rpcUrl,
+		wsUrl:               wsUrl,
+		contract:            contractAddress,
+		rawContract:         rawContract,
+		whLogPrefix:         fmt.Sprintf("Program %s", rawContract),
+		msgObservedLogLevel: msgObservedLogLevel,
+		msgC:                msgC,
+		obsvReqC:            obsvReqC,
+		commitment:          commitment,
+		rpcClient:           rpc.New(rpcUrl),
+		readinessSync:       common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:             chainID,
+		networkName:         chainID.String(),
+		queryReqC:           queryReqC,
+		queryResponseC:      queryResponseC,
+		ccqConfig:           query.GetPerChainConfig(chainID),
 	}
 }
 
@@ -393,13 +406,15 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					rangeStart := lastSlot + 1
 					rangeEnd := slot
 
-					logger.Debug("fetched current Solana height",
-						zap.String("commitment", string(s.commitment)),
-						zap.Uint64("slot", slot),
-						zap.Uint64("lastSlot", lastSlot),
-						zap.Uint64("pendingSlots", slot-lastSlot),
-						zap.Uint64("from", rangeStart), zap.Uint64("to", rangeEnd),
-						zap.Duration("took", time.Since(start)))
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("fetched current Solana height",
+							zap.String("commitment", string(s.commitment)),
+							zap.Uint64("slot", slot),
+							zap.Uint64("lastSlot", lastSlot),
+							zap.Uint64("pendingSlots", slot-lastSlot),
+							zap.Uint64("from", rangeStart), zap.Uint64("to", rangeEnd),
+							zap.Duration("took", time.Since(start)))
+					}
 
 					// Requesting each slot
 					for slot := rangeStart; slot <= rangeEnd; slot++ {
@@ -442,10 +457,12 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 
 		time.Sleep(retryDelay)
 
-		logger.Debug("retrying block",
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
-			zap.Uint("retry", retry))
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("retrying block",
+				zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)),
+				zap.Uint("retry", retry))
+		}
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchBlock", func(ctx context.Context) error {
 			s.retryFetchBlock(ctx, logger, slot, retry+1, isReobservation)
@@ -455,10 +472,12 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 }
 
 func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) (ok bool) {
-	logger.Debug("requesting block",
-		zap.Uint64("slot", slot),
-		zap.String("commitment", string(s.commitment)),
-		zap.Uint("empty_retry", emptyRetry))
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("requesting block",
+			zap.Uint64("slot", slot),
+			zap.String("commitment", string(s.commitment)),
+			zap.Uint("empty_retry", emptyRetry))
+	}
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 	start := time.Now()
@@ -477,9 +496,11 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	if err != nil {
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
-			logger.Debug("empty slot", zap.Uint64("slot", slot),
-				zap.Int("code", rpcErr.Code),
-				zap.String("commitment", string(s.commitment)))
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("empty slot", zap.Uint64("slot", slot),
+					zap.Int("code", rpcErr.Code),
+					zap.String("commitment", string(s.commitment)))
+			}
 
 			// TODO(leo): clean this up once we know what's happening
 			// https://github.com/solana-labs/solana/issues/20370
@@ -500,8 +521,10 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			}
 			return true
 		} else {
-			logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)))
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)))
+			}
 			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
 		}
@@ -514,32 +537,33 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		return false
 	}
 
-	logger.Debug("fetched block",
-		zap.Uint64("slot", slot),
-		zap.Int("num_tx", len(out.Transactions)),
-		zap.Duration("took", time.Since(start)),
-		zap.String("commitment", string(s.commitment)))
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("fetched block",
+			zap.Uint64("slot", slot),
+			zap.Int("num_tx", len(out.Transactions)),
+			zap.Duration("took", time.Since(start)),
+			zap.String("commitment", string(s.commitment)))
+	}
 
 	s.updateLatestBlock(slot)
 
 	for txNum, txRpc := range out.Transactions {
 		if txRpc.Meta.Err != nil {
-			logger.Debug("Transaction failed, skipping it",
-				zap.Uint64("slot", slot),
-				zap.Int("txNum", txNum),
-				zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
-			)
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("Transaction failed, skipping it",
+					zap.Uint64("slot", slot),
+					zap.Int("txNum", txNum),
+					zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
+				)
+			}
 			continue
 		}
 
 		// If the logs don't contain the contract address, skip the transaction.
 		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
-		var (
-			possiblyWormhole bool
-			whLogPrefix      = fmt.Sprintf("Program %s", s.rawContract)
-		)
+		var possiblyWormhole bool
 		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
-			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], whLogPrefix)
+			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], s.whLogPrefix)
 		}
 		if !possiblyWormhole {
 			continue
@@ -577,10 +601,12 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			continue
 		}
 
-		logger.Debug("found Wormhole transaction",
-			zap.Stringer("signature", signature),
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("found Wormhole transaction",
+				zap.Stringer("signature", signature),
+				zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)))
+		}
 
 		// Find top-level instructions
 		for i, inst := range tx.Message.Instructions {
@@ -594,11 +620,13 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 					zap.String("commitment", string(s.commitment)),
 					zap.Binary("data", inst.Data))
 			} else if found {
-				logger.Debug("found a top-level Wormhole instruction",
-					zap.Int("idx", i),
-					zap.Stringer("signature", signature),
-					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)))
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("found a top-level Wormhole instruction",
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				}
 			}
 		}
 
@@ -613,18 +641,20 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 						zap.Uint64("slot", slot),
 						zap.String("commitment", string(s.commitment)))
 				} else if found {
-					logger.Debug("found an inner Wormhole instruction",
-						zap.Int("idx", i),
-						zap.Stringer("signature", signature),
-						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("found an inner Wormhole instruction",
+							zap.Int("idx", i),
+							zap.Stringer("signature", signature),
+							zap.Uint64("slot", slot),
+							zap.String("commitment", string(s.commitment)))
+					}
 				}
 			}
 		}
 	}
 
-	if emptyRetry > 0 {
-		logger.Warn("SOLANA BUG: skipped or unavailable block retrieved on retry attempt",
+	if emptyRetry > 0 && logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("skipped or unavailable block retrieved on retry attempt",
 			zap.Uint("empty_retry", emptyRetry),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -657,8 +687,10 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
 	}
 
-	logger.Debug("post message data", zap.Any("deserialized_data", data),
-		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("post message data", zap.Any("deserialized_data", data),
+			zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
+	}
 
 	level, err := data.ConsistencyLevel.Commitment()
 	if err != nil {
@@ -672,8 +704,10 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
 	acc := tx.Message.AccountKeys[inst.Accounts[1]]
 
-	logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
-		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
+			zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
+	}
 
 	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
 		s.retryFetchMessageAccount(ctx, logger, acc, slot, 0, isReobservation)
@@ -754,11 +788,13 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 		return false
 	}
 
-	logger.Debug("found valid VAA account",
-		zap.Uint64("slot", slot),
-		zap.String("commitment", string(s.commitment)),
-		zap.Stringer("account", acc),
-		zap.Binary("data", data))
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("found valid VAA account",
+			zap.Uint64("slot", slot),
+			zap.String("commitment", string(s.commitment)),
+			zap.Stringer("account", acc),
+			zap.Binary("data", data))
+	}
 
 	s.processMessageAccount(logger, data, acc, isReobservation)
 	return false
@@ -851,7 +887,9 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 				zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)),
 			)
 		} else {
-			logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
+			}
 			return
 		}
 	}
@@ -897,16 +935,19 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
 
-	logger.Debug("message observed",
-		zap.Stringer("account", acc),
-		zap.Time("timestamp", observation.Timestamp),
-		zap.Uint32("nonce", observation.Nonce),
-		zap.Uint64("sequence", observation.Sequence),
-		zap.Stringer("emitter_chain", observation.EmitterChain),
-		zap.Stringer("emitter_address", observation.EmitterAddress),
-		zap.Binary("payload", observation.Payload),
-		zap.Uint8("consistency_level", observation.ConsistencyLevel),
-	)
+	if logger.Level().Enabled(s.msgObservedLogLevel) {
+		logger.Log(s.msgObservedLogLevel, "message observed",
+			zap.Stringer("account", acc),
+			zap.Time("timestamp", observation.Timestamp),
+			zap.Uint32("nonce", observation.Nonce),
+			zap.Uint64("sequence", observation.Sequence),
+			zap.Stringer("emitter_chain", observation.EmitterChain),
+			zap.Stringer("emitter_address", observation.EmitterAddress),
+			zap.Bool("isReobservation", isReobservation),
+			zap.Binary("payload", observation.Payload),
+			zap.Uint8("consistency_level", observation.ConsistencyLevel),
+		)
+	}
 
 	s.msgC <- observation
 }
