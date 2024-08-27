@@ -6,6 +6,7 @@ services. The purpose of contract verification is to provide the source code of
 the contract so that users have better transparency into the programs they
 interact with (whether this makes a difference in practice is beyond the scope
 of this document).
+/
 
 Verification requires uploading the source code and supplying the compiler
 version and arguments that the deployed bytecode was compiled with. Etherscan
