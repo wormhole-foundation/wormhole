@@ -173,23 +173,36 @@ abstract contract WormholeSigner {
             hash: bytes32("")
         });
 
+        uint32 currentGuardianSetIndex = wormhole.getCurrentGuardianSetIndex();
+        uint256 guardianSetLength = guardianSetKeys.length;
+
         // Compute the hash of the body
         bytes memory body = encodeObservation(vm_);
         vm_.hash = doubleKeccak256(body);
 
-        // Sign the hash with the devnet guardian private key
-        IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
-        (sigs[0].v, sigs[0].r, sigs[0].s) = hevm.sign(testGuardianKey, vm_.hash);
-        sigs[0].guardianIndex = 0;
-
         signedMessage = abi.encodePacked(
             vm_.version,
-            wormhole.getCurrentGuardianSetIndex(),
-            uint8(sigs.length),
-            sigs[0].guardianIndex,
-            sigs[0].r,
-            sigs[0].s,
-            sigs[0].v - 27,
+            currentGuardianSetIndex,
+            uint8(guardianSetLength)
+        );
+
+        // Sign the hash with the guardian private keys
+        IWormhole.Signature[] memory sigs = new IWormhole.Signature[](guardianSetLength);
+        for (uint256 i = 0; i < guardianSetLength; i++) {
+            (sigs[i].v, sigs[i].r, sigs[i].s) = hevm.sign(guardianSetKeys[i], vm_.hash);
+            sigs[i].guardianIndex = uint8(i);
+
+            signedMessage = abi.encodePacked(
+                signedMessage,
+                sigs[i].guardianIndex,
+                sigs[i].r,
+                sigs[i].s,
+                sigs[i].v - 27
+            );
+        }
+
+        signedMessage = abi.encodePacked(
+            signedMessage,
             body
         );
     }

@@ -2,11 +2,10 @@
 pragma solidity >=0.8.4;
 
 import { Implementation } from "../contracts/Implementation.sol";
-import "../forge-test/rv-helpers/TestUtils.sol";
 import "./WormholeSigner.sol";
 import "./FuzzingHelpers.sol";
 
-contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
+contract DiffFuzzUpgrades is WormholeSigner, FuzzingHelpers {
     address implementationV1;
     address implementationV2;
     IWormhole wormhole;
@@ -162,6 +161,7 @@ contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
     }
 
     function Implementation_parseAndVerifyVM(bool validVAA, bytes memory a, uint16 emitterChainId, bytes32 emitterAddress) public virtual {
+        bytes memory originalPayload = a;
         if (validVAA) {
             a = encodeAndSignMessage(a, emitterChainId, emitterAddress, wormhole);
         }
@@ -190,6 +190,10 @@ contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
             IWormhole.VM memory vaa = abi.decode(outputV2, (IWormhole.VM));
             assert(vaa.emitterAddress == emitterAddress);
             assert(vaa.emitterChainId == emitterChainId);
+            assert(keccak256(vaa.payload) == keccak256(originalPayload));
+        }
+        else {
+            assert(validVAA == false);
         }
     }
 
@@ -239,7 +243,11 @@ contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
         }
     }
 
-    function Implementation_parseVM(bytes memory a) public virtual {
+    function Implementation_parseVM(bool validVAA, bytes memory a, uint16 emitterChainId, bytes32 emitterAddress) public virtual {
+        if (validVAA) {
+            a = encodeAndSignMessage(a, emitterChainId, emitterAddress, wormhole);
+        }
+        
         hevm.selectFork(fork1);
         emit SwitchedFork(fork1);
         hevm.prank(msg.sender);
@@ -793,158 +801,5 @@ contract DiffFuzzUpgrades is TestUtils, WormholeSigner, FuzzingHelpers {
         if(successV1 && successV2) {
             assert(keccak256(outputV1) == keccak256(outputV2));
         }
-    }
-
-
-    /*** New Functions ***/ 
-
-    function Implementation_setGuardianSetHash(uint32 a) public virtual {
-        // This function does nothing with the V1, since setGuardianSetHash is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'setGuardianSetHash(uint32)', a
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
-    }
-
-    function Implementation_parseAndVerifyVMOptimized(bytes memory a, bytes memory b, uint32 c) public virtual {
-        // This function does nothing with the V1, since parseAndVerifyVMOptimized is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'parseAndVerifyVMOptimized(bytes,bytes,uint32)', a, b, c
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
-    }
-
-    function Implementation_parseGuardianSet(bytes memory a) public virtual {
-        // This function does nothing with the V1, since parseGuardianSet is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'parseGuardianSet(bytes)', a
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
-    }
-
-    function Implementation_verifyCurrentQuorum(bytes32 a, IWormhole.Signature[] memory b) public virtual {
-        // This function does nothing with the V1, since verifyCurrentQuorum is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'verifyCurrentQuorum(bytes32,Structs.Signature[])', a, b
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
-    }
-
-    function Implementation_getGuardianSetHash(uint32 a) public virtual {
-        // This function does nothing with the V1, since getGuardianSetHash is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'getGuardianSetHash(uint32)', a
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
-    }
-
-    function Implementation_getEncodedGuardianSet(uint32 a) public virtual {
-        // This function does nothing with the V1, since getEncodedGuardianSet is new in the V2
-        hevm.selectFork(fork2);
-        emit SwitchedFork(fork2);
-        address impl = address(uint160(uint256(
-            hevm.load(address(wormhole),0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-        )));
-        require(impl == address(implementationV2));
-        hevm.prank(msg.sender);
-        (bool successV2, bytes memory outputV2) = address(wormhole).call(
-            abi.encodeWithSignature(
-                'getEncodedGuardianSet(uint32)', a
-            )
-        );
-        // Keep the forks in sync
-        uint blockNo = block.number;
-        uint blockTime = block.timestamp;
-        hevm.selectFork(fork1);
-        emit SwitchedFork(fork1);
-        hevm.roll(blockNo);
-        hevm.warp(blockTime);
-        // Never fail assertion, since there is nothing to compare
-        assert(true);
     }
 }

@@ -5,4 +5,3 @@ codeSize: 0xffff
 seqLen: 100
 rpcBlock: 20286330
 rpcUrl: https://rpc.ankr.com/eth
-deployContracts: [['0x0102030405060708091011121314151617181920', 'Implementation']]
