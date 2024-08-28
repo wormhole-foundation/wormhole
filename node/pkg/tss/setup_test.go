@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	Participants = 4
-	Threshold    = 2
+	Participants = 5
+	Threshold    = 2 // not including, meaning 3 guardians are needed to sign.
 )
 
 type dkgSetupPlayer struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/yossigi/tss-lib/v2/common"
 )
 
 // ReliableMessageHandler is the interface to give any component with the ability to receive over the network incoming TSS messages.
@@ -15,7 +16,8 @@ type ReliableMessageHandler interface {
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
 type Signer interface {
-	BeginAsyncThresholdSigningProtocol([]byte) error
+	BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error
+	ProducedSignature() <-chan *common.SignatureData
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of reliable broadcast needed for the security of TSS over the network.

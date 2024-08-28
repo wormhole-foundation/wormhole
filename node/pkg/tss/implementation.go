@@ -56,35 +56,8 @@ type GuardianStorage struct {
 
 	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of signing key.
 	Symkeys    []symKey          // should be generated upon creation using DH shared key protocol if nil.
-}
 
-// BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
-func (t *Engine) BeginAsyncThresholdSigningProtocol(digest []byte) error {
-	if t == nil {
-		return fmt.Errorf("tss engine is nil")
-	}
-	if !t.started {
-		return fmt.Errorf("tss engine hasn't started")
-	}
-
-	if t.fp == nil {
-		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
-	}
-
-	if len(digest) != 32 {
-		return fmt.Errorf("digest length is not 32 bytes")
-	}
-
-	d := party.Digest{}
-	copy(d[:], digest)
-
-	// fmt.Printf("guardian %v started signing protocol: %v\n", t.GuardianStorage.Self.Index, d)
-	return t.fp.AsyncRequestNewSignature(d)
-}
-
-// ProducedOutputMessages implements ReliableTSS.
-func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage {
-	return t.gossipOutChan
+	LoadDistributionKey []byte
 }
 
 // GuardianStorageFromFile loads a guardian storage from a file.
@@ -96,6 +69,40 @@ func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
 	}
 
 	return &storage, nil
+}
+
+// ProducedSignature lets a listener receive the output signatures once they're ready.
+func (t *Engine) ProducedSignature() <-chan *common.SignatureData {
+	return t.fpSigOutChan
+}
+
+// ProducedOutputMessages ensures a listener can send the output messages to the network.
+func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage {
+	return t.gossipOutChan
+}
+
+// BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
+func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
+	if t == nil {
+		return fmt.Errorf("tss engine is nil")
+	}
+	if !t.started {
+		return fmt.Errorf("tss engine hasn't started")
+	}
+
+	if t.fp == nil {
+		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
+	}
+
+	if len(vaaDigest) != 32 {
+		return fmt.Errorf("vaaDigest length is not 32 bytes")
+	}
+
+	d := party.Digest{}
+	copy(d[:], vaaDigest)
+
+	// fmt.Printf("guardian %v started signing protocol: %v\n", t.GuardianStorage.Self.Index, d)
+	return t.fp.AsyncRequestNewSignature(d)
 }
 
 // TODO: get a signature output channel, so the guardian can listen to outputs from this tssEngine.
@@ -172,9 +179,6 @@ func (t *Engine) fpListener() {
 			//todo: wrap the message into a gossip message and output it to the network, sign (or encrypt and mac) it and send it.
 			t.gossipOutChan <- tssMsg
 			// fmt.Printf("guardian %v sent %v \n", t.GuardianStorage.Self.Index, m.Type())
-		case <-t.fpSigOutChan:
-			// fmt.Println("signature out!")
-			// todo: find out who should get the signature.
 		case err := <-t.fpErrChannel:
 			_ = err // todo: log the error?
 			// fmt.Printf("guardian %v received error %v \n", t.GuardianStorage.Self.Index, err)
