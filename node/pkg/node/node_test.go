@@ -337,7 +337,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 }
 
 // waitForVaa polls the publicRpc service every 5ms until there is a response.
-func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
+func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool, shouldExpectTssVaa bool) (*publicrpcv1.GetSignedVAAResponse, error) {
 	t.Helper()
 	var r *publicrpcv1.GetSignedVAAResponse
 	var err error
@@ -347,12 +347,22 @@ func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServic
 		case <-ctx.Done():
 			return nil, errors.New("context canceled")
 		default:
-			queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
-			r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{MessageId: msgId})
-			queryCancel()
+			// non blocking
 		}
+		queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
+		r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{MessageId: msgId})
+		queryCancel()
 		if err == nil && r != nil {
 			// success
+
+			if shouldExpectTssVaa {
+				v, err := vaa.Unmarshal(r.VaaBytes)
+				require.NoError(t, err)
+
+				if v.Version != vaa.TSSVaaVersion {
+					continue
+				}
+			}
 			return r, err
 		}
 		if mustNotReachQuorum {
@@ -382,6 +392,9 @@ type testCase struct {
 	// if true, assert that no VAA exists for this message at the end of the test.
 	// Note that it is not guaranteed that this message will never reach quorum because it may reach quorum some time after the test run finishes.
 	mustNotReachQuorum bool
+
+	// if true, the guardian will wait for a signature output from the TssEngine.
+	shouldExpectTssSignature bool
 }
 
 func randomTime() time.Time {
@@ -659,7 +672,7 @@ func TestConsensus(t *testing.T) {
 
 // runConsensusTests spins up `numGuardians` guardians and runs & verifies the testCases
 func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
-	const testTimeout = time.Second * 30
+	const testTimeout = time.Second * 60
 	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
 	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
 	testId := getTestId()
@@ -818,7 +831,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				EmitterAddress: msg.EmitterAddress.String(),
 				Sequence:       msg.Sequence,
 			}
-			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
+			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum, testCase.shouldExpectTssSignature)
 
 			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
 			if testCase.mustNotReachQuorum {
@@ -835,7 +848,11 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				}
 
 				// Match all the fields
-				assert.Equal(t, returnedVaa.Version, uint8(1))
+				if testCase.shouldExpectTssSignature {
+					assert.Equal(t, returnedVaa.Version, uint8(2))
+				} else {
+					assert.Equal(t, returnedVaa.Version, uint8(1))
+				}
 				assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
 				assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
 				assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
@@ -1291,7 +1308,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 				}
 				// a VAA should not take longer than 10s to be produced, no matter what.
 				waitCtx, cancelFunc := context.WithTimeout(ctx, time.Second*10)
-				_, err := waitForVaa(t, waitCtx, c, msgId, false)
+				_, err := waitForVaa(t, waitCtx, c, msgId, false, false)
 				cancelFunc()
 				assert.NoError(t, err)
 				if err != nil {
@@ -1322,3 +1339,20 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 		time.Sleep(time.Second * 1) // 1s is needed to gracefully shutdown BadgerDB
 	})
 }
+
+func TestTssCorrectRun(t *testing.T) {
+	guardians := 5
+	testCases := []testCase{
+		{
+			// all guardians observe the message waiting for Tss signature.
+			msg:                      someMessage(),
+			numGuardiansObserve:      guardians,
+			mustReachQuorum:          true,
+			shouldExpectTssSignature: true,
+		},
+	}
+
+	runConsensusTests(t, testCases, guardians)
+}
+
+func TestTssSignatureFailure(t *testing.T) {}

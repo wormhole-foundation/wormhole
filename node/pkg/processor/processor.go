@@ -22,6 +22,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	tsscommon "github.com/yossigi/tss-lib/v2/common"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -82,6 +83,12 @@ type (
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
 		signatures observationMap
+	}
+
+	// timedThresholdSignatureWaiter used to wait on the async TSS signer.
+	timedThresholdSignatureWaiter struct {
+		startTime time.Time
+		vaa       *VAA
 	}
 )
 
@@ -149,6 +156,7 @@ type Processor struct {
 	updateVAALock   sync.Mutex
 	updatedVAAs     map[string]*updateVaaEntry
 	thresholdSigner tss.Signer
+	tssWaiters      map[string]timedThresholdSignatureWaiter
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -228,6 +236,7 @@ func NewProcessor(
 		gatewayRelayer:  gatewayRelayer,
 		updatedVAAs:     make(map[string]*updateVaaEntry),
 		thresholdSigner: thresholdSigner,
+		tssWaiters:      make(map[string]timedThresholdSignatureWaiter),
 	}
 }
 
@@ -291,6 +300,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
 			p.handleMessage(k)
+		case sig := <-p.thresholdSigner.ProducedSignature():
+			p.processTssSignature(sig)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(m)
@@ -432,4 +443,35 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
+	if sig == nil {
+		return
+	}
+
+	if sig.Signature == nil {
+		p.logger.Error("received TSS signature with nil signature")
+		return
+	}
+
+	if sig.M == nil {
+		p.logger.Error("received TSS signature with nil message")
+		return
+	}
+
+	digestBytes := sig.M
+	hash := hex.EncodeToString(digestBytes)
+	wtr, ok := p.tssWaiters[hash]
+	if !ok {
+		// TODO: this indicates a TSS signature that was waited for too long probably.
+		p.logger.Warn("received TSS signature for unknown VAA", zap.String("hash", hash))
+		return
+	}
+
+	vaaSig := &vaa.Signature{}
+	copy(vaaSig.Signature[:], sig.Signature)
+
+	// using single signature, since it was reached via threshold signing.
+	wtr.vaa.HandleQuorum([]*vaa.Signature{vaaSig}, hash, p)
 }

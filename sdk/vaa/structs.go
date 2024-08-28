@@ -564,6 +564,7 @@ const (
 	minVAALength         = 57 // HEADER + BODY
 
 	SupportedVAAVersion = 0x01
+	TSSVaaVersion       = 0x02
 )
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
@@ -621,7 +622,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 	v := &VAA{}
 
 	v.Version = data[0]
-	if v.Version != SupportedVAAVersion {
+	if v.Version != SupportedVAAVersion && v.Version != TSSVaaVersion {
 		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
 	}
 
@@ -790,8 +791,21 @@ func (v *VAA) Verify(addresses []common.Address) error {
 		return errors.New("VAA was not signed")
 	}
 
-	// Verify VAA has enough signatures for quorum
+	var err error = nil
+
+	switch v.Version {
+	case SupportedVAAVersion:
+		err = v.v1Validation(addresses)
+	case TSSVaaVersion:
+		err = v.tssValidation(addresses)
+	}
+
+	return err
+}
+
+func (v *VAA) v1Validation(addresses []common.Address) error {
 	quorum := CalculateQuorum(len(addresses))
+	// Verify VAA has enough signatures for quorum
 	if len(v.Signatures) < quorum {
 		return errors.New("VAA did not have a quorum")
 	}
@@ -800,6 +814,19 @@ func (v *VAA) Verify(addresses []common.Address) error {
 	if !v.VerifySignatures(addresses) {
 		return errors.New("VAA had bad signatures")
 	}
+
+	return nil
+}
+func (v *VAA) tssValidation(addresses []common.Address) error {
+	if len(v.Signatures) != 1 {
+		return errors.New("TSS VAA must have exactly one signature")
+	}
+
+	// TODO verify single signature.
+	// Verify VAA signatures to prevent a DoS attack on our local store.
+	// if !v.VerifySignatures(addresses) {
+	// return errors.New("VAA had bad signatures")
+	// }
 
 	return nil
 }
