@@ -17,7 +17,8 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
         vm.startBroadcast();
@@ -25,7 +26,8 @@ contract DeployTestToken is Script {
             deployedTokenAddress,
             deployedNFTaddress,
             deployedWETHaddress,
-            deployedAccountantTokenAddress
+            deployedAccountantTokenAddress,
+            transferVerificationTokenA
         ) = _deploy();
         vm.stopBroadcast();
     }
@@ -36,7 +38,8 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
         address[] memory accounts = new address[](13);
@@ -95,11 +98,26 @@ contract DeployTestToken is Script {
         // mint 1000 units
         accountantToken.mint(accounts[9], 1_000_000_000_000_000_000_000);
 
+        // Deploy a test token for Transfer Verification
+        ERC20PresetMinterPauser deployedA = new ERC20PresetMinterPauser(
+            "TransferVerifier Test Token A",
+            "TVA"
+        );
+
+        console.log("Test token A deployed at: ", address(deployedA));
+
+        for(uint16 i=0; i<11; i++) {
+            deployedA.mint(accounts[i], 1_000_000_000_000_000_000_000);
+            // Give the accounts enough eth to send transactions
+            vm.deal(accounts[i], 1e18);
+        }
+
         return (
             address(token),
             address(nft),
             address(mockWeth),
-            address(accountantToken)
+            address(accountantToken),
+            address(deployedA)
         );
     }
 }

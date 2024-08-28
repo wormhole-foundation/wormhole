@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor
+spec:
+  selector:
+    matchLabels:
+      app: monitor
+  template:
+    metadata:
+      labels:
+        app: monitor
+    spec:
+      containers:
+      - name: monitor
+        image: monitor
+        volumeMounts:
+        - name: log-volume
+          mountPath: /logs
+        env:
+        - name: ERROR_PATTERN
+          # This error string comes from the transfer-verifier binary in node/
+          value: "invalid receipt: no deposits and no transfers"
+        - name: ERROR_LOG_PATH
+          value: "/logs/error.log"
+      volumes:
+      - name: log-volume
+        emptyDir: {}

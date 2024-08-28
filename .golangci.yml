@@ -28,3 +28,5 @@ issues:
       text: "^func.*supervisor.*(waitSettle|waitSettleError).*$"
       linters:
         - unused
+    - path: pkg/transfer-verifier/transfer-verifier-sui_test.go
+      text: "G101: Potential hardcoded credentials"
