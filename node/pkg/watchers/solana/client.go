@@ -242,7 +242,7 @@ func NewSolanaWatcher(
 		wsUrl:               wsUrl,
 		contract:            contractAddress,
 		rawContract:         rawContract,
-		whLogPrefix:         fmt.Sprintf("Program %s", rawContract),
+		whLogPrefix:         createWhLogPrefix(rawContract),
 		msgObservedLogLevel: msgObservedLogLevel,
 		msgC:                msgC,
 		obsvReqC:            obsvReqC,
@@ -593,13 +593,9 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			continue
 		}
 
-		// If the logs don't contain the contract address, skip the transaction.
-		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
-		var possiblyWormhole bool
-		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
-			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], s.whLogPrefix)
-		}
-		if !possiblyWormhole {
+		// If the logs don't contain the contract address followed by a sequence number, skip the transaction.
+		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]", "Program log: Sequence: 937184".
+		if !isPossibleWormholeMessage(s.whLogPrefix, txRpc.Meta.LogMessages) {
 			continue
 		}
 
@@ -666,6 +662,23 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	}
 
 	return true
+}
+
+func isPossibleWormholeMessage(whLogPrefix string, logMessages []string) bool {
+	for idx := 0; idx < len(logMessages); idx++ {
+		if strings.HasPrefix(logMessages[idx], whLogPrefix) {
+			for idx1 := idx + 1; idx1 < len(logMessages); idx1++ {
+				if strings.HasPrefix(logMessages[idx1], "Program log: Sequence:") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func createWhLogPrefix(rawContract string) string {
+	return fmt.Sprintf("Program %s invoke", rawContract)
 }
 
 func (s *SolanaWatcher) processParsedTransaction(ctx context.Context, logger *zap.Logger, parsedTxResult *rpc.GetParsedTransactionResult, signature solana.Signature, slot uint64, isReobservation bool) {
@@ -899,7 +912,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	if value.Account.Owner != s.rawContract {
 		// We got a message for the wrong contract on the websocket... uncomfortable...
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "invalid_websocket_account").Inc()
-		return errors.New("Update for account with wrong owner")
+		return errors.New("update for account with wrong owner")
 	}
 
 	data, err = base64.StdEncoding.DecodeString(value.Account.Data[0])
