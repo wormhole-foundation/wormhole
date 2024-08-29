@@ -12,22 +12,23 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/icza/dyno"
 	interchaintest "github.com/strangelove-ventures/interchaintest/v7"
-	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos/wasm"
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	interchaintestrelayer "github.com/strangelove-ventures/interchaintest/v7/relayer"
 	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
-	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 var (
+	IBCRelayerImage   = "ghcr.io/cosmos/relayer"
+	IBCRelayerVersion = "v2.5.0"
+
 	WormchainName         = "wormchain"
 	WormchainRemoteRepo   = "ghcr.io/strangelove-ventures/heighliner/wormchain"
 	WormchainLocalRepo    = WormchainName
@@ -47,21 +48,20 @@ var (
 	}
 
 	WormchainConfig = ibc.ChainConfig{
-		Type:                "cosmos",
-		Name:                WormchainName,
-		ChainID:             "wormhole-1",
-		Images:              []ibc.DockerImage{WormchainImage},
-		Bin:                 WormchainName + "d",
-		Bech32Prefix:        WormchainBechPrefix,
-		Denom:               WormchainDenom,
-		CoinType:            "118",
-		GasPrices:           fmt.Sprintf("0.0%s", WormchainDenom),
-		Gas:                 "auto",
-		GasAdjustment:       5,
-		TrustingPeriod:      "112h",
-		NoHostMount:         false,
-		ConfigFileOverrides: nil,
-		EncodingConfig:      WormchainEncoding(),
+		Type:           "cosmos",
+		Name:           WormchainName,
+		ChainID:        "wormchain-1",
+		Images:         []ibc.DockerImage{WormchainImage},
+		Bin:            WormchainName + "d",
+		Bech32Prefix:   WormchainBechPrefix,
+		Denom:          WormchainDenom,
+		CoinType:       "118",
+		GasPrices:      fmt.Sprintf("0.0%s", WormchainDenom),
+		Gas:            "auto",
+		GasAdjustment:  1.8,
+		TrustingPeriod: "112h",
+		NoHostMount:    false,
+		EncodingConfig: WormchainEncoding(),
 	}
 
 	numFull = 1
@@ -69,14 +69,13 @@ var (
 
 // WormchainEncoding returns the encoding config for the chain
 func WormchainEncoding() *testutil.TestEncodingConfig {
-	cfg := cosmos.DefaultEncoding()
+	cfg := wasm.WasmEncoding()
 
 	// Add custom encoding overrides here
-	wasmtypes.RegisterInterfaces(cfg.InterfaceRegistry)
 	wormholetypes.RegisterInterfaces(cfg.InterfaceRegistry)
-	tokenfactorytypes.RegisterInterfaces(cfg.InterfaceRegistry)
+	// tokenfactorytypes.RegisterInterfaces(cfg.InterfaceRegistry)
 
-	return &cfg
+	return cfg
 }
 
 // CreateChain generates a new chain with a custom image (useful for upgrades)
@@ -103,9 +102,6 @@ func CreateLocalChain(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, config ibc.ChainConfig) []ibc.Chain {
 	numVals := len(guardians.Vals)
 
-	nonWormchainVals := 1
-	nonWormchainFull := 0
-
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
 			Name:          WormchainName,
@@ -116,19 +112,15 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 			NumFullNodes:  &numFull,
 		},
 		{
-			Name:          "gaia",
-			Version:       "v10.0.1",
-			NumValidators: &nonWormchainVals,
-			NumFullNodes:  &nonWormchainFull,
+			Name:    "gaia",
+			Version: "v10.0.1",
 			ChainConfig: ibc.ChainConfig{
 				GasPrices: "0.0uatom",
 			},
 		},
 		{
-			Name:          "osmosis",
-			Version:       "v15.1.2",
-			NumValidators: &nonWormchainVals,
-			NumFullNodes:  &nonWormchainFull,
+			Name:    "osmosis",
+			Version: "v15.1.2",
 			ChainConfig: ibc.ChainConfig{
 				ChainID:        "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
 				GasPrices:      "1.0uosmo",
@@ -149,20 +141,23 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (*interchaintest.Intercha
 	ic := interchaintest.NewInterchain()
 
 	for _, chain := range chains {
-		ic = ic.AddChain(chain)
+		ic.AddChain(chain)
 	}
 
 	rep := testreporter.NewNopReporter()
 	eRep := rep.RelayerExecReporter(t)
 
+	wormGaiaPath := "wormgaia"
+	wormOsmoPath := "wormosmo"
 	ctx := context.Background()
 	client, network := interchaintest.DockerSetup(t)
 
-	wormGaiaPath := "wormgaia"
-	wormOsmoPath := "wormosmo"
+	r := interchaintest.NewBuiltinRelayerFactory(
+		ibc.CosmosRly,
+		zaptest.NewLogger(t),
+		interchaintestrelayer.CustomDockerImage(IBCRelayerImage, IBCRelayerVersion, "100:1000"),
+	).Build(t, client, network)
 
-	r := interchaintest.NewBuiltinRelayerFactory(ibc.CosmosRly, zaptest.NewLogger(t)).Build(
-		t, client, network)
 	ic.AddRelayer(r, "relayer")
 	ic.AddLink(interchaintest.InterchainLink{
 		Chain1:  chains[0], // Wormchain
@@ -227,6 +222,9 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 				isSdk47 = false
 			}
 		}
+
+		// TODO: REMOVE DEBUG
+		fmt.Println("IS SDK 47:", isSdk47)
 
 		votingParams := "params"
 		depositParams := "params"

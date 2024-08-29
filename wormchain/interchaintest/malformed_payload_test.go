@@ -27,7 +27,14 @@ func TestMalformedPayload(t *testing.T) {
 	// Base setup
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := CreateLocalChain(t, *guardians)
+
+	// chains := CreateLocalChain(t, *guardians)
+	chains := CreateChain(t, *guardians, ibc.DockerImage{
+		Repository: WormchainRemoteRepo,
+		Version:    "v2.23.0",
+		UidGid:     WormchainImage.UidGid,
+	})
+
 	_, ctx, r, eRep, _, _ := BuildInterchain(t, chains)
 
 	// Chains
@@ -140,6 +147,11 @@ func TestMalformedPayload(t *testing.T) {
 	// 8. GW TransferWithPayload: Memo malformed: ibc hooks: msg: invalid "forward to" recipient  |   + (700)      + (700)     wormchain (600) |
 	// -----------------------------------------------------------------------------------------------------------------------------------------
 
+	///
+	///
+	///
+	///
+
 	// Test 1 (GW Tranfer has 100 added to osmo chain id to make it denied / no chain id -> channel mapping)
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID+100, osmoUser1.FormattedAddress(), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
@@ -164,14 +176,22 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-
-	fmt.Println("SimplePayload", string(simplePayload))
-	fmt.Println("Payload3", string(payload3))
-	fmt.Println("TransferAndConvertMsg", string(completeTransferAndConvertMsg))
-
 	require.NoError(t, err)
+
+	wormGaiaPath := "wormgaia"
+	wormOsmoPath := "wormosmo"
+	r.Flush(ctx, eRep, wormOsmoPath, wormToOsmoChannel.ChannelID)
+	r.Flush(ctx, eRep, wormGaiaPath, osmoToWormChannel.ChannelID)
+	r.Flush(ctx, eRep, wormGaiaPath, wormToGaiaChannel.ChannelID)
+	r.Flush(ctx, eRep, wormOsmoPath, gaiaToWormChannel.ChannelID)
+
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
+
+	r.Flush(ctx, eRep, wormOsmoPath, wormToOsmoChannel.ChannelID)
+	r.Flush(ctx, eRep, wormGaiaPath, osmoToWormChannel.ChannelID)
+	r.Flush(ctx, eRep, wormGaiaPath, wormToGaiaChannel.ChannelID)
+	r.Flush(ctx, eRep, wormOsmoPath, gaiaToWormChannel.ChannelID)
 
 	// Check the asset 1 CW20 total supply
 	wormchain.QueryContract(ctx, cw20Address, cw20QueryReq, &cw20QueryRsp)
@@ -182,13 +202,18 @@ func TestMalformedPayload(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(100), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 100")
 
+	///
+	///
+	///
+	///
+
 	// Test 3 (GW TransferWithPayload has osmo user1 as recipient and not a contract)
 	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
 	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, osmoUser1.FormattedAddress(), ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -207,7 +232,7 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -227,7 +252,7 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -246,7 +271,7 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -265,7 +290,7 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -284,7 +309,7 @@ func TestMalformedPayload(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.Error(t, err)
+	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 

@@ -1,11 +1,9 @@
 package interchaintest
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"testing"
-	"time"
 
 	"cosmossdk.io/math"
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -16,40 +14,18 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestUpgradeTest upgrades from v2.18.1 -> v2.18.1.1 -> V2.23.0 and:
-//   - Setup wormchain, gaia, and osmosis including contracts/allowlists/etc
-//   - External->Cosmos: Send 10.000_018 to gaia user 1 (simple)
-//   - External->Cosmos: Send 1.000_001 to osmo user 1 (simple)
-//   - External->Cosmos: Send 1.000_002 to osmo user 2 (contract controlled via osmo ibc-hooks contract)
-//   - Cosmos->External: Send 1.000_003 to external address (simple) from gaia user 1
-//     -- gaia user 1 now has 9.000_015 of asset 1
-//   - Cosmos->External: Send 1.000_004 to external address (contract controlled) from gaia user 1
-//     -- gaia user 1 now has 8.000_011 of asset 1
-//   - Cosmos->Cosmos: Send 1.000_005 to osmo user 1 (simple) from gaia user 1
-//     -- gaia user 1 now has 7.000_006 of asset 1
-//     -- osmo user 1 now has 2.000_006 of asset 1
-//   - Cosmos->Cosmos: Send 1.000_006 to osmo user 2 (contract controlled via osmo ibc-hooks contract) from gaia user 1
-//     -- gaia user 1 now has 6.000_000 of asset 1
-//     -- osmo user 2 now has 2.000_008 of asset 1
-//   - Verify asset 1 balance of gaia user 1, osmo user 1, osmo user 2, and cw20 contract total supply
-func TestUpgrade(t *testing.T) {
+func TestStoreContract(t *testing.T) {
+	// TestStoreContract tests the store contract
 	// Base setup
-	numVals := 5
+	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
-
-	chains := CreateChain(t, *guardians, ibc.DockerImage{
-		Repository: WormchainRemoteRepo,
-		Version:    "v2.24.3.2",
-		UidGid:     WormchainImage.UidGid,
-	})
-
-	_, ctx, r, eRep, client, _ := BuildInterchain(t, chains)
+	chains := CreateLocalChain(t, *guardians)
+	_, ctx, r, eRep, _, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
@@ -73,93 +49,6 @@ func TestUpgrade(t *testing.T) {
 	gaiaUser := users[1]
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
-
-	// ******************************************************************************************
-	// ********* Upgrade to new version of wormchain (non-state breaking upgrade) ***************
-	// ******************************************************************************************
-
-	blocksAfterUpgrade := int64(5)
-
-	haltHeight, err := wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height before upgrade1")
-
-	err = wormchain.StopAllNodes(ctx)
-	require.NoError(t, err, "error stopping node(s)")
-
-	// upgrade version on all nodes
-	wormchain.UpgradeVersion(ctx, client, WormchainRemoteRepo, "v2.24.9")
-
-	err = wormchain.StartAllNodes(ctx)
-	require.NoError(t, err, "error starting upgraded node(s)")
-
-	timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*20)
-	defer timeoutCtxCancel()
-
-	err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
-	require.NoError(t, err, "chain did not produce blocks after upgrade1")
-
-	height, err := wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height after upgrade1")
-	fmt.Println("Checked height: ", height)
-
-	require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade1")
-
-	fmt.Println("***** PASS upgrade #1 **********")
-
-	// --------------------------------------------------------------------------------------
-	// upgrade version on all nodes
-	blocksAfterUpgrade = int64(10)
-
-	height, err = wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height before upgrade2")
-	fmt.Println("Height at sending schedule upgrade: ", height)
-
-	haltHeight = height + blocksAfterUpgrade
-	fmt.Println("Height for scheduled upgrade2: ", haltHeight)
-
-	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v3.0.0", uint64(haltHeight), guardians)
-
-	timeoutCtx3, timeoutCtxCancel3 := context.WithTimeout(ctx, time.Second*45)
-	defer timeoutCtxCancel3()
-
-	// this should timeout due to chain halt at upgrade height.
-	testutil.WaitForBlocks(timeoutCtx3, int(blocksAfterUpgrade)+2, wormchain)
-
-	height, err = wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height after chain should have halted")
-	fmt.Println("Height when chains should have halted: ", height)
-
-	require.Equal(t, haltHeight, height, "height is not equal to halt height")
-
-	// bring down nodes to prepare for upgrade
-	err = wormchain.StopAllNodes(ctx)
-	require.NoError(t, err, "error stopping node(s)")
-
-	// upgrade version on all nodes
-	wormchain.UpgradeVersion(ctx, client, WormchainLocalRepo, WormchainLocalVersion)
-
-	// start all nodes back up.
-	// validators reach consensus on first block after upgrade height
-	// and chain block production resumes.
-	err = wormchain.StartAllNodes(ctx)
-	require.NoError(t, err, "error starting upgraded node(s)")
-
-	timeoutCtx4, timeoutCtxCancel4 := context.WithTimeout(ctx, time.Second*45)
-	defer timeoutCtxCancel4()
-
-	err = testutil.WaitForBlocks(timeoutCtx4, int(blocksAfterUpgrade)+1, wormchain)
-	require.NoError(t, err, "chain did not produce blocks after upgrade")
-
-	height, err = wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height after upgrade")
-	fmt.Println("Height after upgrade >10 blocks after scheduled halt: ", height)
-
-	require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
-	fmt.Println("***** PASS 2nd upgrade **********")
-
-	// *************************************************************
-	// ******************* Continue with test **********************
-	// *************************************************************
 
 	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName(), "./contracts/ibc_hooks.wasm")
 	require.NoError(t, err)

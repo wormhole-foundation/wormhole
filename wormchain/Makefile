@@ -102,7 +102,7 @@ local-image: build/wormchaind
 ifeq (,$(shell which heighliner))
 	echo 'heighliner' binary not found. Consider running `make get-heighliner`
 else
-	cd .. && heighliner build -c wormchain --local -f ./wormchain/chains.yml
+	cd .. && heighliner build -c wormchain --local -f ./wormchain/chains.yml --alpine-version=3.18
 endif
 
 .PHONY: get-heighliner local-image
