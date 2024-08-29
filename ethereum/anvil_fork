@@ -5,11 +5,12 @@ set -euo pipefail
 # This script forks a chain using anvil with the mnemonic that is used in the
 # testing environment.
 
-if [ -z "$1" ]; then
+CHAIN_NAME="${1:-}"
+
+if [ -z "$CHAIN_NAME" ]; then
   echo "Usage: $0 <chain name>" >&2
   exit 1
 fi
 
-CHAIN_NAME="$1"
 
 DOCKER_ARGS="-p 8545:8545" ./foundry anvil --host 0.0.0.0 --base-fee 0 --fork-url $(worm info rpc mainnet $CHAIN_NAME) --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect"
