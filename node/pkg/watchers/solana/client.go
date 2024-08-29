@@ -420,7 +420,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					for slot := rangeStart; slot <= rangeEnd; slot++ {
 						_slot := slot
 						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
-							s.retryFetchBlock(ctx, logger, _slot, 0, false)
+							s.retryFetchBlock(ctx, logger, _slot, 0)
 							return nil
 						})
 					}
@@ -443,8 +443,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	}
 }
 
-func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint, isReobservation bool) {
-	ok := s.fetchBlock(ctx, logger, slot, 0, isReobservation)
+func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint) {
+	ok := s.fetchBlock(ctx, logger, slot, 0)
 
 	if !ok {
 		if retry >= maxRetries {
@@ -465,13 +465,13 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 		}
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchBlock", func(ctx context.Context) error {
-			s.retryFetchBlock(ctx, logger, slot, retry+1, isReobservation)
+			s.retryFetchBlock(ctx, logger, slot, retry+1)
 			return nil
 		})
 	}
 }
 
-func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) (ok bool) {
+func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint) (ok bool) {
 	if logger.Level().Enabled(zapcore.DebugLevel) {
 		logger.Debug("requesting block",
 			zap.Uint64("slot", slot),
@@ -515,7 +515,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			if emptyRetry < maxEmptyRetry {
 				common.RunWithScissors(ctx, s.errC, "delayedFetchBlock", func(ctx context.Context) error {
 					time.Sleep(retryDelay)
-					s.fetchBlock(ctx, logger, slot, emptyRetry+1, isReobservation)
+					s.fetchBlock(ctx, logger, slot, emptyRetry+1)
 					return nil
 				})
 			}
@@ -610,7 +610,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 		// Find top-level instructions
 		for i, inst := range tx.Message.Instructions {
-			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
+			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, false)
 			if err != nil {
 				logger.Error("malformed Wormhole instruction",
 					zap.Error(err),
@@ -632,7 +632,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 		for _, inner := range txRpc.Meta.InnerInstructions {
 			for i, inst := range inner.Instructions {
-				found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
+				found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, false)
 				if err != nil {
 					logger.Error("malformed Wormhole instruction",
 						zap.Error(err),
