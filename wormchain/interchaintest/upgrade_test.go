@@ -220,10 +220,12 @@ func TestUpgrade(t *testing.T) {
 	// Allowlist worm/osmo chain id / channel
 	wormOsmoAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, OsmoChainID, wormToOsmoChannel.ChannelID, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, wormOsmoAllowlistMsg)
+	require.NoError(t, err)
 
 	// Allowlist worm/gaia chain id / channel
 	wormGaiaAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, GaiaChainID, wormToGaiaChannel.ChannelID, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, wormGaiaAllowlistMsg)
+	require.NoError(t, err)
 
 	// Create and process a simple ibc payload3: Transfers 10.000_018 of asset1 from external chain through wormchain to gaia user
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.FormattedAddress(), 0, 1)
@@ -231,12 +233,14 @@ func TestUpgrade(t *testing.T) {
 	payload3 := helpers.CreatePayload3(wormchain.Config(), AmountExternalToGaiaUser1.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
+	require.NoError(t, err)
 
 	// Create and process a simple ibc payload3: Transfers 1.000_001 of asset1 from external chain through wormchain to osmo user1
 	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.FormattedAddress(), 0, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), AmountExternalToOsmoUser1.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
+	require.NoError(t, err)
 
 	// Create and process a contract controlled ibc payload3
 	// Transfers 1.000_002 of asset1 from external chain through wormchain to ibc hooks contract addr
@@ -246,6 +250,7 @@ func TestUpgrade(t *testing.T) {
 	payload3 = helpers.CreatePayload3(wormchain.Config(), AmountExternalToOsmoUser2.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
+	require.NoError(t, err)
 
 	// wait for transfer to ack
 	err = testutil.WaitForBlocks(ctx, 10, wormchain, gaia)

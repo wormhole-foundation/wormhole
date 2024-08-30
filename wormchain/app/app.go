@@ -543,7 +543,7 @@ func New(
 		app.ScopedIBCKeeper,
 	)
 
-	app.WireICS20PreWasmKeeper(&app.WormholeKeeper)
+	app.WireICS20PreWasmKeeper()
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -603,7 +603,11 @@ func New(
 		app.BankKeeper,
 		app.StakingKeeper,
 		distrkeeper.NewQuerier(app.DistrKeeper),
-		app.HooksICS4Wrapper,
+
+		// app.PacketForwardKeeper, // TODO: MAY BE WRONG
+		// app.HooksICS4Wrapper,
+		app.IBCKeeper.ChannelKeeper,
+
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.scopedWasmKeeper,
@@ -611,7 +615,7 @@ func New(
 		app.MsgServiceRouter(),
 		app.GRPCQueryRouter(),
 		wasmDir,
-		wasmConfig,
+		wasmConfig, // possible to cause errors
 		supportedFeatures,
 		govModAddress,
 		GetWasmOpts(app, appOpts)...,
@@ -628,8 +632,7 @@ func New(
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, app.TransferStack).
-		AddRoute(wasmtypes.ModuleName, wasm.NewIBCHandler(app.wasmKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper))
-	// this line is used by starport scaffolding # ibc/app/router
+		AddRoute(wasmtypes.ModuleName, wasm.NewIBCHandler(app.wasmKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper)) // TODO: POSSIBLY CHANGE LAST PARAM TOO!
 	app.IBCKeeper.SetRouter(ibcRouter)
 
 	//upgrade handlers
@@ -1053,13 +1056,13 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // It can be safely skipped when sending.
 //
 // After this, the wasm keeper is required to be set on app.Ics20WasmHooks
-func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
+func (app *App) WireICS20PreWasmKeeper() {
 	// Configure the ibc composability mw keeper
 	ibcComposabilityMwKeeper := ibccomposabilitymwkeeper.NewKeeper(
 		app.appCodec,
 		app.keys[ibccomposabilitytypes.StoreKey],
 		nil, // Wasm keeper is set later
-		wk,
+		&app.WormholeKeeper,
 		0,
 		time.Hour,
 	)
@@ -1077,25 +1080,12 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	app.IBCHooksKeeper = &ibcHooksKeeper
 
 	// Setup the ICS4Wrapper used by the hooks middleware
-	wormPrefix := sdk.GetConfig().GetBech32AccountAddrPrefix()
-	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, &app.wasmKeeper, wormPrefix) // The contract keeper needs to be set later
+	wormPrefix := Bech32Prefix
+	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
 	app.Ics20WasmHooks = &wasmHooks
 	app.HooksICS4Wrapper = ibchooks.NewICS4Middleware(
 		ibcComposabilityMwICS4Wrapper,
 		app.Ics20WasmHooks,
-	)
-
-	// Packet Forward Middleware
-	// Initialize packet forward middleware keeper BEFORE the ibc transfer keeper
-	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
-		app.appCodec,
-		app.keys[packetforwardtypes.StoreKey],
-		nil, // will be zero-value here, reference is set later on with SetTransferKeeper.
-		app.IBCKeeper.ChannelKeeper,
-		app.DistrKeeper,
-		app.BankKeeper,
-		app.IBCKeeper.ChannelKeeper,
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
 	// Create Transfer Keepers
@@ -1103,7 +1093,9 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		app.appCodec,
 		app.keys[ibctransfertypes.StoreKey],
 		app.GetSubspace(ibctransfertypes.ModuleName),
-		app.PacketForwardKeeper,
+
+		app.HooksICS4Wrapper,
+
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.AccountKeeper,
@@ -1111,8 +1103,20 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 		app.ScopedTransferKeeper,
 	)
 
-	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 	app.RawIcs20TransferAppModule = transfer.NewAppModule(app.TransferKeeper)
+
+	// Packet Forward Middleware
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		app.appCodec,
+		app.keys[packetforwardtypes.StoreKey],
+		app.TransferKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
+		// The ICS4Wrapper is replaced by the HooksICS4Wrapper instead of the channel so that sending can be overridden by the middleware
+		app.HooksICS4Wrapper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
 
 	// Set up transfer stack
 	// channel.RecvPacket -> ibcComposabilityMw.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket

@@ -7,7 +7,7 @@ VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1)
 BFT_VERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::') # grab everything after the space in "github.com/cometbft/cometbft v0.34.7"
 COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
 
-build_tags = netgo muslc gcc ledger
+build_tags = netgo gcc ledger
 build_tags += $(BUILD_TAGS)
 build_tags := $(strip $(build_tags))
 
@@ -102,7 +102,7 @@ local-image: build/wormchaind
 ifeq (,$(shell which heighliner))
 	echo 'heighliner' binary not found. Consider running `make get-heighliner`
 else
-	cd .. && heighliner build -c wormchain --local -f ./wormchain/chains.yml --alpine-version=3.18
+	cd .. && heighliner build -c wormchain --local -f ./wormchain/chains.yml --alpine-version=3.20
 endif
 
 .PHONY: get-heighliner local-image

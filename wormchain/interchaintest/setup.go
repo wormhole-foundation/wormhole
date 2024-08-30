@@ -40,6 +40,7 @@ var (
 	VotingPeriod     = "10s"
 	MaxDepositPeriod = "10s"
 	MinDepositAount  = "1000000"
+	CoinType         = "118"
 
 	WormchainImage = ibc.DockerImage{
 		Repository: WormchainName,
@@ -50,12 +51,12 @@ var (
 	WormchainConfig = ibc.ChainConfig{
 		Type:           "cosmos",
 		Name:           WormchainName,
-		ChainID:        "wormchain-1",
+		ChainID:        fmt.Sprintf("%s-1", WormchainName),
 		Images:         []ibc.DockerImage{WormchainImage},
 		Bin:            WormchainName + "d",
 		Bech32Prefix:   WormchainBechPrefix,
 		Denom:          WormchainDenom,
-		CoinType:       "118",
+		CoinType:       CoinType,
 		GasPrices:      fmt.Sprintf("0.0%s", WormchainDenom),
 		Gas:            "auto",
 		GasAdjustment:  1.8,
@@ -71,9 +72,8 @@ var (
 func WormchainEncoding() *testutil.TestEncodingConfig {
 	cfg := wasm.WasmEncoding()
 
-	// Add custom encoding overrides here
+	// register custom types
 	wormholetypes.RegisterInterfaces(cfg.InterfaceRegistry)
-	// tokenfactorytypes.RegisterInterfaces(cfg.InterfaceRegistry)
 
 	return cfg
 }
@@ -104,7 +104,6 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
-			Name:          WormchainName,
 			ChainName:     WormchainName,
 			Version:       config.Images[0].Version,
 			ChainConfig:   config,
@@ -115,13 +114,15 @@ func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, confi
 			Name:    "gaia",
 			Version: "v10.0.1",
 			ChainConfig: ibc.ChainConfig{
-				GasPrices: "0.0uatom",
+				Bech32Prefix: "cosmos",
+				GasPrices:    "0.0uatom",
 			},
 		},
 		{
 			Name:    "osmosis",
 			Version: "v15.1.2",
 			ChainConfig: ibc.ChainConfig{
+				Bech32Prefix:   "osmo",
 				ChainID:        "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
 				GasPrices:      "1.0uosmo",
 				EncodingConfig: wasm.WasmEncoding(),
