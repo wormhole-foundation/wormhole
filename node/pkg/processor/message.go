@@ -95,6 +95,10 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	// Broadcast the signature.
 	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature, shouldPublishImmediately)
 
+	// Indicate that we observed this one.
+	observationsReceivedTotal.Inc()
+	observationsReceivedByGuardianAddressTotal.WithLabelValues(p.ourAddr.Hex()).Inc()
+
 	// Get / create our state entry.
 	s := p.state.signatures[hash]
 	if s == nil {
