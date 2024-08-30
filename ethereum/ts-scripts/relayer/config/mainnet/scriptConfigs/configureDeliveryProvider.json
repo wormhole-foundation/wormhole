@@ -74,6 +74,11 @@
       "chainId": 37,
       "updatePriceGas": "120000000",
       "updatePriceNative": "41860000"
+    },
+    {
+      "chainId": 43,
+      "updatePriceGas": "250000",
+      "updatePriceNative": "2608840000"
     }
   ],
   "deliveryGasOverheads": [
@@ -136,6 +141,10 @@
     {
       "chainId": 37,
       "updateGasOverhead": "199076286"
+    },
+    {
+      "chainId": 43,
+      "updateGasOverhead": "243992895"
     }
   ],
   "maximumBudgets": [
@@ -198,6 +207,10 @@
     {
       "chainId": 37,
       "updateMaximumBudget": "4777830864787390000"
+    },
+    {
+      "chainId": 43,
+      "updateMaximumBudget": "58558294782455900"
     }
   ],
   "conversionBuffers": [
@@ -218,6 +231,11 @@
     },
     {
       "chainId": 37,
+      "buffer": 5,
+      "bufferDenominator": 100
+    },
+    {
+      "chainId": 43,
       "buffer": 5,
       "bufferDenominator": 100
     }
@@ -282,6 +300,10 @@
     {
       "chainId": 37,
       "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 43,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
     }
   ],
   "supportedChains": [
@@ -344,6 +366,10 @@
     {
       "chainId": 37,
       "isSupported": true
+    },
+    {
+      "chainId": 43,
+      "isSupported": true
     }
   ],
   "supportedKeysByChain": [
@@ -405,6 +431,10 @@
     },
     {
       "chainId": 37,
+      "supportedKeys": ["vaa"]
+    },
+    {
+      "chainId": 43,
       "supportedKeys": ["vaa"]
     }
   ]
