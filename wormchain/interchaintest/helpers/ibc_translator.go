@@ -290,29 +290,62 @@ func CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t *testing.T, chainI
 	return string(msgBz)
 }
 
-func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T, allowlistChainID uint16, allowlistChannel string, guardians *guardians.ValSet) string {
-	payload := new(bytes.Buffer)
-	module, err := vaa.LeftPadBytes("WormchainCore", 32)
-	require.NoError(t, err)
-	payload.Write(module.Bytes())
-	vaa.MustWrite(payload, binary.BigEndian, uint8(1))
-	vaa.MustWrite(payload, binary.BigEndian, uint16(0))
-	channelPadded, err := vaa.LeftPadBytes(string(allowlistChannel), 64)
-	require.NoError(t, err)
-	payload.Write(channelPadded.Bytes())
-	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
+func createIbcReceiverUpdateChannelChainPayload(allowlistChainID vaa.ChainID,
+	allowlistChannel string) ([]byte, error) {
+	// // vaa.IbcReceiverModuleStr
+	// expected_hash := vaa.CreateMigrateCosmwasmContractHash(code_id, contractAddr, []byte(json_msg))
 
-	var channelIdBytes [64]byte
-	copy(channelIdBytes[:], channelPadded.Bytes())
-
-	msg := vaa.BodyIbcUpdateChannelChain{
-		TargetChainId: 3104,
-		ChannelId:     channelIdBytes,
-		ChainId:       vaa.ChainID(allowlistChainID),
+	// var payload bytes.Buffer
+	// payload.Write(vaa.IbcReceiverModule[:])
+	// payload.Write([]byte{byte(vaa.IbcReceiverActionUpdateChannelChain)})
+	// binary.Write(&payload, binary.BigEndian, uint16(vaa.ChainIDWormchain))
+	// // custom payload
+	// payload.Write(expected_hash[:])
+	// return payload.Bytes()
+	channelId, err := vaa.LeftPadIbcChannelId("channel-0")
+	if err != nil {
+		return nil, err
 	}
 
-	msgBz, err := json.Marshal(msg)
+	bodyIbcReceiverUpdateChannelChain := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: vaa.ChainIDWormchain,
+		ChannelId:     channelId,
+		ChainId:       allowlistChainID,
+	}
+	buf, err := bodyIbcReceiverUpdateChannelChain.Serialize(vaa.IbcReceiverModuleStr)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
+	allowlistChainID vaa.ChainID,
+	allowlistChannel string,
+	contractAddress string,
+	guardians *guardians.ValSet) string {
+	// payload := new(bytes.Buffer)
+	// module, err := vaa.LeftPadBytes("WormchainCore", 32)
+	// require.NoError(t, err)
+	// payload.Write(module.Bytes())
+	// vaa.MustWrite(payload, binary.BigEndian, uint8(1))
+	// vaa.MustWrite(payload, binary.BigEndian, uint16(0))
+	// channelPadded, err := vaa.LeftPadBytes(string(allowlistChannel), 64)
+	// require.NoError(t, err)
+	// payload.Write(channelPadded.Bytes())
+	// vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
+
+	// var channelIdBytes [64]byte
+	// copy(channelIdBytes[:], channelPadded.Bytes())
+
+	// msgBz, err := json.Marshal(msg)
+	payload, err := createIbcReceiverUpdateChannelChainPayload(allowlistChainID, allowlistChannel)
 	require.NoError(t, err)
 
-	return string(msgBz)
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+	return vHex
 }

@@ -69,7 +69,9 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 
 	payload, err := bodyTbRegisterChain.Serialize()
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	v := generateVaa(0, guardians,
+		vaa.ChainID(vaa.GovernanceChain),
+		vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 

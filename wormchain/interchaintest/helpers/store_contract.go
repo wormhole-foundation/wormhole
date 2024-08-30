@@ -34,6 +34,38 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	return gov_msg.MarshalBinary()
 }
 
+func contractUpgradeMsg(t *testing.T, chainID uint16, newContractAddr string, guardians *guardians.ValSet) []byte {
+
+	contractBz := [32]byte{}
+	cIndex := 32
+	for i := len(newContractAddr); i > 0; i-- {
+		contractBz[cIndex-1] = newContractAddr[i-1]
+		cIndex--
+	}
+
+	bodyContractUpgrade := vaa.BodyContractUpgrade{
+		ChainID:     vaa.ChainID(chainID),
+		NewContract: vaa.Address(contractBz),
+	}
+
+	payload, err := bodyContractUpgrade.Serialize()
+	require.NoError(t, err)
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+
+	msg := TbSubmitVaaMsg{
+		SubmitVaa: SubmitVaa{
+			Data: vBz,
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return msgBz
+}
+
 func createContractUpgradePayload(payload vaa.BodyContractUpgrade) ([]byte, error) {
 	var coreModule [32]byte
 	copy(coreModule[:], vaa.CoreModule[:])
