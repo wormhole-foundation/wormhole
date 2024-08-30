@@ -28,12 +28,7 @@ func TestMalformedPayload(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
 
-	// chains := CreateLocalChain(t, *guardians)
-	chains := CreateChain(t, *guardians, ibc.DockerImage{
-		Repository: WormchainRemoteRepo,
-		Version:    "v2.23.0",
-		UidGid:     WormchainImage.UidGid,
-	})
+	chains := CreateLocalChain(t, *guardians)
 
 	_, ctx, r, eRep, _, _ := BuildInterchain(t, chains)
 
@@ -50,6 +45,7 @@ func TestMalformedPayload(t *testing.T) {
 	wormToGaiaChannel := gaiaToWormChannel.Counterparty
 
 	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", math.NewInt(10_000_000_000), wormchain, gaia, osmosis, osmosis)
+	gaiaUser1 := users[1]
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
 
@@ -147,11 +143,6 @@ func TestMalformedPayload(t *testing.T) {
 	// 8. GW TransferWithPayload: Memo malformed: ibc hooks: msg: invalid "forward to" recipient  |   + (700)      + (700)     wormchain (600) |
 	// -----------------------------------------------------------------------------------------------------------------------------------------
 
-	///
-	///
-	///
-	///
-
 	// Test 1 (GW Tranfer has 100 added to osmo chain id to make it denied / no chain id -> channel mapping)
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID+100, osmoUser1.FormattedAddress(), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
@@ -172,26 +163,14 @@ func TestMalformedPayload(t *testing.T) {
 	require.Equal(t, int64(0), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 0")
 
 	// Test 2 (GW Transfer has a cosmos/gaia prefix for recipient address)
-	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.FormattedAddress(), 0, 1)
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, gaiaUser1.FormattedAddress(), 0, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 	require.NoError(t, err)
 
-	wormGaiaPath := "wormgaia"
-	wormOsmoPath := "wormosmo"
-	r.Flush(ctx, eRep, wormOsmoPath, wormToOsmoChannel.ChannelID)
-	r.Flush(ctx, eRep, wormGaiaPath, osmoToWormChannel.ChannelID)
-	r.Flush(ctx, eRep, wormGaiaPath, wormToGaiaChannel.ChannelID)
-	r.Flush(ctx, eRep, wormOsmoPath, gaiaToWormChannel.ChannelID)
-
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
-
-	r.Flush(ctx, eRep, wormOsmoPath, wormToOsmoChannel.ChannelID)
-	r.Flush(ctx, eRep, wormGaiaPath, osmoToWormChannel.ChannelID)
-	r.Flush(ctx, eRep, wormGaiaPath, wormToGaiaChannel.ChannelID)
-	r.Flush(ctx, eRep, wormOsmoPath, gaiaToWormChannel.ChannelID)
 
 	// Check the asset 1 CW20 total supply
 	wormchain.QueryContract(ctx, cw20Address, cw20QueryReq, &cw20QueryRsp)
@@ -201,11 +180,6 @@ func TestMalformedPayload(t *testing.T) {
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
 	require.Equal(t, int64(100), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 100")
-
-	///
-	///
-	///
-	///
 
 	// Test 3 (GW TransferWithPayload has osmo user1 as recipient and not a contract)
 	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
@@ -304,7 +278,7 @@ func TestMalformedPayload(t *testing.T) {
 	require.Equal(t, int64(500), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 500")
 
 	// Test 8 (GW TransferWithPayload's ibc hook payload has recipient with cosmos/gaia bech32 prefix)
-	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
+	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, gaiaUser1.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
