@@ -60,6 +60,16 @@ type GuardianStorage struct {
 	LoadDistributionKey []byte
 }
 
+func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
+	for _, v := range g.Guardians {
+		if v.Id == pid.Id && string(v.Key) == string(pid.Key) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // GuardianStorageFromFile loads a guardian storage from a file.
 // If the storage file hadn't contained symetric keys, it'll compute them.
 func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
@@ -186,26 +196,44 @@ func (t *Engine) fpListener() {
 	}
 }
 
+func protoToPartyId(pid *gossipv1.PartyId) *tss.PartyID {
+	return &tss.PartyID{
+		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
+			Id:      pid.Id,
+			Moniker: pid.Moniker,
+			Key:     pid.Key,
+		},
+		Index: int(pid.Index),
+	}
+}
+func partyIdToProto(pid *tss.PartyID) *gossipv1.PartyId {
+	return &gossipv1.PartyId{
+		Id:      pid.Id,
+		Moniker: pid.Moniker,
+		Key:     pid.Key,
+		Index:   uint32(pid.Index),
+	}
+}
 func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage, error) {
 	bts, routing, err := m.WireBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	tssMsg := &gossipv1.PropagatedMessage{}
-
-	indices := make([]uint32, len(routing.To))
-	for i, pId := range routing.To {
-		indices[i] = uint32(pId.Index)
+	indices := make([]*gossipv1.PartyId, 0, len(routing.To))
+	for _, pId := range routing.To {
+		indices = append(indices, partyIdToProto(pId))
 	}
 
 	msgToSend := &gossipv1.SignedMessage{
 		Payload:         bts,
-		Sender:          uint32(t.Self.Index),
+		Sender:          partyIdToProto(m.GetFrom()),
 		Recipients:      indices,
 		MsgSerialNumber: atomic.AddUint64(&t.msgSerialNumber, 1),
 		Authentication:  nil,
 	}
+
+	tssMsg := &gossipv1.PropagatedMessage{}
 
 	if routing.IsBroadcast || len(routing.To) == 0 || len(routing.To) > 1 {
 		t.sign(msgToSend)
@@ -266,6 +294,11 @@ func (t *Engine) handleEcho(m *gossipv1.PropagatedMessage_Echo) (tss.ParsedMessa
 		return nil, fmt.Errorf("echo message is nil")
 	}
 
+	senderPid := protoToPartyId(echoMsg.Message.Sender)
+	if !t.GuardianStorage.contains(senderPid) {
+		return nil, fmt.Errorf("sender is not a known guardian")
+	}
+
 	if err := t.verifySignedMessage(echoMsg.Message); err != nil {
 		return nil, err
 	}
@@ -278,7 +311,7 @@ func (t *Engine) handleEcho(m *gossipv1.PropagatedMessage_Echo) (tss.ParsedMessa
 		return nil, err
 	}
 
-	parsed, err := tss.ParseWireMessage(echoMsg.Message.Payload, t.Guardians[echoMsg.Message.Sender], true)
+	parsed, err := tss.ParseWireMessage(echoMsg.Message.Payload, senderPid, true)
 	if err != nil {
 		return nil, err
 	}
@@ -295,8 +328,9 @@ func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.Parse
 		return nil, fmt.Errorf("unicast message is nil")
 	}
 
-	if maccedMsg.Sender > uint32(len(t.Guardians)) {
-		return nil, fmt.Errorf("sender index is out of range")
+	senderPid := protoToPartyId(maccedMsg.Sender)
+	if !t.GuardianStorage.contains(senderPid) {
+		return nil, fmt.Errorf("sender is not a known guardian")
 	}
 
 	if !t.isUnicastForMe(maccedMsg) {
@@ -307,7 +341,7 @@ func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.Parse
 		return nil, err
 	}
 
-	parsed, err := tss.ParseWireMessage(maccedMsg.Payload, t.Guardians[maccedMsg.Sender], false)
+	parsed, err := tss.ParseWireMessage(maccedMsg.Payload, senderPid, false)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +350,7 @@ func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.Parse
 
 func (t *Engine) isUnicastForMe(maccedMsg *gossipv1.SignedMessage) bool {
 	for _, v := range maccedMsg.Recipients {
-		if v == uint32(t.Self.Index) {
+		if v.Id == t.Self.Id {
 			return true
 		}
 	}

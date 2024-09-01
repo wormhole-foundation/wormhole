@@ -218,14 +218,23 @@ message SignedQueryResponse {
 }
 
 
+// copyOfTssLib proto.
+message PartyId{
+  string id = 1;
+  string moniker = 2;
+  bytes key = 3;
+  uint32 index = 4;
+}
+
 // SignedMessage is a message containing a payload for someone specific (containing encrypted and
 // MACed payload) or as a broadcast message (plaintext but signed).
 message SignedMessage {
   // the message itself
   bytes payload = 1; // In case of unicast: should be encrypted with a specific DH derived shared key.
 
-  uint32 sender = 2;
-  repeated uint32 recipients = 3;
+  // both of the following fields are used by the TSS lib, and can be used by the reliable-broadcast protocol.
+  PartyId sender = 2;
+  repeated PartyId recipients = 3;
 
   // used to identify the number of message for this sender. starts from 0 and advances with each message this signer sends.
   uint64 msg_serial_number = 4;

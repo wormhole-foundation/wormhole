@@ -354,10 +354,6 @@ func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServic
 		queryCancel()
 		if err == nil && r != nil {
 			// success
-
-			if shouldExpectTssVaa {
-				fmt.Println("TSS VAA received")
-			}
 			return r, err
 		}
 		if mustNotReachQuorum {
