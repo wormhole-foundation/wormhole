@@ -869,7 +869,7 @@ func (v *VAA) UnmarshalBinary(data []byte) error {
 
 // MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
 func (v *VAA) MessageID() string {
-	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
+	return fmt.Sprintf("%d/%s/%d/%d", v.EmitterChain, v.EmitterAddress, v.Sequence, v.Version)
 }
 
 // UniqueID normalizes the ID of the VAA (any type) for the Attestation interface

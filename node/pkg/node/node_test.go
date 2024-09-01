@@ -356,12 +356,7 @@ func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServic
 			// success
 
 			if shouldExpectTssVaa {
-				v, err := vaa.Unmarshal(r.VaaBytes)
-				require.NoError(t, err)
-
-				if v.Version != vaa.TSSVaaVersion {
-					continue
-				}
+				fmt.Println("TSS VAA received")
 			}
 			return r, err
 		}
@@ -830,6 +825,10 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
 				EmitterAddress: msg.EmitterAddress.String(),
 				Sequence:       msg.Sequence,
+				Version:        uint32(vaa.SupportedVAAVersion),
+			}
+			if testCase.shouldExpectTssSignature {
+				msgId.Version = uint32(vaa.TSSVaaVersion)
 			}
 			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum, testCase.shouldExpectTssSignature)
 
@@ -849,7 +848,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 				// Match all the fields
 				if testCase.shouldExpectTssSignature {
-					assert.Equal(t, returnedVaa.Version, uint8(2))
+					assert.Equal(t, returnedVaa.Version, uint8(vaa.TSSVaaVersion))
 				} else {
 					assert.Equal(t, returnedVaa.Version, uint8(1))
 				}

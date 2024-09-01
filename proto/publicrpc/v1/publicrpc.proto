@@ -74,8 +74,8 @@ message MessageID {
   // Sequence number for (emitter_chain, emitter_address).
   uint64 sequence = 3;
 
-  // Optional version field. Clients may use this to search for specific versions of VAAs.
-  optional uint32 version = 4;
+  //Version used to define the specific version wanted.
+  uint32 version = 4;
 }
 
 // PublicRPCService service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.

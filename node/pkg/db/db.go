@@ -26,6 +26,7 @@ type VAAID struct {
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	Sequence       uint64
+	Version        uint32
 }
 
 // VaaIDFromString parses a <chain>/<address>/<sequence> string into a VAAID.
@@ -64,6 +65,7 @@ func VaaIDFromVAA(v *vaa.VAA) *VAAID {
 		EmitterChain:   v.EmitterChain,
 		EmitterAddress: v.EmitterAddress,
 		Sequence:       v.Sequence,
+		Version:        uint32(v.Version),
 	}
 }
 
@@ -73,7 +75,8 @@ var (
 )
 
 func (i *VAAID) Bytes() []byte {
-	return []byte(fmt.Sprintf("signed/%d/%s/%d", i.EmitterChain, i.EmitterAddress, i.Sequence))
+	tmp := []byte(fmt.Sprintf("signed/%d/%s/%d/%d", i.EmitterChain, i.EmitterAddress, i.Sequence, i.Version))
+	return tmp
 }
 
 func (i *VAAID) EmitterPrefixBytes() []byte {

@@ -345,12 +345,13 @@ func (p *Processor) Run(ctx context.Context) error {
 
 // storeSignedVAA schedules a database update for a VAA.
 func (p *Processor) storeSignedVAA(v *vaa.VAA) {
+	key := string(db.VaaIDFromVAA(v).Bytes())
+
 	if v.EmitterChain == vaa.ChainIDPythNet {
-		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
 		return
 	}
-	key := fmt.Sprintf("%d/%v/%v", v.EmitterChain, v.EmitterAddress, v.Sequence)
+
 	p.updateVAALock.Lock()
 	p.updatedVAAs[key] = &updateVaaEntry{v: v, dirty: true}
 	p.updateVAALock.Unlock()
@@ -358,16 +359,15 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID
 func (p *Processor) haveSignedVAA(id db.VAAID) bool {
+	key := string(id.Bytes())
 	if id.EmitterChain == vaa.ChainIDPythNet {
 		if p.pythnetVaas == nil {
 			return false
 		}
-		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		_, exists := p.pythnetVaas[key]
 		return exists
 	}
 
-	key := fmt.Sprintf("%d/%v/%v", id.EmitterChain, id.EmitterAddress, id.Sequence)
 	if p.getVaaFromUpdateMap(key) != nil {
 		return true
 	}
