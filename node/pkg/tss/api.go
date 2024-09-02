@@ -2,8 +2,10 @@ package tss
 
 import (
 	"context"
+	"crypto/ecdsa"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/yossigi/tss-lib/v2/common"
 )
 
@@ -18,6 +20,9 @@ type ReliableMessageHandler interface {
 type Signer interface {
 	BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error
 	ProducedSignature() <-chan *common.SignatureData
+
+	GetPublicKey() *ecdsa.PublicKey
+	GetEthAddress() ethcommon.Address
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of reliable broadcast needed for the security of TSS over the network.

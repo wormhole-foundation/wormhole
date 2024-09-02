@@ -110,6 +110,20 @@ func TestRunParamsRootCtxCancelRequired(t *testing.T) {
 	require.Nil(t, params)
 }
 
+func addTssEngine(p *RunParams) error {
+	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	if err != nil {
+		return err
+	}
+
+	engine, err := tss.NewReliableTSS(st)
+	if err != nil {
+		return err
+	}
+
+	p.tssMessageHandler = engine
+	return nil
+}
 func TestRunParamsWithDisableHeartbeatVerify(t *testing.T) {
 	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	require.NoError(t, err)
@@ -124,6 +138,7 @@ func TestRunParamsWithDisableHeartbeatVerify(t *testing.T) {
 		gst,
 		rootCtxCancel,
 		WithDisableHeartbeatVerify(true),
+		addTssEngine,
 	)
 
 	require.NoError(t, err)

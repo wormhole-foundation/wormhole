@@ -469,8 +469,9 @@ func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
 		return
 	}
 
+	// TODO: Should we return a signature already in the correct format from the TssEngine? or giving the processor more control is better?
 	vaaSig := &vaa.Signature{}
-	copy(vaaSig.Signature[:], sig.Signature)
+	copy(vaaSig.Signature[:], append(sig.Signature, sig.SignatureRecovery...))
 
 	// using single signature, since it was reached via threshold signing.
 	wtr.vaa.HandleQuorum([]*vaa.Signature{vaaSig}, hash, p)

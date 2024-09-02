@@ -337,7 +337,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 }
 
 // waitForVaa polls the publicRpc service every 5ms until there is a response.
-func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool, shouldExpectTssVaa bool) (*publicrpcv1.GetSignedVAAResponse, error) {
+func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
 	t.Helper()
 	var r *publicrpcv1.GetSignedVAAResponse
 	var err error
@@ -826,7 +826,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			if testCase.shouldExpectTssSignature {
 				msgId.Version = uint32(vaa.TSSVaaVersion)
 			}
-			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum, testCase.shouldExpectTssSignature)
+			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
 
 			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
 			if testCase.mustNotReachQuorum {
@@ -838,8 +838,12 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 				// Check signatures
 				if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
-					err = returnedVaa.Verify(gsAddrList)
-					assert.NoError(t, err)
+					addrLst := gsAddrList
+					if testCase.shouldExpectTssSignature {
+						addrLst = []eth_common.Address{gs[0].tssEngine.GetEthAddress()}
+					}
+
+					assert.NoError(t, returnedVaa.Verify(addrLst))
 				}
 
 				// Match all the fields
@@ -1303,7 +1307,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 				}
 				// a VAA should not take longer than 10s to be produced, no matter what.
 				waitCtx, cancelFunc := context.WithTimeout(ctx, time.Second*10)
-				_, err := waitForVaa(t, waitCtx, c, msgId, false, false)
+				_, err := waitForVaa(t, waitCtx, c, msgId, false)
 				cancelFunc()
 				assert.NoError(t, err)
 				if err != nil {

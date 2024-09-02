@@ -822,11 +822,13 @@ func (v *VAA) tssValidation(addresses []common.Address) error {
 		return errors.New("TSS VAA must have exactly one signature")
 	}
 
-	// TODO verify single signature.
-	// Verify VAA signatures to prevent a DoS attack on our local store.
-	// if !v.VerifySignatures(addresses) {
-	// return errors.New("VAA had bad signatures")
-	// }
+	if len(addresses) != 1 {
+		return errors.New("TSS VAA must have exactly one address")
+	}
+
+	if !v.VerifySignatures(addresses) {
+		return errors.New("VAA had bad signatures")
+	}
 
 	return nil
 }

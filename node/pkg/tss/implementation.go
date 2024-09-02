@@ -8,7 +8,10 @@ import (
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/yossigi/tss-lib/v2/common"
+	tssutil "github.com/yossigi/tss-lib/v2/ecdsa/ethereum"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/tss"
@@ -30,6 +33,8 @@ type Engine struct {
 	fpOutChan    chan tss.Message // this one must listen on it, and output to the p2p network.
 	fpSigOutChan chan *common.SignatureData
 	fpErrChannel chan *tss.Error
+
+	ethSigOutChan chan *[]byte
 
 	gossipOutChan chan *gossipv1.GossipMessage
 
@@ -168,6 +173,16 @@ func (t *Engine) Start(ctx context.Context) error {
 	t.started = true
 
 	return nil
+}
+
+func (t *Engine) GetPublicKey() *ecdsa.PublicKey {
+	return t.fp.GetPublic()
+}
+
+func (t *Engine) GetEthAddress() ethcommon.Address {
+	pubkey := t.fp.GetPublic()
+	ethAddBytes := ethcommon.LeftPadBytes(crypto.Keccak256(tssutil.EcdsaPublicKeyToBytes(pubkey)[1:])[12:], 32)
+	return ethcommon.BytesToAddress(ethAddBytes)
 }
 
 // fpListener serves as a listining loop for the full party outputs.
