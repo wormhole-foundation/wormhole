@@ -246,7 +246,7 @@ axios
       // The token symbol has changed
       // We take a substring of the symbol to cut the "=" character we added above
       else if (tokenParts[0] + "-" + tokenParts[1] + "-" + newTokenSymbol.substring(1) != token) {
-        changedSymbols.push(token + "->" + newTokenSymbol);
+        changedSymbols.push(token + "->" + newTokenSymbol.substring(1));
       }
     }
 
@@ -263,6 +263,7 @@ axios
     changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
     changedContent += "\n\nTokens with changed symbols = " + changedSymbols.length + ":\n<WH_chain_id>-<WH_token_addr>-<old_token_symbol>-><new_token_symbol>\n\n";
+    changedContent += JSON.stringify(changedSymbols, null, 1);
 
     changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
