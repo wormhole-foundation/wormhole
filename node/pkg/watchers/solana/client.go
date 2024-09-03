@@ -389,7 +389,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					acc := solana.PublicKeyFromBytes(m.TxHash)
 					logger.Info("received observation request with account id", zap.String("account", acc.String()))
 					rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-					s.fetchMessageAccount(rCtx, logger, acc, 0, true)
+					s.fetchMessageAccount(rCtx, logger, acc, 0, true, nil)
 					cancel()
 				} else if len(m.TxHash) == SolanaSignatureLen { // Request by transaction ID
 					signature := solana.SignatureFromBytes(m.TxHash)
@@ -791,15 +791,15 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	}
 
 	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-		s.retryFetchMessageAccount(ctx, logger, accPublicKey, slot, 0, isReobservation)
+		s.retryFetchMessageAccount(ctx, logger, accPublicKey, slot, 0, isReobservation, &signature)
 		return nil
 	})
 
 	return true, nil
 }
 
-func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool) {
-	retryable := s.fetchMessageAccount(ctx, logger, acc, slot, isReobservation)
+func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature *solana.Signature) {
+	retryable := s.fetchMessageAccount(ctx, logger, acc, slot, isReobservation, signature)
 
 	if retryable {
 		if retry >= maxRetries {
@@ -820,13 +820,13 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *za
 			zap.Uint("retry", retry))
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-			s.retryFetchMessageAccount(ctx, logger, acc, slot, retry+1, isReobservation)
+			s.retryFetchMessageAccount(ctx, logger, acc, slot, retry+1, isReobservation, signature)
 			return nil
 		})
 	}
 }
 
-func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64, isReobservation bool) (retryable bool) {
+func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64, isReobservation bool, signature *solana.Signature) (retryable bool) {
 	// Fetching account
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -877,7 +877,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 			zap.Binary("data", data))
 	}
 
-	s.processMessageAccount(logger, data, acc, isReobservation)
+	s.processMessageAccount(logger, data, acc, isReobservation, signature)
 	return false
 }
 
@@ -931,7 +931,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	switch string(data[:3]) {
 	case accountPrefixReliable, accountPrefixUnreliable:
 		acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
-		s.processMessageAccount(logger, data, acc, isReobservation)
+		s.processMessageAccount(logger, data, acc, isReobservation, nil)
 	default:
 		break
 	}
@@ -939,7 +939,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	return nil
 }
 
-func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool) {
+func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool, signature *solana.Signature) {
 	proposal, err := ParseMessagePublicationAccount(data)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
@@ -1022,6 +1022,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		logger.Log(s.msgObservedLogLevel, "message observed",
 			zap.Stringer("txHash", txHash),
 			zap.Stringer("account", acc),
+			zap.Stringer("txId", signature), // nil prints "<nil>".
 			zap.Time("timestamp", observation.Timestamp),
 			zap.Uint32("nonce", observation.Nonce),
 			zap.Uint64("sequence", observation.Sequence),
