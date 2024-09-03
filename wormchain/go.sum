@@ -947,8 +947,8 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/viper v1.3.2/go.mod h1:ZiWeW+zYFKm7srdB9IoDzzZXaJaI5eL9QjNiN/DMA2s=
 github.com/spf13/viper v1.18.2 h1:LUXCnvUvSM6FXAsj6nnfc8Q2tp1dIgUfY9Kc8GsSOiQ=
 github.com/spf13/viper v1.18.2/go.mod h1:EKmWIqdnk5lOcmR72yw6hS+8OPYcwD0jteitLMVB+yk=
-github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e h1:pVpVGXBxCgeziw4TzQ53zXpnEeNFQt0uxs/VoeB6gBY=
-github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240726190703-f29ecc00bc0e/go.mod h1:ADjORYzUQqQv/FxDi0H0K5gW/rAk1CiDR3ZKsExfJV0=
+github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240903174520-1c952abb4033 h1:ysTm2tIo7Ri5EdMZ9AXK7JBpmzJ7MMu7sx5082OgCoc=
+github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240903174520-1c952abb4033/go.mod h1:ADjORYzUQqQv/FxDi0H0K5gW/rAk1CiDR3ZKsExfJV0=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/handy v0.0.0-20190108123426-d5acb3125c2a/go.mod h1:qNTQ5P5JnDBl6z3cMAg/SywNDC5ABu5ApDIw6lUbRmI=
