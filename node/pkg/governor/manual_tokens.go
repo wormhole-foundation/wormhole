@@ -11,7 +11,6 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 13, addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", symbol: "KLEVA", coinGeckoId: "kleva", decimals: 18, price: 0.086661},
 		{chain: 13, addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", symbol: "WEMIX", coinGeckoId: "wemix-token", decimals: 18, price: 1.74},
 		{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 24, price: 4.34},
-		{chain: 22, addr: "93601512902fe46ad6c51440c23a1a7e166c4b60e773579eda639c113a81325a", symbol: "USDT", coinGeckoId: "tether", decimals: 6, price: 1.00},
 		{chain: 32, addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", symbol: "SEI", coinGeckoId: "sei-network", decimals: 6, price: 0.3},
 		// BLAST (tokens over $50,000 24h volume)
 		{chain: 36, addr: "0000000000000000000000004300000000000000000000000000000000000003", symbol: "USDB", coinGeckoId: "usdb", decimals: 18, price: 1.00},
