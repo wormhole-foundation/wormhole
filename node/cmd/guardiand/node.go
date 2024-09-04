@@ -178,10 +178,8 @@ var (
 	xlayerRPC      *string
 	xlayerContract *string
 
-	lineaRPC            *string
-	lineaContract       *string
-	lineaRollUpUrl      *string
-	lineaRollUpContract *string
+	lineaRPC      *string
+	lineaContract *string
 
 	berachainRPC      *string
 	berachainContract *string
@@ -389,8 +387,6 @@ func init() {
 
 	lineaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	lineaContract = NodeCmd.Flags().String("lineaContract", "", "Linea contract address")
-	lineaRollUpUrl = NodeCmd.Flags().String("lineaRollUpUrl", "", "Linea roll up URL")
-	lineaRollUpContract = NodeCmd.Flags().String("lineaRollUpContract", "", "Linea roll up contract address")
 
 	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
@@ -759,6 +755,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, "mantle", true)
 	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
+	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 
@@ -769,12 +766,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, "optimismSepolia", false)
 	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, "holesky", false)
 	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, "polygonSepolia", false)
-
-	// Linea requires a couple of additional parameters.
-	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", false)
-	if (*lineaRPC != "") && (*lineaRollUpUrl == "" || *lineaRollUpContract == "") && env != common.UnsafeDevNet {
-		logger.Fatal("If --lineaRPC is specified, --lineaRollUpUrl and --lineaRollUpContract must also be specified")
-	}
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1309,13 +1300,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(lineaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:           "linea",
-			ChainID:             vaa.ChainIDLinea,
-			Rpc:                 *lineaRPC,
-			Contract:            *lineaContract,
-			CcqBackfillCache:    *ccqBackfillCache,
-			LineaRollUpUrl:      *lineaRollUpUrl,
-			LineaRollUpContract: *lineaRollUpContract,
+			NetworkID:        "linea",
+			ChainID:          vaa.ChainIDLinea,
+			Rpc:              *lineaRPC,
+			Contract:         *lineaContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
