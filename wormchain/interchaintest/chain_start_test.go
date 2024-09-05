@@ -26,5 +26,5 @@ func TestChainStart(t *testing.T) {
 
 	// Confirm 5 blocks are produced
 	chain := chains[0].(*cosmos.CosmosChain)
-	testutil.WaitForBlocks(ctx, 50, chain)
+	testutil.WaitForBlocks(ctx, 5, chain)
 }
