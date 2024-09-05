@@ -77,7 +77,7 @@ func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
 
 // GuardianStorageFromFile loads a guardian storage from a file.
 // If the storage file hadn't contained symetric keys, it'll compute them.
-func GuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
+func NewGuardianStorageFromFile(storagePath string) (*GuardianStorage, error) {
 	var storage GuardianStorage
 	if err := storage.load(storagePath); err != nil {
 		return nil, err

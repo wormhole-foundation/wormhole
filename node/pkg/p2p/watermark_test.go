@@ -174,7 +174,7 @@ func TestWatermark(t *testing.T) {
 
 func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
-	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	st, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 	require.NoError(t, err)
 
 	ts, err := tss.NewReliableTSS(st)

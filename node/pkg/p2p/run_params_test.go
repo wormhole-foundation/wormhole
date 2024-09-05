@@ -111,7 +111,7 @@ func TestRunParamsRootCtxCancelRequired(t *testing.T) {
 }
 
 func addTssEngine(p *RunParams) error {
-	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	st, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	ccqPort := uint(4242)
 	ccqAllowedPeers := "some allowed peers"
 
-	st, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	st, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 	require.NoError(t, err)
 
 	ts, err := tss.NewReliableTSS(st)

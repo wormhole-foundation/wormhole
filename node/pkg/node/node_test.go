@@ -125,7 +125,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			panic(err)
 		}
 
-		tssStorage, err := tss.GuardianStorageFromFile(tssStoragePath)
+		tssStorage, err := tss.NewGuardianStorageFromFile(tssStoragePath)
 		if err != nil {
 			panic(err)
 		}
@@ -993,7 +993,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				ctx, ctxCancel := context.WithCancel(ctx)
 				defer ctxCancel()
 
-				guardianTssStorage, err := tss.GuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+				guardianTssStorage, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
 				require.NoError(t, err)
 
 				reliableTss, err := tss.NewReliableTSS(guardianTssStorage)

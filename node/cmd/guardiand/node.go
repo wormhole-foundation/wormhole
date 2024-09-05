@@ -793,7 +793,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("Loaded guardian key", zap.String(
 		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
 
-	tssGuardianStorage, err := tss.GuardianStorageFromFile(*tssGuardianStoragePath)
+	tssGuardianStorage, err := tss.NewGuardianStorageFromFile(*tssGuardianStoragePath)
 	if err != nil {
 		logger.Fatal("failed to load the guardian's threshold signature scheme's storage", zap.Error(err))
 	}
