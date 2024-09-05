@@ -38,7 +38,7 @@ type Engine struct {
 
 	gossipOutChan chan *gossipv1.GossipMessage
 
-	started         bool
+	started         atomic.Uint32
 	msgSerialNumber uint64
 }
 
@@ -101,7 +101,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 	if t == nil {
 		return fmt.Errorf("tss engine is nil")
 	}
-	if !t.started {
+	if t.started.Load() != started {
 		return fmt.Errorf("tss engine hasn't started")
 	}
 
@@ -154,6 +154,7 @@ func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
 		fpErrChannel: fpErrChannel,
 
 		gossipOutChan: make(chan *gossipv1.GossipMessage),
+		started:       atomic.Uint32{}, // default value is 0
 	}
 
 	return t, nil
@@ -161,6 +162,14 @@ func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
 
 // Start starts the TSS engine, and listens for the outputs of the full party.
 func (t *Engine) Start(ctx context.Context) error {
+	if t == nil {
+		return fmt.Errorf("tss engine is nil")
+	}
+
+	if !t.started.CompareAndSwap(notStarted, started) {
+		return fmt.Errorf("tss engine has already started")
+	}
+
 	t.ctx = ctx
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
@@ -169,8 +178,6 @@ func (t *Engine) Start(ctx context.Context) error {
 	//closing the t.fp.start inside th listener
 
 	go t.fpListener()
-
-	t.started = true
 
 	return nil
 }
