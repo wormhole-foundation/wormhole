@@ -41,7 +41,7 @@ func SetMiddlewareContract(
 	}
 	payloadBz, err := payload.Serialize()
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
@@ -67,7 +67,7 @@ func ScheduleUpgrade(
 	}
 	payloadBz, err := payload.Serialize()
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payloadBz)
+	v := GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
@@ -87,7 +87,7 @@ func CancelUpgrade(
 
 	payloadBz, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)

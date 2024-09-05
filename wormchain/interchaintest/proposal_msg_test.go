@@ -2,7 +2,11 @@ package interchaintest
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -15,6 +19,7 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -27,7 +32,7 @@ var (
 
 // setupProposalTest is a helper function to setup a wormchain test with 2 users:
 // the first capable of submitting proposals, the second not.
-func setupProposalTest(t *testing.T) (context.Context, *cosmos.CosmosChain, ibc.Wallet, ibc.Wallet) {
+func setupProposalTest(t *testing.T) (context.Context, *cosmos.CosmosChain, *guardians.ValSet, ibc.Wallet, ibc.Wallet) {
 	// Base setup
 	guardians := guardians.CreateValSet(t, numGuardians)
 	chains := CreateLocalChain(t, *guardians)
@@ -43,27 +48,53 @@ func setupProposalTest(t *testing.T) (context.Context, *cosmos.CosmosChain, ibc.
 	_, err := val.ExecTx(ctx, "validator", "wormhole", "create-allowed-address", user1.FormattedAddress(), "UserProposalSubmitter")
 	require.NoError(t, err, "error creating allowed address")
 
-	return ctx, wormchain, user1, user2
+	return ctx, wormchain, guardians, user1, user2
+}
+
+func storeContractAllowErrors(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, fileLoc string, guardians *guardians.ValSet) error {
+	node := chain.FullNodes[0]
+
+	_, file := filepath.Split(fileLoc)
+	err := node.CopyFile(ctx, fileLoc, file)
+	require.NoError(t, err, fmt.Errorf("writing contract file to docker volume: %w", err))
+
+	content, err := os.ReadFile(fileLoc)
+	require.NoError(t, err)
+
+	// gzip the wasm file
+	if helpers.IsWasm(content) {
+		content, err = helpers.GzipIt(content)
+		require.NoError(t, err)
+	}
+
+	payload := helpers.CreateWasmStoreCodePayload(content)
+	v := helpers.GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+
+	vHex := hex.EncodeToString(vBz)
+
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "store", path.Join(node.HomeDir(), file), vHex, "--gas", "auto")
+	return err
 }
 
 // TestGuardianSetUpdateProposal tests the process of submitting a guardian set update proposal
 func TestGuardianSetUpdateProposal(t *testing.T) {
-	ctx, wormchain, user1, user2 := setupProposalTest(t)
+	ctx, wormchain, oldGuardians, user1, user2 := setupProposalTest(t)
 
 	var keys [][]byte
+	updatedGuardians := guardians.CreateValSet(t, numGuardians)
 
-	for range numGuardians {
-		guardian := guardians.CreateVal(t)
-		keys = append(keys, guardian.Addr)
+	for i := range numGuardians {
+		keys = append(keys, updatedGuardians.Vals[i].Addr)
 	}
 
 	emitMsgProposal := []cosmosproto.Message{
 		&wormholetypes.MsgGuardianSetUpdateProposal{
 			Authority: "wormhole10d07y265gmmuvt4z0w9aw880jnsr700j5x7ea3",
 			NewGuardianSet: wormholetypes.GuardianSet{
-				Index:          1,
-				Keys:           keys,
-				ExpirationTime: 0,
+				Index: 1,
+				Keys:  keys,
 			},
 		},
 	}
@@ -96,13 +127,21 @@ func TestGuardianSetUpdateProposal(t *testing.T) {
 	require.NotEmpty(t, proposal, "proposal not found")
 
 	// Wait for blocks
-	err = testutil.WaitForBlocks(ctx, 10, wormchain)
+	err = testutil.WaitForBlocks(ctx, 5, wormchain)
 	require.NoError(t, err, "error waiting for blocks")
+
+	// Try to store contract with new guardian set (fails because validators do not exist per the new guardian set)
+	err = storeContractAllowErrors(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", updatedGuardians)
+	require.Error(t, err, "expected error storing contract with new guardian set")
+
+	// Try to store contract with old guardian set (passes as the current consensus index is still the old guardian set)
+	err = storeContractAllowErrors(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", oldGuardians)
+	require.NoError(t, err, "error storing contract with old guardian set")
 }
 
 // TestGovernanceWormholeMessageProposal tests the process of submitting a governance proposal to emit a wormhole message
 func TestGovernanceWormholeMessageProposal(t *testing.T) {
-	ctx, wormchain, user1, user2 := setupProposalTest(t)
+	ctx, wormchain, _, user1, user2 := setupProposalTest(t)
 
 	emitMsgProposal := []cosmosproto.Message{
 		&wormholetypes.MsgGovernanceWormholeMessageProposal{

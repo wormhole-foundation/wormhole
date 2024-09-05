@@ -22,7 +22,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func createWasmStoreCodePayload(wasmBytes []byte) []byte {
+func CreateWasmStoreCodePayload(wasmBytes []byte) []byte {
 	// governance message with sha3 of wasmBytes as the payload
 	var hashWasm [32]byte
 	keccak := sha3.NewLegacyKeccak256()
@@ -78,8 +78,8 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 		require.NoError(t, err)
 	}
 
-	payload := createWasmStoreCodePayload(content)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	payload := CreateWasmStoreCodePayload(content)
+	v := GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
