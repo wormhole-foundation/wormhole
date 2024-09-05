@@ -109,7 +109,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 		return fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
 	}
 
-	if len(vaaDigest) != 32 {
+	if len(vaaDigest) != digestSize {
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
