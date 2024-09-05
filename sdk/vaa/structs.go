@@ -563,9 +563,11 @@ const (
 	minHeadlessVAALength = 51 // HEADER
 	minVAALength         = 57 // HEADER + BODY
 
-	SupportedVAAVersion = 0x01
-	TSSVaaVersion       = 0x02
+	VaaVersion1   = 0x01
+	TSSVaaVersion = 0x02
 )
+
+var SupportedVAAVersions = map[uint8]bool{VaaVersion1: true, TSSVaaVersion: true}
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2, etc
@@ -622,7 +624,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 	v := &VAA{}
 
 	v.Version = data[0]
-	if v.Version != SupportedVAAVersion && v.Version != TSSVaaVersion {
+	if !SupportedVAAVersions[v.Version] {
 		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
 	}
 
@@ -794,7 +796,7 @@ func (v *VAA) Verify(addresses []common.Address) error {
 	var err error = nil
 
 	switch v.Version {
-	case SupportedVAAVersion:
+	case VaaVersion1:
 		err = v.v1Validation(addresses)
 	case TSSVaaVersion:
 		err = v.tssValidation(addresses)

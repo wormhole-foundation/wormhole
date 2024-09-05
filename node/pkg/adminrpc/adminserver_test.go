@@ -290,7 +290,7 @@ var govEmitterAddr vaa.Address = [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 func verifyGovernanceVAA(t *testing.T, v *vaa.VAA, expectedSeqNo uint64, expectedNonce uint32) {
 	t.Helper()
 	require.NotNil(t, v)
-	assert.Equal(t, uint8(vaa.SupportedVAAVersion), v.Version)
+	assert.Equal(t, uint8(vaa.VaaVersion1), v.Version)
 	assert.Equal(t, govGuardianSetIndex, v.GuardianSetIndex)
 	assert.Nil(t, v.Signatures)
 	assert.Equal(t, govTimestamp, v.Timestamp)

@@ -821,7 +821,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
 				EmitterAddress: msg.EmitterAddress.String(),
 				Sequence:       msg.Sequence,
-				Version:        uint32(vaa.SupportedVAAVersion),
+				Version:        uint32(vaa.VaaVersion1),
 			}
 			if testCase.shouldExpectTssSignature {
 				msgId.Version = uint32(vaa.TSSVaaVersion)

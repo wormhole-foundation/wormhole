@@ -13,7 +13,7 @@ var GovernanceChain = ChainIDSolana
 
 func CreateGovernanceVAA(timestamp time.Time, nonce uint32, sequence uint64, guardianSetIndex uint32, payload []byte) *VAA {
 	vaa := &VAA{
-		Version:          SupportedVAAVersion,
+		Version:          VaaVersion1,
 		GuardianSetIndex: guardianSetIndex,
 		Signatures:       nil,
 		Timestamp:        timestamp,

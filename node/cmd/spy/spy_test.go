@@ -32,7 +32,7 @@ func getVAA(chainID vaa.ChainID, emitterAddr vaa.Address) *vaa.VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 
 	vaa := &vaa.VAA{
-		Version:          vaa.SupportedVAAVersion,
+		Version:          vaa.VaaVersion1,
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
 		Timestamp:        time.Unix(0, 0),
