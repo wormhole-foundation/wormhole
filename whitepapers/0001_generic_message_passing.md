@@ -110,8 +110,9 @@ VAA struct {
 	//
 	// These fields are part of the signed digest.
 
-	// Timestamp, in seconds, of the observed message (for most chains,
-	// this identifies the block that contains the message transaction).
+	// Timestamp, in seconds, of the observed message.
+	// This timestamp is derived from the block, rather than the
+	// time the block was seen by the guardians.
 	Timestamp time.Time // uint32
 
 	// Nonce (provided by the on-chain integrator).
@@ -135,9 +136,8 @@ VAA struct {
 
 	// Level of consistency requested by the emitter.
 	//
-	// The semantic meaning of this field is specific to the target
-	// chain (like a commitment level on Solana, number of
-	// confirmations on Ethereum, or no meaning with instant finality).
+	// The semantic meaning of this field is specific to the emitter
+	// chain. See Consistency Levels below.
 	ConsistencyLevel uint8 // <-- NEW
 
 	// Payload of the message (provided by the on-chain integrator).
@@ -175,6 +175,41 @@ Governance operations are executed by calling a dedicated governance method on t
 
 All contracts will be expected to support online upgrades. This implies changes to the Ethereum and Terra contracts to
 make them upgradeable.
+
+### Consistency Levels
+
+The consistency level represents the integrator's request to withhold from signing a message until a specified
+commitment level is reached on a given chain, or alternatively to leverage faster-than-finality messaging.
+This differentiation is critically important on chains which do not have instant finality, such as Ethereum,
+to ensure that the transaction which resulted in a Wormhole message was not 'rolled back' due to a chain
+reorganization. Each [guardian watcher](../node/pkg/watchers/README.md) is responsible for defining the consistency
+level meanings and enforcing them.
+
+#### EVM
+
+- `200` - publish immediately
+- `201` - `safe`, if available, otherwise falls back to `finalized`
+- anything else is treated as `finalized`
+
+Historically, the EVM watcher specified the consistency level as the block depth (from `latest`) the transaction
+should reach before publishing. However, since [The Merge](https://ethereum.org/en/roadmap/merge/), adoption of
+`safe` and `finalized` block tags have become widespread and offer a more exact measure of commitment.
+
+#### Solana
+
+The Solana core contract provides an enum for `ConsistencyLevel` used by the instruction data:
+
+- `0` - Confirmed
+- `1` - Finalized
+
+However, the resulting account and subsequent VAA will have:
+
+- `1` - Confirmed
+- `32` - Finalized
+
+#### Others
+
+All other chains do not offer configurable consistency levels and this field will be `0`.
 
 ## Caveats
 
