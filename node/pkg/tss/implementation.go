@@ -121,7 +121,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 }
 
 // TODO: get a signature output channel, so the guardian can listen to outputs from this tssEngine.
-func NewReliableTSS(storage *GuardianStorage) (*Engine, error) {
+func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}

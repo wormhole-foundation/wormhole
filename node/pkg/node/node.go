@@ -70,7 +70,7 @@ type G struct {
 	gatewayRelayer  *gwrelayer.GatewayRelayer
 	queryHandler    *query.QueryHandler
 	publicrpcServer *grpc.Server
-	tssEngine       *tss.Engine
+	tssEngine       tss.ReliableTSS
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
@@ -106,7 +106,7 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
-	tssEngine *tss.Engine,
+	tssEngine tss.ReliableTSS,
 ) *G {
 
 	g := G{

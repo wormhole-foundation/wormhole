@@ -85,7 +85,7 @@ type mockGuardian struct {
 	ready            bool
 	config           *guardianConfig
 	db               *db.Database
-	tssEngine        *tss.Engine
+	tssEngine        tss.ReliableTSS
 }
 
 type guardianConfig struct {
