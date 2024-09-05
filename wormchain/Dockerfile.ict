@@ -1,0 +1,42 @@
+# BEFORE USING IMAGE: REMOVE `muslc` from `build_tags` in the `Makefile` of the `wormchain` directory
+
+FROM golang:1.22.5 AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt update && \
+    apt-get install -y \
+        build-essential \
+        ca-certificates \
+        curl
+
+# Enable faster module downloading.
+ENV GOPROXY https://proxy.golang.org
+
+COPY ./wormchain/go.mod .
+COPY ./wormchain/go.sum .
+COPY ./sdk /sdk
+RUN go mod download
+
+COPY ./wormchain .
+
+RUN make build/wormchaind
+
+FROM golang:1.22.5
+
+WORKDIR /home/heighliner
+
+COPY --from=builder /app/build/wormchaind /usr/bin
+
+# copy over c bindings (libwasmvm.x86_64.so, etc)
+COPY --from=builder /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.5.2/internal/api/* /usr/lib
+
+EXPOSE 26657
+EXPOSE 26656
+EXPOSE 6060
+EXPOSE 9090
+EXPOSE 1317
+EXPOSE 4500
+
+ENTRYPOINT [ "wormchaind" ]
