@@ -2,10 +2,10 @@ package governor
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -33,11 +33,35 @@ func TestTokenListAddressSize(t *testing.T) {
 	}
 }
 
-func TestTokenListChainTokensPresent(t *testing.T) {
+// Flag a situation where a Governed chain does not have any governed assets. Often times when adding a mainnet chain,
+// a list of tokens will be added so that they can be governed. (These tokens are sourced by CoinGecko or manually
+// populated.) While this is not a hard requirement, it may represent that a developer has forgotten to take the step
+// of configuring tokens when deploying the chain. This test helps to remind them.
+func TestGovernedChainHasGovernedAssets(t *testing.T) {
+	// Add a chain ID to this set if it genuinely has no native assets that should be governed.
+	ignoredChains := map[vaa.ChainID]bool{
+		// TODO: Remove this once we have governed tokens for Snax.
+		vaa.ChainIDSnaxchain: true,
+
+		// Wormchain is an abstraction over IBC-connected chains so no assets are "native" to it
+		vaa.ChainIDWormchain: true,
+	}
+	if len(ignoredChains) > 0 {
+		ignoredOutput := []string{}
+		for id := range ignoredChains {
+			ignoredOutput = append(ignoredOutput, id.String())
+		}
+
+		t.Logf("This test ignored the following chains: %s\n", strings.Join(ignoredOutput, "\n"))
+	}
+
 	tokenConfigEntries := tokenList()
 
-	/* Assume that all chains within a token bridge will have governed tokens */
-	for e := range sdk.KnownTokenbridgeEmitters {
+	for _, chainConfigEntry := range chainList() {
+		e := chainConfigEntry.emitterChainID
+		if _, ignored := ignoredChains[e]; ignored {
+			continue
+		}
 		t.Run(e.String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
@@ -46,9 +70,15 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 					break
 				}
 			}
+			assert.True(t, found, "Chain is governed but has no governed native assets configured")
+		})
+	}
 
-			if e != vaa.ChainIDXpla && e != vaa.ChainIDAptos && e != vaa.ChainIDArbitrum && e != vaa.ChainIDWormchain {
-				assert.Equal(t, found, true)
+	// Make sure we're not ignoring any chains with governed tokens.
+	for _, tokenEntry := range tokenList() {
+		t.Run(vaa.ChainID(tokenEntry.chain).String(), func(t *testing.T) {
+			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
+				assert.Fail(t, "Chain is in ignoredChains but it has governed tokens")
 			}
 		})
 	}

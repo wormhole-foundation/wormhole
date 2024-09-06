@@ -155,6 +155,8 @@ seievm
 Sepolia
 serde
 setcap
+snaxchain
+SnaxChain
 solana
 Solana
 Solana's

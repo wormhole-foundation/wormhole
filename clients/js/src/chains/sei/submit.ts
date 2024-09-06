@@ -5,10 +5,9 @@ import { toUtf8 } from "@cosmjs/encoding";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { getSigningCosmWasmClient } from "@sei-js/core";
 
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { NETWORKS } from "../../consts";
-import { Network } from "../../utils";
 import { impossible, Payload } from "../../vaa";
+import { contracts, Network } from "@wormhole-foundation/sdk";
 
 export const submit = async (
   payload: Payload,
@@ -16,8 +15,7 @@ export const submit = async (
   network: Network,
   rpc?: string
 ) => {
-  const contracts = CONTRACTS[network].sei;
-  const networkInfo = NETWORKS[network].sei;
+  const networkInfo = NETWORKS[network].Sei;
   rpc = rpc || networkInfo.rpc;
   const key = networkInfo.key;
   if (!key) {
@@ -32,12 +30,12 @@ export const submit = async (
   let execute_msg: object;
   switch (payload.module) {
     case "Core": {
-      if (!contracts.core) {
+      const core = contracts.coreBridge.get(network, "Sei");
+      if (!core) {
         throw new Error(`Core bridge address not defined for Sei ${network}`);
       }
 
-      target_contract = contracts.core;
-      // sigh...
+      target_contract = core;
       execute_msg = {
         submit_v_a_a: {
           vaa: vaa.toString("base64"),
@@ -59,14 +57,12 @@ export const submit = async (
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
-        // NOTE: this code can safely be removed once the sei NFT bridge is
-        // released, but it's fine for it to stay, as the condition will just be
-        // skipped once 'contracts.nft_bridge' is defined
+      const nft = contracts.nftBridge.get(network, "Sei");
+      if (!nft) {
         throw new Error("NFT bridge not supported yet for Sei");
       }
 
-      target_contract = contracts.nft_bridge;
+      target_contract = nft;
       execute_msg = {
         submit_vaa: {
           data: vaa.toString("base64"),
@@ -91,11 +87,12 @@ export const submit = async (
       break;
     }
     case "TokenBridge": {
-      if (!contracts.token_bridge) {
+      const tb = contracts.tokenBridge.get(network, "Sei");
+      if (!tb) {
         throw new Error(`Token bridge address not defined for Sei ${network}`);
       }
 
-      target_contract = contracts.token_bridge;
+      target_contract = tb;
       execute_msg = {
         submit_vaa: {
           data: vaa.toString("base64"),

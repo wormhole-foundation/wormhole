@@ -26,6 +26,8 @@ and code reviews are our most important tools to accomplish that.
 - We welcome typo and grammar fixes to *public facing* documents. This includes
   things like the whitepapers, but excludes inline code comments. PRs that touch
   only the latter will be rejected. Fixing typos in comments alongside other non-trivial engineering work is welcome.
+- Pull requests that modify dependencies must be well-documented so that the benefits of updating can be weighed against
+  security and compatibility concerns. Low-effort PRs that update dependencies without any documentation will be rejected.
 
 Documentation for the in-the-wild deployments lives in the
 [wormhole-networks](https://github.com/certusone/wormhole-networks) repository.

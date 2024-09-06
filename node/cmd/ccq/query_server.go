@@ -47,6 +47,7 @@ var (
 	shutdownDelay2         *uint
 	monitorPeers           *bool
 	gossipAdvertiseAddress *string
+	verifyPermissions      *bool
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -69,6 +70,7 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
+	verifyPermissions = QueryServerCmd.Flags().Bool("verifyPermissions", false, `parse and verify the permissions file and then exit with 0 if success, 1 if failure`)
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -84,6 +86,25 @@ var QueryServerCmd = &cobra.Command{
 }
 
 func runQueryServer(cmd *cobra.Command, args []string) {
+	env, err := common.ParseEnvironment(*envStr)
+	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
+		if *envStr == "" {
+			fmt.Println("Please specify --env")
+		} else {
+			fmt.Println("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
+		}
+		os.Exit(1)
+	}
+
+	if *verifyPermissions {
+		_, err := parseConfigFile(*permFile, env)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	common.SetRestrictiveUmask()
 
 	// Setup logging
@@ -95,14 +116,6 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	logger := ipfslog.Logger("query-server").Desugar()
 	ipfslog.SetAllLoggers(lvl)
-
-	env, err := common.ParseEnvironment(*envStr)
-	if err != nil || (env != common.UnsafeDevNet && env != common.TestNet && env != common.MainNet) {
-		if *envStr == "" {
-			logger.Fatal("Please specify --env")
-		}
-		logger.Fatal("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
-	}
 
 	if *p2pNetworkID == "" {
 		*p2pNetworkID = p2p.GetNetworkId(env)
@@ -162,7 +175,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --ethContract")
 	}
 
-	permissions, err := NewPermissions(*permFile)
+	permissions, err := NewPermissions(*permFile, env)
 	if err != nil {
 		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}

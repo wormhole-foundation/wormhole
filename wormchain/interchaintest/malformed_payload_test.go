@@ -168,7 +168,6 @@ func TestMalformedPayload(t *testing.T) {
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 	require.NoError(t, err)
-
 	err = testutil.WaitForBlocks(ctx, 20, wormchain, osmosis)
 	require.NoError(t, err)
 

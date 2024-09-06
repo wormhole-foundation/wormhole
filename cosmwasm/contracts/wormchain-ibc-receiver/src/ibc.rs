@@ -15,7 +15,7 @@ use crate::msg::WormholeIbcPacketMsg;
 pub const IBC_APP_VERSION: &str = "ibc-wormhole-v1";
 
 /// 1. Opening a channel. Step 1 of handshake. Combines ChanOpenInit and ChanOpenTry from the spec.
-/// The only valid action of the contract is to accept the channel or reject it.
+///    The only valid action of the contract is to accept the channel or reject it.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_channel_open(
     _deps: DepsMut,
@@ -150,7 +150,7 @@ fn encode_ibc_error(msg: impl Into<String>) -> Binary {
 }
 
 /// 5. Acknowledging a packet. Called when the other chain successfully receives a packet from us.
-/// Never should be called as this contract never sends packets
+///    Never should be called as this contract never sends packets
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_ack(
     _deps: DepsMut,
@@ -163,7 +163,7 @@ pub fn ibc_packet_ack(
 }
 
 /// 6. Timing out a packet. Called when the packet was not recieved on the other chain before the timeout.
-/// Never should be called as this contract never sends packets
+///    Never should be called as this contract never sends packets
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_timeout(
     _deps: DepsMut,

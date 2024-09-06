@@ -2,9 +2,11 @@ package evm
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -39,4 +41,12 @@ func TestMsgIdFromLogEvent(t *testing.T) {
 	require.NoError(t, err)
 	msgId := msgIdFromLogEvent(vaa.ChainIDSepolia, &ev)
 	assert.Equal(t, "10002/00000000000000000000000045c140dd2526e4bfd1c2a5bb0aa6aa1db00b1744/3685", msgId)
+}
+
+func Test_canRetryGetBlockTime(t *testing.T) {
+	assert.True(t, canRetryGetBlockTime(ethereum.NotFound))
+	assert.True(t, canRetryGetBlockTime(errors.New("not found")))
+	assert.True(t, canRetryGetBlockTime(errors.New("Unknown block")))
+	assert.True(t, canRetryGetBlockTime(errors.New("cannot query unfinalized data")))
+	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
