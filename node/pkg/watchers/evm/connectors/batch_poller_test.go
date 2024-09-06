@@ -281,12 +281,13 @@ func TestBatchPoller(t *testing.T) {
 		}
 	}()
 
-	// First sleep a bit and make sure there were no start up errors and no blocks got published.
+	// First sleep a bit and make sure there were no start up errors and the initial blocks were published.
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
 	require.NoError(t, publishedErr)
 	require.NoError(t, publishedSubErr)
-	assert.Nil(t, block)
+	batchShouldHaveSafeAndFinalizedButNotLatest(t, block, 0x309a0c, baseConnector.expectedHash())
+	block = nil
 	mutex.Unlock()
 
 	// Post the first new block and verify we get it.
