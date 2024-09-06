@@ -166,7 +166,7 @@ func main() {
 					offset := firstSeq - p.Sequence - 10
 					log.Printf("repairing: %d (offset %d)", p.Sequence, offset)
 
-					var tx *rpc.TransactionWithMeta
+					var tx *rpc.GetTransactionResult
 					var nseq uint64
 					var err error
 
@@ -243,8 +243,14 @@ func main() {
 	}
 }
 
-func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.TransactionWithMeta, uint64, error) {
-	out, err := c.GetConfirmedTransaction(ctx, sig)
+func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.GetTransactionResult, uint64, error) {
+	maxSupportedTransactionVersion := uint64(0)
+	params := rpc.GetTransactionOpts{
+		Encoding:                       solana.EncodingBase64,
+		Commitment:                     rpc.CommitmentConfirmed,
+		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
+	}
+	out, err := c.GetTransaction(ctx, sig, &params)
 	if err != nil {
 		return nil, 0, fmt.Errorf("GetConfirmedTransaction: %v", err)
 	}
@@ -262,14 +268,14 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 	return nil, 0, nil
 }
 
-func process(txRpc *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
+func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
 	program, err := solana.PublicKeyFromBase58(*solanaAddr)
 	if err != nil {
 		log.Fatalf("Invalid program address: %v", err)
 		return nil, err
 	}
 
-	tx, err := txRpc.GetTransaction()
+	tx, err := out.Transaction.GetTransaction()
 	if err != nil {
 		log.Fatalf("Failed to unmarshal transaction: %v", err)
 		return nil, err
@@ -290,7 +296,7 @@ func process(txRpc *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 
 	txs := make([]solana.CompiledInstruction, 0, len(tx.Message.Instructions))
 	txs = append(txs, tx.Message.Instructions...)
-	for _, inner := range txRpc.Meta.InnerInstructions {
+	for _, inner := range out.Meta.InnerInstructions {
 		txs = append(txs, inner.Instructions...)
 	}
 
