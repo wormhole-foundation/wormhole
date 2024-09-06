@@ -1,6 +1,6 @@
 # Wormhole SDK (Deprecated)
 
-**⚠️ This SDK is deprecated. Please use the new SDK available at [wormhole-sdk-ts](https://github.com/wormhole-foundation/wormhole-sdk-ts).**
+**⚠️ This SDK is deprecated. Please use the new SDK available at [@wormhole-foundation/sdk](https://www.npmjs.com/package/@wormhole-foundation/sdk).**
 
 ---
 
