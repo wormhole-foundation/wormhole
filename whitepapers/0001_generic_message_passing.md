@@ -1,7 +1,5 @@
 # Generic Message Passing
 
-[TOC]
-
 ## Objective
 
 To refactor Wormhole into a fully generic cross chain messaging protocol and remove any application-specific
@@ -72,7 +70,7 @@ following problems, leaving them for future design iterations:
 
 ## Overview
 
-We simplify the design of Wormhole to only provide generic **signed attestations of finalized chain state**.
+We simplify the design of Wormhole to only provide generic **signed attestations of chain state**.
 Attestations can be requested by any contract by publishing a message, which is then picked up and signed by the
 Wormhole guardian set. The signed attestation will be published on the Wormhole P2P network.
 
@@ -80,7 +78,7 @@ Delivering the message to a contract on the target chain is shifted to the highe
 
 ## Detailed Design
 
-The new, generic VAA struct would look like this:
+The following defines the generic VAA version 1 struct:
 
 ```go
 // VAA is a verifiable action approval of the Wormhole protocol.
@@ -91,7 +89,7 @@ VAA struct {
 	// carry metadata used to interpret the observation. It is not signed.
 
 	// Protocol version of the entire VAA.
-	Version uint8
+	Version uint8 = 1
 
 	// GuardianSetIndex is the index of the guardian set that signed this VAA.
 	// Signatures are verified against the public keys in the guardian set.
@@ -103,8 +101,8 @@ VAA struct {
 	// Signatures contain a list of signatures made by the guardian set.
 	Signatures []*Signature
 
-    // --------------------------------------------------------------------
-	// OBSERVATION - these fields are *deterministically* set by the
+	// --------------------------------------------------------------------
+	// BODY - these fields are *deterministically* set by the
 	// Guardian nodes when making an observation. They uniquely identify
 	// a message and are used for replay protection.
 	//
@@ -112,16 +110,12 @@ VAA struct {
 	//
 	// These fields are part of the signed digest.
 
-	// Timestamp of the observed message (for most chains, this
-	// identifies the block that contains the message transaction).
-	Timestamp time.Time
+	// Timestamp, in seconds, of the observed message.
+	// This timestamp is derived from the block, rather than the
+	// time the block was seen by the guardians.
+	Timestamp time.Time // uint32
 
-	// Nonce of the VAA, must be set to random bytes. Nonces
-	// prevent collisions where one emitter publishes identical
-	// messages within one block (= timestamp).
-	//
-	// It is not suitable as a global identifier -
-	// use the (chain, emitter, sequence) tuple instead.
+	// Nonce (provided by the on-chain integrator).
 	Nonce uint32 // <-- NEW
 
 	// EmitterChain the VAA was emitted on. Set by the guardian node
@@ -129,7 +123,8 @@ VAA struct {
 	EmitterChain ChainID // <-- NEW
 
 	// EmitterAddress of the contract that emitted the message. Set by
-	// the guardian node according to protocol metadata.
+	// the core contract and read by guardian node according to protocol
+	// metadata.
 	EmitterAddress Address // <-- NEW
 
 	// Sequence number of the message. Automatically set and
@@ -139,20 +134,19 @@ VAA struct {
 	// Tracked per (EmitterChain, EmitterAddress) tuple.
 	Sequence uint64 // <-- NEW
 
-    // Level of consistency requested by the emitter.
-    //
-    // The semantic meaning of this field is specific to the target
-    // chain (like a commitment level on Solana, number of
-    // confirmations on Ethereum, or no meaning with instant finality).
-    ConsistencyLevel uint8 // <-- NEW
+	// Level of consistency requested by the emitter.
+	//
+	// The semantic meaning of this field is specific to the emitter
+	// chain. See Consistency Levels below.
+	ConsistencyLevel uint8 // <-- NEW
 
-	// Payload of the message.
+	// Payload of the message (provided by the on-chain integrator).
 	Payload []byte // <-- NEW
 }
 
 // ChainID of a Wormhole chain. These are defined in the guardian node
 // for each chain it talks to.
-ChainID uint8
+ChainID uint16
 
 // Address is a Wormhole protocol address. It contains the native chain's address.
 // If the address data type of a chain is < 32 bytes, the value is zero-padded on the left.
@@ -160,10 +154,10 @@ Address [32]byte
 
 // Signature of a single guardian.
 Signature struct {
-// Index of the validator in the guardian set.
-Index uint8
-// Signature bytes.
-Signature [65]byte
+	// Index of the validator in the guardian set.
+	Index uint8
+	// Signature bytes.
+	Signature [65]byte
 }
 ```
 
@@ -181,6 +175,46 @@ Governance operations are executed by calling a dedicated governance method on t
 
 All contracts will be expected to support online upgrades. This implies changes to the Ethereum and Terra contracts to
 make them upgradeable.
+
+### Consistency Levels
+
+The consistency level represents the integrator's request to withhold from signing a message until a specified
+commitment level is reached on a given chain, or alternatively to leverage faster-than-finality messaging.
+This differentiation is critically important on chains which do not have instant finality, such as Ethereum,
+to ensure that the transaction which resulted in a Wormhole message was not 'rolled back' due to a chain
+reorganization. Each [guardian watcher](../node/pkg/watchers/README.md) is responsible for defining the consistency
+level meanings and enforcing them.
+
+#### EVM
+
+- `200` - publish immediately
+- `201` - `safe`, if available, otherwise falls back to `finalized`
+- anything else is treated as `finalized`
+
+Historically, the EVM watcher specified the consistency level as the block depth (from `latest`) the transaction
+should reach before publishing. However, since [The Merge](https://ethereum.org/en/roadmap/merge/), adoption of
+`safe` and `finalized` block tags have become widespread and offer a more exact measure of commitment.
+
+#### Solana
+
+The Solana core contract provides an enum for `ConsistencyLevel` used by the instruction data:
+
+- `0` - Confirmed
+- `1` - Finalized
+
+However, the resulting account and subsequent VAA will have:
+
+- `1` - Confirmed
+- `32` - Finalized
+
+#### Others
+
+All other chains do not offer configurable consistency levels and this field will be `0`.
+
+## Caveats
+
+While the `<chain>/<emitter>/<sequence>` is commonly used to identify VAAs, the hash of the observation body is used
+to uniquely identify a VAA for replay protection.
 
 ## Related Technologies
 
@@ -250,3 +284,59 @@ A peg zone is the closest analogy to Wormhole in the IBC model, with some import
 - Instead of relying on inclusion proofs, we use a multisig scheme which is easier to understand and audit and cheaper
   to verify on all connected chains. The extra guarantees offered by an inclusion proof are not needed in the Wormhole
   network, since it merely shuttles data between chains, each of which have provable and immutable history.
+
+## Security Considerations
+
+When integrating with Wormhole, it is important to understand the trust stack inherited based on each field of the VAA.
+
+```go
+byte        version                  // VAA Version
+u32         guardian_set_index       // Indicates which guardian set is signing
+u8          len_signatures           // Number of signatures stored
+[]signature signatures               // Collection of guardian signatures
+```
+
+These fields are **not** part of the signed observation but are used by the verifying core bridge to determine if the
+designated guardian set is active and if the corresponding guardian signatures are valid. You always additionally
+inherit the trust assumptions of any verification mechanism you use, such as the core bridge on a given chain and its
+runtime.
+
+The following fields all inherit the [trust assumptions](../SECURITY.md#trust-assumptions) of the **Guardians**.
+
+```go
+u16         emitter_chain     // The id of the chain that emitted the message
+```
+
+The emitter chain is solely determined by the guardian. Only the chain RPC nodes which are connected by a quorum of
+guardians for a given chain ID can emit verifiable messages with this chain ID.
+
+Therefore, the following fields inherit the trust assumptions of the **Guardians and the emitter chain**'s RPC node.
+
+```go
+u32         timestamp         // The timestamp of the block this message was published in
+```
+
+The timestamp is provided directly by the RPC node.
+
+Based on the particular chain implementation, the core bridge emits a message with the following properties, which
+are interpreted by the guardian and inherit the trust assumptions of the **Guardians, emitter chain, and core bridge**
+implementation.
+
+```go
+[32]byte    emitter_address   // The contract address (wormhole formatted) that called the core contract
+u64         sequence          // The auto incrementing integer that represents the number of messages published by this emitter
+```
+
+The core bridge is responsible for identifying the calling contract address and incrementing its sequence number.
+
+The remaining fields are controlled by the calling contract, and therefore inherit **all of the above trust assumptions
+in addition to those of the emitter contract**.
+
+```go
+u32         nonce             //
+u8          consistency_level // The consistency level (finality) required by this emitter
+[]byte      payload           // arbitrary bytes containing the data to be acted on
+```
+
+These five fields are interpreted by the guardian which must not proceed with the signing process until the specified
+`consistency_level` has been reached, as applicable.
