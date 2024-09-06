@@ -136,10 +136,7 @@ func TestIsPendingMsg(t *testing.T) {
 
 func TestGetChainGovernorData(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
 	logger := zap.NewNop()
@@ -153,10 +150,7 @@ func TestGetChainGovernorData(t *testing.T) {
 
 func TestStoreTransfer(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -187,10 +181,7 @@ func TestStoreTransfer(t *testing.T) {
 
 func TestDeleteTransfer(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -230,10 +221,7 @@ func TestDeleteTransfer(t *testing.T) {
 
 func TestStorePendingMsg(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
 	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
@@ -258,10 +246,7 @@ func TestStorePendingMsg(t *testing.T) {
 
 func TestDeletePendingMsg(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 
 	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
@@ -328,10 +313,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 
 func TestStoreAndReloadTransfers(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -617,10 +599,7 @@ func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
 
 func TestLoadingOldPendingTransfers(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -846,10 +825,7 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 
 func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 

@@ -3,16 +3,14 @@ package governor
 // manualTokenList() returns a list of mainnet tokens that are added manually because they cannot be auto generated.
 func manualTokenList() []tokenConfigEntry {
 	return []tokenConfigEntry{
-		{chain: 2, addr: "000000000000000000000000ef19f4e48830093ce5bc8b3ff7f903a0ae3e9fa1", symbol: "BOTX", coinGeckoId: "botxcoin", decimals: 8, price: 0.02053366},
 		{chain: 2, addr: "0000000000000000000000006c3ea9036406852006290770bedfcaba0e23a0e8", symbol: "PYUSD", coinGeckoId: "paypal-usd", decimals: 6, price: 1.00},
-		{chain: 2, addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 4.34},    // Near on ethereum
+		{chain: 2, addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", symbol: "NEAR", coinGeckoId: "near", decimals: 24, price: 4.34},   // Near on ethereum
 		{chain: 8, addr: "000000000000000000000000000000000000000000000000000000000004c5c1", symbol: "USDt", coinGeckoId: "tether", decimals: 6, price: 1.002}, // Addr: 312769, Notional: 22.31747085
-		{chain: 9, addr: "000000000000000000000000e4b9e004389d91e4134a28f19bd833cba1d994b6", symbol: "FRAX", coinGeckoId: "frax", decimals: 8, price: 1.00},
-		{chain: 9, addr: "000000000000000000000000c42c30ac6cc15fac9bd938618bcaa1a1fae8501d", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 4.34}, // Near on aurora. 24 decimals
-		{chain: 12, addr: "0000000000000000000000000000000000000000000100000000000000000002", symbol: "DOT", coinGeckoId: "polkadot", decimals: 8, price: 6.48},
-		{chain: 13, addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", symbol: "KLEVA", coinGeckoId: "kleva", decimals: 8, price: 0.086661},
-		{chain: 13, addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", symbol: "WEMIX", coinGeckoId: "wemix-token", decimals: 8, price: 1.74},
-		{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 4.34},
+		{chain: 12, addr: "0000000000000000000000000000000000000000000100000000000000000002", symbol: "DOT", coinGeckoId: "polkadot", decimals: 10, price: 6.48},
+		{chain: 12, addr: "0000000000000000000000000000000000000000000100000000000000000000", symbol: "ACA", coinGeckoId: "acala", decimals: 12, price: 0.05694},
+		{chain: 13, addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", symbol: "KLEVA", coinGeckoId: "kleva", decimals: 18, price: 0.086661},
+		{chain: 13, addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", symbol: "WEMIX", coinGeckoId: "wemix-token", decimals: 18, price: 1.74},
+		{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 24, price: 4.34},
 		{chain: 22, addr: "93601512902fe46ad6c51440c23a1a7e166c4b60e773579eda639c113a81325a", symbol: "USDT", coinGeckoId: "tether", decimals: 6, price: 1.00},
 		{chain: 32, addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", symbol: "SEI", coinGeckoId: "sei-network", decimals: 6, price: 0.3},
 		// BLAST (tokens over $50,000 24h volume)

@@ -11,8 +11,8 @@ import (
 
 // The format of this time is very picky. Please use the exact format specified by cutOverFmtStr!
 const mainnetCutOverTimeStr = ""
-const testnetCutOverTimeStr = ""
-const devnetCutOverTimeStr = ""
+const testnetCutOverTimeStr = "2024-09-24T09:00:00-0500"
+const devnetCutOverTimeStr = "2024-08-01T00:00:00-0500"
 const cutOverFmtStr = "2006-01-02T15:04:05-0700"
 
 // gossipCutoverCompleteFlag indicates if the cutover time has passed, meaning we should publish only on the new topics.
