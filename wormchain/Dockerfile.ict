@@ -1,5 +1,3 @@
-# BEFORE USING IMAGE: REMOVE `muslc` from `build_tags` in the `Makefile` of the `wormchain` directory
-
 FROM golang:1.22.5 AS builder
 
 WORKDIR /app

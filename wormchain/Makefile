@@ -7,7 +7,7 @@ VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1)
 BFT_VERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::') # grab everything after the space in "github.com/cometbft/cometbft v0.34.7"
 COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
 
-build_tags = netgo gcc ledger muslc
+build_tags = netgo gcc ledger
 build_tags += $(BUILD_TAGS)
 build_tags := $(strip $(build_tags))
 
@@ -98,11 +98,45 @@ get-heighliner:
 	git clone https://github.com/strangelove-ventures/heighliner.git
 	cd heighliner && go install
 
+#####################
+## INTERCHAINTESTS ##
+#####################
+
+# Generate Wormchain Image
 local-image: build/wormchaind
-ifeq (,$(shell which heighliner))
-	echo 'heighliner' binary not found. Consider running `make get-heighliner`
-else
-	cd .. && heighliner build -c wormchain --local -f ./wormchain/chains.yml --alpine-version=3.20
-endif
+	docker build -t wormchain:latest -f Dockerfile.ict ..
 
 .PHONY: get-heighliner local-image
+
+# Individual Tests ($$ is interpreted as $)
+rm-testcache:
+	go clean -testcache
+
+ictest-cancel-upgrade: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestCancelUpgrade$$ ./...
+
+ictest-chain-start: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestChainStart$$ ./...
+
+ictest-malformed-payload: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
+
+ictest-guardian-set-proposal: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestGuardianSetUpdateProposal$$ ./... 
+
+ictest-wormhole-message-proposal: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestGovernanceWormholeMessageProposal$$ ./...
+
+ictest-upgrade-failure: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
+
+ictest-upgrade: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestUpgrade$$ ./...
+
+ictest-wasmd-ante: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestWasmdAnteDecorator$$ ./...
+
+ictest-wormchain: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
+
+.PHONY: run-ictests ictest-cancel-upgrade ictest-chain-start ictest-malformed-payload ictest-proposals ictest-upgrade-failure ictest-upgrade ictest-wasmd-ante ictest-wormchain
