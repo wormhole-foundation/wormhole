@@ -82,7 +82,7 @@ func CmdGenerateTestGuardianKey() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			os.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
+			err = os.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
 			if err != nil {
 				return err
 			}
