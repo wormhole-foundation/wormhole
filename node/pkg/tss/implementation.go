@@ -173,6 +173,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	t.ctx = ctx
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
+		t.started.Store(notStarted)
 		return err
 	}
 	//closing the t.fp.start inside th listener
