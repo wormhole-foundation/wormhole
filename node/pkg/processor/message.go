@@ -50,7 +50,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 
 	v := &VAA{
 		VAA: vaa.VAA{
-			Version:          vaa.SupportedVAAVersion,
+			Version:          vaa.VaaVersion1,
 			GuardianSetIndex: p.gs.Index,
 			Signatures:       nil,
 			Timestamp:        k.Timestamp,
@@ -65,7 +65,10 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		Reobservation: k.IsReobservation,
 	}
 
+	vCpy := *v
+	p.tssSetup(&vCpy)
 	// Generate digest of the unsigned VAA.
+
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
 
@@ -119,4 +122,17 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 		p.checkForQuorum(obsv, s, s.gs, hash)
 		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 	}
+}
+
+func (p *Processor) tssSetup(v *VAA) {
+	v.Version = vaa.TSSVaaVersion
+	digest := v.SigningDigest()
+	hash := hex.EncodeToString(digest.Bytes())
+
+	p.tssWaiters[hash] = timedThresholdSignatureWaiter{
+		vaa:       v,
+		startTime: time.Now(),
+	}
+
+	p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes())
 }

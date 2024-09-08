@@ -26,11 +26,13 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -83,6 +85,7 @@ type mockGuardian struct {
 	ready            bool
 	config           *guardianConfig
 	db               *db.Database
+	tssEngine        tss.ReliableTSS
 }
 
 type guardianConfig struct {
@@ -117,6 +120,21 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			panic(err)
 		}
 
+		tssStoragePath, err := testutils.GetMockGuardianTssStorage(i)
+		if err != nil {
+			panic(err)
+		}
+
+		tssStorage, err := tss.NewGuardianStorageFromFile(tssStoragePath)
+		if err != nil {
+			panic(err)
+		}
+
+		reliableTss, err := tss.NewReliableTSS(tssStorage)
+		if err != nil {
+			panic(err)
+		}
+
 		gs[i] = &mockGuardian{
 			p2pKey:           devnet.DeterministicP2PPrivKeyByIndex(int64(i)),
 			MockObservationC: make(chan *common.MessagePublication),
@@ -124,6 +142,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			gk:               gk,
 			guardianAddr:     eth_crypto.PubkeyToAddress(gk.PublicKey),
 			config:           createGuardianConfig(t, testId, uint(i)),
+			tssEngine:        reliableTss,
 		}
 	}
 
@@ -202,6 +221,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		guardianNode := NewGuardianNode(
 			env,
 			gs[mockGuardianIndex].gk,
+			gs[mockGuardianIndex].tssEngine,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -316,7 +336,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 	}
 }
 
-// waitForVaa polls the publicRpc service every 5ms until there is a response.
+// waitForVaa polls the publicRpc service every 10ms until there is a response.
 func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
 	t.Helper()
 	var r *publicrpcv1.GetSignedVAAResponse
@@ -327,10 +347,11 @@ func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServic
 		case <-ctx.Done():
 			return nil, errors.New("context canceled")
 		default:
-			queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
-			r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{MessageId: msgId})
-			queryCancel()
+			// non blocking
 		}
+		queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
+		r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{MessageId: msgId})
+		queryCancel()
 		if err == nil && r != nil {
 			// success
 			return r, err
@@ -362,6 +383,9 @@ type testCase struct {
 	// if true, assert that no VAA exists for this message at the end of the test.
 	// Note that it is not guaranteed that this message will never reach quorum because it may reach quorum some time after the test run finishes.
 	mustNotReachQuorum bool
+
+	// if true, the guardian will wait for a signature output from the TssEngine.
+	shouldExpectTssSignature bool
 }
 
 func randomTime() time.Time {
@@ -639,7 +663,7 @@ func TestConsensus(t *testing.T) {
 
 // runConsensusTests spins up `numGuardians` guardians and runs & verifies the testCases
 func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
-	const testTimeout = time.Second * 30
+	const testTimeout = time.Second * 60
 	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
 	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
 	testId := getTestId()
@@ -797,6 +821,10 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
 				EmitterAddress: msg.EmitterAddress.String(),
 				Sequence:       msg.Sequence,
+				Version:        uint32(vaa.VaaVersion1),
+			}
+			if testCase.shouldExpectTssSignature {
+				msgId.Version = uint32(vaa.TSSVaaVersion)
 			}
 			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
 
@@ -810,12 +838,20 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 				// Check signatures
 				if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
-					err = returnedVaa.Verify(gsAddrList)
-					assert.NoError(t, err)
+					addrLst := gsAddrList
+					if testCase.shouldExpectTssSignature {
+						addrLst = []eth_common.Address{gs[0].tssEngine.GetEthAddress()}
+					}
+
+					assert.NoError(t, returnedVaa.Verify(addrLst))
 				}
 
 				// Match all the fields
-				assert.Equal(t, returnedVaa.Version, uint8(1))
+				if testCase.shouldExpectTssSignature {
+					assert.Equal(t, returnedVaa.Version, uint8(vaa.TSSVaaVersion))
+				} else {
+					assert.Equal(t, returnedVaa.Version, uint8(1))
+				}
 				assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
 				assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
 				assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
@@ -957,7 +993,13 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				ctx, ctxCancel := context.WithCancel(ctx)
 				defer ctxCancel()
 
-				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+				guardianTssStorage, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+				require.NoError(t, err)
+
+				reliableTss, err := tss.NewReliableTSS(guardianTssStorage)
+				require.NoError(t, err)
+
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil, reliableTss).Run(ctxCancel, tc.opts...)); err != nil {
 					panic(err)
 				}
 
@@ -1296,3 +1338,20 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 		time.Sleep(time.Second * 1) // 1s is needed to gracefully shutdown BadgerDB
 	})
 }
+
+func TestTssCorrectRun(t *testing.T) {
+	guardians := 5
+	testCases := []testCase{
+		{
+			// all guardians observe the message waiting for Tss signature.
+			msg:                      someMessage(),
+			numGuardiansObserve:      guardians,
+			mustReachQuorum:          true,
+			shouldExpectTssSignature: true,
+		},
+	}
+
+	runConsensusTests(t, testCases, guardians)
+}
+
+func TestTssSignatureFailure(t *testing.T) {}

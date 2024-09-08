@@ -101,7 +101,9 @@ func GuardianOptionP2P(
 					g.queryResponsePublicationC.readC,
 					ccqBootstrapPeers,
 					ccqPort,
-					ccqAllowedPeers),
+					ccqAllowedPeers,
+					g.tssEngine,
+				),
 			)
 			if err != nil {
 				return err
@@ -596,6 +598,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.acct,
 				g.acctC.readC,
 				g.gatewayRelayer,
+				g.tssEngine,
 			).Run
 
 			return nil

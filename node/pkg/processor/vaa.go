@@ -28,6 +28,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	}
 
 	p.logger.Info("signed VAA with quorum",
+		zap.Uint8("version", signed.Version),
 		zap.String("message_id", signed.MessageID()),
 		zap.String("digest", hash),
 	)

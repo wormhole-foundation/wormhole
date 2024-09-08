@@ -13,6 +13,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
@@ -69,6 +70,7 @@ type G struct {
 	gatewayRelayer  *gwrelayer.GatewayRelayer
 	queryHandler    *query.QueryHandler
 	publicrpcServer *grpc.Server
+	tssEngine       tss.ReliableTSS
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
@@ -104,10 +106,13 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
+	tssEngine tss.ReliableTSS,
 ) *G {
+
 	g := G{
-		env: env,
-		gk:  gk,
+		env:       env,
+		gk:        gk,
+		tssEngine: tssEngine,
 	}
 	return &g
 }
@@ -188,6 +193,13 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			logger.Info("Starting runnablesWithScissors: " + runnableName)
 			if err := supervisor.Run(ctx, runnableName, common.WrapWithScissors(runnable, runnableName)); err != nil {
 				logger.Fatal("error starting runnablesWithScissors", zap.Error(err))
+			}
+		}
+
+		if g.tssEngine != nil {
+			logger.Info("Starting TSS engine")
+			if err := g.tssEngine.Start(ctx); err != nil {
+				logger.Fatal("failed to start TSS engine", zap.Error(err))
 			}
 		}
 

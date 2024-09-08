@@ -10,6 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -21,6 +22,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	tsscommon "github.com/yossigi/tss-lib/v2/common"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -82,6 +84,12 @@ type (
 	aggregationState struct {
 		signatures observationMap
 	}
+
+	// timedThresholdSignatureWaiter used to wait on the async TSS signer.
+	timedThresholdSignatureWaiter struct {
+		startTime time.Time
+		vaa       *VAA
+	}
 )
 
 // LoggingID can be used to identify a state object in a log message. Note that it should not
@@ -140,13 +148,15 @@ type Processor struct {
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
-	governor       *governor.ChainGovernor
-	acct           *accountant.Accountant
-	acctReadC      <-chan *common.MessagePublication
-	pythnetVaas    map[string]PythNetVaaEntry
-	gatewayRelayer *gwrelayer.GatewayRelayer
-	updateVAALock  sync.Mutex
-	updatedVAAs    map[string]*updateVaaEntry
+	governor        *governor.ChainGovernor
+	acct            *accountant.Accountant
+	acctReadC       <-chan *common.MessagePublication
+	pythnetVaas     map[string]PythNetVaaEntry
+	gatewayRelayer  *gwrelayer.GatewayRelayer
+	updateVAALock   sync.Mutex
+	updatedVAAs     map[string]*updateVaaEntry
+	thresholdSigner tss.Signer
+	tssWaiters      map[string]timedThresholdSignatureWaiter
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -201,6 +211,7 @@ func NewProcessor(
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
+	thresholdSigner tss.Signer,
 ) *Processor {
 
 	return &Processor{
@@ -215,15 +226,17 @@ func NewProcessor(
 		gst:                    gst,
 		db:                     db,
 
-		logger:         supervisor.Logger(ctx),
-		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(gk.PublicKey),
-		governor:       g,
-		acct:           acct,
-		acctReadC:      acctReadC,
-		pythnetVaas:    make(map[string]PythNetVaaEntry),
-		gatewayRelayer: gatewayRelayer,
-		updatedVAAs:    make(map[string]*updateVaaEntry),
+		logger:          supervisor.Logger(ctx),
+		state:           &aggregationState{observationMap{}},
+		ourAddr:         crypto.PubkeyToAddress(gk.PublicKey),
+		governor:        g,
+		acct:            acct,
+		acctReadC:       acctReadC,
+		pythnetVaas:     make(map[string]PythNetVaaEntry),
+		gatewayRelayer:  gatewayRelayer,
+		updatedVAAs:     make(map[string]*updateVaaEntry),
+		thresholdSigner: thresholdSigner,
+		tssWaiters:      make(map[string]timedThresholdSignatureWaiter),
 	}
 }
 
@@ -287,6 +300,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
 			p.handleMessage(k)
+		case sig := <-p.thresholdSigner.ProducedSignature():
+			p.processTssSignature(sig)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(m)
@@ -330,12 +345,13 @@ func (p *Processor) Run(ctx context.Context) error {
 
 // storeSignedVAA schedules a database update for a VAA.
 func (p *Processor) storeSignedVAA(v *vaa.VAA) {
+	key := string(db.VaaIDFromVAA(v).Bytes())
+
 	if v.EmitterChain == vaa.ChainIDPythNet {
-		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
 		return
 	}
-	key := fmt.Sprintf("%d/%v/%v", v.EmitterChain, v.EmitterAddress, v.Sequence)
+
 	p.updateVAALock.Lock()
 	p.updatedVAAs[key] = &updateVaaEntry{v: v, dirty: true}
 	p.updateVAALock.Unlock()
@@ -343,16 +359,15 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID
 func (p *Processor) haveSignedVAA(id db.VAAID) bool {
+	key := string(id.Bytes())
 	if id.EmitterChain == vaa.ChainIDPythNet {
 		if p.pythnetVaas == nil {
 			return false
 		}
-		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		_, exists := p.pythnetVaas[key]
 		return exists
 	}
 
-	key := fmt.Sprintf("%d/%v/%v", id.EmitterChain, id.EmitterAddress, id.Sequence)
 	if p.getVaaFromUpdateMap(key) != nil {
 		return true
 	}
@@ -428,4 +443,36 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
+	if sig == nil {
+		return
+	}
+
+	if sig.Signature == nil {
+		p.logger.Error("received TSS signature with nil signature")
+		return
+	}
+
+	if sig.M == nil {
+		p.logger.Error("received TSS signature with nil message")
+		return
+	}
+
+	digestBytes := sig.M
+	hash := hex.EncodeToString(digestBytes)
+	wtr, ok := p.tssWaiters[hash]
+	if !ok {
+		// TODO: this indicates a TSS signature that was waited for too long probably.
+		p.logger.Warn("received TSS signature for unknown VAA", zap.String("hash", hash))
+		return
+	}
+
+	// TODO: Should we return a signature already in the correct format from the TssEngine? or giving the processor more control is better?
+	vaaSig := &vaa.Signature{}
+	copy(vaaSig.Signature[:], append(sig.Signature, sig.SignatureRecovery...))
+
+	// using single signature, since it was reached via threshold signing.
+	wtr.vaa.HandleQuorum([]*vaa.Signature{vaaSig}, hash, p)
 }

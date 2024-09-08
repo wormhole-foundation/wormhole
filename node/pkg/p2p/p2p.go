@@ -619,6 +619,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
+				case msg := <-params.tssMessageHandler.ProducedOutputMessages():
+					if err := publishGossipMsg(ctx, controlPubsubTopic, msg); err != nil {
+						logger.Error("failed to publish TSS message", zap.Error(err))
+						continue
+					}
+					p2pMessagesSent.WithLabelValues("control").Inc()
+
 				case msg := <-params.gossipControlSendC:
 					if GossipCutoverComplete() {
 						if controlPubsubTopic == nil {
@@ -755,6 +762,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					switch m := msg.Message.(type) {
+					case *gossipv1.GossipMessage_TssMessage:
+						params.tssMessageHandler.HandleIncomingTssMessage(m)
 					case *gossipv1.GossipMessage_SignedHeartbeat:
 						s := m.SignedHeartbeat
 						gs := params.gst.Get()
@@ -1116,6 +1125,24 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			return err
 		}
 	}
+}
+
+func publishGossipMsg(ctx context.Context, controlPubsubTopic *pubsub.Topic, msg *gossipv1.GossipMessage) error {
+	// TODO: undertsand what is the cutover, and why it is needed.
+	if controlPubsubTopic == nil {
+		return fmt.Errorf("no topic to publish message with")
+	}
+
+	bts, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	if err := controlPubsubTopic.Publish(ctx, bts); err != nil {
+		return fmt.Errorf("failed to publish message: %w", err)
+	}
+
+	return nil
 }
 
 func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {

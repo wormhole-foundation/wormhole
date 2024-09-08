@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -62,8 +63,9 @@ var (
 
 	statusAddr *string
 
-	guardianKeyPath *string
-	solanaContract  *string
+	guardianKeyPath        *string
+	tssGuardianStoragePath *string
+	solanaContract         *string
 
 	ethRPC      *string
 	ethContract *string
@@ -790,6 +792,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	logger.Info("Loaded guardian key", zap.String(
 		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
+
+	tssGuardianStorage, err := tss.NewGuardianStorageFromFile(*tssGuardianStoragePath)
+	if err != nil {
+		logger.Fatal("failed to load the guardian's threshold signature scheme's storage", zap.Error(err))
+	}
+	logger.Info("Loaded the guardian's threshold signature scheme's storage")
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
@@ -1577,9 +1585,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	reliableTss, err := tss.NewReliableTSS(tssGuardianStorage)
+	if err != nil {
+		logger.Fatal("failed to start tss engine", zap.Error(err))
+	}
+
 	guardianNode := node.NewGuardianNode(
 		env,
 		gk,
+		reliableTss,
 	)
 
 	guardianOptions := []*node.GuardianOption{

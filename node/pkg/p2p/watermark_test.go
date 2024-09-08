@@ -14,8 +14,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/ethereum/go-ethereum/crypto"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	p2ppeer "github.com/libp2p/go-libp2p/core/peer"
@@ -172,6 +174,12 @@ func TestWatermark(t *testing.T) {
 
 func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
+	st, err := tss.NewGuardianStorageFromFile(testutils.MustGetMockGuardianTssStorage())
+	require.NoError(t, err)
+
+	ts, err := tss.NewReliableTSS(st)
+	require.NoError(t, err)
+
 	params, err := NewRunParams(
 		g.bootstrapPeers,
 		g.networkID,
@@ -200,6 +208,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			"",    // query bootstrap peers
 			0,     // query port
 			"",    // query allowed peers),
+			ts,
 		))
 	require.NoError(t, err)
 
