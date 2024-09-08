@@ -336,7 +336,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 	}
 }
 
-// waitForVaa polls the publicRpc service every 5ms until there is a response.
+// waitForVaa polls the publicRpc service every 10ms until there is a response.
 func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
 	t.Helper()
 	var r *publicrpcv1.GetSignedVAAResponse
