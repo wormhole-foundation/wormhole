@@ -563,7 +563,13 @@ const (
 	minHeadlessVAALength = 51 // HEADER
 	minVAALength         = 57 // HEADER + BODY
 
-	VaaVersion1   = 0x01
+	// VaaVersion1 depicts a VAA generated with multi-signatures, where each
+	// guardian adds its signature. A valid VAA should have quorumSize
+	// signatures from its guardians.
+	VaaVersion1 = 0x01
+
+	// TSSVaaVersion uses a threshold signature scheme to sign the VAA struct.
+	// As a result, a valid VAA would result in a single signature.
 	TSSVaaVersion = 0x02
 )
 
