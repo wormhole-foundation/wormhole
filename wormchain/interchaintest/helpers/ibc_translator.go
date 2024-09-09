@@ -347,5 +347,16 @@ func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
 
-	return vHex
+	submitVAAMsg := ExecuteMsg{
+		SubmitVAA: &ExecuteMsg_SubmitVAA{
+			Vaa: Binary(vHex),
+		},
+		PostMessage:              nil,
+		SubmitUpdateChannelChain: nil,
+	}
+
+	submitVAAMsgBz, err := json.Marshal(submitVAAMsg)
+	require.NoError(t, err)
+
+	return string(submitVAAMsgBz)
 }

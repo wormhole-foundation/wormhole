@@ -15,6 +15,8 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormchain_ibc_receiver"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -412,13 +414,21 @@ func TestWormchainIbc(t *testing.T) {
 	osmosisWormholeIbcChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
 	t.Logf("Wormhole IBC channel id: %s", osmosisWormholeIbcChannelId)
 
-	// vaaText := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t, OsmoChainID, osmosisWormholeIbcChannelId, guardians)
-	// t.Logf("VAA: %s", vaaText)
+	vaaText := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t, vaa.ChainID(OsmoChainID), osmosisWormholeIbcChannelId, coreContractAddr, guardians)
+	t.Logf("VAA: %s", vaaText)
 
 	// helpers.MigrateContractVAA(t, ctx, wormchain, "faucet", coreContractAddr, ibcReceiverCodeId)
 	helpers.MigrateContract(t, ctx, wormchain, "faucet", coreContractAddr, fmt.Sprint(ibcReceiverCodeId), "{}", guardians)
 
-	require.Equal(t, uint64(2), uint64(1))
+	wormchain.ExecuteContract(ctx, "faucet", coreContractAddr, vaaText)
+
+	var allChannelsResp wormchain_ibc_receiver.AllChannelChainsResponse
+	err = wormchain.QueryContract(ctx,
+		coreContractAddr,
+		wormchain_ibc_receiver.QueryMsg_AllChannelChains{}, &allChannelsResp)
+	t.Logf("All channel chains: %s", allChannelsResp)
+
+	require.Equal(t, 1, 2)
 	// helpers.SubmitContractUpgradeGovernanceVAA(t, ctx, wormchain, "faucet",
 	// 	3104,
 	// 	ibcReceiverCodeIdBytes, guardians)

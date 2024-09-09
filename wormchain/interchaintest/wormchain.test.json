@@ -1,0 +1,61 @@
+{
+    "name": "wormchain",
+    "chain_id": "wormchain-1",
+    "denom": "uworm",
+    "binary": "wormchaind",
+    "bech32_prefix": "wormhole",
+    "docker_image": {
+        "repository": "ghcr.io/strangelove-ventures/heighliner/wormchain",
+        "uid_gid": "1025:1025"
+    },
+    "chain_type": "cosmos",
+    "coin_type": 118,
+    "trusting_period": "112h",
+    "gas_prices": "0%DENOM%",
+    "gas_adjustment": 1.8,
+    "number_vals": 1,
+    "number_node": 0,
+    "ibc_paths": ["juno-ibc-1"],
+    "debugging": true,
+    "block_time": "500ms",
+    "host_port_override": {
+        "26656": "26656",
+        "26657": "26657",
+        "1317": "1317",
+        "9090": "9090"
+    },
+    "config_file_overrides": [
+        {
+            "file": "config/config.toml",
+            "paths": {
+                "rpc.cors_allowed_origins": ["*"],
+                "rpc.mempool": ["nop"],
+                "moniker": "myNodeMoniker",
+            }
+        }
+    ],
+    "genesis": {
+        "modify": [
+            {
+                "key": "app_state.gov.voting_params.voting_period",
+                "value": "15s"
+            },
+            {
+                "key": "app_state.gov.deposit_params.max_deposit_period",
+                "value": "15s"
+            },
+            {
+                "key": "app_state.gov.deposit_params.min_deposit.0.denom",
+                "value": "ujuno"
+            }
+        ],
+        "accounts": [
+            {
+                "name": "acc0",
+                "address": "juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk",
+                "amount": "10000000%DENOM%",
+                "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+            }
+        ]
+    }
+},

@@ -1,0 +1,151 @@
+{
+  "contract_name": "wormchain-ibc-receiver",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs returns an error, the entire transaction is aborted and none of the VAAs are committed.",
+        "type": "object",
+        "required": [
+          "submit_update_channel_chain"
+        ],
+        "properties": {
+          "submit_update_channel_chain": {
+            "type": "object",
+            "required": [
+              "vaas"
+            ],
+            "properties": {
+              "vaas": {
+                "description": "One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole wire format.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Binary"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "description": "Contract queries",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "all_channel_chains"
+        ],
+        "properties": {
+          "all_channel_chains": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "channel_chain"
+        ],
+        "properties": {
+          "channel_chain": {
+            "type": "object",
+            "required": [
+              "channel_id"
+            ],
+            "properties": {
+              "channel_id": {
+                "$ref": "#/definitions/Binary"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      }
+    }
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "all_channel_chains": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllChannelChainsResponse",
+      "type": "object",
+      "required": [
+        "channels_chains"
+      ],
+      "properties": {
+        "channels_chains": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/Binary"
+              },
+              {
+                "type": "integer",
+                "format": "uint16",
+                "minimum": 0.0
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        }
+      }
+    },
+    "channel_chain": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChannelChainResponse",
+      "type": "object",
+      "required": [
+        "chain_id"
+      ],
+      "properties": {
+        "chain_id": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

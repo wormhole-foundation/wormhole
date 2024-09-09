@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "submit_v_a_a"
+      ],
+      "properties": {
+        "submit_v_a_a": {
+          "type": "object",
+          "required": [
+            "vaa"
+          ],
+          "properties": {
+            "vaa": {
+              "$ref": "#/definitions/Binary"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "post_message"
+      ],
+      "properties": {
+        "post_message": {
+          "type": "object",
+          "required": [
+            "message",
+            "nonce"
+          ],
+          "properties": {
+            "message": {
+              "$ref": "#/definitions/Binary"
+            },
+            "nonce": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Submit a signed VAA to update the on-chain state.  If processing any of the VAAs returns an error, the entire transaction is aborted and none of the VAAs are committed.",
+      "type": "object",
+      "required": [
+        "submit_update_channel_chain"
+      ],
+      "properties": {
+        "submit_update_channel_chain": {
+          "type": "object",
+          "required": [
+            "vaa"
+          ],
+          "properties": {
+            "vaa": {
+              "description": "VAA to submit.  The VAA should be encoded in the standard wormhole wire format.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Binary"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    }
+  }
+}

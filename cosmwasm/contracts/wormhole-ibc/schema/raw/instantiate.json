@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "description": "The instantiation parameters of the core bridge contract. See [`crate::state::ConfigInfo`] for more details on what these fields mean.",
+  "type": "object",
+  "required": [
+    "chain_id",
+    "fee_denom",
+    "gov_address",
+    "gov_chain",
+    "guardian_set_expirity",
+    "initial_guardian_set"
+  ],
+  "properties": {
+    "chain_id": {
+      "type": "integer",
+      "format": "uint16",
+      "minimum": 0.0
+    },
+    "fee_denom": {
+      "type": "string"
+    },
+    "gov_address": {
+      "$ref": "#/definitions/Binary"
+    },
+    "gov_chain": {
+      "type": "integer",
+      "format": "uint16",
+      "minimum": 0.0
+    },
+    "guardian_set_expirity": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "initial_guardian_set": {
+      "description": "Guardian set to initialise the contract with.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/GuardianSetInfo"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "GuardianAddress": {
+      "type": "object",
+      "required": [
+        "bytes"
+      ],
+      "properties": {
+        "bytes": {
+          "$ref": "#/definitions/Binary"
+        }
+      }
+    },
+    "GuardianSetInfo": {
+      "type": "object",
+      "required": [
+        "addresses",
+        "expiration_time"
+      ],
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GuardianAddress"
+          }
+        },
+        "expiration_time": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
+}

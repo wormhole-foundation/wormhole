@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs returns an error, the entire transaction is aborted and none of the VAAs are committed.",
+      "type": "object",
+      "required": [
+        "submit_update_channel_chain"
+      ],
+      "properties": {
+        "submit_update_channel_chain": {
+          "type": "object",
+          "required": [
+            "vaas"
+          ],
+          "properties": {
+            "vaas": {
+              "description": "One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole wire format.",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Binary"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    }
+  }
+}
