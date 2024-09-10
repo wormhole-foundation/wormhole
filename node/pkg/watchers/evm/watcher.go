@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -211,13 +214,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	if err := w.verifyEvmChainID(ctx, logger); err != nil {
+		return fmt.Errorf("failed to verify evm chain id: %w", err)
+	}
 
 	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine finality: %w", err)
 	}
+
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
 	if finalizedPollingSupported {
 		if safePollingSupported {
@@ -791,6 +798,46 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	}
 
 	return finalized, safe, nil
+}
+
+// verifyEvmChainID reads the EVM chain ID from the node and verifies that it matches the expected value (making sure we aren't connected to the wrong chain).
+func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger) error {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	c, err := rpc.DialContext(timeout, w.url)
+	if err != nil {
+		return fmt.Errorf("failed to connect to endpoint: %w", err)
+	}
+
+	var str string
+	err = c.CallContext(ctx, &str, "eth_chainId")
+	if err != nil {
+		return fmt.Errorf("failed to read evm chain id: %w", err)
+	}
+
+	evmChainID, err := strconv.ParseUint(strings.TrimPrefix(str, "0x"), 16, 64)
+	if err != nil {
+		return fmt.Errorf(`eth_chainId returned an invalid int: "%s"`, str)
+	}
+
+	logger.Info("queried evm chain id", zap.Uint64("evmChainID", evmChainID))
+
+	if w.env == common.UnsafeDevNet {
+		// In devnet we log the result but don't enforce it.
+		return nil
+	}
+
+	expectedEvmChainID, err := sdk.GetEvmChainID(string(w.env), w.chainID)
+	if err != nil {
+		return fmt.Errorf("failed to look up evm chain id: %w", err)
+	}
+
+	if evmChainID != uint64(expectedEvmChainID) {
+		return fmt.Errorf("evm chain ID miss match, expected %d, received %d", expectedEvmChainID, evmChainID)
+	}
+
+	return nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.
