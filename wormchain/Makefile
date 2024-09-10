@@ -94,10 +94,6 @@ clean:
 	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
 
-get-heighliner:
-	git clone https://github.com/strangelove-ventures/heighliner.git
-	cd heighliner && go install
-
 #####################
 ## INTERCHAINTESTS ##
 #####################
@@ -105,8 +101,6 @@ get-heighliner:
 # Generate Wormchain Image
 local-image: build/wormchaind
 	docker build -t wormchain:latest -f Dockerfile.ict ..
-
-.PHONY: get-heighliner local-image
 
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
