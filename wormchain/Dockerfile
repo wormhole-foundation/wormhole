@@ -5,7 +5,9 @@ RUN apt update && \
     apt-get install -y \
         build-essential \
         ca-certificates \
-        curl
+        curl \
+        netcat \
+        jq
 
 WORKDIR /app
 
