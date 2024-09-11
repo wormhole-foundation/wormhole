@@ -9,7 +9,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/apptesting"
-	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
 	wormholekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -18,11 +17,6 @@ import (
 func WormholeKeeper(t *testing.T) (*wormholekeeper.Keeper, sdk.Context) {
 	app, ctx := SetupWormchainAndContext(t)
 	return &app.WormholeKeeper, ctx
-}
-
-func WormholeKeeperAndIBCComposabilityMwKeeper(t *testing.T) (*wormholekeeper.Keeper, *ibccomposabilitymw.Keeper, sdk.Context) {
-	app, ctx := SetupWormchainAndContext(t)
-	return &app.WormholeKeeper, app.IbcComposabilityMwKeeper, ctx
 }
 
 func WormholeKeeperAndWasmd(t *testing.T) (*wormholekeeper.Keeper, *wasmkeeper.Keeper, *wasmkeeper.PermissionedKeeper, sdk.Context) {

@@ -33,7 +33,8 @@ func TestGenesis(t *testing.T) {
 			TransposedDataInFlight: tc.dataInFlight,
 		}
 
-		_, keeper, ctx := keepertest.WormholeKeeperAndIBCComposabilityMwKeeper(t)
+		app, ctx := keepertest.SetupWormchainAndContext(t)
+		keeper := app.IbcComposabilityMwKeeper
 
 		keeper.InitGenesis(ctx, genesisState)
 
