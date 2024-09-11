@@ -93,6 +93,7 @@ jobs:
       - name: Run Test
         id: run_test
         continue-on-error: true
+        working-directory: wormchain
         run: make ${{ matrix.test }}
 
       - name: Retry Failed Test
