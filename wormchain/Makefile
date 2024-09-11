@@ -100,7 +100,7 @@ clean:
 
 # Generate Wormchain Image
 local-image: build/wormchaind
-	docker build -t wormchain:latest -f Dockerfile.ict ..
+	docker build -t wormchain:local -f Dockerfile.ict ..
 
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
