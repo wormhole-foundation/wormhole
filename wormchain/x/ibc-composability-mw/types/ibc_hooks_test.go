@@ -68,6 +68,7 @@ func TestFormatIbcHooksMemo(t *testing.T) {
 
 		if tc.shouldErr {
 			require.Error(t, err)
+			continue
 		} else {
 			require.NoError(t, err)
 			require.NotNil(t, res)
