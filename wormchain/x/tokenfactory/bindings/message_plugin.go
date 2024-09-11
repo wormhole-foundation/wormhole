@@ -3,7 +3,6 @@ package bindings
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -41,9 +40,6 @@ var _ wasmkeeper.Messenger = (*CustomMessenger)(nil)
 // DispatchMsg executes on the contractMsg.
 func (m *CustomMessenger) DispatchMsg(ctx sdk.Context, contractAddr sdk.AccAddress, contractIBCPortID string, msg wasmvmtypes.CosmosMsg) ([]sdk.Event, [][]byte, error) {
 	if msg.Custom != nil {
-		// TODO: JOEL - REMOVE ME
-		fmt.Println("JOEL - Incoming MSG", string(msg.Custom))
-
 		// only handle the happy path where this is really creating / minting / swapping ...
 		// leave everything else for the wrapped version
 		var contractMsg bindingstypes.TokenFactoryMsg
@@ -54,9 +50,6 @@ func (m *CustomMessenger) DispatchMsg(ctx sdk.Context, contractAddr sdk.AccAddre
 			return nil, nil, errors.New("token factory msg; token is nil")
 		}
 		tokenMsg := contractMsg.Token
-
-		// TODO: JOEL - REMOVE ME
-		fmt.Println("JOEL - Parsed Token Msg", tokenMsg)
 
 		if tokenMsg.CreateDenom != nil {
 			return m.createDenom(ctx, contractAddr, tokenMsg.CreateDenom)

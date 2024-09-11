@@ -63,7 +63,7 @@ func (wh WormholeWasmdDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simu
 			*wasmtypes.MsgUpdateParams,
 			*wasmtypes.MsgPinCodes,
 			*wasmtypes.MsgUnpinCodes,
-			*wasmtypes.MsgSudoContract, // TODO: JOEL - May not be necessary as only executable by the chain
+			*wasmtypes.MsgSudoContract,
 			*wasmtypes.MsgStoreAndInstantiateContract,
 			*wasmtypes.MsgAddCodeUploadParamsAddresses,
 			*wasmtypes.MsgRemoveCodeUploadParamsAddresses,
