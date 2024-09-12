@@ -12,9 +12,9 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// setupAllowlistMsgServer creates a keeper, context, msg server, private keys, signer, and guardian set for
+// setupWormholeMessageServer creates a keeper, context, msg server, private keys, signer, and guardian set for
 // testing the wasm allowlist msg server
-func setupAllowlistMsgServer(t *testing.T) (keeper.Keeper, sdk.Context, types.MsgServer, []*ecdsa.PrivateKey, sdk.AccAddress, *types.GuardianSet) {
+func setupWormholeMessageServer(t *testing.T) (keeper.Keeper, sdk.Context, types.MsgServer, []*ecdsa.PrivateKey, sdk.AccAddress, *types.GuardianSet) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	msgServer := keeper.NewMsgServerImpl(*k)
 
@@ -36,7 +36,7 @@ func setupAllowlistMsgServer(t *testing.T) (keeper.Keeper, sdk.Context, types.Ms
 
 // TestWasmAllowlistMsgServer tests the endpoints of the wasm allowlist msg server (happy path)
 func TestWasmAllowlistMsgServer(t *testing.T) {
-	k, ctx, msgServer, privateKeys, signer, guardianSet := setupAllowlistMsgServer(t)
+	k, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
 	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 
@@ -100,7 +100,7 @@ func TestWasmAllowlistMsgServer(t *testing.T) {
 // TestWasmAllowlistMsgServerMismatchedCodeId tests the endpoints of the wasm allowlist msg server
 // with mismatched code id
 func TestWasmAllowlistMsgServerMismatchedCodeId(t *testing.T) {
-	_, ctx, msgServer, privateKeys, signer, guardianSet := setupAllowlistMsgServer(t)
+	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
 	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	codeId := uint64(1)
@@ -135,7 +135,7 @@ func TestWasmAllowlistMsgServerMismatchedCodeId(t *testing.T) {
 // TestWasmAllowlistMsgServerMismatchedContractAddr tests the endpoints of the wasm allowlist msg server
 // with mismatched contract addresses
 func TestWasmAllowlistMsgServerMismatchedContractAddr(t *testing.T) {
-	_, ctx, msgServer, privateKeys, signer, guardianSet := setupAllowlistMsgServer(t)
+	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
 	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	codeId := uint64(1)
@@ -166,7 +166,7 @@ func TestWasmAllowlistMsgServerMismatchedContractAddr(t *testing.T) {
 // TestWasmAllowlistMsgServerMismatchedVaaAction tests the endpoints of the wasm allowlist msg server
 // with mismatched vaa action
 func TestWasmAllowlistMsgServerMismatchedVaaAction(t *testing.T) {
-	_, ctx, msgServer, privateKeys, signer, guardianSet := setupAllowlistMsgServer(t)
+	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
 	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	codeId := uint64(1)
@@ -197,7 +197,7 @@ func TestWasmAllowlistMsgServerMismatchedVaaAction(t *testing.T) {
 // TestWasmAllowlistMsgServerInvalidVAA tests the endpoints of the wasm allowlist msg server
 // with invalid vaa
 func TestWasmAllowlistMsgServerInvalidVAA(t *testing.T) {
-	_, ctx, msgServer, _, signer, guardianSet := setupAllowlistMsgServer(t)
+	_, ctx, msgServer, _, signer, guardianSet := setupWormholeMessageServer(t)
 
 	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	codeId := uint64(1)
