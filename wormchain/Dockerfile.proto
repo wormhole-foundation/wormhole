@@ -15,7 +15,7 @@ ENV GOPROXY https://proxy.golang.org
 
 
 ## CLI BUILDER STAGE
-FROM base as cli-builder
+FROM base AS cli-builder
 
 WORKDIR /ignite
 
@@ -34,7 +34,7 @@ RUN ignite version
 
 
 ## WORMCHAIN BUILDER STAGE
-FROM base as wormchain-builder
+FROM base AS wormchain-builder
 
 # Define 'tendermint' user (same as in the official ignite image)
 RUN useradd -ms /bin/bash tendermint
@@ -57,6 +57,8 @@ RUN ignite doctor
 
 ## GO PROTO BUILDER STAGE
 FROM wormchain-builder AS ignite-go-build
+# Ignite only likes minor versions in go.mod
+RUN sed -i 's/go 1.22.5/go 1.22/g' go.mod
 RUN ignite generate proto-go
 
 
