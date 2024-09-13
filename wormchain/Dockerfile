@@ -1,4 +1,4 @@
-FROM golang:1.22.5
+FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf
 
 #used for a readiness probe
 RUN apt update && \

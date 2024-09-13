@@ -1,4 +1,4 @@
-FROM golang:1.22.5 AS base
+FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf AS base
 
 WORKDIR /home
 
@@ -56,7 +56,7 @@ RUN ignite doctor
 
 
 ## GO PROTO BUILDER STAGE
-FROM wormchain-builder as ignite-go-build
+FROM wormchain-builder AS ignite-go-build
 RUN ignite generate proto-go
 
 
@@ -70,7 +70,7 @@ COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/i
 
 
 ## VUE BUILDER STAGE
-FROM wormchain-builder as ignite-vue-build
+FROM wormchain-builder AS ignite-vue-build
 RUN NODE_OPTIONS="" ignite generate vuex
 
 
