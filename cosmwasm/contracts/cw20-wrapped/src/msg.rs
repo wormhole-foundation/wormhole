@@ -1,13 +1,12 @@
 #![allow(clippy::field_reassign_with_default)]
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::{cw_serde, QueryResponses};
 
 use cosmwasm_std::{Addr, Binary, Uint128};
-use cw20::Expiration;
+use cw20::{AllowanceResponse, BalanceResponse, Expiration, TokenInfoResponse};
 
 type HumanAddr = String;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub name: String,
     pub symbol: String,
@@ -18,24 +17,22 @@ pub struct InstantiateMsg {
     pub init_hook: Option<InitHook>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct InitHook {
     pub msg: Binary,
     pub contract_addr: HumanAddr,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct InitMint {
     pub recipient: HumanAddr,
     pub amount: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     /// Implements CW20. Transfer is a base message to move tokens to another account without triggering actions
     Transfer {
@@ -94,17 +91,24 @@ pub enum ExecuteMsg {
     UpdateMetadata { name: String, symbol: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
-    // Generic information about the wrapped asset
+    #[returns(WrappedAssetInfoResponse)]
+    /// Generic information about the wrapped asset
     WrappedAssetInfo {},
+
+    #[returns(BalanceResponse)]
     /// Implements CW20. Returns the current balance of the given address, 0 if unset.
     Balance {
         address: HumanAddr,
     },
+
+    #[returns(TokenInfoResponse)]
     /// Implements CW20. Returns metadata on the contract - name, decimals, supply, etc.
     TokenInfo {},
+
+    #[returns(AllowanceResponse)]
     /// Implements CW20 "allowance" extension.
     /// Returns how much spender can use from owner account, 0 if unset.
     Allowance {
@@ -113,7 +117,7 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct WrappedAssetInfoResponse {
     pub asset_chain: u16,      // Asset chain id
     pub asset_address: Binary, // Asset smart contract address in the original chain

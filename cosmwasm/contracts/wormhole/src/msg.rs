@@ -1,14 +1,13 @@
+use cosmwasm_schema::{ cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::state::{GuardianAddress, GuardianSetInfo};
+use crate::state::{GuardianAddress, GuardianSetInfo, ParsedVAA};
 
 type HumanAddr = String;
 
 /// The instantiation parameters of the core bridge contract. See
 /// [`crate::state::ConfigInfo`] for more details on what these fields mean.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub gov_chain: u16,
     pub gov_address: Binary,
@@ -21,47 +20,45 @@ pub struct InstantiateMsg {
     pub fee_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     SubmitVAA { vaa: Binary },
     PostMessage { message: Binary, nonce: u32 },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(GuardianSetInfoResponse)]
     GuardianSetInfo {},
+    #[returns(ParsedVAA)]
     VerifyVAA { vaa: Binary, block_time: u64 },
+    #[returns(GetStateResponse)]
     GetState {},
+    #[returns(GetAddressHexResponse)]
     QueryAddressHex { address: HumanAddr },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct GuardianSetInfoResponse {
     pub guardian_set_index: u32,         // Current guardian set index
     pub addresses: Vec<GuardianAddress>, // List of querdian addresses
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct WrappedRegistryResponse {
     pub address: HumanAddr,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct GetStateResponse {
     pub fee: Coin,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct GetAddressHexResponse {
     pub hex: String,
 }
