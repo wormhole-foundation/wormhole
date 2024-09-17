@@ -26,7 +26,7 @@ const Mainnet = {
     key: getEnvVar("TERRA_MNEMONIC"),
   },
   Ethereum: {
-    rpc: `https://rpc.ankr.com/eth`,
+    rpc: `https://ethereum-rpc.publicnode.com`,
     key: getEnvVar("ETH_KEY"),
     chain_id: 1,
   },

@@ -20,8 +20,11 @@ func TestChainListSize(t *testing.T) {
 func TestChainDailyLimitRange(t *testing.T) {
 	chainConfigEntries := chainList()
 
-	/* This IS a hard limit, if daily limit is set to zero it would
-	   basically mean no value movement is allowed for that chain*/
+	/*
+		If a chain is deprecated, we want to make sure its still governed
+		in the case that it is used. This will effectively stall all
+		transfers for 24 hours on a deprecated chain.
+	*/
 	min_daily_limit := uint64(0)
 
 	/* This IS NOT a hard limit, we can adjust it up as we see fit,
@@ -36,7 +39,7 @@ func TestChainDailyLimitRange(t *testing.T) {
 	/* Assuming that a governed chains should always be more than zero and less than 50,000,001 */
 	for _, chainConfigEntry := range chainConfigEntries {
 		t.Run(chainConfigEntry.emitterChainID.String(), func(t *testing.T) {
-			assert.Greater(t, chainConfigEntry.dailyLimit, min_daily_limit)
+			assert.GreaterOrEqual(t, chainConfigEntry.dailyLimit, min_daily_limit)
 			assert.Less(t, chainConfigEntry.dailyLimit, max_daily_limit)
 		})
 	}
@@ -62,6 +65,13 @@ func TestChainListBigTransfers(t *testing.T) {
 	chainConfigEntries := chainList()
 
 	for _, e := range chainConfigEntries {
+
+		// If the daily limit is 0 then both the big TX and daily limit should be 0.
+		if e.dailyLimit == 0 {
+			assert.Equal(t, e.bigTransactionSize, e.dailyLimit)
+			continue
+		}
+
 		// it's always ideal to have bigTransactionSize be less than dailyLimit
 		assert.Less(t, e.bigTransactionSize, e.dailyLimit)
 
