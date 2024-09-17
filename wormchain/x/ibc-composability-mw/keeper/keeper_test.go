@@ -110,6 +110,5 @@ func TestPackets(t *testing.T) {
 				require.Nil(t, res)
 			}
 		})
-
 	}
 }
