@@ -13,7 +13,7 @@ require (
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.47.12
-	github.com/cosmos/gogoproto v1.4.10
+	github.com/cosmos/gogoproto v1.7.0
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v7 v7.1.3
 	github.com/cosmos/ibc-go/v7 v7.6.0
 	github.com/ethereum/go-ethereum v1.10.21
@@ -198,9 +198,10 @@ require (
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-	github.com/cosmos/cosmos-sdk => github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240903174520-1c952abb4033
+	github.com/cosmos/cosmos-sdk => github.com/strangelove-ventures/wh-cosmos-sdk v0.0.0-20240917173637-931c4857932e
+
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/wormhole-foundation/wormhole/sdk => ../sdk
-	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
+// golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
 )

@@ -224,9 +224,6 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			}
 		}
 
-		// TODO: REMOVE DEBUG
-		fmt.Println("IS SDK 47:", isSdk47)
-
 		votingParams := "params"
 		depositParams := "params"
 
