@@ -96,22 +96,19 @@ func TestPackets(t *testing.T) {
 			shouldErr: false,
 		},
 	} {
-
 		packet, ack := keeper.OnRecvPacket(ctx, tc.packet)
 
 		t.Run(tc.testName, func(t *testing.T) {
-
 			if tc.shouldErr {
 				require.NotNil(t, ack)
-				return
 			} else {
 				require.NotNil(t, packet)
 				require.Nil(t, ack)
-			}
 
-			// Should return nil because the packet is not transposed (it is an ibc hooks packet)
-			res := keeper.GetAndClearTransposedData(ctx, tc.packet.DestinationChannel, tc.packet.DestinationPort, tc.packet.Sequence)
-			require.Nil(t, res)
+				// Should return nil because the packet is not transposed (it is an ibc hooks packet)
+				res := keeper.GetAndClearTransposedData(ctx, tc.packet.DestinationChannel, tc.packet.DestinationPort, tc.packet.Sequence)
+				require.Nil(t, res)
+			}
 		})
 
 	}

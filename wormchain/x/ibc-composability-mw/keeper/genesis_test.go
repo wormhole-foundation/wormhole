@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 )
 
-// TestGenesis ensures genesis state can be initialiazed and exported correctly
+// TestGenesis ensures genesis state can be initialiazed and exported correctly.
 func TestGenesis(t *testing.T) {
 	for _, tc := range []struct {
 		dataInFlight map[string][]byte

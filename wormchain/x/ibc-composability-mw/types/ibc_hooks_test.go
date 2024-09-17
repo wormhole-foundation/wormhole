@@ -7,16 +7,17 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/types"
 )
 
+// TestFormatIbcHooksMemo tests the FormatIbcHooksMemo function.
 func TestFormatIbcHooksMemo(t *testing.T) {
-
 	ibcTranslatorContract := "wormhole123abc"
 
 	for _, tc := range []struct {
+		testName  string
 		payload   types.ParsedPayload
 		shouldErr bool
 	}{
-		// Normal w/ no payload
 		{
+			testName: "Normal w/o payload - should pass",
 			payload: types.ParsedPayload{
 				NoPayload: true,
 				ChainId:   1,
@@ -27,8 +28,8 @@ func TestFormatIbcHooksMemo(t *testing.T) {
 			},
 			shouldErr: false,
 		},
-		// Provide payload when unnecessary
 		{
+			testName: "Provide payload when unnecessary - should pass",
 			payload: types.ParsedPayload{
 				NoPayload: true,
 				ChainId:   1,
@@ -39,8 +40,8 @@ func TestFormatIbcHooksMemo(t *testing.T) {
 			},
 			shouldErr: false,
 		},
-		// Normal w/ payload
 		{
+			testName: "Normal w/ payload - should pass",
 			payload: types.ParsedPayload{
 				NoPayload: false,
 				ChainId:   1,
@@ -51,8 +52,8 @@ func TestFormatIbcHooksMemo(t *testing.T) {
 			},
 			shouldErr: false,
 		},
-		// Nil payload should not err
 		{
+			testName: "Nil payload - should pass",
 			payload: types.ParsedPayload{
 				NoPayload: true,
 				ChainId:   1,
@@ -64,23 +65,25 @@ func TestFormatIbcHooksMemo(t *testing.T) {
 			shouldErr: false,
 		},
 	} {
-		res, err := types.FormatIbcHooksMemo(tc.payload, ibcTranslatorContract)
+		t.Run(tc.testName, func(t *testing.T) {
+			res, err := types.FormatIbcHooksMemo(tc.payload, ibcTranslatorContract)
 
-		if tc.shouldErr {
-			require.Error(t, err)
-			continue
-		} else {
-			require.NoError(t, err)
-			require.NotNil(t, res)
-		}
+			if tc.shouldErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, res)
 
-		if tc.payload.NoPayload {
-			require.NotContains(t, res, "gateway_convert_and_transfer_with_payload")
-			require.Contains(t, res, "recipient")
-		} else {
-			require.Contains(t, res, "gateway_convert_and_transfer_with_payload")
-			require.NotContains(t, res, "recipient")
-			require.Contains(t, res, "payload")
-		}
+				// validate payload was formatted correctly
+				if tc.payload.NoPayload {
+					require.NotContains(t, res, "gateway_convert_and_transfer_with_payload")
+					require.Contains(t, res, "recipient")
+				} else {
+					require.Contains(t, res, "gateway_convert_and_transfer_with_payload")
+					require.NotContains(t, res, "recipient")
+					require.Contains(t, res, "payload")
+				}
+			}
+		})
 	}
 }
