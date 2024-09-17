@@ -13,10 +13,10 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 
-	tmAbci "github.com/tendermint/tendermint/abci/types"
-	tmHttp "github.com/tendermint/tendermint/rpc/client/http"
-	tmCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmTypes "github.com/tendermint/tendermint/types"
+	tmAbci "github.com/cometbft/cometbft/abci/types"
+	tmHttp "github.com/cometbft/cometbft/rpc/client/http"
+	tmCoreTypes "github.com/cometbft/cometbft/rpc/core/types"
+	tmTypes "github.com/cometbft/cometbft/types"
 
 	"go.uber.org/zap"
 )
@@ -147,7 +147,7 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 			}
 		} else {
 			logger.Debug("event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
-			attrs[string(attr.Key)] = attr.Value
+			attrs[string(attr.Key)] = []byte(attr.Value)
 		}
 	}
 
