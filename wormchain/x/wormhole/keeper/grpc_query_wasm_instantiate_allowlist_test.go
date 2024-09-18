@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// TestWasmInstantiateAllowlistAll tests the querying of the wasm instantiate allow list
+// TestWasmInstantiateAllowlistAll tests the querying of the wasm instantiate allow list.
 func TestWasmInstantiateAllowlistAll(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
@@ -24,7 +24,7 @@ func TestWasmInstantiateAllowlistAll(t *testing.T) {
 
 	// Set contract in allow list
 	contract := types.WasmInstantiateAllowedContractCodeId{
-		ContractAddress: "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6",
+		ContractAddress: WormholeContractAddress1,
 		CodeId:          1,
 	}
 	k.SetWasmInstantiateAllowlist(ctx, contract)

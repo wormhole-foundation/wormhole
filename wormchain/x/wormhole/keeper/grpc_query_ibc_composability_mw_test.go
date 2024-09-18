@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// TestQueryIbcComposabilityMwContract tests querying of the IbcComposabilityMwContract
+// TestQueryIbcComposabilityMwContract tests querying of the IbcComposabilityMwContract.
 func TestQueryIbcComposabilityMwContract(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
@@ -23,7 +23,7 @@ func TestQueryIbcComposabilityMwContract(t *testing.T) {
 	require.Equal(t, "", res.ContractAddress)
 
 	// Set the contract in state store
-	contractAddr := "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6"
+	contractAddr := WormholeContractAddress1
 	k.StoreIbcComposabilityMwContract(ctx, types.IbcComposabilityMwContract{
 		ContractAddress: contractAddr,
 	})

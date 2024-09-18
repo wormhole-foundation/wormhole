@@ -10,7 +10,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestLatestGuardianSetIndex tests the querying of the latest guardian set index
+// TestLatestGuardianSetIndex tests the querying of the latest guardian set index.
 func TestLatestGuardianSetIndex(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 

@@ -10,13 +10,18 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestAllowedAddressStore tests the setting, getting, and removing of allowed addresses
+const (
+	WormholeAddress1 = "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6"
+	WormholeAddress2 = "wormhole13ztxpktzsng3ewkepe2w39ugxzfdf23teptu9n"
+)
+
+// TestAllowedAddressStore tests the setting, getting, and removing of allowed addresses.
 func TestAllowedAddressStore(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
 	value := types.ValidatorAllowedAddress{
-		ValidatorAddress: "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6",
-		AllowedAddress:   "wormhole13ztxpktzsng3ewkepe2w39ugxzfdf23teptu9n",
+		ValidatorAddress: WormholeAddress1,
+		AllowedAddress:   WormholeAddress2,
 		Name:             "User1",
 	}
 
@@ -53,6 +58,7 @@ func TestAllowedAddressStore(t *testing.T) {
 	require.False(t, hasAddr)
 }
 
+// TestValidatorAsAllowedAddress tests if a validator is a guardian or future validator.
 func TestValidatorAsAllowedAddress(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
@@ -83,8 +89,8 @@ func TestValidatorAsAllowedAddress(t *testing.T) {
 	require.True(t, isVal)
 
 	// Check invalid addresses
-	_, found = k.GetGuardianValidatorByValidatorAddress(ctx, "wormhole13ztxpktzsng3ewkepe2w39ugxzfdf23teptu9n")
+	_, found = k.GetGuardianValidatorByValidatorAddress(ctx, WormholeAddress1)
 	require.False(t, found)
-	isVal = k.IsAddressValidatorOrFutureValidator(ctx, "wormhole13ztxpktzsng3ewkepe2w39ugxzfdf23teptu9n")
+	isVal = k.IsAddressValidatorOrFutureValidator(ctx, WormholeAddress1)
 	require.False(t, isVal)
 }

@@ -12,8 +12,13 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+const (
+	WormholeContractAddress1 = "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	WormholeContractAddress2 = "wormhole1qg5ega6dykkxc307y25pecuufrjkxkaggkkxh7nad0vhyhtuhw3svg697z"
+)
+
 // setupWormholeMessageServer creates a keeper, context, msg server, private keys, signer, and guardian set for
-// testing the wasm allowlist msg server
+// testing the wasm allowlist msg server.
 func setupWormholeMessageServer(t *testing.T) (keeper.Keeper, sdk.Context, types.MsgServer, []*ecdsa.PrivateKey, sdk.AccAddress, *types.GuardianSet) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	msgServer := keeper.NewMsgServerImpl(*k)
@@ -34,11 +39,11 @@ func setupWormholeMessageServer(t *testing.T) (keeper.Keeper, sdk.Context, types
 	return *k, ctx, msgServer, privateKeys, signer, guardianSet
 }
 
-// TestWasmAllowlistMsgServer tests the endpoints of the wasm allowlist msg server (happy path)
+// TestWasmAllowlistMsgServer tests the endpoints of the wasm allowlist msg server (happy path).
 func TestWasmAllowlistMsgServer(t *testing.T) {
 	k, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
-	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	bech32ContractAddr := WormholeContractAddress1
 
 	codeId := uint64(1)
 	contractAddr, err := sdk.AccAddressFromBech32(bech32ContractAddr)
@@ -98,11 +103,11 @@ func TestWasmAllowlistMsgServer(t *testing.T) {
 }
 
 // TestWasmAllowlistMsgServerMismatchedCodeId tests the endpoints of the wasm allowlist msg server
-// with mismatched code id
+// with mismatched code id.
 func TestWasmAllowlistMsgServerMismatchedCodeId(t *testing.T) {
 	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
-	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	bech32ContractAddr := WormholeContractAddress1
 	codeId := uint64(1)
 
 	contractAddr, err := sdk.AccAddressFromBech32(bech32ContractAddr)
@@ -133,14 +138,14 @@ func TestWasmAllowlistMsgServerMismatchedCodeId(t *testing.T) {
 }
 
 // TestWasmAllowlistMsgServerMismatchedContractAddr tests the endpoints of the wasm allowlist msg server
-// with mismatched contract addresses
+// with mismatched contract addresses.
 func TestWasmAllowlistMsgServerMismatchedContractAddr(t *testing.T) {
 	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
-	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	bech32ContractAddr := WormholeContractAddress1
 	codeId := uint64(1)
 
-	contractAddr2, err := sdk.AccAddressFromBech32("wormhole1qg5ega6dykkxc307y25pecuufrjkxkaggkkxh7nad0vhyhtuhw3svg697z")
+	contractAddr2, err := sdk.AccAddressFromBech32(WormholeContractAddress2)
 	require.NoError(t, err)
 
 	// Create payload with mismatched contract address
@@ -164,11 +169,11 @@ func TestWasmAllowlistMsgServerMismatchedContractAddr(t *testing.T) {
 }
 
 // TestWasmAllowlistMsgServerMismatchedVaaAction tests the endpoints of the wasm allowlist msg server
-// with mismatched vaa action
+// with mismatched vaa action.
 func TestWasmAllowlistMsgServerMismatchedVaaAction(t *testing.T) {
 	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
-	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	bech32ContractAddr := WormholeContractAddress1
 	codeId := uint64(1)
 
 	contractAddr, err := sdk.AccAddressFromBech32(bech32ContractAddr)
@@ -195,11 +200,11 @@ func TestWasmAllowlistMsgServerMismatchedVaaAction(t *testing.T) {
 }
 
 // TestWasmAllowlistMsgServerInvalidVAA tests the endpoints of the wasm allowlist msg server
-// with invalid vaa
+// with invalid vaa.
 func TestWasmAllowlistMsgServerInvalidVAA(t *testing.T) {
 	_, ctx, msgServer, _, signer, guardianSet := setupWormholeMessageServer(t)
 
-	bech32ContractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	bech32ContractAddr := WormholeContractAddress1
 	codeId := uint64(1)
 
 	contractAddr, err := sdk.AccAddressFromBech32(bech32ContractAddr)

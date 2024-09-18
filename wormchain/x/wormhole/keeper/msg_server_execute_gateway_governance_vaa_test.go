@@ -9,7 +9,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestExecuteGatewayGovernanceVaaUpgrades tests creating and cancelling upgrades
+// TestExecuteGatewayGovernanceVaaUpgrades tests creating and cancelling upgrades.
 func TestExecuteGatewayGovernanceVaaUpgrades(t *testing.T) {
 	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
@@ -51,12 +51,12 @@ func TestExecuteGatewayGovernanceVaaUpgrades(t *testing.T) {
 	require.NotNil(t, res)
 }
 
-// TestExecuteGatewayGovernanceVaaSetIbcComposabilityMwContract tests setting the IBC composability contract
+// TestExecuteGatewayGovernanceVaaSetIbcComposabilityMwContract tests setting the IBC composability contract.
 func TestExecuteGatewayGovernanceVaaSetIbcComposabilityMwContract(t *testing.T) {
 	k, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
 	// Get contract bytes
-	contractAddr := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
+	contractAddr := WormholeContractAddress1
 	contractAddrBz, err := sdk.AccAddressFromBech32(contractAddr)
 	require.NoError(t, err)
 
@@ -84,7 +84,7 @@ func TestExecuteGatewayGovernanceVaaSetIbcComposabilityMwContract(t *testing.T) 
 	require.Equal(t, contractAddr, contract.ContractAddress)
 }
 
-// TestExecuteGatewayGovernanceVaaUnknownAction tests submitting an unknown action
+// TestExecuteGatewayGovernanceVaaUnknownAction tests submitting an unknown action.
 func TestExecuteGatewayGovernanceVaaUnknownAction(t *testing.T) {
 	_, ctx, msgServer, privateKeys, signer, guardianSet := setupWormholeMessageServer(t)
 
@@ -105,7 +105,7 @@ func TestExecuteGatewayGovernanceVaaUnknownAction(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestExecuteGatewayGovernanceVaaInvalidVAA tests submitting an invalid VAA
+// TestExecuteGatewayGovernanceVaaInvalidVAA tests submitting an invalid VAA.
 func TestExecuteGatewayGovernanceVaaInvalidVAA(t *testing.T) {
 	_, ctx, msgServer, _, signer, guardianSet := setupWormholeMessageServer(t)
 

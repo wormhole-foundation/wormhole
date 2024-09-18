@@ -8,13 +8,13 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// TestWasmInstantiateAllowlist tests the setting, getting, and removing of allowed addresses
+// TestWasmInstantiateAllowlist tests the setting, getting, and removing of allowed addresses.
 func TestWasmInstantiateAllowlist(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
 	// Create entry
 	entry := types.WasmInstantiateAllowedContractCodeId{
-		ContractAddress: "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6",
+		ContractAddress: WormholeContractAddress1,
 		CodeId:          1,
 	}
 

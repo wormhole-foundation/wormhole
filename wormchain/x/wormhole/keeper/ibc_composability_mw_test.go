@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// TestIbcComposabilityMwContractStore tests the setting and getting of the contract
+// TestIbcComposabilityMwContractStore tests the setting and getting of the contract.
 func TestIbcComposabilityMwContractStore(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 

@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// TestQueryAllowlist tests the allow list queries
+// TestQueryAllowlist tests the allow list queries.
 func TestQueryAllowlist(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 
@@ -19,8 +19,8 @@ func TestQueryAllowlist(t *testing.T) {
 	require.Equal(t, 0, len(res.Allowlist))
 
 	value := types.ValidatorAllowedAddress{
-		ValidatorAddress: "wormhole1du4amsmvx8yqr8whw7qc5m3c0zpwknmzelwqy6",
-		AllowedAddress:   "wormhole13ztxpktzsng3ewkepe2w39ugxzfdf23teptu9n",
+		ValidatorAddress: WormholeAddress1,
+		AllowedAddress:   WormholeAddress2,
 		Name:             "User1",
 	}
 
