@@ -80,8 +80,7 @@ func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
 }
 
 func (fs *FileSigner) PublicKey() ecdsa.PublicKey {
-	publicKey := fs.privateKey.PublicKey
-	return publicKey
+	return fs.privateKey.PublicKey
 }
 
 func (fs *FileSigner) Verify(sig []byte, hash []byte) (bool, error) {

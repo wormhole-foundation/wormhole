@@ -141,7 +141,7 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 	guardianAddrs := [][]byte{}
 
 	for count := 0; count < 19; count++ {
-		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		require.NoError(b, err)
 		keys = append(keys, crypto.PubkeyToAddress(guardianSigner.PublicKey()))
 		guardianSigners = append(guardianSigners, guardianSigner)
