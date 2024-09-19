@@ -2,7 +2,6 @@ package accountant
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,9 +10,8 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -200,7 +198,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // submitObservationsToContract makes a call to the smart contract to submit a batch of observation requests.
 // It should be called from a go routine because it can block.
 func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32, wormchainConn AccountantWormchainConn, contract string, prefix []byte, tag string) {
-	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, wormchainConn, contract, prefix, msgs)
+	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.guardianSigner, gsIndex, guardianIndex, wormchainConn, contract, prefix, msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
 		acct.logger.Error(fmt.Sprintf("failed to submit any observations in batch to %s", tag), zap.Int("numMsgs", len(msgs)), zap.Error(err))
@@ -299,7 +297,7 @@ func (acct *Accountant) handleTransferError(msgId string, errText string, logTex
 func SubmitObservationsToContract(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	gsIndex uint32,
 	guardianIndex uint32,
 	wormchainConn AccountantWormchainConn,
@@ -344,7 +342,7 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
-	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
+	sigBytes, err := guardianSigner.Sign(digest.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}

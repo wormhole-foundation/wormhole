@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -33,7 +33,7 @@ func adminServiceRunnable(
 	db *db.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	ethRpc *string,
 	ethContract *string,
 	rpcMap map[string]string,
@@ -89,8 +89,8 @@ func adminServiceRunnable(
 		signedInC,
 		gov,
 		evmConnector,
-		gk,
-		ethcrypto.PubkeyToAddress(gk.PublicKey),
+		guardianSigner,
+		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()),
 		rpcMap,
 	)
 

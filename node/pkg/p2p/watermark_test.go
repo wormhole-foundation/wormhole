@@ -2,8 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -36,7 +35,7 @@ type G struct {
 	vaaSendC               chan []byte
 	signedInC              chan *gossipv1.SignedVAAWithQuorum
 	priv                   p2pcrypto.PrivKey
-	gk                     *ecdsa.PrivateKey
+	guardianSigner         guardiansigner.GuardianSigner
 	gst                    *node_common.GuardianSetState
 	networkID              string
 	bootstrapPeers         string
@@ -59,7 +58,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
-	guardianpriv, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +75,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		vaaSendC:               make(chan []byte, cs),
 		signedInC:              make(chan *gossipv1.SignedVAAWithQuorum, cs),
 		priv:                   p2ppriv,
-		gk:                     guardianpriv,
+		guardianSigner:         guardianSigner,
 		gst:                    node_common.NewGuardianSetState(nil),
 		nodeName:               nodeName,
 		disableHeartbeatVerify: false,
@@ -120,7 +119,7 @@ func TestWatermark(t *testing.T) {
 		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
 		gs[i].networkID = "/wormhole/localdev"
 
-		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey()))
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
@@ -182,7 +181,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 		g.rootCtxCancel,
 		WithGuardianOptions(
 			g.nodeName,
-			g.gk,
+			g.guardianSigner,
 			g.obsvC,
 			g.batchObsvC,
 			g.signedInC,

@@ -8,13 +8,13 @@ package accountant
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -83,7 +83,7 @@ type Accountant struct {
 	wsUrl                string
 	wormchainConn        AccountantWormchainConn
 	enforceFlag          bool
-	gk                   *ecdsa.PrivateKey
+	guardianSigner       guardiansigner.GuardianSigner
 	gst                  *common.GuardianSetState
 	guardianAddr         ethCommon.Address
 	msgChan              chan<- *common.MessagePublication
@@ -120,7 +120,7 @@ func NewAccountant(
 	enforceFlag bool, // whether or not accountant should be enforced
 	nttContract string, // the address of the NTT smart contract on wormchain
 	nttWormchainConn AccountantWormchainConn, // used for communicating with the NTT smart contract
-	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
+	guardianSigner guardiansigner.GuardianSigner, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
 	env common.Environment, // Controls the set of token bridges to be monitored
@@ -134,9 +134,9 @@ func NewAccountant(
 		wsUrl:            wsUrl,
 		wormchainConn:    wormchainConn,
 		enforceFlag:      enforceFlag,
-		gk:               gk,
+		guardianSigner:   guardianSigner,
 		gst:              gst,
-		guardianAddr:     ethCrypto.PubkeyToAddress(gk.PublicKey),
+		guardianAddr:     ethCrypto.PubkeyToAddress(guardianSigner.PublicKey()),
 		msgChan:          msgChan,
 		tokenBridges:     make(validEmitters),
 		pendingTransfers: make(map[string]*pendingEntry),
