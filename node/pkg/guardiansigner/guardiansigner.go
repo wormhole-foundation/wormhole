@@ -11,14 +11,19 @@ type SignerType int
 
 const (
 	InvalidSignerType SignerType = iota
+	// file://<path-to-file>
 	FileSignerType
 )
 
 // GuardianSigner interface
 type GuardianSigner interface {
-	// TODO: document that the signer implementations assume they are recieving a keccack256 hash
+	// Sign expects a keccak256 hash that needs to be signed.
 	Sign(hash []byte) (sig []byte, err error)
+	// PublicKey returns the ECDSA public key of the signer. Note that this should not
+	// be confused with the EVM address.
 	PublicKey() (pubKey ecdsa.PublicKey)
+	// Verify is a convenience function that recovers a public key from the sig/hash pair,
+	// and checks if the public key matches that of the guardian signer.
 	Verify(sig []byte, hash []byte) (valid bool, err error)
 }
 
@@ -30,21 +35,24 @@ func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSig
 	switch signerType {
 	case FileSignerType:
 		return NewFileSigner(unsafeDevMode, signerKeyConfig)
-	case InvalidSignerType:
-		return nil, fmt.Errorf("unsupported guardian signer type")
 	default:
 		return nil, fmt.Errorf("unsupported guardian signer type")
 	}
 }
 
 func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig string) {
+	// Split the URI using the standard "://" scheme separator
 	signerUriSplit := strings.Split(signerUri, "://")
 
+	// Length smaller than 2 implies that there is no path following the scheme separator,
+	// which is invalid.
 	if len(signerUriSplit) < 2 {
 		return InvalidSignerType, ""
 	}
 
 	typeStr := signerUriSplit[0]
+	// Rejoin the remainder of the split URI as the configuration for the guardian signer
+	// implementation.
 	keyConfig := strings.Join(signerUriSplit[1:], "")
 
 	switch typeStr {
@@ -61,6 +69,6 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 // that simply require a private key.
 // The caller can specify a private key to be used, or pass nil to have `NewGeneratedSigner`
 // generate a random private key.
-func GenerateSignerWithPrivatekey(key *ecdsa.PrivateKey) (GuardianSigner, error) {
+func GenerateSignerWithPrivatekeyUnsafe(key *ecdsa.PrivateKey) (GuardianSigner, error) {
 	return NewGeneratedSigner(key)
 }

@@ -630,10 +630,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify --nodeKey")
 	}
-	if *guardianKeyPath == "" {
-		if *guardianSignerUri == "" {
-			logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
-		}
+	if *guardianKeyPath == "" && *guardianSignerUri == "" {
+		logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
 	} else {
 		// If guardianKeyPath is set, set guardianSignerUri to the file signer URI, pointing to guardianKeyPath.
 		// This ensures that the signer-abstracted guardian has backwards compatibility with guardians that would

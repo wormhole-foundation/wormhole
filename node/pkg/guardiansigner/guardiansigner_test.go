@@ -15,11 +15,11 @@ func TestParseSignerUri(t *testing.T) {
 		expectedType SignerType
 	}{
 		{label: "RandomText", path: "RandomText", expectedType: InvalidSignerType},
-		{label: "ArbitraryUri", path: "arb://data", expectedType: InvalidSignerType},
+		{label: "ArbitraryUriScheme", path: "arb://data", expectedType: InvalidSignerType},
 		// File
 		{label: "FileURI", path: "file://whatever", expectedType: FileSignerType},
-		{label: "FileUriNoDotDotSlash", path: "filewhatever", expectedType: InvalidSignerType},
-		{label: "FileUriMultipleDotDotSlash", path: "file://testing://this://", expectedType: FileSignerType},
+		{label: "FileUriNoSchemeSeparator", path: "filewhatever", expectedType: InvalidSignerType},
+		{label: "FileUriMultipleSchemeSeparators", path: "file://testing://this://", expectedType: FileSignerType},
 		{label: "FileUriTraversal", path: "file://../../../file", expectedType: FileSignerType},
 	}
 

@@ -90,7 +90,7 @@ func (c mockEVMConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types
 
 func generateGuardianSigners(num int) (signers []guardiansigner.GuardianSigner, addrs []common.Address) {
 	for i := 0; i < num; i++ {
-		signer, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+		signer, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		if err != nil {
 			panic(err)
 		}
@@ -144,7 +144,7 @@ func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner) []
 }
 
 func setupAdminServerForVAASigning(gsIndex uint32, gsAddrs []common.Address) *nodePrivilegedService {
-	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	if err != nil {
 		panic(err)
 	}

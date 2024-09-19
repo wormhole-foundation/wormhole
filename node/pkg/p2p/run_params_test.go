@@ -134,7 +134,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	_, rootCtxCancel := context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
-	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	require.NoError(t, err)
 	require.NotNil(t, guardianSigner)
 

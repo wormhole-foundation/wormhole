@@ -103,7 +103,7 @@ func newAccountantForTest(
 	var db db.MockAccountantDB
 
 	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
-	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(pk)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(pk)
 	require.NoError(t, err)
 
 	gst := common.NewGuardianSetState(nil)

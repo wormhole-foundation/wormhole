@@ -58,7 +58,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
-	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	if err != nil {
 		panic(err)
 	}

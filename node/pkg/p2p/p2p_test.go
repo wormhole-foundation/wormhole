@@ -27,7 +27,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	// define the tests
 
-	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
 	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey())
 	fromP2pId, err := peer.Decode("12D3KooWSgMXkhzTbKTeupHYmyG7sFJ5LpVreQcwVnX8RD7LBpy9")
@@ -35,7 +35,7 @@ func TestSignedHeartbeat(t *testing.T) {
 	p2pNodeId, err := fromP2pId.Marshal()
 	assert.NoError(t, err)
 
-	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
 	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey())
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")

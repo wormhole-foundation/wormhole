@@ -112,7 +112,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 
 	for i := 0; i < n; i++ {
 		// generate guardian signer
-		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		if err != nil {
 			panic(err)
 		}
