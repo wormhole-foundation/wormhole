@@ -2,7 +2,7 @@ FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc
 
 #used for a readiness probe
 RUN apt-get update
-RUN apt install -y netcat
+RUN apt install -y netcat-openbsd
 RUN apt install -y jq
 
 WORKDIR /app
