@@ -14,7 +14,7 @@ This version of the Cosmos SDK was released before the fork of Tendermint Core a
 
 To facilitate a more modern usage of the Cosmos SDK, projects should move away from Tendermint Core to CometBFT, as it is more up-to-date, maintained and provides security and bug fixes.
 
-The Cosmos SDK team slowly rolled out migrations from Tendermint Core to CometBFT in the Comsos SDK repo, and this migration was implemented in the v0.45 line in release [v0.45.15](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.45.15).
+The Cosmos SDK team slowly rolled out migrations from Tendermint Core to CometBFT in the Cosmos SDK repo, and this migration was implemented in the v0.45 line in release [v0.45.15](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.45.15).
 
 ## Decision
 
