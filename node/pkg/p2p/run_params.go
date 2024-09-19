@@ -2,12 +2,12 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -46,7 +46,7 @@ type (
 
 		// The following options are guardian specific. Set with `WithGuardianOptions`.
 		nodeName               string
-		gk                     *ecdsa.PrivateKey
+		guardianSigner         guardiansigner.GuardianSigner
 		gossipControlSendC     chan []byte
 		gossipAttestationSendC chan []byte
 		gossipVaaSendC         chan []byte
@@ -176,7 +176,7 @@ func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 // WithGuardianOptions is used to set options that are only meaningful to the guardian.
 func WithGuardianOptions(
 	nodeName string,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWithQuorum,
@@ -200,7 +200,7 @@ func WithGuardianOptions(
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
-		p.gk = gk
+		p.guardianSigner = guardianSigner
 		p.obsvRecvC = obsvRecvC
 		p.batchObsvRecvC = batchObsvRecvC
 		p.signedIncomingVaaRecvC = signedIncomingVaaRecvC
@@ -243,13 +243,13 @@ func (p *RunParams) verify() error {
 		return errors.New("rootCtxCancel may not be nil")
 	}
 	if p.nodeName != "" { // Heartbeating is enabled.
-		if p.gk == nil {
-			return errors.New("if heart beating is enabled, gk may not be nil")
+		if p.guardianSigner == nil {
+			return errors.New("if heart beating is enabled, vs may not be nil")
 		}
 	}
 	if p.obsvReqSendC != nil {
-		if p.gk == nil {
-			return errors.New("if obsvReqSendC is not nil, gk may not be nil")
+		if p.guardianSigner == nil {
+			return errors.New("if obsvReqSendC is not nil, vs may not be nil")
 		}
 	}
 	return nil

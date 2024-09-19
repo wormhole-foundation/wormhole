@@ -2,8 +2,6 @@ package processor
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"fmt"
 	"os"
 	"runtime/pprof"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 
@@ -123,7 +122,7 @@ type ProcessorData struct {
 	gossipVaaSendC         chan []byte
 	emitterChain           vaa.ChainID
 	emitterAddress         vaa.Address
-	guardianKeys           []*ecdsa.PrivateKey
+	guardianSigners        []guardiansigner.GuardianSigner
 	guardianAddrs          [][]byte
 }
 
@@ -136,19 +135,19 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 	b.Helper()
 	logger := zap.NewNop()
 
-	var ourKey *ecdsa.PrivateKey
+	var ourSigner guardiansigner.GuardianSigner
 	keys := []ethCommon.Address{}
-	guardianKeys := []*ecdsa.PrivateKey{}
+	guardianSigners := []guardiansigner.GuardianSigner{}
 	guardianAddrs := [][]byte{}
 
 	for count := 0; count < 19; count++ {
-		gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekey(nil)
 		require.NoError(b, err)
-		keys = append(keys, crypto.PubkeyToAddress(gk.PublicKey))
-		guardianKeys = append(guardianKeys, gk)
-		guardianAddrs = append(guardianAddrs, crypto.PubkeyToAddress(gk.PublicKey).Bytes())
-		if ourKey == nil {
-			ourKey = gk
+		keys = append(keys, crypto.PubkeyToAddress(guardianSigner.PublicKey()))
+		guardianSigners = append(guardianSigners, guardianSigner)
+		guardianAddrs = append(guardianAddrs, crypto.PubkeyToAddress(guardianSigner.PublicKey()).Bytes())
+		if count == 0 {
+			ourSigner = guardianSigner
 		}
 	}
 
@@ -167,20 +166,20 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 		gossipVaaSendC:         make(chan []byte, numVAAs+100),
 		emitterChain:           vaa.ChainIDEthereum,
 		emitterAddress:         emitterAddress,
-		guardianKeys:           guardianKeys,
+		guardianSigners:        guardianSigners,
 		guardianAddrs:          guardianAddrs,
 	}
 
 	p := &Processor{
 		gossipAttestationSendC: pd.gossipAttestationSendC,
 		gossipVaaSendC:         pd.gossipVaaSendC,
-		gk:                     ourKey,
+		guardianSigner:         ourSigner,
 		gs:                     gs,
 		gst:                    gst,
 		db:                     db,
 		logger:                 logger,
 		state:                  &aggregationState{observationMap{}},
-		ourAddr:                crypto.PubkeyToAddress(ourKey.PublicKey),
+		ourAddr:                crypto.PubkeyToAddress(ourSigner.PublicKey()),
 		pythnetVaas:            make(map[string]PythNetVaaEntry),
 		updatedVAAs:            make(map[string]*updateVaaEntry),
 		gatewayRelayer:         gwRelayer,
@@ -230,8 +229,9 @@ func (pd *ProcessorData) createObservation(b *testing.B, guardianIdx int, k *com
 	// Generate digest of the unsigned VAA.
 	digest := v.SigningDigest()
 
-	// Sign the digest using our node's guardian key.
-	signature, err := crypto.Sign(digest.Bytes(), pd.guardianKeys[guardianIdx])
+	// Sign the digest using our node's guardian signer
+	guardianSigner := pd.guardianSigners[guardianIdx]
+	signature, err := guardianSigner.Sign(digest.Bytes())
 	require.NoError(b, err)
 
 	return &gossipv1.Observation{
