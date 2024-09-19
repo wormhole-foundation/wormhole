@@ -3,7 +3,6 @@ package adminrpc
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -19,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,7 +61,7 @@ type nodePrivilegedService struct {
 	governor        *governor.ChainGovernor
 	evmConnector    connectors.Connector
 	gsCache         sync.Map
-	gk              *ecdsa.PrivateKey
+	guardianSigner  guardiansigner.GuardianSigner
 	guardianAddress ethcommon.Address
 	rpcMap          map[string]string
 }
@@ -74,7 +74,7 @@ func NewPrivService(
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	governor *governor.ChainGovernor,
 	evmConnector connectors.Connector,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	guardianAddress ethcommon.Address,
 	rpcMap map[string]string,
 
@@ -87,7 +87,7 @@ func NewPrivService(
 		signedInC:       signedInC,
 		governor:        governor,
 		evmConnector:    evmConnector,
-		gk:              gk,
+		guardianSigner:  guardianSigner,
 		guardianAddress: guardianAddress,
 		rpcMap:          rpcMap,
 	}
@@ -1162,7 +1162,15 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	}
 
 	// Add local signature
-	newVAA.AddSignature(s.gk, uint8(localGuardianIndex))
+	sig, err := s.guardianSigner.Sign(v.SigningDigest().Bytes())
+
+	sigData := [65]byte{}
+	copy(sigData[:], sig)
+
+	newVAA.Signatures = append(v.Signatures, &vaa.Signature{
+		Index:     uint8(localGuardianIndex),
+		Signature: sigData,
+	})
 
 	// Sort VAA signatures by guardian ID
 	slices.SortFunc(newVAA.Signatures, func(a, b *vaa.Signature) int {
