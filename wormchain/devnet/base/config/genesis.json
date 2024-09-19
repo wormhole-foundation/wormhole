@@ -442,6 +442,13 @@
       ]
     },
     "gov": {
+      "starting_proposal_id": "1",
+      "deposits": [],
+      "proposals": [],
+      "votes": [],
+      "deposit_params": null,
+      "voting_params": null,
+      "tally_params": null,
       "params": {
         "max_deposit_period": "172800s",
         "min_deposit": [
@@ -450,17 +457,15 @@
             "denom": "uworm"
           }
         ],
-        "voting_period": "50s"
-      },
-      "deposits": [],
-      "proposals": [],
-      "starting_proposal_id": "1",
-      "tally_params": {
+        "voting_period": "50s",
         "quorum": "0.334000000000000000",
         "threshold": "0.500000000000000000",
-        "veto_threshold": "0.334000000000000000"
-      },
-      "votes": []
+        "veto_threshold": "0.334000000000000000",
+        "min_initial_deposit_ratio": "0.000000000000000000",
+        "burn_vote_quorum": false,
+        "burn_proposal_deposit_prevote": false,
+        "burn_vote_veto": true
+      }
     },
     "ibc": {
       "channel_genesis": {
@@ -506,6 +511,12 @@
         "mint_denom": "uworm"
       }
     },
+    "packetfowardmiddleware": {
+      "params": {
+        "fee_percentage": "0.000000000000000000"
+      },
+      "in_flight_packets": {}
+    },
     "params": null,
     "slashing": {
       "missed_blocks": [],
@@ -543,20 +554,20 @@
       },
       "port_id": "transfer"
     },
+    "tokenfactory": {},
     "upgrade": {},
     "vesting": {},
     "wasm": {
       "params": {
         "code_upload_access": {
           "permission": "Everybody",
-          "address": ""
+          "addresses": []
         },
         "instantiate_default_permission": "Everybody"
       },
       "codes": [],
       "contracts": [],
-      "sequences": [],
-      "gen_msgs": []
+      "sequences": []
     },
     "wormhole": {
       "config": {
