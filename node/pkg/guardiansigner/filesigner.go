@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/armor" // nolint
 )
 
 type FileSigner struct {
@@ -92,7 +92,9 @@ func (fs *FileSigner) Verify(sig []byte, hash []byte) (bool, error) {
 		return false, err
 	}
 
-	fsPubkey := fs.privateKey.PublicKey
+	// Need to use fs.privateKey.Public() instead of PublicKey to ensure
+	// the returned public key has the right interface for Equal() to work.
+	fsPubkey := fs.privateKey.Public()
 
 	return recoveredPubKey.Equal(fsPubkey), nil
 }
