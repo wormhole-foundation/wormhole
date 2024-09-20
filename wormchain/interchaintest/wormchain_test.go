@@ -432,7 +432,6 @@ func TestWormchainIbc(t *testing.T) {
 	// helpers.SubmitContractUpgradeGovernanceVAA(t, ctx, wormchain, "faucet",
 	// 	3104,
 	// 	ibcReceiverCodeIdBytes, guardians)
-
 }
 
 func uint64To32BytePadded(value uint64) [32]byte {
