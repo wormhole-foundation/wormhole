@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
 use crate::state::{CHANNEL_CHAIN, VAA_ARCHIVE};
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
 use serde_wormhole::RawMessage;
@@ -125,6 +125,7 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
                 .add_attribute("chain_id", chain_id.to_string())
                 .add_attribute("channel_id", channel_id_trimmed))
         }
+        _ => Err(anyhow!("unsupported governance action")),
     }
 }
 
