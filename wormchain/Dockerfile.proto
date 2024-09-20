@@ -73,6 +73,8 @@ COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/i
 
 ## VUE BUILDER STAGE
 FROM wormchain-builder AS ignite-vue-build
+# Ignite only likes minor versions in go.mod
+RUN sed -i 's/go 1.22.5/go 1.22/g' go.mod
 RUN NODE_OPTIONS="" ignite generate vuex
 
 
