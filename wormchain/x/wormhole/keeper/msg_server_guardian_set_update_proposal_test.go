@@ -12,7 +12,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestGuardianSetUpdateProposal tests possible scenarios for how a guardian set update proposal can be handled
+// TestGuardianSetUpdateProposal tests possible scenarios for how a guardian set update proposal can be handled.
 func TestGuardianSetUpdateProposal(t *testing.T) {
 	// get app & ctx
 	app, ctx := keepertest.SetupWormchainAndContext(t)

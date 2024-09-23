@@ -12,7 +12,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// TestPostMessageProposal tests possible scenarios for how a governance wormhole message proposal can be handled
+// TestPostMessageProposal tests possible scenarios for how a governance wormhole message proposal can be handled.
 func TestPostMessageProposal(t *testing.T) {
 	// get app & ctx
 	app, ctx := keepertest.SetupWormchainAndContext(t)
