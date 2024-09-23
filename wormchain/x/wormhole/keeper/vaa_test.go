@@ -270,7 +270,7 @@ func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.Cha
 		Nonce:            uint32(1),
 		Sequence:         uint64(lastestSequence),
 		ConsistencyLevel: uint8(32),
-		EmitterChain:     emitterChain,
+		EmitterChain:     vaa.ChainIDSolana,
 		EmitterAddress:   vaa.Address(vaa.GovernanceEmitter),
 		Payload:          payload,
 	}
