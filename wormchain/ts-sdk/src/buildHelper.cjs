@@ -6,10 +6,13 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const CERTUS_DIRECTORY =
-  "../vue/src/store/generated/wormhole-foundation/wormchain/";
-const COSMOS_DIRECTORY = "../vue/src/store/generated/cosmos/cosmos-sdk/";
-const WASMD_DIRECTORY = "../vue/src/store/generated/CosmWasm/wasmd/";
+// const CERTUS_DIRECTORY =
+//   "../vue/src/store/generated/wormhole-foundation/wormchain/";
+// const COSMOS_DIRECTORY = "../vue/src/store/generated/cosmos/cosmos-sdk/";
+// const WASMD_DIRECTORY = "../vue/src/store/generated/CosmWasm/wasmd/";
+
+const VUE_DIRECTORY = "../ts-client/"; //"../vue/src/store/generated/";
+
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
 
 function execWrapper(command) {
@@ -28,32 +31,48 @@ function execWrapper(command) {
   });
 }
 
-const certusFiles = fs.readdirSync(CERTUS_DIRECTORY, { withFileTypes: true }); //should only contain directories for the modules
-const cosmosFiles = fs.readdirSync(COSMOS_DIRECTORY, { withFileTypes: true });
-const wasmdFiles = fs.readdirSync(WASMD_DIRECTORY, { withFileTypes: true });
+// const certusFiles = fs.readdirSync(CERTUS_DIRECTORY, { withFileTypes: true }); //should only contain directories for the modules
+// const cosmosFiles = fs.readdirSync(COSMOS_DIRECTORY, { withFileTypes: true });
+// const wasmdFiles = fs.readdirSync(WASMD_DIRECTORY, { withFileTypes: true });
+const vueFiles = fs.readdirSync(VUE_DIRECTORY, { withFileTypes: true });
 
-certusFiles.forEach((directory) => {
+// certusFiles.forEach((directory) => {
+//   execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
+//   execWrapper(
+//     `cp -R ${CERTUS_DIRECTORY + directory.name}/module/* ${
+//       MODULE_DIRECTORY + directory.name
+//     }/`
+//   ); //move all the files from the vue module into the sdk
+// });
+
+// cosmosFiles.forEach((directory) => {
+//   execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
+//   execWrapper(
+//     `cp -R ${COSMOS_DIRECTORY + directory.name}/module/* ${
+//       MODULE_DIRECTORY + directory.name
+//     }/`
+//   ); //move all the files from the vue module into the sdk
+// });
+
+// wasmdFiles.forEach((directory) => {
+//   execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
+//   execWrapper(
+//     `cp -R ${WASMD_DIRECTORY + directory.name}/module/* ${
+//       MODULE_DIRECTORY + directory.name
+//     }/`
+//   ); //move all the files from the vue module into the sdk
+// });
+
+vueFiles.forEach((directory) => {
+
+  // check if directory is a folder
+  if (!directory.isDirectory()) {
+    return;
+  }
+
   execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
   execWrapper(
-    `cp -R ${CERTUS_DIRECTORY + directory.name}/module/* ${
-      MODULE_DIRECTORY + directory.name
-    }/`
-  ); //move all the files from the vue module into the sdk
-});
-
-cosmosFiles.forEach((directory) => {
-  execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
-  execWrapper(
-    `cp -R ${COSMOS_DIRECTORY + directory.name}/module/* ${
-      MODULE_DIRECTORY + directory.name
-    }/`
-  ); //move all the files from the vue module into the sdk
-});
-
-wasmdFiles.forEach((directory) => {
-  execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
-  execWrapper(
-    `cp -R ${WASMD_DIRECTORY + directory.name}/module/* ${
+    `cp -R ${VUE_DIRECTORY + directory.name}/* ${
       MODULE_DIRECTORY + directory.name
     }/`
   ); //move all the files from the vue module into the sdk
