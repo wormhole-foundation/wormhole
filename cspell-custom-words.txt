@@ -171,6 +171,7 @@ structs
 subdenom
 Subdenoms
 subdenoms
+submessage
 supermajority
 superminority
 Tendermint

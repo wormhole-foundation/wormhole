@@ -82,6 +82,17 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 
 	errCount := 0
 
+	// Publish the initial finalized and safe blocks so we have a starting point for reobservation requests.
+	for idx, block := range lastBlocks {
+		b.logger.Info(fmt.Sprintf("publishing initial %s block", b.batchData[idx].finality), zap.Uint64("initial_block", block.Number.Uint64()))
+		sink <- block
+		if b.generateSafe && b.batchData[idx].finality == Finalized {
+			safe := block.Copy(Safe)
+			b.logger.Info("publishing generated initial safe block", zap.Uint64("initial_block", safe.Number.Uint64()))
+			sink <- safe
+		}
+	}
+
 	common.RunWithScissors(ctx, errC, "block_poll_subscribe_for_blocks", func(ctx context.Context) error {
 		timer := time.NewTimer(b.Delay)
 		defer timer.Stop()
