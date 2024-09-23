@@ -814,14 +814,14 @@ if wormchain:
         dockerfile = "./wormchain/Dockerfile",
         build_args = {"num_guardians": str(num_guardians)},
         only = [],
-        ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
+        ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/ts-client", "./wormchain/build/wormchaind"],
     )
 
     docker_build(
-        ref = "vue-export",
+        ref = "ts-client-export",
         context = ".",
         dockerfile = "./wormchain/Dockerfile.proto",
-        target = "vue-export",
+        target = "ts-client-export",
     )
 
     docker_build(

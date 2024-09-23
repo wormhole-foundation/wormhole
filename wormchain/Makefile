@@ -44,15 +44,15 @@ install: go.sum
 proto: $(PROTO_FILES)
 	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
 
-vue: $(GO_FILES) proto
+ts-client: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
-	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
+	DOCKER_BUILDKIT=1 docker build --target ts-client-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies
 .PHONY: ts-sdk
-ts-sdk: vue
+ts-sdk: ts-client
 	npm ci --prefix $@
 	npm run build --prefix $@
 
@@ -91,7 +91,7 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
+	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue/ ts-client/ 
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
 
 #####################
