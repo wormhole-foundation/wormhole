@@ -100,9 +100,7 @@ pub enum QueryMsg {
 
     #[returns(BalanceResponse)]
     /// Implements CW20. Returns the current balance of the given address, 0 if unset.
-    Balance {
-        address: HumanAddr,
-    },
+    Balance { address: HumanAddr },
 
     #[returns(TokenInfoResponse)]
     /// Implements CW20. Returns metadata on the contract - name, decimals, supply, etc.

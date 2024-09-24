@@ -1,4 +1,4 @@
-use cosmwasm_schema::{ cw_serde, QueryResponses};
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin};
 
 use crate::state::{GuardianAddress, GuardianSetInfo, ParsedVAA};
