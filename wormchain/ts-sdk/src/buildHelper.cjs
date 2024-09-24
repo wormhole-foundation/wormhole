@@ -6,7 +6,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const VUE_DIRECTORY = "../ts-client/";
+const TS_CLIENT_DIRECTORY = "../ts-client/";
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
 
 function execWrapper(command) {
@@ -25,15 +25,15 @@ function execWrapper(command) {
   });
 }
 
-const vueFiles = fs.readdirSync(VUE_DIRECTORY, { withFileTypes: true });
+const clientFiles = fs.readdirSync(TS_CLIENT_DIRECTORY, { withFileTypes: true });
 
 // Move all module directories from Ignite's ts-client to the ts-sdk
-vueFiles
+clientFiles
   .filter(directory => directory.isDirectory())
   .forEach((directory) => {
     execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
     execWrapper(
-      `cp -R ${VUE_DIRECTORY + directory.name}/* ${MODULE_DIRECTORY + directory.name
+      `cp -R ${TS_CLIENT_DIRECTORY + directory.name}/* ${MODULE_DIRECTORY + directory.name
       }/`
     );
   });
