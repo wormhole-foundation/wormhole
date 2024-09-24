@@ -8,21 +8,15 @@ import { msgTypes } from './registry';
 import { IgniteClient } from "../client"
 import { MissingWalletError } from "../helpers"
 import { Api } from "./rest";
-import { MsgSoftwareUpgrade } from "./types/cosmos/upgrade/v1beta1/tx";
 import { MsgCancelUpgrade } from "./types/cosmos/upgrade/v1beta1/tx";
+import { MsgSoftwareUpgrade } from "./types/cosmos/upgrade/v1beta1/tx";
 
 import { Plan as typePlan} from "./types"
 import { SoftwareUpgradeProposal as typeSoftwareUpgradeProposal} from "./types"
 import { CancelSoftwareUpgradeProposal as typeCancelSoftwareUpgradeProposal} from "./types"
 import { ModuleVersion as typeModuleVersion} from "./types"
 
-export { MsgSoftwareUpgrade, MsgCancelUpgrade };
-
-type sendMsgSoftwareUpgradeParams = {
-  value: MsgSoftwareUpgrade,
-  fee?: StdFee,
-  memo?: string
-};
+export { MsgCancelUpgrade, MsgSoftwareUpgrade };
 
 type sendMsgCancelUpgradeParams = {
   value: MsgCancelUpgrade,
@@ -30,13 +24,19 @@ type sendMsgCancelUpgradeParams = {
   memo?: string
 };
 
-
-type msgSoftwareUpgradeParams = {
+type sendMsgSoftwareUpgradeParams = {
   value: MsgSoftwareUpgrade,
+  fee?: StdFee,
+  memo?: string
 };
+
 
 type msgCancelUpgradeParams = {
   value: MsgCancelUpgrade,
+};
+
+type msgSoftwareUpgradeParams = {
+  value: MsgSoftwareUpgrade,
 };
 
 
@@ -69,20 +69,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 
   return {
 		
-		async sendMsgSoftwareUpgrade({ value, fee, memo }: sendMsgSoftwareUpgradeParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgSoftwareUpgrade: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgSoftwareUpgrade({ value: MsgSoftwareUpgrade.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgSoftwareUpgrade: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
 		async sendMsgCancelUpgrade({ value, fee, memo }: sendMsgCancelUpgradeParams): Promise<DeliverTxResponse> {
 			if (!signer) {
 					throw new Error('TxClient:sendMsgCancelUpgrade: Unable to sign Tx. Signer is not present.')
@@ -97,20 +83,34 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		
-		msgSoftwareUpgrade({ value }: msgSoftwareUpgradeParams): EncodeObject {
-			try {
-				return { typeUrl: "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade", value: MsgSoftwareUpgrade.fromPartial( value ) }  
+		async sendMsgSoftwareUpgrade({ value, fee, memo }: sendMsgSoftwareUpgradeParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgSoftwareUpgrade: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgSoftwareUpgrade({ value: MsgSoftwareUpgrade.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
-				throw new Error('TxClient:MsgSoftwareUpgrade: Could not create message: ' + e.message)
+				throw new Error('TxClient:sendMsgSoftwareUpgrade: Could not broadcast Tx: '+ e.message)
 			}
 		},
+		
 		
 		msgCancelUpgrade({ value }: msgCancelUpgradeParams): EncodeObject {
 			try {
 				return { typeUrl: "/cosmos.upgrade.v1beta1.MsgCancelUpgrade", value: MsgCancelUpgrade.fromPartial( value ) }  
 			} catch (e: any) {
 				throw new Error('TxClient:MsgCancelUpgrade: Could not create message: ' + e.message)
+			}
+		},
+		
+		msgSoftwareUpgrade({ value }: msgSoftwareUpgradeParams): EncodeObject {
+			try {
+				return { typeUrl: "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade", value: MsgSoftwareUpgrade.fromPartial( value ) }  
+			} catch (e: any) {
+				throw new Error('TxClient:MsgSoftwareUpgrade: Could not create message: ' + e.message)
 			}
 		},
 		

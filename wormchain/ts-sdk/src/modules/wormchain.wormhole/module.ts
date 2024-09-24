@@ -8,16 +8,16 @@ import { msgTypes } from './registry';
 import { IgniteClient } from "../client"
 import { MissingWalletError } from "../helpers"
 import { Api } from "./rest";
-import { MsgDeleteAllowlistEntryRequest } from "./types/wormchain/wormhole/tx";
-import { MsgMigrateContract } from "./types/wormchain/wormhole/tx";
 import { MsgExecuteGovernanceVAA } from "./types/wormchain/wormhole/tx";
-import { MsgStoreCode } from "./types/wormchain/wormhole/tx";
+import { MsgCreateAllowlistEntryRequest } from "./types/wormchain/wormhole/tx";
 import { MsgRegisterAccountAsGuardian } from "./types/wormchain/wormhole/tx";
+import { MsgStoreCode } from "./types/wormchain/wormhole/tx";
 import { MsgExecuteGatewayGovernanceVaa } from "./types/wormchain/wormhole/tx";
 import { MsgInstantiateContract } from "./types/wormchain/wormhole/tx";
-import { MsgAddWasmInstantiateAllowlist } from "./types/wormchain/wormhole/tx";
-import { MsgCreateAllowlistEntryRequest } from "./types/wormchain/wormhole/tx";
 import { MsgDeleteWasmInstantiateAllowlist } from "./types/wormchain/wormhole/tx";
+import { MsgAddWasmInstantiateAllowlist } from "./types/wormchain/wormhole/tx";
+import { MsgDeleteAllowlistEntryRequest } from "./types/wormchain/wormhole/tx";
+import { MsgMigrateContract } from "./types/wormchain/wormhole/tx";
 
 import { Config as typeConfig} from "./types"
 import { ConsensusGuardianSetIndex as typeConsensusGuardianSetIndex} from "./types"
@@ -34,19 +34,7 @@ import { IbcComposabilityMwContract as typeIbcComposabilityMwContract} from "./t
 import { ReplayProtection as typeReplayProtection} from "./types"
 import { SequenceCounter as typeSequenceCounter} from "./types"
 
-export { MsgDeleteAllowlistEntryRequest, MsgMigrateContract, MsgExecuteGovernanceVAA, MsgStoreCode, MsgRegisterAccountAsGuardian, MsgExecuteGatewayGovernanceVaa, MsgInstantiateContract, MsgAddWasmInstantiateAllowlist, MsgCreateAllowlistEntryRequest, MsgDeleteWasmInstantiateAllowlist };
-
-type sendMsgDeleteAllowlistEntryRequestParams = {
-  value: MsgDeleteAllowlistEntryRequest,
-  fee?: StdFee,
-  memo?: string
-};
-
-type sendMsgMigrateContractParams = {
-  value: MsgMigrateContract,
-  fee?: StdFee,
-  memo?: string
-};
+export { MsgExecuteGovernanceVAA, MsgCreateAllowlistEntryRequest, MsgRegisterAccountAsGuardian, MsgStoreCode, MsgExecuteGatewayGovernanceVaa, MsgInstantiateContract, MsgDeleteWasmInstantiateAllowlist, MsgAddWasmInstantiateAllowlist, MsgDeleteAllowlistEntryRequest, MsgMigrateContract };
 
 type sendMsgExecuteGovernanceVAAParams = {
   value: MsgExecuteGovernanceVAA,
@@ -54,14 +42,20 @@ type sendMsgExecuteGovernanceVAAParams = {
   memo?: string
 };
 
-type sendMsgStoreCodeParams = {
-  value: MsgStoreCode,
+type sendMsgCreateAllowlistEntryRequestParams = {
+  value: MsgCreateAllowlistEntryRequest,
   fee?: StdFee,
   memo?: string
 };
 
 type sendMsgRegisterAccountAsGuardianParams = {
   value: MsgRegisterAccountAsGuardian,
+  fee?: StdFee,
+  memo?: string
+};
+
+type sendMsgStoreCodeParams = {
+  value: MsgStoreCode,
   fee?: StdFee,
   memo?: string
 };
@@ -78,43 +72,45 @@ type sendMsgInstantiateContractParams = {
   memo?: string
 };
 
-type sendMsgAddWasmInstantiateAllowlistParams = {
-  value: MsgAddWasmInstantiateAllowlist,
-  fee?: StdFee,
-  memo?: string
-};
-
-type sendMsgCreateAllowlistEntryRequestParams = {
-  value: MsgCreateAllowlistEntryRequest,
-  fee?: StdFee,
-  memo?: string
-};
-
 type sendMsgDeleteWasmInstantiateAllowlistParams = {
   value: MsgDeleteWasmInstantiateAllowlist,
   fee?: StdFee,
   memo?: string
 };
 
+type sendMsgAddWasmInstantiateAllowlistParams = {
+  value: MsgAddWasmInstantiateAllowlist,
+  fee?: StdFee,
+  memo?: string
+};
 
-type msgDeleteAllowlistEntryRequestParams = {
+type sendMsgDeleteAllowlistEntryRequestParams = {
   value: MsgDeleteAllowlistEntryRequest,
+  fee?: StdFee,
+  memo?: string
 };
 
-type msgMigrateContractParams = {
+type sendMsgMigrateContractParams = {
   value: MsgMigrateContract,
+  fee?: StdFee,
+  memo?: string
 };
+
 
 type msgExecuteGovernanceVAAParams = {
   value: MsgExecuteGovernanceVAA,
 };
 
-type msgStoreCodeParams = {
-  value: MsgStoreCode,
+type msgCreateAllowlistEntryRequestParams = {
+  value: MsgCreateAllowlistEntryRequest,
 };
 
 type msgRegisterAccountAsGuardianParams = {
   value: MsgRegisterAccountAsGuardian,
+};
+
+type msgStoreCodeParams = {
+  value: MsgStoreCode,
 };
 
 type msgExecuteGatewayGovernanceVaaParams = {
@@ -125,16 +121,20 @@ type msgInstantiateContractParams = {
   value: MsgInstantiateContract,
 };
 
+type msgDeleteWasmInstantiateAllowlistParams = {
+  value: MsgDeleteWasmInstantiateAllowlist,
+};
+
 type msgAddWasmInstantiateAllowlistParams = {
   value: MsgAddWasmInstantiateAllowlist,
 };
 
-type msgCreateAllowlistEntryRequestParams = {
-  value: MsgCreateAllowlistEntryRequest,
+type msgDeleteAllowlistEntryRequestParams = {
+  value: MsgDeleteAllowlistEntryRequest,
 };
 
-type msgDeleteWasmInstantiateAllowlistParams = {
-  value: MsgDeleteWasmInstantiateAllowlist,
+type msgMigrateContractParams = {
+  value: MsgMigrateContract,
 };
 
 
@@ -167,34 +167,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 
   return {
 		
-		async sendMsgDeleteAllowlistEntryRequest({ value, fee, memo }: sendMsgDeleteAllowlistEntryRequestParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgDeleteAllowlistEntryRequest: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgDeleteAllowlistEntryRequest({ value: MsgDeleteAllowlistEntryRequest.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgDeleteAllowlistEntryRequest: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
-		async sendMsgMigrateContract({ value, fee, memo }: sendMsgMigrateContractParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgMigrateContract: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgMigrateContract({ value: MsgMigrateContract.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgMigrateContract: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
 		async sendMsgExecuteGovernanceVAA({ value, fee, memo }: sendMsgExecuteGovernanceVAAParams): Promise<DeliverTxResponse> {
 			if (!signer) {
 					throw new Error('TxClient:sendMsgExecuteGovernanceVAA: Unable to sign Tx. Signer is not present.')
@@ -209,17 +181,17 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		async sendMsgStoreCode({ value, fee, memo }: sendMsgStoreCodeParams): Promise<DeliverTxResponse> {
+		async sendMsgCreateAllowlistEntryRequest({ value, fee, memo }: sendMsgCreateAllowlistEntryRequestParams): Promise<DeliverTxResponse> {
 			if (!signer) {
-					throw new Error('TxClient:sendMsgStoreCode: Unable to sign Tx. Signer is not present.')
+					throw new Error('TxClient:sendMsgCreateAllowlistEntryRequest: Unable to sign Tx. Signer is not present.')
 			}
 			try {			
 				const { address } = (await signer.getAccounts())[0]; 
 				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgStoreCode({ value: MsgStoreCode.fromPartial(value) })
+				let msg = this.msgCreateAllowlistEntryRequest({ value: MsgCreateAllowlistEntryRequest.fromPartial(value) })
 				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
-				throw new Error('TxClient:sendMsgStoreCode: Could not broadcast Tx: '+ e.message)
+				throw new Error('TxClient:sendMsgCreateAllowlistEntryRequest: Could not broadcast Tx: '+ e.message)
 			}
 		},
 		
@@ -234,6 +206,20 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
 				throw new Error('TxClient:sendMsgRegisterAccountAsGuardian: Could not broadcast Tx: '+ e.message)
+			}
+		},
+		
+		async sendMsgStoreCode({ value, fee, memo }: sendMsgStoreCodeParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgStoreCode: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgStoreCode({ value: MsgStoreCode.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
+			} catch (e: any) {
+				throw new Error('TxClient:sendMsgStoreCode: Could not broadcast Tx: '+ e.message)
 			}
 		},
 		
@@ -265,34 +251,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		async sendMsgAddWasmInstantiateAllowlist({ value, fee, memo }: sendMsgAddWasmInstantiateAllowlistParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgAddWasmInstantiateAllowlist: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgAddWasmInstantiateAllowlist({ value: MsgAddWasmInstantiateAllowlist.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgAddWasmInstantiateAllowlist: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
-		async sendMsgCreateAllowlistEntryRequest({ value, fee, memo }: sendMsgCreateAllowlistEntryRequestParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgCreateAllowlistEntryRequest: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgCreateAllowlistEntryRequest({ value: MsgCreateAllowlistEntryRequest.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgCreateAllowlistEntryRequest: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
 		async sendMsgDeleteWasmInstantiateAllowlist({ value, fee, memo }: sendMsgDeleteWasmInstantiateAllowlistParams): Promise<DeliverTxResponse> {
 			if (!signer) {
 					throw new Error('TxClient:sendMsgDeleteWasmInstantiateAllowlist: Unable to sign Tx. Signer is not present.')
@@ -307,22 +265,48 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		
-		msgDeleteAllowlistEntryRequest({ value }: msgDeleteAllowlistEntryRequestParams): EncodeObject {
-			try {
-				return { typeUrl: "/wormchain.wormhole.MsgDeleteAllowlistEntryRequest", value: MsgDeleteAllowlistEntryRequest.fromPartial( value ) }  
+		async sendMsgAddWasmInstantiateAllowlist({ value, fee, memo }: sendMsgAddWasmInstantiateAllowlistParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgAddWasmInstantiateAllowlist: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgAddWasmInstantiateAllowlist({ value: MsgAddWasmInstantiateAllowlist.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
-				throw new Error('TxClient:MsgDeleteAllowlistEntryRequest: Could not create message: ' + e.message)
+				throw new Error('TxClient:sendMsgAddWasmInstantiateAllowlist: Could not broadcast Tx: '+ e.message)
 			}
 		},
 		
-		msgMigrateContract({ value }: msgMigrateContractParams): EncodeObject {
-			try {
-				return { typeUrl: "/wormchain.wormhole.MsgMigrateContract", value: MsgMigrateContract.fromPartial( value ) }  
+		async sendMsgDeleteAllowlistEntryRequest({ value, fee, memo }: sendMsgDeleteAllowlistEntryRequestParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgDeleteAllowlistEntryRequest: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgDeleteAllowlistEntryRequest({ value: MsgDeleteAllowlistEntryRequest.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
-				throw new Error('TxClient:MsgMigrateContract: Could not create message: ' + e.message)
+				throw new Error('TxClient:sendMsgDeleteAllowlistEntryRequest: Could not broadcast Tx: '+ e.message)
 			}
 		},
+		
+		async sendMsgMigrateContract({ value, fee, memo }: sendMsgMigrateContractParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgMigrateContract: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgMigrateContract({ value: MsgMigrateContract.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
+			} catch (e: any) {
+				throw new Error('TxClient:sendMsgMigrateContract: Could not broadcast Tx: '+ e.message)
+			}
+		},
+		
 		
 		msgExecuteGovernanceVAA({ value }: msgExecuteGovernanceVAAParams): EncodeObject {
 			try {
@@ -332,11 +316,11 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		msgStoreCode({ value }: msgStoreCodeParams): EncodeObject {
+		msgCreateAllowlistEntryRequest({ value }: msgCreateAllowlistEntryRequestParams): EncodeObject {
 			try {
-				return { typeUrl: "/wormchain.wormhole.MsgStoreCode", value: MsgStoreCode.fromPartial( value ) }  
+				return { typeUrl: "/wormchain.wormhole.MsgCreateAllowlistEntryRequest", value: MsgCreateAllowlistEntryRequest.fromPartial( value ) }  
 			} catch (e: any) {
-				throw new Error('TxClient:MsgStoreCode: Could not create message: ' + e.message)
+				throw new Error('TxClient:MsgCreateAllowlistEntryRequest: Could not create message: ' + e.message)
 			}
 		},
 		
@@ -345,6 +329,14 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 				return { typeUrl: "/wormchain.wormhole.MsgRegisterAccountAsGuardian", value: MsgRegisterAccountAsGuardian.fromPartial( value ) }  
 			} catch (e: any) {
 				throw new Error('TxClient:MsgRegisterAccountAsGuardian: Could not create message: ' + e.message)
+			}
+		},
+		
+		msgStoreCode({ value }: msgStoreCodeParams): EncodeObject {
+			try {
+				return { typeUrl: "/wormchain.wormhole.MsgStoreCode", value: MsgStoreCode.fromPartial( value ) }  
+			} catch (e: any) {
+				throw new Error('TxClient:MsgStoreCode: Could not create message: ' + e.message)
 			}
 		},
 		
@@ -364,6 +356,14 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
+		msgDeleteWasmInstantiateAllowlist({ value }: msgDeleteWasmInstantiateAllowlistParams): EncodeObject {
+			try {
+				return { typeUrl: "/wormchain.wormhole.MsgDeleteWasmInstantiateAllowlist", value: MsgDeleteWasmInstantiateAllowlist.fromPartial( value ) }  
+			} catch (e: any) {
+				throw new Error('TxClient:MsgDeleteWasmInstantiateAllowlist: Could not create message: ' + e.message)
+			}
+		},
+		
 		msgAddWasmInstantiateAllowlist({ value }: msgAddWasmInstantiateAllowlistParams): EncodeObject {
 			try {
 				return { typeUrl: "/wormchain.wormhole.MsgAddWasmInstantiateAllowlist", value: MsgAddWasmInstantiateAllowlist.fromPartial( value ) }  
@@ -372,19 +372,19 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		msgCreateAllowlistEntryRequest({ value }: msgCreateAllowlistEntryRequestParams): EncodeObject {
+		msgDeleteAllowlistEntryRequest({ value }: msgDeleteAllowlistEntryRequestParams): EncodeObject {
 			try {
-				return { typeUrl: "/wormchain.wormhole.MsgCreateAllowlistEntryRequest", value: MsgCreateAllowlistEntryRequest.fromPartial( value ) }  
+				return { typeUrl: "/wormchain.wormhole.MsgDeleteAllowlistEntryRequest", value: MsgDeleteAllowlistEntryRequest.fromPartial( value ) }  
 			} catch (e: any) {
-				throw new Error('TxClient:MsgCreateAllowlistEntryRequest: Could not create message: ' + e.message)
+				throw new Error('TxClient:MsgDeleteAllowlistEntryRequest: Could not create message: ' + e.message)
 			}
 		},
 		
-		msgDeleteWasmInstantiateAllowlist({ value }: msgDeleteWasmInstantiateAllowlistParams): EncodeObject {
+		msgMigrateContract({ value }: msgMigrateContractParams): EncodeObject {
 			try {
-				return { typeUrl: "/wormchain.wormhole.MsgDeleteWasmInstantiateAllowlist", value: MsgDeleteWasmInstantiateAllowlist.fromPartial( value ) }  
+				return { typeUrl: "/wormchain.wormhole.MsgMigrateContract", value: MsgMigrateContract.fromPartial( value ) }  
 			} catch (e: any) {
-				throw new Error('TxClient:MsgDeleteWasmInstantiateAllowlist: Could not create message: ' + e.message)
+				throw new Error('TxClient:MsgMigrateContract: Could not create message: ' + e.message)
 			}
 		},
 		
