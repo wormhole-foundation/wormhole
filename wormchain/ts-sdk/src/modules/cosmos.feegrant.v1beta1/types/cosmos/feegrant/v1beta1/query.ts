@@ -1,11 +1,8 @@
 //@ts-nocheck
 /* eslint-disable */
-import { Reader, Writer } from "protobufjs/minimal";
-import { Grant } from "../../../cosmos/feegrant/v1beta1/feegrant";
-import {
-  PageRequest,
-  PageResponse,
-} from "../../../cosmos/base/query/v1beta1/pagination";
+import _m0 from "protobufjs/minimal";
+import { PageRequest, PageResponse } from "../../base/query/v1beta1/pagination";
+import { Grant } from "./feegrant";
 
 export const protobufPackage = "cosmos.feegrant.v1beta1";
 
@@ -40,14 +37,22 @@ export interface QueryAllowancesResponse {
   pagination: PageResponse | undefined;
 }
 
-/** QueryAllowancesByGranterRequest is the request type for the Query/AllowancesByGranter RPC method. */
+/**
+ * QueryAllowancesByGranterRequest is the request type for the Query/AllowancesByGranter RPC method.
+ *
+ * Since: cosmos-sdk 0.46
+ */
 export interface QueryAllowancesByGranterRequest {
   granter: string;
   /** pagination defines an pagination for the request. */
   pagination: PageRequest | undefined;
 }
 
-/** QueryAllowancesByGranterResponse is the response type for the Query/AllowancesByGranter RPC method. */
+/**
+ * QueryAllowancesByGranterResponse is the response type for the Query/AllowancesByGranter RPC method.
+ *
+ * Since: cosmos-sdk 0.46
+ */
 export interface QueryAllowancesByGranterResponse {
   /** allowances that have been issued by the granter. */
   allowances: Grant[];
@@ -55,13 +60,12 @@ export interface QueryAllowancesByGranterResponse {
   pagination: PageResponse | undefined;
 }
 
-const baseQueryAllowanceRequest: object = { granter: "", grantee: "" };
+function createBaseQueryAllowanceRequest(): QueryAllowanceRequest {
+  return { granter: "", grantee: "" };
+}
 
 export const QueryAllowanceRequest = {
-  encode(
-    message: QueryAllowanceRequest,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowanceRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.granter !== "") {
       writer.uint32(10).string(message.granter);
     }
@@ -71,10 +75,10 @@ export const QueryAllowanceRequest = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): QueryAllowanceRequest {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowanceRequest {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseQueryAllowanceRequest } as QueryAllowanceRequest;
+    const message = createBaseQueryAllowanceRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -93,18 +97,10 @@ export const QueryAllowanceRequest = {
   },
 
   fromJSON(object: any): QueryAllowanceRequest {
-    const message = { ...baseQueryAllowanceRequest } as QueryAllowanceRequest;
-    if (object.granter !== undefined && object.granter !== null) {
-      message.granter = String(object.granter);
-    } else {
-      message.granter = "";
-    }
-    if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = String(object.grantee);
-    } else {
-      message.grantee = "";
-    }
-    return message;
+    return {
+      granter: isSet(object.granter) ? String(object.granter) : "",
+      grantee: isSet(object.grantee) ? String(object.grantee) : "",
+    };
   },
 
   toJSON(message: QueryAllowanceRequest): unknown {
@@ -114,41 +110,30 @@ export const QueryAllowanceRequest = {
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowanceRequest>
-  ): QueryAllowanceRequest {
-    const message = { ...baseQueryAllowanceRequest } as QueryAllowanceRequest;
-    if (object.granter !== undefined && object.granter !== null) {
-      message.granter = object.granter;
-    } else {
-      message.granter = "";
-    }
-    if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = object.grantee;
-    } else {
-      message.grantee = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<QueryAllowanceRequest>, I>>(object: I): QueryAllowanceRequest {
+    const message = createBaseQueryAllowanceRequest();
+    message.granter = object.granter ?? "";
+    message.grantee = object.grantee ?? "";
     return message;
   },
 };
 
-const baseQueryAllowanceResponse: object = {};
+function createBaseQueryAllowanceResponse(): QueryAllowanceResponse {
+  return { allowance: undefined };
+}
 
 export const QueryAllowanceResponse = {
-  encode(
-    message: QueryAllowanceResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowanceResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.allowance !== undefined) {
       Grant.encode(message.allowance, writer.uint32(10).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): QueryAllowanceResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowanceResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseQueryAllowanceResponse } as QueryAllowanceResponse;
+    const message = createBaseQueryAllowanceResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -164,44 +149,31 @@ export const QueryAllowanceResponse = {
   },
 
   fromJSON(object: any): QueryAllowanceResponse {
-    const message = { ...baseQueryAllowanceResponse } as QueryAllowanceResponse;
-    if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Grant.fromJSON(object.allowance);
-    } else {
-      message.allowance = undefined;
-    }
-    return message;
+    return { allowance: isSet(object.allowance) ? Grant.fromJSON(object.allowance) : undefined };
   },
 
   toJSON(message: QueryAllowanceResponse): unknown {
     const obj: any = {};
-    message.allowance !== undefined &&
-      (obj.allowance = message.allowance
-        ? Grant.toJSON(message.allowance)
-        : undefined);
+    message.allowance !== undefined
+      && (obj.allowance = message.allowance ? Grant.toJSON(message.allowance) : undefined);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowanceResponse>
-  ): QueryAllowanceResponse {
-    const message = { ...baseQueryAllowanceResponse } as QueryAllowanceResponse;
-    if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Grant.fromPartial(object.allowance);
-    } else {
-      message.allowance = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<QueryAllowanceResponse>, I>>(object: I): QueryAllowanceResponse {
+    const message = createBaseQueryAllowanceResponse();
+    message.allowance = (object.allowance !== undefined && object.allowance !== null)
+      ? Grant.fromPartial(object.allowance)
+      : undefined;
     return message;
   },
 };
 
-const baseQueryAllowancesRequest: object = { grantee: "" };
+function createBaseQueryAllowancesRequest(): QueryAllowancesRequest {
+  return { grantee: "", pagination: undefined };
+}
 
 export const QueryAllowancesRequest = {
-  encode(
-    message: QueryAllowancesRequest,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowancesRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.grantee !== "") {
       writer.uint32(10).string(message.grantee);
     }
@@ -211,10 +183,10 @@ export const QueryAllowancesRequest = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): QueryAllowancesRequest {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowancesRequest {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseQueryAllowancesRequest } as QueryAllowancesRequest;
+    const message = createBaseQueryAllowancesRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -233,74 +205,49 @@ export const QueryAllowancesRequest = {
   },
 
   fromJSON(object: any): QueryAllowancesRequest {
-    const message = { ...baseQueryAllowancesRequest } as QueryAllowancesRequest;
-    if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = String(object.grantee);
-    } else {
-      message.grantee = "";
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageRequest.fromJSON(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
-    return message;
+    return {
+      grantee: isSet(object.grantee) ? String(object.grantee) : "",
+      pagination: isSet(object.pagination) ? PageRequest.fromJSON(object.pagination) : undefined,
+    };
   },
 
   toJSON(message: QueryAllowancesRequest): unknown {
     const obj: any = {};
     message.grantee !== undefined && (obj.grantee = message.grantee);
-    message.pagination !== undefined &&
-      (obj.pagination = message.pagination
-        ? PageRequest.toJSON(message.pagination)
-        : undefined);
+    message.pagination !== undefined
+      && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowancesRequest>
-  ): QueryAllowancesRequest {
-    const message = { ...baseQueryAllowancesRequest } as QueryAllowancesRequest;
-    if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = object.grantee;
-    } else {
-      message.grantee = "";
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageRequest.fromPartial(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<QueryAllowancesRequest>, I>>(object: I): QueryAllowancesRequest {
+    const message = createBaseQueryAllowancesRequest();
+    message.grantee = object.grantee ?? "";
+    message.pagination = (object.pagination !== undefined && object.pagination !== null)
+      ? PageRequest.fromPartial(object.pagination)
+      : undefined;
     return message;
   },
 };
 
-const baseQueryAllowancesResponse: object = {};
+function createBaseQueryAllowancesResponse(): QueryAllowancesResponse {
+  return { allowances: [], pagination: undefined };
+}
 
 export const QueryAllowancesResponse = {
-  encode(
-    message: QueryAllowancesResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowancesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.allowances) {
       Grant.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     if (message.pagination !== undefined) {
-      PageResponse.encode(
-        message.pagination,
-        writer.uint32(18).fork()
-      ).ldelim();
+      PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): QueryAllowancesResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowancesResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseQueryAllowancesResponse,
-    } as QueryAllowancesResponse;
-    message.allowances = [];
+    const message = createBaseQueryAllowancesResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -319,67 +266,40 @@ export const QueryAllowancesResponse = {
   },
 
   fromJSON(object: any): QueryAllowancesResponse {
-    const message = {
-      ...baseQueryAllowancesResponse,
-    } as QueryAllowancesResponse;
-    message.allowances = [];
-    if (object.allowances !== undefined && object.allowances !== null) {
-      for (const e of object.allowances) {
-        message.allowances.push(Grant.fromJSON(e));
-      }
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageResponse.fromJSON(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
-    return message;
+    return {
+      allowances: Array.isArray(object?.allowances) ? object.allowances.map((e: any) => Grant.fromJSON(e)) : [],
+      pagination: isSet(object.pagination) ? PageResponse.fromJSON(object.pagination) : undefined,
+    };
   },
 
   toJSON(message: QueryAllowancesResponse): unknown {
     const obj: any = {};
     if (message.allowances) {
-      obj.allowances = message.allowances.map((e) =>
-        e ? Grant.toJSON(e) : undefined
-      );
+      obj.allowances = message.allowances.map((e) => e ? Grant.toJSON(e) : undefined);
     } else {
       obj.allowances = [];
     }
-    message.pagination !== undefined &&
-      (obj.pagination = message.pagination
-        ? PageResponse.toJSON(message.pagination)
-        : undefined);
+    message.pagination !== undefined
+      && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowancesResponse>
-  ): QueryAllowancesResponse {
-    const message = {
-      ...baseQueryAllowancesResponse,
-    } as QueryAllowancesResponse;
-    message.allowances = [];
-    if (object.allowances !== undefined && object.allowances !== null) {
-      for (const e of object.allowances) {
-        message.allowances.push(Grant.fromPartial(e));
-      }
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageResponse.fromPartial(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<QueryAllowancesResponse>, I>>(object: I): QueryAllowancesResponse {
+    const message = createBaseQueryAllowancesResponse();
+    message.allowances = object.allowances?.map((e) => Grant.fromPartial(e)) || [];
+    message.pagination = (object.pagination !== undefined && object.pagination !== null)
+      ? PageResponse.fromPartial(object.pagination)
+      : undefined;
     return message;
   },
 };
 
-const baseQueryAllowancesByGranterRequest: object = { granter: "" };
+function createBaseQueryAllowancesByGranterRequest(): QueryAllowancesByGranterRequest {
+  return { granter: "", pagination: undefined };
+}
 
 export const QueryAllowancesByGranterRequest = {
-  encode(
-    message: QueryAllowancesByGranterRequest,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowancesByGranterRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.granter !== "") {
       writer.uint32(10).string(message.granter);
     }
@@ -389,15 +309,10 @@ export const QueryAllowancesByGranterRequest = {
     return writer;
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): QueryAllowancesByGranterRequest {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowancesByGranterRequest {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseQueryAllowancesByGranterRequest,
-    } as QueryAllowancesByGranterRequest;
+    const message = createBaseQueryAllowancesByGranterRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -416,81 +331,51 @@ export const QueryAllowancesByGranterRequest = {
   },
 
   fromJSON(object: any): QueryAllowancesByGranterRequest {
-    const message = {
-      ...baseQueryAllowancesByGranterRequest,
-    } as QueryAllowancesByGranterRequest;
-    if (object.granter !== undefined && object.granter !== null) {
-      message.granter = String(object.granter);
-    } else {
-      message.granter = "";
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageRequest.fromJSON(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
-    return message;
+    return {
+      granter: isSet(object.granter) ? String(object.granter) : "",
+      pagination: isSet(object.pagination) ? PageRequest.fromJSON(object.pagination) : undefined,
+    };
   },
 
   toJSON(message: QueryAllowancesByGranterRequest): unknown {
     const obj: any = {};
     message.granter !== undefined && (obj.granter = message.granter);
-    message.pagination !== undefined &&
-      (obj.pagination = message.pagination
-        ? PageRequest.toJSON(message.pagination)
-        : undefined);
+    message.pagination !== undefined
+      && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowancesByGranterRequest>
+  fromPartial<I extends Exact<DeepPartial<QueryAllowancesByGranterRequest>, I>>(
+    object: I,
   ): QueryAllowancesByGranterRequest {
-    const message = {
-      ...baseQueryAllowancesByGranterRequest,
-    } as QueryAllowancesByGranterRequest;
-    if (object.granter !== undefined && object.granter !== null) {
-      message.granter = object.granter;
-    } else {
-      message.granter = "";
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageRequest.fromPartial(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
+    const message = createBaseQueryAllowancesByGranterRequest();
+    message.granter = object.granter ?? "";
+    message.pagination = (object.pagination !== undefined && object.pagination !== null)
+      ? PageRequest.fromPartial(object.pagination)
+      : undefined;
     return message;
   },
 };
 
-const baseQueryAllowancesByGranterResponse: object = {};
+function createBaseQueryAllowancesByGranterResponse(): QueryAllowancesByGranterResponse {
+  return { allowances: [], pagination: undefined };
+}
 
 export const QueryAllowancesByGranterResponse = {
-  encode(
-    message: QueryAllowancesByGranterResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: QueryAllowancesByGranterResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.allowances) {
       Grant.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     if (message.pagination !== undefined) {
-      PageResponse.encode(
-        message.pagination,
-        writer.uint32(18).fork()
-      ).ldelim();
+      PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): QueryAllowancesByGranterResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): QueryAllowancesByGranterResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseQueryAllowancesByGranterResponse,
-    } as QueryAllowancesByGranterResponse;
-    message.allowances = [];
+    const message = createBaseQueryAllowancesByGranterResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -509,56 +394,32 @@ export const QueryAllowancesByGranterResponse = {
   },
 
   fromJSON(object: any): QueryAllowancesByGranterResponse {
-    const message = {
-      ...baseQueryAllowancesByGranterResponse,
-    } as QueryAllowancesByGranterResponse;
-    message.allowances = [];
-    if (object.allowances !== undefined && object.allowances !== null) {
-      for (const e of object.allowances) {
-        message.allowances.push(Grant.fromJSON(e));
-      }
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageResponse.fromJSON(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
-    return message;
+    return {
+      allowances: Array.isArray(object?.allowances) ? object.allowances.map((e: any) => Grant.fromJSON(e)) : [],
+      pagination: isSet(object.pagination) ? PageResponse.fromJSON(object.pagination) : undefined,
+    };
   },
 
   toJSON(message: QueryAllowancesByGranterResponse): unknown {
     const obj: any = {};
     if (message.allowances) {
-      obj.allowances = message.allowances.map((e) =>
-        e ? Grant.toJSON(e) : undefined
-      );
+      obj.allowances = message.allowances.map((e) => e ? Grant.toJSON(e) : undefined);
     } else {
       obj.allowances = [];
     }
-    message.pagination !== undefined &&
-      (obj.pagination = message.pagination
-        ? PageResponse.toJSON(message.pagination)
-        : undefined);
+    message.pagination !== undefined
+      && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<QueryAllowancesByGranterResponse>
+  fromPartial<I extends Exact<DeepPartial<QueryAllowancesByGranterResponse>, I>>(
+    object: I,
   ): QueryAllowancesByGranterResponse {
-    const message = {
-      ...baseQueryAllowancesByGranterResponse,
-    } as QueryAllowancesByGranterResponse;
-    message.allowances = [];
-    if (object.allowances !== undefined && object.allowances !== null) {
-      for (const e of object.allowances) {
-        message.allowances.push(Grant.fromPartial(e));
-      }
-    }
-    if (object.pagination !== undefined && object.pagination !== null) {
-      message.pagination = PageResponse.fromPartial(object.pagination);
-    } else {
-      message.pagination = undefined;
-    }
+    const message = createBaseQueryAllowancesByGranterResponse();
+    message.allowances = object.allowances?.map((e) => Grant.fromPartial(e)) || [];
+    message.pagination = (object.pagination !== undefined && object.pagination !== null)
+      ? PageResponse.fromPartial(object.pagination)
+      : undefined;
     return message;
   },
 };
@@ -571,74 +432,54 @@ export interface Query {
   Allowances(request: QueryAllowancesRequest): Promise<QueryAllowancesResponse>;
   /**
    * AllowancesByGranter returns all the grants given by an address
-   * Since v0.46
+   *
+   * Since: cosmos-sdk 0.46
    */
-  AllowancesByGranter(
-    request: QueryAllowancesByGranterRequest
-  ): Promise<QueryAllowancesByGranterResponse>;
+  AllowancesByGranter(request: QueryAllowancesByGranterRequest): Promise<QueryAllowancesByGranterResponse>;
 }
 
 export class QueryClientImpl implements Query {
   private readonly rpc: Rpc;
   constructor(rpc: Rpc) {
     this.rpc = rpc;
+    this.Allowance = this.Allowance.bind(this);
+    this.Allowances = this.Allowances.bind(this);
+    this.AllowancesByGranter = this.AllowancesByGranter.bind(this);
   }
   Allowance(request: QueryAllowanceRequest): Promise<QueryAllowanceResponse> {
     const data = QueryAllowanceRequest.encode(request).finish();
-    const promise = this.rpc.request(
-      "cosmos.feegrant.v1beta1.Query",
-      "Allowance",
-      data
-    );
-    return promise.then((data) =>
-      QueryAllowanceResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("cosmos.feegrant.v1beta1.Query", "Allowance", data);
+    return promise.then((data) => QueryAllowanceResponse.decode(new _m0.Reader(data)));
   }
 
-  Allowances(
-    request: QueryAllowancesRequest
-  ): Promise<QueryAllowancesResponse> {
+  Allowances(request: QueryAllowancesRequest): Promise<QueryAllowancesResponse> {
     const data = QueryAllowancesRequest.encode(request).finish();
-    const promise = this.rpc.request(
-      "cosmos.feegrant.v1beta1.Query",
-      "Allowances",
-      data
-    );
-    return promise.then((data) =>
-      QueryAllowancesResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("cosmos.feegrant.v1beta1.Query", "Allowances", data);
+    return promise.then((data) => QueryAllowancesResponse.decode(new _m0.Reader(data)));
   }
 
-  AllowancesByGranter(
-    request: QueryAllowancesByGranterRequest
-  ): Promise<QueryAllowancesByGranterResponse> {
+  AllowancesByGranter(request: QueryAllowancesByGranterRequest): Promise<QueryAllowancesByGranterResponse> {
     const data = QueryAllowancesByGranterRequest.encode(request).finish();
-    const promise = this.rpc.request(
-      "cosmos.feegrant.v1beta1.Query",
-      "AllowancesByGranter",
-      data
-    );
-    return promise.then((data) =>
-      QueryAllowancesByGranterResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("cosmos.feegrant.v1beta1.Query", "AllowancesByGranter", data);
+    return promise.then((data) => QueryAllowancesByGranterResponse.decode(new _m0.Reader(data)));
   }
 }
 
 interface Rpc {
-  request(
-    service: string,
-    method: string,
-    data: Uint8Array
-  ): Promise<Uint8Array>;
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
 }
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
+}

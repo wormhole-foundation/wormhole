@@ -71,14 +71,14 @@ COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/i
 
 
 
-## VUE BUILDER STAGE
-FROM wormchain-builder AS ignite-vue-build
+## TS CLIENT BUILDER STAGE
+FROM wormchain-builder AS ignite-ts-client-build
 # Ignite only likes minor versions in go.mod
 RUN sed -i 's/go 1.22.5/go 1.22/g' go.mod
-RUN NODE_OPTIONS="" ignite generate vuex
+RUN NODE_OPTIONS="" ignite generate ts-client
 
 
 
 ## VUE EXPORT STAGE
-FROM scratch AS vue-export
-COPY --from=ignite-vue-build /wh/apps/wormchain/vue /vue
+FROM scratch AS ts-client-export
+COPY --from=ignite-ts-client-build /wh/apps/wormchain/ts-client /ts-client

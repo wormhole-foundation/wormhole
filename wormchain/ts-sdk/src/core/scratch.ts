@@ -6,7 +6,6 @@ import { bech32 } from "bech32";
 import {
   coins,
   DirectSecp256k1HdWallet,
-  EncodeObject,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
 import {
@@ -25,19 +24,18 @@ import {
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import {
   RpcStatus,
-  HttpResponse,
-} from "../modules/wormhole_foundation.wormchain.wormhole/rest";
+} from "../modules/wormchain.wormhole/rest";
 import {
   txClient,
   queryClient,
-} from "../modules/wormhole_foundation.wormchain.wormhole";
+} from "../modules/wormchain.wormhole";
 import { keccak256 } from "ethers/lib/utils";
-import { MsgRegisterAccountAsGuardian } from "../modules/wormhole_foundation.wormchain.wormhole/types/wormhole/tx";
-import { GuardianKey } from "../modules/wormhole_foundation.wormchain.wormhole/types/wormhole/guardian_key";
+import { MsgRegisterAccountAsGuardian } from "../modules/wormchain.wormhole/types/wormchain/wormhole/tx";
+import { AxiosResponse } from "axios";
+import { ADDRESS_PREFIX } from "./consts";
 let elliptic = require("elliptic"); //No TS defs?
 
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
-const ADDRESS_PREFIX = "wormhole";
 const OPERATOR_PREFIX = "wormholevaloper";
 export const TENDERMINT_URL = "http://localhost:26658";
 export const WORM_DENOM = "uworm";
@@ -95,10 +93,13 @@ export async function executeGovernanceVAA(
 ) {
   const offline: OfflineSigner = wallet;
 
-  const client = await txClient(offline, { addr: TENDERMINT_URL });
+  const client = await txClient({ signer: offline, addr: TENDERMINT_URL, prefix: ADDRESS_PREFIX });
+
   const msg = client.msgExecuteGovernanceVAA({
-    vaa: new Uint8Array(),
-    signer: await getAddress(wallet),
+    value: {
+      vaa: new Uint8Array(),
+      signer: await getAddress(wallet),
+    },
   }); //TODO convert type
 
   const signingClient = await SigningStargateClient.connectWithSigner(
@@ -156,7 +157,7 @@ export async function getGuardianValidatorRegistrations() {
 }
 
 export async function unpackHttpReponse<T>(
-  response: Promise<HttpResponse<T, RpcStatus>>
+  response: Promise<AxiosResponse<T, RpcStatus>>
 ) {
   const http = await response;
   //TODO check rpc status
@@ -188,10 +189,12 @@ export async function registerGuardianValidator(
   };
 
   const offline: OfflineSigner = wallet;
-  const client = await txClient(offline, { addr: TENDERMINT_URL });
-  const msg = client.msgRegisterAccountAsGuardian(args);
+  const client = await txClient({ signer: offline, addr: TENDERMINT_URL, prefix: ADDRESS_PREFIX });
+  const msg = client.msgRegisterAccountAsGuardian({
+    value: args
+  });
 
-  const output = await client.signAndBroadcast([msg]);
+  const output = await client.sendMsgRegisterAccountAsGuardian(msg);
 
   return output;
 }

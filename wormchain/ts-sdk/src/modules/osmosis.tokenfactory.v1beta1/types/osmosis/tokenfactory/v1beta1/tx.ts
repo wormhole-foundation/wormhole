@@ -1,8 +1,9 @@
 //@ts-nocheck
 /* eslint-disable */
-import { Reader, Writer } from "protobufjs/minimal";
-import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import _m0 from "protobufjs/minimal";
 import { Metadata } from "../../../cosmos/bank/v1beta1/bank";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Params } from "./params";
 
 export const protobufPackage = "osmosis.tokenfactory.v1beta1";
 
@@ -28,7 +29,7 @@ export interface MsgCreateDenom {
  * It returns the full string of the newly created denom
  */
 export interface MsgCreateDenomResponse {
-  new_token_denom: string;
+  newTokenDenom: string;
 }
 
 /**
@@ -41,7 +42,8 @@ export interface MsgMint {
   mintToAddress: string;
 }
 
-export interface MsgMintResponse {}
+export interface MsgMintResponse {
+}
 
 /**
  * MsgBurn is the sdk.Msg type for allowing an admin account to burn
@@ -53,7 +55,8 @@ export interface MsgBurn {
   burnFromAddress: string;
 }
 
-export interface MsgBurnResponse {}
+export interface MsgBurnResponse {
+}
 
 /**
  * MsgChangeAdmin is the sdk.Msg type for allowing an admin account to reassign
@@ -62,14 +65,15 @@ export interface MsgBurnResponse {}
 export interface MsgChangeAdmin {
   sender: string;
   denom: string;
-  new_admin: string;
+  newAdmin: string;
 }
 
 /**
  * MsgChangeAdminResponse defines the response structure for an executed
  * MsgChangeAdmin message.
  */
-export interface MsgChangeAdminResponse {}
+export interface MsgChangeAdminResponse {
+}
 
 /**
  * MsgSetDenomMetadata is the sdk.Msg type for allowing an admin account to set
@@ -84,7 +88,8 @@ export interface MsgSetDenomMetadata {
  * MsgSetDenomMetadataResponse defines the response structure for an executed
  * MsgSetDenomMetadata message.
  */
-export interface MsgSetDenomMetadataResponse {}
+export interface MsgSetDenomMetadataResponse {
+}
 
 export interface MsgForceTransfer {
   sender: string;
@@ -93,12 +98,40 @@ export interface MsgForceTransfer {
   transferToAddress: string;
 }
 
-export interface MsgForceTransferResponse {}
+export interface MsgForceTransferResponse {
+}
 
-const baseMsgCreateDenom: object = { sender: "", subdenom: "" };
+/**
+ * MsgUpdateParams is the Msg/UpdateParams request type.
+ *
+ * Since: cosmos-sdk 0.47
+ */
+export interface MsgUpdateParams {
+  /** authority is the address of the governance account. */
+  authority: string;
+  /**
+   * params defines the x/mint parameters to update.
+   *
+   * NOTE: All parameters must be supplied.
+   */
+  params: Params | undefined;
+}
+
+/**
+ * MsgUpdateParamsResponse defines the response structure for executing a
+ * MsgUpdateParams message.
+ *
+ * Since: cosmos-sdk 0.47
+ */
+export interface MsgUpdateParamsResponse {
+}
+
+function createBaseMsgCreateDenom(): MsgCreateDenom {
+  return { sender: "", subdenom: "" };
+}
 
 export const MsgCreateDenom = {
-  encode(message: MsgCreateDenom, writer: Writer = Writer.create()): Writer {
+  encode(message: MsgCreateDenom, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
@@ -108,10 +141,10 @@ export const MsgCreateDenom = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgCreateDenom {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgCreateDenom {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgCreateDenom } as MsgCreateDenom;
+    const message = createBaseMsgCreateDenom();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -130,18 +163,10 @@ export const MsgCreateDenom = {
   },
 
   fromJSON(object: any): MsgCreateDenom {
-    const message = { ...baseMsgCreateDenom } as MsgCreateDenom;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.subdenom !== undefined && object.subdenom !== null) {
-      message.subdenom = String(object.subdenom);
-    } else {
-      message.subdenom = "";
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      subdenom: isSet(object.subdenom) ? String(object.subdenom) : "",
+    };
   },
 
   toJSON(message: MsgCreateDenom): unknown {
@@ -151,44 +176,35 @@ export const MsgCreateDenom = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgCreateDenom>): MsgCreateDenom {
-    const message = { ...baseMsgCreateDenom } as MsgCreateDenom;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.subdenom !== undefined && object.subdenom !== null) {
-      message.subdenom = object.subdenom;
-    } else {
-      message.subdenom = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgCreateDenom>, I>>(object: I): MsgCreateDenom {
+    const message = createBaseMsgCreateDenom();
+    message.sender = object.sender ?? "";
+    message.subdenom = object.subdenom ?? "";
     return message;
   },
 };
 
-const baseMsgCreateDenomResponse: object = { new_token_denom: "" };
+function createBaseMsgCreateDenomResponse(): MsgCreateDenomResponse {
+  return { newTokenDenom: "" };
+}
 
 export const MsgCreateDenomResponse = {
-  encode(
-    message: MsgCreateDenomResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
-    if (message.new_token_denom !== "") {
-      writer.uint32(10).string(message.new_token_denom);
+  encode(message: MsgCreateDenomResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.newTokenDenom !== "") {
+      writer.uint32(10).string(message.newTokenDenom);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgCreateDenomResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgCreateDenomResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgCreateDenomResponse } as MsgCreateDenomResponse;
+    const message = createBaseMsgCreateDenomResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.new_token_denom = reader.string();
+          message.newTokenDenom = reader.string();
           break;
         default:
           reader.skipType(tag & 7);
@@ -199,45 +215,28 @@ export const MsgCreateDenomResponse = {
   },
 
   fromJSON(object: any): MsgCreateDenomResponse {
-    const message = { ...baseMsgCreateDenomResponse } as MsgCreateDenomResponse;
-    if (
-      object.new_token_denom !== undefined &&
-      object.new_token_denom !== null
-    ) {
-      message.new_token_denom = String(object.new_token_denom);
-    } else {
-      message.new_token_denom = "";
-    }
-    return message;
+    return { newTokenDenom: isSet(object.newTokenDenom) ? String(object.newTokenDenom) : "" };
   },
 
   toJSON(message: MsgCreateDenomResponse): unknown {
     const obj: any = {};
-    message.new_token_denom !== undefined &&
-      (obj.new_token_denom = message.new_token_denom);
+    message.newTokenDenom !== undefined && (obj.newTokenDenom = message.newTokenDenom);
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<MsgCreateDenomResponse>
-  ): MsgCreateDenomResponse {
-    const message = { ...baseMsgCreateDenomResponse } as MsgCreateDenomResponse;
-    if (
-      object.new_token_denom !== undefined &&
-      object.new_token_denom !== null
-    ) {
-      message.new_token_denom = object.new_token_denom;
-    } else {
-      message.new_token_denom = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgCreateDenomResponse>, I>>(object: I): MsgCreateDenomResponse {
+    const message = createBaseMsgCreateDenomResponse();
+    message.newTokenDenom = object.newTokenDenom ?? "";
     return message;
   },
 };
 
-const baseMsgMint: object = { sender: "", mintToAddress: "" };
+function createBaseMsgMint(): MsgMint {
+  return { sender: "", amount: undefined, mintToAddress: "" };
+}
 
 export const MsgMint = {
-  encode(message: MsgMint, writer: Writer = Writer.create()): Writer {
+  encode(message: MsgMint, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
@@ -250,10 +249,10 @@ export const MsgMint = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgMint {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgMint {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgMint } as MsgMint;
+    const message = createBaseMsgMint();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -275,67 +274,45 @@ export const MsgMint = {
   },
 
   fromJSON(object: any): MsgMint {
-    const message = { ...baseMsgMint } as MsgMint;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromJSON(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (object.mintToAddress !== undefined && object.mintToAddress !== null) {
-      message.mintToAddress = String(object.mintToAddress);
-    } else {
-      message.mintToAddress = "";
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : undefined,
+      mintToAddress: isSet(object.mintToAddress) ? String(object.mintToAddress) : "",
+    };
   },
 
   toJSON(message: MsgMint): unknown {
     const obj: any = {};
     message.sender !== undefined && (obj.sender = message.sender);
-    message.amount !== undefined &&
-      (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
-    message.mintToAddress !== undefined &&
-      (obj.mintToAddress = message.mintToAddress);
+    message.amount !== undefined && (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
+    message.mintToAddress !== undefined && (obj.mintToAddress = message.mintToAddress);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgMint>): MsgMint {
-    const message = { ...baseMsgMint } as MsgMint;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromPartial(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (object.mintToAddress !== undefined && object.mintToAddress !== null) {
-      message.mintToAddress = object.mintToAddress;
-    } else {
-      message.mintToAddress = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgMint>, I>>(object: I): MsgMint {
+    const message = createBaseMsgMint();
+    message.sender = object.sender ?? "";
+    message.amount = (object.amount !== undefined && object.amount !== null)
+      ? Coin.fromPartial(object.amount)
+      : undefined;
+    message.mintToAddress = object.mintToAddress ?? "";
     return message;
   },
 };
 
-const baseMsgMintResponse: object = {};
+function createBaseMsgMintResponse(): MsgMintResponse {
+  return {};
+}
 
 export const MsgMintResponse = {
-  encode(_: MsgMintResponse, writer: Writer = Writer.create()): Writer {
+  encode(_: MsgMintResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgMintResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgMintResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgMintResponse } as MsgMintResponse;
+    const message = createBaseMsgMintResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -348,8 +325,7 @@ export const MsgMintResponse = {
   },
 
   fromJSON(_: any): MsgMintResponse {
-    const message = { ...baseMsgMintResponse } as MsgMintResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgMintResponse): unknown {
@@ -357,16 +333,18 @@ export const MsgMintResponse = {
     return obj;
   },
 
-  fromPartial(_: DeepPartial<MsgMintResponse>): MsgMintResponse {
-    const message = { ...baseMsgMintResponse } as MsgMintResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgMintResponse>, I>>(_: I): MsgMintResponse {
+    const message = createBaseMsgMintResponse();
     return message;
   },
 };
 
-const baseMsgBurn: object = { sender: "", burnFromAddress: "" };
+function createBaseMsgBurn(): MsgBurn {
+  return { sender: "", amount: undefined, burnFromAddress: "" };
+}
 
 export const MsgBurn = {
-  encode(message: MsgBurn, writer: Writer = Writer.create()): Writer {
+  encode(message: MsgBurn, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
@@ -379,10 +357,10 @@ export const MsgBurn = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgBurn {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgBurn {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgBurn } as MsgBurn;
+    const message = createBaseMsgBurn();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -404,73 +382,45 @@ export const MsgBurn = {
   },
 
   fromJSON(object: any): MsgBurn {
-    const message = { ...baseMsgBurn } as MsgBurn;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromJSON(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (
-      object.burnFromAddress !== undefined &&
-      object.burnFromAddress !== null
-    ) {
-      message.burnFromAddress = String(object.burnFromAddress);
-    } else {
-      message.burnFromAddress = "";
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : undefined,
+      burnFromAddress: isSet(object.burnFromAddress) ? String(object.burnFromAddress) : "",
+    };
   },
 
   toJSON(message: MsgBurn): unknown {
     const obj: any = {};
     message.sender !== undefined && (obj.sender = message.sender);
-    message.amount !== undefined &&
-      (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
-    message.burnFromAddress !== undefined &&
-      (obj.burnFromAddress = message.burnFromAddress);
+    message.amount !== undefined && (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
+    message.burnFromAddress !== undefined && (obj.burnFromAddress = message.burnFromAddress);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgBurn>): MsgBurn {
-    const message = { ...baseMsgBurn } as MsgBurn;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromPartial(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (
-      object.burnFromAddress !== undefined &&
-      object.burnFromAddress !== null
-    ) {
-      message.burnFromAddress = object.burnFromAddress;
-    } else {
-      message.burnFromAddress = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgBurn>, I>>(object: I): MsgBurn {
+    const message = createBaseMsgBurn();
+    message.sender = object.sender ?? "";
+    message.amount = (object.amount !== undefined && object.amount !== null)
+      ? Coin.fromPartial(object.amount)
+      : undefined;
+    message.burnFromAddress = object.burnFromAddress ?? "";
     return message;
   },
 };
 
-const baseMsgBurnResponse: object = {};
+function createBaseMsgBurnResponse(): MsgBurnResponse {
+  return {};
+}
 
 export const MsgBurnResponse = {
-  encode(_: MsgBurnResponse, writer: Writer = Writer.create()): Writer {
+  encode(_: MsgBurnResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgBurnResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgBurnResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgBurnResponse } as MsgBurnResponse;
+    const message = createBaseMsgBurnResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -483,8 +433,7 @@ export const MsgBurnResponse = {
   },
 
   fromJSON(_: any): MsgBurnResponse {
-    const message = { ...baseMsgBurnResponse } as MsgBurnResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgBurnResponse): unknown {
@@ -492,32 +441,34 @@ export const MsgBurnResponse = {
     return obj;
   },
 
-  fromPartial(_: DeepPartial<MsgBurnResponse>): MsgBurnResponse {
-    const message = { ...baseMsgBurnResponse } as MsgBurnResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgBurnResponse>, I>>(_: I): MsgBurnResponse {
+    const message = createBaseMsgBurnResponse();
     return message;
   },
 };
 
-const baseMsgChangeAdmin: object = { sender: "", denom: "", new_admin: "" };
+function createBaseMsgChangeAdmin(): MsgChangeAdmin {
+  return { sender: "", denom: "", newAdmin: "" };
+}
 
 export const MsgChangeAdmin = {
-  encode(message: MsgChangeAdmin, writer: Writer = Writer.create()): Writer {
+  encode(message: MsgChangeAdmin, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
     if (message.denom !== "") {
       writer.uint32(18).string(message.denom);
     }
-    if (message.new_admin !== "") {
-      writer.uint32(26).string(message.new_admin);
+    if (message.newAdmin !== "") {
+      writer.uint32(26).string(message.newAdmin);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgChangeAdmin {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgChangeAdmin {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgChangeAdmin } as MsgChangeAdmin;
+    const message = createBaseMsgChangeAdmin();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -528,7 +479,7 @@ export const MsgChangeAdmin = {
           message.denom = reader.string();
           break;
         case 3:
-          message.new_admin = reader.string();
+          message.newAdmin = reader.string();
           break;
         default:
           reader.skipType(tag & 7);
@@ -539,65 +490,43 @@ export const MsgChangeAdmin = {
   },
 
   fromJSON(object: any): MsgChangeAdmin {
-    const message = { ...baseMsgChangeAdmin } as MsgChangeAdmin;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.denom !== undefined && object.denom !== null) {
-      message.denom = String(object.denom);
-    } else {
-      message.denom = "";
-    }
-    if (object.new_admin !== undefined && object.new_admin !== null) {
-      message.new_admin = String(object.new_admin);
-    } else {
-      message.new_admin = "";
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      denom: isSet(object.denom) ? String(object.denom) : "",
+      newAdmin: isSet(object.newAdmin) ? String(object.newAdmin) : "",
+    };
   },
 
   toJSON(message: MsgChangeAdmin): unknown {
     const obj: any = {};
     message.sender !== undefined && (obj.sender = message.sender);
     message.denom !== undefined && (obj.denom = message.denom);
-    message.new_admin !== undefined && (obj.new_admin = message.new_admin);
+    message.newAdmin !== undefined && (obj.newAdmin = message.newAdmin);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgChangeAdmin>): MsgChangeAdmin {
-    const message = { ...baseMsgChangeAdmin } as MsgChangeAdmin;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.denom !== undefined && object.denom !== null) {
-      message.denom = object.denom;
-    } else {
-      message.denom = "";
-    }
-    if (object.new_admin !== undefined && object.new_admin !== null) {
-      message.new_admin = object.new_admin;
-    } else {
-      message.new_admin = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgChangeAdmin>, I>>(object: I): MsgChangeAdmin {
+    const message = createBaseMsgChangeAdmin();
+    message.sender = object.sender ?? "";
+    message.denom = object.denom ?? "";
+    message.newAdmin = object.newAdmin ?? "";
     return message;
   },
 };
 
-const baseMsgChangeAdminResponse: object = {};
+function createBaseMsgChangeAdminResponse(): MsgChangeAdminResponse {
+  return {};
+}
 
 export const MsgChangeAdminResponse = {
-  encode(_: MsgChangeAdminResponse, writer: Writer = Writer.create()): Writer {
+  encode(_: MsgChangeAdminResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgChangeAdminResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgChangeAdminResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgChangeAdminResponse } as MsgChangeAdminResponse;
+    const message = createBaseMsgChangeAdminResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -610,8 +539,7 @@ export const MsgChangeAdminResponse = {
   },
 
   fromJSON(_: any): MsgChangeAdminResponse {
-    const message = { ...baseMsgChangeAdminResponse } as MsgChangeAdminResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgChangeAdminResponse): unknown {
@@ -619,19 +547,18 @@ export const MsgChangeAdminResponse = {
     return obj;
   },
 
-  fromPartial(_: DeepPartial<MsgChangeAdminResponse>): MsgChangeAdminResponse {
-    const message = { ...baseMsgChangeAdminResponse } as MsgChangeAdminResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgChangeAdminResponse>, I>>(_: I): MsgChangeAdminResponse {
+    const message = createBaseMsgChangeAdminResponse();
     return message;
   },
 };
 
-const baseMsgSetDenomMetadata: object = { sender: "" };
+function createBaseMsgSetDenomMetadata(): MsgSetDenomMetadata {
+  return { sender: "", metadata: undefined };
+}
 
 export const MsgSetDenomMetadata = {
-  encode(
-    message: MsgSetDenomMetadata,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: MsgSetDenomMetadata, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
@@ -641,10 +568,10 @@ export const MsgSetDenomMetadata = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgSetDenomMetadata {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgSetDenomMetadata {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgSetDenomMetadata } as MsgSetDenomMetadata;
+    const message = createBaseMsgSetDenomMetadata();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -663,65 +590,42 @@ export const MsgSetDenomMetadata = {
   },
 
   fromJSON(object: any): MsgSetDenomMetadata {
-    const message = { ...baseMsgSetDenomMetadata } as MsgSetDenomMetadata;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.metadata !== undefined && object.metadata !== null) {
-      message.metadata = Metadata.fromJSON(object.metadata);
-    } else {
-      message.metadata = undefined;
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      metadata: isSet(object.metadata) ? Metadata.fromJSON(object.metadata) : undefined,
+    };
   },
 
   toJSON(message: MsgSetDenomMetadata): unknown {
     const obj: any = {};
     message.sender !== undefined && (obj.sender = message.sender);
-    message.metadata !== undefined &&
-      (obj.metadata = message.metadata
-        ? Metadata.toJSON(message.metadata)
-        : undefined);
+    message.metadata !== undefined && (obj.metadata = message.metadata ? Metadata.toJSON(message.metadata) : undefined);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgSetDenomMetadata>): MsgSetDenomMetadata {
-    const message = { ...baseMsgSetDenomMetadata } as MsgSetDenomMetadata;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.metadata !== undefined && object.metadata !== null) {
-      message.metadata = Metadata.fromPartial(object.metadata);
-    } else {
-      message.metadata = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgSetDenomMetadata>, I>>(object: I): MsgSetDenomMetadata {
+    const message = createBaseMsgSetDenomMetadata();
+    message.sender = object.sender ?? "";
+    message.metadata = (object.metadata !== undefined && object.metadata !== null)
+      ? Metadata.fromPartial(object.metadata)
+      : undefined;
     return message;
   },
 };
 
-const baseMsgSetDenomMetadataResponse: object = {};
+function createBaseMsgSetDenomMetadataResponse(): MsgSetDenomMetadataResponse {
+  return {};
+}
 
 export const MsgSetDenomMetadataResponse = {
-  encode(
-    _: MsgSetDenomMetadataResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(_: MsgSetDenomMetadataResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): MsgSetDenomMetadataResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgSetDenomMetadataResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgSetDenomMetadataResponse,
-    } as MsgSetDenomMetadataResponse;
+    const message = createBaseMsgSetDenomMetadataResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -734,10 +638,7 @@ export const MsgSetDenomMetadataResponse = {
   },
 
   fromJSON(_: any): MsgSetDenomMetadataResponse {
-    const message = {
-      ...baseMsgSetDenomMetadataResponse,
-    } as MsgSetDenomMetadataResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgSetDenomMetadataResponse): unknown {
@@ -745,24 +646,18 @@ export const MsgSetDenomMetadataResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgSetDenomMetadataResponse>
-  ): MsgSetDenomMetadataResponse {
-    const message = {
-      ...baseMsgSetDenomMetadataResponse,
-    } as MsgSetDenomMetadataResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgSetDenomMetadataResponse>, I>>(_: I): MsgSetDenomMetadataResponse {
+    const message = createBaseMsgSetDenomMetadataResponse();
     return message;
   },
 };
 
-const baseMsgForceTransfer: object = {
-  sender: "",
-  transferFromAddress: "",
-  transferToAddress: "",
-};
+function createBaseMsgForceTransfer(): MsgForceTransfer {
+  return { sender: "", amount: undefined, transferFromAddress: "", transferToAddress: "" };
+}
 
 export const MsgForceTransfer = {
-  encode(message: MsgForceTransfer, writer: Writer = Writer.create()): Writer {
+  encode(message: MsgForceTransfer, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.sender !== "") {
       writer.uint32(10).string(message.sender);
     }
@@ -778,10 +673,10 @@ export const MsgForceTransfer = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgForceTransfer {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgForceTransfer {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgForceTransfer } as MsgForceTransfer;
+    const message = createBaseMsgForceTransfer();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -806,99 +701,48 @@ export const MsgForceTransfer = {
   },
 
   fromJSON(object: any): MsgForceTransfer {
-    const message = { ...baseMsgForceTransfer } as MsgForceTransfer;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = String(object.sender);
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromJSON(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (
-      object.transferFromAddress !== undefined &&
-      object.transferFromAddress !== null
-    ) {
-      message.transferFromAddress = String(object.transferFromAddress);
-    } else {
-      message.transferFromAddress = "";
-    }
-    if (
-      object.transferToAddress !== undefined &&
-      object.transferToAddress !== null
-    ) {
-      message.transferToAddress = String(object.transferToAddress);
-    } else {
-      message.transferToAddress = "";
-    }
-    return message;
+    return {
+      sender: isSet(object.sender) ? String(object.sender) : "",
+      amount: isSet(object.amount) ? Coin.fromJSON(object.amount) : undefined,
+      transferFromAddress: isSet(object.transferFromAddress) ? String(object.transferFromAddress) : "",
+      transferToAddress: isSet(object.transferToAddress) ? String(object.transferToAddress) : "",
+    };
   },
 
   toJSON(message: MsgForceTransfer): unknown {
     const obj: any = {};
     message.sender !== undefined && (obj.sender = message.sender);
-    message.amount !== undefined &&
-      (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
-    message.transferFromAddress !== undefined &&
-      (obj.transferFromAddress = message.transferFromAddress);
-    message.transferToAddress !== undefined &&
-      (obj.transferToAddress = message.transferToAddress);
+    message.amount !== undefined && (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
+    message.transferFromAddress !== undefined && (obj.transferFromAddress = message.transferFromAddress);
+    message.transferToAddress !== undefined && (obj.transferToAddress = message.transferToAddress);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgForceTransfer>): MsgForceTransfer {
-    const message = { ...baseMsgForceTransfer } as MsgForceTransfer;
-    if (object.sender !== undefined && object.sender !== null) {
-      message.sender = object.sender;
-    } else {
-      message.sender = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      message.amount = Coin.fromPartial(object.amount);
-    } else {
-      message.amount = undefined;
-    }
-    if (
-      object.transferFromAddress !== undefined &&
-      object.transferFromAddress !== null
-    ) {
-      message.transferFromAddress = object.transferFromAddress;
-    } else {
-      message.transferFromAddress = "";
-    }
-    if (
-      object.transferToAddress !== undefined &&
-      object.transferToAddress !== null
-    ) {
-      message.transferToAddress = object.transferToAddress;
-    } else {
-      message.transferToAddress = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgForceTransfer>, I>>(object: I): MsgForceTransfer {
+    const message = createBaseMsgForceTransfer();
+    message.sender = object.sender ?? "";
+    message.amount = (object.amount !== undefined && object.amount !== null)
+      ? Coin.fromPartial(object.amount)
+      : undefined;
+    message.transferFromAddress = object.transferFromAddress ?? "";
+    message.transferToAddress = object.transferToAddress ?? "";
     return message;
   },
 };
 
-const baseMsgForceTransferResponse: object = {};
+function createBaseMsgForceTransferResponse(): MsgForceTransferResponse {
+  return {};
+}
 
 export const MsgForceTransferResponse = {
-  encode(
-    _: MsgForceTransferResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(_: MsgForceTransferResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     return writer;
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): MsgForceTransferResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgForceTransferResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgForceTransferResponse,
-    } as MsgForceTransferResponse;
+    const message = createBaseMsgForceTransferResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -911,10 +755,7 @@ export const MsgForceTransferResponse = {
   },
 
   fromJSON(_: any): MsgForceTransferResponse {
-    const message = {
-      ...baseMsgForceTransferResponse,
-    } as MsgForceTransferResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgForceTransferResponse): unknown {
@@ -922,12 +763,107 @@ export const MsgForceTransferResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgForceTransferResponse>
-  ): MsgForceTransferResponse {
-    const message = {
-      ...baseMsgForceTransferResponse,
-    } as MsgForceTransferResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgForceTransferResponse>, I>>(_: I): MsgForceTransferResponse {
+    const message = createBaseMsgForceTransferResponse();
+    return message;
+  },
+};
+
+function createBaseMsgUpdateParams(): MsgUpdateParams {
+  return { authority: "", params: undefined };
+}
+
+export const MsgUpdateParams = {
+  encode(message: MsgUpdateParams, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.authority !== "") {
+      writer.uint32(10).string(message.authority);
+    }
+    if (message.params !== undefined) {
+      Params.encode(message.params, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgUpdateParams {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMsgUpdateParams();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.authority = reader.string();
+          break;
+        case 2:
+          message.params = Params.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MsgUpdateParams {
+    return {
+      authority: isSet(object.authority) ? String(object.authority) : "",
+      params: isSet(object.params) ? Params.fromJSON(object.params) : undefined,
+    };
+  },
+
+  toJSON(message: MsgUpdateParams): unknown {
+    const obj: any = {};
+    message.authority !== undefined && (obj.authority = message.authority);
+    message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<MsgUpdateParams>, I>>(object: I): MsgUpdateParams {
+    const message = createBaseMsgUpdateParams();
+    message.authority = object.authority ?? "";
+    message.params = (object.params !== undefined && object.params !== null)
+      ? Params.fromPartial(object.params)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseMsgUpdateParamsResponse(): MsgUpdateParamsResponse {
+  return {};
+}
+
+export const MsgUpdateParamsResponse = {
+  encode(_: MsgUpdateParamsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgUpdateParamsResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMsgUpdateParamsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): MsgUpdateParamsResponse {
+    return {};
+  },
+
+  toJSON(_: MsgUpdateParamsResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<MsgUpdateParamsResponse>, I>>(_: I): MsgUpdateParamsResponse {
+    const message = createBaseMsgUpdateParamsResponse();
     return message;
   },
 };
@@ -938,103 +874,87 @@ export interface Msg {
   Mint(request: MsgMint): Promise<MsgMintResponse>;
   Burn(request: MsgBurn): Promise<MsgBurnResponse>;
   ChangeAdmin(request: MsgChangeAdmin): Promise<MsgChangeAdminResponse>;
-  SetDenomMetadata(
-    request: MsgSetDenomMetadata
-  ): Promise<MsgSetDenomMetadataResponse>;
+  SetDenomMetadata(request: MsgSetDenomMetadata): Promise<MsgSetDenomMetadataResponse>;
   ForceTransfer(request: MsgForceTransfer): Promise<MsgForceTransferResponse>;
+  /**
+   * UpdateParams defines a governance operation for updating the x/mint module
+   * parameters. The authority is hard-coded to the x/gov module account.
+   *
+   * Since: cosmos-sdk 0.47
+   */
+  UpdateParams(request: MsgUpdateParams): Promise<MsgUpdateParamsResponse>;
 }
 
 export class MsgClientImpl implements Msg {
   private readonly rpc: Rpc;
   constructor(rpc: Rpc) {
     this.rpc = rpc;
+    this.CreateDenom = this.CreateDenom.bind(this);
+    this.Mint = this.Mint.bind(this);
+    this.Burn = this.Burn.bind(this);
+    this.ChangeAdmin = this.ChangeAdmin.bind(this);
+    this.SetDenomMetadata = this.SetDenomMetadata.bind(this);
+    this.ForceTransfer = this.ForceTransfer.bind(this);
+    this.UpdateParams = this.UpdateParams.bind(this);
   }
   CreateDenom(request: MsgCreateDenom): Promise<MsgCreateDenomResponse> {
     const data = MsgCreateDenom.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "CreateDenom",
-      data
-    );
-    return promise.then((data) =>
-      MsgCreateDenomResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "CreateDenom", data);
+    return promise.then((data) => MsgCreateDenomResponse.decode(new _m0.Reader(data)));
   }
 
   Mint(request: MsgMint): Promise<MsgMintResponse> {
     const data = MsgMint.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "Mint",
-      data
-    );
-    return promise.then((data) => MsgMintResponse.decode(new Reader(data)));
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "Mint", data);
+    return promise.then((data) => MsgMintResponse.decode(new _m0.Reader(data)));
   }
 
   Burn(request: MsgBurn): Promise<MsgBurnResponse> {
     const data = MsgBurn.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "Burn",
-      data
-    );
-    return promise.then((data) => MsgBurnResponse.decode(new Reader(data)));
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "Burn", data);
+    return promise.then((data) => MsgBurnResponse.decode(new _m0.Reader(data)));
   }
 
   ChangeAdmin(request: MsgChangeAdmin): Promise<MsgChangeAdminResponse> {
     const data = MsgChangeAdmin.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "ChangeAdmin",
-      data
-    );
-    return promise.then((data) =>
-      MsgChangeAdminResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "ChangeAdmin", data);
+    return promise.then((data) => MsgChangeAdminResponse.decode(new _m0.Reader(data)));
   }
 
-  SetDenomMetadata(
-    request: MsgSetDenomMetadata
-  ): Promise<MsgSetDenomMetadataResponse> {
+  SetDenomMetadata(request: MsgSetDenomMetadata): Promise<MsgSetDenomMetadataResponse> {
     const data = MsgSetDenomMetadata.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "SetDenomMetadata",
-      data
-    );
-    return promise.then((data) =>
-      MsgSetDenomMetadataResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "SetDenomMetadata", data);
+    return promise.then((data) => MsgSetDenomMetadataResponse.decode(new _m0.Reader(data)));
   }
 
   ForceTransfer(request: MsgForceTransfer): Promise<MsgForceTransferResponse> {
     const data = MsgForceTransfer.encode(request).finish();
-    const promise = this.rpc.request(
-      "osmosis.tokenfactory.v1beta1.Msg",
-      "ForceTransfer",
-      data
-    );
-    return promise.then((data) =>
-      MsgForceTransferResponse.decode(new Reader(data))
-    );
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "ForceTransfer", data);
+    return promise.then((data) => MsgForceTransferResponse.decode(new _m0.Reader(data)));
+  }
+
+  UpdateParams(request: MsgUpdateParams): Promise<MsgUpdateParamsResponse> {
+    const data = MsgUpdateParams.encode(request).finish();
+    const promise = this.rpc.request("osmosis.tokenfactory.v1beta1.Msg", "UpdateParams", data);
+    return promise.then((data) => MsgUpdateParamsResponse.decode(new _m0.Reader(data)));
   }
 }
 
 interface Rpc {
-  request(
-    service: string,
-    method: string,
-    data: Uint8Array
-  ): Promise<Uint8Array>;
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;
 }
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
+}

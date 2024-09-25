@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
-    "build": "npm run genTypes && tsc",
+    "build": "npm run genTypes && NODE_OPTIONS=--max-old-space-size=8192 npx tsc",
     "genTypes": "node src/buildHelper.cjs"
   },
   "repository": {

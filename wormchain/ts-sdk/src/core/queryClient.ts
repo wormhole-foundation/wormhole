@@ -14,7 +14,8 @@ import { Api as txApi } from "../modules/cosmos.tx.v1beta1/rest";
 import { Api as upgradeApi } from "../modules/cosmos.upgrade.v1beta1/rest";
 import { Api as vestingApi } from "../modules/cosmos.vesting.v1beta1/rest";
 import { Api as wasmApi } from "../modules/cosmwasm.wasm.v1/rest";
-import { Api as coreApi } from "../modules/wormhole_foundation.wormchain.wormhole/rest";
+import { Api as coreApi } from "../modules/wormchain.wormhole/rest";
+
 
 export type WormchainQueryClient = {
   core: coreApi<any>;
@@ -45,23 +46,24 @@ export function getWormholeQueryClient(
     //@ts-ignore
     globalThis.fetch = fetch;
   }
-  const core = new coreApi({ baseUrl: lcdAddress });
-  const auth = new authApi({ baseUrl: lcdAddress });
-  const bank = new bankApi({ baseUrl: lcdAddress });
-  const base = new baseApi({ baseUrl: lcdAddress });
-  const crisis = new crisisApi({ baseUrl: lcdAddress });
-  const distribution = new distributionApi({ baseUrl: lcdAddress });
-  const evidence = new evidenceApi({ baseUrl: lcdAddress });
-  const feegrant = new feegrantApi({ baseUrl: lcdAddress });
-  const gov = new govApi({ baseUrl: lcdAddress });
-  const mint = new mintApi({ baseUrl: lcdAddress });
-  const params = new paramsApi({ baseUrl: lcdAddress });
-  const slashing = new slashingApi({ baseUrl: lcdAddress });
-  const staking = new stakingApi({ baseUrl: lcdAddress });
-  const tx = new txApi({ baseUrl: lcdAddress });
-  const upgrade = new upgradeApi({ baseUrl: lcdAddress });
-  const vesting = new vestingApi({ baseUrl: lcdAddress });
-  const wasm = new wasmApi({ baseUrl: lcdAddress });
+
+  const core = new coreApi({ baseURL: lcdAddress });
+  const auth = new authApi({ baseURL: lcdAddress });
+  const bank = new bankApi({ baseURL: lcdAddress });
+  const base = new baseApi({ baseURL: lcdAddress });
+  const crisis = new crisisApi({ baseURL: lcdAddress });
+  const distribution = new distributionApi({ baseURL: lcdAddress });
+  const evidence = new evidenceApi({ baseURL: lcdAddress });
+  const feegrant = new feegrantApi({ baseURL: lcdAddress });
+  const gov = new govApi({ baseURL: lcdAddress });
+  const mint = new mintApi({ baseURL: lcdAddress });
+  const params = new paramsApi({ baseURL: lcdAddress });
+  const slashing = new slashingApi({ baseURL: lcdAddress });
+  const staking = new stakingApi({ baseURL: lcdAddress });
+  const tx = new txApi({ baseURL: lcdAddress });
+  const upgrade = new upgradeApi({ baseURL: lcdAddress });
+  const vesting = new vestingApi({ baseURL: lcdAddress });
+  const wasm = new wasmApi({ baseURL: lcdAddress });
 
   return {
     core,

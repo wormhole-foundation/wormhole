@@ -16,6 +16,7 @@ ts-sdk/node_modules
 ts-sdk/lib
 contracts/artifacts
 cmd/wormchaind/wormchaind
+ts-client/
 
 .idea
 *.iml

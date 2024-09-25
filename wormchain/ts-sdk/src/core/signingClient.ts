@@ -19,7 +19,8 @@ import * as txModule from "../modules/cosmos.tx.v1beta1";
 import * as upgradeModule from "../modules/cosmos.upgrade.v1beta1";
 import * as vestingModule from "../modules/cosmos.vesting.v1beta1";
 import * as wasmModule from "../modules/cosmwasm.wasm.v1";
-import * as coreModule from "../modules/wormhole_foundation.wormchain.wormhole";
+import * as coreModule from "../modules/wormchain.wormhole";
+import { ADDRESS_PREFIX } from "./consts";
 
 //protobuf isn't guaranteed to have long support, which is used by the stargate signing client,
 //so we're going to use an independent long module and shove it into the globals of protobuf
@@ -95,71 +96,105 @@ export const getWormchainSigningClient = async (
 ) => {
   if (!wallet) throw MissingWalletError;
 
-  const coreClient = await coreModule.txClient(wallet, {
+  const coreClient = await coreModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const authClient = await authModule.txClient(wallet, {
+  const authClient = await authModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const bankClient = await bankModule.txClient(wallet, {
+  const bankClient = await bankModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const baseClient = await baseModule.txClient(wallet, {
+  const baseClient = await baseModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const crisisClient = await crisisModule.txClient(wallet, {
+  const crisisClient = await crisisModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const distributionClient = await distributionModule.txClient(wallet, {
+  const distributionClient = await distributionModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const evidenceClient = await evidenceModule.txClient(wallet, {
+  const evidenceClient = await evidenceModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const feegrantClient = await feegrantModule.txClient(wallet, {
+  const feegrantClient = await feegrantModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const govClient = await govModule.txClient(wallet, {
+  const govClient = await govModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const mintClient = await mintModule.txClient(wallet, {
+  const mintClient = await mintModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const paramsClient = await paramsModule.txClient(wallet, {
+  const paramsClient = await paramsModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const slashingClient = await slashingModule.txClient(wallet, {
+  const slashingClient = await slashingModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const stakingClient = await stakingModule.txClient(wallet, {
+  const stakingClient = await stakingModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const txClient = await txModule.txClient(wallet, {
+  const txClient = await txModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const upgradeClient = await upgradeModule.txClient(wallet, {
+  const upgradeClient = await upgradeModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const vestingClient = await vestingModule.txClient(wallet, {
+  const vestingClient = await vestingModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const wasmClient = await wasmModule.txClient(wallet, {
+  const wasmClient = await wasmModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
