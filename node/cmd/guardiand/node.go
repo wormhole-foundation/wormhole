@@ -271,7 +271,7 @@ func init() {
 
 	dataDir = NodeCmd.Flags().String("dataDir", "", "Data directory")
 
-	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key (required)")
+	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key")
 	guardianSignerUri = NodeCmd.Flags().String("guardianSignerUri", "", "Guardian signer URI")
 	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
 
@@ -630,8 +630,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify --nodeKey")
 	}
-	if *guardianKeyPath == "" && *guardianSignerUri == "" {
-		logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
+	if *guardianKeyPath == "" {
+		// This if-statement is nested, since checking if both are empty at once will always result in the else-branch
+		// being executed if at least one is specified. For example, in the case where the singer URI is specified and
+		// the guardianKeyPath not, then the else-statement will create an empty `file://` URI.
+		if *guardianSignerUri == "" {
+			logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
+		}
 	} else {
 		// If guardianKeyPath is set, set guardianSignerUri to the file signer URI, pointing to guardianKeyPath.
 		// This ensures that the signer-abstracted guardian has backwards compatibility with guardians that would

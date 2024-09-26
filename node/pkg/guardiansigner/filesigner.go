@@ -73,7 +73,7 @@ func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
 	sig, err := crypto.Sign(hash, fs.privateKey)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign wormchain address: %w", err)
+		return nil, fmt.Errorf("failed to sign hash: %w", err)
 	}
 
 	return sig, nil
