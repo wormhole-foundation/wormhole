@@ -130,9 +130,11 @@ async function main() {
       vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
       console.log("uploading", file);
       const msg = client.core.msgStoreCode({
-        signer,
-        wasm_byte_code: new Uint8Array(contract_bytes),
-        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        value: {
+          signer,
+          wasmByteCode: new Uint8Array(contract_bytes),
+          vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        }
       });
       const result = await client.signAndBroadcast(signer, [msg], {
         ...ZERO_FEE,
@@ -155,13 +157,13 @@ async function main() {
 
   // Instantiate contracts.
 
-  async function instantiate(code_id: number, inst_msg: any, label: string) {
+  async function instantiate(codeId: number, inst_msg: any, label: string) {
     const instMsgBinary = toBinary(inst_msg);
     const instMsgBytes = fromBase64(instMsgBinary);
 
     // see /sdk/vaa/governance.go
     const codeIdBuf = Buffer.alloc(8);
-    codeIdBuf.writeBigInt64BE(BigInt(code_id));
+    codeIdBuf.writeBigInt64BE(BigInt(codeId));
     const codeIdHash = keccak256(codeIdBuf);
     const codeIdLabelHash = keccak256(
       Buffer.concat([
@@ -195,11 +197,13 @@ async function main() {
     // TODO: check for number of guardians in set and use the corresponding keys
     vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
     const msg = client.core.msgInstantiateContract({
-      signer,
-      code_id,
-      label,
-      msg: instMsgBytes,
-      vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      value: {
+        signer,
+        codeId,
+        label,
+        msg: instMsgBytes,
+        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      }
     });
     const result = await client.signAndBroadcast(signer, [msg], {
       ...ZERO_FEE,
@@ -211,7 +215,7 @@ async function main() {
       .events.find(({ type }) => type === "instantiate")
       .attributes.find(({ key }) => key === "_contract_address").value;
     console.log(
-      `deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${result.transactionHash}`
+      `deployed contract ${label}, codeID: ${codeId}, address: ${addr}, txHash: ${result.transactionHash}`
     );
 
     return addr;
