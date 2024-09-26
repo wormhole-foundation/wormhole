@@ -44,16 +44,15 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 	// Split the URI using the standard "://" scheme separator
 	signerUriSplit := strings.Split(signerUri, "://")
 
-	// Length smaller than 2 implies that there is no path following the scheme separator,
-	// which is invalid.
+	// This check is purely for ensuring that there is actually a path separator.
 	if len(signerUriSplit) < 2 {
 		return InvalidSignerType, ""
 	}
 
 	typeStr := signerUriSplit[0]
 	// Rejoin the remainder of the split URI as the configuration for the guardian signer
-	// implementation.
-	keyConfig := strings.Join(signerUriSplit[1:], "")
+	// implementation. The remainder of the split is joined using the URI scheme separator.
+	keyConfig := strings.Join(signerUriSplit[1:], "://")
 
 	switch typeStr {
 	case "file":

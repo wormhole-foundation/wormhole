@@ -244,7 +244,7 @@ func (p *RunParams) verify() error {
 	}
 	if p.nodeName != "" { // Heartbeating is enabled.
 		if p.guardianSigner == nil {
-			return errors.New("if heart beating is enabled, vs may not be nil")
+			return errors.New("if heart beating is enabled, guardianSigner may not be nil")
 		}
 	}
 	if p.obsvReqSendC != nil {

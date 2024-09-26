@@ -120,7 +120,7 @@ func NewAccountant(
 	enforceFlag bool, // whether or not accountant should be enforced
 	nttContract string, // the address of the NTT smart contract on wormchain
 	nttWormchainConn AccountantWormchainConn, // used for communicating with the NTT smart contract
-	guardianSigner guardiansigner.GuardianSigner, // the guardian key used for signing observation requests
+	guardianSigner guardiansigner.GuardianSigner, // the guardian signer used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
 	env common.Environment, // Controls the set of token bridges to be monitored
