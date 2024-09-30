@@ -50,7 +50,7 @@ processes requests from a select set of peers.
 
 The processor takes messages observed from the watchers and observations gossipped by other guardians. It aggregates these
 until an observation is seen by a quorum of guardians, including itself. It then publishes the signed VAA. The processor
-stores signed VAAs in an on-disk badgerDB instance. The processor also interfaces with the governor and account packages
+stores signed VAAs in an on-disk badgerDB instance. The processor also interfaces with the governor and accountant packages
 before publishing an observation.
 
 ### Governor
@@ -66,9 +66,9 @@ The accountant contract is used to monitor Token Bridge transfers and the NTT-ac
 
 ### Query Support
 
-The query package is used to process Wormhole Queries (also known as CCQ) requests, forwarding them to the appropriate watcher
-for processing, and posting the responses. It receives requests and publishes responses over a separate set of P2P topics,
-via the p2p package.
+The query package is used to process Wormhole Queries (also known as CCQ, which stands for Cross Chain Queries) requests,
+forwarding them to the appropriate watcher for processing, and posting the responses. It receives requests and publishes
+responses over a separate set of P2P topics, via the p2p package.
 
 Queries are currently supported on EVM and Solana.
 
@@ -115,3 +115,18 @@ An observation transitions through the following steps:
    as a signed VAA with quorum.
 
 10. The p2p package posts the signed VAA to gossip.
+
+## Reobservation Requests
+
+The guardian supports requesting that a missed observation be reobserved. These requests can originate from three sources:
+
+1. From the guardian operator via an admin command.
+
+2. From another guardian via gossip message.
+
+3. Generated internally from the processor or accountant packages.
+
+An observation request contains the chain ID and the transaction ID of the missed observation. The request is forwarded
+to the watcher, based on the chain ID. The watcher queries for the transaction using the transaction ID and then publishes
+the reobserved message to the processor. Note that there is a throttling mechanism in place to avoid requesting reobservation
+of the same transaction too frequently.
