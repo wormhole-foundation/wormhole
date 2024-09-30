@@ -10,7 +10,7 @@ For details on how to set up and run a guardian node see [operations.md](operati
 ### Watchers
 
 The watchers are responsible for monitoring the connected chains for Wormhole messages. They listen for messages published
-by the wormhole core contract and post them to the processor. They also handle requests to re-observe messages that may have
+by the Wormhole core contract and post them to the processor. They also handle requests to re-observe messages that may have
 been missed. Additionally they monitor the latest block posted on chain, which is published in gossip heartbeat messages.
 
 Each watcher listens to one chain, and there are a number of different watcher types:
@@ -41,9 +41,9 @@ status events (such as from the governor).
 
 The p2p package primarily posts events to and receives events from the processor package using golang channels.
 
-The p2p package also maintains a separate pair of topics used for receiving and sending Wormhole queries messages.
+The p2p package also maintains a separate pair of topics used for receiving and sending Wormhole Queries messages.
 The guardian joins both of these topics, but it only subscribes to the request topic. This means a given guardian
-does not see the queries responses from other guardians. The guardian also applies libp2p filters so that it only
+does not see the Queries responses from other guardians. The guardian also applies libp2p filters so that it only
 processes requests from a select set of peers.
 
 ### Processor
@@ -89,16 +89,17 @@ An observation transitions through the following steps:
 
 1. The watcher observes a message published by the Wormhole core contract.
 
-2. On certain chains that do not have instant finality, the watcher waits until the block in which the observation was
+2. On certain chains that do not have instant finality, the watcher waits until the block in which the message was
    published reaches the appropriate state, such as the block is finalized, safe, or the integrator requested instant
    finality.
-3. Whenever the watcher decides the block is finalized, it posts it to the processor via a golang channel.
+3. When the watcher determines the block containing the message has reached the designated finality, it posts it to the
+   processor via a golang channel.
 
 4. The processor performs integrity checks on the message (via the governor and accountant). Either of these
    components may cause the observation to be delayed (the governor up to twenty-four hours, the accountant until
    a quorum of guardians report the observation).
 
-5. Once the observation clears the integrity checks, the processor signs the observation using the guardian key and
+5. Once the message clears the integrity checks, the processor signs the observation using the guardian key and
    posts it to an internal golang channel for batch publishing.
 
 6. The processor batches observations, waiting no more than a second before publishing a batch. The batches are posted
@@ -110,7 +111,7 @@ An observation transitions through the following steps:
 8. Other guardians receive the observation. Each guardian aggregates the observation until it reaches quorum and
    it has made the observation itself.
 
-9. Once an observation reaches quorum, the processor generates a VAA, signs it with its guardian key, and posts it
-   to the p2p package for publishing as a signed VAA with quorum.
+9. Once an observation reaches quorum, the processor generates a VAA and posts it to the p2p package for publishing
+   as a signed VAA with quorum.
 
 10. The p2p package posts the signed VAA to gossip.
