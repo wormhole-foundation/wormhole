@@ -147,20 +147,27 @@ async function main() {
       };
       vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
       console.log("uploading", file);
-      const msg = client.core.msgStoreCode({
+
+      let fee = {
+        amount: [{ amount: "0", denom: "uworm" }],
+        gas: "10000000",
+      };
+
+      const result = await client.core.sendMsgStoreCode({
         value: {
           signer,
           wasmByteCode: new Uint8Array(contract_bytes),
           vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
-        }
+        },
+        fee: fee,
       });
 
-      console.log("store code msg: ", msg);
+      // console.log("store code msg: ", msg);
 
-      const result = await client.signAndBroadcast(signer, [msg], {
-        ...ZERO_FEE,
-        gas: "10000000",
-      });
+      // const result = await client.signAndBroadcast(signer, [msg], {
+      //   ...ZERO_FEE,
+      //   gas: "10000000",
+      // });
 
       console.log("store code result: ", result);
 
@@ -413,7 +420,7 @@ async function main() {
         }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        value: {  
+        value: {
           signer: signer,
           address: "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
           name: "nttAccountantTest",
