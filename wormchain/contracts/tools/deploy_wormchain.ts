@@ -157,10 +157,7 @@ async function main() {
 
       console.log("store code msg: ", msg);
 
-      const result = await client.signAndBroadcast(signer, [msg], {
-        ...ZERO_FEE,
-        gas: "10000000",
-      });
+      const result = await client.signAndBroadcast(signer, [msg], ZERO_FEE);
 
       console.log("store code result: ", result);
 
