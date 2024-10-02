@@ -3,6 +3,7 @@ import {
   SigningStargateClient,
   SigningStargateClientOptions,
 } from "@cosmjs/stargate";
+import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import * as authModule from "../modules/cosmos.auth.v1beta1";
 import * as bankModule from "../modules/cosmos.bank.v1beta1";
 import * as baseModule from "../modules/cosmos.base.tendermint.v1beta1";
@@ -198,8 +199,10 @@ export const getWormchainSigningClient = async (
     addr: tendermintAddress,
   });
 
-  const client = await SigningStargateClient.connectWithSigner(
-    tendermintAddress,
+  let tendermintClient = await Tendermint37Client.connect(tendermintAddress);
+
+  const client = await SigningStargateClient.createWithSigner(
+    tendermintClient,
     wallet,
     {
       ...options,
