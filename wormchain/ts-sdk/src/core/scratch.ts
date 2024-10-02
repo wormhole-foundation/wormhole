@@ -21,7 +21,7 @@ import {
   StargateClient,
   StdFee,
 } from "@cosmjs/stargate";
-import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
+import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import {
   RpcStatus,
 } from "../modules/wormchain.wormhole/rest";
@@ -42,7 +42,7 @@ export const WORM_DENOM = "uworm";
 export const LCD_URL = "http://localhost:1318";
 
 export async function getStargateQueryClient() {
-  const tmClient = await Tendermint34Client.connect(TENDERMINT_URL);
+  const tmClient = await Tendermint37Client.connect(TENDERMINT_URL);
   const client = QueryClient.withExtensions(
     tmClient,
     setupTxExtension,
