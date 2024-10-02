@@ -147,10 +147,20 @@ async function main() {
       };
       vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
       console.log("uploading", file);
+
+      let bytes = new Uint8Array(contract_bytes);
+      // ensure bytes array is a multiple of 4
+      if (bytes.length % 4 !== 0) {
+        const extraBytes = 4 - (bytes.length % 4);
+        const newBytes = new Uint8Array(bytes.length + extraBytes);
+        newBytes.set(bytes, extraBytes);
+        bytes = newBytes;
+      }
+
       const msg = client.core.msgStoreCode({
         value: {
           signer,
-          wasmByteCode: new Uint8Array(contract_bytes),
+          wasmByteCode: bytes,
           vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
         }
       });
