@@ -664,7 +664,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if env == common.UnsafeDevNet {
 		// Only if the signer is file-based should we generate the deterministic key and write it to disk
-		if st, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
+		if st, _, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
 			err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
 			if err != nil {
 				logger.Fatal("failed to generate devnet guardian key", zap.Error(err))

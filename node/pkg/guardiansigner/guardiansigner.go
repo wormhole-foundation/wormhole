@@ -30,23 +30,27 @@ type GuardianSigner interface {
 func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
 
 	// Get the signer type
-	signerType, signerKeyConfig := ParseSignerUri(signerUri)
+	signerType, signerKeyConfig, err := ParseSignerUri(signerUri)
+
+	if err != nil {
+		return nil, err
+	}
 
 	switch signerType {
 	case FileSignerType:
 		return NewFileSigner(unsafeDevMode, signerKeyConfig)
 	default:
-		return nil, fmt.Errorf("unsupported guardian signer type")
+		return nil, fmt.Errorf("Unsupported guardian signer type")
 	}
 }
 
-func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig string) {
+func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig string, err error) {
 	// Split the URI using the standard "://" scheme separator
 	signerUriSplit := strings.Split(signerUri, "://")
 
 	// This check is purely for ensuring that there is actually a path separator.
 	if len(signerUriSplit) < 2 {
-		return InvalidSignerType, ""
+		return InvalidSignerType, "", fmt.Errorf("No path separator in guardian signer URI")
 	}
 
 	typeStr := signerUriSplit[0]
@@ -56,18 +60,8 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 
 	switch typeStr {
 	case "file":
-		return FileSignerType, keyConfig
+		return FileSignerType, keyConfig, nil
 	default:
-		return InvalidSignerType, ""
+		return InvalidSignerType, "", fmt.Errorf("Unsupported guardian signer type: %s", typeStr)
 	}
-}
-
-// WARNING: DO NOT USE THIS SIGNER OUTSIDE OF TESTS
-//
-// This function is meant to be a helper function that returns a guardian signer for tests
-// that simply require a private key.
-// The caller can specify a private key to be used, or pass nil to have `NewGeneratedSigner`
-// generate a random private key.
-func GenerateSignerWithPrivatekeyUnsafe(key *ecdsa.PrivateKey) (GuardianSigner, error) {
-	return NewGeneratedSigner(key)
 }

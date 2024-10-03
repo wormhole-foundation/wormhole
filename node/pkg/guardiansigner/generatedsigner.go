@@ -9,6 +9,9 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
+// The GeneratedSigner is a signer that is intended for use in tests. It uses the private
+// key supplied to GenerateSignerWithPrivatekeyUnsafe, or defaults to generating a random
+// private key if no private key is supplied.
 type GeneratedSigner struct {
 	privateKey *ecdsa.PrivateKey
 }
@@ -50,4 +53,11 @@ func (gs *GeneratedSigner) Verify(sig []byte, hash []byte) (valid bool, err erro
 	fsPubkey := gs.privateKey.Public()
 
 	return recoveredPubKey.Equal(fsPubkey), nil
+}
+
+// This function is meant to be a helper function that returns a guardian signer for tests
+// that simply require a private key. The caller can specify a private key to be used, or
+// pass nil to have `NewGeneratedSigner` generate a random private key.
+func GenerateSignerWithPrivatekeyUnsafe(key *ecdsa.PrivateKey) (GuardianSigner, error) {
+	return NewGeneratedSigner(key)
 }
