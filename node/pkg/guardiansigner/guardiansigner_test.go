@@ -25,9 +25,17 @@ func TestParseSignerUri(t *testing.T) {
 
 	for _, testcase := range tests {
 		t.Run(testcase.label, func(t *testing.T) {
-			signerType, _ := ParseSignerUri(testcase.path)
+			signerType, _, err := ParseSignerUri(testcase.path)
 
 			assert.Equal(t, signerType, testcase.expectedType)
+
+			// If the signer type is Invalid, then an error should have been returned.
+			if testcase.expectedType == InvalidSignerType {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
 		})
 	}
 }
@@ -40,7 +48,7 @@ func TestFileSignerNonExistentFile(t *testing.T) {
 	assert.Error(t, err)
 
 	// Attempt to generate signer using NewFileSigner
-	_, keyPath := ParseSignerUri(nonexistentFileUri)
+	_, keyPath, _ := ParseSignerUri(nonexistentFileUri)
 	fileSigner, err := NewFileSigner(true, keyPath)
 	assert.Nil(t, fileSigner)
 	assert.Error(t, err)
@@ -63,8 +71,9 @@ func TestFileSigner(t *testing.T) {
 	assert.Equal(t, ethcrypto.PubkeyToAddress(fileSigner1.PublicKey()).Hex(), expectedEthAddress)
 
 	// Attempt to generate signer using NewFileSigner
-	signerType, keyPath := ParseSignerUri(fileUri)
+	signerType, keyPath, err := ParseSignerUri(fileUri)
 	assert.Equal(t, signerType, FileSignerType)
+	assert.NoError(t, err)
 
 	fileSigner2, err := NewFileSigner(true, keyPath)
 	assert.NoError(t, err)
