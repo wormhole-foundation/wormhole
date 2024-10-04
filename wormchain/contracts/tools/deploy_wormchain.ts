@@ -156,15 +156,10 @@ async function main() {
         }
       });
 
-      console.log("store code msg: ", msg);
-
       const result = await client.signAndBroadcast(signer, [msg], {
         ...ZERO_FEE,
         gas: "10000000",
       });
-
-      console.log("store code result: ", result);
-
       const codeId = Number(
         JSON.parse(result.rawLog)[0]
           .events.find(({ type }) => type === "store_code")
