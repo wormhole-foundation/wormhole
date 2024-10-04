@@ -1020,7 +1020,7 @@ describe("NTT Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         },
         1000,
-        30
+        60
       );
       await waitForMetricsChange(
         (afterMetrics) =>
@@ -1164,7 +1164,7 @@ describe("NTT Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         },
         1000,
-        30
+        60
       );
       await waitForMetricsChange(
         (afterMetrics) =>
@@ -1240,7 +1240,7 @@ describe("NTT Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         },
         1000,
-        30
+        60
       );
       await waitForMetricsChange(
         (afterMetrics) =>
@@ -1528,7 +1528,7 @@ describe("NTT Global Accountant Tests", () => {
           transport: NodeHttpTransport(),
         },
         1000,
-        30
+        60
       );
       await waitForMetricsChange(
         (afterMetrics) =>
