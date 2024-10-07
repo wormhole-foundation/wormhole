@@ -14,6 +14,28 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 const MinNotional = 0;
 // Price change tolerance in %. Fallback to 30%
 const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? Math.min(100, Math.max(0, parseInt(process.env.PRICE_TOLERANCE))) : 30;
+// The percentage by which the price deviates from $1 to be considered depegged
+const usdDepegPercentage = process.env.DEPEG_PERCENTAGE ? Math.min(100, Math.max(0, parseInt(process.env.DEPEG_PERCENTAGE))) : 10;
+const usdPeggedStablecoins = [
+  "USDT",  // Tether
+  "USDC",  // USD Coin
+  "BUSD",  // Binance USD
+  "TUSD",  // TrueUSD
+  "GUSD",  // Gemini Dollar
+  "HUSD",  // HUSD
+  "PAX",   // Pax Dollar
+  "DAI",   // Dai
+  "SUSD",  // Synthetix USD
+  "RSV",   // Reserve
+  "VAI",   // Vai
+  "FRAX",  // Frax
+  "FEI",   // Fei
+  "LUSD"   // Liquity USD
+];
+const expectedUSDDepeggs = [
+  "2-00000000000000000000000045804880de22913dafe09f4980848ece6ecbaf78-PAXG", // This is PaxGold and not pegged to $1
+  "2-000000000000000000000000d13cfd3133239a3c73a9e535a5c4dadee36b395c-VAI", // This is Vaiot, not the VAI stablecoin
+]
 
 const axios = require("axios");
 const fs = require("fs");
@@ -54,6 +76,7 @@ if (fs.existsSync(IncludeFileName)) {
 var existingTokenPrices = {};
 var existingTokenKeys: string[] = [];
 var newTokenKeys = {};
+var depeggedUSDStablecoins = [];
 
 fs.readFile("../../pkg/governor/generated_mainnet_tokens.go", "utf8", function(_, doc) {
   var matches = doc.matchAll(/{chain: (?<chain>[0-9]+).+addr: "(?<addr>[0-9a-fA-F]+)".*symbol: "(?<symbol>.*)", coin.*price: (?<price>.*)}.*\n/g);
@@ -174,6 +197,18 @@ axios
               }
             }
 
+            // This token looks like a USD stablecoin
+            if (usdPeggedStablecoins.findIndex(element => data.Symbol.includes(element)) != -1 ) {
+              // The token price has deviated significantly from $1
+              if (data.TokenPrice > 1 * ((100 + usdDepegPercentage) / 100) || data.TokenPrice < 1 * ((100 - usdDepegPercentage) / 100)) {
+                var uniqueIdentifier = chain + "-" + wormholeAddr + "-" + data.Symbol;
+                // Skip tokens that are not expected to be pegged to $1
+                if (!expectedUSDDepeggs.includes(uniqueIdentifier)) {
+                  depeggedUSDStablecoins.push(uniqueIdentifier + " = " + data.TokenPrice);
+                }
+              }
+            }
+
             // This is a new token
             if (existingTokenPrices[chain] == undefined || existingTokenPrices[chain][wormholeAddr] == undefined) {
               addedTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol);
@@ -267,6 +302,9 @@ axios
 
     changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
+
+    changedContent += "\n\nPotentially depegged USD stablecoins (>" + usdDepegPercentage + "%) = " + depeggedUSDStablecoins.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol> = <token_price>\n\n";
+    changedContent += JSON.stringify(depeggedUSDStablecoins, null, 1);
 
     changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
