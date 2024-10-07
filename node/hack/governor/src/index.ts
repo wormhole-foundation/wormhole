@@ -17,24 +17,25 @@ const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? Math.min(100, Math.max
 // The percentage by which the price deviates from $1 to be considered depegged
 const usdDepegPercentage = process.env.DEPEG_PERCENTAGE ? Math.min(100, Math.max(0, parseInt(process.env.DEPEG_PERCENTAGE))) : 10;
 const usdPeggedStablecoins = [
-  "USDT",  // Tether
-  "USDC",  // USD Coin
-  "BUSD",  // Binance USD
-  "TUSD",  // TrueUSD
-  "GUSD",  // Gemini Dollar
-  "HUSD",  // HUSD
+  "USD",   // Matches with USDT, USDC, BUSD, etc.
   "PAX",   // Pax Dollar
   "DAI",   // Dai
-  "SUSD",  // Synthetix USD
   "RSV",   // Reserve
   "VAI",   // Vai
   "FRAX",  // Frax
   "FEI",   // Fei
-  "LUSD"   // Liquity USD
 ];
 const expectedUSDDepeggs = [
   "2-00000000000000000000000045804880de22913dafe09f4980848ece6ecbaf78-PAXG", // This is PaxGold and not pegged to $1
   "2-000000000000000000000000d13cfd3133239a3c73a9e535a5c4dadee36b395c-VAI", // This is Vaiot, not the VAI stablecoin
+  "5-000000000000000000000000ee327f889d5947c1dc1934bb208a1e792f953e96-frxETH", // Frax ETH
+  "23-0000000000000000000000009d2f299715d94d8a7e6f5eaa8e654e8c74a988a7-FXS", // Frax Share
+  "2-0000000000000000000000003432b6a60d23ca0dfca7761b7ab56459d9c964d0-FXS", // Frax Share
+  "23-00000000000000000000000051318b7d00db7acc4026c88c3952b66278b6a67f-PLS", // Plutus DAO
+  "3-0100000000000000000000000000000000000000000000000000000075757364-UST", // Terra USD
+  "2-000000000000000000000000dfdb7f72c1f195c5951a234e8db9806eb0635346-NFD", // Feisty Doge NFT
+  "2-00000000000000000000000000c5ca160a968f47e7272a0cfcda36428f386cb6-USDEBT", // US Debt Meme coin
+  "4-00000000000000000000000011a38e06699b238d6d9a0c7a01f3ac63a07ad318-USDFI", // USDFI is a protocol, not a stablecoin
 ]
 
 const axios = require("axios");
@@ -198,7 +199,7 @@ axios
             }
 
             // This token looks like a USD stablecoin
-            if (usdPeggedStablecoins.findIndex(element => data.Symbol.includes(element)) != -1 ) {
+            if (usdPeggedStablecoins.findIndex(element => data.Symbol.toLowerCase().includes(element.toLowerCase()) || data.CoinGeckoId.toLowerCase().includes(element.toLowerCase())) != -1 ) {
               // The token price has deviated significantly from $1
               if (data.TokenPrice > 1 * ((100 + usdDepegPercentage) / 100) || data.TokenPrice < 1 * ((100 - usdDepegPercentage) / 100)) {
                 var uniqueIdentifier = chain + "-" + wormholeAddr + "-" + data.Symbol;
