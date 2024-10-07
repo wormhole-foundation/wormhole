@@ -428,11 +428,15 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	var msg sdktypes.TxMsgData
+
 	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
 	if len(msg.MsgResponses) == 0 {
+
+		fmt.Println("TXRESP -", txResp)
+
 		return nil, fmt.Errorf("msg responses field is empty")
 	}
 
