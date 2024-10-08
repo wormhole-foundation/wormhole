@@ -106,6 +106,11 @@ impl<'b> Seeded<&SplTokenMetaDerivationData> for SplTokenMeta<'b> {
     }
 }
 
+/// New data length of spl token metadata account (post https://developers.metaplex.com/token-metadata/guides/account-size-reduction)
+/// The naming convention we adopt for future resizes is iterated NEW_* prefixes, e.g. NEW_NEW_NEW_NEW_NEW_MAX_METADATA_LEN.
+/// This will continue until morale improves.
+pub const NEW_MAX_METADATA_LEN: usize = 607;
+
 /// This method removes code duplication when checking token metadata. When metadata is read for
 /// attestation and transfers, Token Bridge does not invoke Metaplex's Token Metadata program, so
 /// it must validate the account the same way Token Metadata program does to ensure the correct
@@ -128,7 +133,9 @@ pub fn deserialize_and_verify_metadata(
     }
 
     // Account must be the expected Metadata length.
-    if info.data_len() != spl_token_metadata::state::MAX_METADATA_LEN {
+    if info.data_len() != spl_token_metadata::state::MAX_METADATA_LEN
+        && info.data_len() != NEW_MAX_METADATA_LEN
+    {
         return Err(TokenBridgeError::InvalidMetadata.into());
     }
 
