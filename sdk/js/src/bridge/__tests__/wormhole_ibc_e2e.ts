@@ -18,9 +18,6 @@ import {
 } from "../../token_bridge/__tests__/utils/helpers";
 import { CHAIN_ID_SEI } from "../../utils/consts";
 
-// TODO: JOEL - REMOVE ME
-jest.setTimeout(600000);
-
 const TERRA2_PRIVATE_KEY_4 =
   "bounce success option birth apple portion aunt rural episode solution hockey pencil lend session cause hedgehog slender journey system canvas decorate razor catch empty";
 
