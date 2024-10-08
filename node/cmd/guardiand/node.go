@@ -638,6 +638,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
 		}
 	} else {
+		// To avoid confusion, require that only guardianKey or guardianSignerUri can be specified
+		if *guardianSignerUri != "" {
+			logger.Fatal("Please only specify --guardianKey or --guardianSignerUri")
+		}
+
 		// If guardianKeyPath is set, set guardianSignerUri to the file signer URI, pointing to guardianKeyPath.
 		// This ensures that the signer-abstracted guardian has backwards compatibility with guardians that would
 		// just like to ignore the new guardianSignerUri altogether.

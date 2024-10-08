@@ -2,6 +2,7 @@ package guardiansigner
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -40,7 +41,7 @@ func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSig
 	case FileSignerType:
 		return NewFileSigner(unsafeDevMode, signerKeyConfig)
 	default:
-		return nil, fmt.Errorf("Unsupported guardian signer type")
+		return nil, errors.New("Unsupported guardian signer type")
 	}
 }
 
@@ -50,7 +51,7 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 
 	// This check is purely for ensuring that there is actually a path separator.
 	if len(signerUriSplit) < 2 {
-		return InvalidSignerType, "", fmt.Errorf("No path separator in guardian signer URI")
+		return InvalidSignerType, "", errors.New("No path separator in guardian signer URI")
 	}
 
 	typeStr := signerUriSplit[0]
