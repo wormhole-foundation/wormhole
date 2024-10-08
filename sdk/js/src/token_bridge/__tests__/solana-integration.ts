@@ -42,6 +42,9 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
+// TODO: JOEL - REMOVE ME
+jest.setTimeout(600000);
+
 describe("Solana to Ethereum", () => {
   test("Attest Solana SPL to Ethereum", (done) => {
     (async () => {

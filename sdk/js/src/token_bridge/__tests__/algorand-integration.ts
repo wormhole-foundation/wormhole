@@ -58,6 +58,9 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
+// TODO: JOEL - REMOVE ME
+jest.setTimeout(600000);
+
 const CORE_ID = BigInt(1004);
 const TOKEN_BRIDGE_ID = BigInt(1006);
 

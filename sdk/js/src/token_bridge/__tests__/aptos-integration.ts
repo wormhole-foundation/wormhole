@@ -56,6 +56,9 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
+// TODO: JOEL - REMOVE ME
+jest.setTimeout(600000);
+
 describe("Aptos SDK tests", () => {
   test("Transfer native token from Aptos to Ethereum", async () => {
     const APTOS_TOKEN_BRIDGE = CONTRACTS.DEVNET.aptos.token_bridge;

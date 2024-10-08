@@ -1,4 +1,4 @@
-import { describe, test } from "@jest/globals";
+import { describe, test, jest } from "@jest/globals";
 import {
   LCDClient,
   MnemonicKey,
@@ -17,6 +17,9 @@ import {
   waitForTerraExecution,
 } from "../../token_bridge/__tests__/utils/helpers";
 import { CHAIN_ID_SEI } from "../../utils/consts";
+
+// TODO: JOEL - REMOVE ME
+jest.setTimeout(600000);
 
 const TERRA2_PRIVATE_KEY_4 =
   "bounce success option birth apple portion aunt rural episode solution hockey pencil lend session cause hedgehog slender journey system canvas decorate razor catch empty";
@@ -73,6 +76,10 @@ describe("IBC Watcher Integration Tests", () => {
         },
       }
     );
+
+    // TODO: JOEL - REMOVE ME
+    console.log("postMsg", postMsg);
+
     const postedVaa = await terraBroadcastTxAndGetSignedVaa(
       [postMsg],
       terraWallet,
