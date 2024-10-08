@@ -435,7 +435,8 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 
 	if len(msg.MsgResponses) == 0 {
 
-		fmt.Println("TXRESP -", txResp)
+		fmt.Println("TXRESP -", txResp.TxResponse.Data)
+		fmt.Println("MSGRESP -", msg)
 
 		return nil, fmt.Errorf("msg responses field is empty")
 	}
