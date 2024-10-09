@@ -428,7 +428,11 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	// TODO: JOEL - REMOVE
-	fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
+	if txResp.TxResponse.Tx != nil {
+		fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
+	} else {
+		fmt.Println("Nested tx data is null")
+	}
 
 	var msg sdktypes.TxMsgData
 
