@@ -427,6 +427,9 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 		return nil, fmt.Errorf("failed to decode data: %w", err)
 	}
 
+	// TODO: JOEL - REMOVE
+	fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
+
 	var msg sdktypes.TxMsgData
 
 	if err := msg.Unmarshal(data); err != nil {
