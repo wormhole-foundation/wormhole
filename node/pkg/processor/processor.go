@@ -460,18 +460,21 @@ func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
 		return
 	}
 
-	digestBytes := sig.M
-	hash := hex.EncodeToString(digestBytes)
+	vaaDigest := sig.M
+
+	hash := hex.EncodeToString(vaaDigest)
 	wtr, ok := p.tssWaiters[hash]
 	if !ok {
-		// TODO: this indicates a TSS signature that was waited for too long probably.
+		// this indicates a TSS signature that was waited for too long.
 		p.logger.Warn("received TSS signature for unknown VAA", zap.String("hash", hash))
 		return
 	}
 
-	// TODO: Should we return a signature already in the correct format from the TssEngine? or giving the processor more control is better?
+	// signature is verified by tss.engine's threshold signature implementation already, so we can treat it as valid.
+	signature := append(sig.Signature, sig.SignatureRecovery...)
+
 	vaaSig := &vaa.Signature{}
-	copy(vaaSig.Signature[:], append(sig.Signature, sig.SignatureRecovery...))
+	copy(vaaSig.Signature[:], signature)
 
 	// using single signature, since it was reached via threshold signing.
 	wtr.vaa.HandleQuorum([]*vaa.Signature{vaaSig}, hash, p)

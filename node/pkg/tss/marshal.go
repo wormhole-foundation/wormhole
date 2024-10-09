@@ -2,67 +2,24 @@ package tss
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha512"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math/big"
 	"os"
 
-	"github.com/yossigi/tss-lib/v2/crypto"
+	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
+	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/yossigi/tss-lib/v2/tss"
 )
-
-func marshalEcdsaSecretkey(key *ecdsa.PrivateKey) []byte {
-	return key.D.Bytes()
-}
-
-func unmarshalEcdsaSecretKey(bz []byte) *ecdsa.PrivateKey {
-	// TODO: I straggled with unmarshalling ecdh.PrivateKey, as a result I resorted to "unsafe" and deprecated method:
-	x, y := tss.S256().ScalarBaseMult(bz)
-	return &ecdsa.PrivateKey{
-		PublicKey: ecdsa.PublicKey{
-			Curve: tss.S256(),
-			X:     x,
-			Y:     y,
-		},
-		D: new(big.Int).SetBytes(bz),
-	}
-}
-
-var errInvalidPublicKey = errors.New("invalid public key")
-
-func unmarshalEcdsaPublickey(curve elliptic.Curve, bz []byte) (*ecdsa.PublicKey, error) {
-	pnt := &crypto.ECPoint{}
-	if err := pnt.GobDecode(bz); err != nil {
-		return nil, err
-	}
-
-	if !curve.IsOnCurve(pnt.X(), pnt.Y()) {
-		return nil, errInvalidPublicKey
-	}
-
-	pnt.SetCurve(curve)
-
-	return pnt.ToECDSAPubKey(), nil
-}
-
-func marshalEcdsaPublickey(pk *ecdsa.PublicKey) ([]byte, error) {
-	pnt, err := crypto.NewECPoint(pk.Curve, pk.X, pk.Y)
-	if err != nil {
-		return nil, err
-	}
-	return pnt.GobEncode()
-}
 
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 	if err := json.Unmarshal(storageData, &s); err != nil {
 		return err
 	}
 
-	if s.SecretKey == nil {
-		return fmt.Errorf("secretKey is nil")
+	if s.PrivateKey == nil {
+		return fmt.Errorf("TlsPrivateKey is nil")
 	}
 
 	if len(s.Guardians) == 0 {
@@ -90,55 +47,96 @@ func (s *GuardianStorage) load(storagePath string) error {
 		return err
 	}
 
-	s.signingKey = unmarshalEcdsaSecretKey(s.SecretKey)
+	return s.SetInnerFields()
+}
 
-	pk, err := unmarshalEcdsaPublickey(tss.S256(), s.Self.Key)
+func (s *GuardianStorage) SetInnerFields() error {
+	signingKey, err := internal.PemToPrivateKey(s.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("error parsing tls private key: %v", err)
+	}
+
+	s.signingKey = signingKey
+
+	pk, err := internal.PemToPublicKey(s.Self.Key)
 	if err != nil {
 		return err
 	}
 
 	if !s.signingKey.PublicKey.Equal(pk) {
-		return fmt.Errorf("signing key does not match the public key stored as Self partyId")
+		return fmt.Errorf("signing key does not match the public key stored in Self.Key")
 	}
 
-	if !tss.S256().IsOnCurve(pk.X, pk.Y) {
+	if !s.signingKey.Curve.IsOnCurve(pk.X, pk.Y) {
 		return fmt.Errorf("invalid public key, it isn't on the curve")
 	}
 
-	if len(s.Symkeys) != len(s.Guardians) {
-		if err := s.createSharedSecrets(); err != nil {
-			return err
+	tlsCert, err := tls.X509KeyPair(s.TlsX509, s.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("error loading tls cert: %v", err)
+	}
+
+	s.tlsCert = &tlsCert
+
+	if len(s.GuardianCerts) != len(s.Guardians) {
+		return fmt.Errorf("number of guardians and guardiansCerts do not match")
+	}
+
+	if err := s.parseCerts(); err != nil {
+		return err
+	}
+
+	s.guardiansProtoIDs = make([]*tsscommv1.PartyId, len(s.Guardians))
+	for i, guardian := range s.Guardians {
+		s.guardiansProtoIDs[i] = partyIdToProto(guardian)
+	}
+
+	s.guardianToCert = make(map[string]*x509.Certificate)
+	for i, guardian := range s.Guardians {
+		s.guardianToCert[partyIdToString(guardian)] = s.guardiansCerts[i]
+	}
+
+	return s.setCertToGuardian()
+}
+
+func (s *GuardianStorage) setCertToGuardian() error {
+	s.pemkeyToGuardian = make(map[string]*tss.PartyID)
+	for i, crt := range s.guardiansCerts {
+		var byteKey []byte
+
+		switch m := crt.PublicKey.(type) {
+		case *ecdsa.PublicKey:
+			bts, err := internal.PublicKeyToPem(m)
+			if err != nil {
+				return fmt.Errorf("error parsing guardian %v cert: %v", i, err)
+			}
+
+			byteKey = bts
+		case []byte:
+			byteKey = m
+		default:
+			return fmt.Errorf("error guardian %v cert stored with non-ecdsa publickey", i)
 		}
+
+		s.pemkeyToGuardian[string(byteKey)] = s.Guardians[i]
 	}
 
 	return nil
 }
 
-func (s *GuardianStorage) createSharedSecrets() error {
-	curve := tss.S256()
-	s.Symkeys = make([]symKey, len(s.Guardians))
-
-	for i, g := range s.Guardians {
-		gpk, err := unmarshalEcdsaPublickey(curve, g.Key)
+func (s *GuardianStorage) parseCerts() error {
+	s.guardiansCerts = make([]*x509.Certificate, len(s.Guardians))
+	for i, cert := range s.GuardianCerts {
+		c, err := internal.PemToCert(cert)
 		if err != nil {
-			return errors.New("failed to unmarshal public key")
+			return fmt.Errorf("error parsing guardian %v cert: %v", i, err)
 		}
 
-		x, y := curve.ScalarMult(gpk.X, gpk.Y, s.SecretKey)
-		sharedKey, err := crypto.NewECPoint(curve, x, y)
-		if err != nil {
-			return err
+		if _, ok := c.PublicKey.(*ecdsa.PublicKey); !ok {
+			return fmt.Errorf("error guardian %v cert stored with non-ecdsa publickey", i)
 		}
 
-		// TODO: Ensure that GobEncode is deterministic. otherwise symkey will be for each guardian in the pair.
-		sharedKeyBytes, err := sharedKey.GobEncode()
-		if err != nil {
-			return err
-		}
-
-		// reducing the bytes of the sharedKey to 32 bytes (using sha512_256 to avoid collisions).
-		tmp := sha512.Sum512_256(sharedKeyBytes)
-		s.Symkeys[i] = tmp[:]
+		s.guardiansCerts[i] = c
 	}
 
 	return nil

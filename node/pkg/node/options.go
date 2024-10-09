@@ -19,6 +19,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	tsscomm "github.com/certusone/wormhole/node/pkg/tss/comm"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
@@ -102,7 +103,6 @@ func GuardianOptionP2P(
 					ccqBootstrapPeers,
 					ccqPort,
 					ccqAllowedPeers,
-					g.tssEngine,
 				),
 			)
 			if err != nil {
@@ -600,6 +600,25 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.gatewayRelayer,
 				g.tssEngine,
 			).Run
+
+			return nil
+		}}
+}
+
+func GuardianOptionTSSNetwork(
+	socketPath string,
+) *GuardianOption {
+	serviceName := "tsscomm"
+	return &GuardianOption{
+		name:         serviceName,
+		dependencies: []string{"processor"}, // TODO: I think it is dependant on it, since the TSS passes its signatures to the processor.
+		f: func(_ context.Context, logger *zap.Logger, g *G) error {
+			srvr, err := tsscomm.NewServer(socketPath, logger.Named(serviceName), g.tssEngine)
+			if err != nil {
+				return fmt.Errorf("failed to create tsscomm server: %w", err)
+			}
+
+			g.runnables[serviceName] = srvr.Run
 
 			return nil
 		}}

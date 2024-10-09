@@ -3,11 +3,17 @@ package tss
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/yossigi/tss-lib/v2/common"
@@ -16,31 +22,35 @@ import (
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/tss"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
-type symKey []byte
-
-// Engine is the implementation of reliableTSS, it is a wrapper for the tss-lib fullParty and adds reliable broadcast logic
+// Engine is the implementation of reliableTSS, it is a wrapper for the
+// tss-lib fullParty and adds reliable broadcast logic
 // to the message sending and receiving.
 type Engine struct {
 	ctx context.Context
 
-	logger zap.Logger
+	logger *zap.Logger
 	GuardianStorage
 
-	fp party.FullParty
-	//
-	fpOutChan    chan tss.Message // this one must listen on it, and output to the p2p network.
-	fpSigOutChan chan *common.SignatureData
-	fpErrChannel chan *tss.Error
+	fpParams *party.Parameters
+	fp       party.FullParty
 
-	ethSigOutChan chan *[]byte
-
-	gossipOutChan chan *gossipv1.GossipMessage
+	fpOutChan      chan tss.Message
+	fpSigOutChan   chan *common.SignatureData
+	messageOutChan chan Sendable
+	fpErrChannel   chan *tss.Error // used to log issues from the FullParty.
 
 	started         atomic.Uint32
 	msgSerialNumber uint64
+
+	// used to perform reliable broadcast:
+	mtx      *sync.Mutex
+	received map[digest]*broadcaststate
 }
+
+type PEM []byte
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
 // including its signing key, and the shared symmetric keys with other guardians.
@@ -48,26 +58,36 @@ type Engine struct {
 type GuardianStorage struct {
 	Self *tss.PartyID
 
-	//Stored sorted by Key. include Self.
+	// should be a certificate generated with SecretKey
+	TlsX509    PEM
+	PrivateKey PEM
+	tlsCert    *tls.Certificate
+	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of PriavteKey.
+
+	// Stored sorted by Key. include Self.
 	Guardians []*tss.PartyID
 
-	// SecretKey is the marshaled secret key of ReliableTSS, used to genereate SymKeys and signingKey.
-	SecretKey []byte
+	// guardianCert[i] should be the x509.Cert of guardians[i]. (uses p256, since golang x509 doesn't support secp256k1)
+	GuardianCerts  []PEM
+	guardiansCerts []*x509.Certificate
 
+	// Assumes threshold = 2f+1, where f is the maximal expected number of faulty nodes.
 	Threshold int
 
 	// all secret keys should be generated with specific value.
 	SavedSecretParameters *keygen.LocalPartySaveData
 
-	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of signing key.
-	Symkeys    []symKey          // should be generated upon creation using DH shared key protocol if nil.
-
 	LoadDistributionKey []byte
+
+	// data structures to ensure quick lookups:
+	guardiansProtoIDs []*tsscommv1.PartyId
+	guardianToCert    map[string]*x509.Certificate
+	pemkeyToGuardian  map[string]*tss.PartyID
 }
 
 func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
 	for _, v := range g.Guardians {
-		if v.Id == pid.Id && string(v.Key) == string(pid.Key) {
+		if equalPartyIds(pid, v) {
 			return true
 		}
 	}
@@ -92,17 +112,80 @@ func (t *Engine) ProducedSignature() <-chan *common.SignatureData {
 }
 
 // ProducedOutputMessages ensures a listener can send the output messages to the network.
-func (t *Engine) ProducedOutputMessages() <-chan *gossipv1.GossipMessage {
-	return t.gossipOutChan
+func (t *Engine) ProducedOutputMessages() <-chan Sendable {
+	return t.messageOutChan
 }
+
+func (st *GuardianStorage) fetchPartyIdFromBytes(pk []byte) *tsscommv1.PartyId {
+	pid, ok := st.pemkeyToGuardian[string(pk)]
+	if !ok {
+		return nil
+	}
+
+	return partyIdToProto(pid)
+}
+
+func (st *GuardianStorage) FetchCertificate(pid *tsscommv1.PartyId) (*x509.Certificate, error) {
+	if pid == nil {
+		return nil, ErrNilPartyId
+	}
+
+	cert, ok := st.guardianToCert[partyIdToString(protoToPartyId(pid))]
+	if !ok {
+		return nil, fmt.Errorf("partyID certificate not found: %v", pid)
+	}
+
+	return cert, nil
+}
+
+// FetchPartyId implements ReliableTSS.
+func (st *GuardianStorage) FetchPartyId(cert *x509.Certificate) (*tsscommv1.PartyId, error) {
+	var pid *tsscommv1.PartyId
+
+	switch key := cert.PublicKey.(type) {
+	case *ecdsa.PublicKey:
+		publicKeyPem, err := internal.PublicKeyToPem(key)
+		if err != nil {
+			return nil, err
+		}
+
+		pid = st.fetchPartyIdFromBytes(publicKeyPem)
+	case []byte:
+		pid = st.fetchPartyIdFromBytes(key)
+	default:
+		return nil, fmt.Errorf("unsupported public key type")
+	}
+
+	if pid == nil {
+		return nil, fmt.Errorf("certificate owner is unknown")
+	}
+
+	return pid, nil
+}
+
+// GetCertificate implements ReliableTSS.
+func (st *GuardianStorage) GetCertificate() *tls.Certificate {
+	return st.tlsCert
+}
+
+// GetPeers implements ReliableTSS.
+func (st *GuardianStorage) GetPeers() []*x509.Certificate {
+	return st.guardiansCerts
+}
+
+var (
+	errNilTssEngine        = fmt.Errorf("tss engine is nil")
+	errTssEngineNotStarted = fmt.Errorf("tss engine hasn't started")
+)
 
 // BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
 func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 	if t == nil {
-		return fmt.Errorf("tss engine is nil")
+		return errNilTssEngine
 	}
+
 	if t.started.Load() != started {
-		return fmt.Errorf("tss engine hasn't started")
+		return errTssEngineNotStarted
 	}
 
 	if t.fp == nil {
@@ -113,30 +196,34 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
+	t.logger.Info(
+		"guardian started signing protocol",
+		zap.String("guardian", t.GuardianStorage.Self.Id),
+		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
+	)
+
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
-	// fmt.Printf("guardian %v started signing protocol: %v\n", t.GuardianStorage.Self.Index, d)
 	return t.fp.AsyncRequestNewSignature(d)
 }
 
-// TODO: get a signature output channel, so the guardian can listen to outputs from this tssEngine.
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
-	// fmt.Println("guardian storage loaded, threshold is:	", storage.Threshold)
 
-	fpParams := party.Parameters{
-		SavedSecrets: storage.SavedSecretParameters,
-		PartyIDs:     storage.Guardians,
-		Self:         storage.Self,
-		Threshold:    storage.Threshold,
-		WorkDir:      "",
-		MaxSignerTTL: time.Minute * 5,
+	fpParams := &party.Parameters{
+		SavedSecrets:         storage.SavedSecretParameters,
+		PartyIDs:             storage.Guardians,
+		Self:                 storage.Self,
+		Threshold:            storage.Threshold,
+		WorkDir:              "",
+		MaxSignerTTL:         time.Minute * 5,
+		LoadDistributionSeed: storage.LoadDistributionKey,
 	}
 
-	fp, err := party.NewFullParty(&fpParams)
+	fp, err := party.NewFullParty(fpParams)
 	if err != nil {
 		return nil, err
 	}
@@ -146,15 +233,22 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	fpErrChannel := make(chan *tss.Error)
 
 	t := &Engine{
+		ctx: nil,
+
+		logger:          &zap.Logger{},
 		GuardianStorage: *storage,
 
-		fp:           fp,
-		fpOutChan:    fpOutChan,
-		fpSigOutChan: fpSigOutChan,
-		fpErrChannel: fpErrChannel,
+		fpParams:        fpParams,
+		fp:              fp,
+		fpOutChan:       fpOutChan,
+		fpSigOutChan:    fpSigOutChan,
+		fpErrChannel:    fpErrChannel,
+		messageOutChan:  make(chan Sendable),
+		msgSerialNumber: 0,
+		mtx:             &sync.Mutex{},
+		received:        map[digest]*broadcaststate{},
 
-		gossipOutChan: make(chan *gossipv1.GossipMessage),
-		started:       atomic.Uint32{}, // default value is 0
+		started: atomic.Uint32{}, // default value is 0
 	}
 
 	return t, nil
@@ -171,14 +265,21 @@ func (t *Engine) Start(ctx context.Context) error {
 	}
 
 	t.ctx = ctx
+	t.logger = supervisor.Logger(ctx)
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
 		t.started.Store(notStarted)
+
 		return err
 	}
-	//closing the t.fp.start inside th listener
 
+	// closing the t.fp.start inside th listener
 	go t.fpListener()
+
+	t.logger.Info(
+		"tss engine started",
+		zap.String("guardian", t.GuardianStorage.Self.Id),
+	)
 
 	return nil
 }
@@ -189,194 +290,443 @@ func (t *Engine) GetPublicKey() *ecdsa.PublicKey {
 
 func (t *Engine) GetEthAddress() ethcommon.Address {
 	pubkey := t.fp.GetPublic()
-	ethAddBytes := ethcommon.LeftPadBytes(crypto.Keccak256(tssutil.EcdsaPublicKeyToBytes(pubkey)[1:])[12:], 32)
+	ethAddBytes := ethcommon.LeftPadBytes(
+		crypto.Keccak256(tssutil.EcdsaPublicKeyToBytes(pubkey)[1:])[12:], 32)
+
 	return ethcommon.BytesToAddress(ethAddBytes)
 }
 
 // fpListener serves as a listining loop for the full party outputs.
 // ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
 func (t *Engine) fpListener() {
+	// using a few more seconds to ensure
+	cleanUpTicker := time.NewTicker(t.fpParams.MaxSignerTTL + time.Second*5)
+
 	for {
 		select {
 		case <-t.ctx.Done():
-			fmt.Printf("guardian %v stopped its full party\n", t.GuardianStorage.Self.Index)
+			t.logger.Info(
+				"shutting down TSS Engine",
+				zap.String("guardian", t.GuardianStorage.Self.Id),
+			)
+
 			t.fp.Stop()
+			cleanUpTicker.Stop()
+
 			return
+
 		case m := <-t.fpOutChan:
-			tssMsg, err := t.intoGossipMessage(m)
-			if err != nil {
+			tssMsg, err := t.intoSendable(m)
+			if err == nil {
+				t.messageOutChan <- tssMsg
+
 				continue
 			}
+			// else log error:
+			lgErr := logableError{
+				fmt.Errorf("failed to convert tss message and send it to network: %w", err),
+				m.WireMsg().GetTrackingID(),
+				"",
+			}
 
-			// todo: ensure someone listens to this channel.
-			//todo: wrap the message into a gossip message and output it to the network, sign (or encrypt and mac) it and send it.
-			t.gossipOutChan <- tssMsg
-			// fmt.Printf("guardian %v sent %v \n", t.GuardianStorage.Self.Index, m.Type())
+			// The following should always pass, since FullParty outputs a
+			// tss.ParsedMessage and a valid message with a specific round.
+			if parsed, ok := m.(tss.ParsedMessage); ok {
+				if rnd, e := getRound(parsed); e == nil {
+					lgErr.round = rnd
+				}
+			}
+
+			logErr(t.logger, lgErr)
+
 		case err := <-t.fpErrChannel:
-			_ = err // todo: log the error?
-			// fmt.Printf("guardian %v received error %v \n", t.GuardianStorage.Self.Index, err)
+			if err == nil {
+				continue // shouldn't happen. safety.
+			}
+
+			logErr(t.logger, &logableError{
+				fmt.Errorf("error in signing protocol: %w", err.Cause()),
+				err.TrackingId(),
+				intToRound(err.Round()),
+			})
+
+		case <-cleanUpTicker.C:
+			t.cleanup()
 		}
 	}
 }
 
-func protoToPartyId(pid *gossipv1.PartyId) *tss.PartyID {
-	return &tss.PartyID{
-		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-			Id:      pid.Id,
-			Moniker: pid.Moniker,
-			Key:     pid.Key,
-		},
-		Index: int(pid.Index),
+func (t *Engine) cleanup() {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	for k, v := range t.received {
+		if time.Since(v.timeReceived) > time.Minute*5 {
+			// althoug delete doesn't reduce the size of the underlying map
+			// it is good enough since this map contains many entries, and it'll be wastefull to let a new map grow again.
+			delete(t.received, k)
+		}
 	}
 }
-func partyIdToProto(pid *tss.PartyID) *gossipv1.PartyId {
-	return &gossipv1.PartyId{
-		Id:      pid.Id,
-		Moniker: pid.Moniker,
-		Key:     pid.Key,
-		Index:   uint32(pid.Index),
-	}
-}
-func (t *Engine) intoGossipMessage(m tss.Message) (*gossipv1.GossipMessage, error) {
+
+func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 	bts, routing, err := m.WireBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	indices := make([]*gossipv1.PartyId, 0, len(routing.To))
-	for _, pId := range routing.To {
-		indices = append(indices, partyIdToProto(pId))
-	}
-
-	msgToSend := &gossipv1.SignedMessage{
+	content := &tsscommv1.TssContent{
 		Payload:         bts,
-		Sender:          partyIdToProto(m.GetFrom()),
-		Recipients:      indices,
 		MsgSerialNumber: atomic.AddUint64(&t.msgSerialNumber, 1),
-		Authentication:  nil,
 	}
 
-	tssMsg := &gossipv1.PropagatedMessage{}
+	var sendable Sendable
 
-	if routing.IsBroadcast || len(routing.To) == 0 || len(routing.To) > 1 {
-		t.sign(msgToSend)
-		tssMsg.Payload = &gossipv1.PropagatedMessage_Echo{
-			Echo: &gossipv1.Echo{
-				Message:   msgToSend,
-				Signature: nil, //  No sig here, it means this is the original sender of the message, and not a vote.
-				Echoer:    0,   // TODO: use -1 since this is not an echo.
-			},
+	if routing.IsBroadcast || len(routing.To) == 0 {
+		msgToSend := &tsscommv1.SignedMessage{
+			Content:   content,
+			Sender:    partyIdToProto(t.Self),
+			Signature: nil,
 		}
+
+		if err := t.sign(msgToSend); err != nil {
+			return nil, err
+		}
+
+		sendable = newEcho(msgToSend, t.guardiansProtoIDs)
 	} else {
-		t.encryptAndMac(msgToSend)
-		// encrypt then mac the msgToSend (payload encrypted, and mac the full &gossipv1.SignedMessage)
-		tssMsg.Payload = &gossipv1.PropagatedMessage_Unicast{
-			Unicast: msgToSend,
+		indices := make([]*tsscommv1.PartyId, 0, len(routing.To))
+		for _, pId := range routing.To {
+			indices = append(indices, partyIdToProto(pId))
+		}
+
+		sendable = &Unicast{
+			Unicast:     content,
+			Receipients: indices,
 		}
 	}
 
-	return &gossipv1.GossipMessage{
-		Message: &gossipv1.GossipMessage_TssMessage{
-			TssMessage: tssMsg,
-		},
-	}, nil
+	return sendable, nil
 }
 
-func (t *Engine) HandleIncomingTssMessage(msg *gossipv1.GossipMessage_TssMessage) {
+func (t *Engine) HandleIncomingTssMessage(msg Incoming) {
 	if t == nil {
-		return
+		return // TODO: Consider what to do.
 	}
 
-	defer func() {
-		// todo: consider sending the message to be gossiped or not. perhaps it's a duplicate message?
-	}()
+	if t.started.Load() != started {
+		return // TODO: Consider what to do.
+	}
 
-	switch m := msg.TssMessage.Payload.(type) {
-	case *gossipv1.PropagatedMessage_Unicast:
-		parsed, err := t.handleUnicast(m)
-		if err != nil {
-			return
-		}
-
-		// TODO: add the uuid of this message to the set of received messages.
-		t.fp.Update(parsed)
-	case *gossipv1.PropagatedMessage_Echo:
-		parsed, err := t.handleEcho(m)
-		if err != nil {
-			return
-		}
-
-		// fmt.Printf("guardian %v received from %v: %v\n", t.GuardianStorage.Self.Index, parsed.GetFrom().Index, parsed.Type())
-		t.fp.Update(parsed)
+	if err := t.handleIncomingTssMessage(msg); err != nil {
+		logErr(t.logger, err)
 	}
 }
 
-func (t *Engine) handleEcho(m *gossipv1.PropagatedMessage_Echo) (tss.ParsedMessage, error) {
-	echoMsg := m.Echo
-	if echoMsg == nil {
-		return nil, fmt.Errorf("echo message is nil")
+var (
+	errNilIncoming                = fmt.Errorf("received nil incoming message")
+	errNilSource                  = fmt.Errorf("no source in incoming message")
+	errNeitherBroadcastNorUnicast = fmt.Errorf("received incoming message which is neither broadcast nor unicast")
+)
+
+func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
+	if msg == nil {
+		return errNilIncoming
+	}
+
+	if msg.GetSource() == nil {
+		return errNilSource
+	}
+
+	if msg.IsUnicast() {
+		return t.handleUnicast(msg)
+	} else if !msg.IsBroadcast() {
+		return errNeitherBroadcastNorUnicast
+	}
+
+	shouldEcho, err := t.handleEcho(msg)
+	if err != nil {
+		return err
+	}
+
+	if !shouldEcho {
+		return nil // not an error, just don't echo.
+	}
+
+	return t.sendEchoOut(msg)
+}
+
+func (t *Engine) sendEchoOut(m Incoming) error {
+	content, ok := proto.Clone(m.toEcho()).(*tsscommv1.Echo)
+	if !ok {
+		return fmt.Errorf("failed to clone echo message")
+	}
+
+	select {
+	case <-t.ctx.Done():
+		return t.ctx.Err()
+	case t.messageOutChan <- newEcho(content.Message, t.guardiansProtoIDs):
+	}
+
+	return nil
+}
+
+var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", round1Message1, round2Message)
+
+func (t *Engine) handleEcho(m Incoming) (bool, error) {
+	parsed, err := t.parseEcho(m)
+	if err != nil {
+		return false,
+			logableError{
+				fmt.Errorf("couldn't parse echo payload: %w", err),
+				nil,
+				"",
+			}
+	}
+
+	rnd, err := getRound(parsed)
+	if err != nil {
+		return false,
+			logableError{
+				fmt.Errorf("couldn't extract round from echo: %w", err),
+				parsed.WireMsg().GetTrackingID(),
+				"",
+			}
+	}
+
+	// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
+	if rnd == round1Message1 || rnd == round2Message {
+		return false,
+			logableError{
+				errBadRoundsInEcho,
+				parsed.WireMsg().GetTrackingID(),
+				rnd,
+			}
+	}
+
+	shouldEcho, shouldDeliver, err := t.relbroadcastInspection(parsed, m)
+	if err != nil {
+		return false,
+			logableError{
+				fmt.Errorf("reliable broadcast inspection issue: %w", err),
+				parsed.WireMsg().GetTrackingID(),
+				rnd,
+			}
+	}
+
+	if !shouldDeliver {
+		return shouldEcho, nil
+	}
+
+	if err := t.fp.Update(parsed); err != nil {
+		return shouldEcho, logableError{
+			fmt.Errorf("failed to update the full party: %w", err),
+			parsed.WireMsg().GetTrackingID(),
+			rnd,
+		}
+	}
+
+	return shouldEcho, nil
+}
+
+var errUnicastBadRound = fmt.Errorf("bad round for unicast (can accept round1Message1 and round2Message)")
+
+func (t *Engine) handleUnicast(m Incoming) error {
+	parsed, err := t.parseUnicast(m)
+	if err != nil {
+		return logableError{fmt.Errorf("couldn't parse unicast payload: %w", err), nil, ""}
+	}
+
+	// ensuring the reported source of the message matches the claimed source. (parsed.GetFrom() used by the tss-lib)
+	if !equalPartyIds(parsed.GetFrom(), protoToPartyId(m.GetSource())) {
+		return logableError{
+			fmt.Errorf("parsed message sender doesn't match the source of the message"),
+			parsed.WireMsg().GetTrackingID(),
+			"",
+		}
+	}
+
+	rnd, err := getRound(parsed)
+	if err != nil {
+		return logableError{
+			fmt.Errorf("unicast parsing error: %w", err),
+			parsed.WireMsg().GetTrackingID(),
+			"",
+		}
+	}
+
+	// only round 1 and round 2 are unicasts.
+	if rnd != round1Message1 && rnd != round2Message {
+		return logableError{
+			errUnicastBadRound,
+			parsed.WireMsg().GetTrackingID(),
+			rnd,
+		}
+	}
+
+	err = t.validateUnicastDoesntExist(parsed)
+	if err == errUnicastAlreadyReceived {
+		return nil
+	}
+
+	if err != nil {
+		return logableError{
+			fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id),
+			parsed.WireMsg().GetTrackingID(),
+			rnd,
+		}
+	}
+
+	if err := t.fp.Update(parsed); err != nil {
+		return logableError{
+			fmt.Errorf("unicast failed to update the full party: %w", err),
+			parsed.WireMsg().GetTrackingID(),
+			rnd,
+		}
+	}
+
+	return nil
+}
+
+var errUnicastAlreadyReceived = fmt.Errorf("unicast already received")
+
+func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
+	id, err := t.getMessageUUID(parsed)
+	if err != nil {
+		return err
+	}
+
+	bts, _, err := parsed.WireBytes()
+	if err != nil {
+		return fmt.Errorf("failed storing the unicast: %w", err)
+	}
+
+	msgDigest := hash(bts)
+
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	if stored, ok := t.received[id]; ok {
+		if stored.messageDigest != msgDigest {
+			return ErrEquivicatingGuardian
+		}
+
+		return errUnicastAlreadyReceived
+	}
+
+	t.received[id] = &broadcaststate{
+		timeReceived:  time.Now(), // used for GC.
+		messageDigest: hash(bts),  // used to ensure no equivocation.
+		votes:         nil,        // no votes should be stored for a unicast.
+		echoedAlready: true,       // ensuring this never echoed since it is a unicast.
+		mtx:           nil,        // no need to lock this, just store it.
+	}
+
+	return nil
+}
+
+var (
+	ErrUnkownEchoer = fmt.Errorf("echoer is not a known guardian")
+	ErrUnkownSender = fmt.Errorf("sender is not a known guardian")
+)
+
+func (t *Engine) parseEcho(m Incoming) (tss.ParsedMessage, error) {
+	echoMsg := m.toEcho()
+	if err := vaidateEchoCorrectForm(echoMsg); err != nil {
+		return nil, err
 	}
 
 	senderPid := protoToPartyId(echoMsg.Message.Sender)
 	if !t.GuardianStorage.contains(senderPid) {
-		return nil, fmt.Errorf("sender is not a known guardian")
+		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderPid)
 	}
 
-	if err := t.verifySignedMessage(echoMsg.Message); err != nil {
-		return nil, err
-	}
-
-	if echoMsg.Echoer > uint32(len(t.Guardians)) {
-		return nil, fmt.Errorf("echoer index is out of range")
-	}
-
-	if err := t.verifyEcho(echoMsg); err != nil {
-		return nil, err
-	}
-
-	parsed, err := tss.ParseWireMessage(echoMsg.Message.Payload, senderPid, true)
-	if err != nil {
-		return nil, err
-	}
-	return parsed, nil
+	return tss.ParseWireMessage(echoMsg.Message.Content.Payload, senderPid, true)
 }
 
-func (t *Engine) handleUnicast(m *gossipv1.PropagatedMessage_Unicast) (tss.ParsedMessage, error) {
-	defer func() {
+// SECURITY NOTE: this function sets a sessionID to a message. Used to ensure no equivocation.
+//
+// We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
+// this is used by the reliable broadcast to check no two messages from the same sender will be used to update the full party
+// in the same round for the specific session of the protocol.
+func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (digest, error) {
+	// The TackingID of a parsed message is tied to the run of the protocol for a single
+	//  signature, thus we use it as a sessionID.
+	messageTrackingID := [trackingIDSize]byte{}
+	copy(messageTrackingID[:], msg.WireMsg().GetTrackingID())
 
-	}()
+	fromId := [hostnameSize]byte{}
+	copy(fromId[:], msg.GetFrom().Id)
 
-	maccedMsg := m.Unicast
-	if maccedMsg == nil {
-		return nil, fmt.Errorf("unicast message is nil")
-	}
+	fromKey := [pemKeySize]byte{}
+	copy(fromKey[:], msg.GetFrom().Key)
 
-	senderPid := protoToPartyId(maccedMsg.Sender)
-	if !t.GuardianStorage.contains(senderPid) {
-		return nil, fmt.Errorf("sender is not a known guardian")
-	}
-
-	if !t.isUnicastForMe(maccedMsg) {
-		return nil, fmt.Errorf("unicast message is not for me")
-	}
-
-	if err := t.authAndDecrypt(maccedMsg); err != nil {
-		return nil, err
-	}
-
-	parsed, err := tss.ParseWireMessage(maccedMsg.Payload, senderPid, false)
+	// Adding the round allows the same sender to send messages for different rounds.
+	// but, sender j is not allowed to send two different messages to the same round.
+	rnd, err := getRound(msg)
 	if err != nil {
-		return nil, err
+		return digest{}, err
 	}
-	return parsed, nil
+
+	round := [signingRoundSize]byte{}
+	copy(round[:], rnd)
+
+	d := append([]byte("tssMsgUUID:"), t.GuardianStorage.LoadDistributionKey...)
+	d = append(d, messageTrackingID[:]...)
+	d = append(d, fromId[:]...)
+	d = append(d, fromKey[:]...)
+	d = append(d, round[:]...)
+
+	return hash(d), nil
 }
 
-func (t *Engine) isUnicastForMe(maccedMsg *gossipv1.SignedMessage) bool {
-	for _, v := range maccedMsg.Recipients {
-		if v.Id == t.Self.Id {
-			return true
-		}
+func (t *Engine) parseUnicast(m Incoming) (tss.ParsedMessage, error) {
+	if err := validateContentCorrectForm(m.toUnicast()); err != nil {
+		return nil, err
 	}
 
-	return false
+	return tss.ParseWireMessage(m.toUnicast().Payload, protoToPartyId(m.GetSource()), false)
+}
+
+func (st *GuardianStorage) sign(msg *tsscommv1.SignedMessage) error {
+	digest := hashSignedMessage(msg)
+
+	sig, err := st.signingKey.Sign(rand.Reader, digest[:], nil)
+	msg.Signature = sig
+
+	return err
+}
+
+var ErrInvalidSignature = fmt.Errorf("invalid signature")
+
+var errEmptySignature = fmt.Errorf("empty signature")
+
+func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) error {
+	if msg == nil {
+		return fmt.Errorf("nil signed message")
+	}
+
+	if msg.Signature == nil {
+		return errEmptySignature
+	}
+
+	cert, err := st.FetchCertificate(msg.Sender)
+	if err != nil {
+		return err
+	}
+
+	pk, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("certificated stored with non-ecdsa public key, guardian storage is corrupted")
+	}
+
+	digest := hashSignedMessage(msg)
+
+	isValid := ecdsa.VerifyASN1(pk, digest[:], msg.Signature)
+
+	if !isValid {
+		return ErrInvalidSignature
+	}
+
+	return nil
 }

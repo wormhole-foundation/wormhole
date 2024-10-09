@@ -251,9 +251,11 @@ message SignedMessage {
 message Echo {
   SignedMessage message = 1;
 
+  // TODO: If we use TLS channels, we don't have to sign the echo, since it is already authenticated over the tls. we just need to ensure 
+  // the echoer id and public key is correct.
   // without the signature here, this means the signer is also the creator of this message.
   bytes signature = 2;
-  uint32 echoer = 3;
+  PartyId echoer = 3;
 }
 
 // PropagatedMessage is a message that is sent across the network,

@@ -57,6 +57,7 @@ const LOCAL_RPC_PORTRANGE_START = 10000
 const LOCAL_P2P_PORTRANGE_START = 11000
 const LOCAL_STATUS_PORTRANGE_START = 12000
 const LOCAL_PUBLICWEB_PORTRANGE_START = 13000
+const LOCAL_TSS_PORTRANGE_START = 14000
 
 var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = "wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}"
 
@@ -89,23 +90,25 @@ type mockGuardian struct {
 }
 
 type guardianConfig struct {
-	publicSocket string
-	adminSocket  string
-	publicRpc    string
-	publicWeb    string
-	statusPort   uint
-	p2pPort      uint
+	publicSocket   string
+	adminSocket    string
+	publicRpc      string
+	publicWeb      string
+	statusPort     uint
+	p2pPort        uint
+	tssNetworkPort uint
 }
 
 func createGuardianConfig(t testing.TB, testId uint, mockGuardianIndex uint) *guardianConfig {
 	t.Helper()
 	return &guardianConfig{
-		publicSocket: fmt.Sprintf("/tmp/test_guardian_%d_public.socket", mockGuardianIndex+testId*20),
-		adminSocket:  fmt.Sprintf("/tmp/test_guardian_%d_admin.socket", mockGuardianIndex+testId*20), // TODO consider using os.CreateTemp("/tmp", "test_guardian_adminXXXXX.socket"),
-		publicRpc:    fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_RPC_PORTRANGE_START+testId*20),
-		publicWeb:    fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_PUBLICWEB_PORTRANGE_START+testId*20),
-		statusPort:   mockGuardianIndex + LOCAL_STATUS_PORTRANGE_START + testId*20,
-		p2pPort:      mockGuardianIndex + LOCAL_P2P_PORTRANGE_START + testId*20,
+		publicSocket:   fmt.Sprintf("/tmp/test_guardian_%d_public.socket", mockGuardianIndex+testId*20),
+		adminSocket:    fmt.Sprintf("/tmp/test_guardian_%d_admin.socket", mockGuardianIndex+testId*20), // TODO consider using os.CreateTemp("/tmp", "test_guardian_adminXXXXX.socket"),
+		publicRpc:      fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_RPC_PORTRANGE_START+testId*20),
+		publicWeb:      fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_PUBLICWEB_PORTRANGE_START+testId*20),
+		statusPort:     mockGuardianIndex + LOCAL_STATUS_PORTRANGE_START + testId*20,
+		p2pPort:        mockGuardianIndex + LOCAL_P2P_PORTRANGE_START + testId*20,
+		tssNetworkPort: mockGuardianIndex + LOCAL_TSS_PORTRANGE_START + testId*20,
 	}
 }
 
@@ -146,6 +149,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 		}
 	}
 
+	overridePortOfTss(gs)
 	return gs
 }
 
@@ -158,8 +162,34 @@ func mockGuardianSetToGuardianAddrList(t testing.TB, gs []*mockGuardian) []eth_c
 	return result
 }
 
+func overridePortOfTss(gs []*mockGuardian) {
+	idToPort := map[string]string{}
+	for _, g := range gs {
+		cnfg := g.config
+		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Id] = fmt.Sprintf("localhost:%d", cnfg.tssNetworkPort)
+	}
+
+	// go to each guardian and change the ID of everyone including self.
+	// for each member, grab its port, then change it in the peer of the guardian.
+
+	for _, g := range gs {
+		en := g.tssEngine.(*tss.Engine)
+		en.Self.Id = idToPort[en.Self.Id]
+		for _, pid := range en.Guardians {
+			if _, ok := idToPort[pid.Id]; !ok {
+				continue
+			}
+			pid.Id = idToPort[pid.Id]
+		}
+	}
+
+	for _, g := range gs {
+		g.tssEngine.(*tss.Engine).GuardianStorage.SetInnerFields()
+	}
+}
+
 // mockGuardianRunnable returns a runnable that first sets up a mock guardian an then runs it.
-func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex uint, obsDb mock.ObservationDb) supervisor.Runnable {
+func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex uint, obsDb mock.ObservationDb, informOnNewVAAs bool) supervisor.Runnable {
 	t.Helper()
 	return func(ctx context.Context) error {
 		// Create a sub-context with cancel function that we can pass to G.run.
@@ -209,13 +239,14 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true, false),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
 			GuardianOptionProcessor(),
+			GuardianOptionTSSNetwork(fmt.Sprintf("[::]:%d", cfg.tssNetworkPort)),
 		}
 
 		guardianNode := NewGuardianNode(
@@ -385,7 +416,8 @@ type testCase struct {
 	mustNotReachQuorum bool
 
 	// if true, the guardian will wait for a signature output from the TssEngine.
-	shouldExpectTssSignature bool
+	tssVaaVersionChecks      bool
+	queryAllGuardiansForVAAs bool
 }
 
 func randomTime() time.Time {
@@ -658,13 +690,13 @@ func TestConsensus(t *testing.T) {
 		// TODO add a testcase to test the automatic re-observation requests.
 		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
 	}
-	runConsensusTests(t, testCases, numGuardians)
+	runConsensusTests(t, testCases, numGuardians, false)
 }
 
 // runConsensusTests spins up `numGuardians` guardians and runs & verifies the testCases
-func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
+// informOnNewVAAs means whether guardians are subscribing to p2p channels informing on new VAAs.
+func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, informOnNewVAAs bool) {
 	const testTimeout = time.Second * 60
-	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
 	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
 	testId := getTestId()
 
@@ -682,7 +714,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 		// run the guardians
 		for i := 0; i < numGuardians; i++ {
-			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
+			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, informOnNewVAAs)
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 			if i == 0 && numGuardians > 1 {
 				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -729,6 +761,8 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			waitForHeartbeatsInLogs(t, zapObserver, gs)
 		}
 		logger.Info("All Guardians have received at least one heartbeat.")
+
+		time.Sleep(time.Second * 3) // adding wait to ensure all guardians have direct connections for TSS.
 
 		// have them make observations
 		for _, testCase := range testCases {
@@ -794,19 +828,24 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			}
 		}()
 
-		// Wait for publicrpc to come online
-		for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[vaaCheckGuardianIndex].config.publicRpc)).Len() == 0 {
-			logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
-			time.Sleep(time.Microsecond * 100)
+		for i := range gs {
+			// Wait for publicrpc to come online
+			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[i].config.publicRpc)).Len() == 0 {
+				logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
+				time.Sleep(time.Microsecond * 100)
+			}
 		}
 
-		// check that the VAAs were generated
+		cs := make([]publicrpcv1.PublicRPCServiceClient, numGuardians)
 		logger.Info("Connecting to publicrpc...")
-		conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		require.NoError(t, err)
 
-		defer conn.Close()
-		c := publicrpcv1.NewPublicRPCServiceClient(conn)
+		for i := 0; i < numGuardians; i++ {
+			conn, err := grpc.DialContext(ctx, gs[i].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer conn.Close()
+
+			cs[i] = publicrpcv1.NewPublicRPCServiceClient(conn)
+		}
 
 		gsAddrList := mockGuardianSetToGuardianAddrList(t, gs)
 
@@ -816,51 +855,15 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 			logger.Info("Checking result of testcase", zap.Int("test_case", i))
 
-			// poll the API until we get a response without error
-			msgId := &publicrpcv1.MessageID{
-				EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
-				EmitterAddress: msg.EmitterAddress.String(),
-				Sequence:       msg.Sequence,
-				Version:        uint32(vaa.VaaVersion1),
+			numGuardiansToCheck := 1
+			if testCase.queryAllGuardiansForVAAs {
+				numGuardiansToCheck = len(gs)
 			}
-			if testCase.shouldExpectTssSignature {
-				msgId.Version = uint32(vaa.TSSVaaVersion)
+
+			for i := 0; i < numGuardiansToCheck; i++ {
+				pollApiAndInspectVaa(t, ctx, msg, testCase, cs[i], gsAddrList, gs)
 			}
-			r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
 
-			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
-			if testCase.mustNotReachQuorum {
-				assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
-			} else if testCase.mustReachQuorum {
-				require.NotNil(t, r)
-				returnedVaa, err := vaa.Unmarshal(r.VaaBytes)
-				assert.NoError(t, err)
-
-				// Check signatures
-				if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
-					addrLst := gsAddrList
-					if testCase.shouldExpectTssSignature {
-						addrLst = []eth_common.Address{gs[0].tssEngine.GetEthAddress()}
-					}
-
-					assert.NoError(t, returnedVaa.Verify(addrLst))
-				}
-
-				// Match all the fields
-				if testCase.shouldExpectTssSignature {
-					assert.Equal(t, returnedVaa.Version, uint8(vaa.TSSVaaVersion))
-				} else {
-					assert.Equal(t, returnedVaa.Version, uint8(1))
-				}
-				assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
-				assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
-				assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
-				assert.Equal(t, returnedVaa.Sequence, msg.Sequence)
-				assert.Equal(t, returnedVaa.ConsistencyLevel, msg.ConsistencyLevel)
-				assert.Equal(t, returnedVaa.EmitterChain, msg.EmitterChain)
-				assert.Equal(t, returnedVaa.EmitterAddress, msg.EmitterAddress)
-				assert.Equal(t, returnedVaa.Payload, msg.Payload)
-			}
 		}
 
 		// We're done!
@@ -881,6 +884,54 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 	// tests are happy.
 	zapLogger.Info("Test root context cancelled, waiting for everything to shut down properly...")
 	time.Sleep(time.Millisecond * 50)
+}
+
+func pollApiAndInspectVaa(t *testing.T, ctx context.Context, msg *common.MessagePublication, testCase testCase, c publicrpcv1.PublicRPCServiceClient, gsAddrList []eth_common.Address, gs []*mockGuardian) {
+	msgId := &publicrpcv1.MessageID{
+		EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
+		EmitterAddress: msg.EmitterAddress.String(),
+		Sequence:       msg.Sequence,
+		Version:        uint32(vaa.VaaVersion1),
+	}
+	if testCase.tssVaaVersionChecks {
+		msgId.Version = uint32(vaa.TSSVaaVersion)
+	}
+
+	r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)
+	assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
+	if testCase.mustNotReachQuorum {
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
+	} else if testCase.mustReachQuorum {
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		returnedVaa, err := vaa.Unmarshal(r.VaaBytes)
+		assert.NoError(t, err)
+
+		// Check signatures
+		if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
+			addrLst := gsAddrList
+			if testCase.tssVaaVersionChecks {
+				addrLst = []eth_common.Address{gs[0].tssEngine.GetEthAddress()}
+			}
+
+			assert.NoError(t, returnedVaa.Verify(addrLst))
+		}
+
+		// Match all the fields
+		if testCase.tssVaaVersionChecks {
+			assert.Equal(t, returnedVaa.Version, uint8(vaa.TSSVaaVersion))
+		} else {
+			assert.Equal(t, returnedVaa.Version, uint8(1))
+		}
+		assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
+		assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
+		assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
+		assert.Equal(t, returnedVaa.Sequence, msg.Sequence)
+		assert.Equal(t, returnedVaa.ConsistencyLevel, msg.ConsistencyLevel)
+		assert.Equal(t, returnedVaa.EmitterChain, msg.EmitterChain)
+		assert.Equal(t, returnedVaa.EmitterAddress, msg.EmitterAddress)
+		assert.Equal(t, returnedVaa.Payload, msg.Payload)
+	}
 }
 
 type testCaseGuardianConfig struct {
@@ -1224,7 +1275,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 			// run the guardians
 			for i := 0; i < numGuardians; i++ {
-				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
+				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, false)
 				err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 				if i == 0 && numGuardians > 1 {
 					time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -1340,18 +1391,43 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 }
 
 func TestTssCorrectRun(t *testing.T) {
-	guardians := 5
+	processor.FirstRetryMinWait = time.Second * 3
+	processor.CleanupInterval = time.Second * 30
+
+	const guardians = 5
 	testCases := []testCase{
 		{
-			// all guardians observe the message waiting for Tss signature.
+			// Best case scenario: all guardians observe the message and perform Tss Signing.
 			msg:                      someMessage(),
 			numGuardiansObserve:      guardians,
 			mustReachQuorum:          true,
-			shouldExpectTssSignature: true,
+			tssVaaVersionChecks:      true,
+			queryAllGuardiansForVAAs: true,
+		},
+		{
+			// Only one guardian observes the message, and performs Tss signing.
+			msg:                      someMessage(),
+			numGuardiansObserve:      1,
+			queryAllGuardiansForVAAs: true,
+			tssVaaVersionChecks:      true,
+			mustReachQuorum:          true,
+		},
+		{
+			// (TSSVersion of test): Message covered by Governor that should be delayed 24h and hence not reach quorum within this test
+			msg:                 governedMsg(true),
+			numGuardiansObserve: guardians,
+			mustNotReachQuorum:  true,
+			tssVaaVersionChecks: true,
+		},
+		{
+			// (TSSVersion of test): No Guardian makes the observation while watching
+			msg:                               someMessage(),
+			numGuardiansObserve:               0,
+			mustReachQuorum:                   true,
+			performManualReobservationRequest: true,
+			tssVaaVersionChecks:               true,
 		},
 	}
 
-	runConsensusTests(t, testCases, guardians)
+	runConsensusTests(t, testCases, guardians, true)
 }
-
-func TestTssSignatureFailure(t *testing.T) {}

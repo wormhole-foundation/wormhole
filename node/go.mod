@@ -367,7 +367,10 @@ replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasm
 
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
 
-require github.com/yossigi/tss-lib/v2 v2.0.0-20240902061053-cbc33b2df360
+require (
+	github.com/test-go/testify v1.1.4
+	github.com/yossigi/tss-lib/v2 v2.0.0-20241009073606-c4c23db3c511
+)
 
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.
 
