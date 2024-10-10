@@ -76,17 +76,27 @@ func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 		if !valueBase.Exists() {
 			return fmt.Errorf("event attribute does not have a value: %s", attribute.String())
 		}
-		keyRaw, err := base64.StdEncoding.DecodeString(keyBase.String())
-		if err != nil {
-			return fmt.Errorf("event attribute key is invalid base64: %s", attribute.String())
-		}
-		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
-		if err != nil {
-			return fmt.Errorf("event attribute value is invalid base64: %s", attribute.String())
-		}
 
-		key := string(keyRaw)
-		value := string(valueRaw)
+		key := keyBase.String()
+		value := valueBase.String()
+
+		keyRaw, err := base64.StdEncoding.DecodeString(keyBase.String())
+		if err == nil {
+			key = string(keyRaw)
+		}
+		// if err != nil {
+		// 	return fmt.Errorf("event attribute key is invalid base64: %s", attribute.String())
+		// }
+
+		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
+		if err == nil {
+			value = string(valueRaw)
+		}
+		// if err != nil {
+		// 	return fmt.Errorf("event attribute value is invalid base64: %s", attribute.String())
+		// }
+
+		// TODO: JOEL - Some Wasm Events aren't Base64 encoded
 
 		if _, ok := wa.m[key]; ok {
 			return fmt.Errorf("duplicate key in event: %s", key)

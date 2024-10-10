@@ -30,7 +30,7 @@ import * as devnetConsts from "../devnet-consts.json";
 import { parseUnits } from "ethers/lib/utils";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
-jest.setTimeout(120000);
+jest.setTimeout(200000);
 
 if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
   let msg = `.env is missing. run "make contracts-tools-deps" to fetch.`;

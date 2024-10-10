@@ -6,6 +6,14 @@ import (
 	"time"
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
+	dbm "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/libs/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmtypes "github.com/cometbft/cometbft/types"
+	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -14,21 +22,13 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 	"github.com/wormhole-foundation/wormchain/app"
 	appparams "github.com/wormhole-foundation/wormchain/app/params"
 )
 
 // SimAppChainID hardcoded chainID for simulation
 const (
-	SimAppChainID = "wormchain-app"
+	SimAppChainID = "testing"
 )
 
 // EmptyBaseAppOptions is a stub implementing AppOptions
@@ -41,8 +41,8 @@ func (ao EmptyBaseAppOptions) Get(_ string) interface{} {
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
 // in wormApp testing.
-var DefaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
+var DefaultConsensusParams = &tmproto.ConsensusParams{
+	Block: &tmproto.BlockParams{
 		MaxBytes: 200000,
 		MaxGas:   2000000,
 	},
@@ -104,12 +104,16 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
+			ChainId:         SimAppChainID,
+			Time:            time.Now().UTC(),
+			InitialHeight:   1,
 		},
 	)
 
 	// commit genesis changes
 	wormApp.Commit()
 	wormApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            SimAppChainID,
 		Height:             wormApp.LastBlockHeight() + 1,
 		AppHash:            wormApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),
@@ -121,23 +125,23 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 
 func setup(withGenesis bool, invCheckPeriod uint) (*app.App, app.GenesisState) {
 	db := dbm.NewMemDB()
-	encoding := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encoding := app.MakeEncodingConfig()
 	wormApp := app.New(
 		log.NewNopLogger(),
 		db,
 		nil,
 		true,
 		map[int64]bool{},
-		app.DefaultNodeHome,
 		invCheckPeriod,
 		encoding,
 		EmptyBaseAppOptions{},
+		baseapp.SetChainID(SimAppChainID),
 	)
 	if withGenesis {
-		return wormApp.(*app.App), app.NewDefaultGenesisState(encoding.Marshaler)
+		return wormApp, app.NewDefaultGenesisState(encoding.Marshaler)
 	}
 
-	return wormApp.(*app.App), app.GenesisState{}
+	return wormApp, app.GenesisState{}
 }
 
 func genesisStateWithValSet(t *testing.T,
@@ -184,6 +188,7 @@ func genesisStateWithValSet(t *testing.T,
 		defaultStParams.MaxEntries,
 		defaultStParams.HistoricalEntries,
 		appparams.BondDenom,
+		defaultStParams.MinCommissionRate,
 	)
 
 	// set validators and delegations
@@ -213,6 +218,7 @@ func genesisStateWithValSet(t *testing.T,
 		balances,
 		totalSupply,
 		[]banktypes.Metadata{},
+		[]banktypes.SendEnabled{},
 	)
 
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)

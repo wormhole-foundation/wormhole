@@ -427,17 +427,29 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 		return nil, fmt.Errorf("failed to decode data: %w", err)
 	}
 
+	// TODO: JOEL - REMOVE
+	if txResp.TxResponse.Tx != nil {
+		fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
+	} else {
+		fmt.Println("Nested tx data is null")
+	}
+
 	var msg sdktypes.TxMsgData
+
 	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	if len(msg.Data) == 0 {
-		return nil, fmt.Errorf("data field is empty")
+	if len(msg.MsgResponses) == 0 {
+
+		fmt.Println("TXRESP -", txResp.TxResponse.Data)
+		fmt.Println("MSGRESP -", msg)
+
+		return nil, fmt.Errorf("msg responses field is empty")
 	}
 
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
-	if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
+	if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", err)
 	}
 
