@@ -40,22 +40,21 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
 - **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
 - **[May 2023 - Runtime Verification](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-05_Runtime_Verification_Wormhole_EVM.pdf)**: _Formal Verification of EVM contracts_
-- **[Jan 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-10-cyfrin-thermae-v2.0.pdf)**: _Uniswap Liquidity Layer EVM Contracts_
-- **[Jan 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-ottersec-terra.pdf)**: _Terra Classic Contract Upgrades_
-- **[Feb 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-09-cyfrin-wormhole-evm-cctp-v2-1.pdf)**: _CCTP EVM Contracts_
-- **[Mar 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-11-cyfrin-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
-- **[Mar 2024 - Cantina](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-cantina-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
-- **[Mar 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-03-28-ottersec-solana-ntt.pdf)**: _NTT Solana Contracts_
-- **[Mar 2024 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-12-neodyme-solana-ntt.pdf)**: _NTT Solana Contracts_
+- **[January 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-10-cyfrin-thermae-v2.0.pdf)**: _Uniswap Liquidity Layer EVM Contracts_
+- **[January 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-ottersec-terra.pdf)**: _Terra Classic Contract Upgrades_
+- **[February 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-09-cyfrin-wormhole-evm-cctp-v2-1.pdf)**: _CCTP EVM Contracts_
+- **[March 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-11-cyfrin-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
+- **[March 2024 - Cantina](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-cantina-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
+- **[March 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-03-28-ottersec-solana-ntt.pdf)**: _NTT Solana Contracts_
+- **[March 2024 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-12-neodyme-solana-ntt.pdf)**: _NTT Solana Contracts_
+- **[July 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-07-23-cyfrin-wormhole-evm-ntt-diff-v1.1.0.pdf)**: _NTT EVM v1.1.0_
+- **[August 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-08-02-ottersec-solana-ntt-token-extensions.pdf)**: _NTT Solana Token Extensions_
 
 ## Bug Bounty Program
 
 The Wormhole project operates a bug bounty program to financially incentivize independent researchers for finding and responsibly disclosing security issues.
 
-- [Immunefi-Hosted Program](https://immunefi.com/bounty/wormhole/)
-  - **Scopes**: Guardian and Smart Contracts
-  - **Rewards**: Up to $5,000,000 USDC
-  - **KYC**: Required
+[Immunefi-Hosted Program](https://immunefi.com/bug-bounty/wormhole/information/)
 
 If you find a security issue in Wormhole, please report the issue immediately using the bug bounty program above.
 
