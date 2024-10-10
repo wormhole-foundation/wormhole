@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -126,8 +126,8 @@ type Processor struct {
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
-	// gk is the node's guardian private key
-	gk *ecdsa.PrivateKey
+	// guardianSigner is the guardian node's signer
+	guardianSigner guardiansigner.GuardianSigner
 
 	logger *zap.Logger
 
@@ -229,7 +229,7 @@ func NewProcessor(
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	gst *common.GuardianSetState,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
@@ -247,13 +247,13 @@ func NewProcessor(
 		batchObsvC:             batchObsvC,
 		obsvReqSendC:           obsvReqSendC,
 		signedInC:              signedInC,
-		gk:                     gk,
+		guardianSigner:         guardianSigner,
 		gst:                    gst,
 		db:                     db,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(gk.PublicKey),
+		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey()),
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
