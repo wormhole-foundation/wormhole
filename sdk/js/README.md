@@ -1,6 +1,8 @@
-# Wormhole SDK
+# Wormhole SDK (Deprecated)
 
-> Note: This is a pre-alpha release and in active development. Function names and signatures are subject to change.
+**⚠️ This SDK is deprecated. Please use the new SDK available at [@wormhole-foundation/sdk](https://www.npmjs.com/package/@wormhole-foundation/sdk).**
+
+---
 
 ## What is Wormhole?
 
