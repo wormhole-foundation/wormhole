@@ -8,14 +8,28 @@
 
 set -euo pipefail
 
-network=$1
-module=$2
-chain=$3
+network="${1:-}"
+module="${2:-}"
+chain="${3:-}"
+
+if [ -z "$network" ] || [ -z "$module" ] || [ -z "$chain" ]; then
+  echo "Usage: MNEMONIC=... $0 <network> <module> <chain name>" >&2
+  exit 1
+fi
+
+if [ -z "${MNEMONIC:-}" ]; then
+  echo "MNEMONIC unset"
+  exit 1
+fi
 
 secret=$MNEMONIC
 guardian_secret=""
 
 if [ "$network" = testnet ]; then
+  if [ -z "${GUARDIAN_MNEMONIC:-}" ]; then
+    echo "GUARDIAN_MNEMONIC unset"
+    exit 1
+  fi
   guardian_secret=$GUARDIAN_MNEMONIC
 fi
 
