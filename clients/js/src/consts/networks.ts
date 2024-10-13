@@ -26,7 +26,7 @@ const Mainnet = {
     key: getEnvVar("TERRA_MNEMONIC"),
   },
   Ethereum: {
-    rpc: `https://rpc.ankr.com/eth`,
+    rpc: `https://ethereum-rpc.publicnode.com`,
     key: getEnvVar("ETH_KEY"),
     chain_id: 1,
   },
@@ -197,6 +197,11 @@ const Mainnet = {
     key: undefined,
     chain_id: undefined,
   },
+  Snaxchain: {
+    rpc: "https://mainnet.snaxchain.io",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 2192,
+  },
   Seievm: {
     rpc: undefined,
     key: undefined,
@@ -336,7 +341,7 @@ const Testnet = {
   Acala: {
     rpc: "https://eth-rpc-acala-testnet.aca-staging.network",
     key: getEnvVar("ETH_KEY_TESTNET"),
-    chain_id: 595,
+    chain_id: 597,
   },
   Klaytn: {
     rpc: "https://api.baobab.klaytn.net:8651",
@@ -413,6 +418,11 @@ const Testnet = {
     rpc: "https://bartio.rpc.berachain.com/",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 80084,
+  },
+  Snaxchain: {
+    rpc: "https://testnet.snaxchain.io",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 13001,
   },
   Seievm: {
     rpc: "https://evm-rpc-arctic-1.sei-apis.com/",
@@ -658,6 +668,11 @@ const Devnet = {
     chain_id: undefined,
   },
   Berachain: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  Snaxchain: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,

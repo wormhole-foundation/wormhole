@@ -16,6 +16,7 @@ remappings = [
     '@solidity-parser/=node_modules/@solidity-parser/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/',
+    'truffle/=node_modules/truffle/',
 ]
 
 [fmt]

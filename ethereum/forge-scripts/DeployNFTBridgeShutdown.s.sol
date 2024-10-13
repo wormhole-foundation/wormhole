@@ -1,7 +1,7 @@
 
 
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.4;
 import {NFTBridgeShutdown} from "../contracts/nft/NFTBridgeShutdown.sol";
 import "forge-std/Script.sol";
 

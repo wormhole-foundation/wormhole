@@ -961,4 +961,64 @@ describe("eth call", () => {
       "0x0000000000000000000000000000000000000000000000000000000000000012"
     );
   });
+  test("rate limit exceeded", async () => {
+    const nameCallData = createTestEthCallData(WETH_ADDRESS, "name", "string");
+    const decimalsCallData = createTestEthCallData(
+      WETH_ADDRESS,
+      "decimals",
+      "uint8"
+    );
+    const blockNumber = await web3.eth.getBlockNumber(ETH_DATA_FORMAT);
+    const ethCall = new EthCallQueryRequest(blockNumber, [
+      nameCallData,
+      decimalsCallData,
+    ]);
+    const chainId = 2;
+    for (let bigCount = 0; bigCount < 3; bigCount++) {
+      // We are allowed a burst of two, so these should work.
+      for (let count = 0; count < 2; count++) {
+        const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+        const nonce = count + 1;
+        const request = new QueryRequest(nonce, [ethQuery]);
+        const serialized = request.serialize();
+        const digest = QueryRequest.digest(ENV, serialized);
+        const signature = sign(PRIVATE_KEY, digest);
+        const response = await axios.put(
+          QUERY_URL,
+          {
+            signature,
+            bytes: Buffer.from(serialized).toString("hex"),
+          },
+          { headers: { "X-API-Key": "rate_limited_key" } }
+        );
+        expect(response.status).toBe(200);
+      }
+      // But the next one should fail with a 429.
+      const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+      const nonce = 100;
+      const request = new QueryRequest(nonce, [ethQuery]);
+      const serialized = request.serialize();
+      const digest = QueryRequest.digest(ENV, serialized);
+      const signature = sign(PRIVATE_KEY, digest);
+      let err = false;
+      await axios
+        .put(
+          QUERY_URL,
+          {
+            signature,
+            bytes: Buffer.from(serialized).toString("hex"),
+          },
+          { headers: { "X-API-Key": "rate_limited_key" } }
+        )
+        .catch(function (error) {
+          err = true;
+          expect(error.response.status).toBe(429);
+          expect(error.response.data).toBe("rate limit exceeded\n");
+        });
+      expect(err).toBe(true);
+
+      // But after a sleep, we should be able to go again.
+      await sleep(2000);
+    }
+  });
 });

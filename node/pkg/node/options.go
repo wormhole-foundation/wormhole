@@ -85,6 +85,7 @@ func GuardianOptionP2P(
 					nodeName,
 					g.gk,
 					g.obsvC,
+					g.batchObsvC.writeC,
 					signedInC,
 					g.obsvReqC.writeC,
 					g.gossipControlSendC,
@@ -102,8 +103,8 @@ func GuardianOptionP2P(
 					g.queryResponsePublicationC.readC,
 					ccqBootstrapPeers,
 					ccqPort,
-					ccqAllowedPeers,
-				),
+					ccqAllowedPeers),
+				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
 			)
 			if err != nil {
 				return err
@@ -575,7 +576,7 @@ func GuardianOptionDatabase(db *db.Database) *GuardianOption {
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: db, governor, accountant
-func GuardianOptionProcessor() *GuardianOption {
+func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
@@ -590,6 +591,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.gossipAttestationSendC,
 				g.gossipVaaSendC,
 				g.obsvC,
+				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.gk,
@@ -598,6 +600,7 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.acct,
 				g.acctC.readC,
 				g.gatewayRelayer,
+				networkId,
 				g.tssEngine,
 			).Run
 

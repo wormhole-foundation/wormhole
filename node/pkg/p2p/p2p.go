@@ -48,6 +48,12 @@ const P2P_SUBSCRIPTION_BUFFER_SIZE = 1024
 // TESTNET_BOOTSTRAP_DHI configures how many nodes may connect to the testnet bootstrap node. This number should not exceed HighWaterMark.
 const TESTNET_BOOTSTRAP_DHI = 350
 
+// MaxObservationBatchSize is the maximum number of observations that will fit in a single `SignedObservationBatch` message.
+const MaxObservationBatchSize = 4000
+
+// MaxObservationBatchDelay is the longest we will wait before publishing any queued up observations.
+const MaxObservationBatchDelay = time.Second
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -73,11 +79,6 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_drops",
 			Help: "Total number of messages that were dropped by libp2p",
-		})
-	p2pReject = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_p2p_rejects",
-			Help: "Total number of messages rejected by libp2p",
 		})
 )
 
@@ -173,8 +174,6 @@ func (*traceHandler) Trace(evt *libp2ppb.TraceEvent) {
 	if evt.Type != nil {
 		if *evt.Type == libp2ppb.TraceEvent_DROP_RPC {
 			p2pDrop.Inc()
-		} else if *evt.Type == libp2ppb.TraceEvent_REJECT_MESSAGE {
-			p2pReject.Inc()
 		}
 	}
 }
@@ -306,6 +305,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		p2pMessagesSent.WithLabelValues("attestation").Add(0)
 		p2pMessagesSent.WithLabelValues("vaa").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
+		p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
 
@@ -397,7 +397,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the attestation channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil {
+		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil || params.batchObsvRecvC != nil {
 			attestationTopic := fmt.Sprintf("%s/%s", params.networkID, "attestation")
 			logger.Info("joining the attestation topic", zap.String("topic", attestationTopic))
 			attestationPubsubTopic, err = ps.Join(attestationTopic)
@@ -411,7 +411,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvRecvC != nil {
+			if params.obsvRecvC != nil || params.batchObsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -528,6 +528,15 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 
 							features := make([]string, 0)
+							if GossipCutoverComplete() {
+								features = append(features, "p2p:new_gossip")
+							}
+							if params.processorFeaturesFunc != nil {
+								flag := params.processorFeaturesFunc()
+								if flag != "" {
+									features = append(features, flag)
+								}
+							}
 							if params.gov != nil {
 								if params.gov.IsFlowCancelEnabled() {
 									features = append(features, "governor:fc")
@@ -760,24 +769,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						gs := params.gst.Get()
 						if gs == nil {
 							// No valid guardian set yet - dropping heartbeat
-							logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-								zap.Any("value", s),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+									zap.Any("value", s),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 							break
 						}
 						if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
 							p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-								zap.Error(err),
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+									zap.Error(err),
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 						} else {
 							p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-								zap.Any("value", heartbeat),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+									zap.Any("value", heartbeat),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 
 							func() {
 								if len(heartbeat.P2PNodeId) != 0 {
@@ -918,6 +933,17 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
 							}
 						}
+					case *gossipv1.GossipMessage_SignedObservationBatch:
+						if params.batchObsvRecvC != nil {
+							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
+								p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+							} else {
+								if params.components.WarnChannelOverflow {
+									logger.Warn("Ignoring SignedObservationBatch because batchObsvRecvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservationBatch.Addr)))
+								}
+								p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
+							}
+						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
 						logger.Warn("received unknown message type on attestation topic (running outdated software?)",
@@ -970,24 +996,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						gs := params.gst.Get()
 						if gs == nil {
 							// No valid guardian set yet - dropping heartbeat
-							logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-								zap.Any("value", s),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
+									zap.Any("value", s),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 							break
 						}
 						if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
 							p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-								zap.Error(err),
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
+									zap.Error(err),
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 						} else {
 							p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-							logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-								zap.Any("value", heartbeat),
-								zap.String("from", envelope.GetFrom().String()))
+							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
+								logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
+									zap.Any("value", heartbeat),
+									zap.String("from", envelope.GetFrom().String()))
+							}
 
 							func() {
 								if len(heartbeat.P2PNodeId) != 0 {
@@ -1037,6 +1069,17 @@ func Run(params *RunParams) func(ctx context.Context) error {
 									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
 								}
 								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
+							}
+						}
+					case *gossipv1.GossipMessage_SignedObservationBatch: // TODO: Get rid of this after the cutover.
+						if params.batchObsvRecvC != nil {
+							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
+								p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+							} else {
+								if params.components.WarnChannelOverflow {
+									logger.Warn("Ignoring SignedObservationBatch because obsvRecvC is full")
+								}
+								p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
 							}
 						}
 					case *gossipv1.GossipMessage_SignedVaaWithQuorum:

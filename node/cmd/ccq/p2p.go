@@ -270,6 +270,7 @@ func runP2P(
 							}
 						}
 						outstandingResponses := len(guardianSet.Keys) - totalSigners
+						pendingResponse.updateStats(maxMatchingResponses, outstandingResponses, quorum)
 						if maxMatchingResponses+outstandingResponses < quorum {
 							quorumNotMetByUser.WithLabelValues(pendingResponse.userName).Inc()
 							failedQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()

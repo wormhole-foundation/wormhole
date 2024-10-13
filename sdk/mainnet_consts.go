@@ -12,12 +12,10 @@ import (
 //
 // This list is duplicated a couple times across the codebase - make to to update all copies!
 var PublicRPCEndpoints = []string{
-	"https://wormhole-v2-mainnet-api.certus.one",
-	"https://wormhole.inotel.ro",
 	"https://wormhole-v2-mainnet-api.mcf.rocks",
 	"https://wormhole-v2-mainnet-api.chainlayer.network",
 	"https://wormhole-v2-mainnet-api.staking.fund",
-	"https://wormhole-v2-mainnet.01node.com",
+	"https://guardian.mainnet.xlabs.xyz",
 }
 
 type (
@@ -122,6 +120,7 @@ var knownTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDMantle:    "00000000000000000000000024850c6f61C438823F01B7A3BF2B89B72174Fa9d",
 	vaa.ChainIDBlast:     "00000000000000000000000024850c6f61C438823F01B7A3BF2B89B72174Fa9d",
 	vaa.ChainIDXLayer:    "0000000000000000000000005537857664B0f9eFe38C9f320F75fEf23234D904",
+	vaa.ChainIDSnaxchain: "0000000000000000000000008B94bfE456B48a6025b92E11Be393BAa86e68410",
 	vaa.ChainIDInjective: "00000000000000000000000045dbea4617971d93188eda21530bc6503d153313",
 	vaa.ChainIDSui:       "ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5",
 	vaa.ChainIDSei:       "86c5fd957e2db8389553e1728f9c27964b22a8154091ccba54d75f4b10c61f5e",
@@ -189,4 +188,5 @@ var KnownAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDBlast, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
 	{ChainId: vaa.ChainIDMantle, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDXLayer, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
+	{ChainId: vaa.ChainIDSnaxchain, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
 }

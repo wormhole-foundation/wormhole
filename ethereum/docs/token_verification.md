@@ -47,11 +47,11 @@ https://moonscan.io/verifyContract and paste in contract address, in our case
 `0xab3f0245b83feb11d15aaffefd7ad465a59817ed`. Fill in the rest of the form with
 the following values, then continue.
 
-| Field            | Value                     |
-| ---------------- | ------------------------- |
-| Compiler type    | Solidity (Single file)    |
-| Compiler version | v0.8.4+commit.c7e474f2    |
-| License type     | Apache-2                  |
+| Field            | Value                  |
+| ---------------- | ---------------------- |
+| Compiler type    | Solidity (Single file) |
+| Compiler version | v0.8.4+commit.c7e474f2 |
+| License type     | Apache-2               |
 
 On the next page, select "optimizations: yes", and paste the contents of
 `token/Token.sol` from before into the source file textarea.
@@ -61,7 +61,7 @@ default.
 
 ## ABI-encoded constructor arguments
 
-The last missing piece is the ABI-encoded constructor arguments field.  These
+The last missing piece is the ABI-encoded constructor arguments field. These
 are the arguments that the contract was instantiated with, and it will be
 different for each wrapped contract.
 There are two ways to proceed. The first method is easier, but does not
@@ -77,8 +77,8 @@ At this point, some explorers will just return a generic error message saying
 the bytecodes didn't match, without any additional information. If this is the
 case, go to method #2.
 
-If the page shows what the *expected* bytecode was, and lists out the *actual*
-bytecodes it found in the source file, then we may proceed here. The *expected*
+If the page shows what the _expected_ bytecode was, and lists out the _actual_
+bytecodes it found in the source file, then we may proceed here. The _expected_
 bytecode will be the same as the `BridgeToken` bytecode with the constructor
 arguments appended to the end. This means that the `BridgeToken` bytecode is a
 proper prefix of the expected bytecode. Just copy the rest of the bytes of the
@@ -130,7 +130,7 @@ section. Click "Decode input data" which will show the hex value of the
 We copy this field and go back to our terminal. Run the following
 
 ```
-wormhole/ethereum $ forge script scripts/TokenABI.s.sol -s "token_constructor_args(bytes, address)" <VAA-BYTES> <CONTRACT-ADDRESS>
+wormhole/ethereum $ forge script forge-scripts/TokenABI.s.sol --tc BridgeScript -s "token_constructor_args(bytes, address)" <VAA-BYTES> <CONTRACT-ADDRESS>
 ```
 
 where in place of `<VAA-BYTES>`, substitute the hex sequence we just copied from
@@ -143,5 +143,5 @@ Running that command prints the following:
 0x000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d9200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000164c71f461500000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000014c53000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d920000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000000000000000000d57726170706564204574686572000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004574554480000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ```
 
-Copy the hex *excluding* the 0x at the front, and paste that into the
+Copy the hex _excluding_ the 0x at the front, and paste that into the
 constructor arguments field, then hit verify. The contract should now be verified.

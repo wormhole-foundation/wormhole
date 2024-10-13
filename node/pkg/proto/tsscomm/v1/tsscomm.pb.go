@@ -154,12 +154,9 @@ type SignedMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Content *TssContent `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	// both of the following fields are used by the TSS lib, and can be used by the reliable-broadcast protocol.
-	Sender *PartyId `protobuf:"bytes,2,opt,name=sender,proto3" json:"sender,omitempty"`
-	// if this message is part of reliable broadcast protocol, it should include the signature of the sender.
-	// otherwise it should contain the mac over this message.
-	Signature []byte `protobuf:"bytes,6,opt,name=signature,proto3" json:"signature,omitempty"`
+	Content   *TssContent `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Sender    *PartyId    `protobuf:"bytes,2,opt,name=sender,proto3" json:"sender,omitempty"`
+	Signature []byte      `protobuf:"bytes,6,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 
 func (x *SignedMessage) Reset() {

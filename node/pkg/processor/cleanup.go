@@ -155,13 +155,13 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			}
 			delete(p.state.signatures, hash)
 			aggregationStateExpiration.Inc()
-		case !s.submitted && ((s.ourMsg != nil && delta > retryLimitOurs) || (s.ourMsg == nil && delta > retryLimitNotOurs)):
+		case !s.submitted && ((s.ourObs != nil && delta > retryLimitOurs) || (s.ourObs == nil && delta > retryLimitNotOurs)):
 			// Clearly, this horse is dead and continued beatings won't bring it closer to quorum.
 			p.logger.Info("expiring unsubmitted observation after exhausting retries",
 				zap.String("message_id", s.LoggingID()),
 				zap.String("digest", hash),
 				zap.Duration("delta", delta),
-				zap.Bool("weObserved", s.ourMsg != nil),
+				zap.Bool("weObserved", s.ourObs != nil),
 			)
 			delete(p.state.signatures, hash)
 			aggregationStateTimeout.Inc()
@@ -172,7 +172,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// sig. If we do not have an observation, it means we either never observed it, or it got
 			// revived by a malfunctioning guardian node, in which case, we can't do anything about it
 			// and just delete it to keep our state nice and lean.
-			if s.ourMsg != nil {
+			if s.ourObs != nil {
 				// Unreliable observations cannot be resubmitted and can be considered failed after 5 minutes
 				if !s.ourObservation.IsReliable() {
 					p.logger.Info("expiring unsubmitted unreliable observation",
@@ -228,8 +228,12 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
-
-					p.gossipAttestationSendC <- s.ourMsg
+					if s.ourMsg != nil {
+						// This is the case for immediately published messages (as well as anything still pending from before the cutover).
+						p.gossipAttestationSendC <- s.ourMsg
+					} else {
+						p.postObservationToBatch(s.ourObs)
+					}
 					s.retryCtr++
 					s.nextRetry = time.Now().Add(nextRetryDuration(s.retryCtr))
 					aggregationStateRetries.Inc()

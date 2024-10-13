@@ -38,9 +38,11 @@ func TestTokenListAddressSize(t *testing.T) {
 // populated.) While this is not a hard requirement, it may represent that a developer has forgotten to take the step
 // of configuring tokens when deploying the chain. This test helps to remind them.
 func TestGovernedChainHasGovernedAssets(t *testing.T) {
-
 	// Add a chain ID to this set if it genuinely has no native assets that should be governed.
 	ignoredChains := map[vaa.ChainID]bool{
+		// TODO: Remove this once we have governed tokens for Snax.
+		vaa.ChainIDSnaxchain: true,
+
 		// Wormchain is an abstraction over IBC-connected chains so no assets are "native" to it
 		vaa.ChainIDWormchain: true,
 	}
@@ -58,7 +60,7 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	for _, chainConfigEntry := range chainList() {
 		e := chainConfigEntry.emitterChainID
 		if _, ignored := ignoredChains[e]; ignored {
-			return
+			continue
 		}
 		t.Run(e.String(), func(t *testing.T) {
 			found := false
@@ -69,6 +71,15 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 				}
 			}
 			assert.True(t, found, "Chain is governed but has no governed native assets configured")
+		})
+	}
+
+	// Make sure we're not ignoring any chains with governed tokens.
+	for _, tokenEntry := range tokenList() {
+		t.Run(vaa.ChainID(tokenEntry.chain).String(), func(t *testing.T) {
+			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
+				assert.Fail(t, "Chain is in ignoredChains but it has governed tokens")
+			}
 		})
 	}
 }

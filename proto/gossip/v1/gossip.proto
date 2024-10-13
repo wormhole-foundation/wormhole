@@ -14,7 +14,7 @@ message GossipMessage {
     SignedChainGovernorStatus signed_chain_governor_status = 9;
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
-    PropagatedMessage TssMessage = 12;
+    SignedObservationBatch signed_observation_batch = 12;
   }
 }
 
@@ -217,52 +217,25 @@ message SignedQueryResponse {
   bytes signature = 2;
 }
 
-
-// copyOfTssLib proto.
-message PartyId{
-  string id = 1;
-  string moniker = 2;
-  bytes key = 3;
-  uint32 index = 4;
+// A SignedObservationBatch is a signed statement by a given guardian node that they observed a number of events.
+message SignedObservationBatch {
+  // Guardian pubkey as truncated eth address.
+  bytes addr = 1;
+  // The set of observations in this batch. Note that the default max message size in libp2p before fragmentation is 1MB.
+  // If we limit this array to 4000 entries, that gives us a marshaled message size of 800K, which is safely below that limit.
+  repeated Observation observations = 2;
 }
 
-// SignedMessage is a message containing a payload for someone specific (containing encrypted and
-// MACed payload) or as a broadcast message (plaintext but signed).
-message SignedMessage {
-  // the message itself
-  bytes payload = 1; // In case of unicast: should be encrypted with a specific DH derived shared key.
-
-  // both of the following fields are used by the TSS lib, and can be used by the reliable-broadcast protocol.
-  PartyId sender = 2;
-  repeated PartyId recipients = 3;
-
-  // used to identify the number of message for this sender. starts from 0 and advances with each message this signer sends.
-  uint64 msg_serial_number = 4;
-
-  // if this message is part of reliable broadcast protocol, it should include the signature of the sender.
-  // otherwise it should contain the mac over this message.
-  oneof Authentication{
-    bytes MAC = 5;
-    bytes signature = 6;
-  }
-}
-
-// Echo is a message explicitly used by the Reliable Broadcast protocol.
-message Echo {
-  SignedMessage message = 1;
-
-  // TODO: If we use TLS channels, we don't have to sign the echo, since it is already authenticated over the tls. we just need to ensure 
-  // the echoer id and public key is correct.
-  // without the signature here, this means the signer is also the creator of this message.
+// Observation defines a single observation that is contained in SignedObservationBatch
+message Observation {
+  // The observation's deterministic, unique hash.
+  bytes hash = 1;
+  // ECSDA signature of the hash using the node's guardian key.
   bytes signature = 2;
-  PartyId echoer = 3;
-}
-
-// PropagatedMessage is a message that is sent across the network,
-// either to a specific recipient or all nodes (using reliable broadcast).
-message PropagatedMessage {
-  oneof payload{
-    SignedMessage Unicast = 1;
-    Echo Echo = 2;
-  }
+  // Transaction hash this observation was made from.
+  // Optional, included for observability.
+  bytes tx_hash = 3;
+  // Message ID (chain/emitter/seq) for this observation.
+  // Optional, included for observability.
+  string message_id = 4;
 }

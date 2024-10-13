@@ -86,17 +86,6 @@ func (i *VAAID) EmitterPrefixBytes() []byte {
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 
-// TODO: Deprecate in favor of OpenDb
-func Open(path string) (*Database, error) {
-	db, err := badger.Open(badger.DefaultOptions(path))
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-	return &Database{
-		db: db,
-	}, nil
-}
-
 func (d *Database) Close() error {
 	return d.db.Close()
 }
@@ -240,7 +229,6 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 		// Figure out gaps.
 		for i := firstSeq; i <= lastSeq; i++ {
 			if !seqs[i] {
-				fmt.Printf("missing: %d\n", i)
 				resp = append(resp, i)
 			}
 		}
