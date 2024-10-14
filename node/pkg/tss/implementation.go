@@ -79,6 +79,10 @@ type GuardianStorage struct {
 
 	LoadDistributionKey []byte
 
+	// MaxSignerTTL is the maximum time a signer is allowed to be active.
+	// used to release resources.
+	MaxSignerTTL time.Duration
+
 	// data structures to ensure quick lookups:
 	guardiansProtoIDs []*tsscommv1.PartyId
 	guardianToCert    map[string]*x509.Certificate
@@ -213,13 +217,17 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
 
+	if storage.MaxSignerTTL == 0 {
+		storage.MaxSignerTTL = defaultMaxSignerTTL
+	}
+
 	fpParams := &party.Parameters{
 		SavedSecrets:         storage.SavedSecretParameters,
 		PartyIDs:             storage.Guardians,
 		Self:                 storage.Self,
 		Threshold:            storage.Threshold,
-		WorkDir:              "",
-		MaxSignerTTL:         time.Minute * 5,
+		WorkDir:              "", // set to empty since we don't support DKG/reshare protocol yet.
+		MaxSignerTTL:         storage.MaxSignerTTL,
 		LoadDistributionSeed: storage.LoadDistributionKey,
 	}
 
@@ -299,8 +307,7 @@ func (t *Engine) GetEthAddress() ethcommon.Address {
 // fpListener serves as a listining loop for the full party outputs.
 // ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
 func (t *Engine) fpListener() {
-	// using a few more seconds to ensure
-	cleanUpTicker := time.NewTicker(t.fpParams.MaxSignerTTL + time.Second*5)
+	cleanUpTicker := time.NewTicker(t.GuardianStorage.MaxSignerTTL)
 
 	for {
 		select {
@@ -361,7 +368,7 @@ func (t *Engine) cleanup() {
 	defer t.mtx.Unlock()
 
 	for k, v := range t.received {
-		if time.Since(v.timeReceived) > time.Minute*5 {
+		if time.Since(v.timeReceived) > t.GuardianStorage.MaxSignerTTL {
 			// althoug delete doesn't reduce the size of the underlying map
 			// it is good enough since this map contains many entries, and it'll be wastefull to let a new map grow again.
 			delete(t.received, k)

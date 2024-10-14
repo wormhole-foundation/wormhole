@@ -1,5 +1,7 @@
 package tss
 
+import "time"
+
 const (
 	digestSize = 32
 
@@ -11,4 +13,6 @@ const (
 	pemKeySize       = 178
 	trackingIDSize   = 32
 	signingRoundSize = 8
+
+	defaultMaxSignerTTL = time.Minute * 5
 )
