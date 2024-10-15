@@ -477,13 +477,13 @@ func TestCleanup(t *testing.T) {
 	e1 := engines[0]
 
 	e1.received[digest{1}] = &broadcaststate{
-		timeReceived: time.Now().Add(time.Minute * 10 * (-1)),
+		timeReceived: time.Now().Add(time.Minute * 10 * (-1)), // -10 minutes from now.
 	}
 	e1.received[digest{2}] = &broadcaststate{
 		timeReceived: time.Now(),
 	}
 
-	e1.cleanup()
+	e1.cleanup(time.Minute * 5) // if more than 5 minutes passed -> delete
 	a.Len(e1.received, 1)
 	_, ok := e1.received[digest{1}]
 	a.False(ok)

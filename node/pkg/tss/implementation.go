@@ -307,7 +307,14 @@ func (t *Engine) GetEthAddress() ethcommon.Address {
 // fpListener serves as a listining loop for the full party outputs.
 // ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
 func (t *Engine) fpListener() {
-	cleanUpTicker := time.NewTicker(t.GuardianStorage.MaxSignerTTL)
+	// SECURITY NOTE: when we clean the guardian map from received Echo's
+	// we must use TTL > FullParty.TTL to ensure guardians can't use
+	// the deletion time to perform equivication attacks (since a message
+	// has no record after it was deleted).
+	// *2 is to account for possible offset in the time of the guardian.
+	maxTTL := t.GuardianStorage.MaxSignerTTL * 2
+
+	cleanUpTicker := time.NewTicker(maxTTL)
 
 	for {
 		select {
@@ -358,17 +365,17 @@ func (t *Engine) fpListener() {
 			})
 
 		case <-cleanUpTicker.C:
-			t.cleanup()
+			t.cleanup(maxTTL)
 		}
 	}
 }
 
-func (t *Engine) cleanup() {
+func (t *Engine) cleanup(maxTTL time.Duration) {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	for k, v := range t.received {
-		if time.Since(v.timeReceived) > t.GuardianStorage.MaxSignerTTL {
+		if time.Since(v.timeReceived) > maxTTL {
 			// althoug delete doesn't reduce the size of the underlying map
 			// it is good enough since this map contains many entries, and it'll be wastefull to let a new map grow again.
 			delete(t.received, k)
