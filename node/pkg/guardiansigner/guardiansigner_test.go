@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseSignerUri(t *testing.T) {
@@ -66,17 +67,17 @@ func TestFileSigner(t *testing.T) {
 
 	// Attempt to generate signer using top-level generator
 	fileSigner1, err := NewGuardianSignerFromUri(fileUri, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, fileSigner1)
 	assert.Equal(t, ethcrypto.PubkeyToAddress(fileSigner1.PublicKey()).Hex(), expectedEthAddress)
 
 	// Attempt to generate signer using NewFileSigner
 	signerType, keyPath, err := ParseSignerUri(fileUri)
 	assert.Equal(t, signerType, FileSignerType)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fileSigner2, err := NewFileSigner(true, keyPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, fileSigner2)
 	assert.Equal(t, ethcrypto.PubkeyToAddress(fileSigner2.PublicKey()).Hex(), expectedEthAddress)
 

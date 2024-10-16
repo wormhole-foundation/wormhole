@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -18,7 +17,7 @@ type GeneratedSigner struct {
 
 func NewGeneratedSigner(key *ecdsa.PrivateKey) (*GeneratedSigner, error) {
 	if key == nil {
-		privateKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		privateKey, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
 		return &GeneratedSigner{privateKey: privateKey}, err
 	} else {
 		return &GeneratedSigner{privateKey: key}, nil
@@ -28,10 +27,10 @@ func NewGeneratedSigner(key *ecdsa.PrivateKey) (*GeneratedSigner, error) {
 
 func (gs *GeneratedSigner) Sign(hash []byte) (sig []byte, err error) {
 	// Sign the hash
-	sig, err = crypto.Sign(hash, gs.privateKey)
+	sig, err = ethcrypto.Sign(hash, gs.privateKey)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign wormchain address: %w", err)
+		return nil, fmt.Errorf("failed to sign: %w", err)
 	}
 
 	return sig, nil

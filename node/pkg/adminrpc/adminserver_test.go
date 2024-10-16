@@ -107,7 +107,8 @@ func addrsToHexStrings(addrs []common.Address) (out []string) {
 	return
 }
 
-func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner) []byte {
+func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t *testing.T) []byte {
+	t.Helper()
 	v := &vaa.VAA{
 		Version:          1,
 		GuardianSetIndex: gsIndex,
@@ -123,15 +124,15 @@ func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner) []
 	for i, signer := range signers {
 		sig, err := signer.Sign(v.SigningDigest().Bytes())
 		if err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
-		sigData := [65]byte{}
-		copy(sigData[:], sig)
+		signature := [ecdsaSignatureLength]byte{}
+		copy(signature[:], sig)
 
 		v.Signatures = append(v.Signatures, &vaa.Signature{
 			Index:     uint8(i),
-			Signature: sigData,
+			Signature: signature,
 		})
 
 	}
@@ -182,7 +183,7 @@ func TestSignExistingVAA_NotGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers)
+	v := generateMockVAA(0, signers, t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -196,7 +197,7 @@ func TestSignExistingVAA_InvalidVAA(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers[:2])
+	v := generateMockVAA(0, signers[:2], t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -211,7 +212,7 @@ func TestSignExistingVAA_DuplicateGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	gsAddrs = append(gsAddrs, s.guardianAddress)
@@ -231,7 +232,7 @@ func TestSignExistingVAA_AlreadyGuardian(t *testing.T) {
 		guardianSetIndex: 0,
 	}
 
-	v := generateMockVAA(0, append(signers, s.guardianSigner))
+	v := generateMockVAA(0, append(signers, s.guardianSigner), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -246,7 +247,7 @@ func TestSignExistingVAA_NotAFutureGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers)
+	v := generateMockVAA(0, signers, t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -260,7 +261,7 @@ func TestSignExistingVAA_CantReachQuorum(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -275,7 +276,7 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	res, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -285,7 +286,7 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	v2 := generateMockVAA(1, append(signers, s.guardianSigner))
+	v2 := generateMockVAA(1, append(signers, s.guardianSigner), t)
 	require.Equal(t, v2, res.Vaa)
 }
 

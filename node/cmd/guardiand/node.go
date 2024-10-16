@@ -632,7 +632,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *guardianKeyPath == "" {
 		// This if-statement is nested, since checking if both are empty at once will always result in the else-branch
-		// being executed if at least one is specified. For example, in the case where the singer URI is specified and
+		// being executed if at least one is specified. For example, in the case where the signer URI is specified and
 		// the guardianKeyPath not, then the else-statement will create an empty `file://` URI.
 		if *guardianSignerUri == "" {
 			logger.Fatal("Please specify --guardianKey or --guardianSignerUri")

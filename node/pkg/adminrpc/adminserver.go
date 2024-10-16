@@ -42,6 +42,7 @@ import (
 )
 
 const maxResetReleaseTimerDays = 7
+const ecdsaSignatureLength = 65
 
 var (
 	vaaInjectionsTotal = promauto.NewCounter(
@@ -1167,12 +1168,12 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 		panic(err)
 	}
 
-	sigData := [65]byte{}
-	copy(sigData[:], sig)
+	signature := [ecdsaSignatureLength]byte{}
+	copy(signature[:], sig)
 
 	newVAA.Signatures = append(v.Signatures, &vaa.Signature{
 		Index:     uint8(localGuardianIndex),
-		Signature: sigData,
+		Signature: signature,
 	})
 
 	// Sort VAA signatures by guardian ID

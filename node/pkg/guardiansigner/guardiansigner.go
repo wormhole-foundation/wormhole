@@ -41,7 +41,7 @@ func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSig
 	case FileSignerType:
 		return NewFileSigner(unsafeDevMode, signerKeyConfig)
 	default:
-		return nil, errors.New("Unsupported guardian signer type")
+		return nil, errors.New("unsupported guardian signer type")
 	}
 }
 
@@ -51,7 +51,7 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 
 	// This check is purely for ensuring that there is actually a path separator.
 	if len(signerUriSplit) < 2 {
-		return InvalidSignerType, "", errors.New("No path separator in guardian signer URI")
+		return InvalidSignerType, "", errors.New("no path separator in guardian signer URI")
 	}
 
 	typeStr := signerUriSplit[0]
@@ -63,6 +63,6 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 	case "file":
 		return FileSignerType, keyConfig, nil
 	default:
-		return InvalidSignerType, "", fmt.Errorf("Unsupported guardian signer type: %s", typeStr)
+		return InvalidSignerType, "", fmt.Errorf("unsupported guardian signer type: %s", typeStr)
 	}
 }
