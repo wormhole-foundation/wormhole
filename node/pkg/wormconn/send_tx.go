@@ -84,7 +84,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	txResp, err := client.BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
-			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
+			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
 			TxBytes: txBytes,
 		},
 	)

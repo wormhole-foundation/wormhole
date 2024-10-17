@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	tmAbci "github.com/tendermint/tendermint/abci/types"
+	tmAbci "github.com/cometbft/cometbft/abci/types"
 
 	"go.uber.org/zap"
 )
