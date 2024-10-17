@@ -2,6 +2,7 @@ package accountant
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -141,13 +142,25 @@ type (
 func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, contractAddress string) (*T, error) {
 	attrs := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
-		if string(attr.Key) == "_contract_address" {
-			if string(attr.Value) != contractAddress {
-				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, string(attr.Value))
+		key := attr.Key
+		value := attr.Value
+
+		// decode base64 encoded keys and values (if applicable)
+		if keyRaw, err := base64.StdEncoding.DecodeString(key); err == nil {
+			key = string(keyRaw)
+		}
+
+		if valueRaw, err := base64.StdEncoding.DecodeString(value); err == nil {
+			value = string(valueRaw)
+		}
+
+		if key == "_contract_address" {
+			if value != contractAddress {
+				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, value)
 			}
 		} else {
-			logger.Debug("event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
-			attrs[string(attr.Key)] = []byte(attr.Value)
+			logger.Debug("event attribute", zap.String("event", name), zap.String("key", key), zap.String("value", value))
+			attrs[key] = []byte(value)
 		}
 	}
 

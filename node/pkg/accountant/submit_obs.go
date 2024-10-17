@@ -435,22 +435,40 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	var msg sdktypes.TxMsgData
-
 	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	if len(msg.MsgResponses) == 0 {
+	isMsgData := len(msg.Data) > 0
+	isMsgResponses := len(msg.MsgResponses) > 0
 
-		fmt.Println("TXRESP -", txResp.TxResponse.Data)
-		fmt.Println("MSGRESP -", msg)
-
-		return nil, fmt.Errorf("msg responses field is empty")
-	}
+	// TODO: JOEL - REMOVE ME
+	fmt.Println("JOEL - TXRESP:", txResp.TxResponse)
+	fmt.Println("JOEL - MSG:", msg)
+	fmt.Println("JOEL - MSG DATA:", msg.Data)
+	fmt.Println("JOEL - IsMsgData:", isMsgData)
+	fmt.Println("JOEL - isMsgResponses:", isMsgResponses)
 
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
-	if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", err)
+
+	if isMsgData {
+
+		// TODO: JOEL - REMOVE ME
+		fmt.Println("JOEL - PARSING MSG.DATA")
+
+		if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.Data: %w", err)
+		}
+	} else if isMsgResponses {
+
+		// TODO: JOEL - REMOVE ME
+		fmt.Println("JOEL - PARSING MSG.RESPONSES")
+
+		if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.MsgResponses: %w", err)
+		}
+	} else {
+		return nil, fmt.Errorf("msg data & msg responses field is empty")
 	}
 
 	var responses ObservationResponses

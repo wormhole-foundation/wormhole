@@ -96,7 +96,7 @@ func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 		// 	return fmt.Errorf("event attribute value is invalid base64: %s", attribute.String())
 		// }
 
-		// TODO: JOEL - Some Wasm Events aren't Base64 encoded
+		// TODO: JOEL - Some Wasm Events aren't Base64 encoded -- or is it just wormhole tests still using base64 mock data
 
 		if _, ok := wa.m[key]; ok {
 			return fmt.Errorf("duplicate key in event: %s", key)
