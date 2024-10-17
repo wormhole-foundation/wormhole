@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -102,7 +102,7 @@ var AdminCmd = &cobra.Command{
 }
 
 var AdminClientSignWormchainAddress = &cobra.Command{
-	Use:   "sign-wormchain-address [/path/to/guardianKey] [wormchain-validator-address]",
+	Use:   "sign-wormchain-address [vaa-signer-uri] [wormchain-validator-address]",
 	Short: "Sign a wormchain validator address.  Only sign the address that you control the key for and will be for your validator.",
 	RunE:  runSignWormchainValidatorAddress,
 	Args:  cobra.ExactArgs(2),
@@ -236,22 +236,25 @@ func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientCo
 }
 
 func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
-	guardianKeyPath := args[0]
+	guardianSignerUri := args[0]
 	wormchainAddress := args[1]
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
 		return errors.New("must provide a bech32 address that has 'wormhole' prefix")
 	}
-	gk, err := common.LoadGuardianKey(guardianKeyPath, *unsafeDevnetMode)
+
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(guardianSignerUri, *unsafeDevnetMode)
 	if err != nil {
-		return fmt.Errorf("failed to load guardian key: %w", err)
+		return fmt.Errorf("failed to create new guardian signer from uri: %w", err)
 	}
+
 	addr, err := types.GetFromBech32(wormchainAddress, "wormhole")
 	if err != nil {
 		return fmt.Errorf("failed to decode wormchain address: %w", err)
 	}
+
 	// Hash and sign address
 	addrHash := crypto.Keccak256Hash(sdk.SignedWormchainAddressPrefix, addr)
-	sig, err := crypto.Sign(addrHash[:], gk)
+	sig, err := guardianSigner.Sign(addrHash.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to sign wormchain address: %w", err)
 	}
