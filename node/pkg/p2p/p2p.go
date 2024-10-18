@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -466,7 +466,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.gk, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -501,7 +501,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
 			go func() {
-				ourAddr := ethcrypto.PubkeyToAddress(params.gk.PublicKey)
+				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey())
 
 				ctr := int64(0)
 				// Guardians should send out their first heartbeat immediately to speed up test runs.
@@ -581,12 +581,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 							if params.gov != nil {
-								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.gk, ourAddr)
+								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
 							}
 
 							msg := gossipv1.GossipMessage{
 								Message: &gossipv1.GossipMessage_SignedHeartbeat{
-									SignedHeartbeat: createSignedHeartbeat(params.gk, heartbeat),
+									SignedHeartbeat: createSignedHeartbeat(params.guardianSigner, heartbeat),
 								},
 							}
 
@@ -679,7 +679,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					// Sign the observation request using our node's guardian key.
 					digest := signedObservationRequestDigest(b)
-					sig, err := ethcrypto.Sign(digest.Bytes(), params.gk)
+					sig, err := params.guardianSigner.Sign(digest.Bytes())
 					if err != nil {
 						panic(err)
 					}
@@ -687,7 +687,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					sReq := &gossipv1.SignedObservationRequest{
 						ObservationRequest: b,
 						Signature:          sig,
-						GuardianAddr:       ethcrypto.PubkeyToAddress(params.gk.PublicKey).Bytes(),
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()).Bytes(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -807,7 +807,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 											zap.String("from", envelope.GetFrom().String()))
 									} else {
 										guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-										if params.gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.gk.PublicKey) {
+										if params.guardianSigner == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()) {
 											prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
 											if ok {
 												if prevPeerId != peerId {
@@ -1034,7 +1034,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 											zap.String("from", envelope.GetFrom().String()))
 									} else {
 										guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-										if params.gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.gk.PublicKey) {
+										if params.guardianSigner == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()) {
 											prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
 											if ok {
 												if prevPeerId != peerId {
@@ -1161,17 +1161,17 @@ func Run(params *RunParams) func(ctx context.Context) error {
 	}
 }
 
-func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
-	ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+func createSignedHeartbeat(guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
+	ourAddr := ethcrypto.PubkeyToAddress(guardianSigner.PublicKey())
 
 	b, err := proto.Marshal(heartbeat)
 	if err != nil {
 		panic(err)
 	}
 
-	// Sign the heartbeat using our node's guardian key.
+	// Sign the heartbeat using our node's guardian signer.
 	digest := heartbeatDigest(b)
-	sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+	sig, err := guardianSigner.Sign(digest.Bytes())
 	if err != nil {
 		panic(err)
 	}
