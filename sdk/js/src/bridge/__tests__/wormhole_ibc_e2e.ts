@@ -74,9 +74,6 @@ describe("IBC Watcher Integration Tests", () => {
       }
     );
 
-    // TODO: JOEL - REMOVE ME
-    console.log("postMsg", postMsg);
-
     const postedVaa = await terraBroadcastTxAndGetSignedVaa(
       [postMsg],
       terraWallet,

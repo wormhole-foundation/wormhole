@@ -84,17 +84,11 @@ func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 		if err == nil {
 			key = string(keyRaw)
 		}
-		// if err != nil {
-		// 	return fmt.Errorf("event attribute key is invalid base64: %s", attribute.String())
-		// }
 
 		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
 		if err == nil {
 			value = string(valueRaw)
 		}
-		// if err != nil {
-		// 	return fmt.Errorf("event attribute value is invalid base64: %s", attribute.String())
-		// }
 
 		// TODO: JOEL - Some Wasm Events aren't Base64 encoded -- or is it just wormhole tests still using base64 mock data
 

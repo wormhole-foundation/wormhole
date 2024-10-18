@@ -428,11 +428,11 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	// TODO: JOEL - REMOVE
-	if txResp.TxResponse.Tx != nil {
-		fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
-	} else {
-		fmt.Println("Nested tx data is null")
-	}
+	// if txResp.TxResponse.Tx != nil {
+	// 	fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
+	// } else {
+	// 	fmt.Println("Nested tx data is null")
+	// }
 
 	var msg sdktypes.TxMsgData
 	if err := msg.Unmarshal(data); err != nil {
@@ -443,18 +443,18 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	isMsgResponses := len(msg.MsgResponses) > 0
 
 	// TODO: JOEL - REMOVE ME
-	fmt.Println("JOEL - TXRESP:", txResp.TxResponse)
-	fmt.Println("JOEL - MSG:", msg)
-	fmt.Println("JOEL - MSG DATA:", msg.Data)
-	fmt.Println("JOEL - IsMsgData:", isMsgData)
-	fmt.Println("JOEL - isMsgResponses:", isMsgResponses)
+	// fmt.Println("JOEL - TXRESP:", txResp.TxResponse)
+	// fmt.Println("JOEL - MSG:", msg)
+	// fmt.Println("JOEL - MSG DATA:", msg.Data)
+	// fmt.Println("JOEL - IsMsgData:", isMsgData)
+	// fmt.Println("JOEL - isMsgResponses:", isMsgResponses)
 
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
 
 	if isMsgData {
 
 		// TODO: JOEL - REMOVE ME
-		fmt.Println("JOEL - PARSING MSG.DATA")
+		// fmt.Println("JOEL - PARSING MSG.DATA")
 
 		if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.Data: %w", err)
@@ -462,7 +462,7 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	} else if isMsgResponses {
 
 		// TODO: JOEL - REMOVE ME
-		fmt.Println("JOEL - PARSING MSG.RESPONSES")
+		// fmt.Println("JOEL - PARSING MSG.RESPONSES")
 
 		if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.MsgResponses: %w", err)
