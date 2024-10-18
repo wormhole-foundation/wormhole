@@ -4,13 +4,13 @@ import (
 	"math/rand"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
-	"github.com/wormhole-foundation/wormchain/app/params"
+
+	appparams "github.com/wormhole-foundation/wormchain/app/params"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
@@ -56,32 +56,32 @@ func WeightedOperations(
 
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgCreateDenom, &weightMsgCreateDenom, nil,
 		func(_ *rand.Rand) {
-			weightMsgCreateDenom = params.DefaultWeightMsgCreateDenom
+			weightMsgCreateDenom = appparams.DefaultWeightMsgCreateDenom
 		},
 	)
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgMint, &weightMsgMint, nil,
 		func(_ *rand.Rand) {
-			weightMsgMint = params.DefaultWeightMsgMint
+			weightMsgMint = appparams.DefaultWeightMsgMint
 		},
 	)
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgBurn, &weightMsgBurn, nil,
 		func(_ *rand.Rand) {
-			weightMsgBurn = params.DefaultWeightMsgBurn
+			weightMsgBurn = appparams.DefaultWeightMsgBurn
 		},
 	)
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgChangeAdmin, &weightMsgChangeAdmin, nil,
 		func(_ *rand.Rand) {
-			weightMsgChangeAdmin = params.DefaultWeightMsgChangeAdmin
+			weightMsgChangeAdmin = appparams.DefaultWeightMsgChangeAdmin
 		},
 	)
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgSetDenomMetadata, &weightMsgSetDenomMetadata, nil,
 		func(_ *rand.Rand) {
-			weightMsgSetDenomMetadata = params.DefaultWeightMsgSetDenomMetadata
+			weightMsgSetDenomMetadata = appparams.DefaultWeightMsgSetDenomMetadata
 		},
 	)
 	simstate.AppParams.GetOrGenerate(simstate.Cdc, OpWeightMsgForceTransfer, &weightMsgForceTransfer, nil,
 		func(_ *rand.Rand) {
-			weightMsgForceTransfer = params.DefaultWeightMsgForceTransfer
+			weightMsgForceTransfer = appparams.DefaultWeightMsgForceTransfer
 		},
 	)
 
@@ -156,7 +156,7 @@ func SimulateMsgSetDenomMetadata(
 		app *baseapp.BaseApp,
 		ctx sdk.Context,
 		accs []simtypes.Account,
-		chainID string,
+		_ string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		// Get create denom account
 		createdDenomAccount, _ := simtypes.RandomAcc(r, accs)
@@ -210,7 +210,7 @@ func SimulateMsgChangeAdmin(
 		app *baseapp.BaseApp,
 		ctx sdk.Context,
 		accs []simtypes.Account,
-		chainID string,
+		_ string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		// Get create denom account
 		createdDenomAccount, _ := simtypes.RandomAcc(r, accs)
@@ -260,7 +260,7 @@ func SimulateMsgBurn(
 		app *baseapp.BaseApp,
 		ctx sdk.Context,
 		accs []simtypes.Account,
-		chainID string,
+		_ string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		// Get create denom account
 		createdDenomAccount, _ := simtypes.RandomAcc(r, accs)
@@ -314,7 +314,7 @@ func SimulateMsgMint(
 		app *baseapp.BaseApp,
 		ctx sdk.Context,
 		accs []simtypes.Account,
-		chainID string,
+		_ string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		// Get create denom account
 		createdDenomAccount, _ := simtypes.RandomAcc(r, accs)
@@ -356,7 +356,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 		app *baseapp.BaseApp,
 		ctx sdk.Context,
 		accs []simtypes.Account,
-		chainID string,
+		_ string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		// Get sims account
 		simAccount, _ := simtypes.RandomAcc(r, accs)
@@ -364,7 +364,7 @@ func SimulateMsgCreateDenom(tfKeeper TokenfactoryKeeper, ak types.AccountKeeper,
 		// Check if sims account enough create fee
 		createFee := tfKeeper.GetParams(ctx).DenomCreationFee
 		balances := bk.GetAllBalances(ctx, simAccount.Address)
-		_, hasNeg := balances.SafeSub(createFee)
+		_, hasNeg := balances.SafeSub(createFee[0])
 		if hasNeg {
 			return simtypes.NoOpMsg(types.ModuleName, types.MsgCreateDenom{}.Type(), "Creator not enough creation fee"), nil, nil
 		}
@@ -397,7 +397,7 @@ func BuildOperationInput(
 	return simulation.OperationInput{
 		R:               r,
 		App:             app,
-		TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
+		TxGen:           appparams.MakeEncodingConfig().TxConfig,
 		Cdc:             nil,
 		Msg:             msg,
 		MsgType:         msg.Type(),

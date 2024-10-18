@@ -21,3 +21,9 @@ thiserror = "1.0.31"
 wormhole-bindings = "0.1.0"
 wormhole-sdk = { workspace = true, features = ["schemars"] }
 serde_wormhole.workspace = true
+
+[dev-dependencies]
+cw-multi-test = "0.13.2"
+serde-json-wasm = "0.4"
+wormhole-bindings = { version = "0.1.0", features=["fake"] }
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }

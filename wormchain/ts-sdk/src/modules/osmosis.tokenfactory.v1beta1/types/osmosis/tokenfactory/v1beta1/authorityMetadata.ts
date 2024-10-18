@@ -1,6 +1,6 @@
 //@ts-nocheck
 /* eslint-disable */
-import { Writer, Reader } from "protobufjs/minimal";
+import _m0 from "protobufjs/minimal";
 
 export const protobufPackage = "osmosis.tokenfactory.v1beta1";
 
@@ -14,23 +14,22 @@ export interface DenomAuthorityMetadata {
   admin: string;
 }
 
-const baseDenomAuthorityMetadata: object = { admin: "" };
+function createBaseDenomAuthorityMetadata(): DenomAuthorityMetadata {
+  return { admin: "" };
+}
 
 export const DenomAuthorityMetadata = {
-  encode(
-    message: DenomAuthorityMetadata,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: DenomAuthorityMetadata, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.admin !== "") {
       writer.uint32(10).string(message.admin);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): DenomAuthorityMetadata {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): DenomAuthorityMetadata {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseDenomAuthorityMetadata } as DenomAuthorityMetadata;
+    const message = createBaseDenomAuthorityMetadata();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -46,13 +45,7 @@ export const DenomAuthorityMetadata = {
   },
 
   fromJSON(object: any): DenomAuthorityMetadata {
-    const message = { ...baseDenomAuthorityMetadata } as DenomAuthorityMetadata;
-    if (object.admin !== undefined && object.admin !== null) {
-      message.admin = String(object.admin);
-    } else {
-      message.admin = "";
-    }
-    return message;
+    return { admin: isSet(object.admin) ? String(object.admin) : "" };
   },
 
   toJSON(message: DenomAuthorityMetadata): unknown {
@@ -61,26 +54,24 @@ export const DenomAuthorityMetadata = {
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<DenomAuthorityMetadata>
-  ): DenomAuthorityMetadata {
-    const message = { ...baseDenomAuthorityMetadata } as DenomAuthorityMetadata;
-    if (object.admin !== undefined && object.admin !== null) {
-      message.admin = object.admin;
-    } else {
-      message.admin = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<DenomAuthorityMetadata>, I>>(object: I): DenomAuthorityMetadata {
+    const message = createBaseDenomAuthorityMetadata();
+    message.admin = object.admin ?? "";
     return message;
   },
 };
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
+}
