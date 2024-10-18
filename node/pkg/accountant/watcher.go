@@ -102,6 +102,10 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 			}
 
 			for _, event := range tx.Result.Events {
+
+				fmt.Println("event.Type", event.Type)
+				fmt.Println("event.Attributes", event.Attributes)
+
 				if event.Type == "wasm-Observation" {
 					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", contract)
 					if err != nil {
