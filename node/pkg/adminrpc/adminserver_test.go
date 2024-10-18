@@ -4,13 +4,13 @@ package adminrpc
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"testing"
 	"time"
 
 	wh_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
@@ -88,14 +88,14 @@ func (c mockEVMConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types
 	panic("unimplemented")
 }
 
-func generateGS(num int) (keys []*ecdsa.PrivateKey, addrs []common.Address) {
+func generateGuardianSigners(num int) (signers []guardiansigner.GuardianSigner, addrs []common.Address) {
 	for i := 0; i < num; i++ {
-		key, err := ethcrypto.GenerateKey()
+		signer, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		if err != nil {
 			panic(err)
 		}
-		keys = append(keys, key)
-		addrs = append(addrs, ethcrypto.PubkeyToAddress(key.PublicKey))
+		signers = append(signers, signer)
+		addrs = append(addrs, ethcrypto.PubkeyToAddress(signer.PublicKey()))
 	}
 	return
 }
@@ -107,7 +107,8 @@ func addrsToHexStrings(addrs []common.Address) (out []string) {
 	return
 }
 
-func generateMockVAA(gsIndex uint32, gsKeys []*ecdsa.PrivateKey) []byte {
+func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t *testing.T) []byte {
+	t.Helper()
 	v := &vaa.VAA{
 		Version:          1,
 		GuardianSetIndex: gsIndex,
@@ -120,8 +121,20 @@ func generateMockVAA(gsIndex uint32, gsKeys []*ecdsa.PrivateKey) []byte {
 		EmitterAddress:   vaa.Address{},
 		Payload:          []byte("test"),
 	}
-	for i, key := range gsKeys {
-		v.AddSignature(key, uint8(i))
+	for i, signer := range signers {
+		sig, err := signer.Sign(v.SigningDigest().Bytes())
+		if err != nil {
+			require.NoError(t, err)
+		}
+
+		signature := [ecdsaSignatureLength]byte{}
+		copy(signature[:], sig)
+
+		v.Signatures = append(v.Signatures, &vaa.Signature{
+			Index:     uint8(i),
+			Signature: signature,
+		})
+
 	}
 
 	vBytes, err := v.Marshal()
@@ -132,7 +145,7 @@ func generateMockVAA(gsIndex uint32, gsKeys []*ecdsa.PrivateKey) []byte {
 }
 
 func setupAdminServerForVAASigning(gsIndex uint32, gsAddrs []common.Address) *nodePrivilegedService {
-	gk, err := ethcrypto.GenerateKey()
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -150,8 +163,8 @@ func setupAdminServerForVAASigning(gsIndex uint32, gsAddrs []common.Address) *no
 		signedInC:       nil,
 		governor:        nil,
 		evmConnector:    connector,
-		gk:              gk,
-		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),
+		guardianSigner:  guardianSigner,
+		guardianAddress: ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()),
 	}
 }
 
@@ -167,10 +180,10 @@ func TestSignExistingVAA_NoVAA(t *testing.T) {
 }
 
 func TestSignExistingVAA_NotGuardian(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys)
+	v := generateMockVAA(0, signers, t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -181,10 +194,10 @@ func TestSignExistingVAA_NotGuardian(t *testing.T) {
 }
 
 func TestSignExistingVAA_InvalidVAA(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys[:2])
+	v := generateMockVAA(0, signers[:2], t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -196,10 +209,10 @@ func TestSignExistingVAA_InvalidVAA(t *testing.T) {
 }
 
 func TestSignExistingVAA_DuplicateGuardian(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	gsAddrs = append(gsAddrs, s.guardianAddress)
@@ -212,14 +225,14 @@ func TestSignExistingVAA_DuplicateGuardian(t *testing.T) {
 }
 
 func TestSignExistingVAA_AlreadyGuardian(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 	s.evmConnector = mockEVMConnector{
 		guardianAddrs:    append(gsAddrs, s.guardianAddress),
 		guardianSetIndex: 0,
 	}
 
-	v := generateMockVAA(0, append(gsKeys, s.gk))
+	v := generateMockVAA(0, append(signers, s.guardianSigner), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -231,10 +244,10 @@ func TestSignExistingVAA_AlreadyGuardian(t *testing.T) {
 }
 
 func TestSignExistingVAA_NotAFutureGuardian(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys)
+	v := generateMockVAA(0, signers, t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -245,10 +258,10 @@ func TestSignExistingVAA_NotAFutureGuardian(t *testing.T) {
 }
 
 func TestSignExistingVAA_CantReachQuorum(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -260,10 +273,10 @@ func TestSignExistingVAA_CantReachQuorum(t *testing.T) {
 }
 
 func TestSignExistingVAA_Valid(t *testing.T) {
-	gsKeys, gsAddrs := generateGS(5)
+	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, gsKeys)
+	v := generateMockVAA(0, signers, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	res, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -273,7 +286,7 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	v2 := generateMockVAA(1, append(gsKeys, s.gk))
+	v2 := generateMockVAA(1, append(signers, s.guardianSigner), t)
 	require.Equal(t, v2, res.Vaa)
 }
 
@@ -332,7 +345,7 @@ func newNodePrivilegedServiceForGovernorTests() *nodePrivilegedService {
 		signedInC:       nil,
 		governor:        gov,
 		evmConnector:    nil,
-		gk:              nil,
+		guardianSigner:  nil,
 		guardianAddress: common.Address{},
 	}
 }

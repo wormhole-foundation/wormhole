@@ -185,6 +185,8 @@ unbond
 Uncompromised
 undercollateralization
 unforgeable
+unichain
+Unichain
 unnormalize
 untampered
 utest

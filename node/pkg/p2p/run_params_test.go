@@ -2,16 +2,14 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
-	"github.com/ethereum/go-ethereum/crypto"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -136,9 +134,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	_, rootCtxCancel := context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
-	gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	require.NoError(t, err)
-	require.NotNil(t, gk)
+	require.NotNil(t, guardianSigner)
 
 	obsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation], 42)
 	batchObsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 42)
@@ -171,7 +169,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 		rootCtxCancel,
 		WithGuardianOptions(
 			nodeName,
-			gk,
+			guardianSigner,
 			obsvC,
 			batchObsvC,
 			signedInC,

@@ -5,12 +5,12 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -26,7 +26,7 @@ func main() {
 	wormchainURL := string("localhost:9090")
 	wormchainKeyPath := string("./dev.wormchain.key")
 	contract := "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
-	guardianKeyPath := string("./dev.guardian.key")
+	guardianSignerUri := string("file://dev.guardian.key")
 
 	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
 	if err != nil {
@@ -44,8 +44,9 @@ func main() {
 		zap.String("senderAddress", wormchainConn.SenderAddress()),
 	)
 
-	logger.Info("Loading guardian key", zap.String("guardianKeyPath", guardianKeyPath))
-	gk, err := common.LoadGuardianKey(guardianKeyPath, true)
+	logger.Info("Initializing guardian signer", zap.String("guardianSignerUri", guardianSignerUri))
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(guardianSignerUri, true)
+
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -53,31 +54,31 @@ func main() {
 	sequence := uint64(time.Now().Unix())
 	timestamp := time.Now()
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Submit should succeed") {
+	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Submit should succeed") {
 		return
 	}
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already commited should succeed") {
-		return
-	}
-
-	sequence += 10
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", timestamp, sequence, false, "Bad emitter address should fail") {
+	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already commited should succeed") {
 		return
 	}
 
 	sequence += 10
-	if !testBatch(ctx, logger, gk, wormchainConn, contract, timestamp, sequence) {
+	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", timestamp, sequence, false, "Bad emitter address should fail") {
 		return
 	}
 
 	sequence += 10
-	if !testBatchWithcommitted(ctx, logger, gk, wormchainConn, contract, timestamp, sequence) {
+	if !testBatch(ctx, logger, guardianSigner, wormchainConn, contract, timestamp, sequence) {
 		return
 	}
 
 	sequence += 10
-	if !testBatchWithDigestError(ctx, logger, gk, wormchainConn, contract, timestamp, sequence) {
+	if !testBatchWithcommitted(ctx, logger, guardianSigner, wormchainConn, contract, timestamp, sequence) {
+		return
+	}
+
+	sequence += 10
+	if !testBatchWithDigestError(ctx, logger, guardianSigner, wormchainConn, contract, timestamp, sequence) {
 		return
 	}
 
@@ -87,7 +88,7 @@ func main() {
 func testSubmit(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	emitterAddressStr string,
@@ -112,7 +113,7 @@ func testSubmit(
 	}
 
 	msgs := []*common.MessagePublication{&msg}
-	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	txResp, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false
@@ -151,7 +152,7 @@ func testSubmit(
 func testBatch(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	timestamp time.Time,
@@ -191,7 +192,7 @@ func testBatch(
 	}
 	msgs = append(msgs, &msg2)
 
-	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	txResp, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to broadcast Observation request", zap.Error(err))
 		return false
@@ -229,7 +230,7 @@ func testBatch(
 func testBatchWithcommitted(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	timestamp time.Time,
@@ -256,7 +257,7 @@ func testBatchWithcommitted(
 	}
 	msgs = append(msgs, &msg1)
 
-	_, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	_, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to submit initial observation that should work", zap.Error(err))
 		return false
@@ -283,7 +284,7 @@ func testBatchWithcommitted(
 	msg3 := msg1
 	msgs = append(msgs, &msg3)
 
-	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	txResp, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to broadcast Observation request", zap.Error(err))
 		return false
@@ -321,7 +322,7 @@ func testBatchWithcommitted(
 func testBatchWithDigestError(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	timestamp time.Time,
@@ -348,7 +349,7 @@ func testBatchWithDigestError(
 	}
 	msgs = append(msgs, &msg1)
 
-	_, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	_, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to submit initial observation that should work", zap.Error(err))
 		return false
@@ -376,7 +377,7 @@ func testBatchWithDigestError(
 	msg3.Nonce = msg3.Nonce + 1
 	msgs = append(msgs, &msg3)
 
-	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
+	txResp, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("failed to submit second observation that should work", zap.Error(err))
 		return false
@@ -429,7 +430,7 @@ func testBatchWithDigestError(
 func submit(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	msgs []*common.MessagePublication,
@@ -437,5 +438,5 @@ func submit(
 	gsIndex := uint32(0)
 	guardianIndex := uint32(0)
 
-	return accountant.SubmitObservationsToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, accountant.SubmitObservationPrefix, msgs)
+	return accountant.SubmitObservationsToContract(ctx, logger, guardianSigner, gsIndex, guardianIndex, wormchainConn, contract, accountant.SubmitObservationPrefix, msgs)
 }

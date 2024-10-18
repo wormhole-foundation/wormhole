@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -62,8 +63,9 @@ var (
 
 	statusAddr *string
 
-	guardianKeyPath *string
-	solanaContract  *string
+	guardianKeyPath   *string
+	guardianSignerUri *string
+	solanaContract    *string
 
 	ethRPC      *string
 	ethContract *string
@@ -187,6 +189,9 @@ var (
 	snaxchainRPC      *string
 	snaxchainContract *string
 
+	unichainRPC      *string
+	unichainContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -266,7 +271,8 @@ func init() {
 
 	dataDir = NodeCmd.Flags().String("dataDir", "", "Data directory")
 
-	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key (required)")
+	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key")
+	guardianSignerUri = NodeCmd.Flags().String("guardianSignerUri", "", "Guardian signer URI")
 	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
@@ -393,6 +399,9 @@ func init() {
 
 	snaxchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	snaxchainContract = NodeCmd.Flags().String("snaxchainContract", "", "Snaxchain contract address")
+
+	unichainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "unichainRPC", "Unichain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	unichainContract = NodeCmd.Flags().String("unichainContract", "", "Unichain contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -622,7 +631,22 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --nodeKey")
 	}
 	if *guardianKeyPath == "" {
-		logger.Fatal("Please specify --guardianKey")
+		// This if-statement is nested, since checking if both are empty at once will always result in the else-branch
+		// being executed if at least one is specified. For example, in the case where the signer URI is specified and
+		// the guardianKeyPath not, then the else-statement will create an empty `file://` URI.
+		if *guardianSignerUri == "" {
+			logger.Fatal("Please specify --guardianKey or --guardianSignerUri")
+		}
+	} else {
+		// To avoid confusion, require that only guardianKey or guardianSignerUri can be specified
+		if *guardianSignerUri != "" {
+			logger.Fatal("Please only specify --guardianKey or --guardianSignerUri")
+		}
+
+		// If guardianKeyPath is set, set guardianSignerUri to the file signer URI, pointing to guardianKeyPath.
+		// This ensures that the signer-abstracted guardian has backwards compatibility with guardians that would
+		// just like to ignore the new guardianSignerUri altogether.
+		*guardianSignerUri = fmt.Sprintf("file://%s", *guardianKeyPath)
 	}
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
@@ -644,20 +668,23 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if env == common.UnsafeDevNet {
-		err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
-		if err != nil {
-			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+		// Only if the signer is file-based should we generate the deterministic key and write it to disk
+		if st, _, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
+			err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
+			if err != nil {
+				logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+			}
 		}
 	}
 
-	// Load guardian key
-	gk, err := common.LoadGuardianKey(*guardianKeyPath, env == common.UnsafeDevNet)
+	// Create the Guardian Signer
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(*guardianSignerUri, env == common.UnsafeDevNet)
 	if err != nil {
-		logger.Fatal("failed to load guardian key", zap.Error(err))
+		logger.Fatal("failed to create a new guardian signer", zap.Error(err))
 	}
 
 	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
+		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String()))
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
@@ -713,7 +740,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.String(),
-			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 		}
@@ -758,6 +785,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
+	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -901,6 +929,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
+	rpcMap["unichainRPC"] = *unichainRPC
 	rpcMap["gatewayWS"] = *gatewayWS
 	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1052,7 +1081,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
 			"node_name":     *nodeName,
-			"guardian_addr": ethcrypto.PubkeyToAddress(gk.PublicKey).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 			"product":       "wormhole",
@@ -1334,6 +1363,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(unichainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "unichain",
+			ChainID:          vaa.ChainIDUnichain,
+			Rpc:              *unichainRPC,
+			Contract:         *unichainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1565,7 +1606,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	guardianNode := node.NewGuardianNode(
 		env,
-		gk,
+		guardianSigner,
 	)
 
 	guardianOptions := []*node.GuardianOption{
