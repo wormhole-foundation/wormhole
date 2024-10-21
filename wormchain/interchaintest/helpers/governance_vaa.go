@@ -40,6 +40,53 @@ func MigrateContractVAA(
 
 }
 
+func SubmitUpdateChainToChannelGovernanceVAA(
+	t *testing.T,
+	upgradeChainID uint16,
+	targetChainId vaa.ChainID,
+	channelId [64]byte,
+	guardians *guardians.ValSet,
+) string {
+	// node := chain.GetFullNode()
+
+	payload := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: 0,
+		ChannelId:     channelId,
+		// ChainId:       vaa.ChainIDWormchain,
+		ChainId: vaa.ChainIDBerachain,
+	}
+	fmt.Printf("body submit update chain payload: %+v\n", payload)
+
+	payloadBz, err := payload.Serialize(vaa.IbcReceiverModuleStr)
+	fmt.Printf("body submit update chain payload bytes: %s\n", hex.EncodeToString(payloadBz))
+
+	require.NoError(t, err)
+	v := GenerateGovernanceVaa(0, guardians, payloadBz)
+	fmt.Printf("governance vaa: %+v\n", v)
+	vBz, err := v.Marshal()
+	fmt.Printf("governance vaa bytes: %s\n", vBz)
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+	fmt.Printf("governance vaa hex: %s\n", vHex)
+
+	decodedVaaString, err := hex.DecodeString(vHex)
+	fmt.Printf("decoded governance vaa bytes: %s\n", decodedVaaString)
+	require.NoError(t, err)
+
+	parsedVAA, err := ParseVAA(decodedVaaString)
+	require.NoError(t, err)
+	fmt.Printf("parsed su governance vaa: %+v\n", parsedVAA)
+
+	// action := parsedVAA.Payload[32]
+	// fmt.Printf("action: %d\n", action)
+	// fmt.Printf("submit update chain action %d", vaa.IbcReceiverActionUpdateChannelChain)
+
+	return vHex
+
+	// _, err = node.ExecTx(ctx, keyName, "wormhole", "execute-governance-vaa", vHex, "--gas", "auto")
+	// require.NoError(t, err)
+}
+
 func SubmitContractUpgradeGovernanceVAA(
 	t *testing.T,
 	ctx context.Context,
@@ -61,7 +108,7 @@ func SubmitContractUpgradeGovernanceVAA(
 	fmt.Printf("body contract upgrade payload bytes: %s\n", hex.EncodeToString(payloadBz))
 
 	require.NoError(t, err)
-	v := generateGovernanceVaa(0, guardians, payloadBz)
+	v := GenerateGovernanceVaa(0, guardians, payloadBz)
 	fmt.Printf("governance vaa: %+v\n", v)
 	vBz, err := v.Marshal()
 	fmt.Printf("governance vaa bytes: %s\n", vBz)

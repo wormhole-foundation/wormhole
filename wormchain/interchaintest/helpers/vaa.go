@@ -38,7 +38,7 @@ func generateVaa(index uint32,
 	return signVaa(v, signers)
 }
 
-func generateGovernanceVaa(index uint32,
+func GenerateGovernanceVaa(index uint32,
 	signers *guardians.ValSet,
 	payload []byte) vaa.VAA {
 

@@ -1,7 +1,8 @@
 package ictest
 
 import (
-	"encoding/binary"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -9,13 +10,13 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v4"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-
 	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
-	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormchain_ibc_receiver"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormhole_ibc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -326,6 +327,7 @@ func TestWormchainIbc(t *testing.T) {
 	guardians := guardians.CreateValSet(t, numVals)
 	chains := CreateChains(t, "v2.24.2", *guardians)
 	ctx, r, eRep, _ := BuildInterchain(t, chains)
+	// ctx, _, _, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
@@ -358,16 +360,7 @@ func TestWormchainIbc(t *testing.T) {
 	fmt.Println("Osmo user 2: ", osmoUser2)
 
 	// ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
-	// require.NoError(t, err)
 	// fmt.Println("IBC hooks code id: ", ibcHooksCodeId)
-
-	// ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName, ibcHooksCodeId, "{}", true)
-	// require.NoError(t, err)
-	// fmt.Println("IBC hooks contract addr: ", ibcHooksContractAddr)
-
-	// err = testutil.WaitForBlocks(ctx, 2, wormchain)
-	// require.NoError(t, err, "error waiting for 2 blocks")
-
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
@@ -384,10 +377,6 @@ func TestWormchainIbc(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("Parsed Wormhole IBC Receiver code id: ", ibcReceiverCodeId)
 
-	// // Instantiate wormhole ibc receiver contract
-	// ibcReceiverContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", ibcReceiverContractCodeId, "wormhole_ibc_receiver", "{}", guardians)
-	// fmt.Println("Wormhole IBC Receiver contract address: ", ibcReceiverContractAddr)
-
 	// // Store and instantiate wormhole ibc contract on osmosis
 	wormholeIbcCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/wormhole_ibc.wasm")
 	require.NoError(t, err)
@@ -398,46 +387,129 @@ func TestWormchainIbc(t *testing.T) {
 	fmt.Println("Osmosis Wormhole IBC contract addr: ", osmosisWormholeIbcContractAddr)
 
 	// Spin up a new channel for the contracts to communicate over (this new channel will need to be whitelisted on the receiver contract)
-	r.CreateChannel(ctx, eRep, "wormosmo", ibc.CreateChannelOptions{
+	err = r.GeneratePath(ctx, eRep, osmosis.Config().ChainID, wormchain.Config().ChainID,
+		"osmoworm")
+	require.NoError(t, err)
+	err = r.LinkPath(ctx, eRep, "osmoworm", ibc.CreateChannelOptions{
 		SourcePortName: fmt.Sprintf("wasm.%s", osmosisWormholeIbcContractAddr),
 		DestPortName:   fmt.Sprintf("wasm.%s", coreContractAddr),
 		Order:          ibc.Unordered,
 		Version:        "ibc-wormhole-v1",
+		// Override:       true,
+	}, ibc.CreateClientOptions{
+		TrustingPeriod: "112h",
 	})
+	require.NoError(t, err)
 
-	testutil.WaitForBlocks(ctx, 2, wormchain, osmosis)
+	//
+	// r.CreateChannel(ctx, eRep, "osmoworm", ibc.CreateChannelOptions{
+	// 	SourcePortName: fmt.Sprintf("wasm.%s", osmosisWormholeIbcContractAddr),
+	// 	DestPortName:   fmt.Sprintf("wasm.%s", coreContractAddr),
+	// 	Order:          ibc.Unordered,
+	// 	Version:        "ibc-wormhole-v1",
+	// 	// Override:       true,
+	// })
 
+	fmt.Printf("Ports: %v & %v", fmt.Sprintf("wasm.%s", osmosisWormholeIbcContractAddr), fmt.Sprintf("wasm.%s", coreContractAddr))
+
+	testutil.WaitForBlocks(ctx, 5, wormchain, osmosis)
+
+	// Get the channels on the wormchain
 	channelsInfo, err := r.GetChannels(ctx, eRep, wormchain.Config().ChainID)
+	t.Logf("Wormchain channels: %v", channelsInfo)
 	require.NoError(t, err)
 
 	// This is the channel we will receive packets on from the wormhole ibc contract
 	osmosisWormholeIbcChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
+	// osmosisWormholeIbcChannelId := "channel-1"
 	t.Logf("Wormhole IBC channel id: %s", osmosisWormholeIbcChannelId)
 
-	vaaText := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t, vaa.ChainID(OsmoChainID), osmosisWormholeIbcChannelId, coreContractAddr, guardians)
-	t.Logf("VAA: %s", vaaText)
+	channelsInfo, err = r.GetChannels(ctx, eRep, osmosis.Config().ChainID)
+	t.Logf("Osmosis channels: %v", channelsInfo)
+	require.NoError(t, err)
 
-	// helpers.MigrateContractVAA(t, ctx, wormchain, "faucet", coreContractAddr, ibcReceiverCodeId)
+	// This is the channel we will receive packets on from the wormhole ibc contract
+	wormholeOsmosisIbcChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
+	t.Logf("Osmosis IBC channel id: %s", wormholeOsmosisIbcChannelId)
+
+	upgradeChainChannelVaa := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t,
+		vaa.ChainID(OsmoChainID), osmosisWormholeIbcChannelId,
+		guardians)
+
 	helpers.MigrateContract(t, ctx, wormchain, "faucet", coreContractAddr, fmt.Sprint(ibcReceiverCodeId), "{}", guardians)
 
-	wormchain.ExecuteContract(ctx, "faucet", coreContractAddr, vaaText)
+	// upgradeChainChannelVaa := helpers.SubmitUpdateChainToChannelGovernanceVAA(t, uint16(vaa.ChainIDWormchain), vaa.ChainIDOsmosis,
+	// 	ibcChannelBytes, guardians)
 
-	var allChannelsResp wormchain_ibc_receiver.AllChannelChainsResponse
-	err = wormchain.QueryContract(ctx,
-		coreContractAddr,
-		wormchain_ibc_receiver.QueryMsg_AllChannelChains{}, &allChannelsResp)
-	t.Logf("All channel chains: %s", allChannelsResp)
+	// testutil.WaitForBlocks(ctx, 100, wormchain)
 
-	require.Equal(t, 1, 2)
+	// Add the new channel to the receiver contract
+	_, err = wormchain.ExecuteContract(ctx, "faucet", coreContractAddr, upgradeChainChannelVaa)
+	require.NoError(t, err)
+
+	// allChannelsQuery := wormchain_ibc_receiver.QueryMsg{
+	// 	AllChannelChains: &wormchain_ibc_receiver.QueryMsg_AllChannelChains{},
+	// 	ChannelChain:     nil,
+	// }
+
+	// var allChannelsResp wormchain_ibc_receiver.AllChannelChainsResponse
+	// err = wormchain.QueryContract(ctx,
+	// 	coreContractAddr,
+	// 	allChannelsQuery, &allChannelsResp)
+	// require.NoError(t, err)
+	// t.Logf("All channel resp: %s", allChannelsResp)
+	// t.Logf("All channel chains: %s", allChannelsResp.ChannelsChains)
+	// require.Equal(t, 1, len(allChannelsResp.ChannelsChains))
+
+	// allState, err := wormchain.DumpContractState(ctx, coreContractAddr, wormchain.GetFullNode().CliContext().Height)
+	// require.NoError(t, err)
+	// t.Logf("All state: %s", allState)
+
+	// testutil.WaitForBlocks(ctx, 200, wormchain)
+	// channelIdPaddedBytes, err := vaa.LeftPadIbcChannelId(osmosisWormholeIbcChannelId)
+	// require.NoError(t, err)
+	// channelIdPaddedString := string(channelIdPaddedBytes[:])
+	// trimmedChannelId := strings.TrimLeft(channelIdPaddedString, "0")
+	// t.Logf("Querying channel bytes %s", []byte(osmosisWormholeIbcChannelId))
+	// queryChannelId := wormchain_ibc_receiver.Binary(base64.StdEncoding.EncodeToString([]byte(trimmedChannelId)))
+	// t.Logf("Query channel id: %s", queryChannelId)
+
+	// var channelState wormchain_ibc_receiver.ChannelChainResponse
+	// channelQuery := wormchain_ibc_receiver.QueryMsg{
+	// 	AllChannelChains: nil,
+	// 	ChannelChain: &wormchain_ibc_receiver.QueryMsg_ChannelChain{
+	// 		// ChannelId: wormchain_ibc_receiver.Binary("000D6368616E6E656C5F636861696E6368616E6E656C2D31"),
+	// 		ChannelId: queryChannelId,
+	// 	},
+	// }
+	// err = wormchain.QueryContract(ctx, coreContractAddr, channelQuery, &channelState)
+	// require.NoError(t, err)
+	// t.Logf("Channel state: %v", channelState)
+
+	upgradeChainChannelVaa = helpers.SubmitWormholeIbcUpdateChannelChainMsg(t,
+		vaa.ChainID(vaa.ChainIDWormchain), osmosisWormholeIbcChannelId,
+		guardians)
+	_, err = osmosis.ExecuteContract(ctx, "faucet", osmosisWormholeIbcContractAddr, upgradeChainChannelVaa)
+	require.NoError(t, err)
+
+	postMessage := wormhole_ibc.ExecuteMsg{
+		SubmitVAA: nil,
+		PostMessage: &wormhole_ibc.ExecuteMsg_PostMessage{
+			Message: wormhole_ibc.Binary(base64.StdEncoding.EncodeToString([]byte("080000000901007bfa71192f886ab6819fa4862e34b4d178962958d9b2e3d9437338c9e5fde1443b809d2886eaa69e0f0158ea517675d96243c9209c3fe1d94d5b19866654c6980000000b150000000500020001020304000000000000000000000000000000000000000000000000000000000000000000000a0261626364"))),
+			Nonce:   0,
+		},
+		SubmitUpdateChannelChain: nil,
+	}
+	postMessageJson, err := json.Marshal(postMessage)
+	require.NoError(t, err)
+
+	postMessageTxHash, err := osmosis.ExecuteContract(ctx, "faucet", osmosisWormholeIbcContractAddr, string(postMessageJson))
+	require.NoError(t, err)
+	t.Logf("wormhole ibc post message submitted with hash: %s", postMessageTxHash)
+
 	// helpers.SubmitContractUpgradeGovernanceVAA(t, ctx, wormchain, "faucet",
 	// 	3104,
 	// 	ibcReceiverCodeIdBytes, guardians)
-}
-
-func uint64To32BytePadded(value uint64) [32]byte {
-	var b [32]byte
-	binary.BigEndian.PutUint64(b[24:], value)
-	return b
 }
 
 type QueryMsg struct {

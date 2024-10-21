@@ -3,6 +3,7 @@ package helpers
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,8 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormchain_ibc_receiver"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormhole_ibc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -302,7 +305,8 @@ func createIbcReceiverUpdateChannelChainPayload(allowlistChainID vaa.ChainID,
 	// // custom payload
 	// payload.Write(expected_hash[:])
 	// return payload.Bytes()
-	channelId, err := vaa.LeftPadIbcChannelId("channel-0")
+	channelId, err := vaa.LeftPadIbcChannelId(allowlistChannel)
+
 	if err != nil {
 		return nil, err
 	}
@@ -312,6 +316,7 @@ func createIbcReceiverUpdateChannelChainPayload(allowlistChainID vaa.ChainID,
 		ChannelId:     channelId,
 		ChainId:       allowlistChainID,
 	}
+
 	buf, err := bodyIbcReceiverUpdateChannelChain.Serialize(vaa.IbcReceiverModuleStr)
 	if err != nil {
 		return nil, err
@@ -322,7 +327,6 @@ func createIbcReceiverUpdateChannelChainPayload(allowlistChainID vaa.ChainID,
 func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
 	allowlistChainID vaa.ChainID,
 	allowlistChannel string,
-	contractAddress string,
 	guardians *guardians.ValSet) string {
 	// payload := new(bytes.Buffer)
 	// module, err := vaa.LeftPadBytes("WormchainCore", 32)
@@ -349,20 +353,54 @@ func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
 	// }
 
 	// msgBz, err := json.Marshal(msg)
-	payload, err := createIbcReceiverUpdateChannelChainPayload(allowlistChainID, allowlistChannel)
+
+	paddedChannel, _ := vaa.LeftPadIbcChannelId(allowlistChannel)
+	// t.Logf("paddedChannel: %v", paddedChannel)
+
+	bodyIbcReceiverUpdateChannelChain := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: vaa.ChainIDWormchain,
+		ChannelId:     paddedChannel,
+		ChainId:       allowlistChainID,
+	}
+
+	t.Logf("receiver chanel id: %v", allowlistChannel)
+	t.Logf("bodyibcreceiverupgradechannelchain targetChainId: %v, channelId: %v, chainId: %v",
+		bodyIbcReceiverUpdateChannelChain.TargetChainId,
+		bodyIbcReceiverUpdateChannelChain.ChannelId,
+		bodyIbcReceiverUpdateChannelChain.ChainId)
+
+	// marshalledPayload, err := createIbcReceiverUpdateChannelChainPayload(allowlistChainID, allowlistChannel)
+
+	// payload, err := createIbcReceiverUpdateChannelPayload(bodyIbcReceiverUpdateChannelChain)
+	// marshalledPayload, err := bodyIbcReceiverUpdateChannelChain.Serialize(vaa.IbcReceiverModuleStr)
+	// require.NoError(t, err)
+
+	// gov_payload := types.NewGovernanceMessage(
+	// 	vaa.IbcReceiverModule,
+	// 	byte(vaa.IbcReceiverActionUpdateChannelChain),
+	// 	uint16(vaa.ChainIDWormchain),
+	// 	marshalledPayload,
+	// )
+	// t.Logf("gov_payload: %v", gov_payload)
+
+	// payload := gov_payload.MarshalBinary()
+	// t.Logf("payload: %v", payload)
+	payload, err := bodyIbcReceiverUpdateChannelChain.Serialize(vaa.IbcReceiverModuleStr)
 	require.NoError(t, err)
 
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	v := GenerateGovernanceVaa(0, guardians, payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
-	vHex := hex.EncodeToString(vBz)
+	vHex := base64.StdEncoding.EncodeToString(vBz)
+	// vHex := hex.EncodeToString(vBz)
 
-	submitVAAMsg := ExecuteMsg{
-		SubmitVAA: &ExecuteMsg_SubmitVAA{
-			Vaa: Binary(vHex),
+	var vaas [1]wormchain_ibc_receiver.Binary
+	vaas[0] = wormchain_ibc_receiver.Binary(vHex)
+
+	submitVAAMsg := wormchain_ibc_receiver.ExecuteMsg{
+		SubmitUpdateChannelChain: &wormchain_ibc_receiver.ExecuteMsg_SubmitUpdateChannelChain{
+			Vaas: vaas[:],
 		},
-		PostMessage:              nil,
-		SubmitUpdateChannelChain: nil,
 	}
 
 	submitVAAMsgBz, err := json.Marshal(submitVAAMsg)
@@ -370,3 +408,71 @@ func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
 
 	return string(submitVAAMsgBz)
 }
+
+func SubmitWormholeIbcUpdateChannelChainMsg(t *testing.T,
+	allowlistChainID vaa.ChainID,
+	allowlistChannel string,
+	guardians *guardians.ValSet) string {
+
+	paddedChannel, _ := vaa.LeftPadIbcChannelId(allowlistChannel)
+	// t.Logf("paddedChannel: %v", paddedChannel)
+
+	bodyIbcReceiverUpdateChannelChain := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: vaa.ChainIDWormchain,
+		ChannelId:     paddedChannel,
+		ChainId:       allowlistChainID,
+	}
+
+	t.Logf("sender channel id: %v", allowlistChannel)
+	t.Logf("bodyibc sender upgradechannelchain targetchainId: %v, channelId: %v, chainId: %v",
+		bodyIbcReceiverUpdateChannelChain.TargetChainId,
+		bodyIbcReceiverUpdateChannelChain.ChannelId,
+		bodyIbcReceiverUpdateChannelChain.ChainId,
+	)
+
+	payload, err := bodyIbcReceiverUpdateChannelChain.Serialize(vaa.IbcReceiverModuleStr)
+	require.NoError(t, err)
+
+	v := GenerateGovernanceVaa(0, guardians, payload)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := base64.StdEncoding.EncodeToString(vBz)
+	// vHex := hex.EncodeToString(vBz)
+
+	submitVAAMsg := wormhole_ibc.ExecuteMsg{
+		SubmitVAA:                nil,
+		PostMessage:              nil,
+		SubmitUpdateChannelChain: &wormhole_ibc.ExecuteMsg_SubmitUpdateChannelChain{Vaa: wormhole_ibc.Binary(vHex)},
+	}
+
+	submitVAAMsgBz, err := json.Marshal(submitVAAMsg)
+	require.NoError(t, err)
+
+	return string(submitVAAMsgBz)
+}
+
+// func IbcUpdateChannelChainSignedVaa(
+// 	t require.TestingT,
+// 	targetChainId vaa.ChainID,
+// 	channelId string,
+// 	chainId vaa.ChainID,
+// 	signers *guardians.ValSet,
+// 	guardianSetIndex uint32,
+// ) vaa.VAA {
+// 	paddedChannelId, err := vaa.LeftPadIbcChannelId(channelId)
+// 	require.NoError(t, err)
+
+// 	var module = vaa.IbcReceiverModuleStr
+
+// 	body, err := vaa.BodyIbcUpdateChannelChain{
+// 		TargetChainId: targetChainId,
+// 		ChannelId:     paddedChannelId,
+// 		ChainId:       chainId,
+// 	}.Serialize(module)
+
+// 	require.NoError(t, err)
+
+// 	// v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+// 	v := GenerateGovernanceVaa(guardianSetIndex, signers, body)
+// 	return v
+// }
