@@ -132,6 +132,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDBerachain:       {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSnaxchain:       {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDUnichain:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDWorldchain:      {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSepolia:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDHolesky:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDArbitrumSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
