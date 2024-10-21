@@ -1,7 +1,6 @@
 package ibc
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strconv"
 
@@ -79,18 +78,6 @@ func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 
 		key := keyBase.String()
 		value := valueBase.String()
-
-		keyRaw, err := base64.StdEncoding.DecodeString(keyBase.String())
-		if err == nil {
-			key = string(keyRaw)
-		}
-
-		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
-		if err == nil {
-			value = string(valueRaw)
-		}
-
-		// TODO: JOEL - Some Wasm Events aren't Base64 encoded -- or is it just wormhole tests still using base64 mock data
 
 		if _, ok := wa.m[key]; ok {
 			return fmt.Errorf("duplicate key in event: %s", key)

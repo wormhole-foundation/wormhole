@@ -2,7 +2,6 @@ package accountant
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -103,6 +102,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 
 			for _, event := range tx.Result.Events {
 
+				// TODO: JOEL - REMOVE
 				fmt.Println("event.Type", event.Type)
 				fmt.Println("event.Attributes", event.Attributes)
 
@@ -148,15 +148,6 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 	for _, attr := range event.Attributes {
 		key := attr.Key
 		value := attr.Value
-
-		// decode base64 encoded keys and values (if applicable)
-		if keyRaw, err := base64.StdEncoding.DecodeString(key); err == nil {
-			key = string(keyRaw)
-		}
-
-		if valueRaw, err := base64.StdEncoding.DecodeString(value); err == nil {
-			value = string(valueRaw)
-		}
 
 		if key == "_contract_address" {
 			if value != contractAddress {

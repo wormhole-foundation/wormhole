@@ -427,48 +427,18 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 		return nil, fmt.Errorf("failed to decode data: %w", err)
 	}
 
-	// TODO: JOEL - REMOVE
-	// if txResp.TxResponse.Tx != nil {
-	// 	fmt.Println("NESTED TX DATA", txResp.TxResponse.Tx.Value)
-	// } else {
-	// 	fmt.Println("Nested tx data is null")
-	// }
-
 	var msg sdktypes.TxMsgData
 	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	isMsgData := len(msg.Data) > 0
-	isMsgResponses := len(msg.MsgResponses) > 0
-
-	// TODO: JOEL - REMOVE ME
-	// fmt.Println("JOEL - TXRESP:", txResp.TxResponse)
-	// fmt.Println("JOEL - MSG:", msg)
-	// fmt.Println("JOEL - MSG DATA:", msg.Data)
-	// fmt.Println("JOEL - IsMsgData:", isMsgData)
-	// fmt.Println("JOEL - isMsgResponses:", isMsgResponses)
-
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
-
-	if isMsgData {
-
-		// TODO: JOEL - REMOVE ME
-		// fmt.Println("JOEL - PARSING MSG.DATA")
-
-		if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.Data: %w", err)
-		}
-	} else if isMsgResponses {
-
-		// TODO: JOEL - REMOVE ME
-		// fmt.Println("JOEL - PARSING MSG.RESPONSES")
-
+	if len(msg.MsgResponses) > 0 {
 		if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.MsgResponses: %w", err)
 		}
 	} else {
-		return nil, fmt.Errorf("msg data & msg responses field is empty")
+		return nil, fmt.Errorf("msg responses array is empty")
 	}
 
 	var responses ObservationResponses
