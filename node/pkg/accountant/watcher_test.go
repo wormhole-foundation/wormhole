@@ -18,7 +18,19 @@ import (
 func TestParseWasmObservationFromTestTool(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := []byte("{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"dHhfaGFzaA==\",\"value\":\"Imd1b2xOc1hSWnhnd3kwa1NENVJIbmpTMVJaYW8zVGFmdkNabVpucDJYMHM9Ig==\",\"index\":true},{\"key\":\"dGltZXN0YW1w\",\"value\":\"MTY3MjkzMjk5OA==\",\"index\":true},{\"key\":\"bm9uY2U=\",\"value\":\"MA==\",\"index\":true},{\"key\":\"ZW1pdHRlcl9jaGFpbg==\",\"value\":\"Mg==\",\"index\":true},{\"key\":\"ZW1pdHRlcl9hZGRyZXNz\",\"value\":\"IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAyOTBmYjE2NzIwOGFmNDU1YmIxMzc3ODAxNjNiN2I3YTlhMTBjMTYi\",\"index\":true},{\"key\":\"c2VxdWVuY2U=\",\"value\":\"MTY3MjkzMjk5OA==\",\"index\":true},{\"key\":\"Y29uc2lzdGVuY3lfbGV2ZWw=\",\"value\":\"MTU=\",\"index\":true},{\"key\":\"dGVzdF9maWVsZA==\",\"value\":\"MTU=\",\"index\":true},{\"key\":\"cGF5bG9hZA==\",\"value\":\"IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEzZ3RyT25aQUFBQUFBQUFBQUFBQUFBQUFBQUxZdm12d3VxZE9DcEJ3Rm1lY3JwR1E2QTNRb0FBZ0FBQUFBQUFBQUFBQUFBQU1FSUlKZy9NMFZzNTc2em9FYjFxRCtqVHdKOURDQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSI=\",\"index\":true}]}")
+	eventJson := []byte(`{"type":"wasm-Observation","attributes":[
+		{"key":"_contract_address","value":"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh","index":true},
+		{"key":"tx_hash","value":"\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\"","index":true},
+		{"key":"timestamp","value":"1672932998","index":true},
+		{"key":"nonce","value":"0","index":true},
+		{"key":"emitter_chain","value":"2","index":true},
+		{"key":"emitter_address","value":"\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\"","index":true},
+		{"key":"sequence","value":"1672932998","index":true},
+		{"key":"consistency_level","value":"15","index":true},
+		{"key":"test_field","value":"15","index":true},
+		{"key":"payload","value":"\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"","index":true}
+	]}`)
+
 	event := tmAbci.Event{}
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
@@ -52,7 +64,18 @@ func TestParseWasmObservationFromTestTool(t *testing.T) {
 func TestParseWasmObservationFromPortalBridge(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := []byte("{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"dHhfaGFzaA==\",\"value\":\"IlovM0x1bklSK0FaWjdRdllqS0dHSDBNZU94M1pIZlR1SHZ6TDAxdm9TcjQ9Ig==\",\"index\":true},{\"key\":\"dGltZXN0YW1w\",\"value\":\"OTUwNw==\",\"index\":true},{\"key\":\"bm9uY2U=\",\"value\":\"NTU0MzAzNzQ0\",\"index\":true},{\"key\":\"ZW1pdHRlcl9jaGFpbg==\",\"value\":\"Mg==\",\"index\":true},{\"key\":\"ZW1pdHRlcl9hZGRyZXNz\",\"value\":\"IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAyOTBmYjE2NzIwOGFmNDU1YmIxMzc3ODAxNjNiN2I3YTlhMTBjMTYi\",\"index\":true},{\"key\":\"c2VxdWVuY2U=\",\"value\":\"MQ==\",\"index\":true},{\"key\":\"Y29uc2lzdGVuY3lfbGV2ZWw=\",\"value\":\"MQ==\",\"index\":true},{\"key\":\"cGF5bG9hZA==\",\"value\":\"IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSlVDK1FBQUFBQUFBQUFBQUFBQUFBQTNiWlA1R3FSMUc3aWxDQlRuOEpmMEh4ZjZqNEFBZ0FBQUFBQUFBQUFBQUFBQUpENHYycEhueklPclFkRUVhU3c1NVJPcU1uQkFBUUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSI=\",\"index\":true}]}")
+	eventJson := []byte(`{"type":"wasm-Observation","attributes":[
+		{"key":"_contract_address","value":"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh","index":true},
+		{"key":"tx_hash","value":"\"Z/3LunIR+AZZ7QvYjKGGH0MeOx3ZHfTuHvzL01voSr4=\"","index":true},
+		{"key":"timestamp","value":"9507","index":true},
+		{"key":"nonce","value":"554303744","index":true},
+		{"key":"emitter_chain","value":"2","index":true},
+		{"key":"emitter_address","value":"\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\"","index":true},
+		{"key":"sequence","value":"1","index":true},
+		{"key":"consistency_level","value":"1","index":true},
+		{"key":"payload","value":"\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJUC+QAAAAAAAAAAAAAAAAA3bZP5GqR1G7ilCBTn8Jf0Hxf6j4AAgAAAAAAAAAAAAAAAJD4v2pHnzIOrQdEEaSw55ROqMnBAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"","index":true}]}
+	`)
+
 	event := tmAbci.Event{}
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
@@ -87,7 +110,12 @@ func TestParseWasmObservationFromPortalBridge(t *testing.T) {
 func TestParseWasmObservationError(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := []byte("{\"type\":\"wasm-ObservationError\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"a2V5\",\"value\":\"eyJlbWl0dGVyX2NoYWluIjoyLCJlbWl0dGVyX2FkZHJlc3MiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMjkwZmIxNjcyMDhhZjQ1NWJiMTM3NzgwMTYzYjdiN2E5YTEwYzE2Iiwic2VxdWVuY2UiOjE2NzQxNDQ1NDV9\",\"index\":true},{\"key\":\"ZXJyb3I=\",\"value\":\"ImRpZ2VzdCBtaXNtYXRjaCBmb3IgcHJvY2Vzc2VkIG1lc3NhZ2Ui\",\"index\":true}]}")
+	eventJson := []byte(`{"type":"wasm-ObservationError","attributes":[
+		{"key":"_contract_address","value":"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh","index":true},
+		{"key":"key","value":"{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\",\"sequence\":1674144545}","index":true},
+		{"key":"error","value":"\"digest mismatch for processed message\"","index":true}]}
+	`)
+
 	event := tmAbci.Event{}
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
