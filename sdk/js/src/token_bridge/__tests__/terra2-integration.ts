@@ -169,20 +169,37 @@ describe("Terra Integration Tests", () => {
   });
 
   test("Attest and transfer token from Ethereum to Terra2", async () => {
+    console.log('eth-terra2', 'starting test');
+
     // Attest
     const attestReceipt = await attestFromEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
       signer,
       TEST_ERC20
     );
+
+    console.log('eth-terra2', 1);
+
     await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
+
+    console.log('eth-terra2', 2);
+
     const attestSignedVaa = await ethParseLogAndGetSignedVaa(attestReceipt);
+
+    console.log('eth-terra2', 3);
+
     const createWrappedMsg = await createWrappedOnTerra(
       CONTRACTS.DEVNET.terra2.token_bridge,
       terraWalletAddress,
       attestSignedVaa
     );
+
+    console.log('eth-terra2', 4);
+
     await terraBroadcastAndWaitForExecution([createWrappedMsg], terraWallet);
+
+    console.log('eth-terra2', 5);
+
     // Transfer
     await approveEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
@@ -190,6 +207,9 @@ describe("Terra Integration Tests", () => {
       signer,
       ethTransferAmount
     );
+
+    console.log('eth-terra2', 6);
+
     const transferReceipt = await transferFromEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
       signer,
@@ -198,13 +218,25 @@ describe("Terra Integration Tests", () => {
       CHAIN_ID_TERRA2,
       tryNativeToUint8Array(terraWalletAddress, CHAIN_ID_TERRA2)
     );
+
+    console.log('eth-terra2', 7);
+
     await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
+
+    console.log('eth-terra2', 8);
+
     const transferSignedVaa = await ethParseLogAndGetSignedVaa(transferReceipt);
+
+    console.log('eth-terra2', 9);
+
     const redeemMsg = await redeemOnTerra(
       CONTRACTS.DEVNET.terra2.token_bridge,
       terraWalletAddress,
       transferSignedVaa
     );
+
+    console.log('eth-terra2', 10);
+
     expect(
       await getIsTransferCompletedTerra2(
         CONTRACTS.DEVNET.terra2.token_bridge,
