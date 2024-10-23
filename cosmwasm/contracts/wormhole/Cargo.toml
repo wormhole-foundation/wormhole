@@ -21,6 +21,7 @@ default = ["full"]
 [dependencies]
 cosmwasm-std = { version = "1.0.0" }
 cosmwasm-storage = { version = "1.0.0" }
+cosmwasm-schema = { version = "1.0.0" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.31" }
