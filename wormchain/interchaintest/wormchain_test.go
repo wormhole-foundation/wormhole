@@ -359,8 +359,6 @@ func TestWormchainIbc(t *testing.T) {
 	fmt.Println("Osmo user 1: ", osmoUser1)
 	fmt.Println("Osmo user 2: ", osmoUser2)
 
-	// ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
-	// fmt.Println("IBC hooks code id: ", ibcHooksCodeId)
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
@@ -420,28 +418,41 @@ func TestWormchainIbc(t *testing.T) {
 	require.NoError(t, err)
 
 	// This is the channel we will receive packets on from the wormhole ibc contract
-	osmosisWormholeIbcChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
-	// osmosisWormholeIbcChannelId := "channel-1"
-	t.Logf("Wormhole IBC channel id: %s", osmosisWormholeIbcChannelId)
+	wormholeChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
+	t.Logf("Wormhole IBC channel id: %s", wormholeChannelId)
 
 	channelsInfo, err = r.GetChannels(ctx, eRep, osmosis.Config().ChainID)
 	t.Logf("Osmosis channels: %v", channelsInfo)
 	require.NoError(t, err)
 
+	// This is the channel we will send packets on from to wormhole from osmosis ibc contract
+	osmosisChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
+	t.Logf("Osmosis IBC channel id: %s", osmosisChannelId)
+
+	testutil.WaitForBlocks(ctx, 25, wormchain, osmosis)
+
+	// Get the channels on the wormchain
+	channelsInfo, err = r.GetChannels(ctx, eRep, wormchain.Config().ChainID)
+	t.Logf("Wormchain channels: %v", channelsInfo)
+	require.NoError(t, err)
+
 	// This is the channel we will receive packets on from the wormhole ibc contract
-	wormholeOsmosisIbcChannelId := channelsInfo[len(channelsInfo)-1].ChannelID
-	t.Logf("Osmosis IBC channel id: %s", wormholeOsmosisIbcChannelId)
+	wormholeChannelId = channelsInfo[len(channelsInfo)-1].ChannelID
+	t.Logf("Wormhole IBC channel id: %s", wormholeChannelId)
+
+	channelsInfo, err = r.GetChannels(ctx, eRep, osmosis.Config().ChainID)
+	t.Logf("Osmosis channels: %v", channelsInfo)
+	require.NoError(t, err)
+
+	// This is the channel we will send packets on from to wormhole from osmosis ibc contract
+	osmosisChannelId = channelsInfo[len(channelsInfo)-1].ChannelID
+	t.Logf("Osmosis IBC channel id: %s", osmosisChannelId)
 
 	upgradeChainChannelVaa := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t,
-		vaa.ChainID(OsmoChainID), osmosisWormholeIbcChannelId,
+		vaa.ChainID(OsmoChainID), wormholeChannelId,
 		guardians)
 
 	helpers.MigrateContract(t, ctx, wormchain, "faucet", coreContractAddr, fmt.Sprint(ibcReceiverCodeId), "{}", guardians)
-
-	// upgradeChainChannelVaa := helpers.SubmitUpdateChainToChannelGovernanceVAA(t, uint16(vaa.ChainIDWormchain), vaa.ChainIDOsmosis,
-	// 	ibcChannelBytes, guardians)
-
-	// testutil.WaitForBlocks(ctx, 100, wormchain)
 
 	// Add the new channel to the receiver contract
 	_, err = wormchain.ExecuteContract(ctx, "faucet", coreContractAddr, upgradeChainChannelVaa)
@@ -486,8 +497,9 @@ func TestWormchainIbc(t *testing.T) {
 	// require.NoError(t, err)
 	// t.Logf("Channel state: %v", channelState)
 
+	//
 	upgradeChainChannelVaa = helpers.SubmitWormholeIbcUpdateChannelChainMsg(t,
-		vaa.ChainID(vaa.ChainIDWormchain), osmosisWormholeIbcChannelId,
+		vaa.ChainID(vaa.ChainIDWormchain), osmosisChannelId,
 		guardians)
 	_, err = osmosis.ExecuteContract(ctx, "faucet", osmosisWormholeIbcContractAddr, upgradeChainChannelVaa)
 	require.NoError(t, err)
