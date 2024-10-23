@@ -63,9 +63,11 @@ var (
 
 	statusAddr *string
 
-	guardianKeyPath        *string
-	tssGuardianStoragePath *string
-	solanaContract         *string
+	guardianKeyPath *string
+	solanaContract  *string
+
+	tssSecretsPath       *string
+	tssNetworkSocketPath *string
 
 	ethRPC      *string
 	ethContract *string
@@ -273,6 +275,9 @@ func init() {
 
 	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key (required)")
 	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
+
+	tssSecretsPath = NodeCmd.Flags().String("tssSecret", "", "Path to guardian tss secrets (required)")
+	tssNetworkSocketPath = NodeCmd.Flags().String("tssNetworkPort", "[::]:8998", "Listen address for TSS server")
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
@@ -1585,9 +1590,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	tssGuardianStorage, err := tss.NewGuardianStorageFromFile(*tssGuardianStoragePath)
+	tssGuardianStorage, err := tss.NewGuardianStorageFromFile(*tssSecretsPath)
 	if err != nil {
-		logger.Fatal("failed to load the guardian's threshold signature scheme's storage", zap.Error(err))
+		logger.Fatal("failed to load the guardian's threshold signature scheme's secrets", zap.Error(err))
 	}
 	logger.Info("Loaded the guardian's threshold signature scheme's storage")
 
@@ -1613,6 +1618,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionProcessor(*p2pNetworkID),
+		node.GuardianOptionTSSNetwork(*tssNetworkSocketPath),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {
