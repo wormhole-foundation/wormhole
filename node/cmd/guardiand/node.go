@@ -192,6 +192,9 @@ var (
 	unichainRPC      *string
 	unichainContract *string
 
+	worldchainRPC      *string
+	worldchainContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -402,6 +405,9 @@ func init() {
 
 	unichainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "unichainRPC", "Unichain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	unichainContract = NodeCmd.Flags().String("unichainContract", "", "Unichain contract address")
+
+	worldchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "worldchainRPC", "Worldchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	worldchainContract = NodeCmd.Flags().String("worldchainContract", "", "Worldchain contract address")
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -786,6 +792,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
+	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -930,6 +937,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
 	rpcMap["unichainRPC"] = *unichainRPC
+	rpcMap["worldchainRPC"] = *worldchainRPC
 	rpcMap["gatewayWS"] = *gatewayWS
 	rpcMap["gatewayLCD"] = *gatewayLCD
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1369,6 +1377,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDUnichain,
 			Rpc:              *unichainRPC,
 			Contract:         *unichainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(worldchainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "worldchain",
+			ChainID:          vaa.ChainIDWorldchain,
+			Rpc:              *worldchainRPC,
+			Contract:         *worldchainContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

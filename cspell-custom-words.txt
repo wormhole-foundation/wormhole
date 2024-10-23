@@ -199,6 +199,8 @@ vphash
 wasmhooks
 wasms
 WORKDIR
+worldchain
+WorldChain
 wormchain
 Wormchain
 wormchaind
