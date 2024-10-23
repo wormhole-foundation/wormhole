@@ -462,7 +462,7 @@ func TestFetchPartyId(t *testing.T) {
 	a.NoError(err)
 	a.Equal(e1.Self.Id, pid.Id)
 
-	crt := createX509Cert()
+	crt := createX509Cert("localhost")
 	_, err = e1.FetchPartyId(crt)
 	a.ErrorContains(err, "unsupported") // cert.PublicKey=nil
 

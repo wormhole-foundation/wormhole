@@ -13,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,7 +63,7 @@ func TestGuardianStorageUnmarshal(t *testing.T) {
 }
 
 func TestSetUpGroup(t *testing.T) {
-	t.SkipNow() // manual test only.
+	// t.SkipNow() // manual test only.
 	a := assert.New(t)
 
 	all := setupPlayers(a)
@@ -148,10 +149,11 @@ keygenLoop:
 		a.NoError(err)
 		fmt.Println(string(bts))
 
-		guardianStorageFilePath, err := testutils.GetMockGuardianTssStorage(i)
+		fname, err := testutils.GetMockGuardianTssStorage(i)
 		a.NoError(err)
 
-		err = os.WriteFile(guardianStorageFilePath, bts, 0777)
+		// fname := fmt.Sprintf("%s.json", strings.Split(guardian.Self.Id, ":")[0])
+		err = os.WriteFile(fname, bts, 0777)
 		a.NoError(err)
 	}
 
@@ -164,6 +166,14 @@ func setupPlayers(a *assert.Assertions) []*dkgSetupPlayer {
 	return genPlayers(orderedKeysByPublicKey)
 }
 
+// var listOfGuardians = []string{
+// 	"t-gcp-threshsignnet-asia-01.gcp.testnet.xlabs.xyz",
+// 	"t-gcp-threshsignnet-usw-01.gcp.testnet.xlabs.xyz",
+// 	"t-gcp-threshsignnet-use-01.gcp.testnet.xlabs.xyz",
+// 	"t-gcp-threshsignnet-euc-01.gcp.testnet.xlabs.xyz",
+// 	"t-gcp-threshsignnet-euw-01.gcp.testnet.xlabs.xyz",
+// }
+
 func genPlayers(orderedKeysByPublicKey []*ecdsa.PrivateKey) []*dkgSetupPlayer {
 	all := make([]*dkgSetupPlayer, Participants)
 	partyIDS := make(tss.UnSortedPartyIDs, Participants)
@@ -175,6 +185,7 @@ func genPlayers(orderedKeysByPublicKey []*ecdsa.PrivateKey) []*dkgSetupPlayer {
 		}
 		partyIDS[i] = &tss.PartyID{
 			MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
+				// Id:      fmt.Sprintf("%s:%v", listOfGuardians[i], 8998),
 				Id:      pnm,
 				Moniker: pnm,
 				Key:     pk,
@@ -210,7 +221,7 @@ func genPlayers(orderedKeysByPublicKey []*ecdsa.PrivateKey) []*dkgSetupPlayer {
 		player.Parameters = tss.NewParameters(tss.S256(), player.PeerContext, player.PartyID, Participants, Threshold)
 		player.IdToPIDmapping = IdToPIDmapping
 
-		tmpl := createX509Cert()
+		tmpl := createX509Cert(strings.Split(player.Id, ":")[0])
 
 		x509 := internal.NewTLSCredentials(player.secretKey, tmpl)
 		x509Certs[i] = internal.CertToPem(x509)
@@ -228,7 +239,7 @@ func genPlayers(orderedKeysByPublicKey []*ecdsa.PrivateKey) []*dkgSetupPlayer {
 	return all
 }
 
-func createX509Cert() *x509.Certificate {
+func createX509Cert(dnsName string) *x509.Certificate {
 	// using random serial number
 	var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
 
@@ -245,7 +256,7 @@ func createX509Cert() *x509.Certificate {
 		NotAfter:              time.Now().Add(time.Hour * 24 * 366 * 40), // valid for > 40 years used for tests...
 		BasicConstraintsValid: true,
 
-		DNSNames:    []string{"localhost"},
+		DNSNames:    []string{"localhost", dnsName},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
 	}
 	return &tmpl
