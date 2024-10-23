@@ -44,7 +44,7 @@ describe("Info Tests", () => {
           return;
         }
 
-        const expectedOutput = "https://bsc-dataseed.binance.org/";
+        const expectedOutput = "https://bsc-rpc.publicnode.com";
 
         expect(stdout.trim()).toBe(expectedOutput.trim());
         done();

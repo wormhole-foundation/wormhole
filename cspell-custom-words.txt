@@ -190,6 +190,8 @@ unbond
 Uncompromised
 undercollateralization
 unforgeable
+unichain
+Unichain
 unnormalize
 untampered
 utest
@@ -203,6 +205,8 @@ wasmhooks
 wasms
 wasmvm
 WORKDIR
+worldchain
+WorldChain
 Wormchain
 wormchain
 wormchaind

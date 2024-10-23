@@ -15,6 +15,7 @@ var PublicRPCEndpoints = []string{
 	"https://wormhole-v2-mainnet-api.mcf.rocks",
 	"https://wormhole-v2-mainnet-api.chainlayer.network",
 	"https://wormhole-v2-mainnet-api.staking.fund",
+	"https://guardian.mainnet.xlabs.xyz",
 }
 
 type (
