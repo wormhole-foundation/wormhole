@@ -59,7 +59,6 @@ do
 	# Skip this chain. (We don't want to register this chain on itself.)
 	echo $tag | grep -i ${chain} > /dev/null
 	if [ $? == 0 ]; then
-		found_us=1
 		continue
 	fi
 
@@ -71,11 +70,6 @@ do
 	vaas="${vaas}0x${vaa}"
 	count=$(($count+1))  
 done < "$input_file"
-
-if [ $found_us == 0 ]; then
-	echo "ERROR: failed to find chain ${chain} in ${input_file}, something is not right!" >&2
-	exit 1
-fi
 
 # Make it look like an array.
 vaas="[${vaas}]"
