@@ -35,6 +35,7 @@ type ClientConn struct {
 
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
 func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey, chainId string) (*ClientConn, error) {
+	//nolint: staticcheck
 	c, err := grpc.DialContext(
 		ctx,
 		target,

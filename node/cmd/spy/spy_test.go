@@ -111,6 +111,7 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 func grpcClientSetup(t *testing.T) (context.Context, *grpc.ClientConn, spyv1.SpyRPCServiceClient) {
 	ctx := context.Background()
 	creds := grpc.WithTransportCredentials(insecure.NewCredentials())
+	//nolint: staticcheck
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), creds)
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
