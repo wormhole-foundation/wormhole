@@ -196,15 +196,11 @@ describe("Aptos SDK tests", () => {
     ).toEqual(10_000_000);
   });
   test("Transfer native ERC-20 from Ethereum to Aptos", async () => {
-    console.log('eth-aptos', 'starting test');
-    
     // setup ethereum
     const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
     const sender = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
     const ethCoreBridge = CONTRACTS.DEVNET.ethereum.core;
-
-    console.log('eth-aptos', 1);
 
     // attest from eth
     const attestReceipt = await attestFromEth(
@@ -213,18 +209,11 @@ describe("Aptos SDK tests", () => {
       TEST_ERC20
     );
 
-    console.log('eth-aptos', 2);
-
     // get signed attest vaa
     let sequence = parseSequenceFromLogEth(attestReceipt, ethCoreBridge);
     expect(sequence).toBeTruthy();
 
-    console.log('eth-aptos', 3);
-
     await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
-
-    console.log('eth-aptos', 4);
-
     const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ETH,
@@ -236,36 +225,23 @@ describe("Aptos SDK tests", () => {
     );
     expect(attestVAA).toBeTruthy();
 
-    console.log('eth-aptos', 5);
-
     // setup aptos
     const client = new AptosClient(APTOS_NODE_URL);
     const recipient = new AptosAccount();
     const faucet = new FaucetClient(APTOS_NODE_URL, APTOS_FAUCET_URL);
     await faucet.fundAccount(recipient.address(), 100_000_000);
-
-    console.log('eth-aptos', 6);
-
     const aptosTokenBridge = CONTRACTS.DEVNET.aptos.token_bridge;
     const createWrappedCoinTypePayload = createWrappedTypeOnAptos(
       aptosTokenBridge,
       attestVAA
     );
-
-    console.log('eth-aptos', 7);
-
     try {
       const tx = await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinTypePayload
       );
-
-      console.log('eth-aptos', 8);
-
       await client.waitForTransaction(tx.hash);
-
-      console.log('eth-aptos', 9);
     } catch (e) {
       // only throw if token has not been attested but this call fails
       if (
@@ -282,22 +258,13 @@ describe("Aptos SDK tests", () => {
       aptosTokenBridge,
       attestVAA
     );
-
-    console.log('eth-aptos', 10);
-
     try {
       const tx = await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinPayload
       );
-
-      console.log('eth-aptos', 11);
-
       await client.waitForTransaction(tx.hash);
-
-      console.log('eth-aptos', 12);
-
     } catch (e) {
       // only throw if token has not been attested but this call fails
       if (
@@ -317,9 +284,6 @@ describe("Aptos SDK tests", () => {
       CHAIN_ID_ETH,
       TEST_ERC20
     );
-
-    console.log('eth-aptos', 13);
-
     if (!aptosWrappedType) {
       throw new Error("Failed to create wrapped coin on Aptos");
     }
@@ -337,15 +301,10 @@ describe("Aptos SDK tests", () => {
       await getIsWrappedAssetAptos(client, aptosTokenBridge, aptosWrappedType)
     );
 
-    console.log('eth-aptos', 14);
-
     // transfer from eth
     const balanceBeforeTransferEth = await getBalanceEth(TEST_ERC20, sender);
     const amount = parseUnits("1", 18);
     await approveEth(ethTokenBridge, TEST_ERC20, sender, amount);
-
-    console.log('eth-aptos', 15);
-
     const transferReceipt = await transferFromEth(
       ethTokenBridge,
       sender,
@@ -355,16 +314,11 @@ describe("Aptos SDK tests", () => {
       tryNativeToUint8Array(recipient.address().hex(), CHAIN_ID_APTOS)
     );
 
-    console.log('eth-aptos', 16);
-
     // get signed transfer vaa
     sequence = parseSequenceFromLogEth(transferReceipt, ethCoreBridge);
     expect(sequence).toBeTruthy();
 
     await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
-
-    console.log('eth-aptos', 17);
-
     const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ETH,
@@ -376,46 +330,28 @@ describe("Aptos SDK tests", () => {
     );
     expect(transferVAA).toBeTruthy();
 
-    console.log('eth-aptos', 18);
-
     // register token on aptos
     const script = registerCoin(aptosTokenBridge, CHAIN_ID_ETH, TEST_ERC20);
     await generateSignAndSubmitScript(client, recipient, script);
-
-    console.log('eth-aptos', 19);
 
     // redeem on aptos
     const balanceBeforeTransferAptos = ethers.BigNumber.from(
       await getBalanceAptos(client, aptosWrappedType, recipient.address())
     );
-
-    console.log('eth-aptos', 20);
-
     const redeemPayload = await redeemOnAptos(
       client,
       aptosTokenBridge,
       transferVAA
     );
-
-    console.log('eth-aptos', 21);
-
     const tx = await generateSignAndSubmitEntryFunction(
       client,
       recipient,
       redeemPayload
     );
-
-    console.log('eth-aptos', 22);
-
     await client.waitForTransaction(tx.hash);
-
-    console.log('eth-aptos', 23);
-
     expect(
       await getIsTransferCompletedAptos(client, aptosTokenBridge, transferVAA)
     ).toBe(true);
-
-    console.log('eth-aptos', 24);
 
     // check balances
     const balanceAfterTransferAptos = ethers.BigNumber.from(
@@ -428,8 +364,6 @@ describe("Aptos SDK tests", () => {
     expect(
       balanceBeforeTransferEth.sub(balanceAfterTransferEth).toString()
     ).toEqual(amount.toString());
-    
-    console.log('eth-aptos', 25);
   });
   test("Transfer native token with payload from Aptos to Ethereum", async () => {
     const APTOS_TOKEN_BRIDGE = CONTRACTS.DEVNET.aptos.token_bridge;
