@@ -430,8 +430,6 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	fmt.Println("joel-msg", msg)
-
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
 	if len(msg.MsgResponses) > 0 {
 		if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
