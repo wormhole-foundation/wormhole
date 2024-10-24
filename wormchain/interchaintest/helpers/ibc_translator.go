@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -27,7 +27,7 @@ func SubmitAllowlistInstantiateContract(
 	codeIdStr string,
 	guardians *guardians.ValSet,
 ) {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 	codeId, err := strconv.ParseUint(codeIdStr, 10, 64)
 	require.NoError(t, err)
 
@@ -39,7 +39,7 @@ func SubmitAllowlistInstantiateContract(
 	}
 	payloadBz, err := payload.Serialize(vaa.ActionAddWasmInstantiateAllowlist)
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
@@ -83,7 +83,7 @@ func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, all
 	payload.Write(channelPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
 
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
@@ -162,7 +162,7 @@ func IbcTranslatorCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uin
 		emitterBz[eIndex-1] = emitterAddr[i-1]
 		eIndex--
 	}
-	v := generateVaa(0, guardians, vaa.ChainID(emitterChainID), vaa.Address(emitterBz), payload)
+	v := GenerateVaa(0, guardians, vaa.ChainID(emitterChainID), vaa.Address(emitterBz), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 

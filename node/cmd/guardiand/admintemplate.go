@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/bech32"
+	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
-	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/ethereum/go-ethereum/crypto"

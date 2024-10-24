@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "test": "jest --verbose",
-    "test-ci": "jest --verbose --setupFiles ./ci-config.js --forceExit",
+    "test-ci": "jest --verbose --setupFiles ./ci-config.js --forceExit --detectOpenHandles",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && tsc -p tsconfig.types.json"
   },
   "keywords": [

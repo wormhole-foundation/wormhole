@@ -19,7 +19,7 @@
     "build-all": "npm run build-deps && npm run build-lib",
     "docs": "typedoc src/index.ts",
     "test": "DEV=true NETWORK=DEVNET jest --verbose",
-    "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --verbose --setupFiles ./ci-config.js --forceExit",
+    "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --verbose --setupFiles ./ci-config.js --forceExit --detectOpenHandles",
     "test-relayer-mainnet": "ENV=mainnet NETWORK=MAINNET npx jest --verbose ./src/relayer/",
     "test-relayer-testnet": "ENV=testnet NETWORK=TESTNET npx jest --verbose ./src/relayer/",
     "build": "npm run build-all",
