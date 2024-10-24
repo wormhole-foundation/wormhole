@@ -395,6 +395,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 			gst,
 			rootCtxCancel,
 			p2p.WithSignedVAAListener(signedInC),
+			p2p.WithComponents(components),
 		)
 		if err != nil {
 			return err
