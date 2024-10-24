@@ -109,6 +109,8 @@ Metaplex
 mindshare
 mlock
 moby
+monad
+Monad
 moonscan
 moretags
 Neodyme
