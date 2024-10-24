@@ -195,6 +195,9 @@ var (
 	worldchainRPC      *string
 	worldchainContract *string
 
+	monadDevnetRPC      *string
+	monadDevnetContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -423,6 +426,9 @@ func init() {
 
 	polygonSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "polygonSepoliaRPC", "Polygon on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	polygonSepoliaContract = NodeCmd.Flags().String("polygonSepoliaContract", "", "Polygon on Sepolia contract address")
+
+	monadDevnetRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "monadDevnetRPC", "Monad Devnet RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	monadDevnetContract = NodeCmd.Flags().String("monadDevnetContract", "", "Monad Devnet contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	publicRpcLogDetailStr = NodeCmd.Flags().String("publicRpcLogDetail", "full", "The detail with which public RPC requests shall be logged (none=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
@@ -801,6 +807,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, "optimismSepolia", false)
 	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, "holesky", false)
 	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, "polygonSepolia", false)
+	*monadDevnetContract = checkEvmArgs(logger, *monadDevnetRPC, *monadDevnetContract, "monadDevnet", false)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -927,6 +934,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
 		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
 		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
+		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
@@ -1607,6 +1615,18 @@ func runNode(cmd *cobra.Command, args []string) {
 				ChainID:          vaa.ChainIDPolygonSepolia,
 				Rpc:              *polygonSepoliaRPC,
 				Contract:         *polygonSepoliaContract,
+				CcqBackfillCache: *ccqBackfillCache,
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(monadDevnetRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID:        "monad_devnet",
+				ChainID:          vaa.ChainIDMonadDevnet,
+				Rpc:              *monadDevnetRPC,
+				Contract:         *monadDevnetContract,
 				CcqBackfillCache: *ccqBackfillCache,
 			}
 
