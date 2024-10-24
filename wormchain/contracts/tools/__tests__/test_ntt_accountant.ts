@@ -1155,9 +1155,6 @@ describe("NTT Global Accountant Tests", () => {
         CONTRACTS.DEVNET.bsc.core
       );
 
-      // TODO: JOEL - REMOVE
-      console.log('JOEL: Awaiting signed VAA #c');
-
       // poll until the guardian(s) witness and sign the vaa
       await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -1170,9 +1167,6 @@ describe("NTT Global Accountant Tests", () => {
         1000,
         30
       );
-
-      // TODO: JOEL - REMOVE
-      console.log('JOEL: Awaiting metrics change #c');
 
       await waitForMetricsChange(
         (afterMetrics) =>
@@ -1239,9 +1233,6 @@ describe("NTT Global Accountant Tests", () => {
         CONTRACTS.DEVNET.bsc.core
       );
       
-      // TODO: JOEL - REMOVE
-      console.log('JOEL: Awaiting signed VAA #d');
-      
       // poll until the guardian(s) witness and sign the vaa
       await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -1254,9 +1245,6 @@ describe("NTT Global Accountant Tests", () => {
         1000,
         30
       );
-
-      // TODO: JOEL - REMOVE
-      console.log('JOEL: Awaiting metrics change #d');
       
       await waitForMetricsChange(
         (afterMetrics) =>
