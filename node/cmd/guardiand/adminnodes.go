@@ -115,7 +115,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Sei", vaa.ChainIDSei},
 		{"Scroll", vaa.ChainIDScroll},
 		{"Mantle", vaa.ChainIDMantle},
-		{"MonadDevnet", vaa.ChainIDMonadDevnet},
 		{"Blast", vaa.ChainIDBlast},
 		{"XLayer", vaa.ChainIDXLayer},
 		{"Linea", vaa.ChainIDLinea},
@@ -130,6 +129,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"BaseSepolia", vaa.ChainIDBaseSepolia},
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
 		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
+		{"MonadDevnet", vaa.ChainIDMonadDevnet},
 	}
 
 	if len(only) > 0 {
