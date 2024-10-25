@@ -4,25 +4,11 @@
   "useLastRun": true,
   "chains": [
     {
-      "description": "Ethereum Goerli",
-      "evmNetworkId": 5,
-      "chainId": 2,
-      "rpc": "https://ethereum-goerli.publicnode.com",
-      "wormholeAddress": "0x706abc4E45D419950511e474C7B9Ed348A4a716c"
-    },
-    {
       "description": "BSC Testnet",
       "evmNetworkId": 97,
       "chainId": 4,
       "rpc": "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
       "wormholeAddress": "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"
-    },
-    {
-      "description": "Mumbai",
-      "evmNetworkId": 80001,
-      "chainId": 5,
-      "rpc": "https://rpc.ankr.com/polygon_mumbai",
-      "wormholeAddress": "0x0CBE91CF822c73C2315FB05100C2F714765d5c20"
     },
     {
       "description": "Avalanche testnet fuji",
@@ -51,20 +37,6 @@
       "chainId": 16,
       "rpc": "https://rpc.testnet.moonbeam.network",
       "wormholeAddress": "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901"
-    },
-    {
-      "description": "Arbitrum Goerli",
-      "evmNetworkId": 421613,
-      "chainId": 23,
-      "rpc": "https://arbitrum-goerli.publicnode.com",
-      "wormholeAddress": "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"
-    },
-    {
-      "description": "Optimism Goerli",
-      "evmNetworkId": 420,
-      "chainId": 24,
-      "rpc": "https://goerli.optimism.io",
-      "wormholeAddress": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"
     },
     {
       "description": "Base Testnet",
@@ -100,6 +72,13 @@
       "chainId": 10005,
       "rpc": "https://sepolia.optimism.io",
       "wormholeAddress": "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"
+    },
+    { 
+      "description": "Monad Devnet",
+      "evmNetworkId": 41454,
+      "chainId": 10008,
+      "rpc": "!!! https://no_public_rpc_key_override_with_private",
+      "wormholeAddress": "0x376428e7f26D5867e69201b275553C45B09EE090"
     }
   ]
 }
