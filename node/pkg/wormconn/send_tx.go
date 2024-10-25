@@ -92,5 +92,12 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 		return nil, fmt.Errorf("failed to broadcast tx: %w", err)
 	}
 
+	res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txResp.TxResponse.TxHash})
+	if err == nil {
+		fmt.Printf("JOEL - Tx response: %v\n", res.TxResponse)
+	} else {
+		fmt.Printf("JOEL - Failed to fetch tx: %v\n", err)
+	}
+
 	return txResp, nil
 }
