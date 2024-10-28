@@ -107,6 +107,9 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 
 // waitForBlockInclusion waits for the tx to be included in a block, or times out after a given duration.
 func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHash string, waitTimeout time.Duration) (*sdktx.GetTxResponse, error) {
+
+	now := time.Now()
+
 	exitAfter := time.After(waitTimeout)
 	for {
 		select {
@@ -115,11 +118,14 @@ func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHa
 			fmt.Println("JOEL - TIMED OUT ", txHash)
 			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", waitTimeout, txHash)
 		// check if in block every second
-		case <-time.After(1000 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 			if err == nil {
-				fmt.Print("JOEL - FOUND TX IN BLOCK ", txHash)
+				took := time.Since(now)
+				fmt.Println("JOEL - FOUND TX IN BLOCK", txHash, " after ", took.Milliseconds(), "ms")
 				return res, nil
+			} else {
+				fmt.Println("JOEL - NO TX YET IN BLOCK ", txHash)
 			}
 		// check if context is done
 		case <-ctx.Done():
