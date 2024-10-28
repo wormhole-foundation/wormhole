@@ -3,11 +3,7 @@
 /// This module implements the mechanism to publish the Wormhole contract and
 /// initialize `State` as a shared object.
 module wormhole::setup {
-    use std::vector::{Self};
-    use sui::object::{Self, UID};
     use sui::package::{Self, UpgradeCap};
-    use sui::transfer::{Self};
-    use sui::tx_context::{Self, TxContext};
 
     use wormhole::cursor::{Self};
     use wormhole::state::{Self};
@@ -15,7 +11,7 @@ module wormhole::setup {
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
     /// create the shared `State`.
-    struct DeployerCap has key, store {
+    public struct DeployerCap has key, store {
         id: UID
     }
 
@@ -65,8 +61,8 @@ module wormhole::setup {
         object::delete(id);
 
         let guardians = {
-            let out = vector::empty();
-            let cur = cursor::new(initial_guardians);
+            let mut out = vector::empty();
+            let mut cur = cursor::new(initial_guardians);
             while (!cursor::is_empty(&cur)) {
                 vector::push_back(
                     &mut out,
@@ -97,10 +93,7 @@ module wormhole::setup {
 
 #[test_only]
 module wormhole::setup_tests {
-    use std::option::{Self};
-    use std::vector::{Self};
     use sui::package::{Self};
-    use sui::object::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::bytes32::{Self};
@@ -109,29 +102,28 @@ module wormhole::setup_tests {
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
     use wormhole::setup::{Self, DeployerCap};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{State};
     use wormhole::wormhole_scenario::{person};
 
     #[test]
     fun test_init() {
         let deployer = person();
-        let my_scenario = test_scenario::begin(deployer);
+        let mut my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole smart contract.
-        setup::init_test_only(test_scenario::ctx(scenario));
+        setup::init_test_only(scenario.ctx());
 
         // Process effects of `init`.
-        let effects = test_scenario::next_tx(scenario, deployer);
+        let effects = scenario.next_tx(deployer);
 
         // We expect two objects to be created: `DeployerCap` and `UpgradeCap`.
-        assert!(vector::length(&test_scenario::created(&effects)) == 2, 0);
+        assert!(&effects.created().length() == 2, 0);
 
         // We should be able to take the `DeployerCap` from the sender
         // of the transaction.
         let cap =
-            test_scenario::take_from_address<DeployerCap>(
-                scenario,
+            scenario.take_from_address<DeployerCap>(
                 deployer
             );
 
@@ -139,20 +131,20 @@ module wormhole::setup_tests {
         test_scenario::return_to_address(deployer, cap);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
     fun test_complete() {
         let deployer = person();
-        let my_scenario = test_scenario::begin(deployer);
+        let mut my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole smart contract.
-        setup::init_test_only(test_scenario::ctx(scenario));
+        setup::init_test_only(scenario.ctx());
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, deployer);
+        scenario.next_tx(deployer);
 
         let governance_chain = 1234;
         let governance_contract =
@@ -169,8 +161,7 @@ module wormhole::setup_tests {
 
         // Take the `DeployerCap` and move it to `init_and_share_state`.
         let deployer_cap =
-            test_scenario::take_from_address<DeployerCap>(
-                scenario,
+            scenario.take_from_address<DeployerCap>(
                 deployer
             );
         let deployer_cap_id = object::id(&deployer_cap);
@@ -181,7 +172,7 @@ module wormhole::setup_tests {
         let upgrade_cap =
             package::test_publish(
                 object::id_from_address(@wormhole),
-                test_scenario::ctx(scenario)
+                scenario.ctx()
             );
 
         setup::complete(
@@ -193,59 +184,59 @@ module wormhole::setup_tests {
             initial_guardians,
             guardian_set_seconds_to_live,
             message_fee,
-            test_scenario::ctx(scenario)
+            scenario.ctx()
         );
 
         // Process effects.
-        let effects = test_scenario::next_tx(scenario, deployer);
+        let effects = scenario.next_tx(deployer);
 
         // We expect one object to be created: `State`. And it is shared.
-        let created = test_scenario::created(&effects);
-        let shared = test_scenario::shared(&effects);
-        assert!(vector::length(&created) == 1, 0);
-        assert!(vector::length(&shared) == 1, 0);
+        let created = effects.created();
+        let shared = effects.shared();
+        assert!(created.length() == 1, 0);
+        assert!(shared.length() == 1, 0);
         assert!(
-            vector::borrow(&created, 0) == vector::borrow(&shared, 0),
+            created.borrow(0) == shared.borrow(0),
             0
         );
 
         // Verify `State`. Ideally we compare structs, but we will check each
         // element.
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = scenario.take_shared<State>();
 
-        assert!(state::governance_chain(&worm_state) == governance_chain, 0);
+        assert!(worm_state.governance_chain() == governance_chain, 0);
 
         let expected_governance_contract =
             external_address::new_nonzero(
                 bytes32::from_bytes(governance_contract)
             );
         assert!(
-            state::governance_contract(&worm_state) == expected_governance_contract,
+            worm_state.governance_contract() == expected_governance_contract,
             0
         );
 
-        assert!(state::guardian_set_index(&worm_state) == 0, 0);
+        assert!(worm_state.guardian_set_index() == 0, 0);
         assert!(
-            state::guardian_set_seconds_to_live(&worm_state) == guardian_set_seconds_to_live,
+            worm_state.guardian_set_seconds_to_live() == guardian_set_seconds_to_live,
             0
         );
 
         let guardians =
             guardian_set::guardians(
-                state::guardian_set_at(&worm_state, 0)
+                worm_state.guardian_set_at(0)
             );
-        let num_guardians = vector::length(guardians);
-        assert!(num_guardians == vector::length(&initial_guardians), 0);
+        let num_guardians = guardians.length();
+        assert!(num_guardians == initial_guardians.length(), 0);
 
-        let i = 0;
+        let mut i = 0;
         while (i < num_guardians) {
-            let left = guardian::as_bytes(vector::borrow(guardians, i));
-            let right = *vector::borrow(&initial_guardians, i);
+            let left = guardian::as_bytes(guardians.borrow(i));
+            let right = *initial_guardians.borrow(i);
             assert!(left == right, 0);
             i = i + 1;
         };
 
-        assert!(state::message_fee(&worm_state) == message_fee, 0);
+        assert!(worm_state.message_fee() == message_fee, 0);
 
         // Clean up.
         test_scenario::return_shared(worm_state);
@@ -253,8 +244,8 @@ module wormhole::setup_tests {
         // We expect `DeployerCap` to be destroyed. There are other
         // objects deleted, but we only care about the deployer cap for this
         // test.
-        let deleted = cursor::new(test_scenario::deleted(&effects));
-        let found = option::none();
+        let mut deleted = cursor::new(effects.deleted());
+        let mut found = option::none();
         while (!cursor::is_empty(&deleted)) {
             let id = cursor::poke(&mut deleted);
             if (id == deployer_cap_id) {
@@ -267,7 +258,7 @@ module wormhole::setup_tests {
         assert!(!option::is_none(&found), 0);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -276,14 +267,14 @@ module wormhole::setup_tests {
     )]
     fun test_cannot_complete_invalid_upgrade_cap() {
         let deployer = person();
-        let my_scenario = test_scenario::begin(deployer);
+        let mut my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole smart contract.
-        setup::init_test_only(test_scenario::ctx(scenario));
+        setup::init_test_only(scenario.ctx());
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, deployer);
+        scenario.next_tx(deployer);
 
         let governance_chain = 1234;
         let governance_contract =
@@ -296,8 +287,7 @@ module wormhole::setup_tests {
 
         // Take the `DeployerCap` and move it to `init_and_share_state`.
         let deployer_cap =
-            test_scenario::take_from_address<DeployerCap>(
-                scenario,
+            scenario.take_from_address<DeployerCap>(
                 deployer
             );
 
@@ -307,7 +297,7 @@ module wormhole::setup_tests {
         let upgrade_cap =
             package::test_publish(
                 object::id_from_address(@0xbadc0de),
-                test_scenario::ctx(scenario)
+                scenario.ctx()
             );
 
         setup::complete(
@@ -319,7 +309,7 @@ module wormhole::setup_tests {
             initial_guardians,
             guardian_set_seconds_to_live,
             message_fee,
-            test_scenario::ctx(scenario)
+            scenario.ctx()
         );
 
         abort 42

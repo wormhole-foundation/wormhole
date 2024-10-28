@@ -9,7 +9,6 @@
 /// required minimum version.
 module wormhole::migrate {
     use sui::clock::{Clock};
-    use sui::object::{ID};
 
     use wormhole::governance_message::{Self};
     use wormhole::state::{Self, State};
@@ -17,7 +16,7 @@ module wormhole::migrate {
     use wormhole::vaa::{Self};
 
     /// Event reflecting when `migrate` is successfully executed.
-    struct MigrateComplete has drop, copy {
+    public struct MigrateComplete has drop, copy {
         package: ID
     }
 
@@ -107,7 +106,6 @@ module wormhole::migrate {
 module wormhole::migrate_tests {
     use sui::test_scenario::{Self};
 
-    use wormhole::state::{Self};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -126,7 +124,7 @@ module wormhole::migrate_tests {
         use wormhole::migrate::{migrate};
 
         let user = person();
-        let my_scenario = test_scenario::begin(user);
+        let mut my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole.
@@ -134,15 +132,15 @@ module wormhole::migrate_tests {
         set_up_wormhole(scenario, wormhole_message_fee);
 
         // Next transaction should be conducted as an ordinary user.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
         // Upgrade (digest is just b"new build") for testing purposes.
         upgrade_wormhole(scenario);
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Set up migrate (which prepares this package to be the same state as
@@ -150,7 +148,7 @@ module wormhole::migrate_tests {
         wormhole::migrate::set_up_migrate(&mut worm_state);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -158,7 +156,7 @@ module wormhole::migrate_tests {
         migrate(&mut worm_state, UPGRADE_VAA, &the_clock);
 
         // Make sure we emitted an event.
-        let effects = test_scenario::next_tx(scenario, user);
+        let effects = scenario.next_tx(user);
         assert!(test_scenario::num_user_events(&effects) == 1, 0);
 
         // Clean up.
@@ -166,7 +164,7 @@ module wormhole::migrate_tests {
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -177,7 +175,7 @@ module wormhole::migrate_tests {
         use wormhole::migrate::{migrate};
 
         let user = person();
-        let my_scenario = test_scenario::begin(user);
+        let mut my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole.
@@ -185,15 +183,15 @@ module wormhole::migrate_tests {
         set_up_wormhole(scenario, wormhole_message_fee);
 
         // Next transaction should be conducted as an ordinary user.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
         // Upgrade (digest is just b"new build") for testing purposes.
         upgrade_wormhole(scenario);
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Set up migrate (which prepares this package to be the same state as
@@ -201,7 +199,7 @@ module wormhole::migrate_tests {
         wormhole::migrate::set_up_migrate(&mut worm_state);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -209,7 +207,7 @@ module wormhole::migrate_tests {
         migrate(&mut worm_state, UPGRADE_VAA, &the_clock);
 
         // Make sure we emitted an event.
-        let effects = test_scenario::next_tx(scenario, user);
+        let effects = scenario.next_tx(user);
         assert!(test_scenario::num_user_events(&effects) == 1, 0);
 
         // You shall not pass!

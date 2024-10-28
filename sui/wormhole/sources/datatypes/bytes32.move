@@ -3,9 +3,7 @@
 /// This module implements a custom type representing a fixed-size array of
 /// length 32.
 module wormhole::bytes32 {
-    use std::option::{Self};
     use std::string::{Self, String};
-    use std::vector::{Self};
     use sui::bcs::{Self};
 
     use wormhole::bytes::{Self};
@@ -22,7 +20,7 @@ module wormhole::bytes32 {
     const LEN: u64 = 32;
 
     /// Container for `vector<u8>`, which has length == 32.
-    struct Bytes32 has copy, drop, store {
+    public struct Bytes32 has copy, drop, store {
         data: vector<u8>,
     }
 
@@ -38,10 +36,10 @@ module wormhole::bytes32 {
 
     /// Create new `Bytes20` of all zeros.
     public fun default(): Bytes32 {
-        let data = vector::empty();
-        let i = 0;
+        let mut data = vector[];
+        let mut i = 0;
         while (i < LEN) {
-            vector::push_back(&mut data, 0);
+            data.push_back(0);
             i = i + 1;
         };
         new(data)
@@ -54,16 +52,16 @@ module wormhole::bytes32 {
 
     /// Serialize `u256` as big-endian format in zero-padded `Bytes32`.
     public fun from_u256_be(value: u256): Bytes32 {
-        let buf = bcs::to_bytes(&value);
-        vector::reverse(&mut buf);
+        let mut buf = bcs::to_bytes(&value);
+        buf.reverse();
         new(buf)
     }
 
     /// Deserialize from big-endian `u256`.
     public fun to_u256_be(value: Bytes32): u256 {
-        let cur = cursor::new(to_bytes(value));
+        let mut cur = cursor::new(to_bytes(value));
         let out = bytes::take_u256_be(&mut cur);
-        cursor::destroy_empty(cur);
+        cur.destroy_empty();
 
         out
     }
@@ -83,8 +81,8 @@ module wormhole::bytes32 {
 
     /// Either trim or pad (depending on length of the input `vector<u8>`) to 32
     /// bytes.
-    public fun from_bytes(buf: vector<u8>): Bytes32 {
-        let len = vector::length(&buf);
+    public fun from_bytes(mut buf: vector<u8>): Bytes32 {
+        let len = buf.length();
         if (len > LEN) {
             trim_nonzero_left(&mut buf);
             new(buf)
@@ -115,20 +113,20 @@ module wormhole::bytes32 {
     }
 
     public fun from_utf8(str: String): Bytes32 {
-        let data = *string::bytes(&str);
-        let len = vector::length(&data);
+        let mut data = *str.as_bytes();
+        let len = data.length();
         if (len > LEN) {
             // Trim from end.
-            let i = len;
+            let mut i = len;
             while (i > LEN) {
-                vector::pop_back(&mut data);
+                data.pop_back();
                 i = i - 1;
             }
         } else {
             // Pad right to `LEN`.
-            let i = len;
+            let mut i = len;
             while (i < LEN) {
-                vector::push_back(&mut data, 0);
+                data.push_back(0);
                 i = i + 1;
             }
         };
@@ -141,21 +139,21 @@ module wormhole::bytes32 {
     /// character at the 32 byte boundary, which, when split, results in an
     /// invalid code point, so we remove it.
     public fun to_utf8(value: Bytes32): String {
-        let data = to_bytes(value);
+        let mut data = to_bytes(value);
 
-        let utf8 = string::try_utf8(data);
+        let mut utf8 = string::try_utf8(data);
         while (option::is_none(&utf8)) {
-            vector::pop_back(&mut data);
+            data.pop_back();
             utf8 = string::try_utf8(data);
         };
 
-        let buf = *string::bytes(&option::extract(&mut utf8));
+        let mut buf = *string::as_bytes(&utf8.extract());
 
         // Now trim zeros from the right.
         while (
-            *vector::borrow(&buf, vector::length(&buf) - 1) == 0
+            *buf.borrow(buf.length() - 1) == 0
         ) {
-            vector::pop_back(&mut buf);
+            buf.pop_back();
         };
 
         string::utf8(buf)
@@ -163,9 +161,9 @@ module wormhole::bytes32 {
 
     /// Validate that any of the bytes in underlying data is non-zero.
     public fun is_nonzero(self: &Bytes32): bool {
-        let i = 0;
+        let mut i = 0;
         while (i < LEN) {
-            if (*vector::borrow(&self.data, i) > 0) {
+            if (*self.data.borrow(i) > 0) {
                 return true
             };
             i = i + 1;
@@ -176,29 +174,28 @@ module wormhole::bytes32 {
 
     /// Check that the input data is correct length.
     fun is_valid(data: &vector<u8>): bool {
-        vector::length(data) == LEN
+        data.length() == LEN
     }
 
     /// For vector size less than 32, add zeros to the left.
     fun pad_left(data: &vector<u8>, data_reversed: bool): vector<u8> {
-        let out = vector::empty();
-        let len = vector::length(data);
-        let i = len;
+        let mut out = vector[];
+        let len = data.length();
+        let mut i = len;
         while (i < LEN) {
-            vector::push_back(&mut out, 0);
+            out.push_back(0);
             i = i + 1;
         };
         if (data_reversed) {
-            let i = 0;
+            let mut i = 0;
             while (i < len) {
-                vector::push_back(
-                    &mut out,
-                    *vector::borrow(data, len - i - 1)
+                out.push_back(
+                    *data.borrow(len - i - 1)
                 );
                 i = i + 1;
             };
         } else {
-            vector::append(&mut out, *data);
+            out.append(*data);
         };
 
         out
@@ -207,19 +204,18 @@ module wormhole::bytes32 {
     /// Trim bytes from the left if they are zero. If any of these bytes
     /// are non-zero, abort.
     fun trim_nonzero_left(data: &mut vector<u8>) {
-        vector::reverse(data);
-        let (i, n) = (0, vector::length(data) - LEN);
+        data.reverse();
+        let (mut i, n) = (0, data.length() - LEN);
         while (i < n) {
-            assert!(vector::pop_back(data) == 0, E_CANNOT_TRIM_NONZERO);
+            assert!(data.pop_back() == 0, E_CANNOT_TRIM_NONZERO);
             i = i + 1;
         };
-        vector::reverse(data);
+        data.reverse();
     }
 }
 
 #[test_only]
 module wormhole::bytes32_tests {
-    use std::vector::{Self};
 
     use wormhole::bytes32::{Self};
 
@@ -227,7 +223,7 @@ module wormhole::bytes32_tests {
     public fun new() {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-        assert!(vector::length(&data) == 32, 0);
+        assert!(data.length() == 32, 0);
         let actual = bytes32::new(data);
 
         assert!(bytes32::data(&actual) == data, 0);
@@ -281,7 +277,7 @@ module wormhole::bytes32_tests {
     public fun cannot_new_non_32_byte_vector() {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbe";
-        assert!(vector::length(&data) != 32, 0);
+        assert!(data.length() != 32, 0);
         bytes32::new(data);
     }
 }

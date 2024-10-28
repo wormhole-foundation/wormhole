@@ -1,5 +1,4 @@
 module wormhole::consumed_vaas {
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Bytes32};
     use wormhole::set::{Self, Set};
@@ -9,7 +8,7 @@ module wormhole::consumed_vaas {
     /// is up to the integrator to have this container live in his contract
     /// in order to take advantage of this no-replay protection. Or an
     /// integrator can implement his own method to prevent replay.
-    struct ConsumedVAAs has store {
+    public struct ConsumedVAAs has store {
         hashes: Set<Bytes32>
     }
 

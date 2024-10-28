@@ -7,14 +7,11 @@
 /// checking signatures versus an existing Guardian set, and generating new
 /// emitters for Wormhole integrators.
 module wormhole::state {
-    use std::vector::{Self};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
-    use sui::object::{Self, ID, UID};
     use sui::package::{UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
     use sui::table::{Self, Table};
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
@@ -25,16 +22,6 @@ module wormhole::state {
     use wormhole::package_utils::{Self};
     use wormhole::version_control::{Self};
 
-    friend wormhole::emitter;
-    friend wormhole::governance_message;
-    friend wormhole::migrate;
-    friend wormhole::publish_message;
-    friend wormhole::set_fee;
-    friend wormhole::setup;
-    friend wormhole::transfer_fee;
-    friend wormhole::update_guardian_set;
-    friend wormhole::upgrade_contract;
-    friend wormhole::vaa;
 
     /// Cannot initialize state with zero guardians.
     const E_ZERO_GUARDIANS: u64 = 0;
@@ -46,10 +33,10 @@ module wormhole::state {
 
     /// Capability reflecting that the current build version is used to invoke
     /// state methods.
-    struct LatestOnly has drop {}
+    public struct LatestOnly has drop {}
 
     /// Container for all state variables for Wormhole.
-    struct State has key, store {
+    public struct State has key, store {
         id: UID,
 
         /// Governance chain ID.
@@ -83,7 +70,7 @@ module wormhole::state {
     }
 
     /// Create new `State`. This is only executed using the `setup` module.
-    public(friend) fun new(
+    public(package) fun new(
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: ExternalAddress,
@@ -96,7 +83,7 @@ module wormhole::state {
         // We need at least one guardian.
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
-        let state = State {
+        let mut state = State {
             id: object::new(ctx),
             governance_chain,
             governance_contract,
@@ -220,7 +207,7 @@ module wormhole::state {
     public fun test_upgrade(self: &mut State) {
         let test_digest = bytes32::from_bytes(b"new build");
         let ticket = authorize_upgrade(self, test_digest);
-        let receipt = sui::package::test_upgrade(ticket);
+        let receipt = ticket.test_upgrade();
         commit_upgrade(self, receipt);
     }
 
@@ -241,8 +228,8 @@ module wormhole::state {
     //  within the Wormhole package. This capability allows special access to
     //  the `State` object.
     //
-    //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
-    //  precaution. When a package is upgraded, friend modifiers can be
+    //  NOTE: A lot of these methods are still marked as `(package)` as a safety
+    //  precaution. When a package is upgraded, package modifiers can be
     //  removed.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -252,7 +239,7 @@ module wormhole::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public(friend) fun assert_latest_only(self: &State): LatestOnly {
+    public(package) fun assert_latest_only(self: &State): LatestOnly {
         package_utils::assert_version(
             &self.id,
             version_control::current_version()
@@ -262,12 +249,12 @@ module wormhole::state {
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
-    /// necessarily have to be a `friend` to `wormhole::publish_message`. But
+    /// necessarily have to be a `package` to `wormhole::publish_message`. But
     /// we also do not want an integrator to mistakenly deposit fees outside
     /// of calling `publish_message`.
     ///
     /// See `wormhole::publish_message` for more info.
-    public(friend) fun deposit_fee(
+    public(package) fun deposit_fee(
         _: &LatestOnly,
         self: &mut State,
         fee: Balance<SUI>
@@ -279,7 +266,7 @@ module wormhole::state {
     /// particular recipient.
     ///
     /// See `wormhole::transfer_fee` for more info.
-    public(friend) fun withdraw_fee(
+    public(package) fun withdraw_fee(
         _: &LatestOnly,
         self: &mut State,
         amount: u64
@@ -290,7 +277,7 @@ module wormhole::state {
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
-    public(friend) fun borrow_mut_consumed_vaas(
+    public(package) fun borrow_mut_consumed_vaas(
         _: &LatestOnly,
         self: &mut State
     ): &mut ConsumedVAAs {
@@ -304,7 +291,7 @@ module wormhole::state {
     /// NOTE: This method does not require `LatestOnly`. Only methods in the
     /// `upgrade_contract` module requires this to be unprotected to prevent
     /// a corrupted upgraded contract from bricking upgradability.
-    public(friend) fun borrow_mut_consumed_vaas_unchecked(
+    public(package) fun borrow_mut_consumed_vaas_unchecked(
         self: &mut State
     ): &mut ConsumedVAAs {
         &mut self.consumed_vaas
@@ -318,7 +305,7 @@ module wormhole::state {
     /// long a Guardian set can live for.
     ///
     /// See `wormhole::update_guardian_set` for more info.
-    public(friend) fun expire_guardian_set(
+    public(package) fun expire_guardian_set(
         _: &LatestOnly,
         self: &mut State,
         the_clock: &Clock
@@ -334,7 +321,7 @@ module wormhole::state {
     /// current guardian set.
     ///
     /// See `wormhole::update_guardian_set` for more info.
-    public(friend) fun add_new_guardian_set(
+    public(package) fun add_new_guardian_set(
         _: &LatestOnly,
         self: &mut State,
         new_guardian_set: GuardianSet
@@ -350,7 +337,7 @@ module wormhole::state {
     /// Modify the cost to send a Wormhole message via governance.
     ///
     /// See `wormhole::set_fee` for more info.
-    public(friend) fun set_message_fee(
+    public(package) fun set_message_fee(
         _: &LatestOnly,
         self: &mut State,
         amount: u64
@@ -358,7 +345,7 @@ module wormhole::state {
         fee_collector::change_fee(&mut self.fee_collector, amount);
     }
 
-    public(friend) fun current_package(_: &LatestOnly, self: &State): ID {
+    public(package) fun current_package(_: &LatestOnly, self: &State): ID {
         package_utils::current_package(&self.id)
     }
 
@@ -382,7 +369,7 @@ module wormhole::state {
     /// latest published package. If someone were to try to execute this using
     /// a stale build, the transaction will revert with `PackageUpgradeError`,
     /// specifically `PackageIDDoesNotMatch`.
-    public(friend) fun authorize_upgrade(
+    public(package) fun authorize_upgrade(
         self: &mut State,
         package_digest: Bytes32
     ): UpgradeTicket {
@@ -396,7 +383,7 @@ module wormhole::state {
     /// latest published package. If someone were to try to execute this using
     /// a stale build, the transaction will revert with `PackageUpgradeError`,
     /// specifically `PackageIDDoesNotMatch`.
-    public(friend) fun commit_upgrade(
+    public(package) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
     ): (ID, ID) {
@@ -406,7 +393,7 @@ module wormhole::state {
 
     /// Method executed by the `migrate` module to roll access from one package
     /// to another. This method will be called from the upgraded package.
-    public(friend) fun migrate_version(self: &mut State) {
+    public(package) fun migrate_version(self: &mut State) {
         package_utils::migrate_version(
             &mut self.id,
             version_control::previous_version(),
@@ -417,7 +404,7 @@ module wormhole::state {
     /// As a part of the migration, we verify that the upgrade contract VAA's
     /// encoded package digest used in `migrate` equals the one used to conduct
     /// the upgrade.
-    public(friend) fun assert_authorized_digest(
+    public(package) fun assert_authorized_digest(
         _: &LatestOnly,
         self: &State,
         digest: Bytes32
@@ -432,7 +419,7 @@ module wormhole::state {
     //
     //  A VERY special space that manipulates `State` via calling `migrate`.
     //
-    //  PLEASE KEEP ANY METHODS HERE AS FRIENDS. We want the ability to remove
+    //  PLEASE KEEP ANY METHODS HERE AS `package`. We want the ability to remove
     //  these for future builds.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -441,9 +428,9 @@ module wormhole::state {
     /// called. This method name should change reflecting which version this
     /// contract is migrating to.
     ///
-    /// NOTE: Please keep this method as public(friend) because we never want
+    /// NOTE: Please keep this method as public(package) because we never want
     /// to expose this method as a public method.
-    public(friend) fun migrate__v__0_2_0(_self: &mut State) {
+    public(package) fun migrate__v__0_2_0(_self: &mut State) {
         // Intentionally do nothing.
     }
 

@@ -8,7 +8,6 @@
 /// for the key), which allows an integrator to generate his own VAAs and
 /// validate them with this test-only Wormhole instance.
 module wormhole::wormhole_scenario {
-    use std::vector::{Self};
     use sui::clock::{Self, Clock};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
@@ -16,7 +15,7 @@ module wormhole::wormhole_scenario {
     use wormhole::emitter::{EmitterCap};
     use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
     use wormhole::setup::{Self, DeployerCap};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{State};
     use wormhole::vaa::{Self, VAA};
 
     const DEPLOYER: address = @0xDEADBEEF;
@@ -85,10 +84,9 @@ module wormhole::wormhole_scenario {
 
     /// Set up Wormhole with only the first devnet guardian.
     public fun set_up_wormhole(scenario: &mut Scenario, message_fee: u64) {
-        let initial_guardians = vector::empty();
-        vector::push_back(
-            &mut initial_guardians,
-            *vector::borrow(&guardians(), 0)
+        let mut initial_guardians = vector::empty();
+        initial_guardians.push_back(
+            *guardians().borrow(0)
         );
 
         set_up_wormhole_with_guardians(scenario, message_fee, initial_guardians)
@@ -98,10 +96,10 @@ module wormhole::wormhole_scenario {
     /// `State` believes is true).
     public fun upgrade_wormhole(scenario: &mut Scenario) {
         // Clean up from activity prior.
-        test_scenario::next_tx(scenario, person());
+        scenario.next_tx(person());
 
-        let worm_state = take_state(scenario);
-        state::test_upgrade(&mut worm_state);
+        let mut worm_state = take_state(scenario);
+        worm_state.test_upgrade();
 
         // Clean up.
         return_state(worm_state);
@@ -150,7 +148,7 @@ module wormhole::wormhole_scenario {
     }
 
     public fun take_state(scenario: &Scenario): State {
-        test_scenario::take_shared(scenario)
+        scenario.take_shared()
     }
 
     public fun return_state(wormhole_state: State) {
@@ -161,7 +159,7 @@ module wormhole::wormhole_scenario {
         scenario: &mut Scenario,
         vaa_buf: vector<u8>
     ): VAA {
-        test_scenario::next_tx(scenario, VAA_VERIFIER);
+        scenario.next_tx(VAA_VERIFIER);
 
         let the_clock = take_clock(scenario);
         let worm_state = take_state(scenario);
@@ -185,7 +183,7 @@ module wormhole::wormhole_scenario {
         verified_vaa: VAA,
         ticket: DecreeTicket<T>
     ): DecreeReceipt<T> {
-        test_scenario::next_tx(scenario, VAA_VERIFIER);
+        scenario.next_tx(VAA_VERIFIER);
 
         let worm_state = take_state(scenario);
 
@@ -201,7 +199,7 @@ module wormhole::wormhole_scenario {
     public fun new_emitter(
         scenario: &mut Scenario
     ): EmitterCap {
-        test_scenario::next_tx(scenario, EMITTER_MAKER);
+        scenario.next_tx(EMITTER_MAKER);
 
         let worm_state = take_state(scenario);
 
@@ -215,7 +213,7 @@ module wormhole::wormhole_scenario {
     }
 
     public fun take_clock(scenario: &mut Scenario): Clock {
-        clock::create_for_testing(test_scenario::ctx(scenario))
+        clock::create_for_testing(scenario.ctx())
     }
 
     public fun return_clock(the_clock: Clock) {

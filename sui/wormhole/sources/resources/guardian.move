@@ -2,7 +2,6 @@
 
 /// This module implements a `Guardian` that warehouses a 20-byte public key.
 module wormhole::guardian {
-    use std::vector::{Self};
     use sui::hash::{Self};
     use sui::ecdsa_k1::{Self};
 
@@ -13,7 +12,7 @@ module wormhole::guardian {
     const E_ZERO_ADDRESS: u64 = 1;
 
     /// Container for 20-byte Guardian public key.
-    struct Guardian has store {
+    public struct Guardian has store {
         pubkey: Bytes20
     }
 
@@ -48,24 +47,23 @@ module wormhole::guardian {
 
     /// Same as 'ecrecover' in EVM.
     fun ecrecover(message: vector<u8>, sig: vector<u8>): vector<u8> {
-        let pubkey =
+        let mut pubkey =
             ecdsa_k1::decompress_pubkey(&ecdsa_k1::secp256k1_ecrecover(&sig, &message, 0));
 
         // `decompress_pubkey` returns 65 bytes. The last 64 bytes are what we
         // need to compute the Guardian's public key.
-        vector::remove(&mut pubkey, 0);
+        pubkey.remove(0);
 
-        let hash = hash::keccak256(&pubkey);
-        let guardian_pubkey = vector::empty<u8>();
-        let (i, n) = (0, bytes20::length());
+        let mut hash = hash::keccak256(&pubkey);
+        let mut guardian_pubkey = vector::empty<u8>();
+        let (mut i, n) = (0, bytes20::length());
         while (i < n) {
-            vector::push_back(
-                &mut guardian_pubkey,
-                vector::pop_back(&mut hash)
+            guardian_pubkey.push_back(
+                hash.pop_back()
             );
             i = i + 1;
         };
-        vector::reverse(&mut guardian_pubkey);
+        guardian_pubkey.reverse();
 
         guardian_pubkey
     }

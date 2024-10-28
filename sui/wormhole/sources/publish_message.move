@@ -26,7 +26,6 @@
 module wormhole::publish_message {
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
-    use sui::object::{Self, ID};
     use sui::sui::{SUI};
 
     use wormhole::emitter::{Self, EmitterCap};
@@ -34,7 +33,7 @@ module wormhole::publish_message {
 
     /// This type is emitted via `sui::event` module. Guardians pick up this
     /// observation and attest to its existence.
-    struct WormholeMessage has drop, copy {
+    public struct WormholeMessage has drop, copy {
         /// `EmitterCap` object ID.
         sender: ID,
         /// From `EmitterCap`.
@@ -54,7 +53,7 @@ module wormhole::publish_message {
     /// The only way to destroy this type is calling `publish_message` with
     /// a fee to emit a `WormholeMessage` with the unpacked members of this
     /// struct.
-    struct MessageTicket {
+    public struct MessageTicket {
         /// `EmitterCap` object ID.
         sender: ID,
         /// From `EmitterCap`.
@@ -188,7 +187,7 @@ module wormhole::publish_message_tests {
         use wormhole::publish_message::{prepare_message, publish_message};
 
         let user = person();
-        let my_scenario = test_scenario::begin(user);
+        let mut my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         let wormhole_message_fee = 100000000;
@@ -197,22 +196,22 @@ module wormhole::publish_message_tests {
         set_up_wormhole(scenario, wormhole_message_fee);
 
         // Next transaction should be conducted as an ordinary user.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
         {
-            let worm_state = take_state(scenario);
+            let mut worm_state = take_state(scenario);
             let the_clock = take_clock(scenario);
 
             // User needs an `EmitterCap` so he can send a message.
-            let emitter_cap =
+            let mut emitter_cap =
                 wormhole::emitter::new(
                     &worm_state,
                     test_scenario::ctx(scenario)
                 );
 
             // Check for event corresponding to new emitter.
-            let effects = test_scenario::next_tx(scenario, user);
-            assert!(test_scenario::num_user_events(&effects) == 1, 0);
+            let effects = scenario.next_tx(user);
+            assert!(effects.num_user_events() == 1, 0);
 
             // Prepare message.
             let msg =
@@ -259,17 +258,17 @@ module wormhole::publish_message_tests {
             // Clean up.
             return_state(worm_state);
             return_clock(the_clock);
-            sui::transfer::public_transfer(emitter_cap, user);
+            transfer::public_transfer(emitter_cap, user);
         };
 
         // Grab the `TransactionEffects` of the previous transaction.
-        let effects = test_scenario::next_tx(scenario, user);
+        let effects = scenario.next_tx(user);
 
         // We expect two events (the Wormhole messages). `test_scenario` does
         // not give us an in-depth view of the event specifically. But we can
         // check that there was an event associated with the previous
         // transaction.
-        assert!(test_scenario::num_user_events(&effects) == 2, 0);
+        assert!(effects.num_user_events() == 2, 0);
 
         // Simulate upgrade and confirm that publish message still works.
         {
@@ -278,9 +277,9 @@ module wormhole::publish_message_tests {
             // Ignore effects from upgrade.
             test_scenario::next_tx(scenario, user);
 
-            let worm_state = take_state(scenario);
+            let mut worm_state = take_state(scenario);
             let the_clock = take_clock(scenario);
-            let emitter_cap =
+            let mut emitter_cap =
                 test_scenario::take_from_sender<EmitterCap>(scenario);
 
             let msg =
@@ -303,13 +302,13 @@ module wormhole::publish_message_tests {
             assert!(sequence == 2, 0);
 
             // Clean up.
-            test_scenario::return_to_sender(scenario, emitter_cap);
+            scenario.return_to_sender(emitter_cap);
             return_state(worm_state);
             return_clock(the_clock);
         };
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -320,7 +319,7 @@ module wormhole::publish_message_tests {
         use wormhole::publish_message::{prepare_message, publish_message};
 
         let user = person();
-        let my_scenario = test_scenario::begin(user);
+        let mut my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         let wormhole_message_fee = 100000000;
@@ -332,11 +331,11 @@ module wormhole::publish_message_tests {
         // Next transaction should be conducted as an ordinary user.
         test_scenario::next_tx(scenario, user);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter_cap =
+        let mut emitter_cap =
             emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         let msg =
@@ -357,7 +356,7 @@ module wormhole::publish_message_tests {
         );
 
         // Clean up.
-        emitter::destroy_test_only(emitter_cap);
+        emitter_cap.destroy_test_only();
 
         abort 42
     }
@@ -370,7 +369,7 @@ module wormhole::publish_message_tests {
         use wormhole::publish_message::{prepare_message, publish_message};
 
         let user = person();
-        let my_scenario = test_scenario::begin(user);
+        let mut my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         let wormhole_message_fee = 100000000;
@@ -379,13 +378,13 @@ module wormhole::publish_message_tests {
         set_up_wormhole(scenario, wormhole_message_fee);
 
         // Next transaction should be conducted as an ordinary user.
-        test_scenario::next_tx(scenario, user);
+        scenario.next_tx(user);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter_cap =
+        let mut emitter_cap =
             emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // Conveniently roll version back.
@@ -419,7 +418,7 @@ module wormhole::publish_message_tests {
         );
 
         // Clean up.
-        emitter::destroy_test_only(emitter_cap);
+        emitter_cap.destroy_test_only();
 
         abort 42
     }

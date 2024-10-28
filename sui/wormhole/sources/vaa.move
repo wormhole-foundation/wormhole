@@ -20,8 +20,6 @@
 /// A good example of how this methodology is implemented is how the Token
 /// Bridge contract redeems its VAAs.
 module wormhole::vaa {
-    use std::option::{Self};
-    use std::vector::{Self};
     use sui::clock::{Clock};
     use sui::hash::{keccak256};
 
@@ -33,7 +31,7 @@ module wormhole::vaa {
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::guardian_signature::{Self, GuardianSignature};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{State};
 
     /// Incorrect VAA version.
     const E_WRONG_VERSION: u64 = 0;
@@ -50,7 +48,7 @@ module wormhole::vaa {
 
     /// Container storing verified Wormhole message info. This struct also
     /// caches the digest, which is a double Keccak256 hash of the message body.
-    struct VAA {
+    public struct VAA {
         /// Guardian set index of Guardians that attested to observing the
         /// Wormhole message.
         guardian_set_index: u32,
@@ -124,7 +122,7 @@ module wormhole::vaa {
 
     /// Destroy the `VAA` and take the Wormhole message payload.
     public fun take_payload(vaa: VAA): vector<u8> {
-        let (_, _, payload) = take_emitter_info_and_payload(vaa);
+        let (_, _, payload) = vaa.take_emitter_info_and_payload();
 
         payload
     }
@@ -158,7 +156,7 @@ module wormhole::vaa {
         buf: vector<u8>,
         the_clock: &Clock
     ): VAA {
-        state::assert_latest_only(wormhole_state);
+        wormhole_state.assert_latest_only();
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let (signatures, vaa) = parse(buf);
@@ -166,8 +164,7 @@ module wormhole::vaa {
         // Fetch the guardian set which this VAA was supposedly signed with and
         // verify signatures using guardian set.
         verify_signatures(
-            state::guardian_set_at(
-                wormhole_state,
+            wormhole_state.guardian_set_at(
                 vaa.guardian_set_index
             ),
             signatures,
@@ -184,18 +181,17 @@ module wormhole::vaa {
     }
 
     public fun compute_message_hash(parsed: &VAA): Bytes32 {
-        let buf = vector::empty();
+        let mut buf = vector[];
 
         bytes::push_u32_be(&mut buf, parsed.timestamp);
         bytes::push_u32_be(&mut buf, parsed.nonce);
         bytes::push_u16_be(&mut buf, parsed.emitter_chain);
-        vector::append(
-            &mut buf,
+        buf.append(
             external_address::to_bytes(parsed.emitter_address)
         );
         bytes::push_u64_be(&mut buf, parsed.sequence);
         bytes::push_u8(&mut buf, parsed.consistency_level);
-        vector::append(&mut buf, parsed.payload);
+        buf.append(parsed.payload);
 
         // Return hash.
         bytes32::new(keccak256(&buf))
@@ -208,7 +204,7 @@ module wormhole::vaa {
     /// signatures must have been verified, because the only public function
     /// that returns a `VAA` is `parse_and_verify`.
     fun parse(buf: vector<u8>): (vector<GuardianSignature>, VAA) {
-        let cur = cursor::new(buf);
+        let mut cur = cursor::new(buf);
 
         // Check VAA version.
         assert!(
@@ -220,15 +216,14 @@ module wormhole::vaa {
 
         // Deserialize guardian signatures.
         let num_signatures = bytes::take_u8(&mut cur);
-        let signatures = vector::empty();
-        let i = 0;
+        let mut signatures = vector[];
+        let mut i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::take_u8(&mut cur);
             let r = bytes32::take_bytes(&mut cur);
             let s = bytes32::take_bytes(&mut cur);
             let recovery_id = bytes::take_u8(&mut cur);
-            vector::push_back(
-                &mut signatures,
+            signatures.push_back(
                 guardian_signature::new(r, s, recovery_id, guardian_index)
             );
             i = i + 1;
@@ -237,7 +232,7 @@ module wormhole::vaa {
         // Deserialize message body.
         let body_buf = cursor::take_rest(cur);
 
-        let cur = cursor::new(body_buf);
+        let mut cur = cursor::new(body_buf);
         let timestamp = bytes::take_u32_be(&mut cur);
         let nonce = bytes::take_u32_be(&mut cur);
         let emitter_chain = bytes::take_u16_be(&mut cur);
@@ -262,8 +257,6 @@ module wormhole::vaa {
     }
 
     fun double_keccak256(buf: vector<u8>): Bytes32 {
-        use sui::hash::{keccak256};
-
         bytes32::new(keccak256(&keccak256(&buf)))
     }
 
@@ -290,13 +283,13 @@ module wormhole::vaa {
 
         // Number of signatures must be at least quorum.
         assert!(
-            vector::length(&signatures) >= guardian_set::quorum(set),
+            signatures.length() >= guardian_set::quorum(set),
             E_NO_QUORUM
         );
 
         // Drain `Cursor` by checking each signature.
-        let cur = cursor::new(signatures);
-        let last_guardian_index = option::none();
+        let mut cur = cursor::new(signatures);
+        let mut last_guardian_index = option::none();
         while (!cursor::is_empty(&cur)) {
             let signature = cursor::poke(&mut cur);
             let guardian_index = guardian_signature::index_as_u64(&signature);
@@ -325,7 +318,7 @@ module wormhole::vaa {
             );
 
             // Continue.
-            option::swap_or_fill(&mut last_guardian_index, guardian_index);
+            last_guardian_index.swap_or_fill(guardian_index);
         };
 
         // Done.
@@ -347,17 +340,17 @@ module wormhole::vaa {
     #[test_only]
     public fun peel_payload_from_vaa(buf: &vector<u8>): vector<u8> {
         // Just make sure that we are passing version 1 VAAs to this method.
-        assert!(*vector::borrow(buf, 0) == VERSION_VAA, E_WRONG_VERSION);
+        assert!(*buf.borrow(0) == VERSION_VAA, E_WRONG_VERSION);
 
         // Find the location of the payload.
-        let num_signatures = (*vector::borrow(buf, 5) as u64);
-        let i = 57 + num_signatures * 66;
+        let num_signatures = (*buf.borrow(5) as u64);
+        let mut i = 57 + num_signatures * 66;
 
         // Push the payload bytes to `out` and return.
-        let out = vector::empty();
-        let len = vector::length(buf);
+        let mut out = vector[];
+        let len = buf.length();
         while (i < len) {
-            vector::push_back(&mut out, *vector::borrow(buf, i));
+            out.push_back(*buf.borrow(i));
             i = i + 1;
         };
 
@@ -368,7 +361,6 @@ module wormhole::vaa {
 
 #[test_only]
 module wormhole::vaa_tests {
-    use std::vector::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::bytes32::{Self};
@@ -534,25 +526,25 @@ module wormhole::vaa_tests {
                 )
             ];
         assert!(
-            vector::length(&signatures) == vector::length(&expected_signatures),
+            signatures.length() == expected_signatures.length(),
             0
         );
-        let left = cursor::new(signatures);
-        let right = cursor::new(expected_signatures);
-        while (!cursor::is_empty(&left)) {
-            assert!(cursor::poke(&mut left) == cursor::poke(&mut right), 0);
+        let mut left = cursor::new(signatures);
+        let mut right = cursor::new(expected_signatures);
+        while (!left.is_empty()) {
+            assert!(left.poke() == right.poke(), 0);
         };
-        cursor::destroy_empty(left);
-        cursor::destroy_empty(right);
+        left.destroy_empty();
+        right.destroy_empty();
 
-        assert!(vaa::guardian_set_index(&parsed) == 0, 0);
-        assert!(vaa::timestamp(&parsed) == 9000, 0);
+        assert!(parsed.guardian_set_index() == 0, 0);
+        assert!(parsed.timestamp() == 9000, 0);
 
         let expected_batch_id = 12;
-        assert!(vaa::batch_id(&parsed) == expected_batch_id, 0);
-        assert!(vaa::nonce(&parsed) == expected_batch_id, 0);
+        assert!(parsed.batch_id() == expected_batch_id, 0);
+        assert!(parsed.nonce() == expected_batch_id, 0);
 
-        assert!(vaa::emitter_chain(&parsed) == 42, 0);
+        assert!(parsed.emitter_chain() == 42, 0);
 
         let expected_emitter_address =
             external_address::from_address(
@@ -571,33 +563,32 @@ module wormhole::vaa_tests {
         let body_buf = {
             use wormhole::bytes::{Self};
 
-            let buf = vector::empty();
+            let mut buf = vector[];
             bytes::push_u32_be(&mut buf, vaa::timestamp(&parsed));
             bytes::push_u32_be(&mut buf, vaa::nonce(&parsed));
             bytes::push_u16_be(&mut buf, vaa::emitter_chain(&parsed));
-            vector::append(
-                &mut buf,
+            buf.append(
                 external_address::to_bytes(vaa::emitter_address(&parsed))
             );
             bytes::push_u64_be(&mut buf, vaa::sequence(&parsed));
             bytes::push_u8(&mut buf, vaa::consistency_level(&parsed));
-            vector::append(&mut buf, vaa::payload(&parsed));
+            buf.append(vaa::payload(&parsed));
 
             buf
         };
 
         let expected_message_hash =
             bytes32::new(sui::hash::keccak256(&body_buf));
-        assert!(vaa::compute_message_hash(&parsed) == expected_message_hash, 0);
+        assert!(parsed.compute_message_hash() == expected_message_hash, 0);
 
         let expected_digest =
             bytes32::new(
                 sui::hash::keccak256(&sui::hash::keccak256(&body_buf))
             );
-        assert!(vaa::digest(&parsed) == expected_digest, 0);
+        assert!(parsed.digest() == expected_digest, 0);
 
         assert!(
-            vaa::take_payload(parsed) == b"All your base are belong to us",
+            parsed.take_payload() == b"All your base are belong to us",
             0
         );
     }
@@ -609,7 +600,7 @@ module wormhole::vaa_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
@@ -617,7 +608,7 @@ module wormhole::vaa_tests {
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
@@ -636,7 +627,7 @@ module wormhole::vaa_tests {
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -647,7 +638,7 @@ module wormhole::vaa_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
@@ -655,7 +646,7 @@ module wormhole::vaa_tests {
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
@@ -677,7 +668,7 @@ module wormhole::vaa_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
@@ -685,7 +676,7 @@ module wormhole::vaa_tests {
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
@@ -708,13 +699,13 @@ module wormhole::vaa_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians. But reverse the order so the
         // signatures will not match.
-        let initial_guardians = guardians();
-        std::vector::reverse(&mut initial_guardians);
+        let mut initial_guardians = guardians();
+        initial_guardians.reverse();
 
         let wormhole_fee = 350;
         set_up_wormhole_with_guardians(
@@ -724,7 +715,7 @@ module wormhole::vaa_tests {
         );
 
         // Prepare test to execute `parse_and_verify`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
@@ -733,7 +724,7 @@ module wormhole::vaa_tests {
         let verified_vaa = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
         // Clean up.
-        vaa::destroy(verified_vaa);
+        verified_vaa.destroy();
 
         abort 42
     }
@@ -746,21 +737,20 @@ module wormhole::vaa_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
-        let scenario = &mut my_scenario;
+        let mut scenario = test_scenario::begin(caller);
 
         // Initialize Wormhole with 19 guardians.
         let wormhole_fee = 350;
-        set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
+        set_up_wormhole_with_guardians(&mut scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
-        let the_clock = take_clock(scenario);
+        let mut worm_state = take_state(&scenario);
+        let the_clock = take_clock(&mut scenario);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -775,7 +765,7 @@ module wormhole::vaa_tests {
         let verified_vaa = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
         // Clean up.
-        vaa::destroy(verified_vaa);
+        verified_vaa.destroy();
 
         abort 42
     }

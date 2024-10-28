@@ -5,7 +5,6 @@
 /// this process, the previous guardian set's expiration time is set. Keep in
 /// mind that the current guardian set has no expiration.
 module wormhole::update_guardian_set {
-    use std::vector::{Self};
     use sui::clock::{Clock};
 
     use wormhole::bytes::{Self};
@@ -23,14 +22,14 @@ module wormhole::update_guardian_set {
     /// Specific governance payload ID (action) for updating the guardian set.
     const ACTION_UPDATE_GUARDIAN_SET: u8 = 2;
 
-    struct GovernanceWitness has drop {}
+    public struct GovernanceWitness has drop {}
 
     /// Event reflecting a Guardian Set update.
-    struct GuardianSetAdded has drop, copy {
+    public struct GuardianSetAdded has drop, copy {
         new_index: u32
     }
 
-    struct UpdateGuardianSet {
+    public struct UpdateGuardianSet {
         new_index: u32,
         guardians: vector<Guardian>,
     }
@@ -110,16 +109,16 @@ module wormhole::update_guardian_set {
     }
 
     fun deserialize(payload: vector<u8>): UpdateGuardianSet {
-        let cur = cursor::new(payload);
+        let mut cur = cursor::new(payload);
         let new_index = bytes::take_u32_be(&mut cur);
         let num_guardians = bytes::take_u8(&mut cur);
         assert!(num_guardians > 0, E_NO_GUARDIANS);
 
-        let guardians = vector::empty<Guardian>();
-        let i = 0;
+        let mut guardians = vector::empty<Guardian>();
+        let mut i = 0;
         while (i < num_guardians) {
             let key = bytes::take_bytes(&mut cur, 20);
-            vector::push_back(&mut guardians, guardian::new(key));
+            guardians.push_back(guardian::new(key));
             i = i + 1;
         };
         cursor::destroy_empty(cur);
@@ -135,16 +134,12 @@ module wormhole::update_guardian_set {
 
 #[test_only]
 module wormhole::update_guardian_set_tests {
-    use std::vector::{Self};
-    use sui::clock::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self};
     use wormhole::guardian::{Self};
-    use wormhole::guardian_set::{Self};
-    use wormhole::state::{Self};
     use wormhole::update_guardian_set::{Self};
     use wormhole::vaa::{Self};
     use wormhole::version_control::{Self};
@@ -174,17 +169,17 @@ module wormhole::update_guardian_set_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
-        let the_clock = take_clock(scenario);
+        let mut worm_state = take_state(scenario);
+        let mut the_clock = take_clock(scenario);
 
         let verified_vaa =
             vaa::parse_and_verify(
@@ -200,17 +195,17 @@ module wormhole::update_guardian_set_tests {
         assert!(new_index == 1, 0);
 
         let new_guardian_set =
-            state::guardian_set_at(&worm_state, new_index);
+            worm_state.guardian_set_at(new_index);
 
         // Verify new guardian set index.
-        assert!(state::guardian_set_index(&worm_state) == new_index, 0);
+        assert!(worm_state.guardian_set_index() == new_index, 0);
         assert!(
-            guardian_set::index(new_guardian_set) == state::guardian_set_index(&worm_state),
+            new_guardian_set.index() == worm_state.guardian_set_index(),
             0
         );
 
         // Check that the guardians agree with what we expect.
-        let guardians = guardian_set::guardians(new_guardian_set);
+        let guardians = new_guardian_set.guardians();
         let expected = vector[
             guardian::new(x"befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"),
             guardian::new(x"88d7d8b32a9105d228100e72dffe2fae0705d31c"),
@@ -232,39 +227,39 @@ module wormhole::update_guardian_set_tests {
             guardian::new(x"246ab29fc6ebedf2d392a51ab2dc5c59d0902a03"),
             guardian::new(x"132a84dfd920b35a3d0ba5f7a0635df298f9033e"),
         ];
-        assert!(vector::length(&expected) == vector::length(guardians), 0);
+        assert!(expected.length() == guardians.length(), 0);
 
-        let cur = cursor::new(expected);
-        let i = 0;
-        while (!cursor::is_empty(&cur)) {
-            let left = guardian::as_bytes(vector::borrow(guardians, i));
-            let right = guardian::to_bytes(cursor::poke(&mut cur));
+        let mut cur = cursor::new(expected);
+        let mut i = 0;
+        while (!cur.is_empty()) {
+            let left = guardian::as_bytes(guardians.borrow(i));
+            let right = guardian::to_bytes(cur.poke());
             assert!(left == right, 0);
             i = i + 1;
         };
-        cursor::destroy_empty(cur);
+        cur.destroy_empty();
 
         // Make sure old guardian set is still active.
         let old_guardian_set =
-            state::guardian_set_at(&worm_state, new_index - 1);
-        assert!(guardian_set::is_active(old_guardian_set, &the_clock), 0);
+            worm_state.guardian_set_at(new_index - 1);
+        assert!(old_guardian_set.is_active(&the_clock), 0);
 
         // Fast forward time beyond expiration by
         // `guardian_set_seconds_to_live`.
         let tick_ms =
-            (state::guardian_set_seconds_to_live(&worm_state) as u64) * 1000;
-        clock::increment_for_testing(&mut the_clock, tick_ms + 1);
+            (worm_state.guardian_set_seconds_to_live() as u64) * 1000;
+        the_clock.increment_for_testing( tick_ms + 1);
 
         // Now the old guardian set should be expired (because in the test setup
         // time to live is set to 2 epochs).
-        assert!(!guardian_set::is_active(old_guardian_set, &the_clock), 0);
+        assert!(!old_guardian_set.is_active(&the_clock), 0);
 
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -274,7 +269,7 @@ module wormhole::update_guardian_set_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -284,9 +279,9 @@ module wormhole::update_guardian_set_tests {
         upgrade_wormhole(scenario);
 
         // Prepare test to execute `update_guardian_set`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
@@ -307,7 +302,7 @@ module wormhole::update_guardian_set_tests {
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -320,16 +315,16 @@ module wormhole::update_guardian_set_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
@@ -356,7 +351,7 @@ module wormhole::update_guardian_set_tests {
         let new_index =
             update_guardian_set(&mut worm_state, receipt, &the_clock);
         assert!(new_index == 2, 0);
-        assert!(state::guardian_set_index(&worm_state) == 2, 0);
+        assert!(worm_state.guardian_set_index() == 2, 0);
 
         let verified_vaa =
             vaa::parse_and_verify(
@@ -381,16 +376,16 @@ module wormhole::update_guardian_set_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
 
@@ -403,7 +398,7 @@ module wormhole::update_guardian_set_tests {
             );
         let payload =
             governance_message::take_decree(vaa::payload(&verified_vaa));
-        let cur = cursor::new(payload);
+        let mut cur = cursor::new(payload);
 
         let new_guardian_set_index = bytes::take_u32_be(&mut cur);
         assert!(new_guardian_set_index == 1, 0);
@@ -411,7 +406,7 @@ module wormhole::update_guardian_set_tests {
         let num_guardians = bytes::take_u8(&mut cur);
         assert!(num_guardians == 0, 0);
 
-        cursor::destroy_empty(cur);
+        cur.destroy_empty();
 
         let ticket = update_guardian_set::authorize_governance(&worm_state);
         let receipt =
@@ -430,26 +425,25 @@ module wormhole::update_guardian_set_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::migrate_version_test_only(
-            &mut worm_state,
+        worm_state.migrate_version_test_only(
             version_control::previous_version_test_only(),
             version_control::next_version()
         );

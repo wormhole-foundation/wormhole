@@ -6,7 +6,6 @@
 /// NOTE: Items added to this data structure cannot be removed.
 module wormhole::set {
     use sui::table::{Self, Table};
-    use sui::tx_context::{TxContext};
 
     /// Explicit error if key already exists in `Set`.
     const E_KEY_ALREADY_EXISTS: u64 = 0;
@@ -14,11 +13,11 @@ module wormhole::set {
     const E_KEY_NONEXISTENT: u64 = 1;
 
     /// Empty struct. Used as the value type in mappings to encode a set
-    struct Empty has store, drop {}
+    public struct Empty has store, drop {}
 
     /// A set containing elements of type `T` with support for membership
     /// checking.
-    struct Set<phantom T: copy + drop + store> has store {
+    public struct Set<phantom T: copy + drop + store> has store {
         items: Table<T, Empty>
     }
 
@@ -54,35 +53,33 @@ module wormhole::set {
 
 #[test_only]
 module wormhole::set_tests {
-    use sui::tx_context::{Self};
-
     use wormhole::set::{Self};
 
     #[test]
     public fun test_add_and_contains() {
         let ctx = &mut tx_context::dummy();
 
-        let my_set = set::new(ctx);
+        let mut my_set = set::new(ctx);
 
-        let (i, n) = (0, 256);
+        let (mut i, n) = (0, 256);
         while (i < n) {
-            set::add(&mut my_set, i);
+            my_set.add( i);
             i = i + 1;
         };
 
         // Check that the set has the values just added.
-        let i = 0;
+        let mut i = 0;
         while (i < n) {
-            assert!(set::contains(&my_set, i), 0);
+            assert!(my_set.contains(i), 0);
             i = i + 1;
         };
 
         // Check that these values that were not added are not in the set.
         while (i < 2 * n) {
-            assert!(!set::contains(&my_set, i), 0);
+            assert!(!my_set.contains(i), 0);
             i = i + 1;
         };
 
-        set::destroy(my_set);
+        my_set.destroy();
     }
 }

@@ -7,13 +7,12 @@ module wormhole::fee_collector {
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
-    use sui::tx_context::{TxContext};
 
     /// Amount deposited is not exactly the amount configured.
     const E_INCORRECT_FEE: u64 = 0;
 
     /// Container for configured `fee_amount` and `balance` of SUI collected.
-    struct FeeCollector has store {
+    public struct FeeCollector has store {
         fee_amount: u64,
         balance: Balance<SUI>
     }
@@ -77,7 +76,6 @@ module wormhole::fee_collector {
 #[test_only]
 module wormhole::fee_collector_tests {
     use sui::coin::{Self};
-    use sui::tx_context::{Self};
 
     use wormhole::fee_collector::{Self};
 
@@ -86,7 +84,7 @@ module wormhole::fee_collector_tests {
         let ctx = &mut tx_context::dummy();
 
         let fee_amount = 350;
-        let collector = fee_collector::new(fee_amount);
+        let mut collector = fee_collector::new(fee_amount);
 
         // We expect the fee_amount to be the same as what we specified and
         // no balance on `FeeCollector` yet.
@@ -95,39 +93,39 @@ module wormhole::fee_collector_tests {
 
         // Deposit fee once.
         let fee = coin::mint_for_testing(fee_amount, ctx);
-        fee_collector::deposit(&mut collector, fee);
-        assert!(fee_collector::balance_value(&collector) == fee_amount, 0);
+        collector.deposit(fee);
+        assert!(collector.balance_value() == fee_amount, 0);
 
         // Now deposit nine more times and check the aggregate balance.
-        let i = 0;
+        let mut i = 0;
         while (i < 9) {
             let fee = coin::mint_for_testing(fee_amount, ctx);
-            fee_collector::deposit(&mut collector, fee);
+            collector.deposit(fee);
             i = i + 1;
         };
-        let total = fee_collector::balance_value(&collector);
+        let total = collector.balance_value();
         assert!(total == 10 * fee_amount, 0);
 
         // Withdraw a fifth.
         let withdraw_amount = total / 5;
         let withdrawn =
-            fee_collector::withdraw(&mut collector, withdraw_amount, ctx);
-        assert!(coin::value(&withdrawn) == withdraw_amount, 0);
-        coin::burn_for_testing(withdrawn);
+            collector.withdraw(withdraw_amount, ctx);
+        assert!(withdrawn.value() == withdraw_amount, 0);
+        withdrawn.burn_for_testing();
 
-        let remaining = fee_collector::balance_value(&collector);
+        let remaining = collector.balance_value();
         assert!(remaining == total - withdraw_amount, 0);
 
         // Withdraw remaining.
-        let withdrawn = fee_collector::withdraw(&mut collector, remaining, ctx);
-        assert!(coin::value(&withdrawn) == remaining, 0);
-        coin::burn_for_testing(withdrawn);
+        let withdrawn = collector.withdraw(remaining, ctx);
+        assert!(withdrawn.value() == remaining, 0);
+        withdrawn.burn_for_testing();
 
         // There shouldn't be anything left in `FeeCollector`.
-        assert!(fee_collector::balance_value(&collector) == 0, 0);
+        assert!(collector.balance_value() == 0, 0);
 
         // Done.
-        fee_collector::destroy(collector);
+        collector.destroy();
     }
 
     #[test]
@@ -136,11 +134,11 @@ module wormhole::fee_collector_tests {
         let ctx = &mut tx_context::dummy();
 
         let fee_amount = 350;
-        let collector = fee_collector::new(fee_amount);
+        let mut collector = fee_collector::new(fee_amount);
 
         // You shall not pass!
         let fee = coin::mint_for_testing(fee_amount + 1, ctx);
-        fee_collector::deposit(&mut collector, fee);
+        collector.deposit(fee);
 
         abort 42
     }
@@ -151,19 +149,19 @@ module wormhole::fee_collector_tests {
         let ctx = &mut tx_context::dummy();
 
         let fee_amount = 350;
-        let collector = fee_collector::new(fee_amount);
+        let mut collector = fee_collector::new(fee_amount);
 
         // Deposit once.
         let fee = coin::mint_for_testing(fee_amount, ctx);
-        fee_collector::deposit(&mut collector, fee);
+        collector.deposit(fee);
 
         // Attempt to withdraw more than the balance.
-        let bal = fee_collector::balance_value(&collector);
+        let bal = collector.balance_value();
         let withdrawn =
-            fee_collector::withdraw(&mut collector, bal + 1, ctx);
+            collector.withdraw(bal + 1, ctx);
 
         // Shouldn't get here. But we need to clean up anyway.
-        coin::burn_for_testing(withdrawn);
+        withdrawn.burn_for_testing();
 
         abort 42
     }

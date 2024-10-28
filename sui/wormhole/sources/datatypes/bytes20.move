@@ -3,7 +3,6 @@
 /// This module implements a custom type representing a fixed-size array of
 /// length 20.
 module wormhole::bytes20 {
-    use std::vector::{Self};
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Cursor};
@@ -17,7 +16,7 @@ module wormhole::bytes20 {
     const LEN: u64 = 20;
 
     /// Container for `vector<u8>`, which has length == 20.
-    struct Bytes20 has copy, drop, store {
+    public struct Bytes20 has copy, drop, store {
         data: vector<u8>
     }
 
@@ -33,10 +32,10 @@ module wormhole::bytes20 {
 
     /// Create new `Bytes20` of all zeros.
     public fun default(): Bytes20 {
-        let data = vector::empty();
-        let i = 0;
+        let mut data = vector[];
+        let mut i = 0;
         while (i < LEN) {
-            vector::push_back(&mut data, 0);
+            data.push_back(0);
             i = i + 1;
         };
         new(data)
@@ -49,8 +48,8 @@ module wormhole::bytes20 {
 
     /// Either trim or pad (depending on length of the input `vector<u8>`) to 20
     /// bytes.
-    public fun from_bytes(buf: vector<u8>): Bytes20 {
-        let len = vector::length(&buf);
+    public fun from_bytes(mut buf: vector<u8>): Bytes20 {
+        let len = buf.length();
         if (len > LEN) {
             trim_nonzero_left(&mut buf);
             new(buf)
@@ -72,9 +71,9 @@ module wormhole::bytes20 {
 
     /// Validate that any of the bytes in underlying data is non-zero.
     public fun is_nonzero(self: &Bytes20): bool {
-        let i = 0;
+        let mut i = 0;
         while (i < LEN) {
-            if (*vector::borrow(&self.data, i) > 0) {
+            if (*self.data.borrow(i) > 0) {
                 return true
             };
             i = i + 1;
@@ -85,29 +84,28 @@ module wormhole::bytes20 {
 
     /// Check that the input data is correct length.
     fun is_valid(data: &vector<u8>): bool {
-        vector::length(data) == LEN
+        data.length() == LEN
     }
 
     /// For vector size less than 20, add zeros to the left.
     fun pad_left(data: &vector<u8>, data_reversed: bool): vector<u8> {
-        let out = vector::empty();
-        let len = vector::length(data);
-        let i = len;
+        let mut out = vector[];
+        let len = data.length();
+        let mut i = len;
         while (i < LEN) {
-            vector::push_back(&mut out, 0);
+            out.push_back(0);
             i = i + 1;
         };
         if (data_reversed) {
-            let i = 0;
+            let mut i = 0;
             while (i < len) {
-                vector::push_back(
-                    &mut out,
-                    *vector::borrow(data, len - i - 1)
+                out.push_back(
+                    *data.borrow(len - i - 1)
                 );
                 i = i + 1;
             };
         } else {
-            vector::append(&mut out, *data);
+            out.append(*data);
         };
 
         out
@@ -116,26 +114,25 @@ module wormhole::bytes20 {
     /// Trim bytes from the left if they are zero. If any of these bytes
     /// are non-zero, abort.
     fun trim_nonzero_left(data: &mut vector<u8>) {
-        vector::reverse(data);
-        let (i, n) = (0, vector::length(data) - LEN);
+        data.reverse();
+        let (mut i, n) = (0, data.length() - LEN);
         while (i < n) {
-            assert!(vector::pop_back(data) == 0, E_CANNOT_TRIM_NONZERO);
+            assert!(data.pop_back() == 0, E_CANNOT_TRIM_NONZERO);
             i = i + 1;
         };
-        vector::reverse(data);
+        data.reverse();
     }
 }
 
 #[test_only]
 module wormhole::bytes20_tests {
-    use std::vector::{Self};
 
     use wormhole::bytes20::{Self};
 
     #[test]
     public fun new() {
         let data = x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-        assert!(vector::length(&data) == 20, 0);
+        assert!(data.length() == 20, 0);
         let actual = bytes20::new(data);
 
         assert!(bytes20::data(&actual) == data, 0);
@@ -170,7 +167,7 @@ module wormhole::bytes20_tests {
     public fun cannot_new_non_20_byte_vector() {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbe";
-        assert!(vector::length(&data) != 20, 0);
+        assert!(data.length() != 20, 0);
         bytes20::new(data);
     }
 }

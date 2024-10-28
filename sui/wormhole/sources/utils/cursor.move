@@ -8,17 +8,16 @@
 /// This setup statically guarantees that the parsing methods consume the full
 /// input.
 module wormhole::cursor {
-    use std::vector::{Self};
 
     /// Container for the underlying `vector<u8>` data to be consumed.
-    struct Cursor<T> {
+    public struct Cursor<T> {
         data: vector<T>,
     }
 
     /// Initialises a cursor from a vector.
-    public fun new<T>(data: vector<T>): Cursor<T> {
+    public fun new<T>(mut data: vector<T>): Cursor<T> {
         // reverse the array so we have access to the first element easily
-        vector::reverse(&mut data);
+        data.reverse();
         Cursor<T> { data }
     }
 
@@ -30,13 +29,13 @@ module wormhole::cursor {
     /// Check whether the underlying data is empty. This method is useful for
     /// iterating over a `Cursor` to exhaust its contents.
     public fun is_empty<T>(self: &Cursor<T>): bool {
-        vector::is_empty(&self.data)
+        self.data.is_empty()
     }
 
     /// Destroys an empty cursor. This method aborts if the cursor is not empty.
     public fun destroy_empty<T>(cursor: Cursor<T>) {
         let Cursor { data } = cursor;
-        vector::destroy_empty(data);
+        data.destroy_empty();
     }
 
     /// Consumes the rest of the cursor (thus destroying it) and returns the
@@ -46,15 +45,15 @@ module wormhole::cursor {
     /// bytes. Since the result is a vector, which can be dropped, it is not
     /// possible to statically guarantee that the rest will be used.
     public fun take_rest<T>(cursor: Cursor<T>): vector<T> {
-        let Cursor { data } = cursor;
+        let Cursor { mut data } = cursor;
         // Because the data was reversed in initialization, we need to reverse
         // again so it is in the same order as the original input.
-        vector::reverse(&mut data);
+        data.reverse();
         data
     }
 
     /// Retrieve the first element of the cursor and advances it.
     public fun poke<T>(self: &mut Cursor<T>): T {
-        vector::pop_back(&mut self.data)
+        self.data.pop_back()
     }
 }

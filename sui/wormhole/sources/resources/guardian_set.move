@@ -8,20 +8,17 @@
 /// If the current Guardian set is not the latest one, its `expiration_time` is
 /// configured, which defines how long the past Guardian set can be active.
 module wormhole::guardian_set {
-    use std::vector::{Self};
     use sui::clock::{Self, Clock};
 
     use wormhole::guardian::{Self, Guardian};
 
-    // Needs `set_expiration`.
-    friend wormhole::state;
 
     /// Found duplicate public key.
     const E_DUPLICATE_GUARDIAN: u64 = 0;
 
     /// Container for the list of Guardian public keys, its index value and at
     /// what point in time the Guardian set is configured to expire.
-    struct GuardianSet has store {
+    public struct GuardianSet has store {
         /// A.K.A. Guardian set index.
         index: u32,
 
@@ -35,12 +32,12 @@ module wormhole::guardian_set {
     /// Create new `GuardianSet`.
     public fun new(index: u32, guardians: vector<Guardian>): GuardianSet {
         // Ensure that there are no duplicate guardians.
-        let (i, n) = (0, vector::length(&guardians));
+        let (mut i, n) = (0, guardians.length());
         while (i < n - 1) {
-            let left = guardian::pubkey(vector::borrow(&guardians, i));
-            let j = i + 1;
+            let left = guardian::pubkey(guardians.borrow(i));
+            let mut j = i + 1;
             while (j < n) {
-                let right = guardian::pubkey(vector::borrow(&guardians, j));
+                let right = guardian::pubkey(guardians.borrow(j));
                 assert!(left != right, E_DUPLICATE_GUARDIAN);
                 j = j + 1;
             };
@@ -100,7 +97,7 @@ module wormhole::guardian_set {
     ///
     /// NOTE: `time_to_live` is in units of seconds while `Clock` uses
     /// milliseconds.
-    public(friend) fun set_expiration(
+    public(package) fun set_expiration(
         self: &mut GuardianSet,
         seconds_to_live: u32,
         the_clock: &Clock
@@ -111,33 +108,29 @@ module wormhole::guardian_set {
 
     #[test_only]
     public fun destroy(set: GuardianSet) {
-        use wormhole::guardian::{Self};
-
         let GuardianSet {
             index: _,
-            guardians,
+            mut guardians,
             expiration_timestamp_ms: _
         } = set;
-        while (!vector::is_empty(&guardians)) {
-            guardian::destroy(vector::pop_back(&mut guardians));
+        while (!guardians.is_empty()) {
+            guardians.pop_back().destroy();
         };
 
-        vector::destroy_empty(guardians);
+        guardians.destroy_empty();
     }
 }
 
 #[test_only]
 module wormhole::guardian_set_tests {
-    use std::vector::{Self};
-
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
 
     #[test]
     fun test_new() {
-        let guardians = vector::empty();
+        let mut guardians = vector::empty();
 
-        let pubkeys = vector[
+        let mut pubkeys = vector[
             x"8888888888888888888888888888888888888888",
             x"9999999999999999999999999999999999999999",
             x"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -147,25 +140,24 @@ module wormhole::guardian_set_tests {
             x"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
             x"ffffffffffffffffffffffffffffffffffffffff"
         ];
-        while (!vector::is_empty(&pubkeys)) {
-            vector::push_back(
-                &mut guardians,
-                guardian::new(vector::pop_back(&mut pubkeys))
+        while (!pubkeys.is_empty()) {
+            guardians.push_back(
+                guardian::new(pubkeys.pop_back())
             );
         };
 
         let set = guardian_set::new(69, guardians);
 
         // Clean up.
-        guardian_set::destroy(set);
+        set.destroy();
     }
 
     #[test]
     #[expected_failure(abort_code = guardian_set::E_DUPLICATE_GUARDIAN)]
     fun test_cannot_new_duplicate_guardian() {
-        let guardians = vector::empty();
+        let mut guardians = vector::empty();
 
-        let pubkeys = vector[
+        let mut pubkeys = vector[
             x"8888888888888888888888888888888888888888",
             x"9999999999999999999999999999999999999999",
             x"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -176,17 +168,16 @@ module wormhole::guardian_set_tests {
             x"ffffffffffffffffffffffffffffffffffffffff",
             x"cccccccccccccccccccccccccccccccccccccccc",
         ];
-        while (!vector::is_empty(&pubkeys)) {
-            vector::push_back(
-                &mut guardians,
-                guardian::new(vector::pop_back(&mut pubkeys))
+        while (!pubkeys.is_empty()) {
+            guardians.push_back(
+                guardian::new(pubkeys.pop_back())
             );
         };
 
         let set = guardian_set::new(69, guardians);
 
         // Clean up.
-        guardian_set::destroy(set);
+        set.destroy();
 
         abort 42
     }

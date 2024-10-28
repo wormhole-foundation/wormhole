@@ -8,7 +8,6 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
-    use sui::object::{ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
 
     use wormhole::bytes32::{Self, Bytes32};
@@ -16,7 +15,6 @@ module wormhole::upgrade_contract {
     use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
     use wormhole::state::{Self, State};
 
-    friend wormhole::migrate;
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
@@ -25,15 +23,15 @@ module wormhole::upgrade_contract {
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
 
-    struct GovernanceWitness has drop {}
+    public struct GovernanceWitness has drop {}
 
     // Event reflecting package upgrade.
-    struct ContractUpgraded has drop, copy {
+    public struct ContractUpgraded has drop, copy {
         old_contract: ID,
         new_contract: ID
     }
 
-    struct UpgradeContract {
+    public struct UpgradeContract {
         digest: Bytes32
     }
 
@@ -88,7 +86,7 @@ module wormhole::upgrade_contract {
     ///
     /// During migration, we make sure that the digest equals what we expect by
     /// passing in the same VAA used to upgrade the package.
-    public(friend) fun take_digest(governance_payload: vector<u8>): Bytes32 {
+    public(package) fun take_digest(governance_payload: vector<u8>): Bytes32 {
         // Deserialize the payload as the build digest.
         let UpgradeContract { digest } = deserialize(governance_payload);
 
@@ -103,13 +101,13 @@ module wormhole::upgrade_contract {
     }
 
     fun deserialize(payload: vector<u8>): UpgradeContract {
-        let cur = cursor::new(payload);
+        let mut cur = cursor::new(payload);
 
         // This amount cannot be greater than max u64.
         let digest = bytes32::take_bytes(&mut cur);
         assert!(bytes32::is_nonzero(&digest), E_DIGEST_ZERO_BYTES);
 
-        cursor::destroy_empty(cur);
+        cur.destroy_empty();
 
         UpgradeContract { digest }
     }
