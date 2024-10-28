@@ -4,27 +4,24 @@
 /// Wormhole messages. Its external address is determined by the capability's
 /// `id`, which is a 32-byte vector.
 module wormhole::emitter {
-    use sui::object::{Self, ID, UID};
-    use sui::tx_context::{TxContext};
 
     use wormhole::state::{Self, State};
 
-    friend wormhole::publish_message;
 
     /// Event reflecting when `new` is called.
-    struct EmitterCreated has drop, copy {
+    public struct EmitterCreated has drop, copy {
         emitter_cap: ID
     }
 
     /// Event reflecting when `destroy` is called.
-    struct EmitterDestroyed has drop, copy {
+    public struct EmitterDestroyed has drop, copy {
         emitter_cap: ID
     }
 
     /// `EmitterCap` is a Sui object that gives a user or smart contract the
     /// capability to send Wormhole messages. For every Wormhole message
     /// emitted, a unique `sequence` is used.
-    struct EmitterCap has key, store {
+    public struct EmitterCap has key, store {
         id: UID,
 
         /// Sequence number of the next wormhole message.
@@ -56,7 +53,7 @@ module wormhole::emitter {
 
     /// Once a Wormhole message is emitted, an `EmitterCap` upticks its
     /// internal `sequence` for the next message.
-    public(friend) fun use_sequence(self: &mut EmitterCap): u64 {
+    public(package) fun use_sequence(self: &mut EmitterCap): u64 {
         let sequence = self.sequence;
         self.sequence = sequence + 1;
         sequence
@@ -94,7 +91,6 @@ module wormhole::emitter {
 
 #[test_only]
 module wormhole::emitter_tests {
-    use sui::object::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::emitter::{Self};
@@ -111,14 +107,14 @@ module wormhole::emitter_tests {
     fun test_emitter() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
         let worm_state = take_state(scenario);
 
@@ -141,7 +137,7 @@ module wormhole::emitter_tests {
         return_state(worm_state);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -149,19 +145,19 @@ module wormhole::emitter_tests {
     fun test_cannot_new_emitter_outdated_version() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Ignore effects.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than

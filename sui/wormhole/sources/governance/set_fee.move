@@ -11,9 +11,9 @@ module wormhole::set_fee {
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_SET_FEE: u8 = 3;
 
-    struct GovernanceWitness has drop {}
+    public struct GovernanceWitness has drop {}
 
-    struct SetFee {
+    public struct SetFee {
         amount: u64
     }
 
@@ -22,8 +22,8 @@ module wormhole::set_fee {
     ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_local(
             GovernanceWitness {},
-            state::governance_chain(wormhole_state),
-            state::governance_contract(wormhole_state),
+            wormhole_state.governance_chain(),
+            wormhole_state.governance_contract(),
             state::governance_module(),
             ACTION_SET_FEE
         )
@@ -41,7 +41,7 @@ module wormhole::set_fee {
         receipt: DecreeReceipt<GovernanceWitness>
     ): u64 {
         // This capability ensures that the current build version is used.
-        let latest_only = state::assert_latest_only(wormhole_state);
+        let latest_only = wormhole_state.assert_latest_only();
 
         let payload =
             governance_message::take_payload(
@@ -58,7 +58,7 @@ module wormhole::set_fee {
     }
 
     fun deserialize(payload: vector<u8>): SetFee {
-        let cur = cursor::new(payload);
+        let mut cur = cursor::new(payload);
 
         // This amount cannot be greater than max u64.
         let amount = bytes32::to_u64_be(bytes32::take_bytes(&mut cur));
@@ -83,7 +83,6 @@ module wormhole::set_fee_tests {
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self};
     use wormhole::set_fee::{Self};
-    use wormhole::state::{Self};
     use wormhole::vaa::{Self};
     use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
@@ -110,20 +109,20 @@ module wormhole::set_fee_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Double-check current fee (from setup).
-        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
+        assert!(worm_state.message_fee() == wormhole_fee, 0);
 
         let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
@@ -134,11 +133,10 @@ module wormhole::set_fee_tests {
         assert!(wormhole_fee != fee_amount, 0);
 
         // Confirm the fee changed.
-        assert!(state::message_fee(&worm_state) == fee_amount, 0);
+        assert!(worm_state.message_fee() == fee_amount, 0);
 
         // And confirm that we can deposit the new fee amount.
-        state::deposit_fee_test_only(
-            &mut worm_state,
+        worm_state.deposit_fee_test_only(
             balance::create_for_testing(fee_amount)
         );
 
@@ -153,14 +151,14 @@ module wormhole::set_fee_tests {
         let fee_amount = set_fee(&mut worm_state, receipt);
 
         // Confirm.
-        assert!(state::message_fee(&worm_state) == fee_amount, 0);
+        assert!(worm_state.message_fee() == fee_amount, 0);
 
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -170,7 +168,7 @@ module wormhole::set_fee_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 420;
@@ -180,13 +178,13 @@ module wormhole::set_fee_tests {
         upgrade_wormhole(scenario);
 
         // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Double-check current fee (from setup).
-        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
+        assert!(worm_state.message_fee() == wormhole_fee, 0);
 
         let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
@@ -196,14 +194,14 @@ module wormhole::set_fee_tests {
         let fee_amount = set_fee(&mut worm_state, receipt);
 
         // Confirm the fee changed.
-        assert!(state::message_fee(&worm_state) == fee_amount, 0);
+        assert!(worm_state.message_fee() == fee_amount, 0);
 
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
 
         // Done.
-        test_scenario::end(my_scenario);
+        my_scenario.end();
     }
 
     #[test]
@@ -214,16 +212,16 @@ module wormhole::set_fee_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Set once.
@@ -254,16 +252,16 @@ module wormhole::set_fee_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Show that the encoded fee is greater than u64 max.
@@ -274,13 +272,13 @@ module wormhole::set_fee_tests {
                 &the_clock
             );
         let payload =
-            governance_message::take_decree(vaa::payload(&verified_vaa));
-        let cur = cursor::new(payload);
+            governance_message::take_decree(verified_vaa.payload());
+        let mut cur = cursor::new(payload);
 
         let fee_amount = bytes::take_u256_be(&mut cur);
         assert!(fee_amount > 0xffffffffffffffff, 0);
 
-        cursor::destroy_empty(cur);
+        cur.destroy_empty();
 
         let ticket = set_fee::authorize_governance(&worm_state);
         let receipt =
@@ -300,26 +298,25 @@ module wormhole::set_fee_tests {
 
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
+        scenario.next_tx(caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         // Conveniently roll version back.
-        state::reverse_migrate_version(&mut worm_state);
+        worm_state.reverse_migrate_version();
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::migrate_version_test_only(
-            &mut worm_state,
+        worm_state.migrate_version_test_only(
             version_control::previous_version_test_only(),
             version_control::next_version()
         );

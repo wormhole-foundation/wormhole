@@ -3,7 +3,6 @@
 /// This module implements a custom type for a 32-byte standardized address,
 /// which is meant to represent an address from any other network.
 module wormhole::external_address {
-    use sui::object::{Self, ID};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Cursor};
 
@@ -11,7 +10,7 @@ module wormhole::external_address {
     const E_ZERO_ADDRESS: u64 = 0;
 
     /// Container for `Bytes32`.
-    struct ExternalAddress has copy, drop, store {
+    public struct ExternalAddress has copy, drop, store {
         value: Bytes32,
     }
 

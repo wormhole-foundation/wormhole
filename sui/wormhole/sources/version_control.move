@@ -16,11 +16,11 @@ module wormhole::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun current_version(): V__0_2_0 {
+    public(package) fun current_version(): V__0_2_0 {
        V__0_2_0 {}
     }
 
-    public(friend) fun previous_version(): V__DUMMY {
+    public(package) fun previous_version(): V__DUMMY {
         V__DUMMY {}
     }
 
@@ -39,10 +39,10 @@ module wormhole::version_control {
     ////////////////////////////////////////////////////////////////////////////
 
     /// First published package on Sui mainnet.
-    struct V__0_2_0 has store, drop, copy {}
+    public struct V__0_2_0 has store, drop, copy {}
 
     // Dummy.
-    struct V__DUMMY has store, drop, copy {}
+    public struct V__DUMMY has store, drop, copy {}
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -50,10 +50,6 @@ module wormhole::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    friend wormhole::state;
-
-    #[test_only]
-    friend wormhole::package_utils_tests;
 
     #[test_only]
     public fun dummy(): V__DUMMY {
@@ -61,7 +57,7 @@ module wormhole::version_control {
     }
 
     #[test_only]
-    struct V__MIGRATED has store, drop, copy {}
+    public struct V__MIGRATED has store, drop, copy {}
 
     #[test_only]
     public fun next_version(): V__MIGRATED {

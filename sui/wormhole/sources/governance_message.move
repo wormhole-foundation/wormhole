@@ -33,7 +33,7 @@ module wormhole::governance_message {
     /// and `authorize_verify_local`) require a witness of type `T`. This is to
     /// ensure that `DecreeTicket`s cannot be mixed up between modules
     /// maliciously.
-    struct DecreeTicket<phantom T> {
+    public struct DecreeTicket<phantom T> {
         governance_chain: u16,
         governance_contract: ExternalAddress,
         module_name: Bytes32,
@@ -41,7 +41,7 @@ module wormhole::governance_message {
         global: bool
     }
 
-    struct DecreeReceipt<phantom T> {
+    public struct DecreeReceipt<phantom T> {
         payload: vector<u8>,
         digest: Bytes32,
         sequence: u64
@@ -173,7 +173,7 @@ module wormhole::governance_message {
     }
 
     fun deserialize(buf: vector<u8>): (Bytes32, u8, u16, vector<u8>) {
-        let cur = cursor::new(buf);
+        let mut cur = cursor::new(buf);
 
         (
             bytes32::take_bytes(&mut cur),
@@ -205,7 +205,6 @@ module wormhole::governance_message {
 #[test_only]
 module wormhole::governance_message_tests {
     use sui::test_scenario::{Self};
-    use sui::tx_context::{Self};
 
     use wormhole::bytes32::{Self};
     use wormhole::consumed_vaas::{Self};
@@ -223,7 +222,7 @@ module wormhole::governance_message_tests {
         take_state
     };
 
-    struct GovernanceWitness has drop {}
+    public struct GovernanceWitness has drop {}
 
     const VAA_UPDATE_GUARDIAN_SET_1: vector<u8> =
         x"010000000001004f74e9596bd8246ef456918594ae16e81365b52c0cf4490b2a029fb101b058311f4a5592baeac014dc58215faad36453467a85a4c3e1c6cf5166e80f6e4dc50b0100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000113befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe88d7d8b32a9105d228100e72dffe2fae0705d31c58076f561cc62a47087b567c86f986426dfcd000bd6e9833490f8fa87c733a183cd076a6cbd29074b853fcf0a5c78c1b56d15fce7a154e6ebe9ed7a2af3503dbd2e37518ab04d7ce78b630f98b15b78a785632dea5609064803b1c8ea8bb2c77a6004bd109a281a698c0f5ba31f158585b41f4f33659e54d3178443ab76a60e21690dbfb17f7f59f09ae3ea1647ec26ae49b14060660504f4da1c2059e1c5ab6810ac3d8e1258bd2f004a94ca0cd4c68fc1c061180610e96d645b12f47ae5cf4546b18538739e90f2edb0d8530e31a218e72b9480202acbaeb06178da78858e5e5c4705cdd4b668ffe3be5bae4867c9d5efe3a05efc62d60e1d19faeb56a80223cdd3472d791b7d32c05abb1cc00b6381fa0c4928f0c56fc14bc029b8809069093d712a3fd4dfab31963597e246ab29fc6ebedf2d392a51ab2dc5c59d0902a03132a84dfd920b35a3d0ba5f7a0635df298f9033e";
@@ -234,7 +233,7 @@ module wormhole::governance_message_tests {
     fun test_global_action() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -272,7 +271,7 @@ module wormhole::governance_message_tests {
         let receipt =
             governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
 
-        let consumed = consumed_vaas::new(&mut tx_context::dummy());
+        let mut consumed = consumed_vaas::new(&mut tx_context::dummy());
         let payload = governance_message::take_payload(&mut consumed, receipt);
         assert!(payload == expected_payload, 0);
 
@@ -289,7 +288,7 @@ module wormhole::governance_message_tests {
     fun test_local_action() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -323,7 +322,7 @@ module wormhole::governance_message_tests {
         let receipt =
             governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
 
-        let consumed = consumed_vaas::new(&mut tx_context::dummy());
+        let mut consumed = consumed_vaas::new(&mut tx_context::dummy());
         let payload = governance_message::take_payload(&mut consumed, receipt);
         assert!(payload == expected_payload, 0);
 
@@ -343,7 +342,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_invalid_governance_chain() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -388,7 +387,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_invalid_governance_emitter() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -433,7 +432,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_invalid_governance_module() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -486,7 +485,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_invalid_governance_action() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -539,7 +538,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_governance_target_chain_nonzero() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -592,7 +591,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_governance_target_chain_not_sui() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -647,7 +646,7 @@ module wormhole::governance_message_tests {
     fun test_cannot_verify_vaa_outdated_version() {
         // Set up.
         let caller = person();
-        let my_scenario = test_scenario::begin(caller);
+        let mut my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 350;
@@ -656,7 +655,7 @@ module wormhole::governance_message_tests {
         // Prepare test setting sender to `caller`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = take_state(scenario);
+        let mut worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
         let verified_vaa =

@@ -5,7 +5,6 @@
 module wormhole::package_utils {
     use std::type_name::{Self, TypeName};
     use sui::dynamic_field::{Self as field};
-    use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeTicket, UpgradeReceipt};
 
     use wormhole::bytes32::{Self, Bytes32};
@@ -22,14 +21,14 @@ module wormhole::package_utils {
     const E_TYPE_NOT_ALLOWED: u64 = 4;
 
     /// Key for version dynamic fields.
-    struct CurrentVersion has store, drop, copy {}
+    public struct CurrentVersion has store, drop, copy {}
 
     /// Key for dynamic field reflecting current package info. Its value is
     /// `PackageInfo`.
-    struct CurrentPackage has store, drop, copy {}
-    struct PendingPackage has store, drop, copy {}
+    public struct CurrentPackage has store, drop, copy {}
+    public struct PendingPackage has store, drop, copy {}
 
-    struct PackageInfo has store, drop, copy {
+    public struct PackageInfo has store, drop, copy {
         package: ID,
         digest: Bytes32
     }
@@ -165,14 +164,13 @@ module wormhole::package_utils {
         upgrade_cap: &mut UpgradeCap,
         package_digest: Bytes32
     ): UpgradeTicket {
-        let policy = package::upgrade_policy(upgrade_cap);
+        let policy = upgrade_cap.upgrade_policy();
 
         // Manage saving the current digest.
         set_authorized_digest(id, package_digest);
 
         // Finally authorize upgrade.
-        package::authorize_upgrade(
-            upgrade_cap,
+        upgrade_cap.authorize_upgrade(
             policy,
             bytes32::to_bytes(package_digest),
         )
@@ -276,22 +274,19 @@ module wormhole::package_utils {
 
 #[test_only]
 module wormhole::package_utils_tests {
-    use sui::object::{Self, UID};
-    use sui::tx_context::{Self};
-
     use wormhole::package_utils::{Self};
     use wormhole::version_control::{Self};
 
-    struct State has key {
+    public struct State has key {
         id: UID
     }
 
-    struct V_DUMMY has store, drop, copy {}
+    public struct V_DUMMY has store, drop, copy {}
 
     #[test]
     fun test_assert_current() {
         // Create dummy state.
-        let state = State { id: object::new(&mut tx_context::dummy()) };
+        let mut state = State { id: object::new(&mut tx_context::dummy()) };
         package_utils::init_version(
             &mut state.id,
             version_control::current_version()
@@ -311,7 +306,7 @@ module wormhole::package_utils_tests {
     #[expected_failure(abort_code = package_utils::E_INCORRECT_OLD_VERSION)]
     fun test_cannot_update_incorrect_old_version() {
         // Create dummy state.
-        let state = State { id: object::new(&mut tx_context::dummy()) };
+        let mut state = State { id: object::new(&mut tx_context::dummy()) };
         package_utils::init_version(
             &mut state.id,
             version_control::current_version()
@@ -336,7 +331,7 @@ module wormhole::package_utils_tests {
     #[expected_failure(abort_code = package_utils::E_SAME_VERSION)]
     fun test_cannot_update_same_version() {
         // Create dummy state.
-        let state = State { id: object::new(&mut tx_context::dummy()) };
+        let mut state = State { id: object::new(&mut tx_context::dummy()) };
         package_utils::init_version(
             &mut state.id,
             version_control::current_version()
@@ -361,7 +356,7 @@ module wormhole::package_utils_tests {
     #[expected_failure(abort_code = package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_assert_current_outdated_version() {
         // Create dummy state.
-        let state = State { id: object::new(&mut tx_context::dummy()) };
+        let mut state = State { id: object::new(&mut tx_context::dummy()) };
         package_utils::init_version(
             &mut state.id,
             version_control::current_version()
@@ -392,7 +387,7 @@ module wormhole::package_utils_tests {
     #[expected_failure(abort_code = package_utils::E_TYPE_NOT_ALLOWED)]
     fun test_cannot_update_type_not_allowed() {
         // Create dummy state.
-        let state = State { id: object::new(&mut tx_context::dummy()) };
+        let mut state = State { id: object::new(&mut tx_context::dummy()) };
         package_utils::init_version(
             &mut state.id,
             version_control::current_version()

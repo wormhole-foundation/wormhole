@@ -4,12 +4,11 @@
 /// with recovery ID of a particular hashed VAA message body. The components of
 /// `GuardianSignature` are used to perform public key recovery using ECDSA.
 module wormhole::guardian_signature {
-    use std::vector::{Self};
 
     use wormhole::bytes32::{Self, Bytes32};
 
     /// Container for elliptic curve signature parameters and Guardian index.
-    struct GuardianSignature has store, drop {
+    public struct GuardianSignature has store, drop {
         r: Bytes32,
         s: Bytes32,
         recovery_id: u8,
@@ -55,10 +54,10 @@ module wormhole::guardian_signature {
     /// consumed by `ecdsa_k1` for public key recovery.
     public fun to_rsv(gs: GuardianSignature): vector<u8> {
         let GuardianSignature { r, s, recovery_id, index: _ } = gs;
-        let out = vector::empty();
-        vector::append(&mut out, bytes32::to_bytes(r));
-        vector::append(&mut out, bytes32::to_bytes(s));
-        vector::push_back(&mut out, recovery_id);
+        let mut out = vector::empty();
+        out.append(bytes32::to_bytes(r));
+        out.append(bytes32::to_bytes(s));
+        out.push_back(recovery_id);
         out
     }
 }
