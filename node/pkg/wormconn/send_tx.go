@@ -98,8 +98,13 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for tx inclusion: %w", err)
 	} else {
+
+		fmt.Println("JOEL - TX BROADCASTED BEFORE", txResp.TxResponse)
+
 		// update the response with the final result
 		txResp.TxResponse = res.TxResponse
+
+		fmt.Println("JOEL - TX BROADCASTED AFTER", txResp.TxResponse)
 	}
 
 	return txResp, nil
@@ -112,15 +117,18 @@ func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHa
 		select {
 		// check if wait timeout is exceeded
 		case <-exitAfter:
+			fmt.Println("JOEL - TIMED OUT", txHash)
 			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", waitTimeout, txHash)
 		// check if in block every second
 		case <-time.After(1 * time.Second):
 			res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 			if err == nil {
+				fmt.Print("JOEL - FOUND TX IN BLOCK", txHash)
 				return res, nil
 			}
 		// check if context is done
 		case <-ctx.Done():
+			fmt.Println("JOEL - CONTEXT DONE", txHash, ctx.Err())
 			return nil, ctx.Err()
 		}
 	}
