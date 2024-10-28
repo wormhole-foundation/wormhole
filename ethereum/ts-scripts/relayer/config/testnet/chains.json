@@ -70,7 +70,7 @@
       "description": "Monad Devnet",
       "evmNetworkId": 41454,
       "chainId": 10008,
-      "rpc": "https://devnet1.monad.xyz/rpc/8XQAiNSsPCrIdVttyeFLC6StgvRNTdf",
+      "rpc": "https://devnet1.monad.xyz/rpc/your_api_key",
       "wormholeAddress": "0x376428e7f26D5867e69201b275553C45B09EE090"
     }
   ]
