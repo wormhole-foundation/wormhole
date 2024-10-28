@@ -61,6 +61,16 @@ for chain in $chain_ids
             $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
         forge verify-contract --verifier blockscout --verifier-url $mantle_explorer_url --watch \
             $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
+    else if test $chain -eq 10008
+        set monad_devnet_explorer_url "https://brightstar-884.devnet1.monad.xyz/api/"
+        set monad_devnet_rpc_url "https://brightstar-884.devnet1.monad.xyz/api/eth-rpc"
+
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $create2_factory_address contracts/relayer/create2Factory/Create2Factory.sol:Create2Factory
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $init_contract_address contracts/relayer/create2Factory/Create2Factory.sol:Init
     else if test $chain -eq 37
         set xlayer_explorer_url "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER"
 

@@ -7,7 +7,7 @@
       "description": "BSC Testnet",
       "evmNetworkId": 97,
       "chainId": 4,
-      "rpc": "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+      "rpc": "https://bsc-testnet.blockpi.network/v1/rpc/public",
       "wormholeAddress": "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"
     },
     {
@@ -37,13 +37,6 @@
       "chainId": 16,
       "rpc": "https://rpc.testnet.moonbeam.network",
       "wormholeAddress": "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901"
-    },
-    {
-      "description": "Base Testnet",
-      "evmNetworkId": 84531,
-      "chainId": 30,
-      "rpc": "https://goerli.base.org",
-      "wormholeAddress": "0x23908A62110e21C04F3A4e011d24F901F911744A"
     },
     {
       "description": "Ethereum Sepolia",
@@ -77,7 +70,7 @@
       "description": "Monad Devnet",
       "evmNetworkId": 41454,
       "chainId": 10008,
-      "rpc": "!!! https://no_public_rpc_key_override_with_private",
+      "rpc": "https://devnet1.monad.xyz/rpc/8XQAiNSsPCrIdVttyeFLC6StgvRNTdf",
       "wormholeAddress": "0x376428e7f26D5867e69201b275553C45B09EE090"
     }
   ]

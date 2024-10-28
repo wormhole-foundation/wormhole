@@ -125,7 +125,7 @@ export async function deployCreate2Factory(
 
   let factory = new Create2Factory__factory();
 
-  const ethChain = getChain(2);
+  const ethChain = getChain(chain.chainId);
   const ethChainProvider = getProvider(ethChain);
   const ethNetwork = await ethChainProvider.getNetwork();
   if (ethNetwork.chainId === 1) {
@@ -304,11 +304,13 @@ export async function buildOverrides(
   // If this is Polygon or Fantom, use the legacy tx envelope to avoid bad gas price feeds.
   if (chain.chainId === 5 || chain.chainId === 10) {
     overrides.type = 0;
-  } else if (chain.chainId === 4) {
-    // This is normally autodetected in bsc but we want to set the gas price to a fixed value.
-    // We need to ensure we are using the correct tx envelope in that case.
-    overrides.type = 0;
-    overrides.gasPrice = ethers.utils.parseUnits("1", "gwei");
+   } else if (chain.chainId === 4) {
+     // This is normally autodetected in bsc but we want to set the gas price to a fixed value.
+     // We need to ensure we are using the correct tx envelope in that case.
+     overrides.type = 0;
+
+     // Use 5 gwei for testnet (chainId 97), 1 otherwise.
+     overrides.gasPrice = ethers.utils.parseUnits(chain.evmNetworkId === 97 ? "5" : "1", "gwei");
   } else if (chain.chainId === 23) {
     // Arbitrum gas price feeds are excessive on public endpoints too apparently.
     overrides.type = 2;

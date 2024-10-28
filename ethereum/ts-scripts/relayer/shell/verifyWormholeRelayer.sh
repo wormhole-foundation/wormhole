@@ -91,6 +91,16 @@ for chain in $chain_ids
             $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
         forge verify-contract --verifier blockscout --verifier-url $snaxchain_explorer_url --watch \
             $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
+     else if test $chain -eq 10008
+        set monad_devnet_explorer_url "https://brightstar-884.devnet1.monad.xyz/api/"
+        set monad_devnet_rpc_url "https://brightstar-884.devnet1.monad.xyz/api/eth-rpc"
+
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $implementation_address contracts/relayer/wormholeRelayer/WormholeRelayer.sol:WormholeRelayer
     else
         forge verify-contract --watch --constructor-args $init_contract_address \
             $proxy_address contracts/relayer/create2Factory/Create2Factory.sol:SimpleProxy

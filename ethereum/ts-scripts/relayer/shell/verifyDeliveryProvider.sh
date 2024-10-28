@@ -65,6 +65,19 @@ for chain in $chain_ids
         echo "- $implementation_address: DeliveryProviderImplementation.compiler-input.json"
         echo "- $setup_address: DeliveryProviderSetup.compiler-input.json"
         echo "- $proxy_address: DeliveryProviderProxy.compiler-input.json"
+    else if test $chain -eq 10008
+        set monad_devnet_explorer_url "https://brightstar-884.devnet1.monad.xyz/api/"
+        set monad_devnet_rpc_url "https://brightstar-884.devnet1.monad.xyz/api/eth-rpc"
+
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $implementation_address contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol:DeliveryProviderImplementation
+        forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $setup_address contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol:DeliveryProviderSetup
+         forge verify-contract --verifier blockscout --verifier-url $monad_devnet_explorer_url --watch \
+            --rpc-url $monad_devnet_rpc_url \
+            $proxy_address contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol:DeliveryProviderProxy
     else if test $chain -eq 35
         set mantle_explorer_url "https://explorer.mantle.xyz/api?module=contract&action=verify"
 
