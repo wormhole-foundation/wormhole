@@ -118,7 +118,7 @@ func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHa
 			fmt.Println("JOEL - TIMED OUT ", txHash)
 			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", waitTimeout, txHash)
 		// check if in block every second
-		case <-time.After(1000 * time.Millisecond):
+		case <-time.After(3000 * time.Millisecond):
 			res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 			if err == nil {
 				took := time.Since(now)
